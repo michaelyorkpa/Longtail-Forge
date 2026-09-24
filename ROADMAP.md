@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.38` | `workbench.js` — 4 owned left are all recorded deferrals | 6 owned |
-| Claude | `0.33.33.43.36` | `clients-projects.js` — write-path contracts named; `lists.js` at its deferral floor | 256 |
+| Claude | `0.33.33.43.37` | `clients-projects.js` — project editor typed, stand-in consolidated; `lists.js` at its deferral floor | 238 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1567,6 +1567,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.37 - The project editor, and the stand-in that had drifted
+
+**Complete: 18 diagnostics closed, zero introduced.** See the archive entry. `clients-projects.js` 256 to 238, browser **355 to 337**, `0.33.33.43` 259 to 241. `dom` unchanged at 90.
+
+**The latent gap from `0.33.33.43.35` became a concrete one, and was settled.** `getWorkspaceProjectClient` fell back to a second thirteen-line literal that had drifted from the builder: it lacked `taskReminderPolicy`. Typing the Add Project dialog made that visible, because `resolveProjectCreateTarget` hands the stand-in to it and a record missing a member of its own type is not that type. **The stand-in is now built by the builder.** The equivalence was measured rather than argued: the removed literal and the builder were both run across 168 variants - two billing modes, seven create-capability values, three manage-capability values, four rate/period/rounding combinations - and **2,016 member comparisons found zero mismatches**. The only addition is `taskReminderPolicy`, and every read of it in the file is on a real client, a project or wire input, never a grouping.
+
+**The per-message check caught an introduction the per-code view hid completely.** The first pass showed `TS2322` unchanged - one closed, one opened at the project rate field. It was the same `string | null` into `input.value` that `0.33.33.43.34` measured in Chromium, resolved the same way with the same precondition pinned.
+
+**The host contract grew by one member.** The create dialogs reach for `hostContext.cancel` as well as `complete`, so `ClientProjectHostContext` now names both - still as preconditions, still not filters.
+
+**Eleven `dom`-family reads in these three functions are deliberately untouched**: the billable and parent-project control nullability, one `dataset` on an `Element`, and two label/div subtype mismatches. That is the checked-lookup boundary.
+
 #### 0.33.33.43.36 - The Clients/Projects write path, named
 
 **Complete: 20 diagnostics closed, zero introduced.** See the archive entry. `clients-projects.js` 276 to 256, browser **377 to 357**, `0.33.33.43` 279 to 259.
@@ -1611,7 +1623,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **The always-zero count was repaired as a bug, not annotated around.** `workspaceProjectCount` now counts the grouping's own projects - already permission- and status-scoped, excluding client-associated ones, with no second collection kept for counting. The old spelling and the new are evaluated against identical data in the same case: 0 against 2.
 
-**One diagnostic was deliberately left standing — and `0.33.33.43.35` discharged it.** Declaring `getWorkspaceProjectClient`'s return reported a caller: the add-project form pushed its draft straight into `targetClient.projects` before the server answered, and that draft carries no `id`, `canManage`, `taskDefaults`, `taskReminderPolicy` or `tags`. **That insert was a defect, not just a typing obstacle**, and it is gone; the `TS2345` went with it. The return is still undeclared, but for a different and newly-found reason recorded on the function itself: the stand-in grouping it falls back to is missing `taskReminderPolicy`, which the builder produces.
+**One diagnostic was deliberately left standing — and `0.33.33.43.35` discharged it.** Declaring `getWorkspaceProjectClient`'s return reported a caller: the add-project form pushed its draft straight into `targetClient.projects` before the server answered, and that draft carries no `id`, `canManage`, `taskDefaults`, `taskReminderPolicy` or `tags`. **That insert was a defect, not just a typing obstacle**, and it is gone; the `TS2345` went with it. The return was then still undeclared for a different reason - the stand-in grouping was missing `taskReminderPolicy` - and **`0.33.33.43.37` settled that too**, building the stand-in from the builder after measuring the two equivalent across 168 variants. The return is now declared.
 
 #### 0.33.33.43.32 - The Clients/Projects state slots, and what stopped them
 
