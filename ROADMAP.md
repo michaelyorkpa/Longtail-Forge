@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.40` | `workbench.js` — 4 owned, every one now ruled | 4 owned |
-| Claude | `0.33.33.43.39` | `clients-projects.js` — bulk update typed (first feature slice); `lists.js` at its deferral floor | 206 |
+| Claude | `0.33.33.43.40` | `clients-projects.js` — effective billing resolution typed; `lists.js` at its deferral floor | 192 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1571,6 +1571,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.40 - Effective billing resolution
+
+**Complete: 14 diagnostics closed, zero introduced, no message rose on the first pass.** See the archive entry. `clients-projects.js` 206 to 192, browser **303 to 289**, `0.33.33.43` 209 to 195.
+
+**Scoped by what the functions do, not by their names.** Seventeen were bucketed as "effective billing", but `withoutUnsupportedBillingFields` is not billing resolution: it is one stage of a descriptor-transform pipeline with `withoutUnsupportedClientFields` and `withInitialProjectClientFilter`, neither in this slice. Typing one stage of three is a partial boundary, so its three diagnostics wait for the pipeline to be taken whole.
+
+**The inheritance was tested exhaustively, without re-implementing it.** A wrong inheritance is a wrong billed amount. An oracle restating `a || b || c` would only prove the code agrees with a copy of itself, so each level carries a distinct sentinel and every case asserts **which one comes back, by identity** - across all eight combinations of project-has-own, client-has-own and project-has-client, for both period and rounding. **Reversing the period order fails the period grid; removing rounding's client check fails the rounding grid.**
+
+**An asymmetry, pinned rather than changed.** Rounding consults `project.client_id` and sends a clientless project straight to the workspace; period always inherits through the `client` it is handed. Every caller hands a project its own owning entry, so they agree in practice - for a workspace project that entry is the grouping, whose period is the workspace's. A case records exactly where they would diverge if a caller ever broke that pairing.
+
+**A possibly-dischargeable deferral, noted and not taken.** `normalizeBillingRounding` is left untyped because declaring it cascaded into an editor slot inferring `null` and a collection inferring `never[]`. Both have since been annotated, by `0.33.33.43.34` and `.43.33`/`.43.35`, so its pinned deferral may now be dischargeable. It is outside this slice.
 
 #### 0.33.33.43.39 - Bulk update and selection, the first feature slice
 
