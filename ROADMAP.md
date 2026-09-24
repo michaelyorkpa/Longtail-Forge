@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.38` | `workbench.js` — 4 owned left are all recorded deferrals | 6 owned |
+| Codex | `0.33.33.42.39` | `workbench.js` — 4 owned, every one a recorded deferral | 4 owned |
 | Claude | `0.33.33.43.38` | `clients-projects.js` — dialog openers typed; `lists.js` at its deferral floor | 226 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |

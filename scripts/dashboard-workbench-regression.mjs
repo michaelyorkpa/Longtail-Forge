@@ -554,7 +554,7 @@ assert.match(
 );
 assert.match(
   files.workbench,
-  /workbenchCardDataLoaders[\s\S]*loadWorkbenchSourceData[\s\S]*card\.listRoute/,
+  /workbenchCardDataLoaders[\s\S]*loadWorkbenchSourceData[\s\S]*readWorkbenchCardRoute\(card\)[\s\S]*workbenchCardField\(card, "listRoute"\)/,
   "workbench browser script must load card data from contributed list routes",
 );
 assert.match(
