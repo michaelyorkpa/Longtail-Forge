@@ -3,7 +3,7 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 
 const source = createProjectTextReader().readText("public/js/workbench.js");
 
-test("invalid stored card routes report a configuration error before dispatch", async ({ isolatedWorkspace }, testInfo) => {
+test("corrupt cached routes silently fall back to bootstrap and are replaced", async ({ isolatedWorkspace }, testInfo) => {
   const { page, workspaceId } = isolatedWorkspace;
   /** @type {string[]} */ const errors = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -16,7 +16,7 @@ test("invalid stored card routes report a configuration error before dispatch", 
   /** @type {string[]} */ const requests = [];
   page.on("request", request => requests.push(new URL(request.url()).pathname));
   for (const listRoute of [null, 0, false, 7]) {
-    await test.step(`stored listRoute ${String(listRoute)} is refused`, async () => {
+    await test.step(`stored listRoute ${String(listRoute)} is a cache miss`, async () => {
       await page.evaluate(({ key, original, listRoute }) => {
         const entry = JSON.parse(original || "null");
         const card = entry.data.workbenchCards.find((/** @type {{renderer: unknown}} */ card) => card.renderer === "active-work-timers");
@@ -25,16 +25,21 @@ test("invalid stored card routes report a configuration error before dispatch", 
         globalThis.sessionStorage.setItem(key, JSON.stringify(entry));
       }, { key, original, listRoute });
       requests.length = 0;
+      const bootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/api/workbench/bootstrap" && response.request().method() === "GET");
       await page.reload();
-      await expect(page.getByText("Workbench card configuration: listRoute must be a string.", { exact: true })).toBeVisible();
+      expect((await bootstrap).status()).toBe(200);
+      await expect.poll(() => page.evaluate(key => {
+        const entry = JSON.parse(globalThis.sessionStorage.getItem(key) || "null");
+        return entry?.data?.workbenchCards?.find((/** @type {{renderer: unknown}} */ card) => card.renderer === "active-work-timers")?.listRoute;
+      }, key)).toBe("/api/active-timers/all");
+      await expect(page.locator("[data-workbench-focus-mode]").first()).toBeVisible();
+      await expect(page.getByText("Workbench card configuration: listRoute must be a string.", { exact: true })).toHaveCount(0);
       expect(requests).not.toContain(`/` + String(listRoute));
+      expect(requests).toContain("/api/active-timers/all");
     });
   }
-  await page.screenshot({ path: testInfo.outputPath("invalid-cache-route.png"), fullPage: true });
-  await page.evaluate(({ key, original }) => {
-    if (original === null) throw new Error("original cache required");
-    globalThis.sessionStorage.setItem(key, original);
-  }, { key, original });
+  await page.screenshot({ path: testInfo.outputPath("recovered-cache-route.png"), fullPage: true });
+  // Reload the server-repaired copy without a test-side restore.
   await page.reload();
   await expect(page.locator("[data-workbench-focus-mode]").first()).toBeVisible();
   await expect(page.getByText("Workbench card configuration: listRoute must be a string.", { exact: true })).toHaveCount(0);
