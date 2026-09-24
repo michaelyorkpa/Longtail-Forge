@@ -188,13 +188,18 @@ describe("Deferrals this checkpoint recorded", () => {
       "and that identifier is still optional on the published record");
   });
 
-  it("leaves the list dialog's option bag untyped, for the root 0.33.33.43.20 recorded", () => {
-    // Discharged by the same condition as `readListEditorId`: a reader that vouches for the
-    // module-action params bag, or the published `params` type naming it.
+  it("had its option bag discharged by 0.33.33.43.30, leaving the identifier half deferred", () => {
+    // This pinned the dialog's bag as blocked on the module-action root. That root was split:
+    // the defaults half is discharged, so the bag is now declared; the identifier half stands,
+    // because its result is tested for truthiness before anything converts it.
     const block = source.slice(source.lastIndexOf("/**", source.indexOf("function openListDialog(")), source.indexOf("function openListDialog("));
-    assert.doesNotMatch(block, /@param \{[^}]*\} \[?options\]?/, "the dialog's option bag is annotated; re-decide this deferral");
-    assert.match(source, /openListEditor/, "the module-action opener that seeds those defaults still exists");
-    assert.match(source, /client_id: params\.client_id \|\| params\.clientId \|\| context\.clientId \|\| "",/,
-      "and the defaults are still built out of members nothing has proved to be text");
+    assert.match(block, /defaults\?: ReturnType<typeof normalizeListEditorDefaults>/,
+      "the bag takes the shape the defaults reader now produces");
+    assert.match(source, /client_id: `\$\{params\.client_id \|\| params\.clientId \|\| context\.clientId \|\| ""\}`,/,
+      "and the defaults are text, by the conversion that already happened at the control");
+
+    const idBlock = source.slice(source.lastIndexOf("/**", source.indexOf("function readListEditorId(")), source.indexOf("function readListEditorId("));
+    assert.doesNotMatch(idBlock, /@param \{[^}]*\} \[?params\]?/,
+      "the identifier reader is annotated; that half is discharged and this pin should go with it");
   });
 });

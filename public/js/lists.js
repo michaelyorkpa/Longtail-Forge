@@ -376,6 +376,13 @@
     /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
     currentUserId: "",
+    /**
+     * The in-flight load of everything the dialog needs, or `null` when none is running.
+     *
+     * The empty initialiser would otherwise infer `null`, which refuses the assignment this slot
+     * exists for; the rejection handler clears it back to `null` so a failed load is retried.
+     * @type {Promise<void> | null}
+     */
     dialogDataReady: null,
     editingListId: "",
     /**
@@ -787,7 +794,9 @@
     };
 
     Object.entries(behaviorActions).forEach(([behaviorId, action]) => {
-      requireDescriptorRenderers().registerBehavior(behaviorId, ({ record }) => runRegisteredListBehavior(action, record));
+      requireDescriptorRenderers().registerBehavior(behaviorId,
+        /** @param {{ record?: ListRecordReference }} detail */
+        ({ record }) => runRegisteredListBehavior(action, record));
     });
   }
 
@@ -796,8 +805,9 @@
    *
    * `record` is whatever the surface that raised the action was holding; `resolveListRecord`
    * is what turns it into a list or refuses it, so nothing here claims more. It carries the same
-   * tolerates-anything shape that reader declares, because it forwards it unread.
-   * @param {string} action @param {ListRecordReference} record
+   * tolerates-anything shape that reader declares, because it forwards it unread, and is optional
+   * because a registered behaviour may fire with no record at all.
+   * @param {string} action @param {ListRecordReference} [record]
    */
   async function runRegisteredListBehavior(action, record) {
     if (action === "create-list") {
@@ -886,27 +896,53 @@
   }
 
   /**
-   * **Deliberately untyped, and the consumer is why.** Reading the four spellings honestly - each
-   * `unknown`, because nothing converts them - makes this return `{}` rather than `any`, and the
-   * identifier then cannot reach `loadListDetail`, which requires text. Coercing it here or at the
-   * caller would be new coercion on a path that currently forwards whatever arrived.
-   * **Discharged by** a reader that vouches for the identifier as text, or by the published
-   * `params` type naming it. Pinned by `lists-editor-surface-contracts`.
+   * **Still deliberately untyped, and `0.33.33.43.30` measured exactly why the fix that worked for
+   * the defaults does not work here.**
+   *
+   * Templating the chain - the conversion that discharged `normalizeListEditorDefaults` - is not
+   * behaviour-preserving for this reader, because **its result is tested for truthiness before it
+   * is converted**: `openListEditor` runs `if (!list && listId)` and only then fetches. Three value
+   * kinds are truthy yet stringify to empty - `[]`, `new String("")` and an object whose `toString`
+   * answers `""` - so templating would turn a fetch that happens today into one that does not.
+   *
+   * That is a behaviour change, not a typing decision, and it is the difference between this reader
+   * and the defaults one: nothing downstream of the defaults branches on truthiness before the
+   * conversion, and this does.
+   *
+   * **Discharged by** deciding what a truthy non-text identifier should mean - a product question -
+   * or by the published `params` type naming the identifier as text. Pinned by
+   * `lists-editor-surface-contracts`.
    */
   function readListEditorId(params = {}) {
     return params.listId || params.list_id || params.recordId || params.id || "";
   }
 
-  /** @param {ListEditorParamsInput} [params] */
+  /**
+   * The values that seed the editor for a draft, as text.
+   *
+   * **`0.33.33.43.20` deferred this and `0.33.33.43.23` measured the cost; `0.33.33.43.30`
+   * discharges the half that can be discharged.** The members were `{}` because the module-action
+   * bag is published `unknown`, and the two option populators that receive them require text. Each
+   * chain is now templated, which is **the conversion that already happened** one step later: every
+   * one of these lands in `control.value = x || ""`, and the IDL `DOMString` conversion there is
+   * `ToString`.
+   *
+   * Measured rather than assumed, across ten value kinds including the three that are **truthy yet
+   * stringify to empty** - `[]`, `new String("")` and an object whose `toString` answers `""`. All
+   * ten write the same text, because a falsy result and an empty result are the same `""` here.
+   * **That is why this half is safe and `readListEditorId` is not**: nothing downstream of these
+   * branches on their truthiness before the conversion.
+   * @param {ListEditorParamsInput} [params]
+   */
   function normalizeListEditorDefaults(params = {}) {
     /** @type {{ clientId?: unknown, projectId?: unknown }} */
     const context = params.context || {};
     return {
-      client_id: params.client_id || params.clientId || context.clientId || "",
-      description: params.description || "",
-      list_type: params.list_type || params.listType || "",
-      project_id: params.project_id || params.projectId || context.projectId || "",
-      title: params.title || "",
+      client_id: `${params.client_id || params.clientId || context.clientId || ""}`,
+      description: `${params.description || ""}`,
+      list_type: `${params.list_type || params.listType || ""}`,
+      project_id: `${params.project_id || params.projectId || context.projectId || ""}`,
+      title: `${params.title || ""}`,
     };
   }
 
@@ -1254,6 +1290,15 @@
     };
   }
 
+  /**
+   * **Deliberately untyped, and the arithmetic is why.** Declaring `surface` closes this one
+   * parameter and opens **five** `dataset` reads further down the same function, each needing the
+   * narrowing `0.33.33.43.25` established. Every one of those is behind a truthiness guard and
+   * would be safe, but five executable narrowings to close one parameter is the wrong trade, and
+   * the gate's per-code rule would refuse the result besides.
+   * **Discharged by** narrowing this function's seven query results together, as one deliberate
+   * step rather than as a by-product. Pinned by `lists-editor-params-contracts`.
+   */
   function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDescriptor) {
     const view = requireView();
     const pageHeading = surface.querySelector(".view-page-title");
@@ -3319,19 +3364,26 @@
   /**
    * `null` opens the editor on an unsaved draft, which is a real entry point rather than an
    * absence to guard against.
-   * **`options` is deliberately untyped, and the root is the one `0.33.33.43.20` recorded.** Its
-   * seeded `defaults` come from `normalizeListEditorDefaults`, whose members are each
-   * `unknown || unknown || ""` and therefore `{}`, because the module-action params bag it reads is
-   * published as `unknown`. Every way of declaring this bag costs more than it closes: naming
-   * `defaults` turns one diagnostic into five, because the local's reads then reach
-   * `populateClientOptions` and `populateProjectOptions`, which require text and would need a
-   * coercion or a false claim; omitting it refuses the caller's own literal outright. **Discharged
-   * by** the same condition as `readListEditorId` - a reader that vouches for the bag, or the
-   * published `params` type naming it. Pinned by `lists-write-path-contracts`.
+   * `options` is the dialog's own bag rather than a published shape.
+   *
+   * **`0.33.33.43.23` deferred this and `0.33.33.43.30` discharged it.** The obstacle was the
+   * seeded `defaults`, whose members were `{}` because the module-action bag is published
+   * `unknown`; naming the bag then turned one diagnostic into five, because the local's reads
+   * reach two option populators that require text. The defaults reader now answers text, so the
+   * shape it produces is the shape this declares.
    * @param {BrowserNormalizedListRecord | null} [list]
+   * @param {{
+   *   defaults?: ReturnType<typeof normalizeListEditorDefaults>,
+   *   hostContext?: ListDialogHostContext | null,
+   *   trigger?: unknown
+   * }} [options]
    */
   function openListDialog(list = null, options = {}) {
     const view = requireView();
+    // `Partial`, because the `|| {}` is the draft case: a dialog opened without seeded defaults
+    // reads every member as absent and falls through to the record's own value or `""`. This is
+    // what `0.33.33.43.23` could not write, because the members were `{}` rather than text.
+    /** @type {Partial<ReturnType<typeof normalizeListEditorDefaults>>} */
     const defaults = options.defaults || {};
     state.editingListId = list?.list_id || "";
     state.editorList = list;

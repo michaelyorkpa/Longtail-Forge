@@ -160,7 +160,9 @@ describe("What the dispatch surface declares", () => {
 
     // `0.33.33.43.29` gave the reference a name. The claim is unchanged: every member optional and
     // `unknown`, which is the same as vouching for nothing.
-    assert.match(block, /@param \{string\} action @param \{ListRecordReference\} record/);
+    // Optional since `0.33.33.43.30`: a registered behaviour may fire with no record at all, and
+    // the resolver already answers the current selection for that case.
+    assert.match(block, /@param \{string\} action @param \{ListRecordReference\} \[record\]/);
     assert.match(source, /\}\s*\| null\} ListRecordReference/, "and that shape admits an absent record");
     assert.match(source, /const list = resolveListRecord\(record\);/,
       "the resolver is still what turns it into a list or refuses it");

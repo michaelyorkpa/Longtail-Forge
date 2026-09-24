@@ -163,7 +163,7 @@ describe("What stayed open, and why", () => {
     assert.match(source, /\}\s*\| null\} ListRecordReference/,
       "the tolerated reference is declared once");
     assert.match(source, /@param \{ListRecordReference\} \[record\]/, "and the resolver takes it");
-    assert.match(source, /@param \{string\} action @param \{ListRecordReference\} record/,
+    assert.match(source, /@param \{string\} action @param \{ListRecordReference\} \[record\]/,
       "as does the behaviour that forwards it unread");
   });
 
