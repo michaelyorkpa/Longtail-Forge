@@ -63,11 +63,22 @@
   const taskDefaultPriorities = ["low", "normal", "high", "urgent"];
   const taskDefaultAssigneeModes = ["creator", "project_admin", "unassigned"];
   const defaultProjectTaskSortOrder = ["due_date", "priority", "status"];
+  /**
+   * Display labels for the sort fields and assignee modes the editors offer.
+   *
+   * Declared as open string maps rather than closed records because **every reader indexes them
+   * with a value whose static type is `string`**: the normaliser answers its vocabulary through
+   * `vocabularyHas`, which narrows to `string` and no further. Each of the three reads supplies a
+   * key these maps hold, so the `||` fallbacks beside two of them are defensive rather than
+   * reachable through any path today; nothing depends on the key set being closed.
+   * @type {Record<string, string>}
+   */
   const projectTaskSortLabels = {
     due_date: "Due Date",
     priority: "Priority",
     status: "Status",
   };
+  /** @type {Record<string, string>} */
   const projectTaskAssigneeModeLabels = {
     creator: "Task Creator",
     project_admin: "Project Admin",
@@ -1992,6 +2003,16 @@
     return button;
   }
 
+  /**
+   * The client's own billing settings, which override the workspace defaults but can still inherit
+   * the period and rounding.
+   *
+   * Takes a real client rather than a client-list entry: it reads and **writes back** the record's
+   * billing members, and the workspace-projects grouping is neither editable as a client nor
+   * reachable here - `getRealClients()` has already filtered it out upstream.
+   * @param {NormalizedClientRecord} client
+   * @param {{ showSaveButton?: boolean }} [options]
+   */
   function createClientBillingSettingsEditor(client, options = {}) {
     // Client billing values override app defaults but can still inherit period/rounding.
     const showSaveButton = options.showSaveButton !== false;
@@ -2010,7 +2031,12 @@
 
     const billingRateInput = document.createElement("input");
     billingRateInput.inputMode = "decimal";
-    billingRateInput.value = client.billing_rate;
+    // `?? ""` makes explicit the conversion the assignment already performed: `value` is a
+    // `[LegacyNullToEmptyString] DOMString`, so a client with no rate was already showing an empty
+    // field. Measured in Chromium rather than assumed - and `??` rather than a cast because only
+    // `null` is special-cased there, while `undefined` would have written the text "undefined".
+    // `normalizeBillingRate` answers `text || null`, so it never produces that second case.
+    billingRateInput.value = client.billing_rate ?? "";
     billingRateInput.dataset.clientBillingRateInput = client.id;
     billingRateLabel.appendChild(billingRateInput);
 
@@ -2572,6 +2598,18 @@
     return wrapper;
   }
 
+  /**
+   * The project's task defaults, optionally hosting the reminder-policy and rounding editors that
+   * belong to the same module group.
+   *
+   * Both hosted editors default to `null`, which inferred `never` for them and made every
+   * `?.element` read unreachable; each now derives the builder that produces it.
+   * @param {Parameters<typeof normalizeProjectTaskDefaults>[0]} [defaults]
+   * @param {{
+   *   reminderPolicyEditor?: ReturnType<typeof createTaskReminderPolicyEditor> | null,
+   *   billingRoundingEditor?: ReturnType<typeof createBillingRoundingEditor> | null,
+   * }} [editors]
+   */
   function createProjectTaskDefaultsEditor(defaults = {}, { reminderPolicyEditor = null, billingRoundingEditor = null } = {}) {
     const normalized = normalizeProjectTaskDefaults(defaults);
     const details = document.createElement("details");
@@ -2614,6 +2652,7 @@
     prioritySelect.value = normalized.priority;
     assigneeSelect.value = normalized.defaultAssigneeMode;
 
+    /** @param {readonly string[]} order */
     const renderSortRows = (order) => {
       sortList.replaceChildren(...order.map((item, index) => {
         const row = document.createElement("div");
@@ -4028,6 +4067,18 @@
     return Math.max(1, Number.parseInt(`${input?.value}`, 10) || fallback);
   }
 
+  /**
+   * One billing-period field, used at both client and project level with an explicit inherit mode.
+   *
+   * `value` is the record's own period, which is `null` when it inherits; `inheritedPeriod` is what
+   * it would inherit and is read directly rather than optionally, so it is required.
+   * @param {{
+   *   legend: string,
+   *   inheritLabel: string,
+   *   value: ReturnType<typeof normalizeOptionalBillingPeriod>,
+   *   inheritedPeriod: { startDay?: unknown, type?: unknown },
+   * }} options
+   */
   function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPeriod }) {
     // Reusable editor used at both client and project levels with an explicit inherit mode.
     const fieldset = document.createElement("fieldset");
@@ -4080,6 +4131,7 @@
 
     const editor = {
       element: fieldset,
+      /** @param {unknown} isDisabled */
       setDisabled(isDisabled) {
         fieldset.disabled = Boolean(isDisabled);
       },
@@ -4099,6 +4151,19 @@
     return editor;
   }
 
+  /**
+   * One rounding field, following the same inheritance model as the billing period above.
+   *
+   * `inheritedRounding` is read directly and normalised on the way to the effective hint, so it is
+   * required; `value` is `null` while the record inherits.
+   * @param {{
+   *   legend: string,
+   *   inheritLabel: string,
+   *   value: ReturnType<typeof normalizeOptionalBillingRounding>,
+   *   inheritedRounding: { enabled?: unknown, increment?: unknown },
+   *   showModeWhenUnbillable?: boolean,
+   * }} options
+   */
   function createBillingRoundingEditor({
     legend,
     inheritLabel,
@@ -4191,9 +4256,11 @@
 
     const editor = {
       element: fieldset,
+      /** @param {unknown} isDisabled */
       setDisabled(isDisabled) {
         fieldset.disabled = Boolean(isDisabled);
       },
+      /** @param {unknown} isBillable */
       setBillableMode(isBillable) {
         isBillableMode = Boolean(isBillable);
         fieldset.disabled = false;

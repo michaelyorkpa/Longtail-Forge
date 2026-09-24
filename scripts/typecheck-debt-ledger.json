@@ -546,6 +546,7 @@
         "tests/unit/client-project-options-normalizers.test.mjs",
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
+        "tests/unit/clients-projects-field-editor-contracts.test.mjs",
         "tests/unit/clients-projects-normalizer-contracts.test.mjs",
         "tests/unit/clients-projects-state-contracts.test.mjs",
         "tests/unit/create-user-response-contracts.test.mjs",
@@ -910,7 +911,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 403,
+      "errorCount": 378,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -919,11 +920,11 @@
           },
           {
             "code": 2322,
-            "count": 4
+            "count": 2
           },
           {
             "code": 2339,
-            "count": 80
+            "count": 75
           },
           {
             "code": 2345,
@@ -951,7 +952,7 @@
           },
           {
             "code": 7006,
-            "count": 159
+            "count": 152
           },
           {
             "code": 7023,
@@ -959,7 +960,7 @@
           },
           {
             "code": 7031,
-            "count": 23
+            "count": 15
           },
           {
             "code": 7034,
@@ -967,7 +968,7 @@
           },
           {
             "code": 7053,
-            "count": 5
+            "count": 2
           }
         ],
         "public/js/lists.js": [
@@ -1611,8 +1612,8 @@
     }
   },
   "totals": {
-    "files": 1492,
-    "errors": 403,
+    "files": 1493,
+    "errors": 378,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
