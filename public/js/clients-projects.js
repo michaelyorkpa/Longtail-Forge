@@ -479,6 +479,13 @@
     void mountClientBulkToolbarAsync(context).catch(handleClientProjectActionError);
   }
 
+  /**
+   * One bulk toolbar, mounted into the container the descriptor renderer hands it.
+   *
+   * `registerBehavior` publishes its handler as `unknown`, so there is no framework context type to
+   * derive from; this names the single member the page reads, and it is already tested for absence.
+   * @param {{ container?: Element | null }} [context]
+   */
   async function mountClientBulkToolbarAsync({ container } = {}) {
     if (!container) {
       return;
@@ -502,6 +509,13 @@
     void mountProjectBulkToolbarAsync(context).catch(handleClientProjectActionError);
   }
 
+  /**
+   * One bulk toolbar, mounted into the container the descriptor renderer hands it.
+   *
+   * `registerBehavior` publishes its handler as `unknown`, so there is no framework context type to
+   * derive from; this names the single member the page reads, and it is already tested for absence.
+   * @param {{ container?: Element | null }} [context]
+   */
   async function mountProjectBulkToolbarAsync({ container } = {}) {
     if (!container) {
       return;
@@ -522,6 +536,15 @@
     }
   }
 
+  /**
+   * Keep the toolbar's selected count in step with the surface's row checkboxes.
+   *
+   * **`container` and the change `event` are deliberately left undeclared.** Declaring them is
+   * correct and multiplies reads rather than closing them: `closest()` answers `Element`, which
+   * carries no `dataset`, and a change event's `target` is an `EventTarget`, which carries no
+   * `matches`. Those are the checked-lookup boundary, not this checkpoint's.
+   * @param {string} recordType
+   */
   function bindDescriptorBulkSelection(container, recordType) {
     const surface = container.closest("[data-view-surface-id]");
     const flag = `clientProjects${recordType === "project" ? "Project" : "Client"}BulkSelectionBound`;
@@ -882,6 +905,13 @@
     return controls;
   }
 
+  /**
+   * The table toolbar's bulk change, applied to whatever the table currently has selected.
+   *
+   * Derived from the change it forwards, minus the selection it supplies itself, so the two cannot
+   * disagree about what a change carries.
+   * @param {Omit<Parameters<typeof applyBulkProjectUpdate>[0], "selectedProjectIds">} change
+   */
   async function applyProjectTableBulkUpdate({ status, clientId, shouldChangeClient, billable }) {
     await applyBulkProjectUpdate({
       selectedProjectIds: getSelectedProjectIds(),
@@ -1110,6 +1140,13 @@
     syncClientProjectsBulkToolbar("client");
   }
 
+  /**
+   * The distinct, non-empty identifiers among the ones a selection read off its checkboxes.
+   *
+   * Each is text by the time it is compared: an absent or empty id is dropped rather than kept as
+   * `"undefined"` or `""`, and surrounding space does not make two ids distinct.
+   * @param {readonly unknown[]} ids
+   */
   function uniqueSelectionIds(ids) {
     return [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
   }
@@ -1230,6 +1267,13 @@
     });
   }
 
+  /**
+   * Apply one bulk change to every selected client, one request each.
+   *
+   * `status` and `billable` are the value of the control that changed, or `""` for the one that did
+   * not - every caller passes a select's own `value` - so an empty one means "leave unchanged".
+   * @param {{ selectedClientIds: readonly string[], status: string, billable: string }} change
+   */
   async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
     if (selectedClientIds.length === 0) {
       setStatus("Select at least one client.");
@@ -1583,6 +1627,20 @@
     return { label, select };
   }
 
+  /**
+   * Apply one bulk change to every selected project, one request each.
+   *
+   * As with clients, an empty value means "leave unchanged". `clientId` is only acted on when
+   * `shouldChangeClient` is true, because `""` is itself a real target - the workspace - and so
+   * cannot double as "no change"; the flag is what tells the two apart.
+   * @param {{
+   *   selectedProjectIds: readonly string[],
+   *   status: string,
+   *   clientId: string,
+   *   shouldChangeClient: boolean,
+   *   billable: string,
+   * }} change
+   */
   async function applyBulkProjectUpdate({
     selectedProjectIds,
     status,
@@ -1655,6 +1713,10 @@
     }
   }
 
+  /**
+   * The status line after a bulk change: all updated, some failed, or none updated.
+   * @param {string} recordType @param {number} updatedCount @param {number} failedCount
+   */
   function formatBulkResultMessage(recordType, updatedCount, failedCount) {
     const plural = recordType === "client" ? "clients" : "projects";
     if (updatedCount > 0 && failedCount > 0) {
