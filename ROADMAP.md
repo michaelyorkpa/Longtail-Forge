@@ -120,8 +120,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.31` | `workbench.js` — then `clients-projects.js` | 30 owned, then 391 |
-| Claude | `0.33.33.43.26` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 160 |
+| Codex | `0.33.33.42.33` | `workbench.js` — then `clients-projects.js` | 22 owned, then 391 |
+| Claude | `0.33.33.43.27` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 147 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -135,7 +135,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 160, `clients-projects.js` 391, `workbench.js` 30 — and the `dom` family at 92. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 147, `clients-projects.js` 391, `workbench.js` 24 — and the `dom` family at 90. `.44` proves the whole program at zero and is therefore last. |
 | `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
 | `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
 
@@ -1565,6 +1565,14 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.27 - The Lists action dispatch
+
+**Complete: 13 diagnostics closed, zero introduced, nothing executable changed.** See the archive entry. `lists.js` 160 to 147, browser **575 to 562**, `0.33.33.43` 463 to 450. `dom` unchanged at 90.
+
+**The wall this boundary was warned about did not apply.** `bindListsEvents`' four are module-action registration parameters, not listener parameters; the submit-listener wall `0.33.33.43.23` recorded stands untouched and unrelated.
+
+**Four readers share one root, now recorded once.** `BrowserNormalizedListRecord` declares its columns optional because a draft has none, so every reader turning one into something the platform requires as text is blocked by that alone - `runAction`, `moveItem`, `listIndexItem`, `detailActionButtons`. `0.33.33.43.23` had recorded the first against `moveItem`; the four now share one note and **one** discharge condition, pinned so they cannot drift back into four.
 
 #### 0.33.33.43.26 - The Lists field builders
 

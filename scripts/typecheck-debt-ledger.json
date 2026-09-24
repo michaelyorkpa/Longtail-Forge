@@ -585,6 +585,7 @@
         "tests/unit/list-link-target-contracts.test.mjs",
         "tests/unit/list-response-contracts.test.mjs",
         "tests/unit/list-summary-response-contracts.test.mjs",
+        "tests/unit/lists-action-dispatch-contracts.test.mjs",
         "tests/unit/lists-editor-surface-contracts.test.mjs",
         "tests/unit/lists-element-handle-contracts.test.mjs",
         "tests/unit/lists-field-builder-contracts.test.mjs",
@@ -898,7 +899,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 575,
+      "errorCount": 562,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -973,7 +974,7 @@
           },
           {
             "code": 2339,
-            "count": 19
+            "count": 18
           },
           {
             "code": 2345,
@@ -981,7 +982,7 @@
           },
           {
             "code": 7006,
-            "count": 76
+            "count": 66
           },
           {
             "code": 7031,
@@ -989,7 +990,7 @@
           },
           {
             "code": 7053,
-            "count": 7
+            "count": 5
           }
         ],
         "public/js/workbench.js": [
@@ -1631,8 +1632,8 @@
     }
   },
   "totals": {
-    "files": 1480,
-    "errors": 575,
+    "files": 1481,
+    "errors": 562,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
