@@ -120,12 +120,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.35` | `workbench.js` — then `clients-projects.js` | 18 owned, then 391 |
+| Codex | `0.33.33.42.37` | `workbench.js` — `clients-projects.js` reassigned to Claude | 8 owned |
 | Claude | `0.33.33.43.33` | `clients-projects.js` — **client record settled, count bug fixed**; `lists.js` at its deferral floor | 302 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
-**File ownership for the remainder of this conversion.** `lists.js` and its directly associated tests are **Claude's**; `workbench.js` and then `clients-projects.js` are **Codex's**. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
+**File ownership for the remainder of this conversion.** `lists.js` and its directly associated tests are **Claude's**; `workbench.js` is **Codex's**. `clients-projects.js` was **reassigned to Claude** at `0.33.33.43.31`, which opened it, and Codex's lane has not touched it. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
 
 **Remaining release obligations, their owner, and what each genuinely waits on:**
 
