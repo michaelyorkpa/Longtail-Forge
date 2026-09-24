@@ -144,8 +144,9 @@ describe("What the option surface declares, and what gates the rest", () => {
     assert.match(source.slice(source.lastIndexOf("/**", refillAt), refillAt), /@param \{HTMLSelectElement \| null\} \[select\]/,
       "and the refill is typed, because it reads `.options`");
 
-    // Two remain, each on a reason that is no longer about element subtypes.
-    for (const name of ["option", "populateProjectOptions", "decorateFilterControl"]) {
+    // Two remain, each on a reason that is no longer about element subtypes. `0.33.33.43.26`
+    // closed `decorateFilterControl` with the same narrowing, so it is no longer among them.
+    for (const name of ["option", "populateProjectOptions"]) {
       const at = source.indexOf(`function ${name}(`);
       assert.notEqual(at, -1, `${name} still exists`);
       const block = source.slice(source.lastIndexOf("/**", at), at);

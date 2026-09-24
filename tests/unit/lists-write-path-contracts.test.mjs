@@ -32,24 +32,42 @@ const contracts = createProjectTextReader().readText("src/types/browser-contract
  */
 function suggestionFill(suggestions = []) {
   const state = { itemSuggestions: new Map([["list-1", suggestions]]) };
-  const sandbox = vm.createContext({ state });
+  // `0.33.33.43.26` gave `setFormValue` a checked narrowing, so the sandbox needs the constructors
+  // it tests against. `FakeControl` stands in for the three it accepts.
+  const sandbox = vm.createContext({
+    state,
+    HTMLInputElement: FakeControl,
+    HTMLSelectElement: class FakeSelect extends FakeControl {},
+    HTMLTextAreaElement: class FakeTextArea extends FakeControl {},
+  });
   for (const name of ["itemSuggestionsForList", "setFormValue", "applySuggestionSelection"]) {
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   }
   return vm.runInContext("applySuggestionSelection", sandbox);
 }
 
+/** One control, of the kind `setFormValue`'s narrowing accepts. */
+class FakeControl {
+  constructor() {
+    this.type = "text";
+    /** @type {unknown} */
+    this.value = "untouched";
+    this.checked = false;
+  }
+}
+
 /**
- * A form carrying only the controls this reader writes to.
- * @returns {{ elements: Record<string, { type: string, value: unknown, checked?: boolean }> }}
+ * A form carrying only the controls this reader writes to, reached the way `setFormValue` reaches
+ * them: through the collection's `namedItem`, which is what `elements[name]` is defined as.
+ * @returns {{ elements: { namedItem: (name: string) => FakeControl | null }, controls: Record<string, FakeControl> }}
  */
 function form() {
-  /** @type {Record<string, { type: string, value: unknown, checked?: boolean }>} */
-  const elements = {};
+  /** @type {Record<string, FakeControl>} */
+  const controls = {};
   for (const name of ["catalog_item_id", "quantity", "unit", "vendor_name", "url", "estimated_cost", "notes"]) {
-    elements[name] = { type: "text", value: "untouched" };
+    controls[name] = new FakeControl();
   }
-  return { elements };
+  return { controls, elements: { namedItem: (/** @type {string} */ name) => controls[name] ?? null } };
 }
 
 describe("Filling the item form from a catalog suggestion", () => {
@@ -58,7 +76,7 @@ describe("Filling the item form from a catalog suggestion", () => {
     const target = form();
 
     apply(target, { list_id: "list-1" }, "  brass WIDGET  ");
-    assert.equal(target.elements.catalog_item_id.value, "c-1");
+    assert.equal(target.controls.catalog_item_id.value, "c-1");
   });
 
   it("clears the catalog id and writes nothing else when nothing matches", () => {
@@ -66,8 +84,8 @@ describe("Filling the item form from a catalog suggestion", () => {
     const target = form();
 
     apply(target, { list_id: "list-1" }, "Something else");
-    assert.equal(target.elements.catalog_item_id.value, "", "the stale catalog id is cleared");
-    assert.equal(target.elements.unit.value, "untouched", "and the rest of the form is left alone");
+    assert.equal(target.controls.catalog_item_id.value, "", "the stale catalog id is cleared");
+    assert.equal(target.controls.unit.value, "untouched", "and the rest of the form is left alone");
   });
 
   it("clears the catalog id for a list that has no suggestions at all", () => {
@@ -75,7 +93,7 @@ describe("Filling the item form from a catalog suggestion", () => {
     const target = form();
 
     apply(target, { list_id: "unknown-list" }, "anything");
-    assert.equal(target.elements.catalog_item_id.value, "");
+    assert.equal(target.controls.catalog_item_id.value, "");
   });
 
   it("fills every field the suggestion carries", () => {
@@ -86,12 +104,14 @@ describe("Filling the item form from a catalog suggestion", () => {
     const target = form();
 
     apply(target, { list_id: "list-1" }, "Brass Widget");
-    assert.equal(target.elements.quantity.value, 4);
-    assert.equal(target.elements.unit.value, "each");
-    assert.equal(target.elements.vendor_name.value, "Acme");
-    assert.equal(target.elements.url.value, "https://example.test/widget");
-    assert.equal(target.elements.estimated_cost.value, "12.50");
-    assert.equal(target.elements.notes.value, "blue");
+    // Text, not the number: a control's `value` converts through the IDL `DOMString`, so a real
+    // input has always held "4" here. The earlier fake stored the number, which no DOM ever does.
+    assert.equal(target.controls.quantity.value, "4");
+    assert.equal(target.controls.unit.value, "each");
+    assert.equal(target.controls.vendor_name.value, "Acme");
+    assert.equal(target.controls.url.value, "https://example.test/widget");
+    assert.equal(target.controls.estimated_cost.value, "12.50");
+    assert.equal(target.controls.notes.value, "blue");
   });
 
   /**
@@ -103,9 +123,9 @@ describe("Filling the item form from a catalog suggestion", () => {
     const target = form();
 
     apply(target, { list_id: "list-1" }, "Free Sample");
-    assert.equal(target.elements.quantity.value, 0, "`??` keeps a real zero rather than defaulting to 1");
-    assert.equal(target.elements.estimated_cost.value, 0);
-    assert.equal(target.elements.unit.value, "", "`||` writes the empty string it fell through to");
+    assert.equal(target.controls.quantity.value, "0", "`??` keeps a real zero rather than defaulting to 1");
+    assert.equal(target.controls.estimated_cost.value, "0");
+    assert.equal(target.controls.unit.value, "", "`||` writes the empty string it fell through to");
   });
 
   it("defaults a missing quantity to one and leaves missing text empty", () => {
@@ -113,9 +133,9 @@ describe("Filling the item form from a catalog suggestion", () => {
     const target = form();
 
     apply(target, { list_id: "list-1" }, "Sparse");
-    assert.equal(target.elements.quantity.value, 1);
-    assert.equal(target.elements.unit.value, "");
-    assert.equal(target.elements.notes.value, "");
+    assert.equal(target.controls.quantity.value, "1");
+    assert.equal(target.controls.unit.value, "");
+    assert.equal(target.controls.notes.value, "");
   });
 
   it("survives a list that is absent rather than refusing to fill", () => {
@@ -123,7 +143,7 @@ describe("Filling the item form from a catalog suggestion", () => {
     const target = form();
 
     apply(target, null, "anything");
-    assert.equal(target.elements.catalog_item_id.value, "");
+    assert.equal(target.controls.catalog_item_id.value, "");
   });
 });
 

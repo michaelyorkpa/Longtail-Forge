@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.31` | `workbench.js` — then `clients-projects.js` | 30 owned, then 391 |
-| Claude | `0.33.33.43.25` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 179 |
+| Claude | `0.33.33.43.26` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 160 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -135,7 +135,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 179, `clients-projects.js` 391, `workbench.js` 30 — and the `dom` family at 92. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 160, `clients-projects.js` 391, `workbench.js` 30 — and the `dom` family at 92. `.44` proves the whole program at zero and is therefore last. |
 | `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
 | `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
 
@@ -1565,6 +1565,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.26 - The Lists field builders
+
+**Complete: 19 diagnostics closed against a boundary that named 18, zero introduced.** See the archive entry. `lists.js` 179 to 160, browser **600 to 581**, `0.33.33.43` 482 to 463. `dom` unchanged at 92.
+
+**The two `decorate*` twins are closed** - the oldest standing deferral in this file, recorded by `0.33.33.43.20`, merged with its twin by `0.33.33.43.24`, and discharged by the narrowing `0.33.33.43.25` established. Their bodies are identical apart from parameter names; consolidating them is a refactor this slice did not make.
+
+**Every narrowing falls into a guard that already existed**, so a control the page cannot write to takes the path an absent one already took.
+
+**One test's fake diverged from the DOM**, asserting a filled quantity as the number `4` where a real control has always held `"4"`; making the conversion explicit surfaced it, and the assertions now say what a control actually holds.
+
+**The one coercion is the IDL conversion made explicit, and `String()` would have been wrong** - it special-cases a symbol where `ToString` throws, so it would have turned today's refusal into a silently written value.
 
 #### 0.33.33.43.25 - The Lists element handles
 
