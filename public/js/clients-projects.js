@@ -594,6 +594,25 @@
     return control;
   }
 
+  /**
+   * The select a `select` field rendered.
+   *
+   * `fieldControl` answers the published control union, which does not carry `options`. The view
+   * builder maps a `select` field to a `select` control unconditionally, so the throw below is not
+   * reachable from this page's own fields; it is there so the narrowing is checked rather than
+   * asserted, and it fails the same way `fieldControl` does. Before this, a non-select would have
+   * thrown too - natively, one line later, spreading `undefined` options.
+   * @param {BrowserViewFieldElement} field
+   * @returns {HTMLSelectElement}
+   */
+  function fieldSelect(field) {
+    const control = fieldControl(field);
+    if (!(control instanceof HTMLSelectElement)) {
+      throw new Error("Client/Project select fields require a rendered select.");
+    }
+    return control;
+  }
+
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -884,6 +903,12 @@
     syncClientProjectsBulkToolbar("project");
   }
 
+  /**
+   * The Edit Project dialog, hosting the project editor in its modal layout.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord & { tagIds?: unknown }} project
+   * @param {{ hostContext?: ClientProjectHostContext }} [options]
+   */
   function openProjectDetailDialog(client, project, options = {}) {
     const closeActions = createModalCommitGroup([], "detail-modal-actions");
     const closeButton = createModalAction("Close", { role: "secondary" });
@@ -1141,6 +1166,14 @@
     });
   }
 
+  /**
+   * The Edit Client dialog.
+   *
+   * A real client only: its one caller finds it through `getRealClients()` and refuses it unless
+   * `canManage`, and the billing settings editor it hosts writes that record's own members back.
+   * @param {NormalizedClientRecord} client
+   * @param {{ hostContext?: ClientProjectHostContext }} [options]
+   */
   function openClientDetailDialog(client, options = {}) {
     const details = document.createElement("details");
     const summary = document.createElement("summary");
@@ -1302,6 +1335,18 @@
     });
   }
 
+  /**
+   * The Add Client dialog, also used to add a child under a locked parent.
+   *
+   * `hostContext` defaulted to `null` and so inferred `null`, which made both `cancel` reads
+   * unreachable to the compiler - the same default-inference `0.33.33.43.34` resolved for the
+   * editor slots. It is declared as the optional host it always was.
+   * @param {{
+   *   defaultParentClientId?: string,
+   *   hostContext?: ClientProjectHostContext,
+   *   lockParentClient?: boolean,
+   * }} [options]
+   */
   function openAddClientDialog({
     defaultParentClientId = "",
     hostContext = null,
@@ -1322,7 +1367,7 @@
       type: "select",
       width: "full",
     });
-    const parentSelect = fieldControl(parentField);
+    const parentSelect = fieldSelect(parentField);
     const tagContainer = modalView.createElement("div", {
       className: "client-add-tags-field",
       attrs: { "data-view-field-width": "full" },
@@ -3539,9 +3584,12 @@
    * is dismissed. **Both being callable is a precondition, not a proof.** `complete` is tested for
    * truthiness and `cancel` is optional-called, and in both cases a truthy non-callable still throws
    * exactly as it always did rather than being filtered out here.
+   *
+   * `cancel` carries a `recordId` only when the dismissed dialog was editing a record: the add
+   * dialogs report the action alone, the detail dialogs report which record too.
    * @typedef {{
    *   complete?: (detail: ClientProjectActionCompletion) => unknown,
-   *   cancel?: (detail: { actionId: string }) => unknown,
+   *   cancel?: (detail: { actionId: string, recordId?: unknown }) => unknown,
    * } | null} ClientProjectHostContext
    */
 
