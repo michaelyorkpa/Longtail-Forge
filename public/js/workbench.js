@@ -411,6 +411,9 @@
     focusModeId: DEFAULT_FOCUS_MODE_ID,
     /** @type {import("../../src/types/framework-contracts.js").FocusModeDefinition[]} */
     focusModes: [],
+    /** The fallback preserves a non-array object without validating its entries.
+     * @type {ReturnType<typeof normalizeModuleStateMap>}
+     */
     modules: {},
     /** Cached registry data is unvalidated; preserve it until each consumer reads it.
      * @type {unknown}
@@ -4807,17 +4810,19 @@
     return ["business", "personal", "family"].includes(text) ? text : "business";
   }
 
+  /** @param {string} moduleId */
   function moduleEnabled(moduleId) {
-    return state.modules?.[moduleId]?.enabled === true;
+    return workbenchSourceField(workbenchSourceField(state.modules, moduleId, true), "enabled", true) === true;
   }
 
+  /** @param {unknown} modules */
   function normalizeModuleStateMap(modules) {
     return modules && typeof modules === "object" && !Array.isArray(modules) ? modules : {};
   }
 
   function enabledModuleIds() {
     return Object.entries(state.modules || {})
-      .filter(([, moduleState]) => moduleState?.enabled === true)
+      .filter(([, moduleState]) => workbenchSourceField(moduleState, "enabled", true) === true)
       .map(([moduleId]) => moduleId);
   }
 
