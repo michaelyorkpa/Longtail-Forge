@@ -42,8 +42,20 @@
    */
   let activeClientProjectsReadSurface = null;
   let clientProjectsViewBehaviorsRegistered = false;
+  /**
+   * Which rows the page reopens after a write.
+   *
+   * **`unknown` rather than `string`, because that is what they hold.** Each is assigned straight
+   * from a write's view state or its action - `viewState.openClientId || action.client_id || ""` -
+   * and those identifiers come from normalised wire records, which vouch for no member's type.
+   * Nothing reads them as text: both consumers compare with `===`, and the snapshot passes them
+   * through. Declaring `string` would have been a claim the assignment does not make.
+   * @type {unknown}
+   */
   let openClientId = "";
+  /** @type {unknown} */
   let openBillingClientId = "";
+  /** @type {unknown} */
   let openClientBillingSettingsId = "";
   let openedAddClientFromQuery = false;
   let openedClientDetailFromQuery = false;
@@ -2131,6 +2143,22 @@
     return details;
   }
 
+  /**
+   * Read one client editor back into its record and save it.
+   *
+   * Returns `false` without saving when the name is empty or a hierarchy move is declined, so its
+   * callers can keep the editor open; otherwise it answers what the write answered.
+   * `tagIds` is not part of the normalised record: this editor adds it for the save payload and
+   * deletes it again when the picker is absent, so the parameter says the record may carry one.
+   * **`container` is deliberately left undeclared.** Declaring it `Element | null` is correct and
+   * costs eleven: every control this reads off it - the name, status and parent selects, the tag
+   * picker, the billing inputs and the two stashed editors - becomes an `Element` that does not
+   * carry `value`, `checked`, `dataset` or an editor. That is the same checked-lookup boundary
+   * `lists.js` records, and closing it here would net eleven new reads off against this
+   * checkpoint's real ones. It waits for the checkpoint that narrows these handles.
+   * @param {NormalizedClientRecord & { tagIds?: unknown }} client
+   * @param {ClientProjectViewState & { action?: string }} [options]
+   */
   async function saveClientSettings(client, container, options = {}) {
     const nameInput = container?.querySelector("[data-client-name-input]");
     const statusSelect = container?.querySelector("[data-client-status-input]");
@@ -2174,9 +2202,11 @@
     });
 
     if (billingRateInput && billableInput) {
-      const billingPeriodEditor = container.querySelector("[data-billing-period-editor]")
+      // Guarded indirectly: both controls above were read off `container`, so reaching here means
+      // it was there. Optional rather than asserted, which costs nothing and states the same thing.
+      const billingPeriodEditor = container?.querySelector("[data-billing-period-editor]")
         ?.billingPeriodEditor;
-      const billingRoundingEditor = container.querySelector("[data-billing-rounding-editor]")
+      const billingRoundingEditor = container?.querySelector("[data-billing-rounding-editor]")
         ?.billingRoundingEditor;
 
       client.billing_rate = normalizeBillingRate(billingRateInput.value);
@@ -3453,6 +3483,65 @@
     });
   }
 
+  /**
+   * What one write reports about itself: the audit action, and the record it touched.
+   *
+   * Every member is optional because the five write wrappers each fill the subset their own record
+   * has - a client write carries no `project_id`, and only the project editor sends
+   * `confirm_downstream_update`. The identifiers are `unknown` rather than `string` because they
+   * come from normalised wire records, which vouch for no member's type; the readers below already
+   * treat them that way, falling back to `""` before anything reads them as text.
+   * @typedef {{
+   *   action?: string,
+   *   client_id?: unknown,
+   *   client_name?: unknown,
+   *   project_id?: unknown,
+   *   project_name?: unknown,
+   *   parent_client_id?: unknown,
+   *   details?: string,
+   *   confirm_downstream_update?: boolean,
+   *   taskDefaults?: unknown,
+   *   taskReminderPolicy?: unknown,
+   * }} ClientProjectAction
+   */
+
+  /**
+   * The host surface a write may report completion to.
+   *
+   * The published contract keeps `hostContext` `unknown`, and deliberately so - it refuses to name
+   * the shape **for its consumers**. This page still has to say what it does with one, so it names
+   * the single member it reaches for. **`complete` being callable is a precondition, not a proof**:
+   * the existing test is truthiness, and a truthy non-callable still throws exactly as it always
+   * did rather than being filtered out here.
+   * @typedef {{ complete?: (detail: ClientProjectActionCompletion) => unknown } | null} ClientProjectHostContext
+   */
+
+  /**
+   * Which registered module action finished, and on which record.
+   * @typedef {{ actionId: string, recordId: unknown }} ClientProjectActionCompletion
+   */
+
+  /**
+   * What the page should look like once a write lands: which rows stay open, which button flashes,
+   * and which host to tell.
+   * @typedef {{
+   *   openClientId?: unknown,
+   *   openBillingClientId?: unknown,
+   *   openClientBillingSettingsId?: unknown,
+   *   flashSelector?: string,
+   *   hostContext?: ClientProjectHostContext,
+   * }} ClientProjectViewState
+   */
+
+  /**
+   * Run one write, then bring the page back in line with it.
+   *
+   * Answers whether the record was written - **not** whether everything afterwards succeeded. See
+   * the two-phase body: past the write nothing may report the change as unsaved.
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} viewState
+   * @param {() => Promise<unknown>} request
+   */
   async function persistClientProjectChange(action, viewState = {}, request) {
     // Mutations are record-level; the nested tree is refreshed only as a read model.
     setStatus("Saving clients and projects...");
@@ -3489,6 +3578,14 @@
     return true;
   }
 
+  /**
+   * Tell the host which registered module action this write completed, if any.
+   *
+   * The prefix tests are ordered: the exact create actions are matched before the broader
+   * `client_`/`project_` prefixes they would also satisfy.
+   * @param {ClientProjectAction} [action]
+   * @param {ClientProjectHostContext} [hostContext]
+   */
   function signalClientProjectModuleAction(action = {}, hostContext = null) {
     const actionName = action.action || "";
 
@@ -3515,6 +3612,10 @@
     }
   }
 
+  /**
+   * @param {ClientProjectHostContext} hostContext
+   * @param {ClientProjectActionCompletion} detail
+   */
   function completeClientProjectAction(hostContext, detail) {
     if (hostContext?.complete) {
       hostContext.complete(detail);
@@ -4392,8 +4493,13 @@
   }
 
   /**
-   * The billing contact, with every field the page names present as text.
+   * The billing contact, with every field the page names present.
+   *
+   * **Present, not coerced.** A falsy value becomes `""`, but a truthy one is passed through as it
+   * arrived - there is no `String()` here - so the values are `unknown` rather than text. The
+   * editor trims on the way in; this reader does not.
    * @param {Record<string, unknown> | null} [contact]
+   * @returns {Record<string, unknown>}
    */
   function normalizeBillingContact(contact) {
     return billingContactFields.reduce((billingContact, [fieldName]) => {
