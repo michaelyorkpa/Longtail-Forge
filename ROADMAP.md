@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.34` | `workbench.js` — then `clients-projects.js` | 19 owned, then 391 |
-| Claude | `0.33.33.43.28` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 117 |
+| Claude | `0.33.33.43.29` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 96 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -135,7 +135,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 117, `clients-projects.js` 391, `workbench.js` 21 — and the `dom` family at 90. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 96, `clients-projects.js` 391, `workbench.js` 21 — and the `dom` family at 90. `.44` proves the whole program at zero and is therefore last. |
 | `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
 | `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
 
@@ -1565,6 +1565,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.29 - The Lists surface tail
+
+**Complete: 21 diagnostics closed, zero introduced, nothing executable changed.** See the archive entry. `lists.js` 117 to 96, browser **529 to 508**, `0.33.33.43` 420 to 399. `TS7006` 41 to 20; `dom` unchanged at 90.
+
+**The tail was swept as one batch** - thirteen record readers and nine builders together - and the compiler then named the seven that did not hold, each resolved or backed out individually. That is only safe because the gate refuses a net-positive result.
+
+**Two more readers joined the shared root, taking it from five to seven**, and the note and its pin moved in the same change - the second checkpoint running to move both together.
+
+**The tolerated record reference is declared once, not twice**, replacing the inline `unknown` `0.33.33.43.27` used, and `renderDetail` takes `null` because the selection may genuinely hold no list.
 
 #### 0.33.33.43.28 - The Lists formatters and badges
 

@@ -595,6 +595,7 @@
         "tests/unit/lists-option-surface-contracts.test.mjs",
         "tests/unit/lists-record-normalizer-contracts.test.mjs",
         "tests/unit/lists-row-builder-contracts.test.mjs",
+        "tests/unit/lists-surface-tail-contracts.test.mjs",
         "tests/unit/lists-view-descriptor-boundary.test.mjs",
         "tests/unit/lists-write-path-contracts.test.mjs",
         "tests/unit/login-public-demo-contracts.test.mjs",
@@ -902,7 +903,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 529,
+      "errorCount": 508,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -985,7 +986,7 @@
           },
           {
             "code": 7006,
-            "count": 41
+            "count": 20
           },
           {
             "code": 7031,
@@ -1631,8 +1632,8 @@
     }
   },
   "totals": {
-    "files": 1484,
-    "errors": 529,
+    "files": 1485,
+    "errors": 508,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
