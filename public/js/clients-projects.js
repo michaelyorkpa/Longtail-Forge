@@ -2472,6 +2472,11 @@
     });
   }
 
+  /**
+   * One project's billing, summarised: non-billable, or its rate, period and rounding.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord} project
+   */
   function formatProjectBillingSummary(client, project) {
     if (normalizeBillableFlag(project.billable) !== "yes") {
       return "Non-billable";
@@ -4572,14 +4577,33 @@
     }
   }
 
+  /**
+   * The billing period a client actually uses: its own, or the workspace's when it has none.
+   * @param {NormalizedClientEntry} client
+   */
   function getEffectiveClientBillingPeriod(client) {
     return client.billing_period || workspaceSettings.billingPeriod;
   }
 
+  /**
+   * The billing rate a client actually uses: its own, or the workspace default when it has none.
+   * @param {NormalizedClientEntry} client
+   */
   function getEffectiveClientBillingRate(client) {
     return client.billing_rate || workspaceSettings.defaultBillingRate;
   }
 
+  /**
+   * The billing period a project actually uses: its own, else its client's effective one.
+   *
+   * **Unlike rounding, this does not consult `project.client_id`** - it always inherits through
+   * the `client` it is handed. That is correct because every caller hands a project its own owning
+   * entry (the related-projects list maps a client over its own projects, and the detail dialog
+   * finds a project together with its owner), so for a workspace project `client` is the grouping,
+   * whose period is the workspace's. The asymmetry with rounding is pinned rather than changed.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord} project
+   */
   function getEffectiveProjectBillingPeriod(client, project) {
     return project.billing_period || getEffectiveClientBillingPeriod(client);
   }
@@ -4590,10 +4614,20 @@
     return `Use ${label} billing period (${formatBillingPeriod(getEffectiveClientBillingPeriod(client))})`;
   }
 
+  /**
+   * The rounding a client actually uses: its own, or the workspace's when it has none.
+   * @param {NormalizedClientEntry} client
+   */
   function getEffectiveClientBillingRounding(client) {
     return client.billing_rounding || workspaceSettings.billingRounding;
   }
 
+  /**
+   * The rounding a project actually uses. A project with no client skips straight to the
+   * workspace; one with a client falls back through that client's effective rounding.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord} project
+   */
   function getEffectiveProjectBillingRounding(client, project) {
     if (!project?.client_id) {
       return project.billing_rounding || workspaceSettings.billingRounding;
@@ -4602,6 +4636,14 @@
     return project.billing_rounding || getEffectiveClientBillingRounding(client);
   }
 
+  /**
+   * The "use inherited rounding" label, naming where the inherited value comes from.
+   *
+   * `project` is typed by the one member read off it rather than as a project record, because the
+   * add form calls this before any project exists, handing it a synthesized `{ client_id }`.
+   * @param {NormalizedClientEntry} client
+   * @param {{ client_id?: unknown } | null} [project]
+   */
   function getProjectRoundingInheritLabel(client, project) {
     const inheritsWorkspace = client.isWorkspaceScope || !project?.client_id;
     const inheritedRounding = inheritsWorkspace
@@ -4612,6 +4654,10 @@
     return `Use ${label} rounding (${formatBillingRounding(inheritedRounding)})`;
   }
 
+  /**
+   * A billing period as the page describes it.
+   * @param {Parameters<typeof normalizeBillingPeriod>[0]} period
+   */
   function formatBillingPeriod(period) {
     const normalizedPeriod = normalizeBillingPeriod(period);
 
@@ -4622,6 +4668,17 @@
     return `Starts on the ${formatOrdinal(normalizedPeriod.startDay)}`;
   }
 
+  /**
+   * A rounding rule as the page describes it.
+   *
+   * The parameter states the two members `normalizeBillingRounding` reads rather than deriving from
+   * it, because that reader is deliberately untyped and a derivation would answer `any`.
+   *
+   * The label map is indexed with the normaliser's increment, which is always one of the three keys
+   * - an unknown increment falls back to `nearestQuarterHour` - but whose static type is `string`,
+   * so the map is declared open. The same reasoning `0.33.33.43.34` applied to the label maps.
+   * @param {{ enabled?: unknown, increment?: unknown } | null} [rounding]
+   */
   function formatBillingRounding(rounding) {
     const normalizedRounding = normalizeBillingRounding(rounding);
 
@@ -4629,11 +4686,13 @@
       return "No rounding";
     }
 
-    return {
+    /** @type {Record<string, string>} */
+    const incrementLabels = {
       nearestHour: "Nearest hour",
       nearestHalfHour: "Nearest half hour",
       nearestQuarterHour: "Nearest quarter hour",
-    }[normalizedRounding.increment];
+    };
+    return incrementLabels[normalizedRounding.increment];
   }
 
   function formatOrdinal(day) {
