@@ -1288,9 +1288,21 @@
     }));
   }
 
+  /**
+   * Stamp this page's own dataset hooks onto one contributed filter field.
+   *
+   * **`0.33.33.43.20` deferred this and `0.33.33.43.24` recorded why**: `querySelector` answers
+   * `Element`, which carries no `dataset`. The narrowing `0.33.33.43.25` established closes it
+   * without changing what runs - both writes already sit behind a truthiness guard, so a control
+   * that is not an HTML element takes the path an absent one already took.
+   * @param {Element} surface @param {string} fieldName @param {string} datasetName
+   * @param {string} [wrapperDatasetName]
+   */
   function decorateFilterControl(surface, fieldName, datasetName, wrapperDatasetName = "") {
-    const wrapper = surface.querySelector(`[data-view-field="${fieldName}"]`);
-    const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+    const wrapperNode = surface.querySelector(`[data-view-field="${fieldName}"]`);
+    const wrapper = wrapperNode instanceof HTMLElement ? wrapperNode : null;
+    const controlNode = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+    const control = controlNode instanceof HTMLElement ? controlNode : null;
     if (control) {
       control.dataset[datasetName] = "";
     }
@@ -1387,9 +1399,18 @@
     return listsModalDescriptor();
   }
 
+  /**
+   * The editor twin of `decorateFilterControl`, closed by the same narrowing and for the same
+   * reason. The two bodies are identical apart from their parameter names; consolidating them is a
+   * refactor this slice does not make.
+   * @param {Element} grid @param {string} fieldName @param {string} dataName
+   * @param {string} [wrapperDataName]
+   */
   function decorateListEditorField(grid, fieldName, dataName, wrapperDataName = "") {
-    const wrapper = grid.querySelector(`[data-view-field="${fieldName}"]`);
-    const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+    const wrapperNode = grid.querySelector(`[data-view-field="${fieldName}"]`);
+    const wrapper = wrapperNode instanceof HTMLElement ? wrapperNode : null;
+    const controlNode = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+    const control = controlNode instanceof HTMLElement ? controlNode : null;
     if (control) {
       control.dataset[dataName] = "";
     }
@@ -2138,6 +2159,16 @@
     });
   }
 
+  /**
+   * The `[value, label]` pairs one descriptor field offers.
+   *
+   * A contributor may send either form: a pair already, or a record this reader flattens. Every
+   * member stays `unknown` because this converts none of them - it picks the first present
+   * spelling and hands the result to the option builder, which is what writes them.
+   * @param {{ options?: (unknown[] | {
+   *   id?: unknown, label?: unknown, text?: unknown, value?: unknown
+   * })[] }} [field]
+   */
   function optionsFromDescriptor(field = {}) {
     return (field.options || []).map((entry) => {
       if (Array.isArray(entry)) {
@@ -3893,6 +3924,11 @@
     return element;
   }
 
+  /**
+   * One labelled input. The three text parameters are text because the DOM requires it: two are
+   * assigned to `type` and `name`, and the third is appended as a label child.
+   * @param {string} labelText @param {string} type @param {string} name
+   */
   function inputField(labelText, type, name, attributes = {}) {
     const label = document.createElement("label");
     const input = document.createElement("input");
@@ -3919,6 +3955,10 @@
     return label;
   }
 
+  /**
+   * One labelled select, filled with options the caller already built.
+   * @param {string} labelText @param {string} name @param {HTMLOptionElement[]} options
+   */
   function selectField(labelText, name, options) {
     const label = document.createElement("label");
     const select = document.createElement("select");
@@ -3941,13 +3981,30 @@
     }
   }
 
+  /**
+   * Write one value into a form control, by the control's own name.
+   *
+   * `elements[name]` and `elements.namedItem(name)` are the same lookup - a form controls
+   * collection's named-property getter is specified to behave as `namedItem` - and this is the
+   * spelling the collection publishes.
+   *
+   * The `instanceof` refuses nothing that can occur and the existing truthiness guard already
+   * handles it: only an input can carry `type === "checkbox"`, and a control the page cannot write
+   * to takes the path an absent one already took.
+   * @param {HTMLFormElement | null} form @param {string} name @param {unknown} value
+   */
   function setFormValue(form, name, value) {
-    const input = form.elements[name];
+    const found = form?.elements.namedItem(name);
+    const input = found instanceof HTMLInputElement
+      || found instanceof HTMLSelectElement
+      || found instanceof HTMLTextAreaElement
+      ? found
+      : null;
     if (input) {
-      if (input.type === "checkbox") {
+      if (input instanceof HTMLInputElement && input.type === "checkbox") {
         input.checked = value === true || value === "true";
       } else {
-        input.value = value ?? "";
+        input.value = `${value ?? ""}`;
       }
     }
   }
