@@ -5,6 +5,22 @@
   const isClientsPage = pageMode === "clients";
   const isProjectsPage = pageMode === "projects";
 
+  /**
+   * Everything the page holds about clients and their projects.
+   *
+   * **Deliberately undeclared, and `0.33.33.43.32` measured why.** Deriving this from
+   * `normalizeData` closes forty-five member reads, and typing that normaliser's own input closes
+   * thirty-seven in total - but both stop at the same place, because **this file builds two
+   * different client shapes**. The mapped branch produces `parent_client_id`, `canCreateChild` and
+   * `canManage`; the synthetic workspace-projects entry `unshift`ed beside it produces none of
+   * those and adds `isWorkspaceScope` instead. One array, two shapes.
+   *
+   * Reconciling them is a **contract decision, not a typing one**: it settles whether the
+   * workspace-projects pseudo-client is manageable, can create children, and has a parent - three
+   * questions the code currently answers only by omission. **Discharged by** declaring one client
+   * record both branches satisfy, with those three answers made explicit. Pinned by
+   * `clients-projects-state-contracts`.
+   */
   let clientProjectData = {
     capabilities: {
       canCreateTopLevelClient: false,
@@ -20,6 +36,13 @@
     workspaceType: "business",
   };
   let activeClientProjectsReadDescriptor = null;
+  /**
+   * **Deliberately undeclared, and it belongs with the surface boundary rather than here.**
+   * Declaring it `Element | null` closes its three evolving-`any` reads and opens five member
+   * reads that assume more than `Element` carries - `refresh` and `value` among them. Those
+   * consumers are the read-surface cluster, and narrowing them together is one deliberate step.
+   * **Discharged by** that cluster's own checkpoint. Pinned by `clients-projects-state-contracts`.
+   */
   let activeClientProjectsReadSurface = null;
   let clientProjectsViewBehaviorsRegistered = false;
   let openClientId = "";
@@ -29,6 +52,13 @@
   let openedClientDetailFromQuery = false;
   let openedAddProjectFromQuery = false;
   let openedProjectDetailFromQuery = false;
+  /**
+   * The workspace tags offered by the tag pickers.
+   *
+   * Derived from the loader that fills it rather than restated, so the two cannot drift; the empty
+   * initialiser would otherwise infer `never[]` and refuse the assignment.
+   * @type {Awaited<ReturnType<typeof loadTagOptions>>}
+   */
   let tagOptions = [];
   const clientStatuses = ["Active", "Inactive"];
   const projectStatuses = ["Active", "Inactive", "Completed"];
@@ -1039,8 +1069,17 @@
     return [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
   }
 
+  /**
+   * Every checked selection control matching one selector, across the read surface and the page.
+   *
+   * The surface is searched first and the document second, with a `Set` keeping a control that
+   * both contain from being counted twice.
+   * @param {string} selector
+   */
   function querySelectionInputs(selector) {
     const roots = [activeClientProjectsReadSurface, document].filter(Boolean);
+    // The collected controls stay undeclared with the surface above: `querySelectorAll` answers
+    // `Element`, and the callers read `dataset` and `value` off what this returns.
     const inputs = [];
     const seen = new Set();
 
