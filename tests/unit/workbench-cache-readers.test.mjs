@@ -83,15 +83,18 @@ it("keeps cached absence and malformed-wrapper recovery without requiring the se
   s.renderWarmWorkbench(); assert.equal(s.state.registry, before.registry);
 });
 
-it("rejects supplied non-string routes at cache consumption, before warm state or rendering", () => {
+it("treats corrupt cached routes as misses in both direct reads and warm rendering", () => {
   const { scope: s } = fixture();
   const before = s.state;
-  s.renderWorkbench = () => { throw new Error("invalid configuration must not render"); };
+  let renders = 0;
+  s.renderWorkbench = () => { renders++; };
   for (const listRoute of [null, 0, false, 7, [], {}]) {
     s.writeCachedWorkbenchRegistry({ workbenchCards: [{ renderer: "probe", listRoute }] });
-    assert.throws(() => s.renderWarmWorkbench(), { name: "TypeError", message: "Workbench card configuration: listRoute must be a string." });
-    assert.equal(s.state, before);
+    assert.equal(s.readCachedWorkbenchRegistry(), null);
+    s.renderWarmWorkbench();
+    assert.equal(s.state.registry, before.registry);
   }
+  assert.equal(renders, 6);
 });
 
 it("preserves the valid cached registry, cards and missing or empty route members by identity", () => {
@@ -119,4 +122,49 @@ it("matches the manifest's actual optionalString acceptance without widening its
       assert.equal(s.readWorkbenchCardRoute({ listRoute }), listRoute === "" ? undefined : listRoute);
     }
   }
+});
+
+it("loads authoritative routes after a corrupt cache miss and rewrites the stored copy without an error status", async () => {
+  const { scope: s } = fixture();
+  for (const name of ["loadWorkbench", "readWorkbenchBootstrap", "readWorkbenchModuleStates", "isWorkbenchModuleState", "loadTimerCardData", "loadTaskOptionsData"])
+    vm.runInContext(extractFunctionBlock(source, name), s);
+  const timers = [{}];
+  const registry = { workbenchCards: [{ moduleId: "time-tracking", renderer: "active-work-timers", listRoute: "/authoritative" }] };
+  /** @type {string[]} */ const requests = [];
+  /** @type {unknown[][]} */ const statuses = [];
+  s.requireApi = () => ({ getJson: async (/** @type {string} */ route) => {
+    requests.push(route);
+    if (route === "/api/workbench/bootstrap") return { registry };
+    assert.equal(route, "/authoritative");
+    return { timers };
+  } });
+  s.workbenchCardDataLoaders = { "active-work-timers": s.loadTimerCardData };
+  s.restoreFocusState = () => {};
+  s.loadFocusCandidatesForState = async () => ({});
+  s.loadClientProjectData = async () => [];
+  s.loadFocusModes = async () => ({ modes: [] });
+  s.normalizeModuleStateMap = (/** @type {unknown} */ value) => value;
+  s.startTicking = () => {};
+  s.applyTaskFocusDeepLink = async () => false;
+  s.recoverPendingTaskFocusDrift = async () => false;
+  s.requireErrors = () => ({ caughtMessage: (/** @type {Error} */ error) => error.message });
+  s.setStatus = (/** @type {unknown} */ message, /** @type {unknown} */ options) => statuses.push([message, options]);
+  for (const listRoute of [null, 0, false, 7]) {
+    s.writeCachedWorkbenchRegistry({ workbenchCards: [{ renderer: "active-work-timers", listRoute }] });
+    requests.length = 0; statuses.length = 0;
+    await s.loadWorkbench();
+    assert.deepEqual(requests, ["/api/workbench/bootstrap", "/authoritative"]);
+    assert.deepEqual(statuses, [["Loading Workbench...", undefined], ["", undefined]]);
+    assert.equal(s.state.timers[0], timers[0]);
+    assert.equal(s.readCachedWorkbenchRegistry().workbenchCards[0].listRoute, "/authoritative");
+  }
+  s.writeCachedWorkbenchRegistry({ workbenchCards: [{ listRoute: 7 }] });
+  s.requireApi = () => ({ getJson: async (/** @type {string} */ route) => {
+    assert.equal(route, "/api/workbench/bootstrap");
+    return { registry: { workbenchCards: [{ moduleId: "time-tracking", renderer: "active-work-timers", listRoute: 7 }] } };
+  } });
+  statuses.length = 0;
+  await s.loadWorkbench();
+  assert.deepEqual(JSON.parse(JSON.stringify(statuses.at(-1))), ["Workbench card configuration: listRoute must be a string.", { isError: true }]);
+  assert.equal(s.readCachedWorkbenchRegistry(), null);
 });
