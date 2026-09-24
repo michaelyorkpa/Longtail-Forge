@@ -114,9 +114,9 @@ describe("The one root four readers share", () => {
     const at = source.indexOf("async function runAction(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
 
-    assert.match(block, /four readers now share this one root/,
+    assert.match(block, /five readers now share this one root/,
       "the deferral is consolidated rather than repeated at each site");
-    for (const reader of ["runAction", "moveItem", "listIndexItem", "detailActionButtons"]) {
+    for (const reader of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems"]) {
       assert.ok(block.includes(reader), `${reader} is named in the shared note`);
     }
     assert.match(block, /discharged by\*\* a caller or reader that vouches for a record as saved/i,
@@ -126,7 +126,7 @@ describe("The one root four readers share", () => {
   });
 
   it("leaves all four readers' record parameter undeclared", () => {
-    for (const name of ["runAction", "moveItem", "listIndexItem", "detailActionButtons"]) {
+    for (const name of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems"]) {
       const at = source.indexOf(`function ${name}(`);
       assert.notEqual(at, -1, `${name} still exists`);
       const block = source.slice(source.lastIndexOf("/**", at), at);
@@ -142,6 +142,7 @@ describe("The one root four readers share", () => {
     assert.match(source, /encodeURIComponent\(list\.list_id\)\}\/items\/reorder/, "moveItem builds a route");
     assert.match(source, /LIST_TYPE_LABELS\[list\.list_type\]/, "listIndexItem indexes by column");
     assert.match(source, /\["active", "completed"\]\.includes\(list\.status\)/, "detailActionButtons tests a fixed set");
+    assert.match(source, /STATUS_LABELS\[list\.status\] \|\| list\.status/, "detailMetaItems indexes by column");
   });
 });
 

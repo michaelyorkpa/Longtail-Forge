@@ -14,6 +14,11 @@
     shopping: "Shopping",
     supplies: "Supplies",
   };
+  /**
+   * Read by a list's `status` column, which is plain text rather than one of the five keys, so an
+   * unlisted status falls through to the raw value or to the caller's own stand-in.
+   * @type {Record<string, string>}
+   */
   const STATUS_LABELS = {
     active: "Active",
     archived: "Archived",
@@ -2321,6 +2326,7 @@
     });
   }
 
+  /** @param {string} targetType */
   function unavailableLinkedRecordLabel(targetType) {
     const typeLabel = LIST_LINK_TYPE_LABELS[targetType] || formatToken(targetType);
     return typeLabel ? `Unavailable ${typeLabel.toLowerCase()}` : "Unavailable linked record";
@@ -2392,11 +2398,19 @@
     );
   }
 
+  /**
+   * The item name, shortened past `max` characters with an ellipsis.
+   * @param {unknown} text @param {number} max
+   */
   function truncateItemName(text, max) {
     const value = String(text || "");
     return value.length > max ? `${value.slice(0, max)}…` : value;
   }
 
+  /**
+   * Write one item's cost into its cell, showing the actual when there is one.
+   * @param {HTMLElement} cell @param {ReturnType<typeof visibleItems>[number]} item
+   */
   function applyItemCostCell(cell, item) {
     const estimated = Number(item.estimated_cost) || 0;
     const actual = Number(item.actual_cost) || 0;
@@ -2479,7 +2493,7 @@
   /**
    * Run one list or item action against the server, and report the list to reselect.
    *
-   * **`list` is deliberately untyped, and four readers now share this one root.**
+   * **`list` is deliberately untyped, and five readers now share this one root.**
    *
    * `BrowserNormalizedListRecord` extends `Partial<Omit<BrowserListSummary, ...>>` and declares
    * `list_id: string | undefined` outright, because a draft the editor has not created yet has no
@@ -2489,10 +2503,12 @@
    * - `runAction` and `moveItem` build routes through `encodeURIComponent`.
    * - `listIndexItem` indexes the type-label map and selects by identifier.
    * - `detailActionButtons` tests `status` against a fixed set.
+   * - `detailMetaItems` indexes both label maps by `status` and `list_type`.
    *
-   * `0.33.33.43.23` recorded the first of these against `moveItem`. It is one condition, not four:
+   * `0.33.33.43.23` recorded the first of these against `moveItem`, and `0.33.33.43.28` found the
+   * fifth. It is one condition, not five:
    * **discharged by** a caller or reader that vouches for a record as saved - at which point all
-   * four take it as declared - or by each reader taking its identifier from `state.editingListId`,
+   * five take it as declared - or by each reader taking its identifier from `state.editingListId`,
    * which is text. Coercing at any of these sites would be new coercion on a path that currently
    * forwards whatever the record held. Pinned by `lists-action-dispatch-contracts`.
    * @param {string} action @param {string} [itemId] @param {string} [linkId]
@@ -2608,6 +2624,10 @@
     // form is submitted from inside the detail panel.
   }
 
+  /**
+   * Seed the item form from one existing item.
+   * @param {HTMLFormElement | null} form @param {ReturnType<typeof visibleItems>[number]} item
+   */
   function fillItemForm(form, item) {
     setFormValue(form, "item_name", item.item_name);
     setFormValue(form, "quantity", item.quantity ?? 1);
@@ -2772,6 +2792,7 @@
     return state.itemSuggestions.get(list?.list_id) || [];
   }
 
+  /** @param {ListItemSuggestion & { use_count?: unknown }} suggestion */
   function suggestionLabel(suggestion) {
     const pieces = [
       [suggestion.quantity ?? "", suggestion.unit || ""].filter(Boolean).join(" "),
@@ -2782,6 +2803,10 @@
     return pieces.length > 0 ? `${suggestion.item_name} - ${pieces.join(" / ")}` : suggestion.item_name;
   }
 
+  /**
+   * One snake_case or kebab-case token as title-cased words.
+   * @param {unknown} value
+   */
   function formatToken(value) {
     return String(value || "")
       .replace(/[_-]+/g, " ")
@@ -3719,6 +3744,11 @@
     return button;
   }
 
+  /**
+   * `status` is required text rather than optional: both callers read it off a record whose own
+   * parameter is untyped, and the map lookup below cannot be indexed by an absent value.
+   * @param {string} status
+   */
   function readonlyBadge(status) {
     const badge = document.createElement("span");
     badge.className = "lists-readonly-badge";
@@ -3726,6 +3756,7 @@
     return badge;
   }
 
+  /** @param {string} status */
   function statusBadge(status) {
     const badge = document.createElement("span");
     badge.className = `lists-status-badge is-${status || "unknown"}`;
@@ -3815,7 +3846,19 @@
     return section;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function sourceContextLabel(list) {
+    /**
+     * `BrowserListSummary` types `sourceContext` `unknown`, so this is what the reader tolerates
+     * and not what arrived: two spellings of each half, and every member of those `unknown`
+     * because this only tests them and interpolates them.
+     * @type {{
+     *   duplicatedFrom?: { list_id?: unknown, title?: unknown } | null,
+     *   duplicated_from?: { list_id?: unknown, title?: unknown } | null,
+     *   sourceList?: { list_id?: unknown, title?: unknown } | null,
+     *   source_list?: { list_id?: unknown, title?: unknown } | null
+     * }}
+     */
     const context = list.sourceContext || {};
     const duplicatedFrom = context.duplicatedFrom || context.duplicated_from;
     const sourceList = context.sourceList || context.source_list;
@@ -3842,6 +3885,13 @@
     return "This active list is independent. Future template edits will not change it.";
   }
 
+  /**
+   * The label the duplicate action carries for this list.
+   *
+   * This only tests the record's members - it turns none of them into text the platform requires -
+   * so it takes the record as declared rather than joining the deferral recorded on `runAction`.
+   * @param {BrowserNormalizedListRecord} list
+   */
   function duplicateActionLabel(list) {
     if (list.is_reusable) {
       return "Create Working Copy";
@@ -3852,6 +3902,7 @@
     return "Duplicate";
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function compactStateSummary(list) {
     const state = listState(list);
     const pieces = [
@@ -3876,7 +3927,12 @@
     return text.length > 96 ? `${text.slice(0, 93)}...` : text;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function linkedRecordSummary(list) {
+    // The nested `target` appears on no List contract - the wire link carries it and the shaper
+    // does not declare it - so it is described here as tolerated, exactly as `linkedContextItems`
+    // describes it. Only its presence is tested.
+    /** @type {(BrowserListLink & { target?: { label?: unknown } | null })[]} */
     const links = list.links || [];
     const available = links.filter((link) => link.target?.label).length;
     const unavailable = links.length - available;
@@ -3886,6 +3942,7 @@
     return `${available} linked ${available === 1 ? "record" : "records"}${unavailable > 0 ? `, ${unavailable} unavailable` : ""}`;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function listTimelineSummary(list) {
     const pieces = [];
     if (list.updated_at) {
@@ -3897,6 +3954,7 @@
     return pieces.join(" / ");
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function listCostSummary(list) {
     const totals = visibleItems(list).reduce((accumulator, item) => {
       accumulator.estimated += Number(item.estimated_cost) || 0;
@@ -3977,6 +4035,7 @@
     return badges;
   }
 
+  /** @param {string} label @param {string} modifier */
   function badge(label, modifier) {
     const element = document.createElement("span");
     element.className = `lists-badge ${modifier}`;
@@ -4149,6 +4208,7 @@
       .sort()[0] || "";
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function itemSummary(list) {
     if (list.progress) {
       const checked = Math.max(list.progress.checkedItemCount || 0, list.progress.completedItemCount || 0);
@@ -4159,12 +4219,18 @@
     return `${checked}/${items.length}`;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function listContextLabel(list) {
     const client = state.clients.find((entry) => entry.id === list.client_id);
     const project = allProjects().find((entry) => entry.id === list.project_id);
     return [client?.name, project?.name, list.is_reusable ? "Reusable" : ""].filter(Boolean).join(" / ") || "Workspace";
   }
 
+  /**
+   * **Deliberately untyped, and it joins the root recorded on `runAction`** - now five readers.
+   * This indexes both label maps by `status` and `list_type`, which the published record declares
+   * optional because a draft has neither.
+   */
   function detailMetaItems(list) {
     // Compact labeled meta line (Notes format): each value is a span with a "Label: value" tooltip,
     // separated by " - ", instead of the long pre-labeled run the header used to print.
@@ -4192,6 +4258,15 @@
     });
   }
 
+  /**
+   * The name to show for one user row, in the order the page prefers them.
+   *
+   * Every member is `unknown` because nothing validates the options payload these rows come from;
+   * this only picks the first present spelling and hands it on.
+   * @param {{
+   *   displayName?: unknown, display_name?: unknown, user_id?: unknown, username?: unknown
+   * } | null} [user]
+   */
   function displayUser(user) {
     if (!user) {
       return "";
@@ -4199,11 +4274,23 @@
     return user.display_name || user.displayName || user.username || user.user_id || "";
   }
 
+  /**
+   * One timestamp as local text, or the value unchanged when it is not a date.
+   *
+   * The parameter names what `Date` accepts - a **precondition of this formatter**, not a claim
+   * that any producer has been validated. Every caller reads it off a record this page does not
+   * vouch for, and an unusable value already returns unchanged.
+   * @param {string | number | Date} value
+   */
   function formatDateTime(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
   }
 
+  /**
+   * One amount as currency, or `""` for anything that is not a finite number.
+   * @param {unknown} value
+   */
   function formatCurrency(value) {
     const number = Number(value);
     if (!Number.isFinite(number)) {
