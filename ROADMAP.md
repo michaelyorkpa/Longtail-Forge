@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.37` | `workbench.js` — `clients-projects.js` reassigned to Claude | 8 owned |
-| Claude | `0.33.33.43.35` | `clients-projects.js` — **project-create defects fixed**; `lists.js` at its deferral floor | 276 |
+| Claude | `0.33.33.43.36` | `clients-projects.js` — write-path contracts named; `lists.js` at its deferral floor | 256 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1566,6 +1566,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.36 - The Clients/Projects write path, named
+
+**Complete: 20 diagnostics closed, zero introduced.** See the archive entry. `clients-projects.js` 276 to 256, browser **377 to 357**, `0.33.33.43` 279 to 259.
+
+**The cluster turned out to be two shapes, not three functions.** Every write on this page passes the same pair around: what the write reports about itself - the audit action and the record it touched - and what the page should look like once it lands. Naming them as `ClientProjectAction` and `ClientProjectViewState` closed the whole chain at once, because `saveClientSettings`, `persistClientProjectChange` and `signalClientProjectModuleAction` are three readers of the same two contracts.
+
+**The identifiers are `unknown`, and so are the state slots that receive them.** They come from normalised wire records, which vouch for no member's type, and `openClientId` and its two neighbours are assigned straight from them. Declaring those slots `string` would have been a claim the assignment does not make; nothing reads them as text, so `unknown` is both truthful and free.
+
+**One annotation was wrong, the compiler accepted it, and a test caught it.** `normalizeBillingContact` was declared `Record<string, string>`. It contains no `String()` - a falsy value becomes `""` and a truthy one passes through unchanged - so the values are `unknown`. The reduce's untyped accumulator is why the false declaration compiled. Corrected, with the real behaviour pinned including a non-string surviving by identity.
+
+**`container` is deliberately left undeclared.** Declaring it `Element | null` is correct and costs eleven: every control read off it becomes an `Element` carrying no `value`, `checked`, `dataset` or stashed editor. That is the same checked-lookup boundary `lists.js` records, and taking it here would have netted eleven new reads off against this checkpoint's real ones.
 
 #### 0.33.33.43.35 - Project creation, and three ways a draft was treated as a project
 
