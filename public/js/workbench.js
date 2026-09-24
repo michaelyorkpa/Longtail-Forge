@@ -3804,6 +3804,7 @@
     return text && !looksLikeRawId(text) ? text : fallback;
   }
 
+  /** @param {unknown} value */
   function looksLikeRawId(value) {
     // Matches embedded identifiers too ("Timer Paused for <uuid>."), not only
     // whole-string ids: copy that carries a raw id anywhere is not user-safe.
@@ -3858,6 +3859,7 @@
     await refreshFocusCandidates();
   }
 
+  /** @param {Parameters<typeof resolveFocusModeSelection>[0]} modeId */
   async function selectFocusMode(modeId) {
     resetTaskFocusState();
     state.focusModeId = resolveFocusModeSelection(modeId, state.focusModes);
@@ -4368,6 +4370,7 @@
     }
   }
 
+  /** @param {Element} element @param {string} className */
   function flashElement(element, className) {
     element.classList.remove(className);
     window.setTimeout(() => {
@@ -4900,6 +4903,7 @@
     return [hours, minutes, remainder].map((value) => String(value).padStart(2, "0")).join(":");
   }
 
+  /** @param {unknown} value */
   function formatToken(value) {
     return String(value || "")
       .split(/[_-]/)
