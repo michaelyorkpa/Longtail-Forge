@@ -437,6 +437,7 @@
     workCandidates: [],
     workspaceType: "business",
   };
+  /** @type {ReturnType<typeof window.setInterval> | null} */
   let tickIntervalId = null;
   let pendingActivatedTimerKey = "";
   let taskFocusExitCommitted = false;
