@@ -1255,6 +1255,11 @@
     }
   }
 
+  /**
+   * The Add Project dialog, hosting the create form and reporting back to whoever opened it.
+   * @param {NormalizedClientEntry} client
+   * @param {{ hostContext?: ClientProjectHostContext, parentProjectId?: string }} [options]
+   */
   function openAddProjectDialog(client, options = {}) {
     const formId = `add-project-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const form = createAddProjectForm(client, {
@@ -1776,37 +1781,26 @@
   }
 
   /**
-   * The workspace grouping the list holds, or a stand-in built from the settings already loaded.
+   * The workspace grouping the list holds, or a stand-in built the same way when it holds none.
    *
-   * The stand-in is the same grouping shape built from normalised capabilities rather than the
-   * wire's, which is why it is a second literal and not a call to the builder.
+   * **The stand-in is now built by the builder rather than restated beside it.** It used to be a
+   * second thirteen-line literal, and the two had drifted: the literal lacked `taskReminderPolicy`.
+   * `0.33.33.43.35` recorded that gap as latent and left it; `0.33.33.43.37` settled it because the
+   * stand-in reaches a typed consumer - `resolveProjectCreateTarget` hands it to the Add Project
+   * dialog - and a record missing a member of its own type cannot be passed as that type.
    *
-   * **The return is still undeclared, but no longer for the reason `0.33.33.43.33` recorded.**
-   * That reason - an unsaved draft pushed into a grouping's `projects` - is gone with the
-   * optimistic insert. Declaring `WorkspaceProjectsGrouping` now reports something else, and the
-   * something else is a real gap: **the stand-in below is missing `taskReminderPolicy`**, which
-   * the builder produces. Nothing reads that member off a grouping today - every read is on a real
-   * client - so the gap is latent rather than live, and closing it means either completing the
-   * stand-in or building it from the builder, both of which change what this object carries.
-   * That is its own decision, not a by-product of declaring a return.
+   * Every member but one is the identical expression the literal used. The one addition is
+   * `taskReminderPolicy`, and **no reader touches it on a grouping**: every read in this file is on
+   * a real client, a project, or wire input. The capabilities are the only translation - the
+   * builder reads the wire's spelling, this page holds the normalised one - and each is passed as
+   * the boolean the literal computed, so the builder's `=== true` answers the same.
+   * @returns {WorkspaceProjectsGrouping}
    */
   function getWorkspaceProjectClient() {
-    const simplifiedBilling = usesProjectRoundingOnly();
-
-    return clientProjectData.clients.find((client) => client.isWorkspaceScope) || {
-      id: "__workspace_projects__",
-      name: workspaceProjectsLabel(),
-      status: "Active",
-      billable: simplifiedBilling ? "no" : "yes",
-      billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
-      billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
-      billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
-      billing_contact: normalizeBillingContact({}),
-      canCreateProject: clientProjectData.capabilities?.canCreateWorkspaceProject === true,
-      canManageProjects: clientProjectData.capabilities?.canManageWorkspaceProjects === true,
-      isWorkspaceScope: true,
-      projects: [],
-    };
+    return clientProjectData.clients.find(isWorkspaceGrouping) || buildWorkspaceProjectsGrouping([], {
+      can_create_workspace_project: clientProjectData.capabilities?.canCreateWorkspaceProject === true,
+      can_manage_workspace_projects: clientProjectData.capabilities?.canManageWorkspaceProjects === true,
+    });
   }
 
   function createClientNameEditor(client, options = {}) {
@@ -2393,6 +2387,21 @@
     ].filter(Boolean).join(" / ");
   }
 
+  /**
+   * One project's editor, either inline under its client or inside a modal.
+   *
+   * `client` may be the workspace grouping as well as a real client - every read of it that
+   * differs between the two asks `isWorkspaceScope` first. `project` carries `tagIds` only while
+   * it is being saved: the editor adds it for the payload, as the client editor does.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord & { tagIds?: unknown }} project
+   * @param {{
+   *   modalLayout?: boolean,
+   *   hostContext?: ClientProjectHostContext,
+   *   onSaved?: (project: NormalizedProjectRecord) => unknown,
+   *   actionTarget?: Element | null,
+   * }} [options]
+   */
   function createProjectEditor(client, project, options = {}) {
     // Project settings sit closest to the work and override client/app defaults.
     const usesModalLayout = options.modalLayout === true;
@@ -2434,7 +2443,10 @@
 
     const billingRateInput = document.createElement("input");
     billingRateInput.inputMode = "decimal";
-    billingRateInput.value = project.billing_rate;
+    // The same conversion `0.33.33.43.34` measured in Chromium for the client's rate: `null` is
+    // written as the empty string. `normalizeProjects` answers `null` or text, never `undefined`,
+    // which is the case `??` would have treated differently.
+    billingRateInput.value = project.billing_rate ?? "";
     billingRateLabel.appendChild(billingRateInput);
 
     const billableLabel = createBillableCheckbox(project.billable);
@@ -3032,6 +3044,19 @@
     return getRealClients().find((client) => client.id === clientId)?.name || "";
   }
 
+  /**
+   * The create form, used inline and inside the Add Project dialog.
+   *
+   * `onSaved` defaulted to `null` and so inferred `null`, which refused every function the dialog
+   * handed it; it is declared as the optional callback it has always been.
+   * @param {NormalizedClientEntry} client
+   * @param {{
+   *   hostContext?: ClientProjectHostContext,
+   *   onSaved?: (() => unknown) | null,
+   *   parentProjectId?: string,
+   *   showClientAssignment?: boolean,
+   * }} [options]
+   */
   function createAddProjectForm(client, {
     hostContext = null,
     onSaved = null,
@@ -3510,10 +3535,14 @@
    *
    * The published contract keeps `hostContext` `unknown`, and deliberately so - it refuses to name
    * the shape **for its consumers**. This page still has to say what it does with one, so it names
-   * the single member it reaches for. **`complete` being callable is a precondition, not a proof**:
-   * the existing test is truthiness, and a truthy non-callable still throws exactly as it always
-   * did rather than being filtered out here.
-   * @typedef {{ complete?: (detail: ClientProjectActionCompletion) => unknown } | null} ClientProjectHostContext
+   * the two members it reaches for: `complete` once a write lands, and `cancel` when a create dialog
+   * is dismissed. **Both being callable is a precondition, not a proof.** `complete` is tested for
+   * truthiness and `cancel` is optional-called, and in both cases a truthy non-callable still throws
+   * exactly as it always did rather than being filtered out here.
+   * @typedef {{
+   *   complete?: (detail: ClientProjectActionCompletion) => unknown,
+   *   cancel?: (detail: { actionId: string }) => unknown,
+   * } | null} ClientProjectHostContext
    */
 
   /**
@@ -3748,6 +3777,23 @@
    * @typedef {ReturnType<typeof buildWorkspaceProjectsGrouping>} WorkspaceProjectsGrouping
    * @typedef {NormalizedClientRecord | WorkspaceProjectsGrouping} NormalizedClientEntry
    */
+
+  /**
+   * One project as this page holds it, derived from the normaliser that builds every one.
+   * @typedef {ReturnType<typeof normalizeProjects>[number]} NormalizedProjectRecord
+   */
+
+  /**
+   * Whether one entry of the client list is the workspace grouping.
+   *
+   * The exact complement of `isRealClient` below - truthiness, as the `find` it replaced tested -
+   * and a predicate rather than an inline arrow because `find` narrows by a predicate only.
+   * @param {{ isWorkspaceScope?: unknown }} entry
+   * @returns {entry is WorkspaceProjectsGrouping}
+   */
+  function isWorkspaceGrouping(entry) {
+    return Boolean(entry.isWorkspaceScope);
+  }
 
   /**
    * Whether one entry of the client list is a real client rather than the workspace grouping.
