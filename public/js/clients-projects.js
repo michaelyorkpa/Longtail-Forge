@@ -1769,13 +1769,14 @@
    * The stand-in is the same grouping shape built from normalised capabilities rather than the
    * wire's, which is why it is a second literal and not a call to the builder.
    *
-   * **The return is deliberately left underclared.** Declaring it `WorkspaceProjectsGrouping`
-   * compiles here, and what it then reports is one caller further on: `openAddProjectForm` pushes
-   * its draft payload straight into `targetClient.projects` before the server has answered, and
-   * that draft carries no `id`, `canManage`, `taskDefaults`, `taskReminderPolicy` or `tags`. That
-   * optimistic insert is long-standing behaviour and its own boundary; declaring this return only
-   * changes how the compiler spells the same complaint, so the declaration waits for the
-   * checkpoint that settles the draft shape.
+   * **The return is still undeclared, but no longer for the reason `0.33.33.43.33` recorded.**
+   * That reason - an unsaved draft pushed into a grouping's `projects` - is gone with the
+   * optimistic insert. Declaring `WorkspaceProjectsGrouping` now reports something else, and the
+   * something else is a real gap: **the stand-in below is missing `taskReminderPolicy`**, which
+   * the builder produces. Nothing reads that member off a grouping today - every read is on a real
+   * client - so the gap is latent rather than live, and closing it means either completing the
+   * stand-in or building it from the builder, both of which change what this object carries.
+   * That is its own decision, not a by-product of declaring a return.
    */
   function getWorkspaceProjectClient() {
     const simplifiedBilling = usesProjectRoundingOnly();
@@ -3145,9 +3146,12 @@
         tagIds: tagPicker.readTagIds(),
       };
 
-      targetClient.projects.push(project);
-
-      await createProjectRecord(targetClient, project, {
+      // **The draft is not a project until the server says so.** This used to push it into
+      // `targetClient.projects` before the request went out. On success that was invisible -
+      // `refreshClientProjectData` replaces the whole collection with the server's answer - but on
+      // failure the refresh never ran, so an unsaved draft stayed in the saved-project collection,
+      // carrying no `id` and none of the members the normaliser produces.
+      const created = await createProjectRecord(targetClient, project, {
         action: "project_created",
         client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
         client_name: targetClient.isWorkspaceScope ? "" : targetClient.name,
@@ -3159,7 +3163,13 @@
         flashSelector: `[data-add-project-button="${client.id}"]`,
         hostContext,
       });
-      onSaved?.();
+
+      // Gated, as every other write on this page already gates: the project editor's save, the
+      // archive action and client creation all ask first. Only this one did not, so a failed
+      // create still closed the dialog and discarded what had been typed into it.
+      if (created) {
+        onSaved?.();
+      }
     });
 
     return form;
@@ -3449,6 +3459,18 @@
 
     try {
       await request();
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Clients and projects were not saved. Start the local server and try again."));
+      console.error(error);
+      return false;
+    }
+
+    // **Past this line the write is committed**, and nothing below it may report otherwise. Reading
+    // the tree back, restoring the open rows, refreshing the read surface and telling the host its
+    // action finished are all consequences of a record that already exists; a failure in any of
+    // them leaves a stale view, not a lost record. Reporting one as "were not saved" is what
+    // invites the same record to be submitted twice, so the message leads with what is true.
+    try {
       await refreshClientProjectData();
       openClientId = viewState.openClientId || action.client_id || "";
       openBillingClientId = viewState.openBillingClientId || "";
@@ -3457,12 +3479,14 @@
       setStatus("");
       flashSavedButton(viewState.flashSelector);
       signalClientProjectModuleAction(action, viewState.hostContext || null);
-      return true;
     } catch (error) {
-      setStatus(requireErrors().caughtMessage(error, "Clients and projects were not saved. Start the local server and try again."));
+      // Not `caughtMessage` alone: that answers the thrown message, which says nothing about the
+      // save having succeeded - and that omission is the whole hazard here.
+      setStatus(`Saved, but the view could not be refreshed. Reload the page to see the change. (${requireErrors().caughtMessage(error, "Unknown error.")})`);
       console.error(error);
-      return false;
     }
+
+    return true;
   }
 
   function signalClientProjectModuleAction(action = {}, hostContext = null) {
