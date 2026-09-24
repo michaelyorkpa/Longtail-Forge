@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.36 - Workbench interval handle lifecycle
+
+**Model: Medium Effort** - derive one local operation handle from its native producer without changing executable code.
+
+- [x] **Baseline and boundary.** Fresh clean branch from 73a0f2457f6ad0c4e8af0873b200e43e2a40070d, matching fetched nightly; package files unchanged, no install. The tickIntervalId declaration and startTicking read account for exactly two state diagnostics (TS7034 and TS7005). The only non-initial writer is window.setInterval; the handle derives ReturnType<typeof window.setInterval> | null. The truthiness test, clear-before-replace order, window receivers, callback, one-second interval, assignment and failure placement remain unchanged.
+- [x] **Focused proof.** One added JSDoc line, with no executable changes. Whole scripts/tests symbol and lift search includes both regression directories; the neighboring state lifts still execute and no pin needs retargeting. Existing source-data, focus-state, focus-mode-rendering and focus-envelope suites pass 31/31. Existing isolated Task Focus state and task-opener desktop/mobile E2E on 8102 pass 4/4 first attempt, covering real timer/checklist mutations, cancellation, save, completion and focus. No new suite or mutation campaign: the annotation derives the established producer, with no new runtime behavior or test claim. No validation or error wording change.
+- [x] **Branch-local accounting, not integration totals.** Browser 499 to 497; Workbench 17 to 15 raw, 15 to 13 owned (12 params, zero state, one assorted). TS7034 and TS7005 each one to zero; every other per-file/code count unchanged. Two state eliminations, no reclassification or intermediate increase; exactly one diagnostic file moves. Workbench DOM remains two, global DOM 90, .43 remains 394. Server/tests and scripts stay zero. Shrink-only ledger, full check, canonical verify:slice and full-range checkpoint validation accompany delivery; integration recomputes its own totals.
+- [x] **Remainder and exclusions.** Fifteen raw remain, not a closeout. Three owned diagnostics belong to the recorded route-loader pair and elapsed-time producer deferral; the Inspector candidate and related-context reads remain unresolved boundaries. Other owned work includes drift recovery, focus-mode handling, flashElement and text formatting; two dataset DOM reads remain. The tail is not wholly recorded deferrals. Recommend focus-mode interaction and its connected dataset reads as the next bounded measurement, subject to dispatch. No Date bridge, timestamp producer change, registry validation, .42.22, Task Focus extraction or second controller work. Claude retains integration ownership.
+- [x] **Documentation disposition.** No docs change needed: this internal checkpoint changes only a local annotation, with no runtime or published-contract change; the archive records the proof.
+
 ## Version 0.33.33.42.35 - Workbench module-state map and readers
 
 **Model: High Effort** - preserve the difference between validated bootstrap entries and the identity-preserving fallback map at its connected consumers.
