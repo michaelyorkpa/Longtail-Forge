@@ -412,7 +412,9 @@
     /** @type {import("../../src/types/framework-contracts.js").FocusModeDefinition[]} */
     focusModes: [],
     modules: {},
-    /** @type {BrowserWorkbenchRegistry} */
+    /** Cached registry data is unvalidated; preserve it until each consumer reads it.
+     * @type {unknown}
+     */
     registry: {
       workbenchCards: [],
       timerSources: [],
@@ -1140,9 +1142,9 @@
     window.LongtailForge?.cachedFetch?.writeCached(workbenchCacheKey("registry"), registry || {});
   }
 
-  /** @param {Partial<BrowserWorkbenchRegistry> | null} cachedRegistry @param {Partial<BrowserWorkbenchRegistry> | null} freshRegistry */
+  /** @param {unknown} cachedRegistry @param {unknown} freshRegistry */
   function workbenchRegistryCardsChanged(cachedRegistry, freshRegistry) {
-    return JSON.stringify(cachedRegistry?.workbenchCards || []) !== JSON.stringify(freshRegistry?.workbenchCards || []);
+    return JSON.stringify(workbenchSourceField(cachedRegistry, "workbenchCards", true) || []) !== JSON.stringify(workbenchSourceField(freshRegistry, "workbenchCards", true) || []);
   }
 
   // Deep-link contract: workbench.html?taskId=<id> lands directly in Task Focus
@@ -1202,16 +1204,19 @@
     return true;
   }
 
-  /** @param {Partial<BrowserWorkbenchRegistry> | null} registry */
+  /** @param {unknown} registry */
   async function loadWorkbenchSourceData(registry) {
     /** @type {{taskOptions: unknown, timers: unknown[]}} */
     const sourceData = {
       taskOptions: null,
       timers: [],
     };
-    const cards = Array.isArray(registry?.workbenchCards) ? registry.workbenchCards : [];
+    const cards = Array.isArray(workbenchSourceField(registry, "workbenchCards", true))
+      ? workbenchCardField(registry, "workbenchCards") : [];
 
-    await Promise.all(cards.map(async (card) => {
+    const map = workbenchCardField(cards, "map");
+    if (typeof map !== "function") throw new TypeError("The Workbench source card collection requires a callable map.");
+    await Promise.all(Reflect.apply(map, cards, [async (/** @type {unknown} */ card) => {
       /** @type {unknown} */
       const loader = Reflect.get(workbenchCardDataLoaders, workbenchCardPropertyKey(workbenchCardField(card, "renderer")));
 
@@ -1221,7 +1226,7 @@
 
       if (typeof loader !== "function") throw new TypeError("The Workbench card data loader must be callable.");
       mergeWorkbenchSourceData(sourceData, await loader(card));
-    }));
+    }]));
 
     return sourceData;
   }
@@ -3637,7 +3642,11 @@
   }
 
   async function refreshWorkbenchTimers() {
-    const card = (state.registry.workbenchCards || []).find((entry) => workbenchCardField(entry, "renderer") === "active-work-timers");
+    const cards = workbenchCardField(state.registry, "workbenchCards") || [];
+    const find = workbenchCardField(cards, "find");
+    if (typeof find !== "function") throw new TypeError("The Workbench timer card collection requires a callable find.");
+    /** @type {unknown} */
+    const card = Reflect.apply(find, cards, [(/** @type {unknown} */ entry) => workbenchCardField(entry, "renderer") === "active-work-timers"]);
 
     if (!card) {
       return;
@@ -3882,8 +3891,12 @@
   }
 
   function renderRegisteredWorkbenchCards() {
-    /** @type {Map<unknown, BrowserWorkbenchContribution>} */
-    const activeCards = new Map((state.registry.workbenchCards || []).map((card) => [workbenchCardField(card, "renderer"), card]));
+    const cards = workbenchCardField(state.registry, "workbenchCards") || [];
+    const map = workbenchCardField(cards, "map");
+    if (typeof map !== "function") throw new TypeError("The Workbench rendered card collection requires a callable map.");
+    // The native constructor establishes the map; entries and values claim no record shape.
+    /** @type {Map<unknown, unknown>} */
+    const activeCards = new Map(Reflect.apply(map, cards, [(/** @type {unknown} */ card) => [workbenchCardField(card, "renderer"), card]]));
 
     document.querySelectorAll("[data-workbench-card]").forEach((card) => {
       const rendererId = workbenchCardField(workbenchCardField(card, "dataset"), "workbenchRenderer") || "";

@@ -3,7 +3,7 @@ import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 const source = createProjectTextReader().readText("public/js/workbench.js");
-const names = ["workbenchCardField", "workbenchCardPropertyKey", "renderRegisteredWorkbenchCards", "workbenchRegistryCardsChanged", "readCardState", "restoreCardState", "persistCardState", "handleWorkbenchCardToggle", "isTimerWorkbenchCard"];
+const names = ["workbenchSourceField", "workbenchCardField", "workbenchCardPropertyKey", "renderRegisteredWorkbenchCards", "workbenchRegistryCardsChanged", "readCardState", "restoreCardState", "persistCardState", "handleWorkbenchCardToggle", "isTimerWorkbenchCard"];
 class HtmlFixture {}
 class DetailsFixture extends HtmlFixture {}
 function fixture() {
