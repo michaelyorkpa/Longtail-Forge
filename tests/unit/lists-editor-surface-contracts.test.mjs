@@ -314,7 +314,12 @@ describe("Deferrals this checkpoint recorded", () => {
     const opener = extractFunctionBlock(source, "openListEditor");
     assert.ok(/params\.list \|\| params\.record \|\| params\.listRecord/.test(opener),
       "the three record spellings changed; re-decide this deferral rather than re-pin it");
-    assert.match(source, /@param \{BrowserNormalizedListRecord \| null\} \[list\]\r?\n\s+\*\/\r?\n\s+function openListDialog/,
+    // Anchored inside the dialog's own block rather than on the line before its declaration:
+    // `0.33.33.43.30` added an `options` parameter after this one, which broke an anchor that
+    // reached through to `function openListDialog` while the claim it guards was unchanged.
+    const dialogAt = source.indexOf("function openListDialog(");
+    const dialogBlock = source.slice(source.lastIndexOf("/**", dialogAt), dialogAt);
+    assert.match(dialogBlock, /@param \{BrowserNormalizedListRecord \| null\} \[list\]/,
       "openListDialog no longer requires a normalized record; re-decide the opener's deferral");
   });
 
