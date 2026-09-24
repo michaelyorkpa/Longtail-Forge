@@ -1138,7 +1138,16 @@
   }
 
   function readCachedWorkbenchRegistry() {
-    return window.LongtailForge?.cachedFetch?.readCached(workbenchCacheKey("registry")) || null;
+    const registry = window.LongtailForge?.cachedFetch?.readCached(workbenchCacheKey("registry")) || null;
+    const cards = workbenchSourceField(registry, "workbenchCards", true);
+    // Cached contributions bypass manifest validation. Check only the authorized
+    // optional route contract, retaining the registry and each card by identity.
+    if (Array.isArray(cards)) {
+      for (const card of cards) {
+        if (card != null) readWorkbenchCardRoute(card);
+      }
+    }
+    return registry;
   }
 
   /** @param {unknown} registry */
@@ -1224,7 +1233,7 @@
       /** @type {unknown} */
       const loader = Reflect.get(workbenchCardDataLoaders, workbenchCardPropertyKey(workbenchCardField(card, "renderer")));
 
-      if (!loader || !workbenchCardField(card, "listRoute")) {
+      if (!loader || readWorkbenchCardRoute(card) === undefined) {
         return;
       }
 
@@ -1235,21 +1244,36 @@
     return sourceData;
   }
 
-  // Deferred route boundary: the registry guarantees moduleId only. Both loaders retain
-  // raw listRoute forwarding; a real registry/API probe observes numeric 7 reaching fetch.
-  // Discharge requires an approved route contract or input policy, not a consumer assertion.
+  // Match manifest optionalString: only undefined is absent; empty text is valid
+  // configuration but has no route to load. Both initial load and refresh use this
+  // readiness decision. Accepted routes pass through without trimming or coercion.
+  /** @param {unknown} card */
+  function readWorkbenchCardRoute(card) {
+    const route = workbenchCardField(card, "listRoute");
+    if (route !== undefined && typeof route !== "string") {
+      throw new TypeError("Workbench card configuration: listRoute must be a string.");
+    }
+    return route === "" ? undefined : route;
+  }
+
+  /** @param {unknown} card */
   async function loadTimerCardData(card) {
+    const route = readWorkbenchCardRoute(card);
+    if (route === undefined) return;
     const api = requireApi();
-    const data = workbenchSourceFields(await api.getJson(card.listRoute, { cache: "no-store" }));
+    const data = workbenchSourceFields(await api.getJson(route, { cache: "no-store" }));
 
     return {
       timers: Array.isArray(data.timers) ? data.timers : [],
     };
   }
 
+  /** @param {unknown} card */
   async function loadTaskOptionsData(card) {
+    const route = readWorkbenchCardRoute(card);
+    if (route === undefined) return;
     const api = requireApi();
-    const data = await api.getJson(card.listRoute, { cache: "no-store" });
+    const data = await api.getJson(route, { cache: "no-store" });
 
     return {
       taskOptions: workbenchSourceFields(data).options || { projects: [] },
@@ -3658,6 +3682,7 @@
 
     try {
       const sourceData = await loadTimerCardData(card);
+      if (sourceData === undefined) return;
       state.timers = sourceData.timers;
       renderTimers();
     } catch (error) {

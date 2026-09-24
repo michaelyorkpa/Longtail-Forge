@@ -415,6 +415,7 @@
         "tests/e2e/view-shell-cold-load.spec.mjs",
         "tests/e2e/workbench-action-strip.spec.mjs",
         "tests/e2e/workbench-cache-readers.spec.mjs",
+        "tests/e2e/workbench-card-routes.spec.mjs",
         "tests/e2e/workbench-card-state.spec.mjs",
         "tests/e2e/workbench-completion-resume.spec.mjs",
         "tests/e2e/workbench-detail-context.spec.mjs",
@@ -916,7 +917,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 325,
+      "errorCount": 323,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -1005,7 +1006,7 @@
           },
           {
             "code": 7006,
-            "count": 5
+            "count": 3
           }
         ]
       }
@@ -1617,8 +1618,8 @@
     }
   },
   "totals": {
-    "files": 1498,
-    "errors": 325,
+    "files": 1499,
+    "errors": 323,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -39,7 +39,7 @@ assert.match(
   "Workbench should keep the Tasks contribution source only for task options needed by surviving paths",
 );
 const loadTaskOptionsData = extractFunctionBody(workbenchScript, "loadTaskOptionsData");
-assert.match(loadTaskOptionsData, /api\.getJson\(card\.listRoute/, "Task options should still load from the contributed list route");
+assert.match(loadTaskOptionsData, /const route = readWorkbenchCardRoute\(card\);[\s\S]*api\.getJson\(route/, "Task options should still load from the contributed list route");
 assert.match(loadTaskOptionsData, /taskOptions: workbenchSourceFields\(data\)\.options \|\| \{ projects: \[\] \}/, "Task options should remain normalized");
 assert.doesNotMatch(loadTaskOptionsData, /items|taskItems/, "Task options loading must not consume task-list items");
 

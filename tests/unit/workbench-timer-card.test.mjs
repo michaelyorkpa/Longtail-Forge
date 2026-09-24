@@ -60,7 +60,7 @@ it("keeps source labels and native/fallback CSS escaping", () => {
 // This case must be reassessed if the array-only handoff stops carrying opaque entries.
 it("pins the elapsed-time deferral to the real array-only loader and merge handoff", async () => {
   const s = fixture();
-  for (const name of ["workbenchSourceFields", "loadTimerCardData", "mergeWorkbenchSourceData"])
+  for (const name of ["workbenchSourceFields", "workbenchCardField", "readWorkbenchCardRoute", "loadTimerCardData", "mergeWorkbenchSourceData"])
     vm.runInContext(extractFunctionBlock(source, name), s);
   const timers = [
     { timer_status: "running", accumulated_elapsed_seconds: 2, last_active_start_time: 1000 },
