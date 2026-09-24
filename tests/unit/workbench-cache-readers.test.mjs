@@ -57,9 +57,8 @@ it("retains primitive boxing and getter failures before state replacement", () =
   s.window.LongtailForge.cachedFetch.readCached = (/** @type {string} */ key) => key.endsWith("focus-modes") ? { get modes() { throw failure; } } : null;
   assert.throws(() => s.renderWarmWorkbench(), error => error === failure); assert.equal(s.state, before);
 });
-// Cached registry reconciliation remains open: the real cache reads an opaque data member.
-// Discharge by reconciling the raw registry consumers without normalization or lost identity,
-// or by a separately authorized cache-validation policy. Changing this handoff must fail this case.
+// The reconciled registry stays opaque: the cache returns its raw data member.
+// This case protects that tolerance against substitution of fresh-response validation.
 it("pins raw cached registry forwarding against the fresh reader's different answer", async () => {
   const { scope: s } = fixture();
   s.writeCachedWorkbenchRegistry({ workbenchCards: [{ renderer: "probe", listRoute: "/probe" }] });

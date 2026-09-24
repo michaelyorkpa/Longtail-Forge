@@ -426,6 +426,7 @@
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
         "tests/e2e/workbench-navigation-disclosure.spec.mjs",
         "tests/e2e/workbench-reflective-audit.spec.mjs",
+        "tests/e2e/workbench-registry-consumers.spec.mjs",
         "tests/e2e/workbench-related-context.spec.mjs",
         "tests/e2e/workbench-task-opener.spec.mjs",
         "tests/e2e/workbench-timer-readers.spec.mjs",
@@ -794,6 +795,7 @@
         "tests/unit/workbench-inspector-handles.test.mjs",
         "tests/unit/workbench-navigation-disclosure.test.mjs",
         "tests/unit/workbench-recommendation-cycle.test.mjs",
+        "tests/unit/workbench-registry-consumers.test.mjs",
         "tests/unit/workbench-related-context.test.mjs",
         "tests/unit/workbench-source-data.test.mjs",
         "tests/unit/workbench-task-opener.test.mjs",
@@ -903,7 +905,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 508,
+      "errorCount": 507,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -1000,10 +1002,6 @@
           },
           {
             "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2739,
             "count": 1
           },
           {
@@ -1632,8 +1630,8 @@
     }
   },
   "totals": {
-    "files": 1485,
-    "errors": 508,
+    "files": 1487,
+    "errors": 507,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
