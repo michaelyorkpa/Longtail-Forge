@@ -1140,11 +1140,12 @@
   function readCachedWorkbenchRegistry() {
     const registry = window.LongtailForge?.cachedFetch?.readCached(workbenchCacheKey("registry")) || null;
     const cards = workbenchSourceField(registry, "workbenchCards", true);
-    // Cached contributions bypass manifest validation. Check only the authorized
-    // optional route contract, retaining the registry and each card by identity.
+    // The cache is a copy, not configuration authority. A corrupt route makes
+    // the whole copy a miss; bootstrap supplies and caches the authoritative one.
     if (Array.isArray(cards)) {
       for (const card of cards) {
-        if (card != null) readWorkbenchCardRoute(card);
+        const route = workbenchSourceField(card, "listRoute", true);
+        if (route !== undefined && typeof route !== "string") return null;
       }
     }
     return registry;
