@@ -1499,17 +1499,17 @@
 
     try {
       const result = await api.getJson(`/api/tasks/${encodeURIComponent(marker.taskId)}`, { cache: "no-store" });
-      const task = result?.task || null;
-      if (!task || !["open", "in_progress"].includes(String(task.status || ""))
-        || String(task.blocked_reason || "").trim() || String(task.resume_note || "").trim()) {
+      const task = workbenchSourceField(result, "task", true) || null;
+      if (!task || !["open", "in_progress"].includes(String(workbenchSourceField(task, "status") || ""))
+        || String(workbenchSourceField(task, "blocked_reason") || "").trim() || String(workbenchSourceField(task, "resume_note") || "").trim()) {
         return false;
       }
       setStatus("Recovering work context...");
       const captureResult = await requireNamespace().taskResumeNoteCapture?.offer({
         task,
         taskId: marker.taskId,
-        onError(error) {
-          setStatus(error.message || "Resume note could not be saved.", { isError: true });
+        onError(/** @type {unknown} */ error) {
+          setStatus(workbenchSourceField(error, "message") || "Resume note could not be saved.", { isError: true });
         },
       });
       if (captureResult?.reason !== "error") setStatus("");

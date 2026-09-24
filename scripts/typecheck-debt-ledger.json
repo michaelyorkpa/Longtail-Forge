@@ -789,6 +789,7 @@
         "tests/unit/workbench-checklist-readers.test.mjs",
         "tests/unit/workbench-completion-resume.test.mjs",
         "tests/unit/workbench-detail-context.test.mjs",
+        "tests/unit/workbench-drift-recovery.test.mjs",
         "tests/unit/workbench-focus-envelope.test.mjs",
         "tests/unit/workbench-focus-handles.test.mjs",
         "tests/unit/workbench-focus-identity.test.mjs",
@@ -910,7 +911,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 403,
+      "errorCount": 401,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -991,7 +992,7 @@
         "public/js/workbench.js": [
           {
             "code": 2339,
-            "count": 3
+            "count": 2
           },
           {
             "code": 2345,
@@ -999,7 +1000,7 @@
           },
           {
             "code": 7006,
-            "count": 6
+            "count": 5
           }
         ]
       }
@@ -1611,8 +1612,8 @@
     }
   },
   "totals": {
-    "files": 1492,
-    "errors": 403,
+    "files": 1493,
+    "errors": 401,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
