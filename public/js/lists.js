@@ -1,5 +1,10 @@
 (function attachListsPage() {
 
+  /**
+   * Read by a list's `list_type` column, which is plain text rather than one of the seven keys,
+   * so an unlisted type falls through to the raw value.
+   * @type {Record<string, string>}
+   */
   const LIST_TYPE_LABELS = {
     bill_of_materials: "Bill of Materials",
     checklist: "Checklist",
@@ -691,7 +696,11 @@
     label: "Add List",
     mode: "add",
     moduleId: "lists",
-    open: (params, hostContext) => openListEditor({ ...params, mode: "add" }, hostContext),
+    // The registry hands these straight through. `params` is a bag this page spreads and does
+    // not read, so a record of unknowns is the whole of what it needs to be.
+    open: (/** @type {Record<string, unknown>} */ params,
+      /** @type {ListEditorHostContext | null} */ hostContext) =>
+      openListEditor({ ...params, mode: "add" }, hostContext),
     recordType: "list",
     requiredModules: ["lists"],
     requiredPermissions: ["lists.create"],
@@ -703,7 +712,11 @@
     label: "Edit List",
     mode: "edit",
     moduleId: "lists",
-    open: (params, hostContext) => openListEditor({ ...params, mode: "edit" }, hostContext),
+    // The registry hands these straight through. `params` is a bag this page spreads and does
+    // not read, so a record of unknowns is the whole of what it needs to be.
+    open: (/** @type {Record<string, unknown>} */ params,
+      /** @type {ListEditorHostContext | null} */ hostContext) =>
+      openListEditor({ ...params, mode: "edit" }, hostContext),
     recordType: "list",
     requiredModules: ["lists"],
     requiredPermissions: ["lists.view"],
@@ -773,6 +786,13 @@
     });
   }
 
+  /**
+   * Run one registered list behaviour, by its action id.
+   *
+   * `record` is whatever the surface that raised the action was holding; `resolveListRecord`
+   * is what turns it into a list or refuses it, so nothing here claims more.
+   * @param {string} action @param {unknown} record
+   */
   async function runRegisteredListBehavior(action, record) {
     if (action === "create-list") {
       openListDialog();
@@ -1698,6 +1718,11 @@
     }
   }
 
+  /**
+   * **Deliberately untyped, and it shares one root with three others.** See the note on `runAction`:
+   * the published record declares every column optional, and this builds a label by indexing on
+   * `list_type` and a selection by `list_id`.
+   */
   function listIndexItem(list) {
     const view = requireView();
     const typeLabel = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
@@ -1734,6 +1759,13 @@
     };
   }
 
+  /**
+   * Select one list, and by default reflect it in the address bar.
+   *
+   * `updateUrl` is compared against `false` rather than tested for truth, so an absent option
+   * updates the URL and only an explicit `false` suppresses it.
+   * @param {string} listId @param {{ updateUrl?: boolean }} [options]
+   */
   function selectList(listId, options = {}) {
     state.selectedListId = listId || "";
     if (options.updateUrl !== false) {
@@ -1860,6 +1892,11 @@
       || listsWorkflowActionStripDescriptor();
   }
 
+  /**
+   * **`list` is deliberately untyped, for the root recorded on `runAction`**: this tests
+   * `list.status` against a fixed set, and the published record declares that column optional.
+   * @param {boolean} locked
+   */
   function detailActionButtons(list, locked) {
     const actions = listsActionStripSurfaceDescriptor().actions || [];
     const buttons = [];
@@ -2439,6 +2476,27 @@
     }
   }
 
+  /**
+   * Run one list or item action against the server, and report the list to reselect.
+   *
+   * **`list` is deliberately untyped, and four readers now share this one root.**
+   *
+   * `BrowserNormalizedListRecord` extends `Partial<Omit<BrowserListSummary, ...>>` and declares
+   * `list_id: string | undefined` outright, because a draft the editor has not created yet has no
+   * identifier and no columns. Every reader that turns one of those members into something the
+   * platform requires as text therefore cannot take the record as declared:
+   *
+   * - `runAction` and `moveItem` build routes through `encodeURIComponent`.
+   * - `listIndexItem` indexes the type-label map and selects by identifier.
+   * - `detailActionButtons` tests `status` against a fixed set.
+   *
+   * `0.33.33.43.23` recorded the first of these against `moveItem`. It is one condition, not four:
+   * **discharged by** a caller or reader that vouches for a record as saved - at which point all
+   * four take it as declared - or by each reader taking its identifier from `state.editingListId`,
+   * which is text. Coercing at any of these sites would be new coercion on a path that currently
+   * forwards whatever the record held. Pinned by `lists-action-dispatch-contracts`.
+   * @param {string} action @param {string} [itemId] @param {string} [linkId]
+   */
   async function runAction(action, list, itemId, linkId = "") {
     const api = requireApi();
     const listId = encodeURIComponent(list.list_id);
@@ -2499,7 +2557,9 @@
    * this path proves that. **Discharged by** taking the identifier from `state.editingListId`,
    * which is text, or by a caller that vouches for the record as saved. Pinned by
    * `lists-write-path-contracts`.
-   * @param {string} itemId @param {number} direction
+   * `itemId` is text-or-absent because `runAction` forwards its own optional argument straight
+   * through; an absent one matches no item and the reorder refuses at the lookup.
+   * @param {string | undefined} itemId @param {number} direction
    */
   async function moveItem(list, itemId, direction) {
     const api = requireApi();
