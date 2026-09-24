@@ -795,8 +795,9 @@
    * Run one registered list behaviour, by its action id.
    *
    * `record` is whatever the surface that raised the action was holding; `resolveListRecord`
-   * is what turns it into a list or refuses it, so nothing here claims more.
-   * @param {string} action @param {unknown} record
+   * is what turns it into a list or refuses it, so nothing here claims more. It carries the same
+   * tolerates-anything shape that reader declares, because it forwards it unread.
+   * @param {string} action @param {ListRecordReference} record
    */
   async function runRegisteredListBehavior(action, record) {
     if (action === "create-list") {
@@ -909,6 +910,20 @@
     };
   }
 
+  /**
+   * The list one surface's record refers to, or `null` when it names none this page holds.
+   *
+   * `record` is whatever raised the action, so nothing is claimed of it.
+   *
+   * **Every member is `unknown` and every one optional**, which is the same as saying the reader
+   * tolerates anything and vouches for nothing; the nested `_source` is what a search result
+   * carries around the row it found.
+   * @typedef {{
+   *   id?: unknown, list_id?: unknown,
+   *   _source?: { id?: unknown, list_id?: unknown } | null
+   * } | null} ListRecordReference
+   * @param {ListRecordReference} [record]
+   */
   function resolveListRecord(record) {
     const listId = record?.list_id || record?.id || record?._source?.list_id || record?._source?.id || state.selectedListId;
     return state.lists.find((entry) => entry.list_id === listId) || selectedList();
@@ -1811,6 +1826,11 @@
     }
   }
 
+  /**
+   * `null` is a real argument rather than an absence to guard against: the selection may hold no
+   * list, and this answers the prompt for it.
+   * @param {BrowserNormalizedListRecord | null} [list]
+   */
   function renderDetail(list) {
     const view = requireView();
     if (!list) {
@@ -2139,6 +2159,13 @@
       || listsItemFormDescriptor();
   }
 
+  /**
+   * **Deliberately untyped, and the consumer is why.** Declaring `fieldName` resolves this
+   * reader's return to the published descriptor union, whose `label` is `unknown` through its
+   * index signature - and `createItemNameField` appends that value directly, which requires text
+   * or a node. **Discharged by** the descriptor contract naming `label`, or by a reader that
+   * vouches for it. Pinned by `lists-surface-tail-contracts`.
+   */
   function itemFormField(fieldName) {
     return listsItemFormSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
   }
@@ -2493,7 +2520,7 @@
   /**
    * Run one list or item action against the server, and report the list to reselect.
    *
-   * **`list` is deliberately untyped, and five readers now share this one root.**
+   * **`list` is deliberately untyped, and seven readers now share this one root.**
    *
    * `BrowserNormalizedListRecord` extends `Partial<Omit<BrowserListSummary, ...>>` and declares
    * `list_id: string | undefined` outright, because a draft the editor has not created yet has no
@@ -2504,11 +2531,12 @@
    * - `listIndexItem` indexes the type-label map and selects by identifier.
    * - `detailActionButtons` tests `status` against a fixed set.
    * - `detailMetaItems` indexes both label maps by `status` and `list_type`.
+   * - `listState` and `readOnlyStateMessage` index the status label map.
    *
-   * `0.33.33.43.23` recorded the first of these against `moveItem`, and `0.33.33.43.28` found the
-   * fifth. It is one condition, not five:
+   * `0.33.33.43.23` recorded the first of these against `moveItem`, `0.33.33.43.28` found the
+   * fifth, and `0.33.33.43.29` the sixth and seventh. It is one condition, not seven:
    * **discharged by** a caller or reader that vouches for a record as saved - at which point all
-   * five take it as declared - or by each reader taking its identifier from `state.editingListId`,
+   * seven take it as declared - or by each reader taking its identifier from `state.editingListId`,
    * which is text. Coercing at any of these sites would be new coercion on a path that currently
    * forwards whatever the record held. Pinned by `lists-action-dispatch-contracts`.
    * @param {string} action @param {string} [itemId] @param {string} [linkId]
@@ -3486,12 +3514,14 @@
     }
   }
 
+  /** @param {boolean} visible */
   function setBusinessControlsVisible(visible) {
     document.querySelectorAll("[data-list-business-control]").forEach((element) => {
       element.hidden = !visible;
     });
   }
 
+  /** @param {boolean} visible */
   function setContextControlsVisible(visible) {
     document.querySelectorAll("[data-list-context-control]").forEach((element) => {
       element.hidden = !visible;
@@ -3688,6 +3718,7 @@
     return "No lists match the current filters. Create a list or adjust filters to resume work.";
   }
 
+  /** @param {BrowserViewTextValue} message */
   function renderDetailPrompt(message) {
     const view = requireView();
     const prompt = view.createEmptyState({
@@ -3764,6 +3795,7 @@
     return badge;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function createNextActionStrip(list) {
     const view = requireView();
     const section = view.createInfoPanel({
@@ -3782,6 +3814,7 @@
     return section;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function createCostSummaryPanel(list) {
     const view = requireView();
     const costText = listCostSummary(list);
@@ -3796,6 +3829,7 @@
     return section;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function nextActionText(list) {
     const state = listState(list);
     if (list.status === "deleted") {
@@ -3821,6 +3855,7 @@
     return "Everything is checked. Complete or finalize the list when it is ready.";
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function shouldShowSourceContext(list) {
     // Only surface the Source panel when it carries real provenance or usage context. For a plain
     // independent active list it would just repeat the "independent list" boilerplate already implied by
@@ -3832,6 +3867,7 @@
       list.list_type === "bill_of_materials";
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function createSourceContextPanel(list) {
     const view = requireView();
     const sourceContext = sourceContextLabel(list);
@@ -3875,6 +3911,7 @@
     return "";
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function defaultSourceContextText(list) {
     if (list.is_reusable) {
       return "Template for repeatable work. Duplicate it to create an independent active list.";
@@ -3919,6 +3956,7 @@
     return pieces.join(" / ");
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function listDescriptionExcerpt(list) {
     const text = String(list.description || "").trim().replace(/\s+/g, " ");
     if (!text) {
@@ -3971,6 +4009,7 @@
     return pieces.join(" / ");
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function stateFacts(list) {
     // A short fact run for the (now half-width) Next panel: progress, the next date, and assignment.
     // The context chip lives in the meta line and the source/independent chip in the Source panel, so
@@ -3984,6 +4023,8 @@
     ];
   }
 
+  /** **Deliberately untyped, for the root recorded on `runAction`**: this indexes the status
+   * label map, and the published record declares that column optional. */
   function listState(list) {
     const items = visibleItems(list);
     const checkedItems = list.progress
@@ -4008,6 +4049,8 @@
     };
   }
 
+  /** **Deliberately untyped, for the root recorded on `runAction`**: this indexes the status
+   * label map, and the published record declares that column optional. */
   function readOnlyStateMessage(list) {
     if (list.status === "finalized") {
       return "Finalized lists are read-only. Duplicate this record to start new active work.";
@@ -4021,6 +4064,7 @@
     return `${STATUS_LABELS[list.status] || "Locked"} lists are read-only.`;
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function listBadges(list) {
     const badges = [];
     if (list.is_reusable) {
@@ -4063,6 +4107,7 @@
     return label;
   }
 
+  /** @param {string} labelText @param {string} name */
   function textareaField(labelText, name, attributes = {}) {
     const label = document.createElement("label");
     const textarea = document.createElement("textarea");
@@ -4087,6 +4132,11 @@
     return label;
   }
 
+  /**
+   * Preselect one option on a freshly built field, so a new item starts on it and `form.reset()`
+   * restores it.
+   * @param {Element} node @param {unknown} value
+   */
   function applySelectDefault(node, value) {
     if (value === undefined || value === null || value === "") {
       return;
@@ -4194,6 +4244,7 @@
     return usesBusinessScope() ? "procurement" : "shopping";
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function nextNeededDate(list) {
     if (list.progress?.earliestNeededByDate) {
       return list.progress.earliestNeededByDate;
@@ -4201,6 +4252,7 @@
     return nextNeededDateFromItems(visibleItems(list));
   }
 
+  /** @param {ReturnType<typeof visibleItems>} [items] */
   function nextNeededDateFromItems(items = []) {
     return items
       .map((item) => item.needed_by_date)
@@ -4303,6 +4355,8 @@
     }).format(number);
   }
 
+  /** The status line writes `textContent` directly, which is why this is text.
+   * @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
     if (!statusMessage) {
       return;

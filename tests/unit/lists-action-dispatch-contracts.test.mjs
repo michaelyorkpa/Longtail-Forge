@@ -114,9 +114,9 @@ describe("The one root four readers share", () => {
     const at = source.indexOf("async function runAction(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
 
-    assert.match(block, /five readers now share this one root/,
+    assert.match(block, /seven readers now share this one root/,
       "the deferral is consolidated rather than repeated at each site");
-    for (const reader of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems"]) {
+    for (const reader of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems", "listState", "readOnlyStateMessage"]) {
       assert.ok(block.includes(reader), `${reader} is named in the shared note`);
     }
     assert.match(block, /discharged by\*\* a caller or reader that vouches for a record as saved/i,
@@ -126,7 +126,7 @@ describe("The one root four readers share", () => {
   });
 
   it("leaves all four readers' record parameter undeclared", () => {
-    for (const name of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems"]) {
+    for (const name of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems", "listState", "readOnlyStateMessage"]) {
       const at = source.indexOf(`function ${name}(`);
       assert.notEqual(at, -1, `${name} still exists`);
       const block = source.slice(source.lastIndexOf("/**", at), at);
@@ -158,7 +158,10 @@ describe("What the dispatch surface declares", () => {
     const at = source.indexOf("async function runRegisteredListBehavior(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
 
-    assert.match(block, /@param \{string\} action @param \{unknown\} record/);
+    // `0.33.33.43.29` gave the reference a name. The claim is unchanged: every member optional and
+    // `unknown`, which is the same as vouching for nothing.
+    assert.match(block, /@param \{string\} action @param \{ListRecordReference\} record/);
+    assert.match(source, /\}\s*\| null\} ListRecordReference/, "and that shape admits an absent record");
     assert.match(source, /const list = resolveListRecord\(record\);/,
       "the resolver is still what turns it into a list or refuses it");
   });
