@@ -98,7 +98,7 @@ try {
 
   // Live reads stay uncached; near-static reads go through the shared helper.
   assert.match(workbenchSource, /focus-candidates\?\$\{params\.toString\(\)\}`, \{ cache: "no-store" \}/, "focus candidates stay uncached");
-  assert.match(workbenchSource, /api\.getJson\(card\.listRoute, \{ cache: "no-store" \}\)/, "card source data stays uncached");
+  assert.match(workbenchSource, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "card source data stays uncached");
   assert.match(workbenchSource, /cachedFetch\.getJson\("\/api\/workbench\/focus-modes"/, "focus modes use the cached-fetch helper");
   assert.match(workbenchSource, /cachedFetch\.getJson\("\/api\/client-projects\?view=options"/, "client/project options use the cached-fetch helper");
 

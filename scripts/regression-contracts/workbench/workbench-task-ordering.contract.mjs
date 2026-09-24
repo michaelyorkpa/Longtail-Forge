@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /async function loadTaskOptionsData\(card\)[\s\S]*api\.getJson\(card\.listRoute[\s\S]*taskOptions: workbenchSourceFields\(data\)\.options \|\| \{ projects: \[\] \}/,
+  /async function loadTaskOptionsData\(card\)[\s\S]*const route = readWorkbenchCardRoute\(card\);[\s\S]*api\.getJson\(route[\s\S]*taskOptions: workbenchSourceFields\(data\)\.options \|\| \{ projects: \[\] \}/,
   "Workbench should load Tasks options from the contributed route without consuming an all-tasks list.",
 );
 // 0.33.33.38.4.3.7: the bootstrap arm this used to pin was dead. `workbenchService.bootstrap`

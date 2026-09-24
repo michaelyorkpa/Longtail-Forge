@@ -8,7 +8,7 @@ function fixture() {
   const storage = new Map();
   const scope = vm.createContext({ window: { sessionStorage: { getItem: (/** @type {string} */ key) => storage.get(key) ?? null, setItem: (/** @type {string} */ key, /** @type {string} */ value) => storage.set(key, value) }, LongtailForge: { workspaceContext: { workspaceId: "workspace" } } } });
   vm.runInContext(reader.readText("public/js/shared/cached-fetch.js"), scope);
-  for (const name of ["workbenchCacheKey", "readCachedWorkbenchRegistry", "writeCachedWorkbenchRegistry", "workbenchFocusEnvelope", "renderWarmWorkbench", "isBootstrapRecord", "isWorkbenchContribution", "readWorkbenchRegistry", "workbenchCardField", "workbenchCardPropertyKey", "loadWorkbenchSourceData", "mergeWorkbenchSourceData", "workbenchSourceFields", "workbenchSourceField"])
+  for (const name of ["workbenchCacheKey", "readCachedWorkbenchRegistry", "readWorkbenchCardRoute", "writeCachedWorkbenchRegistry", "workbenchFocusEnvelope", "renderWarmWorkbench", "isBootstrapRecord", "isWorkbenchContribution", "readWorkbenchRegistry", "workbenchCardField", "workbenchCardPropertyKey", "loadWorkbenchSourceData", "mergeWorkbenchSourceData", "workbenchSourceFields", "workbenchSourceField"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   scope.state = { clients: [], focusModes: [], registry: { workbenchCards: [] }, selectedClientId: "", selectedProjectId: "", focusModeId: "guided" };
   scope.updateCalendarWeekLinkVisibility = () => {};
@@ -81,4 +81,42 @@ it("keeps cached absence and malformed-wrapper recovery without requiring the se
   storage.set("lf_cached_fetch:workspace:workbench:registry", '{"data":false}'); assert.equal(s.readCachedWorkbenchRegistry(), null);
   s.window.LongtailForge.cachedFetch = undefined;
   s.renderWarmWorkbench(); assert.equal(s.state.registry, before.registry);
+});
+
+it("rejects supplied non-string routes at cache consumption, before warm state or rendering", () => {
+  const { scope: s } = fixture();
+  const before = s.state;
+  s.renderWorkbench = () => { throw new Error("invalid configuration must not render"); };
+  for (const listRoute of [null, 0, false, 7, [], {}]) {
+    s.writeCachedWorkbenchRegistry({ workbenchCards: [{ renderer: "probe", listRoute }] });
+    assert.throws(() => s.renderWarmWorkbench(), { name: "TypeError", message: "Workbench card configuration: listRoute must be a string." });
+    assert.equal(s.state, before);
+  }
+});
+
+it("preserves the valid cached registry, cards and missing or empty route members by identity", () => {
+  const { scope: s } = fixture();
+  for (const listRoute of [undefined, "", " /unchanged "]) {
+    const card = { renderer: "probe", listRoute, metadata: {} };
+    const registry = { workbenchCards: [card] };
+    s.window.LongtailForge.cachedFetch.readCached = () => registry;
+    assert.equal(s.readCachedWorkbenchRegistry(), registry);
+    assert.equal(registry.workbenchCards[0], card);
+    assert.equal(card.listRoute, listRoute);
+  }
+});
+
+it("matches the manifest's actual optionalString acceptance without widening its vocabulary", () => {
+  const { scope: s } = fixture();
+  const manifest = reader.readText("src/core/modules/manifest-contract.js");
+  for (const name of ["formatFieldName", "optionalString"]) vm.runInContext(extractFunctionBlock(manifest, name), s);
+  for (const listRoute of [undefined, "", " /literal ", null, 0, false, 7, [], {}, Symbol("route")]) {
+    /** @type {string[]} */ const errors = [];
+    s.optionalString({ listRoute }, "listRoute", errors);
+    if (errors.length) {
+      assert.throws(() => s.readWorkbenchCardRoute({ listRoute }), { name: "TypeError", message: "Workbench card configuration: listRoute must be a string." });
+    } else {
+      assert.equal(s.readWorkbenchCardRoute({ listRoute }), listRoute === "" ? undefined : listRoute);
+    }
+  }
 });
