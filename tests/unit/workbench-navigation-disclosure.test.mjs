@@ -3,8 +3,9 @@ import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 const source = createProjectTextReader().readText("public/js/workbench.js");
+class DetailsFixture {}
 function fixture() {
-  const scope = vm.createContext({});
+  const scope = vm.createContext({ HTMLDetailsElement: DetailsFixture });
   for (const name of ["workbenchSourceField", "navigationContainsHref", "setWorkbenchDisclosureOpen", "updateDisclosureExpandedState"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   return scope;
@@ -43,6 +44,7 @@ it("writes Boolean disclosure state before updating its accessible state with th
     set open(/** @type {boolean} */ value) { assert.equal(this, details); calls.push(["write", value]); open = value; },
     querySelector(/** @type {string} */ selector) { assert.equal(this, details); calls.push(selector); return summary; },
   };
+  Object.setPrototypeOf(details, DetailsFixture.prototype);
   for (const value of [false, 0, "", null, undefined, {}, "false", Symbol("open")]) {
     calls.length = 0;
     s.setWorkbenchDisclosureOpen(details, value);
@@ -55,9 +57,36 @@ it("preserves sloppy failed writes and setter exceptions without moving later re
   const s = fixture();
   let queried = 0;
   const readonly = Object.defineProperty({ querySelector() { queried++; return null; } }, "open", { value: false });
+  Object.setPrototypeOf(readonly, DetailsFixture.prototype);
   s.setWorkbenchDisclosureOpen(readonly, true);
   assert.equal(Reflect.get(readonly, "open"), false); assert.equal(queried, 1);
   const failure = new Error("setter");
   const broken = { set open(/** @type {unknown} */ value) { throw failure; }, querySelector() { throw new Error("too late"); } };
   assert.throws(() => s.setWorkbenchDisclosureOpen(broken, true), e => e === failure);
+});
+
+it("ignores non-details disclosure recipients and preserves absent native summaries", () => {
+  const s = fixture();
+  for (const value of [null, undefined, { querySelector() { assert.fail("wrong kind queried"); } }]) s.updateDisclosureExpandedState(value);
+  const details = Object.assign(new DetailsFixture(), { querySelector: () => null, get open() { return false; } });
+  s.updateDisclosureExpandedState(details);
+});
+it("keeps disclosure event recipients and timer keyboard activation semantics", () => {
+  const s = fixture();
+  for (const name of ["handleDisclosureToggle", "markTimerSectionUserToggle"]) vm.runInContext(extractFunctionBlock(source, name), s);
+  const recipient = {};
+  s.updateDisclosureExpandedState = (/** @type {unknown} */ value) => assert.equal(value, recipient);
+  s.handleDisclosureToggle({ currentTarget: recipient });
+  for (const key of ["Enter", " ", "Spacebar", "Escape", "", undefined, null, 7, {}, Symbol("key")]) {
+    s.timerSectionUserToggled = false;
+    let reads = 0;
+    s.markTimerSectionUserToggle({ type: "keydown", get key() { reads++; return key; } });
+    assert.equal(s.timerSectionUserToggled, key === "Enter" || key === " " || key === "Spacebar");
+    assert.equal(reads, 1);
+  }
+  s.timerSectionUserToggled = false;
+  s.markTimerSectionUserToggle({ type: "click", get key() { return assert.fail("click must not read key"); } });
+  assert.equal(s.timerSectionUserToggled, true);
+  const failure = new Error("keyboard getter");
+  assert.throws(() => s.markTimerSectionUserToggle({ type: "keydown", get key() { throw failure; } }), error => error === failure);
 });

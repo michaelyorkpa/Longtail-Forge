@@ -965,6 +965,7 @@
    */
   function createWorkbenchSectionSummary({ bodyId = "", count = null, subtitle = null, title }) {
     const workbenchViewHelpers = requireView();
+    /** @type {{ "aria-expanded": string, "aria-controls"?: string }} */
     const attrs = { "aria-expanded": "false" };
 
     if (bodyId) {
@@ -3390,7 +3391,7 @@
   function focusActiveFocusQuestion() {
     const activeButton = document.querySelector("[data-workbench-focus-mode][data-active=\"true\"]");
 
-    if (activeButton && typeof activeButton.focus === "function") {
+    if (activeButton && "focus" in activeButton && typeof activeButton.focus === "function") {
       activeButton.focus();
       return;
     }
@@ -4450,6 +4451,7 @@
     return String(value).replaceAll('"', '\\"');
   }
 
+  /** @param {Event} event */
   function handleDisclosureToggle(event) {
     updateDisclosureExpandedState(event.currentTarget);
   }
@@ -4469,9 +4471,11 @@
     persistCardState();
   }
 
+  /** @param {Event} event */
   function markTimerSectionUserToggle(event) {
-    if (event.type === "keydown" && !["Enter", " ", "Spacebar"].includes(event.key)) {
-      return;
+    if (event.type === "keydown") {
+      const key = "key" in event ? event.key : undefined;
+      if (typeof key !== "string" || !["Enter", " ", "Spacebar"].includes(key)) return;
     }
     timerSectionUserToggled = true;
   }
@@ -4499,7 +4503,11 @@
     updateDisclosureExpandedState(details);
   }
 
+  /** @param {EventTarget | null | undefined} details */
   function updateDisclosureExpandedState(details) {
+    // createWorkbenchCardSection and createTimerCard build native details in this document.
+    // A matching non-details event target takes the existing absent-summary path.
+    if (!(details instanceof HTMLDetailsElement)) return;
     const summary = details?.querySelector("summary");
 
     if (!summary) {
