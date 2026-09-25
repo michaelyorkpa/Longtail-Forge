@@ -184,10 +184,14 @@ export interface ModuleActionDependency {
  * while the action it is loading for is still unopenable.
  */
 export interface ModuleActionDependencyLoader {
-  /** The declared dependencies for an action, or an empty list for an unknown one. */
-  dependenciesFor(actionId: string): ModuleActionDependency[];
+  /**
+   * The declared dependencies for an action, or an empty list for an unknown one. `actionId` is an
+   * opaque action key (`0.33.33.38.2.10`); the table converts it to a property key, so a numeric
+   * `7` reads the entry for `"7"`.
+   */
+  dependenciesFor(actionId: unknown): ModuleActionDependency[];
   /** Load an action's dependencies in declaration order, skipping satisfied ones. */
-  ensureDependencies(actionId: string): Promise<void>;
+  ensureDependencies(actionId: unknown): Promise<void>;
 }
 
 /**
@@ -2341,8 +2345,9 @@ export interface BrowserDashboardBootstrap {
  * `public/js/shared/module-actions.js` at two sites - the elements of `list()` and the
  * `action` a host context carries - which construct the identical shape.
  *
- * **Only the two identifiers are `string`.** `register` pins `actionId` and `id` after
- * spreading the caller's descriptor, so nothing can overwrite them. Every other field is
+ * **The two identifiers are the registered key.** `register` pins `actionId` and `id` after
+ * spreading the caller's descriptor, so nothing can overwrite them; they are the opaque key the
+ * action registered with, which is any truthy value (`0.33.33.38.2.10`). Every other field is
  * whatever the registering module supplied: the registry sets defaults, spreads the
  * descriptor over them, and **never validates what came back**. Naming those fields
  * `string` would describe the defaults rather than the runtime. The three list fields are
@@ -2350,8 +2355,13 @@ export interface BrowserDashboardBootstrap {
  * copies whatever iterable it was given.
  */
 export interface ModuleActionSummary {
-  actionId: string;
-  id: string;
+  /**
+   * The opaque key the action registered with, handed back as it was (`0.33.33.38.2.10`). Every
+   * first-party action registers with text, but the registry accepts any truthy value.
+   */
+  actionId: unknown;
+  /** The same key as `actionId`. */
+  id: unknown;
   label: unknown;
   mode: unknown;
   moduleId: unknown;
@@ -2364,14 +2374,15 @@ export interface ModuleActionSummary {
 
 /**
  * What `open` resolves to. **The registry owns this shape** - it is settled by the host
- * context rather than returned by the module - which is why `actionId` and `completed` are
- * precise. `detail` is not: it is whatever the dialog passed to `complete`/`cancel`, or the
- * opener's own return value.
+ * context rather than returned by the module - which is why `completed` is precise and
+ * `actionId` is the exact key the action registered with, opaque since `0.33.33.38.2.10`.
+ * `detail` is not: it is whatever the dialog passed to `complete`/`cancel`, or the opener's own
+ * return value.
  *
  * **Every consumer reads `completed` and nothing else.**
  */
 export interface ModuleActionOutcome {
-  actionId: string;
+  actionId: unknown;
   completed: boolean;
   detail: unknown;
 }
@@ -2411,7 +2422,11 @@ export interface BrowserModuleActions extends ModuleActionDependencyLoader {
    * so the declaration would have been buying consumer assistance with narrowing work that
    * belongs to `0.33.33.38.4`. The members are named here instead.
    */
-  open(actionId: string, params?: unknown, options?: unknown): Promise<ModuleActionOutcome>;
+  /**
+   * `actionId` is the opaque key the action registered with, found by exact value
+   * (`0.33.33.38.2.10`): a numeric `7` and the text `"7"` are two different actions.
+   */
+  open(actionId: unknown, params?: unknown, options?: unknown): Promise<ModuleActionOutcome>;
   /** Register an action, or return `null` for a descriptor with no id or no opener. */
   register(action?: unknown): unknown;
 }

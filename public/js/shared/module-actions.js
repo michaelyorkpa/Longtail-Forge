@@ -5,7 +5,12 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionDependency} ModuleActionDependency */
 
   const namespace = window.LongtailForge || {};
-  /** @type {Map<string, RegisteredModuleAction>} */
+  /**
+   * Keyed by the exact identifier each action registered with. **The key is opaque**
+   * (`0.33.33.38.2.10`): `register` accepts any truthy `actionId`/`id`, and `open` finds an action
+   * by that same value, so a numeric `7` and the text `"7"` are two different actions.
+   * @type {Map<unknown, RegisteredModuleAction>}
+   */
   const registeredActions = new Map();
   /** @type {Map<string, Promise<void>>} */
   const dependencyScriptLoads = new Map();
@@ -133,7 +138,9 @@
    * Entries with `module: true` are loaded through dynamic `import()` rather than a
    * classic `<script>` element, because those adapters would otherwise collide in the
    * shared lexical environment.
-   * @type {Readonly<Record<string, readonly ModuleActionDependency[]>>}
+   * Indexed with a property key rather than a string: the lookup below converts an opaque action
+   * key exactly as a member access does.
+   * @type {Readonly<Record<PropertyKey, readonly ModuleActionDependency[]>>}
    */
   const MODULE_ACTION_DEPENDENCIES = Object.freeze({
     "notes.view": [
@@ -216,13 +223,17 @@
    * read of them already treats them as.
    *
    * **Nothing here is validated.** `register` proves exactly two things: that an identifier is
-   * present and that `open` is a function. The identifiers are `string` and the three lists are
-   * lists because that is what the registry's own unguarded reads require of them - `[...]` and
-   * `.every` throw for anything else, exactly where they threw before - not because a descriptor
-   * that breaks the precondition is refused. One still registers.
+   * present and that `open` is a function. The three lists are lists because that is what the
+   * registry's own unguarded reads require of them - `[...]` and `.every` throw for anything else,
+   * exactly where they threw before - not because a descriptor that breaks the precondition is
+   * refused. One still registers.
+   *
+   * **The identifiers are opaque keys, not text** (`0.33.33.38.2.10`). Any truthy value registers,
+   * is stored as a `Map` key and is handed back as it was; no read of it requires text. They were
+   * declared `string`, which described the first-party IDs rather than the registry.
    * @typedef {object} ModuleActionDescriptorMembers
-   * @property {string} [actionId]
-   * @property {string} [id]
+   * @property {unknown} [actionId]
+   * @property {unknown} [id]
    * @property {ModuleActionOpener} [open]
    * @property {unknown[]} [requiredModules]
    * @property {unknown[]} [requiredPermissions]
@@ -236,11 +247,12 @@
    *
    * Two of these members are proved rather than assumed: `open` is a function because `register`
    * refuses a descriptor without one, and the identifiers are pinned after the spread so nothing
-   * a module supplies can overwrite them. Their being `string`, and the three lists being lists,
-   * carry over from {@link ModuleActionDescriptorMembers} unchanged and unchecked.
+   * a module supplies can overwrite them. Both identifiers are the one opaque key the action
+   * registered with; the three lists being lists carries over from
+   * {@link ModuleActionDescriptorMembers} unchanged and unchecked.
    * @typedef {object} RegisteredModuleActionMembers
-   * @property {string} actionId
-   * @property {string} id
+   * @property {unknown} actionId
+   * @property {unknown} id
    * @property {ModuleActionOpener} open
    * @property {unknown[]} requiredModules
    * @property {unknown[]} requiredPermissions
@@ -527,7 +539,9 @@
    * `params` and `options` stay as the defaults infer them - `{}`, which is every non-nullish
    * value a host can pass - rather than the `unknown` the published signature names, because
    * this file spreads the one and reads guarded members off the other.
-   * @param {string} actionId
+   *
+   * `actionId` is the opaque key the action registered with, found by exact value.
+   * @param {unknown} actionId
    * @returns {Promise<ModuleActionOutcome>}
    */
   async function open(actionId, params = {}, options = {}) {
@@ -778,15 +792,32 @@
   }
 
   /**
-   * @param {string} actionId
+   * The declared dependencies for an action key, or none.
+   *
+   * The table is a plain object, so looking a key up converts it to a property key first: a symbol
+   * is used as it is, and anything else is converted to text exactly as a member access converts
+   * it - one string conversion, through the same `Symbol.toPrimitive`, `toString` and `valueOf`
+   * calls. A numeric `7` therefore reads the entry for `"7"`, as it always did. Only the symbol
+   * needs its own branch: text conversion would throw for it, where the member access used it.
+   *
+   * **One named difference, for an input no caller produces.** An object whose string conversion
+   * answers a symbol - a `Symbol` wrapper, or a custom `Symbol.toPrimitive` returning one - was
+   * used as that symbol and found nothing; the text conversion now throws `TypeError` for it
+   * instead. No first-party action registers such a key and none can arrive as JSON. Writing the
+   * native conversion out any more exactly would take a cast, an `any`, or a hand-rolled
+   * `ToPrimitive`.
+   * @param {unknown} requestedId
    * @returns {ModuleActionDependency[]}
    */
-  function dependenciesFor(actionId) {
+  function dependenciesFor(requestedId) {
+    // Still spelled `actionId` at the lookup: V8 writes that expression's own text into the
+    // `TypeError` an inherited name such as "constructor" raises, so the message is unchanged.
+    const actionId = typeof requestedId === "symbol" ? requestedId : `${requestedId}`;
     return [...(MODULE_ACTION_DEPENDENCIES[actionId] || [])];
   }
 
   /**
-   * @param {string} actionId
+   * @param {unknown} actionId
    * @returns {Promise<void>}
    */
   async function ensureDependencies(actionId) {
