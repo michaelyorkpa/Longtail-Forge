@@ -1,4 +1,4 @@
-/* global document, HTMLElement, HTMLInputElement, HTMLSelectElement, HTMLTextAreaElement, HTMLButtonElement, HTMLFormElement, HTMLDialogElement */
+/* global document, HTMLElement, HTMLInputElement, HTMLSelectElement, HTMLTextAreaElement, HTMLButtonElement, HTMLFormElement, HTMLDialogElement, HTMLDetailsElement */
 // The page.evaluate callback below runs in the browser, not Node.
 
 // Runtime proof for 0.33.33.43.25.
@@ -56,6 +56,8 @@ const NARROWED_HANDLES = [
   { selector: "[data-list-item-dialog]", constructorName: "HTMLDialogElement" },
   { selector: "[data-list-item-form]", constructorName: "HTMLFormElement" },
   { selector: "[data-list-item-save]", constructorName: "FormControl" },
+  // `0.33.33.38.3.10`: the sidebar index panel is captured as the `<details>` the renderer builds.
+  { selector: "[data-lists-index-panel]", constructorName: "HTMLDetailsElement" },
 ];
 
 test("every narrowed Lists handle resolves to the subtype its lookup demands", async ({ page }) => {
@@ -78,7 +80,8 @@ test("every narrowed Lists handle resolves to the subtype its lookup demands", a
         constructorName === "HTMLSelectElement" ? HTMLSelectElement
           : constructorName === "HTMLFormElement" ? HTMLFormElement
             : constructorName === "HTMLDialogElement" ? HTMLDialogElement
-              : HTMLElement
+              : constructorName === "HTMLDetailsElement" ? HTMLDetailsElement
+                : HTMLElement
       );
     return { selector, constructorName, found: true, actual: element.constructor.name, narrows };
   }), NARROWED_HANDLES);
@@ -197,5 +200,57 @@ isolatedTest("Capture opens and saves a list on a page without the Lists workspa
     const response = await api.get("/api/lists");
     return JSON.stringify(await response.json());
   }).toContain(title);
+  expect(errors).toEqual([]);
+});
+
+// Runtime proof for 0.33.33.38.3.10.
+//
+// That checkpoint moved these lookups onto the shared checked-DOM contract and made the handles the
+// page reads unguarded required at those reads, never at capture. This drives the workspace path
+// through the handles it requires - the list dialog, the index and its selection state, the detail,
+// and the item dialog with its focused name field - and fails on any page error: a required handle
+// that did not resolve would surface as a named "Lists requires its ..." error. The dialog-only path
+// is the Capture case above.
+isolatedTest("a list is created, selected and given an item through the required handles", async ({ isolatedWorkspace }, testInfo) => {
+  const { page } = isolatedWorkspace;
+  /** @type {string[]} */
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+  });
+  const title = `Checked list ${testInfo.project.name}-${testInfo.workerIndex}-${Date.now()}`;
+
+  await page.goto("/lists.html");
+  await expect(page.locator("main[data-lists-host]")).toBeVisible();
+  await page.locator("[data-list-create]").click();
+
+  const listDialog = page.locator("[data-list-dialog]");
+  await expect(listDialog).toBeVisible();
+  await expect(page.locator("[data-list-dialog-title]")).toHaveText("Create List");
+  await page.locator("[data-list-title]").fill(title);
+  await page.locator("[data-list-save]").click();
+  await expect(listDialog).toBeHidden();
+
+  const detail = page.locator("[data-list-detail]");
+  await expect(detail).toContainText(title);
+
+  // The index lives in the slide-out sidebar; the new list is the selected one there.
+  await page.locator("[data-view-slideout-sidebar-trigger]").first().click();
+  const indexButton = page.locator(".view-index-list-button", { hasText: title });
+  await expect(indexButton).toHaveAttribute("aria-current", "true");
+  await page.keyboard.press("Escape");
+
+  await detail.locator('[data-list-action="add-item"]').click();
+  const itemDialog = page.locator("[data-list-item-dialog]");
+  await expect(itemDialog).toBeVisible();
+  await expect(page.locator("[data-list-item-dialog-title]")).toHaveText("Add Item");
+  const itemName = itemDialog.locator("[name='item_name']");
+  await expect(itemName).toBeFocused();
+  await itemName.fill("Checked item");
+  await page.locator("[data-list-item-save]").click();
+  await expect(itemDialog).toBeHidden();
+  await expect(detail).toContainText("Checked item");
+
   expect(errors).toEqual([]);
 });
