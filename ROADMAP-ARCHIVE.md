@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.3.10 - Lists checked-DOM adoption
+
+**Model: High Effort** - 61 `dom` in one page with two initialization paths, where a required control must fail by name without breaking the dialog-only path.
+
+- [x] **Baseline and plan.** Branch from `da87725e`. A roadmap-only planning commit recorded the slice and three standing dispositions: zero-debt pages keep their file-local helpers; a verification-tool hardening follow-up is owned by Claude; and a permanent Edit Client case is owed at the next Clients/Projects spec update. Live `lists.js` 91 raw, 61 of them `dom`: 55 null-possible reads on 16 cached handles, and six subtype reads.
+- [x] **Initialization kept exactly.** Workspace readiness, then shell, then `cacheListsElements`, then binding; the synchronous dialog-only path unchanged. Every capture keeps its point, root and lifetime.
+- [x] **The lookups go through the shared contract.**
+  - The single-type helpers call the shared `find` directly.
+  - `findListsFormControl` stays a thin adapter: one shared query for any element, then the same four-way union test. Its "queries once" claim is now counted at runtime rather than read off a spelling.
+  - No local helper was removed only to make the migration look complete.
+- [x] **Required at the read, never at capture.** All 55 unguarded reads require their handle in place, through a page adapter that names the control. Each handle is declared `T | null` and written only by `cacheListsElements`, so its subtype is established and its only absence is `null`, the precondition set for `require`. A read inside a `find` callback or a ternary branch still fails only when that code runs; this is proved against `da87725e` with the same outcomes and a named error where the old read threw natively.
+
+  **One named ordering difference.** For `null.prop = rhs`, V8 evaluates the right-hand side before throwing, while `require` throws first; a call on `null` throws before its arguments in both forms. It only matters at assignments whose right-hand side can do more than throw, and none here can, so it changes at most which error appears when a required control is already missing.
+- [x] **The subtype reads, each traced to its markup.**
+  - The index panel is captured as the `<details>` the renderer builds; its one use was already guarded.
+  - The item-name focus stays optional as an `HTMLInputElement`.
+  - Three iterations - the index buttons and two visibility toggles - skip a match that is not an HTML element instead of writing onto it.
+  - `listEditorPickerParts` reads the framework's `viewParts`, an element-with-parts shape rather than a lookup. It is **reported and left**, and is the one `dom` remaining.
+- [x] **Proof.**
+  - Sandboxes run the real shipped module, including `lists-element-handle-contracts`, whose "queries once" pin became a runtime count.
+  - Ten mutations are each caught; each file was restored from a byte copy and verified by hash.
+  - **Rendered, at both viewports:** the handle table now includes the index panel. A workspace case creates a list through the dialog, checks its selection in the index drawer, and adds an item with its name field focused. The Capture case from `0.33.33.43.45` covers the dialog-only path over the adopted code. The whole Lists spec passes 11 of 11.
+- [x] **Two pre-existing defects found on the way, fixed first as their own corrections.** The first rendered attempt failed identically on unchanged nightly.
+  - **`0.33.33.43.44`:** the page refused every real list since `9427cf2d`, because it checked responses against column types the repository's row mappers change.
+  - **`0.33.33.43.45`:** no other page could open the Lists dialog since `1da0fdd0`, because the dialog-only bootstrap ran above the module's `let` handles.
+
+  Both are merged, and this branch carries them by merge.
+- [x] **One pin retargeted, same claim.** `lists-view-builder-pilot` pinned the spelling `client_id: usesBusinessScope() ? listClientInput.value : ""`, which this checkpoint reads through the required-handle adapter. Its claim - no client outside a Business workspace - and the ternary are unchanged, so only its spelling moved. Dropping the Business-only ternary fails it. The range-explicit `verify:slice` caught it: `scripts/` had been searched for the changed functions but not for every changed read, and a later full search found no other affected pin.
+- [x] **Accounting.** `lists.js` 91 to 31; browser 237 to 177; global `dom` 73 to 13. `TS18047` 55 to 0 in this file. **No diagnostic message rose, and no other file changed.** Server/tests and scripts remain zero. The ledger was written after the last new file.
+- [x] **Verification.** A range-explicit `verify:slice` on the clean committed tree, against the current nightly, and `npm run check` to `Completed N/N` accompany delivery. The operator rule for this is recorded: commit, confirm clean, set the full base, keep the printed routing, and attribute results to that tree and range.
+- [x] **Remainder.** The one `dom` in `lists.js` is the framework picker's `viewParts`. The ten in `clients-projects.js` are not lookups. Both are outside this child. Codex adopts the contract for Workbench in `0.33.33.42.44`.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; lookup behaviour is unchanged for every control the page builds, and durable documentation is batched at branch closeout.
+
 ## Version 0.33.33.43.45 - No other page could open the Lists dialog
 
 **Model: High Effort** - a user-visible defect on nightly in module initialization order, found while proving the Lists dialog-only path.
