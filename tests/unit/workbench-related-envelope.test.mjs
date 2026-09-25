@@ -49,6 +49,31 @@ for (const response of [undefined, {}, { groups: [] }, { groups: false }, { grou
   });
 }
 
+it("recovers the same task Inspector after a malformed envelope", async () => {
+  const f = fixture();
+  f.scope.requireApi = () => ({ getJson: async () => null });
+  await f.scope.refreshTaskFocusRelatedContext();
+  assert.equal(f.state.activeTaskFocus.relatedContext.error, "Related task context could not be loaded.");
+  assert.equal(f.children[0].message, "Related task context could not be loaded.");
+
+  const item = { title: "Recovered context" };
+  const group = { id: "recovered", label: "Recovered group", items: [item] };
+  f.scope.requireApi = () => ({ getJson: async () => ({ groups: [group], meta: { selectedTaskId: "first" } }) });
+  const recovery = f.scope.refreshTaskFocusRelatedContext();
+  assert.equal(f.state.activeTaskFocus.relatedContext.isLoading, true);
+  assert.equal(f.children[0].message, "Loading related task context...");
+  await recovery;
+  const context = f.state.activeTaskFocus.relatedContext;
+  assert.equal(context.error, "");
+  assert.equal(context.isLoading, false);
+  assert.equal(context.taskId, "first");
+  assert.equal(f.children.length, 1);
+  assert.equal(f.children[0], context.groups[0]);
+  assert.deepEqual({ ...f.children[0] }, group);
+  assert.equal(context.groups[0].items[0], item);
+  assert.equal(f.children[0].message, undefined);
+});
+
 for (const fail of [false, true]) {
   it(`ignores a stale ${fail ? "error" : "success"} without overwriting or rendering the next focus`, async () => {
     const f = fixture();
