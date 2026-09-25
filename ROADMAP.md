@@ -64,6 +64,31 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
+### 0.33.33.25.11 - Make checkpoint verification cover every changed path
+
+**Model: High Effort** - regression infrastructure that both lanes and CI rely on. This is the recorded "Verification-tool hardening" obligation, approved by the operator on 2026-09-25. It is a corrective child that reopens the `0.33.33.25` verification rollup, as the resliced-checkpoint rule allows.
+
+**Why - three ways `verify:slice` can print `Status: passed` having proved little or nothing.**
+
+1. **The fallback is per change set, not per path.** `suggestRegressionsForPaths` escalates to the full gate only when *no* path routes (`paths.length > 0 && commands.length === 0`).
+   - Every checkpoint range carries `ROADMAP.md`, which always routes to `release`, so an unrouted source file beside it gets focused `release` coverage: no units, no lint, no area regressions.
+   - Measured: `0.33.33.43.46`'s range (6 paths, including `public/js/clients-projects.js`) and `0.33.33.38.2.11`'s range (7 paths, including `public/js/navigation.js` and `src/types/browser-contracts.d.ts`) each selected only `release`, 32 scripts.
+   - CI's `test:regressions:changed:ci` uses the same router. The Development gate runs typecheck, units and lint unconditionally, but only the routed regressions.
+2. **A committed checkpoint without a base selects nothing.** Without `LTF_REGRESSION_BASE_SHA`, the collector diffs the working tree against `HEAD`. A clean committed tree is an empty change set, and `verify:slice` still runs closeout and typecheck and reports `Status: passed`.
+3. **The base-range collector ignores tracked uncommitted edits.** With a base, it reads only `base...HEAD` plus untracked files, so a modified tracked file is not in the change set it verifies.
+
+**Scope, recorded before implementation:**
+
+- [ ] **Escalate per path.** Any changed path that no route claims escalates the plan to the full gate, even when other paths routed. The plan names the unrouted paths. Documentation-only and bookkeeping-only ranges stay focused through the routes they already have.
+- [ ] **Refuse an empty selection.** `verify:slice` exits non-zero without running stages or reporting a pass when no path is selected, and says how to verify a committed range. The iteration command `test:regressions:changed` keeps its documented "runs nothing and says so".
+- [ ] **Collect every edit.** With a base, the change set is the committed range, plus uncommitted tracked edits, plus untracked files.
+- [ ] **Do not narrow.** No new per-module routes. Cross-cutting pages such as `clients-projects.js` keep full breadth through the fallback.
+- [ ] **Proof.**
+  - Unit cases for: a mixed roadmap-plus-unrouted-source set; the `.43.46` and `.38.2.11` range replays; documentation-only and fully routed focused sets that stay focused; the refusal; and the collector's union, in a temporary repository.
+  - Mutations on each fix.
+  - Existing pins on the old empty-set behaviour move with a stated reason.
+- [ ] **Documentation.** `docs/regression-suite.md` and `AGENTS.md`'s verification text are updated at branch closeout, where durable documentation is batched. The interim "also run `npm run check`" workaround retires once this lands.
+
 ### 0.33.33.33 - Isolate classic browser controllers with IIFEs
 
 **CLOSED by `0.33.33.33.8`.** The rollup and its eight children have archived. Every classic browser script is out of the shared lexical environment and the acceptance evidence is recorded in `ROADMAP-ARCHIVE.md`.
