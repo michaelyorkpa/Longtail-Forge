@@ -431,6 +431,7 @@
         "tests/e2e/workbench-reflective-audit.spec.mjs",
         "tests/e2e/workbench-registry-consumers.spec.mjs",
         "tests/e2e/workbench-related-context.spec.mjs",
+        "tests/e2e/workbench-related-envelope.spec.mjs",
         "tests/e2e/workbench-task-opener.spec.mjs",
         "tests/e2e/workbench-timer-readers.spec.mjs",
         "tests/e2e/workspace-isolation.spec.mjs",
@@ -817,6 +818,7 @@
         "tests/unit/workbench-recommendation-cycle.test.mjs",
         "tests/unit/workbench-registry-consumers.test.mjs",
         "tests/unit/workbench-related-context.test.mjs",
+        "tests/unit/workbench-related-envelope.test.mjs",
         "tests/unit/workbench-source-data.test.mjs",
         "tests/unit/workbench-task-opener.test.mjs",
         "tests/unit/workbench-timer-actions.test.mjs",
@@ -926,7 +928,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 238,
+      "errorCount": 237,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -1000,10 +1002,6 @@
           {
             "code": 2339,
             "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
           },
           {
             "code": 7006,
@@ -1619,8 +1617,8 @@
     }
   },
   "totals": {
-    "files": 1508,
-    "errors": 238,
+    "files": 1510,
+    "errors": 237,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
