@@ -1595,6 +1595,35 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.46 - Clients/Projects page-owned element values and dialog opening
+
+**Model: High Effort** - removes the last eight browser `dom` diagnostics by moving values the page stores on its own elements into page-local state, with rendered proof on the Clients/Projects editors.
+
+**Why.** The eight `dom` diagnostics left in the browser estate are all in `clients-projects.js`, and none is a lookup:
+
+- **Six are values the page writes onto its own elements and later reads back.**
+  - `createTagPickerField` keeps the tag picker, first a stub and then the mounted picker, as `element.tagPicker`, and its `readTagIds` reads it back.
+  - `createBillingPeriodEditor` and `createBillingRoundingEditor` keep their editors as `fieldset.billingPeriodEditor` / `fieldset.billingRoundingEditor`.
+  - `saveClientSettings` finds those three elements by their data attributes and reads the values back.
+
+  No declared element type carries these members, and none should: they are this page's state, not DOM.
+- **Two are `showDialog`'s `showModal` reads.** Its parameter is typed `HTMLElement`. Every caller passes a `createModal` / `createModalForm` result, which the view contract declares as an `HTMLDialogElement`.
+
+**Measured before planning.** No file other than `clients-projects.js` reads or writes these three element properties. The other `tagPicker` names in `notes.js`, `stop-watch.js` and their tests are unrelated state. No test lifts the functions this changes; the only text pins are call-site spellings this leaves alone.
+
+**Scope, recorded before implementation:**
+
+- [ ] **Keep the values in typed page-local `WeakMap`s, one per kind.** Declare them with the page's other state, above the bootstrap call. Write each at the moment the element property was written, and read each where the property was read, including `saveClientSettings`'s three reads. The stub, then the mounted picker, then the stub again when mounting answers nothing: that sequence is unchanged.
+- [ ] **Type `showDialog`'s parameter as `HTMLDialogElement`**, from its four callers. Keep all three runtime branches, including the `open`-attribute fallback.
+- [ ] **Leave `saveClientSettings`'s `container` undeclared.** Its recorded eleven-diagnostic boundary stays where it is; the new reads are written so that they stay correct when it is declared.
+- [ ] **No behaviour change.** Tags, billing period and billing rounding save exactly as before on client edit, project edit and project add. There is no route, schema, permission, workflow or copy change.
+- [ ] **Proof.**
+  - Sandboxes compare against the replaced version.
+  - Mutations are restored from byte copies with hash verification.
+  - `scripts/` and `tests/` are searched for every rewritten spelling.
+  - **Rendered coverage:** the owed permanent Edit Client case, which edits and saves a client with its tags and billing editors present, plus the project editors.
+- [ ] **Expected accounting:** `clients-projects.js` 141 to 133; browser 172 to 164 (before Codex's `0.33.33.42.45`); **browser `dom` 8 to 0**. No message rises.
+
 #### 0.33.33.43.45 - No other page could open the Lists dialog
 
 **Complete: a correction to `1da0fdd0`.** See the archive entry. From 2026-08-26, Capture -> List and the `lists.edit` module action failed on every page but Lists, with "Cannot access 'pageTitle' before initialization": the synchronous dialog-only bootstrap sat above the module's `let` handles. The bootstrap now runs last, and a structural guard and a rendered Capture case keep it there.
