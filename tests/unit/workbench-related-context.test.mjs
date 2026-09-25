@@ -6,7 +6,7 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 const source = createProjectTextReader().readText("public/js/workbench.js");
 function fixture() {
   const scope = vm.createContext({});
-  for (const name of ["workbenchDetailField", "normalizeTaskFocusRelatedContext", "candidateModuleAction", "formatToken", "createTaskFocusRelatedContextGroup", "createTaskFocusRelatedContextItem", "relatedContextTitle", "relatedContextSourceLabel", "relatedContextContextLabel", "relatedContextBadges", "relatedContextCanOpen", "relatedContextActionLabel", "safeRelatedContextText", "looksLikeRawId"])
+  for (const name of ["workbenchSourceField", "workbenchDetailField", "normalizeTaskFocusRelatedContext", "candidateModuleAction", "formatToken", "createTaskFocusRelatedContextGroup", "createTaskFocusRelatedContextItem", "relatedContextTitle", "relatedContextSourceLabel", "relatedContextContextLabel", "relatedContextBadges", "relatedContextCanOpen", "relatedContextActionLabel", "safeRelatedContextText", "looksLikeRawId"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   return scope;
 }

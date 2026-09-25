@@ -15,7 +15,6 @@
    * @typedef {{action?: TaskFocusRelatedAction, moduleId?: string, recordType?: string, recordId?: unknown, reason?: string, title?: string, sourceLabel?: string, contextLabel?: string, reasonLabel?: string, badges?: unknown[]}} TaskFocusRelatedItem
    */
   /** @typedef {{id?: string, label?: string, reason?: string, count?: number | string, items?: TaskFocusRelatedItem[]}} TaskFocusRelatedGroup */
-  /** @typedef {{groups?: TaskFocusRelatedGroup[], items?: TaskFocusRelatedItem[], meta?: {selectedTaskId?: string}, task?: unknown}} TaskFocusRelatedEnvelope */
 
   /** @typedef {Omit<ReturnType<typeof normalizeTaskFocusRelatedContext>, "meta" | "task"> & Partial<Pick<ReturnType<typeof normalizeTaskFocusRelatedContext>, "meta" | "task">>} TaskFocusRelatedState */
   /**
@@ -3142,22 +3141,36 @@
     }
   }
 
-  /** @param {TaskFocusRelatedEnvelope} [result] @param {unknown} [taskId] */
+  /** @param {unknown} [result] @param {unknown} [taskId] */
   function normalizeTaskFocusRelatedContext(result = {}, taskId = "") {
-    const groups = (Array.isArray(result.groups) ? result.groups : [])
-      .map((group) => ({
-        ...group,
-        items: Array.isArray(group.items) ? group.items : [],
-      }));
+    // Null envelopes/groups are failed loads, not absent optional collections.
+    // Accessors retain repeated reads, inherited members and getter receivers.
+    /** @param {unknown} value @param {string} key @returns {unknown} */
+    function read(value, key) {
+      if (value == null) throw new TypeError("Related task context could not be loaded.");
+      return Reflect.get(Object(value), key, value);
+    }
+    const envelope = {
+      get groups() { return read(result, "groups"); },
+      get items() { return read(result, "items"); },
+    };
+    const groups = (Array.isArray(envelope.groups) ? envelope.groups : [])
+      .map((/** @type {unknown} */ group) => {
+        // Boxing preserves primitive spreads; nullish groups still fail at the items read.
+        /** @type {object} */
+        const spread = Object(group);
+        const fields = { get items() { return read(group, "items"); } };
+        return { ...spread, items: Array.isArray(fields.items) ? fields.items : [] };
+      });
 
     return {
       error: "",
       groups,
       isLoading: false,
-      items: Array.isArray(result.items) ? result.items : groups.flatMap((group) => group.items || []),
-      meta: result.meta || {},
-      task: result.task || null,
-      taskId: result.meta?.selectedTaskId || taskId,
+      items: Array.isArray(envelope.items) ? envelope.items : groups.flatMap((group) => group.items || []),
+      meta: read(result, "meta") || {},
+      task: read(result, "task") || null,
+      taskId: workbenchSourceField(read(result, "meta"), "selectedTaskId", true) || taskId,
     };
   }
 
