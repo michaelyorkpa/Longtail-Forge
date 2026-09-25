@@ -335,7 +335,9 @@ describe("What this boundary declares, and the two conditions that would dischar
       "a typedef this checkpoint stopped using must not be left standing",
     );
     assert.doesNotMatch(contracts, /^\s*resume_context: .*BrowserList/m);
-    for (const published of ["list_id: string;", "list_type: string;", "is_reusable: number;"]) {
+    // `is_reusable` is published as the boolean the row mapper sends since `0.33.33.43.44`, which
+    // corrected the number the column type had suggested. The claim here is only that it is published.
+    for (const published of ["list_id: string;", "list_type: string;", "is_reusable: boolean;"]) {
       assert.ok(contracts.includes(published), `${published} is published, so the local shape must not restate it`);
     }
   });

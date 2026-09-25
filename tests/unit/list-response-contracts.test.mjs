@@ -9,6 +9,11 @@
 // Producer authority is `LIST_COLUMNS`, `ITEM_COLUMNS` and `LINK_COLUMNS` in
 // `src/modules/lists/lists.repo.js`; contract authority is the browser declaration. Breaking either
 // leaves the other standing, as `0.33.33.38.4.11` established.
+//
+// **The column list is not the wire.** `0.33.33.43.44` found that the repository's row mappers
+// booleanize `is_reusable` and parse `metadata_json` on every read, before any shaper spreads the
+// row, so a page checking the column types refused every real list. The suite now runs the real
+// mappers into the browser predicates, which is the check that would have caught it.
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
@@ -18,6 +23,8 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 const { readText } = createProjectTextReader();
 
 const repositorySource = readText("src/modules/lists/lists.repo.js");
+const mappers = sandbox(repositorySource,
+  ["parseMetadata", "listRowToAppValue", "itemRowToAppValue", "linkRowToAppValue"], []);
 const declarationSource = readText("src/types/browser-contracts.d.ts");
 const listsPage = readText("public/js/lists.js");
 
@@ -30,9 +37,9 @@ const lists = sandbox(listsPage,
 describe("the Lists column authorities", () => {
   it("checks every column the three queries select", () => {
     const cases = [
-      { columns: "LIST_COLUMNS", contract: "BrowserListColumns", checked: ["LIST_TEXT_COLUMNS", "LIST_NULLABLE_COLUMNS"], extra: ["is_reusable"] },
-      { columns: "ITEM_COLUMNS", contract: "BrowserListItem", checked: ["ITEM_TEXT_COLUMNS", "ITEM_NULLABLE_COLUMNS"], extra: ["actual_cost", "estimated_cost", "quantity", "sort_order"] },
-      { columns: "LINK_COLUMNS", contract: "BrowserListLink", checked: ["LINK_TEXT_COLUMNS", "LINK_NULLABLE_COLUMNS"], extra: [] },
+      { columns: "LIST_COLUMNS", contract: "BrowserListColumns", checked: ["LIST_TEXT_COLUMNS", "LIST_NULLABLE_COLUMNS"], extra: ["is_reusable", "metadata_json"] },
+      { columns: "ITEM_COLUMNS", contract: "BrowserListItem", checked: ["ITEM_TEXT_COLUMNS", "ITEM_NULLABLE_COLUMNS"], extra: ["actual_cost", "estimated_cost", "metadata_json", "quantity", "sort_order"] },
+      { columns: "LINK_COLUMNS", contract: "BrowserListLink", checked: ["LINK_TEXT_COLUMNS", "LINK_NULLABLE_COLUMNS"], extra: ["metadata_json"] },
     ];
     for (const entry of cases) {
       const selected = selectedColumns(entry.columns);
@@ -46,15 +53,63 @@ describe("the Lists column authorities", () => {
     }
   });
 
-  it("keeps the wire integer and the shaped boolean apart", () => {
-    assert.match(declarationBlock("BrowserListColumns"), /\n  is_reusable: number;/,
-      "the column is INTEGER and both shapers spread it untouched");
+  it("reads the row mapper's boolean and leaves the parsed metadata unchecked", () => {
+    assert.match(declarationBlock("BrowserListColumns"), /\n  is_reusable: boolean;/,
+      "the column is INTEGER, but the row mapper booleanizes it before any shaper spreads the row");
+    assert.match(declarationBlock("BrowserListColumns"), /\n  metadata_json: unknown;/,
+      "and parses the metadata into whatever JSON was stored");
     assert.match(declarationBlock("BrowserListSummary"), /\n  isReusable: boolean;/,
-      "the boolean beside it is the one the server builds");
-    assert.equal(lists.isListSummary({ ...summaryFixture(), is_reusable: true }), false,
-      "a boolean where the integer belongs is not the shape the server sends");
+      "the boolean the shaper builds beside it");
+    assert.equal(lists.isListSummary({ ...summaryFixture(), is_reusable: 1 }), false,
+      "the column's integer never reaches the wire, so it is not the shape the server sends");
     assert.equal(lists.isListSummary({ ...summaryFixture(), isReusable: 1 }), false,
-      "and an integer where the boolean belongs is not either");
+      "and an integer where the shaped boolean belongs is not either");
+    for (const metadata of [{}, { key: "value" }, [], null, "text"]) {
+      assert.equal(lists.isListSummary({ ...summaryFixture(), metadata_json: metadata }), true,
+        "the page never reads the metadata, so whatever JSON it parsed to is accepted");
+    }
+  });
+});
+
+describe("the producer the browser actually reads", () => {
+  // The real row mappers from `lists.repo.js`, fed a row as SQLite returns it: the reusable flag as
+  // an integer and the metadata as stored text. What they hand the shapers is what the page must
+  // accept. The shaper then adds `id`, `links` and its booleans; those three are supplied here.
+  /** @param {string} name @param {(column: string) => unknown} valueFor */
+  const databaseRow = (name, valueFor) => Object.fromEntries(selectedColumns(name).map((column) => [column, valueFor(column)]));
+
+  it("accepts a list exactly as the row mapper produces it, for both flag values", () => {
+    for (const [flag, metadata] of [[0, null], [1, '{"source":"import"}'], [0, ""]]) {
+      /** @type {Record<string, unknown>} */
+      const mapped = mappers.listRowToAppValue(databaseRow("LIST_COLUMNS", (column) => (
+        column === "is_reusable" ? flag
+          : column === "metadata_json" ? metadata
+            : plain(lists.LIST_NULLABLE_COLUMNS).includes(column) ? null
+              : `${column}-value`
+      )));
+      assert.equal(typeof mapped.is_reusable, "boolean", "the mapper booleanizes the flag");
+      assert.equal(typeof mapped.metadata_json, "object", "and parses the metadata");
+      /** @type {Record<string, unknown>} */
+      const shaped = { ...mapped, id: mapped.list_id, links: [] };
+      for (const member of plain(lists.LIST_SHAPED_BOOLEANS)) shaped[member] = Boolean(flag);
+      assert.equal(lists.isListSummary(shaped), true, `a list with is_reusable ${flag} is accepted`);
+    }
+  });
+
+  it("accepts an item and a link exactly as their row mappers produce them", () => {
+    const item = mappers.itemRowToAppValue(databaseRow("ITEM_COLUMNS", (column) => (
+      column === "metadata_json" ? '{"k":1}'
+        : ["quantity", "estimated_cost", "actual_cost", "sort_order"].includes(column) ? 2
+          : plain(lists.ITEM_NULLABLE_COLUMNS).includes(column) ? null
+            : `${column}-value`
+    )));
+    const link = mappers.linkRowToAppValue(databaseRow("LINK_COLUMNS", (column) => (
+      column === "metadata_json" ? null
+        : plain(lists.LINK_NULLABLE_COLUMNS).includes(column) ? null
+          : `${column}-value`
+    )));
+    assert.equal(lists.isListItem(item), true, "an item as the mapper produces it is accepted");
+    assert.equal(lists.isListLink(link), true, "and so is a link");
   });
 });
 
@@ -162,7 +217,7 @@ function declaredMembers(name) {
 /** @returns {Record<string, unknown>} */
 function summaryFixture() {
   /** @type {Record<string, unknown>} */
-  const list = { id: "list_id-value", is_reusable: 0, links: [] };
+  const list = { id: "list_id-value", is_reusable: false, links: [], metadata_json: {} };
   for (const column of plain(lists.LIST_TEXT_COLUMNS)) list[column] = `${column}-value`;
   for (const column of plain(lists.LIST_NULLABLE_COLUMNS)) list[column] = `${column}-value`;
   for (const member of plain(lists.LIST_SHAPED_BOOLEANS)) list[member] = false;
@@ -172,7 +227,7 @@ function summaryFixture() {
 /** @returns {Record<string, unknown>} */
 function itemFixture() {
   /** @type {Record<string, unknown>} */
-  const item = {};
+  const item = { metadata_json: {} };
   for (const column of plain(lists.ITEM_TEXT_COLUMNS)) item[column] = `${column}-value`;
   for (const column of plain(lists.ITEM_NULLABLE_COLUMNS)) item[column] = null;
   return item;
@@ -181,7 +236,7 @@ function itemFixture() {
 /** @returns {Record<string, unknown>} */
 function linkFixture() {
   /** @type {Record<string, unknown>} */
-  const link = {};
+  const link = { metadata_json: {} };
   for (const column of plain(lists.LINK_TEXT_COLUMNS)) link[column] = `${column}-value`;
   for (const column of plain(lists.LINK_NULLABLE_COLUMNS)) link[column] = null;
   return link;
