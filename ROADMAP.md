@@ -1573,6 +1573,14 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.43 - Two contracts `0.33.33.43.42` broke, and why neither gate saw them
+
+**Complete: a correction, not a feature.** See the archive entry. **`0.33.33.43.42` left nightly red on two regressions from its merge at `8f019cb0`**, and both its own changed-area routing and the protected CI passed it. The full regression suite, run while integrating `0.33.33.42.42`, is what found them. Diagnostic counts do not change.
+
+**Both are the same kind of miss.** A contract that lifts a page function into a sandbox broke when that function gained a free variable, `isResponseRecord`; the fix lifts the real predicate beside it rather than stubbing it. A permissions pin matched the spelling `filter.id !==`, which `.43.42` rewrote as a checked read; its claim - that Personal and Family Project descriptors omit the client filter, column and bindings - is unchanged, so the pin keeps the same ids in the same order with the new spelling. **Each was proved still to guard** by breaking the behaviour it protects.
+
+**The process gap is the finding.** `.43.42` ran the canonical `verify:slice`, which routed it to a focused set, and neither lifted contract was in it. The lesson is already recorded and was not followed: a slice that rewrites a page function's body must also grep `scripts/` for lifts and spellings of that function, and run the full regression suite to completion - `Completed N/N`, not a focused pass.
+
 #### 0.33.33.43.42 - The descriptor pipeline
 
 **Complete: 9 diagnostics closed, zero introduced, no message rose on the first pass.** See the archive entry. `clients-projects.js` 169 to 160, browser **265 to 256**, `0.33.33.43` 172 to 163.
