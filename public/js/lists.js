@@ -367,6 +367,41 @@
     }
     return factory;
   }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCheckedDom} BrowserCheckedDom */
+
+  /**
+   * The shared checked-DOM contract this page's lookups go through (`0.33.33.38.3.10`).
+   *
+   * Acquired per call, like the page's other required surfaces. The static service injects
+   * `shared/checked-dom.js` at the opening `<head>` of every rendered page, ahead of any page
+   * script, so both the workspace path and the synchronous dialog-only path find it.
+   * @returns {BrowserCheckedDom}
+   */
+  function requireCheckedDom() {
+    const checkedDom = window.LongtailForge?.checkedDom;
+    if (!checkedDom) {
+      throw new Error("Lists requires LongtailForge.checkedDom.");
+    }
+    return checkedDom;
+  }
+
+  /**
+   * A handle `cacheListsElements` captured, required at a read the page already made unguarded.
+   *
+   * **Checked at the use, never at capture.** The dialog-only path captures the workspace handles
+   * as `null` and never reads them, so requiring them when they are cached would break it. Every
+   * caller passes a module handle declared `T | null` and written only by `cacheListsElements`,
+   * whose subtype is already established; `require` removes only that `null`, and a missing
+   * control now fails by name where the unguarded read used to throw.
+   * @template T
+   * @param {T | null} handle
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireListsHandle(handle, name) {
+    return requireCheckedDom().require(handle, "Lists", name);
+  }
   /** @type {BrowserListsWorkspaceSurfaceDescriptor | null} */
   let activeListsViewDescriptor = null;
   const listsWorkspaceHost = document.querySelector("[data-lists-host]");
@@ -504,7 +539,11 @@
   let archiveFilter = null;
   /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let sortSelect = null;
-  /** @type {Element | null} */
+  /**
+   * The sidebar index panel, a `<details>` the shared renderer builds (or the collapsible index
+   * fallback, also a `<details>`). Optional: its one use is guarded, and the dialog-only path has none.
+   * @type {HTMLDetailsElement | null}
+   */
   let indexPanel = null;
   /** @type {Element | null} */
   let countLabel = null;
@@ -576,11 +615,15 @@
    * `document.querySelector` and stay `Element | null`: narrowing them would close nothing, and
    * their reads are unguarded assignments that a guard would change the behaviour of.
    *
+   * **Through the shared contract since `0.33.33.38.3.10`.** The shared `find` takes one
+   * constructor, so this stays a thin adapter: one shared query for any element, then the same
+   * four-way union test. It still queries once, and a mismatch is still `null`, not a throw.
+   *
    * @param {string} selector
    * @returns {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null}
    */
   function findListsFormControl(selector) {
-    const element = document.querySelector(selector);
+    const element = requireCheckedDom().find(document, selector, Element);
     return element instanceof HTMLInputElement
       || element instanceof HTMLSelectElement
       || element instanceof HTMLTextAreaElement
@@ -595,26 +638,22 @@
    * @param {string} selector @returns {HTMLSelectElement | null}
    */
   function findListsSelect(selector) {
-    const element = document.querySelector(selector);
-    return element instanceof HTMLSelectElement ? element : null;
+    return requireCheckedDom().find(document, selector, HTMLSelectElement);
   }
 
   /** @param {string} selector @returns {HTMLFormElement | null} */
   function findListsForm(selector) {
-    const element = document.querySelector(selector);
-    return element instanceof HTMLFormElement ? element : null;
+    return requireCheckedDom().find(document, selector, HTMLFormElement);
   }
 
   /** @param {string} selector @returns {HTMLDialogElement | null} */
   function findListsDialog(selector) {
-    const element = document.querySelector(selector);
-    return element instanceof HTMLDialogElement ? element : null;
+    return requireCheckedDom().find(document, selector, HTMLDialogElement);
   }
 
   /** @param {string} selector @returns {HTMLElement | null} */
   function findListsHtmlElement(selector) {
-    const element = document.querySelector(selector);
-    return element instanceof HTMLElement ? element : null;
+    return requireCheckedDom().find(document, selector, HTMLElement);
   }
 
   function cacheListsElements() {
@@ -631,7 +670,7 @@
     neededFilter = findListsFormControl("[data-list-filter-needed]");
     archiveFilter = findListsFormControl("[data-list-filter-archive]");
     sortSelect = findListsFormControl("[data-list-sort]");
-    indexPanel = document.querySelector("[data-lists-index-panel]");
+    indexPanel = requireCheckedDom().find(document, "[data-lists-index-panel]", HTMLDetailsElement);
     countLabel = document.querySelector("[data-lists-count]");
     listMount = document.querySelector("[data-lists-list]");
     detailPanel = document.querySelector("[data-list-detail]");
@@ -1768,7 +1807,7 @@
       return;
     }
 
-    listMount.replaceChildren(view.createIndexList({
+    requireListsHandle(listMount, "list index region").replaceChildren(view.createIndexList({
       ariaLabel: "List index",
       items: lists.map(listIndexItem),
     }));
@@ -1848,7 +1887,12 @@
   }
 
   function updateListSelectionState() {
-    listMount.querySelectorAll(".view-index-list-button").forEach((button) => {
+    requireListsHandle(listMount, "list index region").querySelectorAll(".view-index-list-button").forEach((button) => {
+      // The shared index list builds these as buttons. A match that is not an HTML element has no
+      // selection state this page writes, so it is skipped rather than read.
+      if (!(button instanceof HTMLElement)) {
+        return;
+      }
       const selected = button.dataset.viewIndexId === state.selectedListId;
       button.classList.toggle("is-selected", selected);
       if (selected) {
@@ -1899,7 +1943,7 @@
     // Items heading + Add Item -> the items table -> the cost rollup beneath the items it totals.
     article.append(...[header, listDetails, nextAction, sourceContext, itemsHeader, items, costSummary]
       .filter((node) => node !== null && node !== undefined));
-    detailPanel.replaceChildren(article);
+    requireListsHandle(detailPanel, "list detail panel").replaceChildren(article);
   }
 
   /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
@@ -2103,15 +2147,15 @@
       return;
     }
     state.itemDialogList = list;
-    itemDialogForm.reset();
-    itemDialogForm.dataset.listId = list.list_id;
-    itemDialogForm.dataset.editingItemId = item?.list_item_id || "";
+    requireListsHandle(itemDialogForm, "item form").reset();
+    requireListsHandle(itemDialogForm, "item form").dataset.listId = list.list_id;
+    requireListsHandle(itemDialogForm, "item form").dataset.editingItemId = item?.list_item_id || "";
     populateItemAssigneeOptions();
     setFormValue(itemDialogForm, "catalog_item_id", item?.catalog_item_id || "");
-    itemDialogTitle.textContent = item ? "Edit Item" : "Add Item";
-    itemDialogSave.textContent = item ? "Save Item" : (listsItemFormSurfaceDescriptor().actions?.[0]?.label || "Add Item");
-    itemDialogFormStatus.textContent = "";
-    const advanced = itemDialogForm.querySelector(".lists-item-advanced");
+    requireListsHandle(itemDialogTitle, "item dialog title").textContent = item ? "Edit Item" : "Add Item";
+    requireListsHandle(itemDialogSave, "item save button").textContent = item ? "Save Item" : (listsItemFormSurfaceDescriptor().actions?.[0]?.label || "Add Item");
+    requireListsHandle(itemDialogFormStatus, "item form status").textContent = "";
+    const advanced = requireListsHandle(itemDialogForm, "item form").querySelector(".lists-item-advanced");
     if (item) {
       fillItemForm(itemDialogForm, item);
       advanced?.setAttribute("open", "open");
@@ -2125,7 +2169,7 @@
     } else {
       itemDialog.setAttribute("open", "open");
     }
-    itemDialogForm.querySelector("[name='item_name']")?.focus();
+    requireCheckedDom().find(requireListsHandle(itemDialogForm, "item form"), "[name='item_name']", HTMLInputElement)?.focus();
   }
 
   function populateItemAssigneeOptions(selectedUserId = "") {
@@ -2182,8 +2226,8 @@
     payload.quantity = payload.quantity || 1;
     payload.save_to_catalog = payload.save_to_catalog === "true";
     try {
-      itemDialogSave.disabled = true;
-      itemDialogFormStatus.textContent = "Saving item...";
+      requireListsHandle(itemDialogSave, "item save button").disabled = true;
+      requireListsHandle(itemDialogFormStatus, "item form status").textContent = "Saving item...";
       if (editingItemId) {
         await api.putJson(`/api/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(editingItemId)}`, payload);
       } else {
@@ -2193,9 +2237,9 @@
       await refreshLists(listId);
       setStatus("");
     } catch (error) {
-      itemDialogFormStatus.textContent = requireErrors().caughtMessage(error, "Item could not be saved.");
+      requireListsHandle(itemDialogFormStatus, "item form status").textContent = requireErrors().caughtMessage(error, "Item could not be saved.");
     } finally {
-      itemDialogSave.disabled = false;
+      requireListsHandle(itemDialogSave, "item save button").disabled = false;
     }
   }
 
@@ -3126,8 +3170,8 @@
       return;
     }
 
-    listLinkResultsInput.disabled = true;
-    listLinkApplyButton.disabled = true;
+    requireListsHandle(listLinkResultsInput, "linked record results control").disabled = true;
+    requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = true;
     parts.setRecords([{ targetId: "", displayLabel: "Loading records...", disabled: true }]);
 
     const params = new URLSearchParams({
@@ -3154,15 +3198,15 @@
       }
       state.linkTargets = envelope.targets;
       parts.setRecords(state.linkTargets);
-      listLinkApplyButton.disabled = state.linkTargets.length === 0;
-      listFormStatus.textContent = "";
+      requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = state.linkTargets.length === 0;
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
     } catch (error) {
       state.linkTargets = [];
       parts.setRecords([]);
-      listLinkApplyButton.disabled = true;
-      listFormStatus.textContent = requireErrors().caughtMessage(error, "Linked records could not be loaded.");
+      requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = true;
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "Linked records could not be loaded.");
     } finally {
-      listLinkResultsInput.disabled = false;
+      requireListsHandle(listLinkResultsInput, "linked record results control").disabled = false;
     }
   }
 
@@ -3176,27 +3220,27 @@
     const api = requireApi();
     const target = selectedListEditorLinkTarget();
     if (!target?.targetType || !target.targetId || listEditorHasLinkTarget(target)) {
-      listFormStatus.textContent = target ? "Linked record is already added." : "Choose a linked record first.";
+      requireListsHandle(listFormStatus, "list form status").textContent = target ? "Linked record is already added." : "Choose a linked record first.";
       return;
     }
 
     if (!state.editingListId) {
       state.editorStagedTargets = [...state.editorStagedTargets, target];
       renderListEditorLinkedItems();
-      listFormStatus.textContent = "";
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
       return;
     }
 
-    listLinkApplyButton.disabled = true;
-    listFormStatus.textContent = "Adding linked record...";
+    requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = true;
+    requireListsHandle(listFormStatus, "list form status").textContent = "Adding linked record...";
     try {
       await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links`, listLinkPayload(target));
       await refreshListEditor(state.editingListId);
-      listFormStatus.textContent = "";
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
     } catch (error) {
-      listFormStatus.textContent = requireErrors().caughtMessage(error, "Linked record could not be added.");
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "Linked record could not be added.");
     } finally {
-      listLinkApplyButton.disabled = false;
+      requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = false;
     }
   }
 
@@ -3237,13 +3281,13 @@
       return;
     }
 
-    listFormStatus.textContent = "Removing linked record...";
+    requireListsHandle(listFormStatus, "list form status").textContent = "Removing linked record...";
     try {
       await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links/${encodeURIComponent(linkId)}/remove`, {});
       await refreshListEditor(state.editingListId);
-      listFormStatus.textContent = "";
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
     } catch (error) {
-      listFormStatus.textContent = requireErrors().caughtMessage(error, "Linked record could not be removed.");
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "Linked record could not be removed.");
     }
   }
 
@@ -3389,22 +3433,22 @@
     state.editorList = list;
     state.listDialogHostContext = options.hostContext || null;
     state.listDialogHostContextSettled = false;
-    listDialogTitle.textContent = list ? "Edit List" : "Create List";
-    listTitleInput.value = list?.title || defaults.title || "";
-    listDescriptionInput.value = list?.description || defaults.description || "";
-    listTypeInput.value = list?.list_type || defaults.list_type || defaultListType();
-    setContextControlsVisible(shouldShowContextControls(listTypeInput.value));
+    requireListsHandle(listDialogTitle, "list dialog title").textContent = list ? "Edit List" : "Create List";
+    requireListsHandle(listTitleInput, "list title control").value = list?.title || defaults.title || "";
+    requireListsHandle(listDescriptionInput, "list description control").value = list?.description || defaults.description || "";
+    requireListsHandle(listTypeInput, "list type control").value = list?.list_type || defaults.list_type || defaultListType();
+    setContextControlsVisible(shouldShowContextControls(requireListsHandle(listTypeInput, "list type control").value));
     populateClientOptions(list?.client_id || defaults.client_id || "");
     populateProjectOptions(listProjectInput, list?.client_id || defaults.client_id || "", list?.project_id || defaults.project_id || "");
-    listFormStatus.textContent = "";
-    listSaveButton.textContent = list ? "Save List" : "Create List";
+    requireListsHandle(listFormStatus, "list form status").textContent = "";
+    requireListsHandle(listSaveButton, "list save button").textContent = list ? "Save List" : "Create List";
     configureListEditorPicker(list);
     const openDialog = listDialog;
     const closeResult = new Promise((resolve) => {
       openDialog?.addEventListener("close", () => resolve(openDialog.returnValue || "closed"), { once: true });
     });
     view.showModal(listDialog, { trigger: options.trigger || null });
-    listTitleInput.focus();
+    requireListsHandle(listTitleInput, "list title control").focus();
     return closeResult;
   }
 
@@ -3460,19 +3504,19 @@
     const api = requireApi();
     event.preventDefault();
     const payload = {
-      client_id: usesBusinessScope() ? listClientInput.value : "",
-      description: listDescriptionInput.value,
-      list_type: listTypeInput.value,
-      project_id: listProjectInput.value,
-      title: listTitleInput.value,
+      client_id: usesBusinessScope() ? requireListsHandle(listClientInput, "list client select").value : "",
+      description: requireListsHandle(listDescriptionInput, "list description control").value,
+      list_type: requireListsHandle(listTypeInput, "list type control").value,
+      project_id: requireListsHandle(listProjectInput, "list project select").value,
+      title: requireListsHandle(listTitleInput, "list title control").value,
     };
     const wasEditing = Boolean(state.editingListId);
     let savedListId = state.editingListId || "";
     let createdDuringSave = false;
 
     try {
-      listSaveButton.disabled = true;
-      listFormStatus.textContent = "Saving...";
+      requireListsHandle(listSaveButton, "list save button").disabled = true;
+      requireListsHandle(listFormStatus, "list form status").textContent = "Saving...";
       if (state.editingListId) {
         await api.putJson(`/api/lists/${encodeURIComponent(state.editingListId)}`, payload);
       } else {
@@ -3501,10 +3545,10 @@
       }
       setStatus("");
     } catch (error) {
-      listFormStatus.textContent = requireErrors().caughtMessage(error, "List could not be saved.");
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "List could not be saved.");
       if (createdDuringSave && savedListId) {
-        listDialogTitle.textContent = "Edit List";
-        listSaveButton.textContent = "Save List";
+        requireListsHandle(listDialogTitle, "list dialog title").textContent = "Edit List";
+        requireListsHandle(listSaveButton, "list save button").textContent = "Save List";
         try {
           await refreshListEditor(savedListId);
         } catch {
@@ -3512,7 +3556,7 @@
         }
       }
     } finally {
-      listSaveButton.disabled = false;
+      requireListsHandle(listSaveButton, "list save button").disabled = false;
     }
   }
 
@@ -3529,7 +3573,7 @@
       option("", "Workspace"),
       ...state.clients.filter((client) => !client.isWorkspaceScope).map((client) => option(client.id, client.optionLabel || client.name)),
     ]);
-    listClientInput.value = selectedClientId || "";
+    requireListsHandle(listClientInput, "list client select").value = selectedClientId || "";
   }
 
   /**
@@ -3560,7 +3604,7 @@
   }
 
   function syncClientFromProject() {
-    const project = allProjects().find((entry) => entry.id === listProjectInput.value);
+    const project = allProjects().find((entry) => entry.id === requireListsHandle(listProjectInput, "list project select").value);
     if (project?.client_id && listClientInput) {
       listClientInput.value = project.client_id;
     }
@@ -3569,14 +3613,20 @@
   /** @param {boolean} visible */
   function setBusinessControlsVisible(visible) {
     document.querySelectorAll("[data-list-business-control]").forEach((element) => {
-      element.hidden = !visible;
+      // Writing `hidden` onto a node that is not an HTML element only set an inert property.
+      if (element instanceof HTMLElement) {
+        element.hidden = !visible;
+      }
     });
   }
 
   /** @param {boolean} visible */
   function setContextControlsVisible(visible) {
     document.querySelectorAll("[data-list-context-control]").forEach((element) => {
-      element.hidden = !visible;
+      // Writing `hidden` onto a node that is not an HTML element only set an inert property.
+      if (element instanceof HTMLElement) {
+        element.hidden = !visible;
+      }
     });
   }
 
@@ -3754,7 +3804,7 @@
       text: message,
       attrs: { role: "status", "aria-live": "polite" },
     });
-    listMount.replaceChildren(placeholder);
+    requireListsHandle(listMount, "list index region").replaceChildren(placeholder);
   }
 
   function emptyListMessage() {
@@ -3779,7 +3829,7 @@
       headingLevel: 2,
     });
     prompt.dataset.listNextAction = "";
-    detailPanel.replaceChildren(prompt);
+    requireListsHandle(detailPanel, "list detail panel").replaceChildren(prompt);
   }
 
   /**

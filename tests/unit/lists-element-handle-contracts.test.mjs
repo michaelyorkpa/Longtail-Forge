@@ -16,7 +16,9 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
  * against the rendered page for all 25.
  */
 
-const source = createProjectTextReader().readText("public/js/lists.js");
+const reader = createProjectTextReader();
+const source = reader.readText("public/js/lists.js");
+const checkedDomSource = reader.readText("public/js/shared/checked-dom.js");
 
 /** Constructors standing in for the DOM's, so `instanceof` behaves as it does in a browser. */
 class FakeElement {}
@@ -31,11 +33,19 @@ class FakeSVGElement extends FakeElement {}
 
 /**
  * One lookup, lifted with a document that answers whatever the case supplies.
+ *
+ * Since `0.33.33.38.3.10` the lookups go through the shared checked-DOM contract, so the page's own
+ * accessor is lifted beside them and the shipped `shared/checked-dom.js` runs in the sandbox - not a
+ * stand-in, which could answer differently from what the page is delivered. `queries` counts every
+ * query the lookup makes.
  * @param {string} name @param {unknown} answer
  */
-function lookup(name, answer) {
+function lookupCounting(name, answer) {
+  const queries = { count: 0 };
   const sandbox = vm.createContext({
-    document: { querySelector: () => answer },
+    window: {},
+    document: { querySelector: () => { queries.count += 1; return answer; } },
+    Element: FakeElement,
     HTMLElement: FakeHTMLElement,
     HTMLInputElement: FakeHTMLInputElement,
     HTMLSelectElement: FakeHTMLSelectElement,
@@ -44,8 +54,15 @@ function lookup(name, answer) {
     HTMLFormElement: FakeHTMLFormElement,
     HTMLDialogElement: FakeHTMLDialogElement,
   });
+  vm.runInContext(checkedDomSource, sandbox, { filename: "checked-dom.js" });
+  vm.runInContext(extractFunctionBlock(source, "requireCheckedDom"), sandbox);
   vm.runInContext(extractFunctionBlock(source, name), sandbox);
-  return vm.runInContext(name, sandbox);
+  return { find: vm.runInContext(name, sandbox), queries };
+}
+
+/** @param {string} name @param {unknown} answer */
+function lookup(name, answer) {
+  return lookupCounting(name, answer).find;
 }
 
 describe("The form-control lookup names the member, not the tag", () => {
@@ -110,12 +127,34 @@ describe("What this narrowing is, and what it leaves standing", () => {
   it("narrows only, and refuses only by returning the absent value the callers already handle", () => {
     // Every lookup has exactly one shape: query, test, return the element or null. No throw, no
     // fallback element, no mutation - so a mismatch takes the path an absent control already took.
-    for (const name of ["findListsFormControl", "findListsSelect", "findListsForm", "findListsDialog", "findListsHtmlElement"]) {
+    // `0.33.33.38.3.10` moved the query into the shared contract, so "queries once" is now counted
+    // at runtime rather than read off a spelling, over a match and over a mismatch.
+    const names = ["findListsFormControl", "findListsSelect", "findListsForm", "findListsDialog", "findListsHtmlElement"];
+    for (const name of names) {
+      for (const answer of [new FakeHTMLSelectElement(), new FakeSVGElement(), null]) {
+        const { find, queries } = lookupCounting(name, answer);
+        const before = answer === null ? null : Object.keys(answer);
+        find("[x]");
+        assert.equal(queries.count, 1, `${name} queries once`);
+        if (answer !== null) {
+          assert.deepEqual(Object.keys(answer), before, `${name} does not mutate what it found`);
+        }
+      }
       const block = extractFunctionBlock(source, name);
-      assert.match(block, /const element = document\.querySelector\(selector\);/, `${name} queries once`);
-      assert.match(block, /: null;/, `${name} answers null on a mismatch`);
+      assert.match(block, /requireCheckedDom\(\)\.find\(document, selector, /, `${name} goes through the shared lookup`);
       assert.doesNotMatch(block, /throw |createElement\(|\.remove\(|element\.[A-Za-z]+ =/,
         `${name} neither throws, nor builds a stand-in, nor mutates what it found`);
+    }
+  });
+
+  it("keeps the form-control union as a thin adapter over one shared query", () => {
+    // The shared `find` takes one constructor. The union is kept by asking it for any element and
+    // testing the same four subtypes here, rather than by chaining one query per subtype.
+    const block = extractFunctionBlock(source, "findListsFormControl");
+    assert.equal(block.split("requireCheckedDom().find(").length - 1, 1, "exactly one shared query");
+    assert.match(block, /find\(document, selector, Element\)/, "for any element");
+    for (const subtype of ["HTMLInputElement", "HTMLSelectElement", "HTMLTextAreaElement", "HTMLButtonElement"]) {
+      assert.match(block, new RegExp(`element instanceof ${subtype}`), `and the union still names ${subtype}`);
     }
   });
 
