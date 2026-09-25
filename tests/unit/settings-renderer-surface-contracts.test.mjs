@@ -345,14 +345,17 @@ describe("namespace governance records the declaration by identity", () => {
     const backlog = governance.slice(at, governance.indexOf("];", at));
     assert.ok(!/"settingsRenderer"/.test(backlog), "no longer an undeclared publication");
     assert.match(contracts, /^ {2}settingsRenderer\?: BrowserSettingsRenderer;$/m, "and declared on the root");
-    assert.match(governance, /declarationCoverage\.knownMembers\.length, 64, "known LongtailForge members/,
+    // 64 until `0.33.33.38.3.9` published a new member, `checkedDom`. A publication is what moves
+    // the known set; a declaration alone still does not, which is the claim.
+    assert.match(governance, /declarationCoverage\.knownMembers\.length, 65, "known LongtailForge members/,
       "the known set is unchanged: declaring a member does not discover one");
     assert.match(governance, /declarationCoverage\.declaredMembers\.length, \d+, "declared LongtailForge members"/,
       "the ratchet is still asserted, just not pinned to this checkpoint's number");
   });
 
   it("leaves the publication surface and occurrence counts alone", () => {
-    assert.match(governance, /declarationCoverage\.uniqueSurfaces, 66/);
-    assert.match(governance, /declarationCoverage\.publicationOccurrences, 69/);
+    // Each rose by one when `0.33.33.38.3.9` published `checkedDom`; declaring moves neither.
+    assert.match(governance, /declarationCoverage\.uniqueSurfaces, 67/);
+    assert.match(governance, /declarationCoverage\.publicationOccurrences, 70/);
   });
 });
