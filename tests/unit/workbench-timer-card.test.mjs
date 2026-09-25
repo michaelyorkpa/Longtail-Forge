@@ -5,36 +5,43 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 const source = createProjectTextReader().readText("public/js/workbench.js");
 function fixture() {
   const scope = vm.createContext({});
+  vm.runInContext("Date.now = () => 100000;", scope);
   for (const name of ["workbenchSourceField", "readElapsedSeconds", "formatDuration", "sourceLabel", "cssEscape"])
-    vm.runInContext(extractFunctionBlock(source, name).replace("Date.now()", "100000"), scope);
+    vm.runInContext(extractFunctionBlock(source, name), scope);
   return scope;
 }
-it("retains the elapsed consumer's native Date input domains and invalid-date arithmetic", () => {
+it("accepts primitive date strings and keeps accumulated time for other starts", () => {
   const s = fixture();
-  for (const input of [1, new Date(1000), { valueOf: () => 1000 }, "1970-01-01T00:00:01Z"])
+  for (const input of ["1970-01-01T00:00:01Z", "Thu, 01 Jan 1970 00:00:01 GMT"])
     assert.equal(s.readElapsedSeconds({ accumulated_elapsed_seconds: "12.9", timer_status: "running", last_active_start_time: input }), 111);
-  for (const input of ["bad date", new Date(NaN)])
-    assert.equal(Number.isNaN(s.readElapsedSeconds({ accumulated_elapsed_seconds: 12, timer_status: "running", last_active_start_time: input })), true);
+  for (const input of ["bad date", 1000, new Date(1000), new Date(NaN), new String("1970-01-01"), ["1970-01-01"], true, Symbol("timestamp"), { valueOf: () => assert.fail("no timestamp conversion"), toString: () => assert.fail("no timestamp conversion") }])
+    assert.equal(s.readElapsedSeconds({ accumulated_elapsed_seconds: 12, timer_status: "running", last_active_start_time: input }), 12);
   assert.equal(s.readElapsedSeconds({ accumulated_elapsed_seconds: 12, timer_status: "running", last_active_start_time: 200000 }), 12);
   for (const input of [0, null, undefined, ""])
     assert.equal(s.readElapsedSeconds({ accumulated_elapsed_seconds: 12, timer_status: "running", last_active_start_time: input }), 12);
   for (const timer of [null, undefined, false, 0, ""]) assert.equal(s.readElapsedSeconds(timer), 0);
 });
-it("preserves elapsed getter order, repeated date reads and conversion exceptions", () => {
+it("snapshots the timestamp once and preserves other getter order and failures", () => {
   const s = fixture();
   /** @type {string[]} */ const reads = [];
-  const input = { [Symbol.toPrimitive](/** @type {string} */ hint) { reads.push(hint); return 1000; } };
   const timer = Object.create({
     get accumulated_elapsed_seconds() { assert.equal(this, timer); reads.push("elapsed"); return "3x"; },
     get timer_status() { reads.push("status"); return "running"; },
-    get last_active_start_time() { reads.push("date"); return input; },
+    get last_active_start_time() { if (reads.includes("date")) assert.fail("second timestamp read"); reads.push("date"); return "1970-01-01T00:00:01Z"; },
   });
   assert.equal(s.readElapsedSeconds(timer), 102);
-  assert.deepEqual(reads, ["elapsed", "status", "date", "date", "default"]);
+  assert.deepEqual(reads, ["elapsed", "status", "date"]);
   const failure = new Error("date conversion");
-  assert.throws(() => s.readElapsedSeconds({ timer_status: "running", last_active_start_time: { [Symbol.toPrimitive]() { throw failure; } } }), error => error === failure);
-  assert.throws(() => s.readElapsedSeconds({ timer_status: "running", last_active_start_time: Symbol("timestamp") }), { name: "TypeError" });
+  assert.equal(s.readElapsedSeconds({ accumulated_elapsed_seconds: 7, timer_status: "running", last_active_start_time: { [Symbol.toPrimitive]() { throw failure; } } }), 7);
+  assert.throws(() => s.readElapsedSeconds({ timer_status: "running", get last_active_start_time() { throw failure; } }), error => error === failure);
   assert.equal(s.readElapsedSeconds({ accumulated_elapsed_seconds: 7, timer_status: "paused", get last_active_start_time() { return assert.fail("paused short circuit"); } }), 7);
+});
+it("retains accumulated-value conversion including symbols and throwing hooks", () => {
+  const s = fixture();
+  for (const value of [12, 12n, "12.9x", { toString: () => "12.9x" }]) assert.equal(s.readElapsedSeconds({ accumulated_elapsed_seconds: value, timer_status: "paused" }), 12);
+  assert.throws(() => s.readElapsedSeconds({ accumulated_elapsed_seconds: Symbol("elapsed") }), { name: "TypeError" });
+  const failure = new Error("accumulated conversion");
+  assert.throws(() => s.readElapsedSeconds({ accumulated_elapsed_seconds: { toString() { throw failure; } } }), error => error === failure);
 });
 it("keeps duration parsing and formatting for opaque accepted values", () => {
   const s = fixture();
@@ -55,10 +62,9 @@ it("keeps source labels and native/fallback CSS escaping", () => {
   assert.equal(s.cssEscape("task:id"), "native:task:id");
 });
 
-// Deferred in .42.31: discharge requires producer evidence for every reachable
-// timestamp path, including missing/optional values, before typing native Date.
-// This case must be reassessed if the array-only handoff stops carrying opaque entries.
-it("pins the elapsed-time deferral to the real array-only loader and merge handoff", async () => {
+// .42.42 discharges the Date-input deferral by operator ruling: the loader still
+// carries opaque entries, and the consumer accepts only primitive string starts.
+it("keeps the real array-only handoff identity while applying the elapsed input policy", async () => {
   const s = fixture();
   for (const name of ["workbenchSourceFields", "workbenchCardField", "readWorkbenchCardRoute", "loadTimerCardData", "mergeWorkbenchSourceData"])
     vm.runInContext(extractFunctionBlock(source, name), s);
@@ -74,7 +80,7 @@ it("pins the elapsed-time deferral to the real array-only loader and merge hando
   const target = { timers: [], taskOptions: null };
   s.mergeWorkbenchSourceData(target, loaded);
   for (const [index, timer] of timers.entries()) assert.equal(target.timers[index], timer);
-  assert.deepEqual(Array.from(target.timers, timer => s.readElapsedSeconds(timer)), [101, 2, 2, 2]);
+  assert.deepEqual(Array.from(target.timers, timer => s.readElapsedSeconds(timer)), [2, 2, 2, 2]);
   s.requireApi = () => ({ getJson: async () => ({}) });
   assert.deepEqual(Array.from((await s.loadTimerCardData({ listRoute: "/timers" })).timers), []);
 });
