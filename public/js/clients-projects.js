@@ -1332,11 +1332,16 @@
     const toolbars = toolbar ? [toolbar] : [...document.querySelectorAll(`[data-client-projects-bulk-toolbar="${recordType}"]`)];
 
     toolbars.forEach((bulkToolbar) => {
-      if (selectedCount > 0) {
+      // The framework builds this toolbar as a `<details>`. `open` exists on nothing else, so a
+      // match of another kind is skipped rather than given an inert property.
+      if (selectedCount > 0 && bulkToolbar instanceof HTMLDetailsElement) {
         bulkToolbar.open = true;
       }
 
-      const count = bulkToolbar.viewParts?.count || bulkToolbar.querySelector("[data-view-bulk-selection-count]");
+      // The framework's own record of the toolbar it built, then - exactly as before, when the
+      // toolbar is not one it built - the count found by searching inside it (`0.33.33.38.3.11`).
+      const count = requireView().partsOf(bulkToolbar, "bulkActionToolbar")?.count
+        || requireCheckedDom().find(bulkToolbar, "[data-view-bulk-selection-count]", HTMLElement);
       if (count) {
         count.textContent = `${selectedCount} selected`;
         count.hidden = selectedCount === 0;

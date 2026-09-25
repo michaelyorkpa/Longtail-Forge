@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import vm from "node:vm";
 import { describe, it } from "vitest";
-import { FakeDocument, fakeDomConstructors } from "../../scripts/test-support/fake-dom.mjs";
+import { FakeDocument, createFakeBrowserContext, fakeDomConstructors } from "../../scripts/test-support/fake-dom.mjs";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 /**
@@ -266,21 +266,35 @@ describe("The one optional lookup keeps its fallback", () => {
 });
 
 describe("The bulk toolbar's selects", () => {
+  const builderSource = reader.readText("public/js/shared/view-builder.js");
+  const modalStackSource = reader.readText("public/js/shared/view-modal-stack.js");
+
   /**
    * The toolbar sync from one version of the page, with the selection readers it calls supplied.
+   *
+   * Since `0.33.33.38.3.11` the sync reads the toolbar's parts through `LongtailForge.view.partsOf`
+   * and its count fallback through `checkedDom`, so the real builder, the modal stack it delegates
+   * to and the shipped checked-DOM module all run here. Only the functions each version actually
+   * has are lifted: the `ed69a010` baseline has neither accessor.
    * @param {string} text @param {number} selectedCount
    */
   function syncFrom(text, selectedCount) {
-    const document = new FakeDocument();
     const selected = Array.from({ length: selectedCount }, (_, index) => `id-${index}`);
-    const sandbox = vm.createContext({
-      document,
-      ...fakeDomConstructors(),
-      getSelectedClientIds: () => selected,
-      getSelectedProjectIds: () => selected,
+    const context = createFakeBrowserContext({
+      globals: {
+        getSelectedClientIds: () => selected,
+        getSelectedProjectIds: () => selected,
+      },
     });
-    const { syncClientProjectsBulkToolbar } = lift(text, ["syncClientProjectsBulkToolbar"], sandbox);
-    return { document, syncClientProjectsBulkToolbar };
+    vm.runInNewContext(modalStackSource, context, { filename: "view-modal-stack.js" });
+    vm.runInNewContext(builderSource, context, { filename: "view-builder.js" });
+    vm.runInContext(checkedDomSource, context, { filename: "checked-dom.js" });
+    const names = ["requireView", "requireCheckedDom", "syncClientProjectsBulkToolbar"]
+      .filter((name) => text.includes(`function ${name}(`));
+    const { syncClientProjectsBulkToolbar } = lift(text, names, context);
+    /** @type {FakeDocument} */
+    const document = context.document;
+    return { context, document, syncClientProjectsBulkToolbar };
   }
 
   /** @param {FakeDocument} document */
@@ -326,5 +340,23 @@ describe("The bulk toolbar's selects", () => {
     assert.deepEqual(current.selects, baseline.selects, "the real selects are unaffected");
     assert.equal(Reflect.get(baseline.stray, "disabled"), true, "the page used to write onto it");
     assert.equal(Reflect.get(current.stray, "disabled"), false, "and now leaves the node alone");
+  });
+
+  it("reads a framework toolbar's count through partsOf, exactly as the replaced viewParts read did", () => {
+    // `0.33.33.38.3.11`: a toolbar the framework built, reached both as the parameter and by the
+    // search the page falls back to. The old read took `viewParts` straight off the element.
+    for (const path of ["parameter", "search"]) {
+      const results = [page, baselinePage].map((text) => {
+        const { context, document, syncClientProjectsBulkToolbar } = syncFrom(text, 2);
+        const view = vm.runInContext("window.LongtailForge.view", context);
+        const toolbar = view.createBulkActionToolbar({ label: "Selected" });
+        toolbar.setAttribute("data-client-projects-bulk-toolbar", "project");
+        document.body.appendChild(toolbar);
+        syncClientProjectsBulkToolbar("project", path === "parameter" ? toolbar : null);
+        return { open: toolbar.open, text: toolbar.viewParts.count.textContent, hidden: toolbar.viewParts.count.hidden };
+      });
+      assert.deepEqual(results[0], results[1], `the ${path} path matches the replaced read`);
+      assert.deepEqual(results[0], { open: true, text: "2 selected", hidden: false });
+    }
   });
 });

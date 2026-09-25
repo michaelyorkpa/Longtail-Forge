@@ -2927,8 +2927,16 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewLinkedContextPickerParts} BrowserViewLinkedContextPickerParts */
+
+  /**
+   * The link picker's parts, from the framework's own record of the picker it built
+   * (`0.33.33.38.3.11`). `Partial`, because an absent or unrecognised picker answers `{}` as it
+   * always did, and every caller already guards or optionally calls each member.
+   * @returns {Partial<BrowserViewLinkedContextPickerParts>}
+   */
   function listEditorPickerParts() {
-    return listLinkPicker?.viewParts || {};
+    return (listLinkPicker && requireView().partsOf(listLinkPicker, "linkedContextPicker")) || {};
   }
 
   /**
