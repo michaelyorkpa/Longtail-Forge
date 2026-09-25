@@ -497,22 +497,6 @@
     workspaceType: "business",
   };
 
-  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
-  // the shell and every binding that reads the DOM it creates wait for the workspace
-  // context. Before this, the shell was built synchronously against a context hydrated
-  // from localStorage, which is empty on a cold load - the case the fallback covers.
-  //
-  // The dialog-only path reads no descriptor - buildListsViewShell() returns early without a
-  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
-  // it lazily imports this controller for a module action, and it must stay immediate.
-  if (isListsWorkspaceSurface) {
-    initializeListsWorkspace();
-  } else {
-    ensureListsDialogShell();
-    cacheListsElements();
-    bindListsEvents();
-  }
-
   async function initializeListsWorkspace() {
     try {
       await window.LongtailForge?.workspaceContextReady;
@@ -4478,5 +4462,28 @@
     }
     statusMessage.textContent = message;
     statusMessage.classList.toggle("is-error", isError);
+  }
+
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  //
+  // The dialog-only path reads no descriptor - buildListsViewShell() returns early without a
+  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
+  // it lazily imports this controller for a module action, and it must stay immediate.
+  //
+  // **Last, because the dialog-only branch runs synchronously** (`0.33.33.43.45`). It reaches the
+  // module's `let` and `const` bindings - the cached handles, the published dialog surface, the
+  // link-target tables - so every one of them must already be initialized. Placed above them, it
+  // threw "Cannot access 'pageTitle' before initialization", which rejected the lazy import and
+  // left every other page unable to open the Lists dialog. The workspace branch is unaffected by
+  // the move: before its first `await` it only reads the readiness promise.
+  if (isListsWorkspaceSurface) {
+    initializeListsWorkspace();
+  } else {
+    ensureListsDialogShell();
+    cacheListsElements();
+    bindListsEvents();
   }
 })();
