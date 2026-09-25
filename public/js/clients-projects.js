@@ -207,6 +207,24 @@
     return dialogs;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCheckedDom} BrowserCheckedDom */
+
+  /**
+   * The shared checked-DOM contract this file narrows its looked-up controls through.
+   *
+   * Acquired per call, like the page's other required surfaces. The static service injects
+   * `shared/checked-dom.js` at the opening `<head>` of every rendered page, ahead of any page
+   * script - including the pages that load this file lazily for one of its dialogs.
+   * @returns {BrowserCheckedDom}
+   */
+  function requireCheckedDom() {
+    const checkedDom = window.LongtailForge?.checkedDom;
+    if (!checkedDom) {
+      throw new Error("Clients/Projects requires LongtailForge.checkedDom.");
+    }
+    return checkedDom;
+  }
+
   async function initializeClientProjectsPage() {
     try {
       await window.LongtailForge?.workspaceContextReady;
@@ -1324,8 +1342,12 @@
         count.hidden = selectedCount === 0;
       }
 
+      // A matched node that is not a select has no `disabled` to set. Writing one only gave it an
+      // inert property and changed nothing, so skipping it is the same no-op without that property.
       bulkToolbar.querySelectorAll(".view-bulk-action-toolbar-body select").forEach((select) => {
-        select.disabled = selectedCount === 0;
+        if (select instanceof HTMLSelectElement) {
+          select.disabled = selectedCount === 0;
+        }
       });
     });
   }
@@ -1473,7 +1495,10 @@
       showClientAssignment: true,
     });
     const closeButton = createModalAction("Cancel", { role: "secondary" });
-    const submitButton = form.querySelector("[data-add-project-button]") || createAddProjectSubmitButton(client.id);
+    // Optional, as the fallback already said. The form builder appends this button; when it is not
+    // there, or is not a button, the dialog builds its own rather than moving something else.
+    const submitButton = requireCheckedDom().find(form, "[data-add-project-button]", HTMLButtonElement)
+      || createAddProjectSubmitButton(client.id);
     submitButton.remove();
     submitButton.setAttribute("form", formId);
     submitButton.classList.add("surface-modal-footer-action");
@@ -2304,7 +2329,7 @@
     billingRateLabel.appendChild(billingRateInput);
 
     const billableLabel = createBillableCheckbox(client.billable);
-    const billableInput = billableLabel.querySelector("input");
+    const billableInput = requireBillableInput(billableLabel);
     billableInput.dataset.clientBillableInput = client.id;
 
     const billingPeriodEditor = createBillingPeriodEditor({
@@ -2715,11 +2740,11 @@
     billingRateLabel.appendChild(billingRateInput);
 
     const billableLabel = createBillableCheckbox(project.billable);
-    const billableInput = billableLabel.querySelector("input");
+    const billableInput = requireBillableInput(billableLabel);
     const clientAssignmentLabel = createProjectClientAssignment(project);
     const parentProjectLabel = createProjectParentAssignment(project, client);
     const clientAssignmentSelect = clientAssignmentLabel?.querySelector("select") || null;
-    const parentProjectSelect = parentProjectLabel.querySelector("select");
+    const parentProjectSelect = requireParentProjectSelect(parentProjectLabel);
     const clientActions = createProjectClientShortcutActions(project);
     const tagPicker = createTagPickerField("Project Tags", project.tags, "project");
     tagPicker.element.classList.add("project-edit-tags-field");
@@ -2988,9 +3013,18 @@
       }));
     };
 
-    const readSortOrder = () => normalizeProjectTaskSortOrder(
-      [...sortList.querySelectorAll("[data-sort-item]")].map((row) => row.dataset.sortItem),
-    );
+    // Each matched row is one `renderSortRows` built, so each is required: a row that is not an
+    // HTML element is reported by name rather than dropped from the order it contributes to.
+    const readSortOrder = () => {
+      const checkedDom = requireCheckedDom();
+      return normalizeProjectTaskSortOrder(
+        [...sortList.querySelectorAll("[data-sort-item]")].map((row) => checkedDom.require(
+          row instanceof HTMLElement ? row : null,
+          "Clients/Projects",
+          "task default sort rows",
+        ).dataset.sortItem),
+      );
+    };
 
     statusLabel.appendChild(statusSelect);
     priorityLabel.appendChild(prioritySelect);
@@ -3044,6 +3078,26 @@
     select.disabled = select.options.length <= 1;
     label.appendChild(select);
     return label;
+  }
+
+  /**
+   * The select `createProjectParentAssignment` built into `label`, through the shared checked-DOM
+   * contract.
+   *
+   * **Required, and the check sits where the page already depended on it.** The project editor
+   * reads its `value` unguarded on save and the add-project form reads it unguarded on submit. The
+   * builder appends its select unconditionally, so neither lookup has a state in which it finds
+   * nothing; the error names the markup contract rather than moving a failure that could happen.
+   * @param {HTMLLabelElement} label
+   * @returns {HTMLSelectElement}
+   */
+  function requireParentProjectSelect(label) {
+    const checkedDom = requireCheckedDom();
+    return checkedDom.require(
+      checkedDom.find(label, "select", HTMLSelectElement),
+      "Clients/Projects",
+      "parent project select",
+    );
   }
 
   function createProjectParentAssignment(project, client) {
@@ -3379,7 +3433,7 @@
     billingRateLabel.appendChild(billingRateInput);
 
     const billableLabel = createBillableCheckbox(initialTargetClient.isWorkspaceScope ? "no" : initialTargetClient.billable);
-    const billableInput = billableLabel.querySelector("input");
+    const billableInput = requireBillableInput(billableLabel);
 
     const billingDetails = document.createElement("details");
     billingDetails.className = "project-billing-details";
@@ -3464,7 +3518,7 @@
 
       const selectedClientId = clientAssignment?.select.value ?? (client.isWorkspaceScope ? "" : client.id);
       const targetClient = getProjectTargetClient(selectedClientId);
-      const parentProjectId = parentProjectLabel.querySelector("select").value;
+      const parentProjectId = requireParentProjectSelect(parentProjectLabel).value;
       const project = {
         client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
         parent_project_id: parentProjectId,
@@ -4885,6 +4939,25 @@
       billingContact[fieldName] = contact?.[fieldName] || "";
       return billingContact;
     }, {});
+  }
+
+  /**
+   * The checkbox `createBillableCheckbox` built into `label`, through the shared checked-DOM contract.
+   *
+   * **Required at capture, which moves no failure that can happen.** Each of the three editors
+   * built this label one statement earlier and first depends on the checkbox during the same
+   * synchronous construction. The builder appends its input unconditionally, so there is no state in
+   * which this lookup finds nothing; the check names the markup contract instead of assuming it.
+   * @param {HTMLLabelElement} label
+   * @returns {HTMLInputElement}
+   */
+  function requireBillableInput(label) {
+    const checkedDom = requireCheckedDom();
+    return checkedDom.require(
+      checkedDom.find(label, "input", HTMLInputElement),
+      "Clients/Projects",
+      "billable checkbox",
+    );
   }
 
   function createBillableCheckbox(value) {

@@ -546,6 +546,7 @@
         "tests/unit/calendar-settings-scope-contracts.test.mjs",
         "tests/unit/calendar-subscription-contracts.test.mjs",
         "tests/unit/catalog-security-response-contracts.test.mjs",
+        "tests/unit/checked-dom-contracts.test.mjs",
         "tests/unit/client-project-options-normalizers.test.mjs",
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
@@ -871,6 +872,7 @@
         "public/js/shared/browser-recovery.js",
         "public/js/shared/cached-fetch.js",
         "public/js/shared/capture-prompt.js",
+        "public/js/shared/checked-dom.js",
         "public/js/shared/client-project-options.js",
         "public/js/shared/error-contract.js",
         "public/js/shared/file-attachments.js",
@@ -924,20 +926,16 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 255,
+      "errorCount": 238,
       "diagnostics": {
         "public/js/clients-projects.js": [
-          {
-            "code": 18047,
-            "count": 13
-          },
           {
             "code": 2322,
             "count": 1
           },
           {
             "code": 2339,
-            "count": 25
+            "count": 22
           },
           {
             "code": 2345,
@@ -945,10 +943,6 @@
           },
           {
             "code": 2349,
-            "count": 1
-          },
-          {
-            "code": 2531,
             "count": 1
           },
           {
@@ -1625,8 +1619,8 @@
     }
   },
   "totals": {
-    "files": 1506,
-    "errors": 255,
+    "files": 1508,
+    "errors": 238,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
