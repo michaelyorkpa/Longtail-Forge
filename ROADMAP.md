@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM); the Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` and resumes on the integrated baseline, then extraction | 1 owned |
+| Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM). The Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` (module-action keys) and `0.33.33.38.2.11` (navigation hrefs), and resumes on the integrated baseline; then extraction | 1 owned |
 | Claude | `0.33.33.43.47` | **Browser `dom` is zero** after `0.33.33.43.46`. `clients-projects.js` 133 and `lists.js` 30 remain, all owned families (`params`, `state`, `assorted`); the next child is drawn from live evidence | 163 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
@@ -281,37 +281,13 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.11 - Opaque navigation hrefs
 
-**Model: High Effort** - a published navigation-contract reconciliation that reaches `location.assign`, approved by the operator on 2026-09-25 as the second prerequisite for Workbench's Inspector boundary (`0.33.33.42.45`).
+**Complete: a contract reconciliation that moves no navigation.** See the archive entry.
 
-**Why.** `BrowserNavigationIntent.navigate(href: string)` is narrower than the controller it describes:
-
-- `request` tests the *original* `href` for truthiness. A falsy one becomes `""` and nothing is assigned; a truthy one is converted once, by `new window.URL(intent.href, document.baseURI)`, inside `request`.
-- Workbench's opaque Inspector candidate carries its page-fallback URL as it arrived, so the typed call refuses it.
-- A string guard at the caller would refuse values that navigate today. A conversion at the caller would convert earlier, and would turn `0` into a navigation.
-
-**Scope, recorded before implementation (operator-approved):**
-
-- [ ] **Raw input is separate from the normalised request.**
-  - `navigate(href: unknown, ...)`.
-  - A truthful raw request-input type for what `request` accepts, and the published `request` reconciled to it because `navigate` feeds it.
-  - `BrowserNavigationIntentRequest`, `shouldHold` and the exit-guard contract stay string-based wherever the controller has already established a string.
-  - `unknown`, never `any`, and no assertion that an unvalidated value is text. Every other option and request member is preserved. No broad restructuring of the controller.
-- [ ] **Conversion timing is preserved, not just its result.**
-  - The truthiness test on the original `href` stays, and so does the conversion inside `request`.
-  - The original relative order is kept: constructor acquisition, then the `href` reads (two), then `baseURI`, then conversion.
-  - An inline template would convert *before* `baseURI` is read, and a `toString` that moves `<base href>` would then resolve against the moved base; the reviewer reproduced this in Chromium.
-  - The spread and getter behaviour is unchanged, with no single-read optimisation by assumption. A small local helper is acceptable; no URL framework or reflection bypass.
-- [ ] **Failures and navigation are unchanged.**
-  - A conversion failure still throws synchronously; nothing becomes async.
-  - **The one permitted difference:** a string-conversion `TypeError` may lose the browser's "Failed to construct 'URL':" prefix. It is recorded, not synthesised.
-  - These stay exactly as they are: the falsy branch and its absent assignment; continuation callbacks, since a falsy `href` does not mean the request does nothing; the pending-promise identity; the exit guards; the normalised string `href` delivered to guards and `location.assign`; the scheme, origin and login-bypass policies.
-  - A truthy value that converts to empty text is not an originally empty string, and stays distinct.
-- [ ] **Proof against the actual controller and its `75533ba8` version.**
-  - Inputs: relative and absolute strings, numeric `7` under a non-root base, a URL object, coercible objects, the falsy set, truthy-to-empty values, malformed URLs, and `Symbol` and conversion failures.
-  - Checked: the destination, the read and conversion order (including the base-changing case, compared in a real browser), synchronous failure, promise identity, and the normalised intent guards receive, with guard-held and continuation cases.
-  - The existing scripted-navigation and exit-guard browser coverage.
-- [ ] **Expected accounting: no diagnostic change**, measured per message; navigation and shared declarations stay at zero.
-- [ ] **Delivery.** Protected integration, then the exact integrated SHA and the reconciled contract go to Codex. Codex's held patch is not edited. Codex then inventories every remaining shared-contract blocker in the connected Inspector dispatch and navigation path in one pass.
+- `navigate` and a new raw request-input type accept the destination a caller holds.
+- The normalised request, `shouldHold` and the exit guards stay string-based.
+- The conversion stays inside `request`, after the base is read.
+- The only observable difference is the operator-permitted loss of Chromium's "Failed to construct 'URL':" prefix on a `Symbol`'s `TypeError`.
+- Browser diagnostics unchanged at 164, per message.
 
 #### 0.33.33.38.2.10 - Opaque module-action keys
 

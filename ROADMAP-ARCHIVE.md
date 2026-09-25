@@ -1,5 +1,56 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.11 - Opaque navigation hrefs
+
+**Model: High Effort** - a published navigation-contract reconciliation that reaches `location.assign`, approved by the operator on 2026-09-25 as the second prerequisite for Workbench's Inspector boundary.
+
+- [x] **The problem.** `BrowserNavigationIntent.navigate(href: string)` was narrower than the controller. `request` tests the original value, turns a falsy one into `""`, and converts a truthy one once, inside itself, before any guard or `location.assign` sees it. Workbench's opaque Inspector candidate carries its page-fallback URL as it arrived, and there was no way to pass it:
+  - a string guard would refuse values that navigate today;
+  - a caller conversion would convert earlier, and turn `0` into a navigation.
+- [x] **The contract.** Raw input is now separate from the normalised request.
+  - `navigate(href: unknown, ...)`.
+  - A new `BrowserNavigationIntentRequestInput` has the same members with `href: unknown`, and the published `request` accepts it, because `navigate` feeds it.
+  - `BrowserNavigationIntentRequest`, `shouldHold` and every exit-guard member keep `href?: string`, textually unchanged; an existing contract pins that interface's opening.
+  - A test proves the two interfaces differ only in `href`. An `Omit` alias was rejected: with the index signature it collapses the named members.
+  - No `any`, no assertion, no other option or member touched.
+- [x] **Conversion timing, not just the result.** The conversion moved into a helper inside the lifted controller, `resolveRequestHref(window.URL, intent.href, document.baseURI)`.
+  - The call evaluates its arguments in the inline constructor's order: constructor, the second raw read, the base.
+  - Only then does the helper's template convert the value. It is the one conversion the constructor applied.
+  - The raw `href` is still read three times (spread, test, argument), and the falsy branch is unchanged.
+  - **The reviewer's inline template would convert before the base is read.** Its control resolved against the moved base in Chromium.
+- [x] **Differences, recorded honestly.**
+  - **Permitted by the operator:** a `Symbol`'s synchronous `TypeError` now reads "Cannot convert a Symbol value to a string" without Chromium's "Failed to construct 'URL':" prefix. It is not synthesised or suppressed.
+  - **Unreachable:** a `window.URL` that could not construct would now fail after the conversion rather than before it.
+  - Nothing else moved:
+    - every failure is still synchronous;
+    - the pending promise is still shared;
+    - guards still receive the normalised text;
+    - continuations still run with a falsy `href`;
+    - the scheme, origin and login-bypass policies are unchanged;
+    - a truthy value that converts to empty text still navigates to the base, unlike an originally empty string.
+- [x] **Proof.**
+  - **Node comparison.** `tests/unit/navigation-href-input-contracts.test.mjs` runs the actual controller from this tree and from `75533ba8`, with instrumented `window.URL`, `document.baseURI`, raw getters and exit guards, and compares one event log. It covers:
+    - 21 destinations: relative, root-relative and absolute; numeric `7` under a non-root base; a URL object; coercible, `valueOf` and `toPrimitive` objects; truthy-to-empty; base-changing; malformed; throwing; `Symbol`; and the whole falsy set;
+    - the three raw reads;
+    - held navigation with overlapping calls;
+    - the login bypass;
+    - continuations, held and not.
+  - **Mutations.** Nine, each caught, and each file was restored from a byte copy and verified by hash:
+    - the inline template;
+    - conversion before the test;
+    - conversion in `navigate`;
+    - a single read;
+    - the base read after conversion;
+    - an async `navigate`;
+    - `String()`;
+    - both contract sides.
+  - **Chromium comparison, one time.** Both actual controllers were lifted into a real page with a real `<base>` element. They matched on every probe but the permitted `Symbol` prefix. Evaluating from a single commit, CI's browser job cannot read the baseline, so this comparison is a recorded measurement rather than a spec.
+  - **Permanent rendered spec.** `tests/e2e/navigation-href-input.spec.mjs` drives the shipped controller on the dashboard under a real non-root base, at both viewports: numeric `7` lands on `/app/7`, a base-moving conversion on `/app/moved.html`, truthy-to-empty on the base itself, a `Symbol` throws synchronously, and `0` navigates nowhere.
+  - **Existing coverage.** The exit-guard and navigation specs (Task Focus exit capture, Workbench navigation disclosure, settings navigation, mobile nav, Workbench focus handoff), the lifted-controller exit-capture regression and the five suites that lift the controller all pass.
+  - **One non-causal failure.** `mobile-nav`'s drawer scroll-lock case failed once in the first combined run and did not reproduce in three reruns. It never navigates, so it cannot reach `request` or `navigate`.
+- [x] **Accounting.** Browser 164, **identical per message**. Server/tests and scripts remain zero, with no explicit `any`, and the declarations are clean. The ledger records only the two new test files.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint, and no owning doc describes the navigation-intent contract.
+
 ## Version 0.33.33.43.46 - Clients/Projects page-owned element values and dialog opening
 
 **Model: High Effort** - removed the last eight browser `dom` diagnostics, with rendered proof on the Clients/Projects editors.
