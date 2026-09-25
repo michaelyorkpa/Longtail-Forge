@@ -35,7 +35,7 @@ assert.doesNotMatch(
 );
 assert.match(
   functionBody(workbenchScript, "renderWorkbenchViewState"),
-  /workbenchHost\.dataset\.workbenchViewState = viewState;[\s\S]*workbenchHost\.dataset\.workbenchActiveTaskFocus = activeTaskFocus\?\.taskId \|\| "";[\s\S]*changeFocusButton\.disabled = !isTaskFocus;[\s\S]*workbenchChangeFocusEnabled = isTaskFocus \? "true" : "false"/,
+  /workbenchHost\.dataset\.workbenchViewState = viewState;[\s\S]*workbenchHost\.dataset\.workbenchActiveTaskFocus = `\$\{activeTaskFocus\?\.taskId \|\| ""\}`;[\s\S]*changeFocusButton\.disabled = !isTaskFocus;[\s\S]*workbenchChangeFocusEnabled = isTaskFocus \? "true" : "false"/,
   "Workbench should publish state hooks and keep Change Focus disabled outside Task Focus",
 );
 assert.match(

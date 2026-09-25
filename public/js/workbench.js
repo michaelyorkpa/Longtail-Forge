@@ -211,6 +211,15 @@
     return taskRecords;
   }
 
+  /** @returns {import("../../src/types/browser-contracts.js").BrowserCheckedDom} */
+  function requireCheckedDom() {
+    const checkedDom = window.LongtailForge?.checkedDom;
+    if (!checkedDom) {
+      throw new Error("LongtailForge.checkedDom is unavailable.");
+    }
+    return checkedDom;
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -329,7 +338,8 @@
     }
     return dialogs;
   }
-  const workbenchHost = document.querySelector("[data-workbench-host]");
+  // workbench.html builds this optional host as <main>; a non-HTML match is absent.
+  const workbenchHost = requireCheckedDom().find(document, "[data-workbench-host]", HTMLElement);
 
   /** @type {HTMLElement | null} */
   let focusModeList = null;
@@ -1384,7 +1394,7 @@
 
     if (workbenchHost) {
       workbenchHost.dataset.workbenchViewState = viewState;
-      workbenchHost.dataset.workbenchActiveTaskFocus = activeTaskFocus?.taskId || "";
+      workbenchHost.dataset.workbenchActiveTaskFocus = `${activeTaskFocus?.taskId || ""}`;
     }
 
     toggleWorkbenchStatePanel(taskFocusPanelElement, !isTaskFocus);

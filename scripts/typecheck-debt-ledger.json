@@ -424,6 +424,7 @@
         "tests/e2e/workbench-focus-handoff.spec.mjs",
         "tests/e2e/workbench-focus-readers.spec.mjs",
         "tests/e2e/workbench-focus-state.spec.mjs",
+        "tests/e2e/workbench-host-capture.spec.mjs",
         "tests/e2e/workbench-inspector-handles.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
@@ -929,7 +930,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 177,
+      "errorCount": 175,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -996,10 +997,6 @@
           }
         ],
         "public/js/workbench.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
           {
             "code": 7006,
             "count": 1
@@ -1614,8 +1611,8 @@
     }
   },
   "totals": {
-    "files": 1511,
-    "errors": 177,
+    "files": 1512,
+    "errors": 175,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
