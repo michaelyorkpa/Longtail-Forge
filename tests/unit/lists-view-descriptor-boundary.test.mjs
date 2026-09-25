@@ -265,7 +265,10 @@ describe("rendering and the dialog-only path are unchanged", () => {
   it("leaves the lazy dialog-only path with no workspace dependency", () => {
     // Scoped to the branch itself: a fixed window runs on into the workspace initialiser,
     // which does await readiness, and would report the opposite of what this checks.
-    const at = lists.indexOf("  if (isListsWorkspaceSurface) {");
+    // Anchored at the controller's own top-level indentation: `saveList` has a nested
+    // `if (isListsWorkspaceSurface)`, and a bare substring search found that one once
+    // `0.33.33.43.45` moved the bootstrap after it.
+    const at = lists.search(/^ {2}if \(isListsWorkspaceSurface\) \{$/m);
     assert.notEqual(at, -1, "the bootstrap branch must exist");
     const branch = codeOnly(lists.slice(at, lists.indexOf("\n  }\n", at) + 4));
     assert.match(branch, /if \(isListsWorkspaceSurface\) \{\s*\n\s*initializeListsWorkspace\(\);\s*\n\s*\} else \{/);
@@ -274,6 +277,21 @@ describe("rendering and the dialog-only path are unchanged", () => {
     assert.ok(!/await/.test(dialogOnly), "the dialog-only branch waits for nothing");
     assert.ok(!/workspaceContext/.test(dialogOnly), "and reads no workspace context");
     assert.ok(!/listsViewSurfaceDescriptor/.test(dialogOnly), "and no server surface");
+  });
+
+  it("runs the bootstrap after every module binding the dialog-only branch can reach", () => {
+    // `0.33.33.43.45`: the synchronous dialog-only branch sat above the module's `let` handles and
+    // threw "Cannot access 'pageTitle' before initialization", which rejected the lazy import and
+    // left every other page unable to open the Lists dialog. Every top-level `let` and `const` of
+    // the controller must be initialized before the branch runs, so it must come after all of them.
+    const at = lists.search(/^ {2}if \(isListsWorkspaceSurface\) \{$/m);
+    assert.notEqual(at, -1, "the bootstrap branch must exist");
+    const declarations = [...lists.matchAll(/^ {2}(?:let|const) \w+/gm)];
+    assert.ok(declarations.length > 40, "the controller's top-level bindings are still found");
+    const later = declarations.filter((match) => (match.index ?? 0) > at).map((match) => match[0].trim());
+    assert.deepEqual(later, [], "no top-level binding may be declared after the bootstrap runs");
+    assert.match(lists.slice(at), /^ {2}if \(isListsWorkspaceSurface\) \{[\s\S]*\n {2}\}\n\}\)\(\);\n?$/,
+      "and the bootstrap is the last statement of the controller");
   });
 
   it("keeps the host check that distinguishes the two paths", () => {

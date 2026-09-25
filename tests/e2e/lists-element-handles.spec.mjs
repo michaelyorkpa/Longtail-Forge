@@ -162,3 +162,40 @@ isolatedTest("a workspace's lists load into the index and open in the detail", a
   await expect(detail).toContainText("Loaded item");
   expect(errors).toEqual([]);
 });
+
+// Runtime proof for 0.33.33.43.45.
+//
+// The Lists dialog opens on other pages through the footer Capture action, which lazily imports
+// this controller and takes its synchronous dialog-only bootstrap. That bootstrap sat above the
+// module's `let` handles and threw "Cannot access 'pageTitle' before initialization", so the
+// import rejected and Capture reported the error instead of opening the dialog. This drives the
+// product's own path, Workbench -> Capture -> List, and saves a list through it.
+isolatedTest("Capture opens and saves a list on a page without the Lists workspace", async ({ isolatedWorkspace }, testInfo) => {
+  const { page, api } = isolatedWorkspace;
+  /** @type {string[]} */
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+  });
+  const title = `Captured list ${testInfo.project.name}-${testInfo.workerIndex}-${Date.now()}`;
+
+  await page.goto("/workbench.html");
+  await expect(page.locator("[data-lists-host]")).toHaveCount(0);
+  await page.locator("[data-quick-action-toggle]").click();
+  await page.locator('[data-quick-action-id="list"]').click();
+
+  const listDialog = page.locator("[data-list-dialog]");
+  await expect(listDialog).toBeVisible();
+  await expect(page.locator("[data-quick-action-status]")).not.toContainText("before initialization");
+  await expect(page.locator("[data-list-dialog-title]")).toHaveText("Create List");
+  await page.locator("[data-list-title]").fill(title);
+  await page.locator("[data-list-save]").click();
+  await expect(listDialog).toBeHidden();
+
+  await expect.poll(async () => {
+    const response = await api.get("/api/lists");
+    return JSON.stringify(await response.json());
+  }).toContain(title);
+  expect(errors).toEqual([]);
+});
