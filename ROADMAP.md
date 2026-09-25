@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM); the Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` and resumes on the integrated baseline, then extraction | 1 owned |
+| Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM). The Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` (module-action keys) and `0.33.33.38.2.11` (navigation hrefs), and resumes on the integrated baseline; then extraction | 1 owned |
 | Claude | `0.33.33.43.47` | **Browser `dom` is zero** after `0.33.33.43.46`. `clients-projects.js` 133 and `lists.js` 30 remain, all owned families (`params`, `state`, `assorted`); the next child is drawn from live evidence | 163 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
@@ -278,6 +278,16 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Order matters and is fixed by dependency, not by size.** Adoption of the root and the already-declared members can run immediately and needs no new contract. Undeclared members must be declared *and* adopted in one change each, on the rule `0.33.33.38.1` proved: declaring an existing consumed member retypes reads that already exist, and the monotonic ledger rejects the movement unless the consumers narrow in the same commit.
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
+
+#### 0.33.33.38.2.11 - Opaque navigation hrefs
+
+**Complete: a contract reconciliation that moves no navigation.** See the archive entry.
+
+- `navigate` and a new raw request-input type accept the destination a caller holds.
+- The normalised request, `shouldHold` and the exit guards stay string-based.
+- The conversion stays inside `request`, after the base is read.
+- The only observable difference is the operator-permitted loss of Chromium's "Failed to construct 'URL':" prefix on a `Symbol`'s `TypeError`.
+- Browser diagnostics unchanged at 164, per message.
 
 #### 0.33.33.38.2.10 - Opaque module-action keys
 

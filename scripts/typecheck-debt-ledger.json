@@ -335,6 +335,7 @@
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
+        "tests/e2e/navigation-href-input.spec.mjs",
         "tests/e2e/notes-bulk-edit.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-detail-display.spec.mjs",
@@ -631,6 +632,7 @@
         "tests/unit/mutation-runner-contracts.test.mjs",
         "tests/unit/namespace-root-closure-contracts.test.mjs",
         "tests/unit/navigation-bootstrap-consumers.test.mjs",
+        "tests/unit/navigation-href-input-contracts.test.mjs",
         "tests/unit/navigation-notification-panel.test.mjs",
         "tests/unit/navigation-shell-chrome.test.mjs",
         "tests/unit/normalized-list-record-contracts.test.mjs",
@@ -1614,7 +1616,7 @@
     }
   },
   "totals": {
-    "files": 1515,
+    "files": 1517,
     "errors": 164,
     "explicitAny": 0
   },
