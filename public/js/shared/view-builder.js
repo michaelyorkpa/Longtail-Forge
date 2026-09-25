@@ -891,6 +891,7 @@
     summary.append(label, count);
     toolbar.append(summary, body);
     assignViewParts(toolbar, { body, count, label, summary });
+    partsByKind.bulkActionToolbar.set(toolbar, toolbar.viewParts);
     return toolbar;
   }
 
@@ -1850,6 +1851,7 @@
       setTargets,
       setReadonly,
     });
+    partsByKind.linkedContextPicker.set(picker, picker.viewParts);
     return picker;
   }
 
@@ -2425,6 +2427,40 @@
     });
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewPartsByKind} BrowserViewPartsByKind */
+
+  /**
+   * The parts of the elements this factory built, by kind (`0.33.33.38.3.11`).
+   *
+   * A page that finds a framework element by searching the document gets back an `Element`, which
+   * says nothing about `viewParts`. This is the framework's own record of what it built: a builder
+   * registers an element only after it has assigned that element's parts, and the record holds the
+   * very object `viewParts` holds. Weak, so a removed element is not kept alive.
+   * @type {{ [Kind in keyof BrowserViewPartsByKind]: WeakMap<object, BrowserViewPartsByKind[Kind]> }}
+   */
+  const partsByKind = {
+    bulkActionToolbar: new WeakMap(),
+    linkedContextPicker: new WeakMap(),
+  };
+
+  /**
+   * The parts of an element this factory built as `kind`, or `null`.
+   *
+   * `null` for anything else - an element some other code built, one built as a different kind, or
+   * not an object at all - rather than whatever a `viewParts` property on it happens to hold. The
+   * caller keeps searching the document on every use; nothing here caches what it found.
+   * @template {keyof BrowserViewPartsByKind} Kind
+   * @param {unknown} element
+   * @param {Kind} kind
+   * @returns {BrowserViewPartsByKind[Kind] | null}
+   */
+  function partsOf(element, kind) {
+    if (typeof element !== "object" || element === null) {
+      return null;
+    }
+    return partsByKind[kind].get(element) ?? null;
+  }
+
   root.view = Object.freeze({
     collectFieldValues,
     createActionButton,
@@ -2455,6 +2491,7 @@
     createStatusMessage,
     isTopModal,
     normalizeSurfaceDescriptor,
+    partsOf,
     showModal,
   });
 

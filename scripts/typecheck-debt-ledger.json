@@ -790,6 +790,7 @@
         "tests/unit/view-linked-context-surface.test.mjs",
         "tests/unit/view-list-index-surface.test.mjs",
         "tests/unit/view-modal-footer-contract.test.mjs",
+        "tests/unit/view-parts-reader-contracts.test.mjs",
         "tests/unit/view-renderer-tail-behaviour.test.mjs",
         "tests/unit/view-sidebar-index-surface.test.mjs",
         "tests/unit/view-slide-out-sidebar.test.mjs",
@@ -930,7 +931,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 175,
+      "errorCount": 172,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -939,7 +940,7 @@
           },
           {
             "code": 2339,
-            "count": 22
+            "count": 20
           },
           {
             "code": 2345,
@@ -985,7 +986,7 @@
         "public/js/lists.js": [
           {
             "code": 2339,
-            "count": 10
+            "count": 9
           },
           {
             "code": 2345,
@@ -1611,8 +1612,8 @@
     }
   },
   "totals": {
-    "files": 1512,
-    "errors": 175,
+    "files": 1513,
+    "errors": 172,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import vm from "node:vm";
 import { describe, it } from "vitest";
-import { FakeDocument, fakeDomConstructors } from "../../scripts/test-support/fake-dom.mjs";
+import { FakeDocument, createFakeBrowserContext, fakeDomConstructors } from "../../scripts/test-support/fake-dom.mjs";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 /**
@@ -265,9 +265,41 @@ describe("The optional lookups keep their optionality", () => {
       "the form is required, as its read already was; the field stays optional, as its ?. already said");
   });
 
-  it("leaves the linked-context picker's parts read to the framework boundary it belongs to", () => {
-    // Not a lookup: `viewParts` is the shared picker's own element-with-parts shape, read with
-    // `?.` and `|| {}`. It is reported, not forced through the contract.
-    assert.match(extractFunctionBlock(source, "listEditorPickerParts"), /return listLinkPicker\?\.viewParts \|\| \{\};/);
+  it("reads the linked-context picker's parts through the framework's own record", () => {
+    // `0.33.33.38.3.11` discharged what this checkpoint reported and left: the picker's parts now
+    // come from `LongtailForge.view.partsOf`, with the same `{}` for an absent picker. The real
+    // builder runs here, and the result is compared with the replaced `viewParts` read.
+    const builderSource = reader.readText("public/js/shared/view-builder.js");
+    const modalStackSource = reader.readText("public/js/shared/view-modal-stack.js");
+    /** @param {string} text @param {(document: FakeDocument, view: { createLinkedContextPicker: (options: object) => unknown }) => unknown} pickerFor */
+    const partsFrom = (text, pickerFor) => {
+      const context = createFakeBrowserContext();
+      vm.runInNewContext(modalStackSource, context, { filename: "view-modal-stack.js" });
+      vm.runInNewContext(builderSource, context, { filename: "view-builder.js" });
+      const view = vm.runInContext("window.LongtailForge.view", context);
+      const picker = pickerFor(context.document, view);
+      context.listLinkPicker = picker;
+      for (const name of ["requireView", "listEditorPickerParts"]) {
+        vm.runInContext(extractFunctionBlock(text, name), context);
+      }
+      return { picker, parts: vm.runInContext("listEditorPickerParts()", context) };
+    };
+
+    const built = partsFrom(source, (_document, view) => view.createLinkedContextPicker({}));
+    assert.equal(built.parts, Reflect.get(Object(built.picker), "viewParts"), "a framework picker answers its own parts");
+    const replaced = partsFrom(baseline, (_document, view) => view.createLinkedContextPicker({}));
+    assert.equal(replaced.parts, Reflect.get(Object(replaced.picker), "viewParts"), "as the replaced read did");
+
+    assert.deepEqual(JSON.parse(JSON.stringify(partsFrom(source, () => null).parts)), {}, "no picker still answers {}");
+
+    const imitation = (/** @type {FakeDocument} */ document) => {
+      const element = document.createElement("section");
+      Object.defineProperty(element, "viewParts", { value: { setRecords() {} } });
+      return element;
+    };
+    assert.equal(typeof partsFrom(baseline, imitation).parts.setRecords, "function",
+      "the replaced read took any viewParts property");
+    assert.deepEqual(Object.keys(partsFrom(source, imitation).parts), [],
+      "and the framework's record answers only for a picker it built - unreachable, since the page's shell builds it");
   });
 });

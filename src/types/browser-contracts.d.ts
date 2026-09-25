@@ -1066,6 +1066,17 @@ export interface BrowserViewFieldGridParts {
   fields: readonly unknown[];
 }
 
+/**
+ * The element kinds whose parts `LongtailForge.view.partsOf` answers (`0.33.33.38.3.11`).
+ *
+ * A kind is added here when a page needs to recover a framework element it found by searching, and
+ * its builder registers the element at the same time. Nothing else is recorded.
+ */
+export interface BrowserViewPartsByKind {
+  bulkActionToolbar: BrowserViewBulkActionToolbarParts;
+  linkedContextPicker: BrowserViewLinkedContextPickerParts;
+}
+
 export interface BrowserViewBulkActionToolbarParts {
   body: HTMLElement;
   count: HTMLElement;
@@ -1436,7 +1447,7 @@ export interface BrowserViewActionButtonOptions {
 }
 
 /**
- * The 30 members `public/js/shared/view-builder.js` publishes.
+ * The 31 members `public/js/shared/view-builder.js` publishes.
  *
  * These are required rather than optional: every page template that loads any part of the
  * factory loads the builder, and the renderer refuses to run without it.
@@ -1494,6 +1505,14 @@ export interface BrowserViewPrimitives {
   isTopModal(dialog: unknown): boolean;
   /** Delegates to `viewSurfaceDescriptor.normalize`. */
   normalizeSurfaceDescriptor(descriptor: unknown): BrowserViewSurfaceDescriptor;
+  /**
+   * The parts of an element this factory built as `kind`, or `null` for anything else.
+   *
+   * A page that found a framework element by searching the document has only an `Element`; this is
+   * how it recovers that element's `viewParts` without asserting them. It answers the very object
+   * `viewParts` holds, and never whatever a `viewParts` property on some other element carries.
+   */
+  partsOf<Kind extends keyof BrowserViewPartsByKind>(element: unknown, kind: Kind): BrowserViewPartsByKind[Kind] | null;
   /** Open a dialog on top of the stack. Delegates to `viewModalStack`. */
   showModal(dialog: unknown, options?: BrowserModalStackOptions): unknown;
 }

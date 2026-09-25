@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.3.11 - Framework element-with-parts reads
+
+**Model: High Effort** - one addition to a shared framework contract used by two pages.
+
+- [x] **The problem.** Three `dom` diagnostics read `viewParts`, or a subtype-only member, off a framework-built element found by searching the page:
+  - the Clients/Projects bulk toolbar's `open` and `viewParts` (a framework `<details>`);
+  - the Lists link picker's `viewParts` (a framework `<section>`).
+
+  The type `HTMLElement & { readonly viewParts }` cannot be established from what a search returns.
+- [x] **The reader.** `LongtailForge.view.partsOf(element, kind)` answers from the framework's own record. A builder registers an element right after `assignViewParts`, so the record holds the very frozen object `viewParts` holds. Anything else answers `null`: an element built as another kind, another builder's element even though it carries parts, a hand-made `viewParts` property, or a non-object. The record is a `WeakMap` per kind, typed through `BrowserViewPartsByKind` with no cast. Callers still search on every use; nothing caches a search result.
+  - **Two kinds only** - `bulkActionToolbar` and `linkedContextPicker` - because two pages need them. A kind is added when a page needs it, and its builder registers at the same time.
+  - **On the existing factory, not a new surface.** It is a builder member, which the renderer's spread keeps, so governance's surface counts do not move (67). `0.33.33.35`'s "no additions" was that slice's own extraction contract, not a standing rule; this addition was explicitly in scope.
+- [x] **The adoptions.**
+  - **Clients/Projects:** the bulk toolbar sync reads its count through `partsOf`, falling back to the same search as before, now checked as `HTMLElement`. `open` narrows through the toolbar's real `<details>` type; on anything else it was only an inert property. The existing text pin still matches.
+  - **Lists:** the picker's parts come from `partsOf`, with the same `{}` for an absent picker, typed `Partial` because every caller guards or optionally calls each member. This discharges what `0.33.33.38.3.10` reported and left.
+- [x] **Proof.**
+  - The real builder and modal stack run in every sandbox.
+  - A new suite pins what `partsOf` answers and refuses, and that the renderer's republication keeps it.
+  - Against the replaced reads: a framework toolbar gives the same result on both the parameter and search paths, and the picker gives its own parts. A hand-made `viewParts` is no longer taken, which is unreachable because both pages' elements come from the framework.
+  - Six mutations are each caught; each file was restored from a byte copy and verified by hash.
+  - **Rendered, at both viewports:** a new case selects Projects rows and sees the bulk toolbar open and count "1 selected", then "2 selected", then hide. The Lists dialog drives the picker's parts. Together 14 of 14.
+  - `scripts/` and `tests/` were searched for every rewritten line, not only the functions.
+- [x] **Accounting.** Browser 175 to 172; global `dom` 11 to 8; `lists.js` 31 to 30 with no `dom`; `clients-projects.js` 143 to 141. **Exactly the three diagnostics close, and no message rises.** Server/tests and scripts remain zero; the ledger was written after the last new file.
+- [x] **Remainder.** The eight `dom` left are all in `clients-projects.js`: six values the page stores on its own elements (`tagPicker`, `billingPeriodEditor`, `billingRoundingEditor`) and two `showModal` reads on a parameter typed too broadly. They are the next Clients/Projects slice, which also carries the owed Edit Client browser case. Together they take browser `dom` to zero.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the reader is declared in the view contract and recorded here, and durable documentation is batched at branch closeout.
+
 ## Version 0.33.33.42.44 - Adopt the shared checked lookup for the Workbench host
 
 **Model: Medium Effort** - one optional capture adopts an already-published subtype check; no shared contract changes.
