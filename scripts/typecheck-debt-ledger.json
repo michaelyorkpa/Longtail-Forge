@@ -553,6 +553,7 @@
         "tests/unit/clients-projects-dialog-opener-contracts.test.mjs",
         "tests/unit/clients-projects-effective-billing-contracts.test.mjs",
         "tests/unit/clients-projects-field-editor-contracts.test.mjs",
+        "tests/unit/clients-projects-module-action-contracts.test.mjs",
         "tests/unit/clients-projects-normalizer-contracts.test.mjs",
         "tests/unit/clients-projects-project-editor-contracts.test.mjs",
         "tests/unit/clients-projects-state-contracts.test.mjs",
@@ -920,7 +921,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 288,
+      "errorCount": 265,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -933,7 +934,7 @@
           },
           {
             "code": 2339,
-            "count": 37
+            "count": 25
           },
           {
             "code": 2345,
@@ -961,7 +962,7 @@
           },
           {
             "code": 7006,
-            "count": 121
+            "count": 110
           },
           {
             "code": 7023,
@@ -1621,8 +1622,8 @@
     }
   },
   "totals": {
-    "files": 1502,
-    "errors": 288,
+    "files": 1503,
+    "errors": 265,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
