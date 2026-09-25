@@ -512,6 +512,23 @@ export interface BrowserNavigationIntentRequest {
 }
 
 /**
+ * What `request` and `navigate` accept, before the controller normalises it (`0.33.33.38.2.11`).
+ *
+ * The same members as {@link BrowserNavigationIntentRequest} except `href`, which is the raw
+ * destination a caller holds. The controller tests that original value: a falsy one becomes `""`
+ * and nothing is assigned, and a truthy one is converted once, inside `request`, into the absolute
+ * URL every guard and `location.assign` then receive as text. So the raw side is `unknown` and the
+ * normalised side stays `string`; nothing here asserts that an unconverted value is already text.
+ */
+export interface BrowserNavigationIntentRequestInput {
+  [key: string]: unknown;
+  commitBeforeContinue?: boolean;
+  continue?: () => unknown;
+  href?: unknown;
+  kind?: string;
+}
+
+/**
  * The guard a page registers to hold navigation while it finishes something.
  *
  * Every member is optional because the controller reaches each through an optional call, and
@@ -537,9 +554,10 @@ export interface BrowserNavigationExitGuard {
  * - a stale unregister after a newer guard has replaced it is a no-op.
  */
 export interface BrowserNavigationIntent {
-  navigate(href: string, options?: BrowserNavigationIntentRequest): Promise<unknown>;
+  /** `href` is the raw destination; see {@link BrowserNavigationIntentRequestInput}. */
+  navigate(href: unknown, options?: BrowserNavigationIntentRequest): Promise<unknown>;
   registerExitGuard(guard?: BrowserNavigationExitGuard | null): () => void;
-  request(intent?: BrowserNavigationIntentRequest): Promise<unknown>;
+  request(intent?: BrowserNavigationIntentRequestInput): Promise<unknown>;
   shouldHold(intent?: BrowserNavigationIntentRequest): boolean;
 }
 

@@ -172,6 +172,7 @@
   }
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNavigationIntent} BrowserNavigationIntent */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNavigationIntentRequest} BrowserNavigationIntentRequest */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNavigationIntentRequestInput} BrowserNavigationIntentRequestInput */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNavigationExitGuard} BrowserNavigationExitGuard */
 
   /**
@@ -252,13 +253,35 @@
     }
 
     /**
-     * @param {BrowserNavigationIntentRequest} [intent]
+     * The absolute URL a raw destination resolves to.
+     *
+     * The caller evaluates the three arguments in the order the inline `new window.URL(intent.href,
+     * document.baseURI)` did - the constructor, the raw value, then the base - and only then is the
+     * value converted, so a conversion that moves `<base href>` still resolves against the base
+     * already read. The template performs the one string conversion the constructor applied to it.
+     * Two differences, neither reachable here: a conversion `TypeError` (a `Symbol`) no longer
+     * carries the browser's "Failed to construct 'URL':" prefix, and a constructor that could not
+     * construct would now fail after the conversion rather than before it.
+     * @param {typeof URL} URLConstructor
+     * @param {unknown} href
+     * @param {string} base
+     * @returns {string}
+     */
+    function resolveRequestHref(URLConstructor, href, base) {
+      return new URLConstructor(`${href}`, base).href;
+    }
+
+    /**
+     * `intent.href` is the raw destination (`0.33.33.38.2.11`): tested as it arrived, read again as
+     * the argument, and converted only inside `resolveRequestHref`. Every reader after this sees the
+     * normalised string.
+     * @param {BrowserNavigationIntentRequestInput} [intent]
      * @returns {Promise<unknown>}
      */
     function request(intent = {}) {
       const normalizedIntent = {
         ...intent,
-        href: intent.href ? new window.URL(intent.href, document.baseURI).href : "",
+        href: intent.href ? resolveRequestHref(window.URL, intent.href, document.baseURI) : "",
       };
       if (!shouldHold(normalizedIntent)) return Promise.resolve(continueIntent(normalizedIntent));
       if (pendingIntent) return pendingIntent;
@@ -283,7 +306,7 @@
     }
 
     /**
-     * @param {string} href
+     * @param {unknown} href The raw destination, handed to `request` unconverted.
      * @param {BrowserNavigationIntentRequest} [options]
      */
     function navigate(href, options = {}) {
