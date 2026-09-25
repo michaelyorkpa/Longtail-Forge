@@ -279,6 +279,20 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.10 - Opaque module-action keys
+
+**Model: High Effort** - a published shared-contract reconciliation that unblocks Workbench's Inspector boundary (`0.33.33.42.45`), approved by the operator on 2026-09-25.
+
+**Why.** The registry already treats an action ID as an opaque key: `register` stores any truthy `actionId`/`id` as a `Map` key, `open` finds it by that exact value, and `dependenciesFor` indexes a plain table, which converts the key to a property name. The published contract declared `string`, so Workbench's opaque Inspector candidate - kept opaque by ruling (a) - could not be passed through without a string guard (which would stop a registered non-string action from opening) or a conversion (which would look up a different key). Codex's real-registry test shows numeric `7` registering and opening today.
+
+**Scope, recorded before implementation (operator-approved):**
+
+- [ ] Declare the opaque key as `unknown`, not `any`, and reconcile every connected declaration: the action-ID parameter of `open`, `ensureDependencies` and `dependenciesFor`; the registry's internal key and identifier types; and the returned `ModuleActionSummary` `actionId`/`id` and `ModuleActionOutcome.actionId`, which carry the original value back.
+- [ ] Preserve exactly: registration eligibility, `Map`-key identity, the dependency table's property-key conversion, availability checks, `canOpen`, and every failure path. Existing string callers are unchanged.
+- [ ] No manifest, permission or runtime-policy change, and no string restriction or conversion in Workbench. Codex's held Workbench patch is not edited.
+- [ ] Prove it with the real registry, including distinct numeric `7` and string `"7"` registrations and unchanged identity in the returned records, against the replaced implementation.
+- [ ] Publish through protected integration, then send Codex the exact integrated baseline.
+
 #### 0.33.33.38.2.6.11 - The last required declared-member acquisitions
 
 **Complete: five diagnostics, two surfaces, two different dependency lifetimes - and neither moved.** See the archive entry. `pageController` is captured during module evaluation in three lazily loaded dialogs and required much later, so the fix is lazy **checking** of that captured binding rather than lazy reacquisition; re-reading the member would have given those dialogs a live dependency they have never had. `cachedFetch` is the opposite: required only on the cached-manifest branch and read per call at its invocation point, so the uncached path still never touches it.
