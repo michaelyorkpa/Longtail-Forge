@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.43 - Two contracts `0.33.33.43.42` broke, and why neither gate saw them
+
+**Model: Medium Effort** - two contract updates in one blast radius with no behaviour change, whose significance is the gap they expose rather than their size.
+
+- [x] **What happened.** `0.33.33.43.42` merged at `8f019cb0` with two regressions failing, and nightly stayed red from that merge. Neither gate caught it: the slice's canonical `verify:slice` routed it to a focused set that contained neither contract, and the protected CI passed it. The full regression suite, run while integrating Codex's `0.33.33.42.42`, stopped in its first bucket at 121 of 348 and exposed both. Both were then reproduced **on nightly itself**, confirming them as this lane's defect rather than the integration's.
+- [x] **A lifted function gained a free variable.** `view-descriptor-declarative-guardrails` lifts `withoutUnavailableTopLevelActions` into a sandbox holding only the two permission functions. `.43.42` gave that stage a call to `isResponseRecord`, so the lift failed with a `ReferenceError`. The contract now lifts the page's real predicate beside the stage. It is **not stubbed**: a stand-in could answer differently from the page, and the contract exists to prove what the page delivers.
+- [x] **A permissions pin matched a spelling.** `client-project-business-boundary` asserted the source text `filter.id !== "project-client-filter"` and `column.id !== "project-client"`, which `.43.42` rewrote as `descriptorField(filter, "id") !== …`. Behaviour and spelling were separated before the pin was touched. Its claim - Personal and Family Project descriptors omit the client filter, column and read bindings - is **unchanged**, as `.43.42`'s 48-scenario baseline equivalence proves, so the pin keeps the same ids, in the same order, with the new spelling.
+- [x] **Neither was weakened.** Removing the client-filter exclusion from the page fails the permissions pin; removing the unavailable-action deletion fails the lifted contract. Restored from a byte copy after each, verified by hash, with `clients-projects.js` byte-identical to nightly.
+- [x] **Verification, to completion.** The full regression suite **completed 348 of 348** and exited 0. The two remaining pins that also read these stages were confirmed passing on nightly and are untouched. Server/tests, scripts and browser programs are unchanged and the ledger matches; lint is clean. No browser diagnostic moves.
+- [x] **The finding is the process gap.** The lesson was already recorded - routed regressions can miss a static owner, so run the full set and grep `scripts/` for every spelling replaced - and `.43.42` did not follow it. For any slice that rewrites a page function's body, the lane now greps `scripts/` for lifts and spellings of each changed function, and runs the full regression suite to `Completed N/N` before merge rather than relying on a focused pass.
+- [x] **Documentation disposition.** No docs change needed: two regression contracts are brought back into line with a behaviour-preserving change; no runtime behaviour or published contract changes.
+
 ## Version 0.33.33.43.42 - The descriptor pipeline
 
 **Model: High Effort** - the four stages that decide which fields, columns, bindings and primary actions a Clients/Projects page is delivered, over a descriptor that is opaque below its root.

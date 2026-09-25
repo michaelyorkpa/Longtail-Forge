@@ -537,11 +537,14 @@ function objectTreeHasKey(value, fieldName) {
 /** @param {boolean} actionAvailable @returns {(surface: ViewSurfaceDescriptor) => ViewSurfaceDescriptor} */
 function loadUnavailableTopLevelActionDelivery(actionAvailable) {
   const source = extractFunctionBlock(clientsProjectsJs, "withoutUnavailableTopLevelActions");
+  // The stage narrows the copied header with the page's own record predicate, so the real one is
+  // lifted beside it rather than stubbed: a stand-in could answer differently from the page.
+  const recordPredicate = extractFunctionBlock(clientsProjectsJs, "isResponseRecord");
   const context = vm.createContext({
     canCreateAnyProject: () => actionAvailable,
     canCreateTopLevelClient: () => actionAvailable,
   });
-  vm.runInContext(`${source}\nthis.deliver = withoutUnavailableTopLevelActions;`, context, {
+  vm.runInContext(`${recordPredicate}\n${source}\nthis.deliver = withoutUnavailableTopLevelActions;`, context, {
     filename: "clients-projects-delivered-descriptor.js",
   });
   return context.deliver;
