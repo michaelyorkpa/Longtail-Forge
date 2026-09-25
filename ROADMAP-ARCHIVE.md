@@ -1,5 +1,46 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.10 - Opaque module-action keys
+
+**Model: High Effort** - a published shared-contract reconciliation, approved by the operator on 2026-09-25, that unblocks Workbench's Inspector boundary.
+
+- [x] **The problem.** The registry never required an action ID to be text:
+  - `register` stores any truthy `actionId || id` as a `Map` key;
+  - `open` finds the action by that exact value;
+  - `dependenciesFor` indexes a plain table, which converts the key to a property name.
+
+  The published contract declared `string`. Workbench's Inspector candidate is kept opaque by ruling, so it could not be passed through without either a string guard, which would stop a registered non-string action from opening, or a conversion, which would look up a different key.
+- [x] **The reconciliation.** The key is `unknown` - not `any` - wherever it is accepted, stored or returned:
+  - the `actionId` parameter of `open`, `dependenciesFor` and `ensureDependencies`;
+  - the registry's `Map` key and both local identifier typedefs;
+  - `ModuleActionSummary.actionId`/`id` and `ModuleActionOutcome.actionId`, which hand the original value back.
+
+  `label` and `title`, which default to the key, were already `unknown`. The dependency table is typed `Record<PropertyKey, ...>`. There is no cast, suppression or `any`, and no manifest, permission, runtime-policy or Workbench change. Codex's held patch was not edited.
+- [x] **The one runtime edit, and its one named difference.** Indexing the table with an `unknown` key needs a property key the compiler accepts. `dependenciesFor` uses a symbol as it is and converts anything else with one template conversion.
+  - That is the member access's own conversion for strings, numbers, bigints, `null`, `undefined`, booleans, arrays and ordinary objects. It makes the same `Symbol.toPrimitive`/`toString`/`valueOf` calls, once, in the same order.
+  - **The difference:** an object whose string conversion answers a symbol - a `Symbol` wrapper, or a custom `Symbol.toPrimitive` returning one - used to be looked up as that symbol and found nothing. It now throws `TypeError`. No first-party action registers such a key, and none can arrive as JSON. Matching it exactly would take a cast, an `any` or a hand-rolled `ToPrimitive`. It is named in the source and pinned by a test.
+  - The string and number branches first written were **equivalent** to the template conversion, so they were deleted rather than kept as surplus.
+  - The lookup is still spelled `MODULE_ACTION_DEPENDENCIES[actionId]`. **V8 writes that expression's text into the `TypeError` an inherited name such as `"constructor"` raises,** and a renamed local changed the message. The parameter was renamed instead. Reassigning an `unknown` parameter was tried and rejected: the compiler does not narrow it (TS2538).
+- [x] **Proof, against the real registry.** A new suite boots the whole shipped file, with its first-party registrations, beside the `c44e9f7d` version. It covers:
+  - numeric `7` and text `"7"` registering as two actions, each coming back unconverted from `list()`, the host context and the outcome;
+  - object and symbol keys found by identity, never by text;
+  - every falsy-key refusal and the `actionId || id` choice;
+  - the unregistered, unavailable and `canOpen`-false refusals, with byte-identical messages;
+  - the first-party summaries unchanged;
+  - eighteen dependency-table probes. Each version's table gets the same two added entries, `"7"` and `"Symbol(seven)"`. Both versions give the same answers and the same conversion calls in the same order. A numeric key's dependency load reads the `"7"` entry;
+  - the one difference above, pinned as a difference.
+- [x] **Mutation evidence.** Nine mutations, each caught:
+  - stringifying the key in `register`, `open`, `list()`, the host context and the outcome;
+  - dropping the symbol branch;
+  - converting with `String()`;
+  - respelling the lookup;
+  - restoring `string` on `open`.
+
+  Every file was restored from a byte copy and verified by hash.
+- [x] **Spelling pins.** `scripts/` and `tests/` were searched for every changed spelling. Two dialog-surface suites lift `dependenciesFor` by its opener line, and their anchors follow the renamed parameter so they still execute the real function.
+- [x] **Accounting.** Browser 172, **identical per message**; `workbench.js` gains nothing from the widened return fields. Server/tests and scripts remain zero, and 0 explicit-any. The ledger was written after the new suite existed and records only its addition.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the contract is declared in `browser-contracts.d.ts`, and `docs/module-development.md`'s stable string action IDs remain accurate.
+
 ## Version 0.33.33.38.3.11 - Framework element-with-parts reads
 
 **Model: High Effort** - one addition to a shared framework contract used by two pages.

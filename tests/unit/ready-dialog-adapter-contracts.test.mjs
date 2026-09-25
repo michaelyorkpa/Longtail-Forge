@@ -105,7 +105,7 @@ function dispatcher() {
     slice(moduleActions, "function dependencyIsSatisfied(dependency) {"),
     slice(moduleActions, "function appendClassicScript(dependency, versionedSrc) {"),
     slice(moduleActions, "function loadDependency(dependency) {"),
-    slice(moduleActions, "function dependenciesFor(actionId) {"),
+    slice(moduleActions, "function dependenciesFor(requestedId) {"),
     slice(moduleActions, "async function ensureDependencies(actionId) {"),
     slice(moduleActions, "function requireClientProjectDialog() {"),
     slice(moduleActions, "function requireFilesDialog() {"),

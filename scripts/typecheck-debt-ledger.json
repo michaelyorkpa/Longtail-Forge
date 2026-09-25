@@ -623,6 +623,7 @@
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
         "tests/unit/modal-dialog-behaviour.test.mjs",
+        "tests/unit/module-action-keys-contracts.test.mjs",
         "tests/unit/module-actions-registry.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
         "tests/unit/module-settings-snapshot.test.mjs",
@@ -1612,7 +1613,7 @@
     }
   },
   "totals": {
-    "files": 1513,
+    "files": 1514,
     "errors": 172,
     "explicitAny": 0
   },
