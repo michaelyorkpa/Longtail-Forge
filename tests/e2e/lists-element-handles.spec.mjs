@@ -21,6 +21,7 @@
 // exactly the failure this spec exists to catch before it ships.
 
 import { expect, test } from "@playwright/test";
+import { test as isolatedTest } from "./support/isolated-workspace.mjs";
 
 /**
  * Every selector `cacheListsElements` narrows, and the constructor its lookup demands.
@@ -119,4 +120,45 @@ test("the narrowed dialog handles carry the members their callers reach for", as
   expect(members.itemDialogClose).toBe("function");
   expect(members.itemFormReset).toBe("function");
   expect(members.itemFormElements).toBe("object");
+});
+
+// Runtime proof for 0.33.33.43.44.
+//
+// The page checked the list, item and link responses against the database column types, but the
+// repository's row mappers booleanize `is_reusable` and parse `metadata_json` before anything is
+// sent. Every real list was refused, and the page showed "The list collection could not be read."
+// whenever a workspace had one. No spec loaded a list, so nothing noticed. This one does: a real
+// list with a real item, created through the API in a workspace of its own, loaded by the page.
+isolatedTest("a workspace's lists load into the index and open in the detail", async ({ isolatedWorkspace }, testInfo) => {
+  const { page, api } = isolatedWorkspace;
+  /** @type {string[]} */
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+  });
+  const title = `Loaded list ${testInfo.project.name}-${testInfo.workerIndex}-${Date.now()}`;
+
+  const created = await api.post("/api/lists", { data: { title, list_type: "checklist" } });
+  expect(created.status(), await created.text()).toBe(201);
+  const listId = (await created.json()).list.list_id;
+  const item = await api.post(`/api/lists/${encodeURIComponent(listId)}/items`, { data: { item_name: "Loaded item" } });
+  expect(item.status(), await item.text()).toBe(201);
+
+  await page.goto("/lists.html");
+  await expect(page.locator("main[data-lists-host]")).toBeVisible();
+  await expect(page.locator("[data-list-detail]")).toContainText("Select a list.");
+  await expect(page.locator("[data-list-detail]")).not.toContainText("could not be read");
+
+  // The index lives in the slide-out sidebar, which is closed on load.
+  await page.locator("[data-view-slideout-sidebar-trigger]").first().click();
+  await expect(page.locator(".view-slideout-sidebar-drawer.is-open")).toBeVisible();
+  const indexButton = page.locator(".view-index-list-button", { hasText: title });
+  await expect(indexButton).toBeVisible();
+
+  await indexButton.click();
+  const detail = page.locator("[data-list-detail]");
+  await expect(detail).toContainText(title);
+  await expect(detail).toContainText("Loaded item");
+  expect(errors).toEqual([]);
 });

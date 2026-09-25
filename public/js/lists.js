@@ -93,10 +93,17 @@
     "created_at", "list_id", "list_type", "status", "title", "updated_at", "workspace_id",
   ]);
 
-  /** The list columns the table allows to be null. */
+  /**
+   * The list columns the table allows to be null, and that reach the page as text or null.
+   *
+   * **`metadata_json` is not here.** The repository's row mapper parses it into whatever JSON it
+   * stored - `{}` when there is none - before any shaper sees the row, so on the wire it is not text,
+   * and this page never reads it. Checking it as nullable text refused every real list
+   * (`0.33.33.43.44`).
+   */
   const LIST_NULLABLE_COLUMNS = Object.freeze([
     "archived_at", "client_id", "completed_at", "created_by_user_id", "deleted_at", "description",
-    "duplicated_from_list_id", "finalized_at", "finalized_by_user_id", "metadata_json",
+    "duplicated_from_list_id", "finalized_at", "finalized_by_user_id",
     "project_id", "source_list_id", "updated_by_user_id",
   ]);
 
@@ -108,10 +115,13 @@
     "created_at", "item_name", "list_id", "list_item_id", "purchase_status", "updated_at", "workspace_id",
   ]);
 
-  /** `ITEM_COLUMNS` the item table allows to be null, minus the four numeric ones. */
+  /**
+   * `ITEM_COLUMNS` the item table allows to be null, minus the four numeric ones and `metadata_json`,
+   * which the row mapper parses into JSON exactly as it does for a list.
+   */
   const ITEM_NULLABLE_COLUMNS = Object.freeze([
     "assigned_user_id", "catalog_item_id", "checked_at", "checked_by_user_id", "completed_at",
-    "completed_by_user_id", "created_by_user_id", "deleted_at", "metadata_json", "needed_by_date",
+    "completed_by_user_id", "created_by_user_id", "deleted_at", "needed_by_date",
     "notes", "tracking_id", "unit", "updated_by_user_id", "url", "vendor_name",
   ]);
 
@@ -120,9 +130,9 @@
     "created_at", "list_id", "list_link_id", "module_id", "target_id", "target_type", "workspace_id",
   ]);
 
-  /** `LINK_COLUMNS` the link table allows to be null. */
+  /** `LINK_COLUMNS` the link table allows to be null, minus the parsed `metadata_json`. */
   const LINK_NULLABLE_COLUMNS = Object.freeze([
-    "created_by_user_id", "link_role", "metadata_json", "removed_at",
+    "created_by_user_id", "link_role", "removed_at",
   ]);
 
   /**
@@ -154,8 +164,11 @@
   /**
    * One list as the server shapes it.
    *
-   * `is_reusable` is checked as a **number** because the column is `INTEGER` and the shaper spreads
-   * it untouched; the boolean beside it is `isReusable`, which the shaper builds.
+   * `is_reusable` is checked as a **boolean**. The column is `INTEGER`, but the repository's row
+   * mapper booleanizes it on every read, before either shaper spreads the row - so both it and the
+   * `isReusable` the shaper builds beside it are booleans on the wire. This was checked as a number
+   * from the column type alone, which refused every real list until `0.33.33.43.44` measured the
+   * endpoint.
    * @param {unknown} value
    * @returns {value is BrowserListSummary}
    */
@@ -163,7 +176,7 @@
     return isResponseRecord(value)
       && hasListText(value, LIST_TEXT_COLUMNS)
       && hasListNullableText(value, LIST_NULLABLE_COLUMNS)
-      && typeof value.is_reusable === "number"
+      && typeof value.is_reusable === "boolean"
       && typeof value.id === "string"
       && LIST_SHAPED_BOOLEANS.every((member) => typeof value[member] === "boolean")
       && Array.isArray(value.links)
@@ -3588,7 +3601,7 @@
    * One list as this page holds it.
    *
    * **The input is the wire record and the output is not.** Nine members are overwritten,
-   * `is_reusable` among them - numeric on the wire, boolean here - so the result cannot extend
+   * `is_reusable` among them - coerced again here, although the wire already sends a boolean - so the result cannot extend
    * `BrowserListSummary`. The `{}` default is the draft case and is genuinely reachable:
    * `readListDetail` answers `list: undefined` for a body it cannot read.
    * **`0.33.33.43.2` left its inputs alone, naming the cost as "twenty `unknown` reads and two

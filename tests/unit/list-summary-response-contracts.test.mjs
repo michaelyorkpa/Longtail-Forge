@@ -119,7 +119,11 @@ function liftLoadListDetail(respond) {
   return built(() => ({ getJson: respond }), globalThis.encodeURIComponent);
 }
 
-/** One list exactly as `shapeListsForBrowser` emits it. */
+/**
+ * One list as `shapeListsForBrowser` emits it. `is_reusable` and `metadata_json` are what the
+ * repository's row mapper hands the shaper - a boolean and parsed JSON - which `0.33.33.43.44`
+ * measured on the real endpoint; this fixture had carried the column types instead.
+ */
 function wireSummary(overrides = {}) {
   return {
     archived_at: null,
@@ -135,11 +139,11 @@ function wireSummary(overrides = {}) {
     id: "list-1",
     isBillOfMaterials: false,
     isReusable: true,
-    is_reusable: 1,
+    is_reusable: true,
     links: [],
     list_id: "list-1",
     list_type: "checklist",
-    metadata_json: null,
+    metadata_json: {},
     progress: { totalItemCount: 0 },
     project_id: null,
     resumeContext: { sourceUrl: "" },
@@ -176,10 +180,10 @@ describe("what the collection reader accepts", () => {
     assert.equal(answer[0].someLaterColumn, 7);
   });
 
-  it("keeps the wire column numeric, because that is what the shaper sends", () => {
-    const answer = liftReader()({ lists: [wireSummary({ is_reusable: 1 })] });
-    assert.equal(answer[0].is_reusable, 1, "the reader does not coerce; the normaliser does");
-    assert.equal(typeof answer[0].is_reusable, "number");
+  it("keeps the wire flag the boolean the row mapper sends, without coercing it", () => {
+    const answer = liftReader()({ lists: [wireSummary({ is_reusable: false })] });
+    assert.equal(answer[0].is_reusable, false, "the reader hands back what it was given");
+    assert.equal(typeof answer[0].is_reusable, "boolean");
   });
 });
 
@@ -193,7 +197,8 @@ describe("what the collection reader refuses", () => {
     ["a summary that is not an object", { lists: ["list-1"] }],
     ["a summary missing a required column", { lists: [wireSummary({ title: undefined })] }],
     ["a summary whose required column is null", { lists: [wireSummary({ status: null })] }],
-    ["a summary whose numeric column is text", { lists: [wireSummary({ is_reusable: "1" })] }],
+    ["a summary whose reusable flag is text", { lists: [wireSummary({ is_reusable: "1" })] }],
+    ["a summary whose reusable flag is the column's integer", { lists: [wireSummary({ is_reusable: 1 })] }],
     ["a summary whose shaped boolean is missing", { lists: [wireSummary({ isReusable: undefined })] }],
     ["a summary whose links member is not an array", { lists: [wireSummary({ links: null })] }],
     ["a summary with an empty list_id", { lists: [wireSummary({ list_id: "" })] }],
