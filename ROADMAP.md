@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.41` | `workbench.js` — 3 owned, every one ruled; elapsed time next | 3 owned |
-| Claude | `0.33.33.43.40` | `clients-projects.js` — effective billing resolution typed; `lists.js` at its deferral floor | 192 |
+| Claude | `0.33.33.43.41` | `clients-projects.js` — module actions and query openers typed; `lists.js` at its deferral floor | 169 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1571,6 +1571,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.41 - Module actions and query openers
+
+**Complete: 23 diagnostics closed, zero introduced.** See the archive entry. `clients-projects.js` 192 to 169, browser **288 to 265**, `0.33.33.43` 195 to 172.
+
+**These decide which record's editor opens**, when a request arrives from a URL query or another module's action, so the proof runs through the real path: a registered behaviour, handed a context, opens exactly the record it was given; each owned action reaches its own opener; an action the page does not own is refused; and a loaded registry takes the action instead.
+
+**Two executable reads changed, and both were proved against the implementation they replaced.** `clientProjectActionParams` reads `id` and `recordId` through `Reflect.get`, because narrowing the record to `object` names no member; `handleClientProjectActionError` reads `message` off an `unknown` thrown value. The baseline functions are lifted from the previous commit and run beside the new ones over the same inputs, comparing both the answer and **the exact members read, in order**. **Swapping `id` and `recordId` fails three cases**, one of them the read-order comparison on its own.
+
+**A nullish guard kept a documentation claim honest.** `error?.message` reads nothing for a nullish value, but boxing `null` still walks `Object.prototype`. They differ only under prototype pollution, which is exactly when a claim of "reads nothing" would be false. The explicit guard makes it true, and removing it fails only the polluted-prototype case - which is why that case exists.
+
+**One derivation backed out, and caught by the per-message check.** Deriving the context-action strip's row from its builder is correct, and it introduced a diagnostic the per-code view would have hidden: that builder ends in `.filter(Boolean)`, which removes every `null` at runtime but does not narrow the type. No `null` reaches the strip. The fix is a narrowing filter in the builder, which belongs to the context-rows boundary.
 
 #### 0.33.33.43.40 - Effective billing resolution
 

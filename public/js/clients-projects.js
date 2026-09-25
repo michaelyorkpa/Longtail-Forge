@@ -1,6 +1,7 @@
 (function attachClientsProjectsPage() {
   // Clients & Projects is the main editor for client, project, and billing metadata.
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
   const pageMode = document.body.dataset.clientProjectPage || "combined";
   const isClientsPage = pageMode === "clients";
   const isProjectsPage = pageMode === "projects";
@@ -245,6 +246,10 @@
     requireDescriptorRenderers().registerBehavior("client-projects.projects.bulk", mountProjectBulkToolbar);
   }
 
+  /**
+   * Route one descriptor behaviour to the module action it opens.
+   * @param {string} behaviorId @param {string} actionId
+   */
   function registerClientProjectsModuleActionBehavior(behaviorId, actionId) {
     requireDescriptorRenderers().registerBehavior(behaviorId, (context = {}) => openClientProjectModuleAction(
       actionId,
@@ -252,15 +257,33 @@
     ));
   }
 
+  /**
+   * The parameters a descriptor behaviour hands its module action: the row's record, plus the
+   * identifier that decides which record's editor opens.
+   *
+   * **`id` wins over `recordId`.** A record carrying both opens by `id`; `recordId` is only the
+   * fallback, and neither present opens nothing in particular. The members are read with
+   * `Reflect.get` because `typeof ... === "object"` narrows the record to `object`, which names no
+   * member - the read is the same one, on the same non-null object, with the same receiver.
+   * `registerBehavior` publishes its context as `unknown`, so this names the one member it reads.
+   * @param {{ record?: unknown }} [context]
+   */
   function clientProjectActionParams(context = {}) {
     const record = context.record && typeof context.record === "object" ? context.record : {};
 
     return {
       ...record,
-      recordId: record.id || record.recordId || "",
+      recordId: Reflect.get(record, "id") || Reflect.get(record, "recordId") || "",
     };
   }
 
+  /**
+   * Open one Clients/Projects module action, through the shared registry when it is loaded and
+   * through this page's own openers when it is not.
+   * @param {string} actionId
+   * @param {Record<string, unknown>} [params]
+   * @param {{ hostContext?: ClientProjectHostContext } & Record<string, unknown>} [options]
+   */
   function openClientProjectModuleAction(actionId, params = {}, options = {}) {
     const moduleActions = window.LongtailForge?.moduleActions;
     if (typeof moduleActions?.open === "function") {
@@ -274,6 +297,13 @@
     return openClientProjectActionFallback(actionId, params, options.hostContext || null);
   }
 
+  /**
+   * This page's own openers, used when the shared registry is not loaded. An action it does not
+   * own is refused rather than quietly opening nothing.
+   * @param {string} actionId
+   * @param {Record<string, unknown>} [params]
+   * @param {ClientProjectHostContext} [hostContext]
+   */
   function openClientProjectActionFallback(actionId, params = {}, hostContext = null) {
     if (actionId === "clients.add") {
       return openAddClientAction(params, hostContext);
@@ -290,8 +320,20 @@
     return Promise.reject(new Error(`Client/Project action '${actionId}' is not registered.`));
   }
 
+  /**
+   * Report an action that could not be opened.
+   *
+   * The message is read exactly as `error?.message` read it: a thrown value is not only ever an
+   * `Error`, so `error` is `unknown`, and `Reflect.get(Object(error), "message", error)` answers the
+   * same for every value - `undefined` for a nullish one without reading anything (the explicit
+   * nullish test is what makes that true: boxing `null` would still walk `Object.prototype`), a thrown string's
+   * own lookup rather than the string itself, and the original value as a getter's receiver. **A
+   * thrown string therefore still falls back to the generic message**, as it always did.
+   * @param {unknown} error
+   */
   function handleClientProjectActionError(error) {
-    setStatus(error?.message || "Client/Project action could not be opened.", { isError: true });
+    const message = error == null ? undefined : Reflect.get(Object(error), "message", error);
+    setStatus(message || "Client/Project action could not be opened.", { isError: true });
     console.error(error);
   }
 
@@ -644,6 +686,11 @@
     return factory;
   }
 
+  /**
+   * One modal footer action, built by the shared view.
+   * @param {BrowserViewActionButtonOptions["label"]} label
+   * @param {Pick<BrowserViewActionButtonOptions, "type" | "role">} [options]
+   */
   function createModalAction(label, options = {}) {
     const button = requireView().createActionButton({
       label,
@@ -1984,6 +2031,19 @@
       : "";
   }
 
+  /**
+   * The Edit Client dialog's save and navigation actions.
+   *
+   * A real client only: it saves through `saveClientSettings`, which writes that record back.
+   * `saveRoot` becomes that function's `container`, which is deliberately left undeclared there.
+   * @param {NormalizedClientRecord & { tagIds?: unknown }} client
+   * @param {{
+   *   actionTarget?: Element | null,
+   *   saveRoot?: Element | null,
+   *   hostContext?: ClientProjectHostContext,
+   *   onSaved?: (client: NormalizedClientRecord) => unknown,
+   * }} [options]
+   */
   function createClientPageActions(client, options = {}) {
     const wrapper = document.createElement("div");
     const actionTarget = options.actionTarget || wrapper;
@@ -2100,6 +2160,15 @@
     return button;
   }
 
+  /**
+   * One repeated row action, as an icon button when the icon factory is loaded.
+   *
+   * `danger` is tested two ways on the two paths - truthiness for the icon button, `=== true` for
+   * the fallback - which differ only for a truthy non-boolean. Every caller passes `true` or
+   * nothing, so the two agree; declared `boolean` so a new caller cannot make them diverge.
+   * @param {string} label @param {string} icon
+   * @param {{ danger?: boolean }} [options]
+   */
   function createClientProjectActionButton(label, icon, options = {}) {
     if (window.LongtailForge?.icons?.createIconButton) {
       return window.LongtailForge.icons.createIconButton({
@@ -2434,6 +2503,10 @@
     return wrapper;
   }
 
+  /**
+   * The Edit action for one related-project row.
+   * @param {ReturnType<typeof relatedProjectRow>} row
+   */
   function createRelatedProjectActionStrip(row) {
     return requireView().createDetailActionStrip({
       ariaLabel: `Project actions for ${row.name}`,
@@ -2972,6 +3045,7 @@
     return { element: wrapper, select };
   }
 
+  /** @param {NormalizedProjectRecord} project */
   function createProjectClientShortcutActions(project) {
     return createProjectClientContextRegion(project);
   }
@@ -3081,6 +3155,16 @@
     return rows;
   }
 
+  /**
+   * The actions for one project-context row, or nothing when it offers none.
+   *
+   * **`row` is deliberately left undeclared.** Deriving it from `createProjectClientContextRows`
+   * is correct and exposes an imprecision there rather than here: that builder ends its first row's
+   * actions in `.filter(Boolean)`, which removes every `null` at runtime but does not narrow the
+   * element type, so the derived `actions` still admits `null` and the strip's shared builder
+   * refuses it. No `null` ever reaches the strip. The fix is a narrowing filter in that builder,
+   * which belongs to the context-rows boundary rather than to this one.
+   */
   function createProjectContextActionStrip(row) {
     if (!row.actions.length) {
       return document.createTextNode("");
