@@ -379,6 +379,56 @@
     );
   }
 
+  /**
+   * One list from a contributed view descriptor, as `(value || [])` supplied it to `.filter`/`.map`.
+   *
+   * **The descriptor is opaque below its root.** `viewSurfaces` reaches this page as `unknown[]` -
+   * the stored workspace context checks only the container - and the surface's own predicate
+   * vouches only for the root record, its `id` and its `moduleId`. The manifest validator does
+   * promise every nested list is an array, but a stored copy has not been through it again. So each
+   * nested read is checked where it happens, rather than the whole surface being declared a full
+   * descriptor it was never proved to be.
+   *
+   * **A malformed list still fails, as it did before; it is not quietly treated as absent.** An
+   * absent or falsy list is `[]`, an array is itself, and anything else throws - where the original
+   * `.filter` would have thrown for want of a method. The one input that behaves differently is a
+   * non-array object carrying its own `filter` or `map`, which no manifest produces. The throw is
+   * unobservable to a user: the pipeline runs inside an un-awaited page initialisation, so it
+   * reaches the shared `browser-recovery` boundary, which shows fixed copy.
+   * @param {unknown} value
+   * @returns {unknown[]}
+   */
+  function descriptorList(value) {
+    const list = value || [];
+    if (!Array.isArray(list)) {
+      throw new TypeError("A Clients/Projects view descriptor list is not an array.");
+    }
+    return list;
+  }
+
+  /**
+   * One member of a contributed descriptor entry, read exactly as `entry[key]` read it: the same
+   * `[[Get]]`, with the entry itself as the receiver, and a throw for a nullish entry where the
+   * original member access threw.
+   * @param {unknown} entry @param {string} key
+   * @returns {unknown}
+   */
+  function descriptorField(entry, key) {
+    if (entry == null) {
+      throw new TypeError("A Clients/Projects view descriptor entry cannot be read.");
+    }
+    return Reflect.get(Object(entry), key, entry);
+  }
+
+  /**
+   * Remove the create action a user cannot take from the delivered descriptor.
+   *
+   * **Presentation only.** Hiding the page's primary action does not replace the server's own
+   * permission checks, which still refuse the create. Returns the same surface, by identity, when
+   * the action is available.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
   function withoutUnavailableTopLevelActions(surface) {
     if (!surface) {
       return surface;
@@ -393,8 +443,9 @@
       return surface;
     }
 
+    /** @type {unknown} */
     const pageHeader = surface.pageHeader ? { ...surface.pageHeader } : surface.pageHeader;
-    if (pageHeader) {
+    if (isResponseRecord(pageHeader)) {
       delete pageHeader.primaryAction;
     }
 
@@ -404,34 +455,51 @@
     };
   }
 
+  /**
+   * Remove the client field, column, filter and bindings from the Projects surface in a workspace
+   * that has no clients. Returns the same surface, by identity, everywhere else.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
   function withoutUnsupportedClientFields(surface) {
     const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
     if (!surface || workspaceType === "business" || surface.id !== "client-projects.projects") {
       return surface;
     }
 
+    /** @type {unknown} */
     const indexPanel = surface.indexPanel ? { ...surface.indexPanel } : surface.indexPanel;
-    if (indexPanel?.itemSubtitleField === "clientName") {
+    if (isResponseRecord(indexPanel) && indexPanel.itemSubtitleField === "clientName") {
       delete indexPanel.itemSubtitleField;
     }
 
     return {
       ...surface,
-      filters: (surface.filters || []).filter((filter) => filter.id !== "project-client-filter" && filter.field !== "clientId"),
+      filters: descriptorList(surface.filters).filter((filter) => (
+        descriptorField(filter, "id") !== "project-client-filter" && descriptorField(filter, "field") !== "clientId"
+      )),
       indexPanel,
       table: surface.table ? {
         ...surface.table,
-        columns: (surface.table.columns || []).filter((column) => column.id !== "project-client" && column.field !== "clientName"),
+        columns: descriptorList(descriptorField(surface.table, "columns")).filter((column) => (
+          descriptorField(column, "id") !== "project-client" && descriptorField(column, "field") !== "clientName"
+        )),
       } : surface.table,
       dataSource: surface.dataSource ? {
         ...surface.dataSource,
-        fieldBindings: Object.fromEntries(Object.entries(surface.dataSource.fieldBindings || {}).filter(
+        fieldBindings: Object.fromEntries(Object.entries(descriptorField(surface.dataSource, "fieldBindings") || {}).filter(
           ([field]) => !["clientId", "clientName"].includes(field),
         )),
       } : surface.dataSource,
     };
   }
 
+  /**
+   * Remove the billing meta field and billable columns in a workspace that is not a business.
+   * Returns the same surface, by identity, for a business.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
   function withoutUnsupportedBillingFields(surface) {
     const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
     if (!surface || workspaceType === "business") {
@@ -442,15 +510,27 @@
       ...surface,
       indexPanel: surface.indexPanel ? {
         ...surface.indexPanel,
-        itemMetaFields: (surface.indexPanel.itemMetaFields || []).filter((field) => field !== "billingDisplay"),
+        itemMetaFields: descriptorList(descriptorField(surface.indexPanel, "itemMetaFields"))
+          .filter((field) => field !== "billingDisplay"),
       } : surface.indexPanel,
       table: surface.table ? {
         ...surface.table,
-        columns: (surface.table.columns || []).filter((column) => !["client-billable", "project-billable"].includes(column.id)),
+        columns: descriptorList(descriptorField(surface.table, "columns"))
+          .filter((column) => !vocabularyHas(["client-billable", "project-billable"], descriptorField(column, "id"))),
       } : surface.table,
     };
   }
 
+  /**
+   * Default the Projects surface's client filter from `?client=`, in a business workspace only.
+   *
+   * Runs on the Projects page path alone, before the three filters above. A filter whose `field`
+   * is `clientId` gains the default; the manifest promises every filter is a plain object, which is
+   * what the spread copies - a non-object filter matching that field, which no manifest produces,
+   * is left as it is.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
   function withInitialProjectClientFilter(surface) {
     const clientId = new URLSearchParams(window.location.search).get("client") || "";
     const contextWorkspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
@@ -460,8 +540,8 @@
 
     return {
       ...surface,
-      filters: (surface.filters || []).map((filter) => (
-        filter.field === "clientId" ? { ...filter, default: clientId } : filter
+      filters: descriptorList(surface.filters).map((filter) => (
+        descriptorField(filter, "field") === "clientId" && isResponseRecord(filter) ? { ...filter, default: clientId } : filter
       )),
     };
   }
