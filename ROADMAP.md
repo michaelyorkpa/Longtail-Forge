@@ -120,8 +120,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.44` | `workbench.js` — checked-DOM adoption integrated (0 DOM); Inspector candidate remains (ruled), then extraction | 1 owned |
-| Claude | `0.33.33.38.3.11` | `LongtailForge.view.partsOf` published; `lists.js` 30 raw with no `dom`; `clients-projects.js` 141 with 8 `dom` - six page-owned element values and two `showModal` reads, the next Clients/Projects slice | 30 |
+| Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM); the Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` and resumes on the integrated baseline, then extraction | 1 owned |
+| Claude | `0.33.33.43.46` | Module-action keys declared opaque (`0.33.33.38.2.10`); next, `clients-projects.js` 141 with 8 `dom` - six page-owned element values and two `showModal` reads - plus the owed Edit Client browser case; `lists.js` 30 raw with no `dom` | 30 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -281,17 +281,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.10 - Opaque module-action keys
 
-**Model: High Effort** - a published shared-contract reconciliation that unblocks Workbench's Inspector boundary (`0.33.33.42.45`), approved by the operator on 2026-09-25.
-
-**Why.** The registry already treats an action ID as an opaque key: `register` stores any truthy `actionId`/`id` as a `Map` key, `open` finds it by that exact value, and `dependenciesFor` indexes a plain table, which converts the key to a property name. The published contract declared `string`, so Workbench's opaque Inspector candidate - kept opaque by ruling (a) - could not be passed through without a string guard (which would stop a registered non-string action from opening) or a conversion (which would look up a different key). Codex's real-registry test shows numeric `7` registering and opening today.
-
-**Scope, recorded before implementation (operator-approved):**
-
-- [ ] Declare the opaque key as `unknown`, not `any`, and reconcile every connected declaration: the action-ID parameter of `open`, `ensureDependencies` and `dependenciesFor`; the registry's internal key and identifier types; and the returned `ModuleActionSummary` `actionId`/`id` and `ModuleActionOutcome.actionId`, which carry the original value back.
-- [ ] Preserve exactly: registration eligibility, `Map`-key identity, the dependency table's property-key conversion, availability checks, `canOpen`, and every failure path. Existing string callers are unchanged.
-- [ ] No manifest, permission or runtime-policy change, and no string restriction or conversion in Workbench. Codex's held Workbench patch is not edited.
-- [ ] Prove it with the real registry, including distinct numeric `7` and string `"7"` registrations and unchanged identity in the returned records, against the replaced implementation.
-- [ ] Publish through protected integration, then send Codex the exact integrated baseline.
+**Complete: a contract reconciliation with no runtime change for any input a caller produces.** See the archive entry. The action key is `unknown` wherever it is accepted, stored or handed back, which is what the registry already did with it. Workbench's opaque Inspector candidate (`0.33.33.42.45`) can now pass through unchanged. Browser diagnostics unchanged at 172, per message.
 
 #### 0.33.33.38.2.6.11 - The last required declared-member acquisitions
 
