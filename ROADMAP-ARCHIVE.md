@@ -1,5 +1,39 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.25.11 - Make checkpoint verification cover every changed path
+
+**Model: High Effort** - regression infrastructure that both lanes and CI rely on. This is the recorded "Verification-tool hardening" obligation, approved by the operator on 2026-09-25. It is a corrective child that reopened the `0.33.33.25` verification rollup.
+
+- [x] **The problem: three ways `verify:slice` could print `Status: passed` having proved little or nothing.**
+  1. **The full-gate fallback was per change set.** It fired only when no path routed, so `ROADMAP.md` routing to `release` hid any unrouted source beside it.
+     - `0.33.33.43.46`'s range (`clients-projects.js`, two tests, the ledger) and `0.33.33.38.2.11`'s range (`navigation.js`, `browser-contracts.d.ts`, two tests, the ledger) each selected only `release`, 32 scripts, with no units, lint or area regressions.
+     - CI's changed-area regressions use the same router.
+  2. **A committed checkpoint without a base was an empty change set**, and `verify:slice` ran closeout and the ledger and passed.
+  3. **With a base, the collector read `base...HEAD` plus untracked files**, and missed tracked files edited but not committed.
+- [x] **The fixes.**
+  - **Per-path escalation.** Any path no route claims escalates the whole plan to the full gate. The plan and the runner name each such path. Documentation-only and fully routed ranges stay focused, and no per-module route was added: cross-cutting pages keep full breadth.
+  - **Refusal.** An empty selection runs nothing, exits `2`, and says how to verify a committed range; nothing in the summary reports a pass. `test:regressions:changed` keeps its documented "runs nothing and says so" for iteration.
+  - **Collector union.** The change set is the committed range, plus the working tree's tracked edits, plus untracked files. `verify:slice` prints which change set it inspected.
+- [x] **Proof.**
+  - **New suite.** `tests/unit/verification-coverage-contracts.test.mjs` covers:
+    - the mixed roadmap-plus-source set;
+    - replays of both recorded ranges, each now escalating with its unrouted paths named;
+    - documentation-only and fully routed sets that stay focused;
+    - the collector, in a temporary repository: a committed change, a tracked edit and an untracked file with a base; edits only without one; a clean committed tree refused rather than passed.
+  - **Moved pins.** Three existing pins on the old empty-set pass (two unit cases, one release regression) now assert the refusal.
+  - **Mutations.** Six, each caught, and each file was restored from a byte copy and verified by hash:
+    - the change-set-level fallback restored;
+    - unrouted paths never named;
+    - working-tree edits dropped with a base;
+    - the refusal removed;
+    - a refused run reporting success;
+    - the runner's unrouted lines dropped.
+  - **Self-proof.** This checkpoint's own `verify:slice` escalated to the full gate by itself, with no separate `npm run check`.
+- [x] **Accounting.** No browser, server or script diagnostic change; the scripts program stays at zero.
+  - The two added regression assertions ratchet the reviewed floor from 19,898 to 19,900 through the explicit `--ratchet-floors` mode, which refuses any decrease. The generated inventory block follows.
+  - The ledger records the new suite. Its informational checkpoint label read `0.33.33.25.11` while this section led the roadmap. The section is removed from the live roadmap on archive, so later writes read the active cursor again.
+- [x] **Documentation disposition.** Docs updated: `docs/regression-suite.md` (the generated inventory block only). The durable prose update and the stale `0.33.33.25.6` "and empty" sentence are recorded in the `0.33.33.48` closeout list.
+
 ## Version 0.33.33.38.2.11 - Opaque navigation hrefs
 
 **Model: High Effort** - a published navigation-contract reconciliation that reaches `location.assign`, approved by the operator on 2026-09-25 as the second prerequisite for Workbench's Inspector boundary.
