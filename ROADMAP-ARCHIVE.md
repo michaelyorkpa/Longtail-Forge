@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.46 - Clients/Projects page-owned element values and dialog opening
+
+**Model: High Effort** - removed the last eight browser `dom` diagnostics, with rendered proof on the Clients/Projects editors.
+
+- [x] **The problem.** All eight `dom` diagnostics left in the browser estate were in `clients-projects.js`, and none was a lookup.
+  - **Six were values the page stored on its own elements:**
+    - `createTagPickerField` kept the stub, then the mounted picker, as `element.tagPicker`;
+    - the billing period and rounding editor builders kept their editors as `fieldset.billingPeriodEditor` / `fieldset.billingRoundingEditor`;
+    - `saveClientSettings` found those elements by their data attributes and read the values back.
+
+    No element type declares these members, and none should: they are page state, not DOM. Measured before planning, nothing outside the file read or wrote them.
+  - **Two were `showDialog`'s `showModal` reads**, on a parameter typed `HTMLElement`.
+- [x] **The change.**
+  - **Three typed page-local `WeakMap`s**, one per kind. They are declared above the bootstrap call and written and read at exactly the points the properties were. The stub, then the mounted picker, then the stub again when mounting answers nothing: that sequence is unchanged. `saveClientSettings` now reads the element a search answers, and each read is guarded so it stays correct when `container` is later declared.
+  - **The billing maps are typed as the `getValue` their one reader calls**, as the Add Client picker stub already is. Typing them as the whole editor (`ReturnType<typeof createBillingPeriodEditor>`) made each factory's inferred return depend on the map it writes (TS2502/TS7023). The compiler checks every call statement before a `return` for an assertion signature, and that check needs the map's type first.
+  - **`showDialog` takes `HTMLDialogElement`**, which is what its four callers pass: `createModal` and `createModalForm` results. The body and all three opening branches are unchanged, including the `open`-attribute fallback.
+  - **`saveClientSettings`'s `container` stays undeclared.** Its recorded cost was re-measured with a probe and corrected from eleven to eight new reads (six `value`, one `checked`, one `dataset`), less the two implicit-`any` parameters declaring it closes. The tag picker and the two editors are no longer part of that boundary.
+- [x] **The one difference, which no path reaches.** An element that merely carries the old property is no longer read. Only these builders set the data attributes the save searches for. It is pinned as a difference rather than hidden.
+- [x] **Proof.**
+  - **Sandboxes against the replaced version.** A new suite runs the real builders and `saveClientSettings` from this page and from `4c6a5d33`.
+    - The tag field gives the same answers before mount, after mount, after an empty mount, and with no tag surface.
+    - The saved record is identical in the pending, mounted, empty and absent tag-field states, with both billing editors.
+  - **Mutations.** Twelve, each caught: every write and read, the stub fallback, the map-versus-selector pairing, the `showDialog` body and parameter, and a map declared below the bootstrap. Every file was restored from a byte copy and verified by hash.
+  - **Rendered, at both viewports.**
+    - **The owed permanent Edit Client case.** It pre-assigns a tag, adds a second through the picker, and sets a custom billing period and rounding. After Save Client the server holds both tags and both billing values.
+    - **Edit Project** now starts with a tag and proves it survives the save.
+    - Three rendered mutations were each caught by the case that owns the path. The tag field's `readTagIds` is the project path; the save's map read is the client path.
+  - `scripts/` and `tests/` were searched for every replaced spelling; nothing pinned them.
+- [x] **Accounting.** Browser 172 to 164; `clients-projects.js` 141 to 133; **browser `dom` 8 to 0**. Exactly the eight close and **no message rises**. Server/tests and scripts remain zero, and there is no explicit `any`. The ledger was written after the new suite existed.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint. `docs/e2e-testing.md`'s row for the spec still describes Edit Project only; extending it is recorded in the `0.33.33.48` closeout list.
+
 ## Version 0.33.33.38.2.10 - Opaque module-action keys
 
 **Model: High Effort** - a published shared-contract reconciliation, approved by the operator on 2026-09-25, that unblocks Workbench's Inspector boundary.

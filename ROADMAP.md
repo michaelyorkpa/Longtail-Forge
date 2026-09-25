@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM); the Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` and resumes on the integrated baseline, then extraction | 1 owned |
-| Claude | `0.33.33.43.46` | Module-action keys declared opaque (`0.33.33.38.2.10`); next, `clients-projects.js` 141 with 8 `dom` - six page-owned element values and two `showModal` reads - plus the owed Edit Client browser case; `lists.js` 30 raw with no `dom` | 30 |
+| Claude | `0.33.33.43.47` | **Browser `dom` is zero** after `0.33.33.43.46`. `clients-projects.js` 133 and `lists.js` 30 remain, all owned families (`params`, `state`, `assorted`); the next child is drawn from live evidence | 163 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -131,10 +131,10 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 | Obligation | Owner | Genuine prerequisite or unresolved decision |
 | --- | --- | --- |
-| `0.33.33.43` closeout | Claude | `lists.js` 91 raw (30 owned, 61 `dom`) at its deferral floor - **now 30 raw (30 owned, no `dom`) after `0.33.33.38.3.10` and `.38.3.11`**; `clients-projects.js` 143 raw at `0.33.33.38.3.9`, continuing by feature. Neither waits on a product decision. Both files' remaining `dom` reads were waiting on a framework-wide checked-lookup decision; **that decision is now made** (2026-09-25): they are the shared checked-DOM prerequisite, `0.33.33.38.3`, Claude's next priority. **Published by `0.33.33.38.3.9`** as `LongtailForge.checkedDom`, which closed all 17 `clients-projects.js` lookups; `lists.js`'s 61 is Claude's next child. **`0.33.33.43.44` corrected a Lists response boundary** that had refused every real list since `9427cf2d`, and **`0.33.33.43.45` restored the Lists dialog on every other page**, broken since `1da0fdd0`; see the archive entries. |
+| `0.33.33.43` closeout | Claude | `lists.js` 91 raw (30 owned, 61 `dom`) at its deferral floor - **now 30 raw (30 owned, no `dom`) after `0.33.33.38.3.10` and `.38.3.11`**; `clients-projects.js` 143 raw at `0.33.33.38.3.9`, **133 with no `dom` after `0.33.33.43.46`**, continuing by feature. Neither waits on a product decision. Both files' remaining `dom` reads were waiting on a framework-wide checked-lookup decision; **that decision is now made** (2026-09-25): they are the shared checked-DOM prerequisite, `0.33.33.38.3`, Claude's next priority. **Published by `0.33.33.38.3.9`** as `LongtailForge.checkedDom`, which closed all 17 `clients-projects.js` lookups; `lists.js`'s 61 is Claude's next child. **`0.33.33.43.44` corrected a Lists response boundary** that had refused every real list since `9427cf2d`, and **`0.33.33.43.45` restored the Lists dialog on every other page**, broken since `1da0fdd0`; see the archive entries. |
 | `0.33.33.42` closeout | Codex | **Typing:** 1 Workbench-owned remains after `0.33.33.42.43` integrated the envelope: Inspector candidates, **ruled** and recorded below. Elapsed time is integrated under the 2026-09-25 start-timestamp ruling, closed with **no permanent exception**; the focus-mode handoff is integrated. **Workbench-owned zero is not `.42` complete**, and three figures are reported separately: Workbench-owned, raw `workbench.js` (and any extracted file), and parent acceptance. The two `dataset` diagnostics close in `0.33.33.42.44` through the published shared checked-DOM lookup and the explicitly approved equivalent dataset conversion; Task Focus extraction is an open acceptance criterion, scheduled with Codex after the typing children. `0.33.33.42.22`, called reserved "pending the integrator's scope decision" in six archive entries, **never had a recorded scope** in this file, the archive or any commit, and every Workbench boundary it could have named is now assigned or ruled - **retired unused** by the integrator. |
 | Verification-tool hardening | Claude | **Narrow follow-up, separate from controller work.** `verify:slice` can exit green having proved nothing: without `LTF_REGRESSION_BASE_SHA` it diffs the working tree against `HEAD`, so a committed checkpoint selects no paths, and the base-range collector ignores tracked uncommitted edits. Make an empty or ambiguous checkpoint selection impossible to mistake for completed verification, while keeping legitimate documentation-only routing. **Until then the rule is range-explicit:** commit, confirm the tree is clean, set the full 40-character base, retain the printed selection and routing, and attribute results to that tree and range. An empty regression selection is not behavioural proof. |
-| Edit Client browser coverage | Claude | **Owed at the next Clients/Projects spec update.** Add a small permanent Edit Client case to an existing Clients/Projects spec. The `0.33.33.38.3.9` probe that exposed the gap was temporary and deleted, and is not ongoing protection. |
+| Edit Client browser coverage | Claude | **Done at `0.33.33.43.46`.** `client-projects-edit-dialog-reflow.spec.mjs` now carries a permanent Edit Client case, at both viewports, that saves tags and both billing editors. It replaces the temporary `0.33.33.38.3.9` probe. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, after the typing children | **Open, and still warranted - measured 2026-09-24.** The criterion allowed that extraction might prove small once `.34` and `.37` had taken their pieces; it has not. The Task Focus core is 58 functions / ~1,228 lines, and Task Focus, Inspector, focus-mode and drift/resume together are ~1,843 lines - **37% of a file that has grown from 4,239 to 4,974 lines**. Typing proceeded as its own children, so the one-child-or-two question is answered by what happened: two. **Smallest next action:** once the typing children land, one bounded child defines the typed seam the criterion names and extracts the smallest self-contained piece behind it, measuring and extracting together rather than as a separate analysis checkpoint. Not to be started inside the typing closeout. |
 | `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder at `0.33.33.42.40` is `lists.js` 91, `clients-projects.js` 206, `workbench.js` 6 - and the `dom` family at 90. `.44` proves the whole program at zero and is therefore last. |
@@ -1597,32 +1597,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.46 - Clients/Projects page-owned element values and dialog opening
 
-**Model: High Effort** - removes the last eight browser `dom` diagnostics by moving values the page stores on its own elements into page-local state, with rendered proof on the Clients/Projects editors.
-
-**Why.** The eight `dom` diagnostics left in the browser estate are all in `clients-projects.js`, and none is a lookup:
-
-- **Six are values the page writes onto its own elements and later reads back.**
-  - `createTagPickerField` keeps the tag picker, first a stub and then the mounted picker, as `element.tagPicker`, and its `readTagIds` reads it back.
-  - `createBillingPeriodEditor` and `createBillingRoundingEditor` keep their editors as `fieldset.billingPeriodEditor` / `fieldset.billingRoundingEditor`.
-  - `saveClientSettings` finds those three elements by their data attributes and reads the values back.
-
-  No declared element type carries these members, and none should: they are this page's state, not DOM.
-- **Two are `showDialog`'s `showModal` reads.** Its parameter is typed `HTMLElement`. Every caller passes a `createModal` / `createModalForm` result, which the view contract declares as an `HTMLDialogElement`.
-
-**Measured before planning.** No file other than `clients-projects.js` reads or writes these three element properties. The other `tagPicker` names in `notes.js`, `stop-watch.js` and their tests are unrelated state. No test lifts the functions this changes; the only text pins are call-site spellings this leaves alone.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Keep the values in typed page-local `WeakMap`s, one per kind.** Declare them with the page's other state, above the bootstrap call. Write each at the moment the element property was written, and read each where the property was read, including `saveClientSettings`'s three reads. The stub, then the mounted picker, then the stub again when mounting answers nothing: that sequence is unchanged.
-- [ ] **Type `showDialog`'s parameter as `HTMLDialogElement`**, from its four callers. Keep all three runtime branches, including the `open`-attribute fallback.
-- [ ] **Leave `saveClientSettings`'s `container` undeclared.** Its recorded eleven-diagnostic boundary stays where it is; the new reads are written so that they stay correct when it is declared.
-- [ ] **No behaviour change.** Tags, billing period and billing rounding save exactly as before on client edit, project edit and project add. There is no route, schema, permission, workflow or copy change.
-- [ ] **Proof.**
-  - Sandboxes compare against the replaced version.
-  - Mutations are restored from byte copies with hash verification.
-  - `scripts/` and `tests/` are searched for every rewritten spelling.
-  - **Rendered coverage:** the owed permanent Edit Client case, which edits and saves a client with its tags and billing editors present, plus the project editors.
-- [ ] **Expected accounting:** `clients-projects.js` 141 to 133; browser 172 to 164 (before Codex's `0.33.33.42.45`); **browser `dom` 8 to 0**. No message rises.
+**Complete: browser `dom` is zero.** See the archive entry. The values Clients/Projects stored on its own elements now live in typed page-local maps, written and read at the same points. `showDialog` is typed from its callers. The owed Edit Client browser case is permanent. Browser 172 to 164; `clients-projects.js` 141 to 133.
 
 #### 0.33.33.43.45 - No other page could open the Lists dialog
 
@@ -2581,6 +2556,7 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] **Prove the three direct programs remain complete after deletion.** Removing the ledger removes the universe check that currently refuses an unowned first-party file; that guarantee must survive in another form or the deletion has weakened the estate.
 - [ ] Retire superseded honesty/seam/pragma inventories in the same pass.
 - [ ] **Correct the two `docs/module-contract.md` statements `0.33.33.34` made false**, deferred here because the checkpoint gate reserves durable documentation for this closeout. The document still describes `LongtailForge.filesDialog.openFilePreview()` as a live compatibility entry, which `0.33.33.34` deleted when it reduced that namespace to its canonical Files owner; and it still describes the framework action dispatcher without the dependency loading it now owns through `moduleActions.dependenciesFor` and `moduleActions.ensureDependencies`. Both corrections are drafted in the `0.33.33.34` archive entry.
+- [ ] **Extend `docs/e2e-testing.md`'s row for `client-projects-edit-dialog-reflow.spec.mjs`**, which still describes Edit Project only. Since `0.33.33.43.46` the spec also carries the Edit Client case and Edit Project's tag-survival assertion. Deferred here because the checkpoint gate reserves durable documentation for this closeout.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
 - [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of `0.33.33.25.5`, unchanged at `0.33.33.32.28.1`, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
