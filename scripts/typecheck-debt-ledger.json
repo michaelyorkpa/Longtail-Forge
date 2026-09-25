@@ -419,6 +419,7 @@
         "tests/e2e/workbench-card-state.spec.mjs",
         "tests/e2e/workbench-completion-resume.spec.mjs",
         "tests/e2e/workbench-detail-context.spec.mjs",
+        "tests/e2e/workbench-elapsed-policy.spec.mjs",
         "tests/e2e/workbench-focus-handles.spec.mjs",
         "tests/e2e/workbench-focus-handoff.spec.mjs",
         "tests/e2e/workbench-focus-readers.spec.mjs",
@@ -799,6 +800,7 @@
         "tests/unit/workbench-completion-resume.test.mjs",
         "tests/unit/workbench-detail-context.test.mjs",
         "tests/unit/workbench-drift-recovery.test.mjs",
+        "tests/unit/workbench-elapsed-policy.test.mjs",
         "tests/unit/workbench-focus-envelope.test.mjs",
         "tests/unit/workbench-focus-handles.test.mjs",
         "tests/unit/workbench-focus-identity.test.mjs",
@@ -920,7 +922,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 288,
+      "errorCount": 287,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -1009,7 +1011,7 @@
           },
           {
             "code": 7006,
-            "count": 2
+            "count": 1
           }
         ]
       }
@@ -1621,8 +1623,8 @@
     }
   },
   "totals": {
-    "files": 1502,
-    "errors": 288,
+    "files": 1504,
+    "errors": 287,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

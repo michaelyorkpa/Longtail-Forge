@@ -4667,17 +4667,25 @@
     }, 1000);
   }
 
+  /** @param {unknown} timer */
   function readElapsedSeconds(timer) {
     if (!timer) {
       return 0;
     }
 
-    const baseSeconds = Number.parseInt(timer.accumulated_elapsed_seconds, 10) || 0;
-    if (timer.timer_status !== "running" || !timer.last_active_start_time) {
+    const baseSeconds = Number.parseInt(`${workbenchSourceField(timer, "accumulated_elapsed_seconds")}`, 10) || 0;
+    if (workbenchSourceField(timer, "timer_status") !== "running") {
       return baseSeconds;
     }
 
-    const startedAt = new Date(timer.last_active_start_time).getTime();
+    const start = workbenchSourceField(timer, "last_active_start_time");
+    if (typeof start !== "string" || !start) {
+      return baseSeconds;
+    }
+    const startedAt = new Date(start).getTime();
+    if (!Number.isFinite(startedAt)) {
+      return baseSeconds;
+    }
     return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   }
 
