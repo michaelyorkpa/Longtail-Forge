@@ -3858,14 +3858,21 @@
     return moduleActions;
   }
 
+  /** @param {unknown} event */
   async function handleFocusModeClick(event) {
-    const button = event.target.closest("[data-workbench-focus-mode]");
+    const target = workbenchSourceField(event, "target");
+    const closest = workbenchSourceField(target, "closest");
+    if (typeof closest !== "function") {
+      throw new TypeError("The Workbench focus target requires a callable closest method.");
+    }
+    /** @type {unknown} */
+    const button = Reflect.apply(closest, target, ["[data-workbench-focus-mode]"]);
 
     if (!button) {
       return;
     }
 
-    await selectFocusMode(button.dataset.workbenchFocusMode || DEFAULT_FOCUS_MODE_ID);
+    await selectFocusMode(workbenchSourceField(workbenchSourceField(button, "dataset"), "workbenchFocusMode") || DEFAULT_FOCUS_MODE_ID);
   }
 
   async function handleClientFocusChange() {
@@ -4683,11 +4690,11 @@
       .filter(Boolean);
   }
 
-  /** @param {string} modeId @param {import("../../src/types/framework-contracts.js").FocusModeDefinition[]} [modes] */
+  /** @param {unknown} modeId @param {import("../../src/types/framework-contracts.js").FocusModeDefinition[]} [modes] */
   function resolveFocusModeSelection(modeId, modes = []) {
     const available = new Set(modes.map((mode) => mode.id));
 
-    if (available.has(modeId)) {
+    if (typeof modeId === "string" && available.has(modeId)) {
       return modeId;
     }
     if (available.has(DEFAULT_FOCUS_MODE_ID)) {
