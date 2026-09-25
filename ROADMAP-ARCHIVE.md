@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.45 - No other page could open the Lists dialog
+
+**Model: High Effort** - a user-visible defect on nightly in module initialization order, found while proving the Lists dialog-only path.
+
+- [x] **How it was found.** `0.33.33.38.3.10` added a rendered dialog-only case through the product's own path, Workbench -> Capture -> List. It failed identically on unchanged nightly `lists.js`, which put the cause outside that slice. A diagnostic captured the Capture status, "Cannot access 'pageTitle' before initialization". `lists.js` had loaded (200), but `listsDialog` was never published.
+- [x] **Root cause.** When another page lazily imports `lists.js`, the dialog-only branch runs synchronously: `ensureListsDialogShell(); cacheListsElements(); bindListsEvents();`. `1da0fdd0` (2026-08-26) put that branch above the module's `let` handle declarations. So `cacheListsElements` wrote `pageTitle` inside its temporal dead zone and threw. The throw aborted the rest of module evaluation, the import rejected, and Capture showed the error instead of the dialog. The same break reaches `lists.edit` opened from any other page. The workspace path was unaffected, because it awaits readiness before touching any handle.
+- [x] **The correction.** The bootstrap branch moves, unchanged, to the end of the controller, after every top-level `let` and `const`: the handles, the published dialog surface and the link-target tables. The dialog-only branch keeps its order - shell, then cache, then bind - and stays immediate. The workspace branch reads only the readiness promise before its first `await`, so moving it changes nothing observable.
+- [x] **Proof.**
+  - **Structural guard:** the bootstrap must be the controller's last statement, with no top-level binding after it. It fails against nightly's `lists.js`.
+  - **Rendered:** a case in the existing Lists spec drives Workbench -> Capture -> List in an isolated workspace, checks the Capture status carries no initialization error, and saves a list through the dialog, confirmed by the API. It passes at both viewports, and against nightly's `lists.js` the dialog never appears.
+  - **Every pin on the block matched its content, not its position**, so all still hold.
+- [x] **One anchor corrected, same claim.** `lists-view-descriptor-boundary` found the bootstrap with a substring that a nested `if (isListsWorkspaceSurface)` in `saveList` also contains. With the bootstrap now after `saveList`, the search found the wrong one. It is now anchored at the controller's own indentation; what it asserts is unchanged.
+- [x] **Accounting.** No browser diagnostic moves (237), identical per message, and the ledger is unchanged. Server/tests and scripts remain zero.
+- [x] **Observation, not changed here.** `notes.js` has the same shape: a synchronous dialog-only branch above later top-level bindings. It works today because that branch touches none of them, and the Notes lazy-import spec passes. A later binding it did touch would break it the same way. Notes is Codex's file.
+- [x] **Documentation disposition.** No docs change needed: the initialization order is recorded in the controller and here; durable documentation is batched at branch closeout.
+
 ## Version 0.33.33.43.44 - The Lists page refused every real list
 
 **Model: High Effort** - a user-visible defect on nightly in a response trust boundary, found while adopting the checked-DOM contract in Lists.
