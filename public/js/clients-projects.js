@@ -70,6 +70,26 @@
    * @type {Awaited<ReturnType<typeof loadTagOptions>>}
    */
   let tagOptions = [];
+  /**
+   * What this page keeps for elements it built, read back later by finding the element again.
+   *
+   * These were properties on the elements themselves - `tagPicker`, `billingPeriodEditor` and
+   * `billingRoundingEditor` - which no element type declares, because they are this page's state
+   * rather than DOM (`0.33.33.43.46`). Nothing outside this file ever read or wrote them. One map
+   * per kind, each written and read at exactly the points the property was. Declared above the
+   * bootstrap call so no path can reach them uninitialised.
+   *
+   * Each is typed as what its one reader calls, as the Add Client picker stub is, rather than as
+   * the whole editor. The editors' own types are inferred from the factories that write these
+   * maps, and naming them here makes each depend on the other: the compiler checks every call
+   * before a factory's `return` for an assertion signature, which needs the map's type first.
+   * @type {WeakMap<Element, {readTagIds: () => string[]}>}
+   */
+  const tagPickersByField = new WeakMap();
+  /** @type {WeakMap<Element, {getValue: () => ReturnType<typeof normalizeBillingPeriod> | null}>} */
+  const billingPeriodEditorsByField = new WeakMap();
+  /** @type {WeakMap<Element, {getValue: () => ReturnType<typeof normalizeBillingRounding> | null}>} */
+  const billingRoundingEditorsByField = new WeakMap();
   const clientStatuses = ["Active", "Inactive"];
   const projectStatuses = ["Active", "Inactive", "Completed"];
   const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
@@ -825,7 +845,13 @@
     });
   }
 
-  /** @param {HTMLElement} dialog @param {HTMLElement | null} [focusTarget] */
+  /**
+   * Every caller passes a `createModal` or `createModalForm` result, which the view contract
+   * declares an `HTMLDialogElement` (`0.33.33.43.46`). All three branches stay: the shared stack
+   * first, the element's own `showModal`, and the `open` attribute where neither exists.
+   * @param {HTMLDialogElement} dialog
+   * @param {HTMLElement | null} [focusTarget]
+   */
   function showDialog(dialog, focusTarget = null) {
     const view = requireView();
     document.body.appendChild(dialog);
@@ -1233,12 +1259,16 @@
   function createTagPickerField(label, tags = [], targetKind = "record") {
     const element = document.createElement("div");
     element.dataset[`${targetKind}Tags`] = "";
-    element.tagPicker = { readTagIds: () => [] };
+    // The stub answers until the picker mounts, and stays when mounting answers nothing. Only
+    // this function writes this element's entry, so the stub is what the property held here.
+    /** @type {{readTagIds: () => string[]}} */
+    const pendingPicker = { readTagIds: () => [] };
+    tagPickersByField.set(element, pendingPicker);
     const picker = mountTagPicker(element, tags, label);
 
     if (picker) {
       picker.then((mountedPicker) => {
-        element.tagPicker = mountedPicker || element.tagPicker;
+        tagPickersByField.set(element, mountedPicker || pendingPicker);
         const legend = element.querySelector("legend");
         if (legend) {
           legend.textContent = label;
@@ -1250,7 +1280,7 @@
 
     return {
       element,
-      readTagIds: () => element.tagPicker?.readTagIds?.() || [],
+      readTagIds: () => tagPickersByField.get(element)?.readTagIds?.() || [],
     };
   }
 
@@ -2431,11 +2461,12 @@
    * `tagIds` is not part of the normalised record: this editor adds it for the save payload and
    * deletes it again when the picker is absent, so the parameter says the record may carry one.
    * **`container` is deliberately left undeclared.** Declaring it `Element | null` is correct and
-   * costs eleven: every control this reads off it - the name, status and parent selects, the tag
-   * picker, the billing inputs and the two stashed editors - becomes an `Element` that does not
-   * carry `value`, `checked`, `dataset` or an editor. That is the same checked-lookup boundary
-   * `lists.js` records, and closing it here would net eleven new reads off against this
-   * checkpoint's real ones. It waits for the checkpoint that narrows these handles.
+   * costs eight new reads, less the two implicit-`any` parameters it closes: every control this
+   * reads off it - the name, status and parent selects, the billing inputs and the contact fields -
+   * becomes an `Element` that does not carry `value`, `checked` or `dataset`. That is the same
+   * checked-lookup boundary `lists.js` records. It waits for the checkpoint that narrows these
+   * handles. The tag picker and the two billing editors are no longer part of it: since
+   * `0.33.33.43.46` they come from the page's own maps, which take the `Element` a search answers.
    * @param {NormalizedClientRecord & { tagIds?: unknown }} client
    * @param {ClientProjectViewState & { action?: string }} [options]
    */
@@ -2443,7 +2474,8 @@
     const nameInput = container?.querySelector("[data-client-name-input]");
     const statusSelect = container?.querySelector("[data-client-status-input]");
     const parentClientSelect = container?.querySelector("[data-client-parent-field]");
-    const tagPicker = container?.querySelector("[data-client-tags]")?.tagPicker;
+    const tagField = container?.querySelector("[data-client-tags]");
+    const tagPicker = tagField ? tagPickersByField.get(tagField) : undefined;
     const billingRateInput = container?.querySelector("[data-client-billing-rate-input]");
     const billableInput = container?.querySelector("[data-client-billable-input]");
 
@@ -2484,10 +2516,12 @@
     if (billingRateInput && billableInput) {
       // Guarded indirectly: both controls above were read off `container`, so reaching here means
       // it was there. Optional rather than asserted, which costs nothing and states the same thing.
-      const billingPeriodEditor = container?.querySelector("[data-billing-period-editor]")
-        ?.billingPeriodEditor;
-      const billingRoundingEditor = container?.querySelector("[data-billing-rounding-editor]")
-        ?.billingRoundingEditor;
+      const billingPeriodField = container?.querySelector("[data-billing-period-editor]");
+      const billingPeriodEditor = billingPeriodField ? billingPeriodEditorsByField.get(billingPeriodField) : undefined;
+      const billingRoundingField = container?.querySelector("[data-billing-rounding-editor]");
+      const billingRoundingEditor = billingRoundingField
+        ? billingRoundingEditorsByField.get(billingRoundingField)
+        : undefined;
 
       client.billing_rate = normalizeBillingRate(billingRateInput.value);
       client.billable = normalizeBillableFlag(billableInput.checked);
@@ -4656,7 +4690,7 @@
       },
     };
 
-    fieldset.billingPeriodEditor = editor;
+    billingPeriodEditorsByField.set(fieldset, editor);
     return editor;
   }
 
@@ -4790,7 +4824,7 @@
       },
     };
 
-    fieldset.billingRoundingEditor = editor;
+    billingRoundingEditorsByField.set(fieldset, editor);
     return editor;
   }
 

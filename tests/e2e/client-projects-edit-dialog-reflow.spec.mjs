@@ -1,4 +1,4 @@
-/* global getComputedStyle */
+/* global getComputedStyle, HTMLDetailsElement */
 
 import { expect, test } from "@playwright/test";
 
@@ -14,15 +14,32 @@ async function createRecord(request, path, data, label) {
   return response.json();
 }
 
+/**
+ * The tag ids assigned directly to one Client or Project.
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {"client" | "project"} targetType
+ * @param {string} targetId
+ * @returns {Promise<string[]>}
+ */
+async function directTagIds(request, targetType, targetId) {
+  const response = await request.get(`/api/tags/assignments?targetType=${targetType}&targetId=${encodeURIComponent(targetId)}`);
+  expect(response.status(), `${targetType} tag assignments should be readable`).toBe(200);
+  const assignments = await response.json();
+  return assignments.directTags.map((/** @type {Record<string, unknown>} */ entry) => String(entry.tag_id));
+}
+
 test("Edit Project uses the wide unboxed framework flow while preserving save behavior", async ({ page, request }, testInfo) => {
   const suffix = `${testInfo.project.name}-${testInfo.workerIndex}-${Date.now()}`;
   const clientName = `Edit Reflow Client ${suffix}`;
   const projectName = `Edit Reflow Project ${suffix}`;
+  // `0.33.33.43.46`: the project starts with a tag, so the save must read the mounted picker back
+  // through the page's own record - a stub answer would clear it.
+  const { tag } = await createRecord(request, "/api/tags", { name: `Edit Reflow Tag ${suffix}` }, "the proof tag");
   const { client } = await createRecord(request, "/api/clients", { name: clientName }, "the proof Client");
   const { project } = await createRecord(
     request,
     `/api/clients/${encodeURIComponent(client.id)}/projects`,
-    { name: projectName },
+    { name: projectName, tagIds: [tag.tag_id] },
     "the proof Project",
   );
 
@@ -109,4 +126,58 @@ test("Edit Project uses the wide unboxed framework flow while preserving save be
   expect(saved.status).toBe("Inactive");
   expect(saved.client_id).toBe(client.id);
   expect(saved.parent_project_id || "").toBe("");
+  expect(await directTagIds(request, "project", project.id), "the project's tag survives the save").toEqual([tag.tag_id]);
+});
+
+// The permanent Edit Client case owed since `0.33.33.38.3.9`, added with `0.33.33.43.46`: the save
+// reads the tag picker and both billing editors back from what their builders recorded.
+test("Edit Client saves its tags and both billing editors", async ({ page, request }, testInfo) => {
+  const suffix = `${testInfo.project.name}-${testInfo.workerIndex}-${Date.now()}`;
+  const clientName = `Edit Client Proof ${suffix}`;
+  const keptTagName = `Edit Client Kept ${suffix}`;
+  const addedTagName = `Edit Client Added ${suffix}`;
+  const { tag: keptTag } = await createRecord(request, "/api/tags", { name: keptTagName }, "the kept tag");
+  const { tag: addedTag } = await createRecord(request, "/api/tags", { name: addedTagName }, "the added tag");
+  const { client } = await createRecord(request, "/api/clients", { name: clientName, tagIds: [keptTag.tag_id] }, "the proof Client");
+
+  const response = await page.goto("/clients.html");
+  if (!response) {
+    throw new Error("page.goto(\"/clients.html\") returned no response");
+  }
+  expect(response.status()).toBe(200);
+  const clientRow = page.locator("tbody tr").filter({ hasText: clientName }).first();
+  await expect(clientRow).toBeVisible();
+  await clientRow.getByRole("button", { name: "Edit Client", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: `Edit Client: ${clientName}`, exact: true });
+  await expect(dialog).toBeVisible();
+
+  const tags = dialog.locator("[data-client-tags]");
+  await expect(tags.locator(`[data-tag-picker-selected][value="${keptTag.tag_id}"]`)).toHaveCount(1);
+  await tags.locator("[data-tag-picker-input]").fill(addedTagName);
+  await tags.locator(`[data-tag-picker-suggestion="${addedTag.tag_id}"]`).click();
+  await expect(tags.locator(`[data-tag-picker-selected][value="${addedTag.tag_id}"]`)).toHaveCount(1);
+
+  const billing = dialog.locator(".billing-details")
+    .filter({ has: page.locator("summary").getByText("Client Billing Settings", { exact: true }) });
+  if (!await billing.evaluate((details) => details instanceof HTMLDetailsElement && details.open)) {
+    await billing.locator("summary").click();
+  }
+  await billing.locator("[data-client-billable-input]").check();
+  const periodSelects = billing.locator("[data-billing-period-editor] select");
+  await periodSelects.nth(0).selectOption("custom");
+  await periodSelects.nth(1).selectOption("15");
+  const roundingSelects = billing.locator("[data-billing-rounding-editor] select");
+  await roundingSelects.nth(0).selectOption("round");
+  await roundingSelects.nth(1).selectOption("nearestHalfHour");
+
+  await dialog.getByRole("button", { name: "Save Client", exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  const savedResponse = await request.get(`/api/clients/${encodeURIComponent(client.id)}`);
+  expect(savedResponse.status()).toBe(200);
+  const saved = (await savedResponse.json()).client;
+  expect(saved.billing_period).toEqual({ type: "custom", startDay: 15 });
+  expect(saved.billing_rounding).toEqual({ enabled: true, increment: "nearestHalfHour" });
+  expect((await directTagIds(request, "client", client.id)).sort()).toEqual([keptTag.tag_id, addedTag.tag_id].sort());
 });
