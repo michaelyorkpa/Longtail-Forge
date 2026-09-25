@@ -7040,11 +7040,12 @@ export interface BrowserTaskRecords {
  * `normalizeListRecord` answers `{ ...list, ... }`, so these twenty-one columns reach the page
  * exactly as the row held them. The required/nullable split is the table's own `NOT NULL`.
  *
- * **`is_reusable` is a number and that is not a mistake.** The column is `INTEGER NOT NULL` with a
- * `CHECK (is_reusable IN (0, 1))`, the server spreads it untouched, and it adds a *separate*
- * camelCase `isReusable` boolean beside it. Two members, two types, one concept - and the browser
- * normaliser then overwrites `is_reusable` with a boolean of its own. Naming both as booleans here
- * would have described the wire wrongly.
+ * **`is_reusable` is a boolean on the wire, and so is `metadata_json` not text.** The columns are
+ * `INTEGER NOT NULL` and `TEXT`, but the repository's row mapper (`listRowToAppValue`) booleanizes
+ * `is_reusable` and parses `metadata_json` on every read, before either shaper spreads the row. This
+ * contract once took the column types for the wire and declared a number and nullable text; the
+ * browser checked both, and refused every real list. `0.33.33.43.44` measured the real endpoint and
+ * corrected both. The shaper still adds a separate camelCase `isReusable` boolean beside it.
  *
  * `list_type` is shopping/procurement/packing/supplies/parts/checklist/bill_of_materials and
  * `status` is active/completed/finalized/archived/deleted. Both are `CHECK`-constrained on the
@@ -7061,11 +7062,12 @@ export interface BrowserListColumns {
   duplicated_from_list_id: string | null;
   finalized_at: string | null;
   finalized_by_user_id: string | null;
-  /** `0` or `1`. The boolean beside it is `isReusable`. */
-  is_reusable: number;
+  /** Booleanized by the repository's row mapper. The shaper adds `isReusable` beside it. */
+  is_reusable: boolean;
   list_id: string;
   list_type: string;
-  metadata_json: string | null;
+  /** Parsed by the repository into the JSON it stored (`{}` when none). Unread by the page. */
+  metadata_json: unknown;
   project_id: string | null;
   source_list_id: string | null;
   status: string;
@@ -7104,8 +7106,9 @@ export interface BrowserListSummary extends BrowserListColumns {
  * One list item as `GET /api/lists/:listId` returns it.
  *
  * Derived from `ITEM_COLUMNS`. **`quantity`, `estimated_cost`, `actual_cost` and `sort_order` stay
- * `unknown`**: the columns are numeric but nothing between the query and the response coerces them,
- * and this child validates what the producer guarantees rather than what the renderer hopes.
+ * `unknown`**: the item row mapper converts the first three with `Number()` when they are present,
+ * and this child validates what the page relies on rather than what the renderer hopes.
+ * `metadata_json` is parsed JSON, as it is for a list.
  */
 export interface BrowserListItem {
   actual_cost: unknown;
@@ -7122,7 +7125,7 @@ export interface BrowserListItem {
   item_name: string;
   list_id: string;
   list_item_id: string;
-  metadata_json: string | null;
+  metadata_json: unknown;
   needed_by_date: string | null;
   notes: string | null;
   purchase_status: string;
@@ -7164,9 +7167,10 @@ export interface BrowserListProgressSummary {
  * `normalizeListRecord` spreads its input and then overwrites nine members, so the page record and
  * `BrowserListSummary` disagree on purpose:
  *
- * - **`is_reusable` is a `number` on the wire and a `boolean` here.** The column is `INTEGER` and
- *   the shaper passes it through untouched; the normaliser coerces it. That single conflict is why
- *   this cannot extend the wire contract, and why an intersection of the two would be impossible.
+ * - **`is_reusable` is a `boolean` both on the wire and here.** The repository's row mapper
+ *   booleanizes it before the shaper, and the normaliser coerces it again. This bullet once named it
+ *   a number on the wire, which `0.33.33.43.44` measured and corrected; whether this record could now
+ *   extend the wire contract is a separate question, not taken here.
  * - `items` and `links` are re-mapped with an added `id`, so they are the detail contracts rather
  *   than the wire's `unknown[]`.
  * - `progress`, `resumeContext` and `sourceContext` are rebuilt with defaults.
@@ -7222,7 +7226,7 @@ export interface BrowserListLink {
   link_role: string | null;
   list_id: string;
   list_link_id: string;
-  metadata_json: string | null;
+  metadata_json: unknown;
   module_id: string;
   removed_at: string | null;
   target_id: string;
