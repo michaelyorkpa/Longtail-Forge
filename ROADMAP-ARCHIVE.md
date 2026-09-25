@@ -1,5 +1,27 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.44 - The Lists page refused every real list
+
+**Model: High Effort** - a user-visible defect on nightly in a response trust boundary, found while adopting the checked-DOM contract in Lists.
+
+- [x] **How it was found.** `0.33.33.38.3.10` added rendered Lists workflows. They failed on the unchanged nightly `lists.js` exactly as on the changed one, which put the cause outside that slice. Against the managed server, `GET /api/lists` answered 200 with the list, yet the page showed "The list collection could not be read." That held in both an isolated workspace and the shared seeded session.
+- [x] **Root cause, measured rather than inferred.** The page's own `isListSummary`, run against a row captured from the real endpoint, refused it for two members:
+  - `is_reusable` arrived as a **boolean**, where the check required a number;
+  - `metadata_json` arrived as an **object**, where the check required nullable text.
+
+  Both come from `listRowToAppValue`, which has booleanized and parsed on every repository read since `0.33.4.2` (2026-06-11), before either shaper spreads the row. `itemRowToAppValue` and `linkRowToAppValue` parse `metadata_json` the same way, so the detail route refused any list with an item or a link too. The check was introduced by this lane's `9427cf2d` (2026-09-02), which took the repository's `SELECT` column list and the column types for the wire.
+- [x] **Why nothing caught it.** The response suites built their fixtures from those same column types, so they agreed with the wrong premise. One even pinned that a boolean `is_reusable` must be refused. No spec loaded a real list, and protected CI stayed green.
+- [x] **The correction.** Every other consumer in `lists.js` already uses `is_reusable` by truthiness, and the normaliser booleanizes it again.
+  - `is_reusable` is checked as a boolean.
+  - `metadata_json` is removed from the list, item and link nullable-text tables: the page never reads it, and it arrives as parsed JSON.
+  - `BrowserListColumns`, `BrowserListItem` and `BrowserListLink` declare `is_reusable: boolean` and `metadata_json: unknown`. The "not a mistake" documentation is corrected with the evidence, as is the item contract's claim that nothing coerces its numeric columns.
+  - All three contracts are consumed only by `lists.js`, so this is within the Lists boundary, not a cross-lane change.
+- [x] **Proof, aimed at the gap.** A new case runs the **real** `listRowToAppValue`, `itemRowToAppValue` and `linkRowToAppValue`, lifted from `lists.repo.js`, over rows as SQLite returns them, into the browser predicates. Restoring either half of the old check fails it; four other mutations fail other cases. The captured real row is refused by nightly's predicate and accepted by the corrected one.
+- [x] **Rendered proof.** A case in the existing Lists spec creates a list and an item through the API in an isolated workspace, loads the page, opens the index drawer, and opens the list. It passes at both viewports. Against nightly's `lists.js` it fails with "The list collection could not be read."
+- [x] **Accounting.** No browser diagnostic moves (237), and the ledger is unchanged. Server/tests and scripts remain zero. No pin in `scripts/` matched a changed spelling.
+- [x] **Observation, not changed here.** The shared module-action registry has a dependency entry for `lists.edit` but not `lists.add`. So calling `moduleActions.open("lists.add")` directly, on a page that has not loaded `lists.js`, rejects. The product's own dialog-only path is the footer Capture action, which loads its own `lists.add` dependencies first. `0.33.33.38.3.10` covers that path in a browser.
+- [x] **Documentation disposition.** No docs change needed: the corrected wire contracts are recorded in their declarations and here; durable documentation is batched at branch closeout.
+
 ## Version 0.33.33.42.43 - Keep malformed Task Focus context in the error state
 
 **Model: High Effort** - the operator-ruled envelope failure policy crosses the asynchronous refresh and rendered Inspector boundary.
