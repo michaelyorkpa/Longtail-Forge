@@ -96,8 +96,10 @@ describe("what the closed root now refuses, proved by the compiler", () => {
   it("declares exactly the members the estate publishes, by count", () => {
     const members = [...namespaceInterface().matchAll(/^ {2}(\w+)\?:/gm)].map(([, name]) => name);
     assert.equal(new Set(members).size, members.length, "no duplicate member names");
-    assert.equal(members.length, 64,
-      "64 declared members, matching the 64 the publication inventory knows");
+    // `0.33.33.38.3.9` declared and published `checkedDom` together, so both sides moved to 65
+    // and still match, which is the claim.
+    assert.equal(members.length, 65,
+      "65 declared members, matching the 65 the publication inventory knows");
   });
 });
 
@@ -118,8 +120,8 @@ describe("the removal needed no runtime change", () => {
     const governance = read("scripts/regressions/framework/full-strict-governance.regression.mjs");
     assert.match(governance, /const UNDECLARED_PUBLICATION_BACKLOG = \[\];/,
       "the backlog stays a live, empty instrument");
-    assert.match(governance, /assert\.equal\(declarationCoverage\.declaredMembers\.length, 64,/);
-    assert.match(governance, /assert\.equal\(declarationCoverage\.knownMembers\.length, 64,/,
-      "declared and known are both 64, and asserted apart");
+    assert.match(governance, /assert\.equal\(declarationCoverage\.declaredMembers\.length, 65,/);
+    assert.match(governance, /assert\.equal\(declarationCoverage\.knownMembers\.length, 65,/,
+      "declared and known are both 65, and asserted apart");
   });
 });

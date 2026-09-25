@@ -2671,6 +2671,8 @@ for (const shellOwner of [
   "public/js/footer.js",
   "public/js/navigation.js",
   "public/js/shared/view-response-records.js",
+  // Injected into every rendered page by the same head block, by `0.33.33.38.3.9`.
+  "public/js/shared/checked-dom.js",
   "public/js/login.js",
   "public/js/splash.js",
   "public/js/account-recovery.js",
@@ -4219,10 +4221,11 @@ assert.deepEqual(
   `these surfaces have more than one runtime writer and no multi-writer record: ${uncontestedByRecord.join(" | ")}`,
 );
 const singleWriterSurfaces = declarationCoverage.uniqueSurfaces - declarationCoverage.multiWriterSurfaces.length;
+// `0.33.33.38.3.9` published `checkedDom` from one file, so each count below rose by exactly one.
 assert.equal(
   singleWriterSurfaces,
-  64,
-  "64 of the 66 unique publication surfaces must have exactly one canonical writer",
+  65,
+  "65 of the 67 unique publication surfaces must have exactly one canonical writer",
 );
 
 // D - NO UNRESOLVABLE ROOTED WRITE.
@@ -4289,11 +4292,11 @@ assert.doesNotMatch(
 
 // TERMINOLOGY - the three numbers are different numbers, asserted apart so no future summary
 // can print one as another.
-assert.equal(declarationCoverage.uniqueSurfaces, 66, "unique publication surfaces");
-assert.equal(declarationCoverage.publicationOccurrences, 69, "publication occurrences, which exceed unique surfaces");
-assert.equal(declarationCoverage.knownMembers.length, 64, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 64, "declared LongtailForge members");
-assert.equal(declarationCoverage.publishedMembers.length, 64, "LongtailForge members with a runtime writer");
+assert.equal(declarationCoverage.uniqueSurfaces, 67, "unique publication surfaces");
+assert.equal(declarationCoverage.publicationOccurrences, 70, "publication occurrences, which exceed unique surfaces");
+assert.equal(declarationCoverage.knownMembers.length, 65, "known LongtailForge members, which are not all governed surfaces");
+assert.equal(declarationCoverage.declaredMembers.length, 65, "declared LongtailForge members");
+assert.equal(declarationCoverage.publishedMembers.length, 65, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
   "publication occurrences must exceed unique surfaces while any surface has co-writers",

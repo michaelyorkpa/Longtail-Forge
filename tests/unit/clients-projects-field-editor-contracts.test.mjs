@@ -23,13 +23,18 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
  *    the equivalence rests on rather than anything the annotation says.
  */
 
-const source = createProjectTextReader().readText("public/js/clients-projects.js");
+const reader = createProjectTextReader();
+const source = reader.readText("public/js/clients-projects.js");
+const checkedDomSource = reader.readText("public/js/shared/checked-dom.js");
 
 const EDITOR_READERS = [
   "vocabularyHas",
   "parseJsonArray",
   "normalizeProjectTaskSortOrder",
   "normalizeProjectTaskDefaults",
+  // `0.33.33.38.3.9`: the sort-order reader narrows its rows through the shared checked-DOM
+  // contract, so the page's own accessor is lifted and the real shared module runs below.
+  "requireCheckedDom",
   "createProjectTaskDefaultsEditor",
 ];
 
@@ -49,12 +54,14 @@ function declaration(name, close) {
  *
  * The page's own vocabularies and label maps are lifted rather than restated; only the surroundings
  * this builder does not own are supplied - a fake document, the option and action-button factories,
- * and the token formatter.
+ * and the token formatter. The checked-DOM contract is the shipped module, run in the sandbox, not
+ * a stand-in: a stub could answer differently from what the page is delivered.
  */
 function liftTaskDefaultsEditor() {
   const document = new FakeDocument();
   const sandbox = vm.createContext({
     document,
+    window: {},
     ...fakeDomConstructors(),
     /** @param {unknown} value @param {unknown} text */
     createOption: (value, text) => {
@@ -73,6 +80,7 @@ function liftTaskDefaultsEditor() {
     formatToken: (value) => String(value || ""),
   });
 
+  vm.runInContext(checkedDomSource, sandbox, { filename: "checked-dom.js" });
   for (const name of ["taskDefaultStatuses", "taskDefaultPriorities", "taskDefaultAssigneeModes", "defaultProjectTaskSortOrder"]) {
     vm.runInContext(declaration(name, "];"), sandbox);
   }
@@ -199,6 +207,20 @@ describe("What the task-defaults editor reads back", () => {
 
     assert.deepEqual(lifted(rows.map((row) => row.dataset.sortItem)), ["due_date", "priority", "status"]);
     assert.deepEqual(lifted(rows.map((row) => row.childNodes[0].textContent)), ["Due Date", "Priority", "Status"]);
+  });
+
+  it("refuses a sort row that is not an element by name, rather than dropping it from the order", () => {
+    // `0.33.33.38.3.9`: each matched row is one `renderSortRows` built, so each is required. That
+    // writer only builds `div`s, so the page cannot reach this; it is forced here to prove a bad row
+    // is reported rather than silently left out of the order the editor saves.
+    const { createProjectTaskDefaultsEditor } = liftTaskDefaultsEditor();
+    const editor = createProjectTaskDefaultsEditor({});
+    const sortList = editor.element.querySelector(".project-default-sort-list");
+    const rendered = sortList.querySelectorAll("[data-sort-item]");
+    sortList.querySelectorAll = () => [...rendered, { dataset: { sortItem: "status" } }];
+
+    assert.throws(() => editor.getValue(),
+      { name: "TypeError", message: "Clients/Projects requires its task default sort rows." });
   });
 });
 

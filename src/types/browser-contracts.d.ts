@@ -854,6 +854,19 @@ export interface BrowserRecords {
   sortByName<Item extends BrowserRecordFields>(items: Item[]): Item[];
 }
 
+/**
+ * The shared checked-DOM contract, published by `shared/checked-dom.js` (`0.33.33.38.3.9`).
+ *
+ * `find` answers the subtype or `null` - absent and the wrong subtype alike - and never throws for
+ * a missing control. `require` refuses that `null` with an error naming the owner and the control.
+ * They are separate so a page can capture a control early and require it only where it already
+ * depended on it, which keeps both its capture lifetime and its failure timing.
+ */
+export interface BrowserCheckedDom {
+  find<T extends Element>(root: ParentNode, selector: string, constructor: { new (): T }): T | null;
+  require<T>(value: T | null, owner: string, name: string): T;
+}
+
 export interface BrowserViewResponseRecords {
   read(body: unknown, recordsKey?: unknown): unknown[];
 }
@@ -7729,6 +7742,7 @@ export interface LongtailForgeBrowserNamespace {
   assetVersion?: BrowserAssetVersion;
   cachedFetch?: BrowserCachedFetch;
   capturePrompt?: BrowserCapturePrompt;
+  checkedDom?: BrowserCheckedDom;
   clientProjectDialog?: BrowserClientProjectDialog;
   clientProjectOptions?: BrowserClientProjectOptions;
   controllers?: PageControllerRegistry;
