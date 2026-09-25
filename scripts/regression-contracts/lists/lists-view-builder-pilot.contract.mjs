@@ -83,7 +83,9 @@ for (const hook of [
 assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/, "Lists pilot should preserve list query route");
 assert.match(listsJs, /api\.postJson\("\/api\/lists", payload\)/, "Lists pilot should preserve create payload route");
 assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(state\.editingListId\)\}`/, "Lists pilot should preserve update payload route");
-assert.match(listsJs, /client_id: usesBusinessScope\(\) \? listClientInput\.value : ""/, "Lists pilot should preserve Personal/Family workspace scope payloads");
+// `0.33.33.38.3.10` reads the client select through the required-handle adapter; the claim - no
+// client outside a Business workspace - and the ternary that makes it are unchanged.
+assert.match(listsJs, /client_id: usesBusinessScope\(\) \? requireListsHandle\(listClientInput, "list client select"\)\.value : ""/, "Lists pilot should preserve Personal/Family workspace scope payloads");
 assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/, "Lists pilot should preserve Business control visibility");
 assert.match(listsJs, /setContextControlsVisible\(usesBusinessScope\(\)\)/, "Lists pilot should preserve context control initialization");
 assert.ok(
