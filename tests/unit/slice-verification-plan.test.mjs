@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createChangedRegressionPlan } from "../../scripts/lib/changed-regression-runner.mjs";
 import {
+  NOTHING_VERIFIED_STATUS,
   createSliceVerificationPlan,
   executeSliceVerificationPlan,
   formatSliceVerificationSummary,
@@ -39,9 +40,10 @@ describe("slice verification planning", () => {
     expect(plan.commands).not.toContain("npm run typecheck");
   });
 
-  it("enforces the strict ledger exactly once in every plan", () => {
+  it("enforces the strict ledger exactly once in every plan that runs", () => {
+    // `0.33.33.25.11`: an empty selection runs nothing at all, so it schedules no ledger either.
+    expect(planFor([]).commands).toEqual([]);
     for (const paths of [
-      [],
       ["CHANGELOG.md"],
       ["src/modules/tasks/tasks.service.js"],
       ["src/core/shared-context.js"],
@@ -111,13 +113,28 @@ describe("slice verification planning", () => {
     expect(invocations).toEqual(["npm run closeout"]);
   });
 
-  it("runs closeout and the strict ledger without inventing an expensive regression for an empty change set", () => {
+  it("refuses an empty change set rather than reporting a pass", () => {
+    // `0.33.33.25.11`: closeout and the ledger alone used to report `Status: passed`, which a
+    // committed checkpoint without a base reached every time. Nothing runs and the run fails.
     const plan = planFor([]);
+    /** @type {string[]} */
+    const invocations = [];
+    const result = executeSliceVerificationPlan(plan, {
+      runCommand: (command) => {
+        invocations.push(command);
+        return { status: 0 };
+      },
+    });
+    const summary = formatSliceVerificationSummary(plan, result);
 
     expect(plan.mode).toBe("empty");
-    expect(plan.commands).toEqual(["npm run closeout", "npm run typecheck"]);
-    expect(plan.fullCheckIncluded).toBe(false);
-    expect(plan.permissionHarnessIncluded).toBe(false);
+    expect(plan.refused).toBe(true);
+    expect(plan.commands).toEqual([]);
+    expect(invocations).toEqual([]);
+    expect(result.status).toBe(NOTHING_VERIFIED_STATUS);
+    expect(summary).toMatch(/Status: not verified/);
+    expect(summary).toMatch(/LTF_REGRESSION_BASE_SHA/);
+    expect(summary).not.toMatch(/pass/i);
   });
 
   it("formats the mode, executed commands, escalation, permissions, and no-rerun guidance", () => {

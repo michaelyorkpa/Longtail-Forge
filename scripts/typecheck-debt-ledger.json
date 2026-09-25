@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.33",
+  "checkpoint": "0.33.33.25.11",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -782,6 +782,7 @@
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/user-settings-contracts.test.mjs",
         "tests/unit/user-settings-preferences-contracts.test.mjs",
+        "tests/unit/verification-coverage-contracts.test.mjs",
         "tests/unit/view-action-permission-retirement.test.mjs",
         "tests/unit/view-builder-node-and-values.test.mjs",
         "tests/unit/view-data-table-surface.test.mjs",
@@ -1616,7 +1617,7 @@
     }
   },
   "totals": {
-    "files": 1517,
+    "files": 1518,
     "errors": 164,
     "explicitAny": 0
   },

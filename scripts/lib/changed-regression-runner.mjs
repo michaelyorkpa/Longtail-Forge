@@ -3,9 +3,9 @@ import { runPackageScript } from "./package-script-runner.mjs";
 
 /**
  * @typedef {{ areas: readonly string[], fullCheck: boolean, path: string, reason: string }} ChangedRegressionMatch
- * @typedef {{ areas: readonly string[], commands: readonly string[], fallback: boolean, fullCheckRecommended: boolean, matches: readonly ChangedRegressionMatch[], paths: readonly string[], releaseGate: string }} RegressionSuggestion
+ * @typedef {{ areas: readonly string[], commands: readonly string[], fallback: boolean, fullCheckRecommended: boolean, matches: readonly ChangedRegressionMatch[], paths: readonly string[], releaseGate: string, unroutedPaths: readonly string[] }} RegressionSuggestion
  * @typedef {(filePaths: readonly string[], options: { versionBookkeepingPaths?: readonly string[] }) => RegressionSuggestion} SuggestRegressionsForPaths
- * @typedef {{ areas: readonly string[], commands: readonly string[], matches: readonly ChangedRegressionMatch[], mode: string, paths: readonly string[], releaseGate: string }} ChangedRegressionPlan
+ * @typedef {{ areas: readonly string[], commands: readonly string[], matches: readonly ChangedRegressionMatch[], mode: string, paths: readonly string[], releaseGate: string, unroutedPaths: readonly string[] }} ChangedRegressionPlan
  * @typedef {{ command: string, status: number | null | undefined }} ExecutedChangedRegressionCommand
  */
 
@@ -36,6 +36,7 @@ function createChangedRegressionPlan(filePaths = [], { prechecked = false, versi
     mode,
     paths: suggestion.paths,
     releaseGate: suggestion.releaseGate,
+    unroutedPaths: suggestion.unroutedPaths,
   });
 }
 
@@ -64,6 +65,9 @@ function formatChangedRegressionPlan(plan) {
   } else {
     for (const match of plan.matches) {
       lines.push(`- ${match.path}: ${match.reason} -> ${match.areas.join(", ")}`);
+    }
+    for (const filePath of plan.unroutedPaths) {
+      lines.push(`- ${filePath}: no route matched -> full gate`);
     }
   }
 

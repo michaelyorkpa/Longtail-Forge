@@ -7,13 +7,18 @@ const TYPECHECK_COMMAND = "npm run typecheck";
 const FULL_CHECK_COMMAND = "npm run check";
 const FULL_REGRESSION_COMMAND = "npm run test:regressions";
 const PERMISSION_REGRESSION_COMMAND = "npm run test:regressions:permissions";
+/** The exit status of a run that selected nothing, which is not a verification. */
+const NOTHING_VERIFIED_STATUS = 2;
+const NOTHING_VERIFIED_HINT = "A committed checkpoint is verified against its base: set LTF_REGRESSION_BASE_SHA to the full "
+  + "40-character base commit (for example the output of `git merge-base origin/nightly HEAD`). Without it only uncommitted "
+  + "edits are inspected, and a clean tree has none.";
 
 /**
  * @typedef {import("./changed-regression-runner.mjs").ChangedRegressionPlan} ChangedRegressionPlan
  * @typedef {import("./changed-regression-runner.mjs").ChangedRegressionMatch} ChangedRegressionMatch
  * @typedef {{ command: string | null, id: string, included: boolean, label: string, reason: string }} SliceVerificationStage
  * @typedef {{ find(predicate: (item: SliceVerificationStage, index: number, stages: readonly SliceVerificationStage[]) => boolean): SliceVerificationStage } & readonly SliceVerificationStage[]} SliceVerificationStages
- * @typedef {{ areas: readonly string[], commands: readonly string[], fullCheckIncluded: boolean, matches: readonly ChangedRegressionMatch[], mode: string, paths: readonly string[], permissionHarnessIncluded: boolean, stages: SliceVerificationStages }} SliceVerificationPlan
+ * @typedef {{ areas: readonly string[], commands: readonly string[], fullCheckIncluded: boolean, matches: readonly ChangedRegressionMatch[], mode: string, paths: readonly string[], permissionHarnessIncluded: boolean, refused: boolean, stages: SliceVerificationStages, unroutedPaths: readonly string[] }} SliceVerificationPlan
  * @typedef {SliceVerificationStage & { outcome: "passed" | "failed" | "skipped", seconds: number, status?: number }} SliceVerificationStageResult
  * @typedef {{ executed: readonly { command: string | null, status: number | undefined }[], stages: readonly SliceVerificationStageResult[], status: number }} SliceVerificationResult
  */
@@ -25,6 +30,27 @@ const PERMISSION_REGRESSION_COMMAND = "npm run test:regressions:permissions";
 function createSliceVerificationPlan(changedRegressionPlan) {
   if (!changedRegressionPlan || !Array.isArray(changedRegressionPlan.commands)) {
     throw new TypeError("A changed-regression plan is required.");
+  }
+
+  // An empty selection is refused rather than run (`0.33.33.25.11`). Closeout and the ledger alone
+  // used to report `Status: passed`, which a committed checkpoint without a base reached every time.
+  if (changedRegressionPlan.mode === "empty") {
+    const refusedStages = Object.freeze([
+      stage("context", "Context/setup", null, true, "changed paths and routing plan collected"),
+      stage("refused", "Verification", null, false, "no changed paths were selected"),
+    ]);
+    return Object.freeze({
+      areas: changedRegressionPlan.areas,
+      commands: Object.freeze([]),
+      fullCheckIncluded: false,
+      matches: changedRegressionPlan.matches,
+      mode: changedRegressionPlan.mode,
+      paths: changedRegressionPlan.paths,
+      permissionHarnessIncluded: false,
+      refused: true,
+      stages: /** @type {SliceVerificationStages} */ (refusedStages),
+      unroutedPaths: changedRegressionPlan.unroutedPaths,
+    });
   }
 
   const fullCheckIncluded = changedRegressionPlan.mode === "full-check";
@@ -53,7 +79,9 @@ function createSliceVerificationPlan(changedRegressionPlan) {
     mode: changedRegressionPlan.mode,
     paths: changedRegressionPlan.paths,
     permissionHarnessIncluded,
+    refused: false,
     stages: /** @type {SliceVerificationStages} */ (stages),
+    unroutedPaths: changedRegressionPlan.unroutedPaths,
   });
 }
 
@@ -63,6 +91,13 @@ function createSliceVerificationPlan(changedRegressionPlan) {
  * @returns {SliceVerificationResult}
  */
 function executeSliceVerificationPlan(plan, { contextSeconds = 0, runCommand = runNpmCommand } = {}) {
+  if (plan.refused) {
+    return Object.freeze({
+      executed: Object.freeze([]),
+      stages: Object.freeze(plan.stages.map((item) => Object.freeze({ ...item, outcome: /** @type {const} */ ("skipped"), seconds: 0 }))),
+      status: NOTHING_VERIFIED_STATUS,
+    });
+  }
   /** @type {SliceVerificationStageResult[]} */
   const results = [];
   let failed = false;
@@ -107,6 +142,15 @@ function formatSliceVerificationPlan(plan) {
     lines.push("Routing reasons:");
     for (const match of plan.matches) lines.push(`- ${match.path}: ${match.reason} -> ${match.areas.join(", ")}`);
   }
+  if (plan.unroutedPaths.length > 0) {
+    lines.push("Unrouted paths (each escalates to the full gate):");
+    for (const filePath of plan.unroutedPaths) lines.push(`- ${filePath}`);
+  }
+  if (plan.refused) {
+    lines.push("Nothing to verify: no changed paths were selected.");
+    lines.push(NOTHING_VERIFIED_HINT);
+    return lines.join("\n");
+  }
   lines.push("Stages scheduled:");
   for (const item of plan.stages) lines.push(`- ${item.label}: ${item.included ? item.command || "included" : `skipped (${item.reason})`}`);
   return lines.join("\n");
@@ -118,6 +162,14 @@ function formatSliceVerificationPlan(plan) {
  * @returns {string}
  */
 function formatSliceVerificationSummary(plan, result) {
+  if (plan.refused) {
+    return [
+      "Slice verification timing summary",
+      `Changed-regression mode: ${plan.mode}`,
+      "Status: not verified - no changed paths were selected, so nothing was run.",
+      NOTHING_VERIFIED_HINT,
+    ].join("\n");
+  }
   const lines = ["Slice verification timing summary", `Changed-regression mode: ${plan.mode}`];
   for (const item of result.stages) {
     lines.push(`- [${item.outcome.toUpperCase()}] ${item.label}: ${item.seconds.toFixed(2)}s${item.reason && item.outcome === "skipped" ? ` (${item.reason})` : ""}`);
@@ -151,6 +203,7 @@ export {
   FAST_CHECK_COMMAND,
   FULL_CHECK_COMMAND,
   FULL_REGRESSION_COMMAND,
+  NOTHING_VERIFIED_STATUS,
   PERMISSION_REGRESSION_COMMAND,
   TYPECHECK_COMMAND,
   createSliceVerificationPlan,

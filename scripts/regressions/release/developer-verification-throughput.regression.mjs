@@ -63,11 +63,16 @@ assert.ok(!fullSlice.commands.includes("npm run test:permissions"), "slice verif
 const permissionSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/routes/permissions.routes.js"]));
 assert.equal(permissionSlice.permissionHarnessIncluded, true);
 assert.deepEqual(permissionSlice.commands.filter((command) => /permission/.test(command)), [], "permission routing should reach the harness through the one full registry command");
-for (const narrowPaths of [[], ["CHANGELOG.md"], ["src/modules/tasks/tasks.service.js"], ["src/db/schema/current.sql"]]) {
+for (const narrowPaths of [["CHANGELOG.md"], ["src/modules/tasks/tasks.service.js"], ["src/db/schema/current.sql"]]) {
   const routedSlice = createSliceVerificationPlan(createChangedRegressionPlan(narrowPaths));
   const ledgerCommands = routedSlice.commands.filter((command) => command === "npm run typecheck" || command === "npm run check:fast");
-  assert.equal(ledgerCommands.length, 1, `every routing outcome must schedule the strict ledger exactly once (${narrowPaths.join(", ") || "empty"})`);
+  assert.equal(ledgerCommands.length, 1, `every routing outcome must schedule the strict ledger exactly once (${narrowPaths.join(", ")})`);
 }
+// `0.33.33.25.11`: an empty selection is refused rather than run, so it schedules nothing - not even
+// the ledger - and never reports a pass.
+const emptySlice = createSliceVerificationPlan(createChangedRegressionPlan([]));
+assert.equal(emptySlice.refused, true, "an empty selection is refused");
+assert.deepEqual(emptySlice.commands, [], "and schedules nothing");
 // The synthetic ledger is written here and read back three times. It is bound
 // as an object and cloned rather than round-tripped through JSON.parse, which
 // would answer `any` for a value this owner then mutates member by member.
