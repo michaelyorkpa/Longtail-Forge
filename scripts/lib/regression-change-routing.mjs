@@ -214,14 +214,19 @@ function collectChangedChangeSet({ cwd = process.cwd() } = {}) {
   if (baseSha && !/^[a-f0-9]{40}$/i.test(baseSha)) {
     throw new Error("LTF_REGRESSION_BASE_SHA must be a full 40-character commit SHA.");
   }
-  const trackedEntries = parseNameStatusDiff(baseSha
-    ? runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", `${baseSha}...HEAD`, "--"], cwd)
-    : runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", "HEAD", "--"], cwd));
+  // A committed range alone misses a tracked file that is edited but not yet committed, so the
+  // working tree's own changes against `HEAD` are collected with or without a base
+  // (`0.33.33.25.11`). Untracked files were always included.
+  const rangeEntries = baseSha
+    ? parseNameStatusDiff(runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", `${baseSha}...HEAD`, "--"], cwd))
+    : [];
+  const workingTreeEntries = parseNameStatusDiff(runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", "HEAD", "--"], cwd));
+  const trackedEntries = Object.freeze([...rangeEntries, ...workingTreeEntries]);
   const tracked = trackedEntries.flatMap(({ paths }) => paths);
   const untracked = runGit(["ls-files", "--others", "--exclude-standard"], cwd);
   const paths = Object.freeze([...new Set([...tracked, ...untracked].map(normalizeChangedPath).filter(Boolean))].sort());
   const versionBookkeepingPaths = inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked });
-  return Object.freeze({ entries: trackedEntries, paths, versionBookkeepingPaths });
+  return Object.freeze({ baseSha: baseSha || null, entries: trackedEntries, paths, versionBookkeepingPaths });
 }
 
 /**
@@ -334,7 +339,12 @@ function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = 
   const commands = Object.keys(AREA_COMMANDS)
     .filter((area) => areas.has(area))
     .map((area) => AREA_COMMANDS[area]);
-  const fallback = paths.length > 0 && commands.length === 0;
+  // The fallback is per path (`0.33.33.25.11`). It used to fire only when nothing routed, so a
+  // bookkeeping path that always routes - `ROADMAP.md` to `release` - left an unrouted source file
+  // beside it with focused coverage and no units, lint or area regressions. Any path no route
+  // claims now escalates the whole plan to the full gate.
+  const unroutedPaths = paths.filter((filePath) => !matches.some((match) => match.path === filePath));
+  const fallback = unroutedPaths.length > 0;
   const fullCheckRecommended = fallback || matches.some((match) => match.fullCheck);
 
   return Object.freeze({
@@ -345,6 +355,7 @@ function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = 
     matches: Object.freeze(matches),
     paths: Object.freeze(paths),
     releaseGate: "npm run check",
+    unroutedPaths: Object.freeze(unroutedPaths),
   });
 }
 

@@ -20,6 +20,9 @@ const changedRegressionPlan = createChangedRegressionPlan(changeSet.paths, {
 const plan = createSliceVerificationPlan(changedRegressionPlan);
 const contextSeconds = (performance.now() - contextStarted) / 1000;
 
+console.log(changeSet.baseSha
+  ? `Change set: ${changeSet.baseSha}...HEAD, plus uncommitted and untracked edits`
+  : "Change set: uncommitted and untracked edits against HEAD (LTF_REGRESSION_BASE_SHA is not set)");
 console.log(formatSliceVerificationPlan(plan));
 const result = executeSliceVerificationPlan(plan, { contextSeconds });
 console.log(`\n${formatSliceVerificationSummary(plan, result)}`);
