@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.46` | `workbench.js` — typing complete and integrated at `0.33.33.42.45` (0 raw / 0 owned / 0 DOM). Next: Task Focus extraction, the open `.42` acceptance criterion | 0 owned |
-| Claude | `0.33.33.43.49` | Related-projects region and the hierarchy tail typed at `0.33.33.43.48`. `clients-projects.js` 92 and `lists.js` 30 remain, all owned families. Next: the project assignment/context cluster, including its result and callback contracts | 122 |
+| Claude | `0.33.33.43.50` | Project assignment and context typed at `0.33.33.43.49`. `clients-projects.js` 75 and `lists.js` 30 remain, all owned families. Next: the record writers - client and project create, save and archive, and the tag-payload helpers | 105 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1604,6 +1604,10 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.49 - Clients/Projects project assignment and context
+
+**Complete: 17 diagnostics closed, with the result and callback contracts traced first.** See the archive entry. The Add Client shortcut's callback is declared, and its result is read through a checked reader without a cast. The context rows narrow their actions. `clients-projects.js` 92 to 75, browser 122 to 105.
 
 #### 0.33.33.43.48 - Clients/Projects related-projects region and the hierarchy tail
 
