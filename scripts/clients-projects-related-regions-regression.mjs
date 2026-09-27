@@ -13,7 +13,9 @@ assert.match(
 );
 
 const relatedRegionBody = extractFunctionBody(clientsProjectsScript, "createRelatedProjectsRegion");
-assert.match(relatedRegionBody, /createRelatedProjectTableList\(client, relatedProjects, options\)/, "Related Project reads should use the shared table list by default");
+// `0.33.33.43.48` dropped the dead `options` argument the table list never declared; the pin keeps
+// its intent - the table list is the default branch - on the call as it now reads.
+assert.match(relatedRegionBody, /\n\s+: createRelatedProjectTableList\(client, relatedProjects\);/, "Related Project reads should use the shared table list by default");
 assert.match(relatedRegionBody, /createCollapsibleIndexPanel\(\{[\s\S]*title:\s*"Projects"/, "Related Project reads should use a framework-owned collapsible region shell");
 assert.doesNotMatch(relatedRegionBody, /document\.createElement\("details"\)/, "Related Project region should not hand-build a details shell");
 

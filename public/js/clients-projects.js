@@ -2047,15 +2047,28 @@
     return String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" });
   }
 
+  /**
+   * A client's ancestor names root first, joined by `/`, so a tree sorts under its parents.
+   *
+   * `lookupClient` is the same object as `currentClient` at the moment of the search, named so the
+   * callback does not capture the binding that is about to be reassigned (`0.33.33.43.48`). The
+   * parent id is still read inside the callback, once per candidate and not at all when there is
+   * none, exactly as before. The annotation on the alias is load-bearing: without it the compiler
+   * infers it from the loop's reassignment and reports a circular inference.
+   * @param {NormalizedClientRecord} client
+   */
   function getClientTreeSortKey(client) {
     const names = [];
+    /** @type {NormalizedClientRecord | undefined} */
     let currentClient = client;
     const visited = new Set();
 
     while (currentClient && !visited.has(currentClient.id)) {
       visited.add(currentClient.id);
       names.unshift(currentClient.name || "");
-      currentClient = getRealClients().find((item) => item.id === currentClient.parent_client_id);
+      /** @type {NormalizedClientRecord} */
+      const lookupClient = currentClient;
+      currentClient = getRealClients().find((item) => item.id === lookupClient.parent_client_id);
     }
 
     return names.join("/");
@@ -2606,11 +2619,25 @@
     });
   }
 
+  /**
+   * The presentation switches the related-projects region reads. No caller passes any of them
+   * today: the Edit Client dialog renders the collapsible project table.
+   * @typedef {{ editorRows?: boolean, collapsible?: boolean, flat?: boolean }} RelatedProjectsRegionOptions
+   */
+
+  /**
+   * A client's projects, as editor rows or a hierarchy table, collapsible unless told otherwise.
+   *
+   * The table list is called with the two arguments it declares. It was also handed `options`,
+   * which it never read; that dead argument was dropped at `0.33.33.43.48`.
+   * @param {NormalizedClientRecord} client
+   * @param {RelatedProjectsRegionOptions} [options]
+   */
   function createRelatedProjectsRegion(client, options = {}) {
     const relatedProjects = sortProjectsForClient(client);
     const list = options.editorRows
       ? createRelatedProjectEditorList(client, relatedProjects, options)
-      : createRelatedProjectTableList(client, relatedProjects, options);
+      : createRelatedProjectTableList(client, relatedProjects);
 
     if (options.collapsible === false) {
       return list;
@@ -2625,6 +2652,11 @@
     });
   }
 
+  /**
+   * @param {NormalizedClientRecord} client
+   * @param {NormalizedProjectRecord[]} projects In the tree order `sortProjectsForClient` answers.
+   * @param {RelatedProjectsRegionOptions} [options]
+   */
   function createRelatedProjectEditorList(client, projects, options = {}) {
     const rows = projects.length
       ? projects.map((project) => createProjectEditor(client, project))
@@ -2642,6 +2674,7 @@
     });
   }
 
+  /** @param {NormalizedClientRecord} client @param {NormalizedProjectRecord[]} projects */
   function createRelatedProjectTableList(client, projects) {
     return requireView().createListShell({
       className: "client-projects-related-list",
@@ -2651,6 +2684,12 @@
     });
   }
 
+  /**
+   * The related projects as a hierarchy table. The view contract types its columns `unknown[]`, so
+   * each renderer names its row: `renderCell` hands back the very objects passed as `rows`.
+   * @param {NormalizedClientRecord} client
+   * @param {NormalizedProjectRecord[]} projects
+   */
   function createRelatedProjectsDataTable(client, projects) {
     return requireView().createDataTable({
       className: "client-projects-related-table-wrap",
@@ -2664,7 +2703,7 @@
           key: "name",
           label: "Project",
           header: true,
-          render: (row) => createRelatedProjectNameCell(row),
+          render: (/** @type {ReturnType<typeof relatedProjectRow>} */ row) => createRelatedProjectNameCell(row),
         },
         { key: "status", label: "Status" },
         { key: "billingSummary", label: "Billing" },
@@ -2673,7 +2712,7 @@
           key: "actions",
           label: "Actions",
           align: "right",
-          render: (row) => createRelatedProjectActionStrip(row),
+          render: (/** @type {ReturnType<typeof relatedProjectRow>} */ row) => createRelatedProjectActionStrip(row),
         },
       ],
       rows: projects.map((project) => relatedProjectRow(client, project)),
@@ -2681,6 +2720,7 @@
     });
   }
 
+  /** @param {ReturnType<typeof relatedProjectRow>} row */
   function createRelatedProjectNameCell(row) {
     const wrapper = document.createElement("span");
     wrapper.className = "client-projects-related-name";
@@ -2711,6 +2751,7 @@
     });
   }
 
+  /** @param {NormalizedClientRecord} client @param {NormalizedProjectRecord} project */
   function relatedProjectRow(client, project) {
     return {
       id: project.id,
@@ -2749,6 +2790,7 @@
     ].filter(Boolean).join(" / ");
   }
 
+  /** @param {NormalizedProjectRecord} project */
   function formatProjectTaskDefaultsSummary(project) {
     const defaults = normalizeProjectTaskDefaults(project.taskDefaults);
     return [
