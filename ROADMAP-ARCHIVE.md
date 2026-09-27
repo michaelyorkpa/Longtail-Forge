@@ -1,5 +1,42 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.49 - Clients/Projects project assignment and context
+
+**Model: High Effort** - this cluster carried a result contract and a callback contract, and the compiler flagged both. Both were traced before any typing.
+
+- [x] **Measured.** On `nightly` `355992d2`: 16 diagnostics.
+  - The assignment pickers, 4 TS7006.
+  - The Add Project client assignment, 2 TS7006 and a TS2322.
+  - The context region, rows and strip, 3 TS7006.
+  - `createAddClientShortcutButton`, 2 TS2339 and a TS2349.
+  - The default and selected-filter readers, a TS7006 and a TS7005.
+  - Plus one TS7006 each on the two readers the rows and the client picker call, `getProjectTargetClient` and `getProjectClientName`.
+- [x] **The contracts, traced through both producers.**
+  - **Result.** `openClientProjectModuleAction("clients.add")` has two producers.
+    - **Registry path.** Both Clients and Projects pages load it, and every other page reaches the dialog through it. It resolves a `ModuleActionOutcome`: `completed` true and `detail` `{ actionId, recordId }` on save, `completed` false on cancel.
+    - **Fallback.** Used only without the registry, it resolves the dialog's close reason as text (`"complete"`, `"cancel"`, `"closed"`), with no host context and no record id.
+    - **Observation, not corrected:** a fallback create cannot refresh the Add Project picker, because the text carries no id. No page reaches the fallback today.
+  - **Callback.** `onCreated` is always the Add Project form's refresh-and-dispatch function. Its `null` default inferred `null`, which produced both the TS2322 and the TS2349. **There is no runtime defect.**
+- [x] **The change.**
+  - **Callback.** `onCreated` is declared as the optional callback it always was.
+  - **Result.** It is read through a local `readActionResultMember`. The reader performs `result?.completed ? result.detail?.recordId || "" : ""`'s own reads over a result declared `unknown`: the same nullish tests, and the original value as receiver. There is no cast to `ModuleActionOutcome`, and a close string is never read as a creation.
+  - **Rows.** The first context row's `.filter(Boolean)` became a narrowing `!== null` filter. Every element is an action object or `null`, so it removes exactly the same entries. That let the action strip's row be declared; it had been left undeclared by record for this boundary.
+  - **Readers.** The pickers, region, rows and default, target and name readers are typed from their callers. The parent picker takes a `Pick` of the three members the Add Project form's stub carries, and the select parameter is `HTMLSelectElement | null`, which its early return handles.
+  - **Left as recorded.** `selectedProjectClientFilterValue`'s TS7005 stays, because the file records its surface variable as deliberately undeclared.
+- [x] **Proof.**
+  - **Body identity.** Only the filter and the result reads reach a body.
+  - **Rendered comparison.** The real builders ran beside their `355992d2` versions through the real view builder, on a hierarchy `normalizeData` builds. They rendered identically with and without top-level client creation, and outside Business.
+  - **Both dispatch paths**, driven through a real click, answered as before:
+    - registry: completed with an id, cancelled, completed without an id, completed with no detail, and rejected;
+    - fallback: `complete`, `cancel` and `closed`.
+  - **Receiver probe.** A strict `String.prototype` getter shows a close string is still read with the string itself as receiver.
+  - **Mutations.** Eight behaviour mutations were each caught by the runtime tests, including losing the receiver, reading a close string as a creation, and firing the callback without an id. Restoring either edit is runtime-equivalent, which proves both inert.
+  - **Compiler probes.** Each of seven annotations and the filter is load-bearing.
+- [x] **Pin moved.** `client-modal-footer-actions` pinned `result?.completed` by spelling. It now pins the completion gate as it reads, and was proved still to fail when the gate is removed. **A Bash grep had missed the escaped form**, because the shell wrapper mangles backslashes. The search was redone with ripgrep, and the lesson is recorded.
+- [x] **Rendered.** The five Clients/Projects browser specs pass at both viewports, as the separate rendered gate. One of them is Add Project's nested Add Client flow, which asserts the created client becomes the selected option.
+- [x] **Accounting.** `clients-projects.js` 92 to 75, browser 122 to 105: **17 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.42.45 - Preserve opaque Inspector candidate dispatch
 
 **Model: High Effort** - Inspector reads determine action identity, navigation, focus and completion, including opaque host values.

@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.46` | `workbench.js` — typing complete and integrated at `0.33.33.42.45` (0 raw / 0 owned / 0 DOM). Next: Task Focus extraction, the open `.42` acceptance criterion | 0 owned |
-| Claude | `0.33.33.43.49` | Related-projects region and the hierarchy tail typed at `0.33.33.43.48`. `clients-projects.js` 92 and `lists.js` 30 remain, all owned families. Next: the project assignment/context cluster, including its result and callback contracts | 122 |
+| Claude | `0.33.33.43.50` | Project assignment and context typed at `0.33.33.43.49`. `clients-projects.js` 75 and `lists.js` 30 remain, all owned families. Next: the record writers - client and project create, save and archive, and the tag-payload helpers | 105 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1607,39 +1607,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.49 - Clients/Projects project assignment and context
 
-**Model: High Effort** - this cluster carries a result contract and a callback contract, and the compiler flags both. They were traced before any typing.
-
-**Measured on `nightly` `355992d2`:** 16 diagnostics:
-
-- **Pickers.** The client and parent-project assignment pickers and the parent-project select, 4 TS7006.
-- **Add Project client assignment.** 2 TS7006 and a TS2322.
-- **Context.** The context region, rows and action strip, 3 TS7006.
-- **`createAddClientShortcutButton`.** 2 TS2339 and a TS2349.
-- **Readers.** The default-client reader (1 TS7006) and the selected-filter reader (1 TS7005).
-
-The two connected readers the context rows and the client picker call, `getProjectTargetClient` and `getProjectClientName`, add one TS7006 each.
-
-**The contracts, traced:**
-
-- **Result.** `openClientProjectModuleAction("clients.add")` has two producers.
-  - **Registry path.** Both Clients and Projects pages load it, and every other page reaches the dialog through it. It resolves a `ModuleActionOutcome`: `completed` true and `detail` `{ actionId: "clients.add", recordId }` on save, `completed` false on cancel.
-  - **Fallback.** Used only when the registry is absent, it resolves the dialog's close reason as text (`"complete"`, `"cancel"`, `"closed"`), with no host context and no record id.
-  - The shortcut reads `result?.completed`, so the fallback's text never reads as a creation. **Observation, not a correction:** after a fallback create, the shortcut therefore does not refresh the Add Project client picker. No page reaches the fallback today, and the text carries no id to select.
-- **Callback.** `onCreated` is always the Add Project form's refresh-and-dispatch function. Its `null` default made the compiler infer the option as `null`, which is both the TS2322 at the caller and the TS2349 at `onCreated?.(clientId)`. There is no runtime defect.
-- **Action strip.** Its `row` was left undeclared by record, because the rows builder's `.filter(Boolean)` removes `null` without narrowing the element type. That fix belongs to this context-rows boundary.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Callback.** Declare `onCreated` as the optional callback it always was.
-- [ ] **Result.** Read `completed`, `detail` and `recordId` through a local checked reader. It performs exactly the reads `result?.completed ? result.detail?.recordId || "" : ""` performed - the same nullish tests, the same receivers - over a result declared `unknown`. No cast to `ModuleActionOutcome`, and no close string treated as a creation.
-- [ ] **Rows.** Replace the first context row's `.filter(Boolean)` with a narrowing `!== null` filter. Every element is an action object or `null`, so it removes exactly what `Boolean` removed. Then declare the action strip's row and the table's render callback from the builder.
-- [ ] **The rest.** Type the pickers, the context region and rows, and the default, target and name readers from their callers: `NormalizedProjectRecord`, a `Pick` of the three members the parent picker reads (the Add Project form passes a stub), `NormalizedClientEntry`, `HTMLSelectElement | null`, and text ids. Use no `any`, casts or suppressions.
-- [ ] **Left as recorded.** `selectedProjectClientFilterValue`'s TS7005 is on `activeClientProjectsReadSurface`, which the file records as deliberately undeclared and belonging to the surface boundary.
-- [ ] **Proof.**
-  - Bodies are unchanged but for the reader and the filter.
-  - The real builders and both dispatch paths run beside their `355992d2` versions.
-  - Mutations and compiler probes; spellings searched raw and as escaped regexes.
-  - The rendered gate covers Edit Client and Add Project.
+**Complete: 17 diagnostics closed, with the result and callback contracts traced first.** See the archive entry. The Add Client shortcut's callback is declared, and its result is read through a checked reader without a cast. The context rows narrow their actions. `clients-projects.js` 92 to 75, browser 122 to 105.
 
 #### 0.33.33.43.48 - Clients/Projects related-projects region and the hierarchy tail
 
