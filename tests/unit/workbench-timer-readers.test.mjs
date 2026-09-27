@@ -5,7 +5,7 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 const source = createProjectTextReader().readText("public/js/workbench.js");
 function fixture() {
   const scope = vm.createContext({});
-  for (const name of ["workbenchSourceField", "taskTimerMatches", "isManualTimerCandidate", "sortedTimers", "activeOrPausedTimers", "isTaskTimer", "timerKey"])
+  for (const name of ["workbenchCandidateField", "workbenchSourceField", "taskTimerMatches", "isManualTimerCandidate", "sortedTimers", "activeOrPausedTimers", "isTaskTimer", "timerKey"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   return scope;
 }

@@ -28,7 +28,7 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "candidateActionLabel"),
-  /candidateTaskId\(candidate\)[\s\S]*return "Focus task";[\s\S]*isManualTimerCandidate\(candidate\)[\s\S]*return "Continue in Time Tracking";[\s\S]*candidateModuleAction\(candidate\)[\s\S]*return candidate\.primaryAction\?\.label \|\| "Open work";[\s\S]*candidate\.sourceUrl \|\| candidate\.primaryAction\?\.href[\s\S]*return "Open work";/,
+  /candidateTaskId\(candidate\)[\s\S]*return "Focus task";[\s\S]*isManualTimerCandidate\(candidate\)[\s\S]*return "Continue in Time Tracking";[\s\S]*candidateModuleAction\(candidate\)[\s\S]*return workbenchSourceField\(workbenchCandidateField\(candidate, "primaryAction"\), "label", true\) \|\| "Open work";[\s\S]*workbenchCandidateField\(candidate, "sourceUrl"\) \|\| workbenchSourceField\(workbenchCandidateField\(candidate, "primaryAction"\), "href", true\)[\s\S]*return "Open work";/,
   "Task candidates should focus the task, manual timers should name their Time Tracking handoff, module actions may supply a source-owned label, and page fallbacks keep the generic label",
 );
 
@@ -52,7 +52,7 @@ assert.match(
 );
 assert.match(
   openTaskCandidateBody,
-  /(?:window\.LongtailForge\.)?moduleActions\.open\("tasks\.edit", \{[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*candidateId: candidate\.candidateId \|\| ""[\s\S]*recordId: taskId[\s\S]*returnFocusTo: trigger \|\| document\.activeElement[\s\S]*taskId,[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/,
+  /(?:window\.LongtailForge\.)?moduleActions\.open\("tasks\.edit", \{[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*candidateId: workbenchCandidateField\(candidate, "candidateId"\) \|\| ""[\s\S]*recordId: taskId[\s\S]*returnFocusTo: trigger \|\| document\.activeElement[\s\S]*taskId,[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/,
   "Task candidate opening should reuse the canonical registered Task edit action with refresh and focus-return context",
 );
 assert.match(
@@ -79,12 +79,12 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "isManualTimerCandidate"),
-  /candidate\.moduleId === "time-tracking"[\s\S]*candidate\.recordType === "active_work_timer"[\s\S]*candidate\.metadata\?\.source_type \|\| "manual"/,
+  /workbenchCandidateField\(candidate, "moduleId"\) === "time-tracking"[\s\S]*workbenchCandidateField\(candidate, "recordType"\) === "active_work_timer"[\s\S]*workbenchSourceField\(workbenchCandidateField\(candidate, "metadata"\), "source_type", true\) \|\| "manual"/,
   "only Time Tracking-owned manual active-timer candidates should receive the explicit timer handoff",
 );
 assert.match(
   functionBody(workbenchScript, "candidatePageFallback"),
-  /isManualTimerCandidate\(candidate\)[\s\S]*return "time-tracker\.html";[\s\S]*candidate\.primaryAction\?\.href \|\| candidate\.sourceUrl/,
+  /isManualTimerCandidate\(candidate\)[\s\S]*return "time-tracker\.html";[\s\S]*workbenchSourceField\(workbenchCandidateField\(candidate, "primaryAction"\), "href", true\) \|\| workbenchCandidateField\(candidate, "sourceUrl"\)/,
   "manual timers should deliberately navigate to the Time Tracking page without a Workbench-owned editor or unstable record opener",
 );
 assert.doesNotMatch(

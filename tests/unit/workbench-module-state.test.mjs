@@ -10,7 +10,7 @@ function fixture() {
   const statuses = source.match(/const WORKBENCH_MODULE_STATUSES = Object\.freeze\([^;]+;/);
   assert.ok(statuses);
   vm.runInContext(statuses[0], scope);
-  for (const name of ["normalizeModuleStateMap", "moduleEnabled", "enabledModuleIds", "workbenchSourceField", "isBootstrapRecord", "isWorkbenchModuleState", "readWorkbenchModuleStates"])
+  for (const name of ["workbenchCardPropertyKey", "normalizeModuleStateMap", "moduleEnabled", "enabledModuleIds", "workbenchSourceField", "isBootstrapRecord", "isWorkbenchModuleState", "readWorkbenchModuleStates"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   vm.runInContext(extractFunctionBlock(reader.readText("src/services/workbench.service.js"), "buildModuleStateMap"), scope);
   return scope;

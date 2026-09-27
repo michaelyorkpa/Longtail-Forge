@@ -9,7 +9,7 @@ function fixture() {
     state: { activeTaskFocus: null },
     document: { createElement: () => ({ dataset: {}, textContent: "", className: "" }) },
   });
-  for (const name of ["looksLikeRawId", "safeCandidateText", "safeTaskFocusText", "formatToken", "formatCandidateDate", "badge", "taskFocusFromCandidate", "taskFocusBadges", "taskFocusDueText", "taskFocusContextLabel", "taskFocusTagBadges"])
+  for (const name of ["workbenchCandidateField", "looksLikeRawId", "safeCandidateText", "safeTaskFocusText", "formatToken", "formatCandidateDate", "badge", "taskFocusFromCandidate", "taskFocusBadges", "taskFocusDueText", "taskFocusContextLabel", "taskFocusTagBadges"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   return scope;
 }
