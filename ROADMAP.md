@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM). The Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` (module-action keys) and `0.33.33.38.2.11` (navigation hrefs), and resumes on the integrated baseline; then extraction | 1 owned |
-| Claude | `0.33.33.43.48` | Hierarchy readers typed at `0.33.33.43.47`. `clients-projects.js` 112 and `lists.js` 30 remain, all owned families; the next children are the related-projects region and project-assignment clusters, drawn from live evidence. `getClientTreeSortKey` awaits the operator's ruling on hoisting its parent read | 142 |
+| Claude | `0.33.33.43.49` | Related-projects region and the hierarchy tail typed at `0.33.33.43.48`. `clients-projects.js` 92 and `lists.js` 30 remain, all owned families. Next: the project assignment/context cluster, including its result and callback contracts | 122 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1607,42 +1607,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.48 - Clients/Projects related-projects region and the hierarchy tail
 
-**Model: High Effort** - the related-projects region is what the Edit Client dialog renders for a client's projects. The hierarchy tail closes the one reader `0.33.33.43.47` held back.
-
-**Why.** Measured on `nightly` `097ac0cc`, the region's seven functions carry 19 diagnostics:
-
-- 15 TS7006 on their parameters and on the table's row callbacks;
-- 3 TS2339 on an options bag typed `{}`;
-- 1 TS2554.
-
-The TS2554 is a dead argument, not a defect. `createRelatedProjectsRegion` passes `options` to `createRelatedProjectTableList`, which declares two parameters and ignores it.
-
-**Measured before planning:**
-
-- **The one caller.** The Edit Client dialog passes a real client and no options, so today it always renders the collapsible project table.
-- **The row callbacks.** `createDataTable`'s columns are `unknown[]` in the view contract, which is why the callbacks' `row` has no type. `renderCell` calls `render(row, rowIndex)` with the very objects the page passed as `rows`.
-
-**Scope, recorded before implementation (the tail and the dead argument are operator-approved):**
-
-- [ ] **Type the seven functions from their callers and producers.**
-  - `NormalizedClientRecord` for the region chain, whose only producer is the Edit Client dialog.
-  - `NormalizedProjectRecord` and its array for projects.
-  - `ReturnType<typeof relatedProjectRow>` for the rows the render callbacks receive back, as the action strip already declares.
-  - The options the region reads - `editorRows`, `collapsible`, `flat` - named in a local typedef. No option is newly honoured.
-- [ ] **Drop the dead third argument** of `createRelatedProjectsRegion` -> `createRelatedProjectTableList`, and no other argument.
-- [ ] **Hierarchy tail: `getClientTreeSortKey` without hoisting the parent read.**
-  - Annotate its input `NormalizedClientRecord` and the walker `NormalizedClientRecord | undefined`.
-  - Immediately before the `find`, alias the current client as an annotated `const lookupClient` and read `lookupClient.parent_client_id` inside the callback.
-  - This keeps the parent read inside the callback, once per candidate and none for an empty search. The visited check, name accumulation, comparison and return are unchanged.
-  - This is not a general licence to hoist reads.
-- [ ] **Preserve.** Editor/table selection; the collapsible and flat variants; hierarchy ordering and depth; the empty state; labels; billing and task-default summaries; row actions.
-- [ ] **Proof.**
-  - Bodies are unchanged but for the dropped argument and the alias.
-  - The real builders run beside their `097ac0cc` versions in the fake DOM, with the real view builder, on a normalised hierarchy.
-  - A parent-read sequence comparison, including an empty search and a changing getter.
-  - Mutations and compiler probes.
-  - Browser: the Clients/Projects specs including Edit Client, kept separate from `verify:slice`.
-  - Report the actual diagnostic change, not the estimate.
+**Complete: 20 diagnostics closed, with two approved body edits.** See the archive entry. The region's seven functions are typed from their callers, and its dead options argument is dropped. `getClientTreeSortKey` is typed through an annotated alias that keeps its parent read inside the `find` callback. `clients-projects.js` 112 to 92, browser 143 to 123.
 
 #### 0.33.33.43.47 - Clients/Projects hierarchy readers
 

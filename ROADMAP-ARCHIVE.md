@@ -1,5 +1,42 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.48 - Clients/Projects related-projects region and the hierarchy tail
+
+**Model: High Effort** - the related-projects region is what the Edit Client dialog renders for a client's projects. The hierarchy tail closes the one reader `0.33.33.43.47` held back. Both edits were approved by the operator on 2026-09-27.
+
+- [x] **Measured before planning.** On `nightly` `097ac0cc`, the region's seven functions carried 19 diagnostics: 15 TS7006, 3 TS2339 on an options bag typed `{}`, and 1 TS2554.
+  - **The TS2554 was a dead argument, not a defect.** `createRelatedProjectsRegion` passed `options` to `createRelatedProjectTableList`, which declares two parameters.
+  - **The one caller.** The Edit Client dialog passes a real client and no options, so today it always renders the collapsible project table.
+  - **The row callbacks.** `createDataTable`'s columns are `unknown[]` in the view contract. `renderCell` calls `render(row, rowIndex)` with the very objects passed as `rows`.
+- [x] **The region: annotations from callers and producers.**
+  - `NormalizedClientRecord` for the region chain.
+  - `NormalizedProjectRecord` and its array.
+  - `ReturnType<typeof relatedProjectRow>` on the render callbacks and the name cell, as the action strip already declared.
+  - A local `RelatedProjectsRegionOptions` typedef naming `editorRows`, `collapsible` and `flat`, with no option newly honoured.
+  - **Dropped:** the dead third argument, and no other.
+- [x] **The hierarchy tail, as the operator specified.**
+  - `getClientTreeSortKey` takes `NormalizedClientRecord`, and its walker is `NormalizedClientRecord | undefined`.
+  - Immediately before the `find`, an annotated `const lookupClient = currentClient` names the current client for the callback.
+  - The callback still reads `lookupClient.parent_client_id` inside itself: once per candidate, not at all for an empty search, and afresh each time.
+  - Verified with the repository compiler and the real record type. **The alias annotation is load-bearing**: without it, TS7022 reports a circular inference. The walker annotation is too (TS2322), and reading `currentClient` in the callback restores the original TS18048.
+  - This is not a licence to hoist reads.
+- [x] **Proof.**
+  - **Body identity.** Only the two edits reach a body; everything else differs by JSDoc alone.
+  - **Real builders.** The seven builders ran beside their `097ac0cc` versions, with the real view builder and modal stack in the fake DOM, on a hierarchy `normalizeData` builds. Every variant rendered identical DOM:
+    - the collapsible table, the bare table, editor rows and flat editor rows;
+    - the empty table and empty editor rows;
+    - task-default summaries and row depth, parent and billing.
+  - **Stubs.** `createProjectEditor`, the module-action opener and its error handler lie outside the slice and got one identical stub in each version.
+  - **Parent reads.** The walker's parent-read sequence matched `097ac0cc` for a chain, an empty search and a changing getter.
+  - **Mutations.** Eight behaviour mutations were each caught by the runtime tests: selection, collapsible default, flat class, row depth, a summary label, tag chips, the empty editor state, and **a hoisted parent read**. Restoring the dead argument or removing the alias is runtime-equivalent, which proves both edits inert. Each file was restored from a byte copy and verified by hash.
+  - **Compiler probes.** Removing the options typedefs, a row annotation or a project annotation each brings its diagnostic back.
+- [x] **Pins moved, each with its intent kept.**
+  - The `0.33.33.43.47` suite's body-identity check now allows exactly the alias edit, and its header no longer calls the function unannotated.
+  - `clients-projects-related-regions-regression` pinned the dead three-argument call by spelling, as an escaped regex that a raw-spelling search had missed. It now pins the two-argument call in the default branch, and was proved still to fail when the table list is no longer the default.
+- [x] **Rendered.** The five Clients/Projects browser specs pass at both viewports, including the permanent Edit Client case. They ran as the separate rendered gate.
+- [x] **Accounting.** `clients-projects.js` 112 to 92, browser 143 to 123: **20 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.43.47 - Clients/Projects hierarchy readers
 
 **Model: High Effort** - client and project hierarchy semantics (depth, descendants, ordering) drive the parent pickers, the related-projects region and the project context. This slice typed that core first, so the clusters that call it can use its types.
