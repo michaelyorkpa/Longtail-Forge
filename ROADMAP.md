@@ -1605,6 +1605,34 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.47 - Clients/Projects hierarchy readers
+
+**Model: High Effort** - client and project hierarchy semantics (depth, descendants, ordering) drive the parent pickers, the related-projects region and the project context; this types that core first, so the clusters that call it can use its types.
+
+**Why.** Measured on `nightly` `c89cdcab`: `clients-projects.js` has 133 diagnostics (101 TS7006). Grouped by function, they fall into seven feature clusters. The hierarchy readers carry 22:
+
+- `getProjectClientLabel`, `findProjectById`;
+- the two recursive depth readers, which also carry TS7023;
+- the tree indent, sort and sort-key readers;
+- the two descendant readers.
+
+**Measured before planning:**
+
+- Every caller passes one of: a normalised client record (from `getRealClients` / `getActiveRealClients`); a client-list entry (`getProjectTargetClient` answers a real client or the workspace grouping, never null); a normalised project; or text. `uniqueSelectionIds` answers text, and both excluded-id parameters default to `""`.
+- A few callers sit in still-untyped clusters and pass `any`.
+- No reader's type forces a guard its runtime lacks. `sortProjectsForClient` dereferences its client without `?.`, and its only typed caller cannot pass null.
+
+**Scope, recorded before implementation:**
+
+- [ ] **Annotate the eleven readers from what their callers pass:** `NormalizedClientRecord`, `NormalizedClientEntry`, `NormalizedProjectRecord`, `string`, `number`. That covers explicit `number` returns on the two recursive depth readers, and the connected locals the compiler needs: the sort's result array, its nested branch parameter, and the sort-key walker's current client.
+- [ ] **No runtime change.** Every function body stays byte-identical once JSDoc is removed. That preserves ordering and ties (locale-compared, base sensitivity, missing names as `""`), depth under orphaned or cyclic parents, and descendant sets with the start excluded. No `any`, cast or suppression; no guard added.
+- [ ] **Proof.**
+  - The real readers run beside their `c89cdcab` versions, on hierarchies built by the page's own `normalizeData`: deep, orphaned, cyclic and sibling-tie cases.
+  - A text check shows each body is unchanged.
+  - Mutations prove the cases discriminate; compiler probes show each annotation is load-bearing.
+  - The existing Clients/Projects browser coverage passes.
+- [ ] **Expected accounting:** `clients-projects.js` 133 to about 111 and browser 164 to about 142, measured per message, with no message rising. Members that the still-untyped normalisers leave `any` stay as they are, for those clusters' own checkpoints.
+
 #### 0.33.33.43.46 - Clients/Projects page-owned element values and dialog opening
 
 **Complete: browser `dom` is zero.** See the archive entry. The values Clients/Projects stored on its own elements now live in typed page-local maps, written and read at the same points. `showDialog` is typed from its callers. The owed Edit Client browser case is permanent. Browser 172 to 164; `clients-projects.js` 141 to 133.
