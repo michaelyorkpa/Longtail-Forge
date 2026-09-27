@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM). The Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` (module-action keys) and `0.33.33.38.2.11` (navigation hrefs), and resumes on the integrated baseline; then extraction | 1 owned |
-| Claude | `0.33.33.43.47` | **Browser `dom` is zero** after `0.33.33.43.46`. `clients-projects.js` 133 and `lists.js` 30 remain, all owned families (`params`, `state`, `assorted`); the next child is drawn from live evidence | 163 |
+| Claude | `0.33.33.43.48` | Hierarchy readers typed at `0.33.33.43.47`. `clients-projects.js` 112 and `lists.js` 30 remain, all owned families; the next children are the related-projects region and project-assignment clusters, drawn from live evidence. `getClientTreeSortKey` awaits the operator's ruling on hoisting its parent read | 142 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1607,31 +1607,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.47 - Clients/Projects hierarchy readers
 
-**Model: High Effort** - client and project hierarchy semantics (depth, descendants, ordering) drive the parent pickers, the related-projects region and the project context; this types that core first, so the clusters that call it can use its types.
-
-**Why.** Measured on `nightly` `c89cdcab`: `clients-projects.js` has 133 diagnostics (101 TS7006). Grouped by function, they fall into seven feature clusters. The hierarchy readers carry 22:
-
-- `getProjectClientLabel`, `findProjectById`;
-- the two recursive depth readers, which also carry TS7023;
-- the tree indent, sort and sort-key readers;
-- the two descendant readers.
-
-**Measured before planning:**
-
-- Every caller passes one of: a normalised client record (from `getRealClients` / `getActiveRealClients`); a client-list entry (`getProjectTargetClient` answers a real client or the workspace grouping, never null); a normalised project; or text. `uniqueSelectionIds` answers text, and both excluded-id parameters default to `""`.
-- A few callers sit in still-untyped clusters and pass `any`.
-- No reader's type forces a guard its runtime lacks. `sortProjectsForClient` dereferences its client without `?.`, and its only typed caller cannot pass null.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Annotate the eleven readers from what their callers pass:** `NormalizedClientRecord`, `NormalizedClientEntry`, `NormalizedProjectRecord`, `string`, `number`. That covers explicit `number` returns on the two recursive depth readers, and the connected locals the compiler needs: the sort's result array, its nested branch parameter, and the sort-key walker's current client.
-- [ ] **No runtime change.** Every function body stays byte-identical once JSDoc is removed. That preserves ordering and ties (locale-compared, base sensitivity, missing names as `""`), depth under orphaned or cyclic parents, and descendant sets with the start excluded. No `any`, cast or suppression; no guard added.
-- [ ] **Proof.**
-  - The real readers run beside their `c89cdcab` versions, on hierarchies built by the page's own `normalizeData`: deep, orphaned, cyclic and sibling-tie cases.
-  - A text check shows each body is unchanged.
-  - Mutations prove the cases discriminate; compiler probes show each annotation is load-bearing.
-  - The existing Clients/Projects browser coverage passes.
-- [ ] **Expected accounting:** `clients-projects.js` 133 to about 111 and browser 164 to about 142, measured per message, with no message rising. Members that the still-untyped normalisers leave `any` stay as they are, for those clusters' own checkpoints.
+**Complete: ten readers typed from their callers with unchanged bodies, closing 21 diagnostics.** See the archive entry. `clients-projects.js` 133 to 112, browser 164 to 143. `getClientTreeSortKey` is left byte-identical and raised for a decision, because typing it needs its parent read hoisted out of a `find` callback.
 
 #### 0.33.33.43.46 - Clients/Projects page-owned element values and dialog opening
 

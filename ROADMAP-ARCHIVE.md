@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.47 - Clients/Projects hierarchy readers
+
+**Model: High Effort** - client and project hierarchy semantics (depth, descendants, ordering) drive the parent pickers, the related-projects region and the project context. This slice typed that core first, so the clusters that call it can use its types.
+
+- [x] **Measured before planning.** On `nightly` `c89cdcab`, `clients-projects.js` had 133 diagnostics (101 TS7006) in seven feature clusters. The hierarchy readers carried 22.
+  - Every caller passes one of: a normalised client record; a client-list entry (`getProjectTargetClient` answers a real client or the workspace grouping, never null); a normalised project; or text (`uniqueSelectionIds` answers text, and both excluded-id parameters default to `""`).
+  - A few callers in still-untyped clusters pass `any`.
+- [x] **The change: annotations only, taken from the callers.**
+  - `NormalizedClientRecord` for the client depth walker and tree sort.
+  - `NormalizedClientEntry` for anything that searches an owner's projects.
+  - `NormalizedProjectRecord` for projects, `string` for ids, `number` for the indent depth.
+  - Explicit `number` returns on the two recursive depth readers, which cleared both TS7023s.
+  - The sort's result array and its nested branch parameter.
+
+  Every body is unchanged; no `any`, cast, suppression or guard. Members the still-untyped normalisers leave `any` stay so, for those clusters' own checkpoints.
+- [x] **One reader held back: `getClientTreeSortKey`.**
+  - Its walker reads `currentClient.parent_client_id` inside a `find` callback. The compiler cannot keep the loop's `currentClient &&` narrowing inside a closure.
+  - Typing the walker as `NormalizedClientRecord | undefined` raised a TS18048 there. At runtime that read is safe: the callback runs synchronously before the reassignment.
+  - The only fix is hoisting the parent read out of the callback. That reads it once instead of once per candidate, and earlier, which is a single-read change by assumption. So the function is left byte-identical, with its one TS7006, and **raised for the operator's decision.**
+- [x] **Proof.**
+  - **Body identity.** Each body equals its `c89cdcab` body once JSDoc is removed.
+  - **Runtime comparison.** The real readers ran beside their `c89cdcab` versions on a hierarchy the page's own `normalizeData` builds (36 page functions and the vocabulary constants lifted from each version). The hierarchy covered deep, orphaned, cyclic, case- and accent-tie, and unnamed clients and projects, plus the workspace grouping. Both versions gave identical answers for:
+    - labels, lookups, depths and indents;
+    - client and project tree order and sort keys;
+    - descendant sets, including the empty id and a missing id;
+    - name comparisons.
+  - **Observed behaviour, pinned rather than changed.** A cycle's depth stops at its first revisit, and a descendant walk inside a cycle reaches its own start again. An orphaned project sorts among the roots, and a branch reachable only through a cycle is appended in its original order.
+  - **Mutations.** Ten runtime mutations, each caught by the comparison and restored by byte copy and hash: tie sensitivity, orphan rooting, both depth recursions, the sort-key separator, the empty-id guard, self-inclusion, the cycle-only append, the workspace label, and the lookup.
+  - **Compiler probes.** Deleting any of six annotations brings a diagnostic back, so each is load-bearing.
+  - **Existing coverage.** Both hierarchy regressions, all 23 Clients/Projects unit files and the five Clients/Projects browser specs at both viewports pass.
+- [x] **Accounting.** `clients-projects.js` 133 to 112, browser 164 to 143: **21 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.25.11 - Make checkpoint verification cover every changed path
 
 **Model: High Effort** - regression infrastructure that both lanes and CI rely on. This is the recorded "Verification-tool hardening" obligation, approved by the operator on 2026-09-25. It is a corrective child that reopened the `0.33.33.25` verification rollup.
