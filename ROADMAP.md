@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.45` | `workbench.js` — checked-DOM adoption integrated (0 DOM). The Inspector candidate (ruled) is unblocked by `0.33.33.38.2.10` (module-action keys) and `0.33.33.38.2.11` (navigation hrefs), and resumes on the integrated baseline; then extraction | 1 owned |
-| Claude | `0.33.33.43.48` | Hierarchy readers typed at `0.33.33.43.47`. `clients-projects.js` 112 and `lists.js` 30 remain, all owned families; the next children are the related-projects region and project-assignment clusters, drawn from live evidence. `getClientTreeSortKey` awaits the operator's ruling on hoisting its parent read | 142 |
+| Claude | `0.33.33.43.49` | Related-projects region and the hierarchy tail typed at `0.33.33.43.48`. `clients-projects.js` 92 and `lists.js` 30 remain, all owned families. Next: the project assignment/context cluster, including its result and callback contracts | 122 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1604,6 +1604,10 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.48 - Clients/Projects related-projects region and the hierarchy tail
+
+**Complete: 20 diagnostics closed, with two approved body edits.** See the archive entry. The region's seven functions are typed from their callers, and its dead options argument is dropped. `getClientTreeSortKey` is typed through an annotated alias that keeps its parent read inside the `find` callback. `clients-projects.js` 112 to 92, browser 143 to 123.
 
 #### 0.33.33.43.47 - Clients/Projects hierarchy readers
 

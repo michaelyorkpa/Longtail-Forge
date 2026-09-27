@@ -12,9 +12,9 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
  * exactly as their `c89cdcab` versions on hierarchies the page's own `normalizeData` builds -
  * deep, orphaned, cyclic, sibling ties and unnamed records included.
  *
- * `getClientTreeSortKey` is deliberately unannotated: its walker reads the current client inside a
- * `find` callback, where the compiler cannot keep the loop's narrowing, and typing it would need
- * that read hoisted out of the callback. It still runs here, unchanged, through `sortClientTree`.
+ * `getClientTreeSortKey` was held back here and typed at `0.33.33.43.48`, through an annotated alias
+ * that keeps its parent read inside the `find` callback. Its one body edit - the alias - is allowed
+ * below; its parent-read sequence is pinned in `clients-projects-related-projects-contracts`.
  */
 
 const reader = createProjectTextReader();
@@ -135,7 +135,15 @@ const withoutJsDoc = (block) => block.replace(/[ \t]*\/\*\*[\s\S]*?\*\/\n/g, "")
 describe("The hierarchy readers changed only their annotations", () => {
   it("keeps every body the c89cdcab body once JSDoc is removed", () => {
     for (const name of READERS) {
-      expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(withoutJsDoc(extractFunctionBlock(baseline, name)));
+      let expected = withoutJsDoc(extractFunctionBlock(baseline, name));
+      if (name === "getClientTreeSortKey") {
+        // The one approved body edit, from `0.33.33.43.48`.
+        expected = expected.replace(
+          "      currentClient = getRealClients().find((item) => item.id === currentClient.parent_client_id);",
+          "      const lookupClient = currentClient;\n      currentClient = getRealClients().find((item) => item.id === lookupClient.parent_client_id);",
+        );
+      }
+      expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(expected);
     }
   });
 
