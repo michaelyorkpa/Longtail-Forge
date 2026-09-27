@@ -3175,6 +3175,7 @@
     };
   }
 
+  /** @param {NormalizedProjectRecord} project */
   function createProjectClientAssignment(project) {
     if (!clientsEnabledForWorkspace()) {
       return null;
@@ -3223,6 +3224,12 @@
     );
   }
 
+  /**
+   * The parent-project picker for one project. The Add Project form passes a stub carrying only
+   * the three members read here, so the parameter names exactly those.
+   * @param {Pick<NormalizedProjectRecord, "id" | "client_id" | "parent_project_id">} project
+   * @param {NormalizedClientEntry} client
+   */
   function createProjectParentAssignment(project, client) {
     const label = document.createElement("label");
     const select = document.createElement("select");
@@ -3238,6 +3245,11 @@
     return label;
   }
 
+  /**
+   * @param {HTMLSelectElement | null} select A `querySelector("select")` answer from the Add Project
+   *   form, so it may be absent; the early return is what handles that.
+   * @param {{ excludedProjectId?: string, clientId?: string }} [options]
+   */
   function populateParentProjectSelect(select, { excludedProjectId = "", clientId = "" } = {}) {
     if (!select) {
       return;
@@ -3259,6 +3271,7 @@
       : "";
   }
 
+  /** @param {NormalizedClientEntry} client */
   function createAddProjectClientAssignment(client) {
     if (!clientsEnabledForWorkspace()) {
       return null;
@@ -3307,6 +3320,7 @@
     return createProjectClientContextRegion(project);
   }
 
+  /** @param {NormalizedProjectRecord} project */
   function createProjectClientContextRegion(project) {
     if (!clientsEnabledForWorkspace()) {
       return requireView().createElement("div", {
@@ -3334,7 +3348,7 @@
               key: "actions",
               label: "Actions",
               align: "right",
-              render: (row) => createProjectContextActionStrip(row),
+              render: (/** @type {ReturnType<typeof createProjectClientContextRows>[number]} */ row) => createProjectContextActionStrip(row),
             },
           ],
           rows,
@@ -3344,6 +3358,14 @@
     });
   }
 
+  /**
+   * The context rows for one project: its client, then its parent project.
+   *
+   * The client row's actions drop the absent ones with a `!== null` filter rather than
+   * `.filter(Boolean)` (`0.33.33.43.49`). Every element is an action object or `null`, so it removes
+   * exactly what `Boolean` removed, and it narrows the element type for the action strip.
+   * @param {NormalizedProjectRecord} project
+   */
   function createProjectClientContextRows(project) {
     const targetClient = getProjectTargetClient(project.client_id);
     const addClientAction = canCreateTopLevelClient()
@@ -3388,7 +3410,7 @@
             },
           } : null,
           addClientAction,
-        ].filter(Boolean),
+        ].filter((action) => action !== null),
       },
     ];
     const parentProject = project.parent_project_id
@@ -3415,12 +3437,10 @@
   /**
    * The actions for one project-context row, or nothing when it offers none.
    *
-   * **`row` is deliberately left undeclared.** Deriving it from `createProjectClientContextRows`
-   * is correct and exposes an imprecision there rather than here: that builder ends its first row's
-   * actions in `.filter(Boolean)`, which removes every `null` at runtime but does not narrow the
-   * element type, so the derived `actions` still admits `null` and the strip's shared builder
-   * refuses it. No `null` ever reaches the strip. The fix is a narrowing filter in that builder,
-   * which belongs to the context-rows boundary rather than to this one.
+   * `row` is derived from `createProjectClientContextRows`. It was left undeclared until that
+   * builder's `.filter(Boolean)` - which removed every `null` at runtime but did not narrow the
+   * element type - became a narrowing filter at `0.33.33.43.49`.
+   * @param {ReturnType<typeof createProjectClientContextRows>[number]} row
    */
   function createProjectContextActionStrip(row) {
     if (!row.actions.length) {
@@ -3434,6 +3454,30 @@
     });
   }
 
+  /**
+   * One member of a module action's result, read exactly as `result?.member` read it.
+   *
+   * The result is the registry's `ModuleActionOutcome` or, where the registry is not loaded, the
+   * Add Client dialog's close reason - text, which carries no such member. The nullish test and the
+   * receiver are the optional access's own: a string is read through its wrapper with the string as
+   * receiver, and a nullish value reads nothing.
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function readActionResultMember(value, key) {
+    return value == null ? undefined : Reflect.get(Object(value), key, value);
+  }
+
+  /**
+   * An Add Client button beside a client picker, which reports the created client's id.
+   *
+   * `onCreated` defaulted to `null` and so inferred `null` (`0.33.33.43.49`): it is the optional
+   * callback it always was, and its one caller is the Add Project form's picker refresh. It is
+   * called only when the registry's outcome says the dialog completed and carries a record id; the
+   * fallback's close text never does, so it is never read as a creation.
+   * @param {{ onCreated?: ((clientId: unknown) => void) | null }} [options]
+   */
   function createAddClientShortcutButton({ onCreated = null } = {}) {
     if (!clientsEnabledForWorkspace() || !canCreateTopLevelClient()) {
       return null;
@@ -3447,7 +3491,9 @@
       button.disabled = true;
       try {
         const result = await openClientProjectModuleAction("clients.add");
-        const clientId = result?.completed ? result.detail?.recordId || "" : "";
+        const clientId = readActionResultMember(result, "completed")
+          ? readActionResultMember(readActionResultMember(result, "detail"), "recordId") || ""
+          : "";
         if (clientId) {
           onCreated?.(clientId);
         }
@@ -3460,6 +3506,7 @@
     return button;
   }
 
+  /** @param {NormalizedClientEntry} client */
   function getDefaultProjectClientId(client) {
     if (!clientsEnabledForWorkspace()) {
       return "";
@@ -3481,6 +3528,10 @@
     return value && value !== "All" && value !== "__workspace_projects__" ? value : "";
   }
 
+  /**
+   * The entry a project's client id names, or the workspace grouping for none or an unknown one.
+   * @param {string} clientId
+   */
   function getProjectTargetClient(clientId) {
     if (!clientId) {
       return getWorkspaceProjectClient();
@@ -3489,6 +3540,7 @@
     return getRealClients().find((client) => client.id === clientId) || getWorkspaceProjectClient();
   }
 
+  /** @param {string} clientId */
   function getProjectClientName(clientId) {
     if (!clientId) {
       return "";

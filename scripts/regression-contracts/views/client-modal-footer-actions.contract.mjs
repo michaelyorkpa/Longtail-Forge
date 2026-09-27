@@ -37,7 +37,9 @@ assert.match(
 assert.match(clientsScript, /const nameField = modalView\.createField\([\s\S]*field: "name"[\s\S]*const parentField = modalView\.createField\([\s\S]*field: "parentClientId"/, "Add Client Name and Parent controls should use framework field primitives.");
 assert.doesNotMatch(clientsScript, /formClassName: "entry-form client-modal-form"/, "Add Client should not compress its title, field body, and footer into the page entry-form grid.");
 assert.match(clientsScript, /function showDialog[\s\S]*typeof view\?\.showModal === "function"[\s\S]*view\.showModal\(dialog\)/, "Clients/Projects dialogs should enter the shared modal stack so nested module dialogs preserve their parent.");
-assert.match(clientsScript, /function createAddClientShortcutButton[\s\S]*openClientProjectModuleAction\("clients\.add"\)[\s\S]*result\?\.completed[\s\S]*onCreated\?\.\(clientId\)/, "Add Project should open the Clients-owned Add Client action and hand the created Client back to its parent form.");
+// `0.33.33.43.49` reads the action result through a checked reader - the optional chain's own reads
+// over a result that may be the fallback's close text - so the completion gate is spelled that way.
+assert.match(clientsScript, /function createAddClientShortcutButton[\s\S]*openClientProjectModuleAction\("clients\.add"\)[\s\S]*readActionResultMember\(result, "completed"\)[\s\S]*onCreated\?\.\(clientId\)/, "Add Project should open the Clients-owned Add Client action and hand the created Client back to its parent form.");
 assert.doesNotMatch(clientsScript, /window\.location\.href = "clients\.html\?addClient=true"/, "Add Project should not navigate away to create a Client.");
 assert.match(clientsScript, /if \(canCreateProjectForClient\(""\)\) \{[\s\S]*select\.appendChild\(createOption\("", workspaceProjectsLabel\(\)\)\)/, "Add Project should label authorized workspace scope with the readable workspace name.");
 assert.match(clientsScript, /createBillableCheckbox\(initialTargetClient\.isWorkspaceScope \? "no" : initialTargetClient\.billable\)/, "Add Project should default workspace projects to non-billable while retaining Client-owned defaults.");
