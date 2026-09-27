@@ -1753,6 +1753,12 @@
     void openClientProjectModuleAction("projects.edit", { projectId: match.project.id }).catch(handleClientProjectActionError);
   }
 
+  /**
+   * The label a project's owner shows: the workspace grouping's configured label, or the client's
+   * name. Its one caller passes the entry `getProjectTargetClient` answers, which is never null;
+   * the `!client` test predates that and is kept as it was.
+   * @param {NormalizedClientEntry} client
+   */
   function getProjectClientLabel(client) {
     if (!client) {
       return "";
@@ -1920,6 +1926,7 @@
     await refreshActiveClientProjectsReadSurface();
   }
 
+  /** @param {string} projectId One of the ids `uniqueSelectionIds` answers. */
   function findProjectById(projectId) {
     return getAllProjects().find(({ project }) => project.id === projectId)?.project || null;
   }
@@ -1938,6 +1945,13 @@
     return getRealClients().filter((client) => isActiveStatus(client.status));
   }
 
+  /**
+   * How many real-client ancestors a client has. A missing parent ends the walk, and `visited`
+   * stops a cycle, so an orphaned or cyclic chain answers the depth reached before it broke.
+   * @param {NormalizedClientRecord} client
+   * @param {Set<unknown>} [visited]
+   * @returns {number}
+   */
   function getClientDepth(client, visited = new Set()) {
     if (!client?.parent_client_id || visited.has(client.id)) {
       return 0;
@@ -1948,6 +1962,14 @@
     return parent ? 1 + getClientDepth(parent, visited) : 0;
   }
 
+  /**
+   * How many ancestors a project has among its owner's projects, with the same orphan and cycle
+   * behaviour as `getClientDepth`.
+   * @param {NormalizedProjectRecord} project
+   * @param {NormalizedClientEntry} client The entry whose `projects` are searched.
+   * @param {Set<unknown>} [visited]
+   * @returns {number}
+   */
   function getProjectDepth(project, client, visited = new Set()) {
     if (!project?.parent_project_id || visited.has(project.id)) {
       return 0;
@@ -1958,16 +1980,24 @@
     return parent ? 1 + getProjectDepth(parent, client, visited) : 0;
   }
 
+  /** @param {number} depth */
   function treeIndent(depth) {
     return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
   }
 
+  /** @param {NormalizedClientRecord[]} clients */
   function sortClientTree(clients) {
     return [...clients].sort((left, right) =>
       getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
     );
   }
 
+  /**
+   * An entry's projects in tree order: siblings by name under each parent, depth first. A project
+   * whose parent is not among them is a root, and one only reachable through a cycle is appended
+   * after the walk in its original order.
+   * @param {NormalizedClientEntry} client
+   */
   function sortProjectsForClient(client) {
     const projects = [...(client.projects || [])];
     const projectsByParent = projects.reduce((groups, project) => {
@@ -1982,9 +2012,11 @@
       groups.get(parentId).push(project);
       return groups;
     }, new Map());
+    /** @type {NormalizedProjectRecord[]} */
     const sortedProjects = [];
     const visited = new Set();
 
+    /** @param {unknown} parentId The branch's parent id; `""` for the roots. */
     function appendBranch(parentId) {
       const siblings = [...(projectsByParent.get(parentId) || [])].sort(compareProjectsByName);
 
@@ -2010,6 +2042,7 @@
     return sortedProjects;
   }
 
+  /** @param {NormalizedProjectRecord} left @param {NormalizedProjectRecord} right */
   function compareProjectsByName(left, right) {
     return String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" });
   }
@@ -2028,6 +2061,10 @@
     return names.join("/");
   }
 
+  /**
+   * Every real client below one client, excluding that client itself.
+   * @param {string} clientId
+   */
   function getClientDescendantIds(clientId) {
     if (!clientId) {
       return [];
@@ -2051,6 +2088,11 @@
     return [...descendants];
   }
 
+  /**
+   * Every project below one project among its owner's projects, excluding that project itself.
+   * @param {string} projectId
+   * @param {NormalizedClientEntry} client
+   */
   function getProjectDescendantIds(projectId, client) {
     if (!projectId) {
       return [];

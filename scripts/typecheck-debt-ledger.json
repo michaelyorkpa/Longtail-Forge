@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.25.11",
+  "checkpoint": "0.33.33.33",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -560,6 +560,7 @@
         "tests/unit/clients-projects-effective-billing-contracts.test.mjs",
         "tests/unit/clients-projects-element-values-contracts.test.mjs",
         "tests/unit/clients-projects-field-editor-contracts.test.mjs",
+        "tests/unit/clients-projects-hierarchy-readers-contracts.test.mjs",
         "tests/unit/clients-projects-module-action-contracts.test.mjs",
         "tests/unit/clients-projects-normalizer-contracts.test.mjs",
         "tests/unit/clients-projects-project-editor-contracts.test.mjs",
@@ -936,7 +937,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 164,
+      "errorCount": 143,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -965,15 +966,11 @@
           },
           {
             "code": 7005,
-            "count": 6
+            "count": 5
           },
           {
             "code": 7006,
-            "count": 101
-          },
-          {
-            "code": 7023,
-            "count": 2
+            "count": 84
           },
           {
             "code": 7031,
@@ -981,7 +978,7 @@
           },
           {
             "code": 7034,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7053,
@@ -1617,8 +1614,8 @@
     }
   },
   "totals": {
-    "files": 1518,
-    "errors": 164,
+    "files": 1519,
+    "errors": 143,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
