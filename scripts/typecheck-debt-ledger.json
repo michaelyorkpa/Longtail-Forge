@@ -427,6 +427,7 @@
         "tests/e2e/workbench-focus-state.spec.mjs",
         "tests/e2e/workbench-host-capture.spec.mjs",
         "tests/e2e/workbench-inspector-handles.spec.mjs",
+        "tests/e2e/workbench-inspector-navigation-boundary.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
         "tests/e2e/workbench-navigation-disclosure.spec.mjs",
@@ -822,6 +823,7 @@
         "tests/unit/workbench-focus-mode-rendering.test.mjs",
         "tests/unit/workbench-focus-readers.test.mjs",
         "tests/unit/workbench-focus-state.test.mjs",
+        "tests/unit/workbench-inspector-dispatch-boundary.test.mjs",
         "tests/unit/workbench-inspector-handles.test.mjs",
         "tests/unit/workbench-module-state.test.mjs",
         "tests/unit/workbench-navigation-disclosure.test.mjs",
@@ -938,7 +940,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 123,
+      "errorCount": 122,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -994,12 +996,6 @@
           {
             "code": 7006,
             "count": 20
-          }
-        ],
-        "public/js/workbench.js": [
-          {
-            "code": 7006,
-            "count": 1
           }
         ]
       }
@@ -1611,8 +1607,8 @@
     }
   },
   "totals": {
-    "files": 1520,
-    "errors": 123,
+    "files": 1522,
+    "errors": 122,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
