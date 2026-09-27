@@ -1918,6 +1918,7 @@
     return candidates;
   }
 
+  /** @param {unknown} candidate */
   function createWorkbenchInspectorItem(candidate) {
     const workbenchViewHelpers = requireView();
     const title = inspectorCandidateTitle(candidate);
@@ -1932,7 +1933,7 @@
         type: "button",
       },
       dataset: {
-        workbenchInspectorOpen: candidate.recordType || candidate.moduleId || "work",
+        workbenchInspectorOpen: workbenchCandidateField(candidate, "recordType") || workbenchCandidateField(candidate, "moduleId") || "work",
         workbenchInspectorOpenMode: openMode,
       },
       text: title,
@@ -2916,17 +2917,17 @@
     return safeCandidateText(value, fallback);
   }
 
-  /** @param {Partial<WorkCandidate>} candidate */
+  /** @param {unknown} candidate */
   function candidateBadges(candidate) {
     return [
-      candidate.moduleId ? badge(formatToken(candidate.moduleId), candidate.moduleId) : null,
-      candidate.status ? badge(formatToken(candidate.status), candidate.status) : null,
-      candidate.priority ? badge(formatToken(candidate.priority), candidate.priority) : null,
-      candidate.dueAt ? badge(`Due ${formatCandidateDate(candidate.dueAt)}`, "due") : null,
+      workbenchCandidateField(candidate, "moduleId") ? badge(formatToken(workbenchCandidateField(candidate, "moduleId")), workbenchCandidateField(candidate, "moduleId")) : null,
+      workbenchCandidateField(candidate, "status") ? badge(formatToken(workbenchCandidateField(candidate, "status")), workbenchCandidateField(candidate, "status")) : null,
+      workbenchCandidateField(candidate, "priority") ? badge(formatToken(workbenchCandidateField(candidate, "priority")), workbenchCandidateField(candidate, "priority")) : null,
+      workbenchCandidateField(candidate, "dueAt") ? badge(`Due ${formatCandidateDate(workbenchCandidateField(candidate, "dueAt"))}`, "due") : null,
     ].filter(Boolean);
   }
 
-  /** @param {Partial<WorkCandidate>} candidate */
+  /** @param {unknown} candidate */
   function candidateActionLabel(candidate) {
     if (candidateTaskId(candidate)) {
       return "Focus task";
@@ -2937,18 +2938,18 @@
     }
 
     if (candidateModuleAction(candidate)) {
-      return candidate.primaryAction?.label || "Open work";
+      return workbenchSourceField(workbenchCandidateField(candidate, "primaryAction"), "label", true) || "Open work";
     }
 
-    if (candidate.sourceUrl || candidate.primaryAction?.href) {
+    if (workbenchCandidateField(candidate, "sourceUrl") || workbenchSourceField(workbenchCandidateField(candidate, "primaryAction"), "href", true)) {
       return "Open work";
     }
 
-    return candidate.primaryAction?.label || "Review";
+    return workbenchSourceField(workbenchCandidateField(candidate, "primaryAction"), "label", true) || "Review";
   }
 
-  // Candidate fields use the published producer vocabulary as caller preconditions, not validation.
-  /** @param {Partial<WorkCandidate>} candidate @param {EventTarget | null} [trigger] @param {{mode?: string}} [options] */
+  // Inspector candidates remain opaque through dispatch; readers preserve the original object.
+  /** @param {unknown} candidate @param {EventTarget | null} [trigger] @param {{mode?: string}} [options] */
   async function openCandidate(candidate, trigger = null, options = {}) {
     const mode = options.mode || "candidate-primary";
     const taskId = candidateTaskId(candidate);
@@ -2994,7 +2995,7 @@
     openCandidateNavigationFallback(candidate);
   }
 
-  /** @param {Partial<WorkCandidate>} candidate @param {unknown} taskId */
+  /** @param {unknown} candidate @param {unknown} taskId */
   async function enterTaskFocus(candidate, taskId) {
     if (!moduleEnabled("tasks")) {
       setStatus("Tasks are not available in this workspace.", { isError: true });
@@ -3013,17 +3014,17 @@
     }
   }
 
-  /** @param {Partial<WorkCandidate>} candidate @param {unknown} taskId */
+  /** @param {unknown} candidate @param {unknown} taskId */
   function taskFocusFromCandidate(candidate, taskId) {
     return {
-      candidateId: candidate.candidateId || "",
-      contextLabel: safeCandidateText(candidate.contextLabel || candidate.reason || "", "Ready to review."),
-      dueAt: candidate.dueAt || candidate.due_at || "",
+      candidateId: workbenchCandidateField(candidate, "candidateId") || "",
+      contextLabel: safeCandidateText(workbenchCandidateField(candidate, "contextLabel") || workbenchCandidateField(candidate, "reason") || "", "Ready to review."),
+      dueAt: workbenchCandidateField(candidate, "dueAt") || workbenchCandidateField(candidate, "due_at") || "",
       error: "",
       checklistError: "",
       checklistMutationItemId: "",
       isLoading: true,
-      priority: candidate.priority || "",
+      priority: workbenchCandidateField(candidate, "priority") || "",
       relatedContext: {
         error: "",
         groups: [],
@@ -3031,10 +3032,10 @@
         items: [],
         taskId,
       },
-      status: candidate.status || "",
+      status: workbenchCandidateField(candidate, "status") || "",
       task: null,
       taskId,
-      title: safeCandidateText(candidate.title, "Focused task"),
+      title: safeCandidateText(workbenchCandidateField(candidate, "title"), "Focused task"),
     };
   }
 
@@ -3459,7 +3460,7 @@
   }
 
   /**
-   * @param {Partial<Pick<WorkCandidate, "candidateId">>} candidate
+   * @param {unknown} candidate
    * @param {unknown} taskId
    * @param {EventTarget | null} [trigger]
    * @param {{defaults?: unknown, focusTarget?: string, promptBlockedReason?: boolean}} [editorOptions]
@@ -3478,7 +3479,7 @@
           source: "workbench",
           sourceType: "work-candidate",
         },
-        candidateId: candidate.candidateId || "",
+        candidateId: workbenchCandidateField(candidate, "candidateId") || "",
         defaults: editorOptions.defaults || {},
         focusTarget: editorOptions.focusTarget || "",
         promptBlockedReason: editorOptions.promptBlockedReason === true,
@@ -3505,7 +3506,7 @@
     }
   }
 
-  /** @param {Partial<WorkCandidate>} candidate */
+  /** @param {unknown} candidate */
   function openNonTaskFocusFallback(candidate) {
     const href = candidatePageFallback(candidate);
 
@@ -3520,7 +3521,7 @@
     setStatus("Task Focus is currently available for task candidates only. This work type needs an explicit page fallback.", { isError: true });
   }
 
-  /** @param {Partial<WorkCandidate>} candidate @param {NonNullable<ReturnType<typeof candidateModuleAction>>} action @param {EventTarget | null} [trigger] */
+  /** @param {unknown} candidate @param {NonNullable<ReturnType<typeof candidateModuleAction>>} action @param {EventTarget | null} [trigger] */
   async function openModuleActionCandidate(candidate, action, trigger = null) {
     if (action.moduleId && !moduleEnabled(action.moduleId)) {
       setStatus(`${action.moduleLabel} is not available in this workspace.`, { isError: true });
@@ -3531,12 +3532,12 @@
     try {
       const moduleActions = await ensureWorkbenchModuleAction(action.actionId);
       const result = await moduleActions.open(action.actionId, {
-        ...(action.params || {}),
+        ...Object(action.params || {}),
         context: {
           source: "workbench",
           sourceType: "work-candidate",
         },
-        candidateId: candidate.candidateId || "",
+        candidateId: workbenchCandidateField(candidate, "candidateId") || "",
         recordId: action.recordId,
         returnFocusTo: trigger || document.activeElement,
         [action.recordParam]: action.recordId,
@@ -3613,7 +3614,7 @@
     }
   }
 
-  /** @param {Partial<WorkCandidate>} candidate */
+  /** @param {unknown} candidate */
   function openCandidateNavigationFallback(candidate) {
     const href = candidatePageFallback(candidate);
 
@@ -3628,7 +3629,7 @@
     setStatus("This recommendation does not have an in-place editor or page fallback yet.", { isError: true });
   }
 
-  /** @param {string} href */
+  /** @param {unknown} href */
   function navigateFromWorkbench(href, kind = "workbench-navigation") {
     const intent = requireNamespace().navigationIntent;
 
@@ -3636,7 +3637,7 @@
       void intent.navigate(href, { kind });
       return;
     }
-    window.location.href = href;
+    window.location.href = `${href}`;
   }
 
   /** @param {unknown} value @param {string} key @returns {unknown} */
@@ -3656,36 +3657,36 @@
     return "";
   }
 
-  /** @param {Partial<WorkCandidate>} [candidate] */
+  /** @param {unknown} [candidate] */
   function candidateModuleAction(candidate = {}) {
-    const primaryAction = candidate.primaryAction || {};
-    if (primaryAction.type === "module-action" && primaryAction.id && candidate.moduleId && candidate.recordId) {
+    const primaryAction = workbenchCandidateField(candidate, "primaryAction") || {};
+    if (workbenchCandidateField(primaryAction, "type") === "module-action" && workbenchCandidateField(primaryAction, "id") && workbenchCandidateField(candidate, "moduleId") && workbenchCandidateField(candidate, "recordId")) {
       return {
-        actionId: primaryAction.id,
-        moduleId: candidate.moduleId,
-        moduleLabel: formatToken(candidate.moduleId) || "Work",
-        params: primaryAction.params || {},
-        recordId: candidate.recordId,
+        actionId: workbenchCandidateField(primaryAction, "id"),
+        moduleId: workbenchCandidateField(candidate, "moduleId"),
+        moduleLabel: formatToken(workbenchCandidateField(candidate, "moduleId")) || "Work",
+        params: workbenchCandidateField(primaryAction, "params") || {},
+        recordId: workbenchCandidateField(candidate, "recordId"),
         recordParam: "recordId",
       };
     }
 
-    if (candidate.moduleId === "notes" && candidate.recordType === "note" && candidate.recordId) {
+    if (workbenchCandidateField(candidate, "moduleId") === "notes" && workbenchCandidateField(candidate, "recordType") === "note" && workbenchCandidateField(candidate, "recordId")) {
       return {
         actionId: "notes.view",
         moduleId: "notes",
         moduleLabel: "Note",
-        recordId: candidate.recordId,
+        recordId: workbenchCandidateField(candidate, "recordId"),
         recordParam: "noteId",
       };
     }
 
-    if (candidate.moduleId === "lists" && candidate.recordType === "list" && candidate.recordId) {
+    if (workbenchCandidateField(candidate, "moduleId") === "lists" && workbenchCandidateField(candidate, "recordType") === "list" && workbenchCandidateField(candidate, "recordId")) {
       return {
         actionId: "lists.edit",
         moduleId: "lists",
         moduleLabel: "List",
-        recordId: candidate.recordId,
+        recordId: workbenchCandidateField(candidate, "recordId"),
         recordParam: "listId",
       };
     }
@@ -3714,29 +3715,29 @@
     }
   }
 
-  /** @param {Partial<WorkCandidate>} [candidate] */
+  /** @param {unknown} [candidate] */
   function isManualTimerCandidate(candidate = {}) {
-    return candidate.moduleId === "time-tracking"
-      && candidate.recordType === "active_work_timer"
-      && (candidate.metadata?.source_type || "manual") === "manual";
+    return workbenchCandidateField(candidate, "moduleId") === "time-tracking"
+      && workbenchCandidateField(candidate, "recordType") === "active_work_timer"
+      && (workbenchSourceField(workbenchCandidateField(candidate, "metadata"), "source_type", true) || "manual") === "manual";
   }
 
-  /** @param {Partial<WorkCandidate>} [candidate] */
+  /** @param {unknown} [candidate] */
   function candidatePageFallback(candidate = {}) {
     if (isManualTimerCandidate(candidate)) {
       return "time-tracker.html";
     }
 
-    return candidate.primaryAction?.href || candidate.sourceUrl || "";
+    return workbenchSourceField(workbenchCandidateField(candidate, "primaryAction"), "href", true) || workbenchCandidateField(candidate, "sourceUrl") || "";
   }
 
-  /** @param {Partial<WorkCandidate>} [candidate] */
+  /** @param {unknown} [candidate] */
   function candidateCanOpen(candidate = {}) {
     return Boolean(candidateTaskId(candidate)
       || candidateModuleAction(candidate)
       || isManualTimerCandidate(candidate)
-      || candidate.sourceUrl
-      || candidate.primaryAction?.href);
+      || workbenchCandidateField(candidate, "sourceUrl")
+      || workbenchSourceField(workbenchCandidateField(candidate, "primaryAction"), "href", true));
   }
 
   /** @param {unknown} [candidate] */
@@ -3749,27 +3750,27 @@
     ].join(":");
   }
 
-  /** @param {Partial<WorkCandidate>} [candidate] */
+  /** @param {unknown} [candidate] */
   function inspectorCandidateTitle(candidate = {}) {
-    const title = String(candidate.title || "").trim();
+    const title = String(workbenchCandidateField(candidate, "title") || "").trim();
 
     if (title && !looksLikeRawId(title)) {
       return title;
     }
 
-    const label = formatToken(candidate.recordType || candidate.moduleId || "work");
+    const label = formatToken(workbenchCandidateField(candidate, "recordType") || workbenchCandidateField(candidate, "moduleId") || "work");
     return label ? `${label} context` : "Work context";
   }
 
-  /** @param {Partial<WorkCandidate>} [candidate] */
+  /** @param {unknown} [candidate] */
   function inspectorCandidateContext(candidate = {}) {
-    const context = String(candidate.contextLabel || "").trim();
+    const context = String(workbenchCandidateField(candidate, "contextLabel") || "").trim();
 
     if (context && !looksLikeRawId(context)) {
       return context;
     }
 
-    const reason = String(candidate.reason || candidate.nextAction || "").trim();
+    const reason = String(workbenchCandidateField(candidate, "reason") || workbenchCandidateField(candidate, "nextAction") || "").trim();
     if (reason && !looksLikeRawId(reason)) {
       return reason;
     }
@@ -3869,7 +3870,7 @@
   // Returns the registry it just proved present. The four callers all opened the action
   // by re-reading the global, which asks the reader - and the compiler - to trust a check
   // made in another function. The throw, its message, and its timing are unchanged.
-  /** @param {string} actionId */
+  /** @param {unknown} actionId */
   async function ensureWorkbenchModuleAction(actionId) {
     const moduleActions = window.LongtailForge?.moduleActions;
 
@@ -4878,9 +4879,10 @@
     return ["business", "personal", "family"].includes(text) ? text : "business";
   }
 
-  /** @param {string} moduleId */
+  /** @param {unknown} moduleId */
   function moduleEnabled(moduleId) {
-    return workbenchSourceField(workbenchSourceField(state.modules, moduleId, true), "enabled", true) === true;
+    const modules = state.modules;
+    return workbenchSourceField(modules == null ? undefined : Reflect.get(Object(modules), workbenchCardPropertyKey(moduleId), modules), "enabled", true) === true;
   }
 
   /** @param {unknown} modules */

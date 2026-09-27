@@ -23,6 +23,7 @@ function fixture() {
     focusActiveFocusQuestion: () => calls.push(["focus"]),
     requireErrors: () => ({ caughtMessage: (/** @type {unknown} */ error, /** @type {unknown} */ fallback) => { calls.push(["error", error]); return errorsScope.window.LongtailForge.errors.caughtMessage(error, fallback); } }),
   });
+  vm.runInContext(extractFunctionBlock(source, "workbenchCandidateField"), scope);
   vm.runInContext(extractFunctionBlock(source, "openTaskCandidate"), scope);
   return { scope, calls, registry, activeElement, result };
 }
