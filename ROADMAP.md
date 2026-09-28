@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.61` | `0.33.33.42` complete; `lists.js` link-picker providers and debounce typed and integrated at `0.33.33.43.60`, Lists 30 to 28. Next: the seven saved-record consumers, traced against the normalised writer before choosing the reconciliation | 28 owned |
-| Claude | `0.33.33.43.57` | **In progress:** the settings reader and the rounding snapshot, under the operator's `0.33.33.43.57` approvals. The record normalisers (4) and `normalizeData` (1) stay held for two named decisions. `lists.js` is Codex's | 35 |
+| Claude | `0.33.33.43.58` | Settings reader and rounding snapshot typed at `0.33.33.43.57`. `clients-projects.js` 5 remain, **held for two named operator decisions**: the record sink policy (4 - `normalizeClientRecord`, `normalizeProjects`) and `normalizeData`'s second `clients` read (1). `lists.js` is Codex's | 33 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1640,39 +1640,9 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.57 - Clients/Projects settings reader and rounding snapshot
 
-**Model: High Effort** - the page's wire trust boundary. Approved checked reads replace bare reads, and by approval the rounding increment is now read once.
+**Complete as scoped: 2 closed, 5 held for two named operator decisions.** See the archive entry, which also records the operator's `0.33.33.43.57` approvals and the correction to `0.33.33.43.56`. `clients-projects.js` 7 to 5, browser 35 to 33.
 
-**Approved by the operator on 2026-09-28, recorded here so they are not asked again.**
-
-- **Checked wire reads (Option A).** A file-local reader returns `unknown` and reads as a property access does:
-  - A non-nullish value answers `Reflect.get(Object(value), key, value)`, keeping the original receiver.
-  - At an originally required read, `null` or `undefined` throws a `TypeError` there, with this file's own message.
-  - At an originally optional read, `null` or `undefined` answers `undefined` without reading anything.
-
-  The wording change is authorized at those required reads, including where a catch displays it. It is not permission to reject nullish input at function entry. `normalizeProjects` still answers `[]` for a non-list, and `normalizeSettings` still defaults a nullish body. The approval rules out:
-  - response-schema validation, filtered records, rebuilt envelopes and new defaults;
-  - stringified identifiers and any new valid-record claim;
-  - reading a collection element before it is typed `unknown`.
-- **Rounding increment snapshot.**
-  - `increment` is read once, with its optional semantics, then tested with `vocabularyHas` against the existing three increments.
-  - That same value is returned if it is accepted, otherwise `nearestQuarterHour`.
-  - `enabled` is still read after it.
-
-  This authorizes the changed read count for accessor-backed increments. It is not an equivalence claim for changing or throwing getters.
-- **Codex `0.33.33.43.61`.** The missing-record failure throws `TypeError("The list action no longer has a record to read.")`. The approval covers the missing record only, not a present record whose id, status or type is absent. The optional List contract stays.
-
-**Correction to `0.33.33.43.56`.** That checkpoint said `vocabularyHas` "is not a type predicate". It is one: it carries `@returns {value is string}`, and the repository compiler narrows with it.
-- **The real consequence** of typing the rounding reader is the rounding editor's `inheritedRounding` option, typed `{ enabled?: unknown, increment?: unknown }`.
-- At the increment-select write, its truthy-narrowed `increment` is `{}`, which is not assignable to `string`.
-- The untyped reader's `any` had hidden this.
-
-**Measured first.** On `nightly` `8f82a7d8`: `clients-projects.js` 7, Lists 28, browser 35.
-- Applying the approved reader to all four wire normalisers closes their 6 diagnostics.
-- It exposes 47:
-  - the settings slot (2);
-  - the rounding editor write (1);
-  - **44 string sinks** that the record fields reach once `id`, `name`, `status` and the id links are honestly `unknown`.
-- The 44 break down as:
+- **Held: the record sink policy (4).** Typing `normalizeClientRecord` and `normalizeProjects` through the approved reader leaves `id`, `name`, `status` and the id links `unknown`, and they meet 44 string sinks:
 
   | Sink | Count |
   |---|---|
@@ -1683,43 +1653,8 @@ Today's measurement, taken independently per module rather than as a group: `cli
   | select `value` writes | 4 |
   | string-typed page helpers, options and collections | 16 |
 
-- Each sink already converts implicitly, and they convert differently. `textContent` turns `null` into `""`, an input's `value` does too, and a template literal gives `"null"`. Making those conversions explicit is a sink policy, not a typing step, so the record normalisers stay held.
-
-**Scope - the part that closes with no new decision.**
-
-- [ ] **Wire readers.** `readWireMember` as approved, and `callWireMethod` beside it.
-  - `callWireMethod` reads a method through the reader and applies it with the value as its receiver.
-  - A list therefore searches as it did, and any other collection answers its own method as before.
-  - **Named for review:** a non-callable member now fails at the same call with this file's `TypeError` instead of the engine's "... is not a function". This is the approved app-owned wording, applied to a call rather than a nullish read. The load path's catch shows its own fixed text either way.
-- [ ] **Settings.** `normalizeSettings` and `readModuleSettingValue` take `unknown`.
-  - Optional reads stay optional, and element reads stay required.
-  - `workspaceType` is still read twice.
-  - The `workspaceSettings` slot is typed from `normalizeSettings`, so its `workspaceType` is the `unknown` second read. Every consumer compares it.
-- [ ] **Rounding.** `normalizeBillingRounding` takes `unknown` and snapshots the increment. `createBillingRoundingEditor`'s `inheritedRounding` is typed as that reader's answer, which is what all three callers pass.
-- [ ] **Notes and pins.** Notes on `normalizeData`, `normalizeClientRecord` and `normalizeProjects` record the held state. The retired cascade note and its pin are retargeted.
-
-**Held, for two named operator decisions.**
-
-- **Record sink policy (4: `normalizeClientRecord` 1, `normalizeProjects` 3).** The decision is whether each of the 44 sinks may make its existing conversion explicit, reproducing that sink's own handling of `null`. The alternative is that these wait for a validated list-response contract.
-- **`normalizeData`'s second `clients` read (1).** Typing the map needs a re-test of the second read. That differs from the bare read for one input only: an accessor that answers a list and then something else, whose own `map` the bare read would call.
-
-**Acceptance.**
-- 2 closed, measured per message, with none introduced: `clients-projects.js` 7 to 5 and browser 35 to 33, before any Codex integration.
-- **Proof through the callers**, against `8f82a7d8`:
-  - bodies shaped like real `/api/settings` responses;
-  - empty, missing, extra, primitive and nullish bodies;
-  - required against optional reads;
-  - malformed elements and collections;
-  - inherited and getter-backed members;
-  - read order and unchanged exceptions;
-  - the load path's page state and displayed text.
-- **Rounding proof:**
-  - all three increments;
-  - unsupported, absent and non-string increments;
-  - `enabled`;
-  - the editor's rendered select and its save path;
-  - one accessor case recording the approved difference.
-- Rendered Clients/Projects coverage on 8101.
+  The decision is whether each sink may make its existing implicit conversion explicit, reproducing that sink's own `null` handling, or whether these wait for a validated list-response contract.
+- **Held: `normalizeData`'s second `clients` read (1).** Typing the map needs a re-test of the second read. That differs from the bare read only for an accessor that answers a list and then something else, whose own `map` the bare read would call.
 
 #### 0.33.33.43.56 - Clients/Projects normalisers, the wire trust boundary
 

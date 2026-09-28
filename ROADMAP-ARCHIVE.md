@@ -1,5 +1,56 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.57 - Clients/Projects settings reader and rounding snapshot
+
+**Model: High Effort** - the page's wire trust boundary. Approved checked reads replace bare reads, and by approval the rounding increment is now read once.
+
+- [x] **Operator approvals, 2026-09-28**, recorded so they are not asked again.
+  - **Checked wire reads (Option A).**
+    - A file-local reader returns `unknown`. A non-nullish value answers `Reflect.get(Object(value), key, value)`.
+    - A nullish value throws a `TypeError` with this file's message at an originally required read, and answers `undefined` without reading at an originally optional one.
+    - The wording change is authorized at those required reads.
+    - Ruled out: rejecting nullish input at function entry, validation, filtering, rebuilt envelopes, new defaults, stringified identifiers and any new valid-record claim.
+  - **Rounding increment snapshot.** The increment is read once and returned if it passes `vocabularyHas`, otherwise `nearestQuarterHour`. `enabled` is read after it. This authorizes the changed read count for accessor-backed increments; it is not an equivalence claim for changing getters.
+  - **Codex `0.33.33.43.61`.** The missing-record failure throws `TypeError("The list action no longer has a record to read.")`. This covers the missing record only; the optional List contract stays.
+- [x] **Correction to `0.33.33.43.56`.** That entry said `vocabularyHas` is not a type predicate. It is one, and the compiler narrows with it. The rounding reader's real consequence is the rounding editor's `inheritedRounding` option: its `unknown` increment narrows to `{}` at the increment-select write, which the untyped reader's `any` had hidden. The earlier entry is marked with this correction.
+- [x] **Measured first.** On `nightly` `8f82a7d8`: `clients-projects.js` 7, Lists 28, browser 35.
+  - The approved reader across all four wire normalisers closes 6.
+  - It exposes 47: the settings slot (2), the editor write (1) and 44 string sinks reached by `unknown` record fields.
+  - Those sinks convert differently. `textContent` and an input's `value` turn `null` into `""`, where a template gives `"null"`. So the record normalisers were held rather than reconciled.
+- [x] **Closed (2).**
+  - **Settings reader.** `normalizeSettings` and `readModuleSettingValue` take `unknown`. Optional reads stay optional, element reads stay required, and `workspaceType` is still read twice.
+  - **Collection calls.** Each `find` goes through `callWireMethod`, which reads the method through the reader and applies it with the collection as its receiver.
+  - **Rounding reader.** `normalizeBillingRounding` takes `unknown` and snapshots the increment.
+  - **Connected slots.** The `workspaceSettings` slot is typed from `normalizeSettings`; every consumer of its now-`unknown` `workspaceType` compares it. `createBillingRoundingEditor`'s `inheritedRounding` is typed as the rounding reader's answer, which all three callers pass.
+- [x] **One named message change beyond the approval's letter.** A `find` that cannot be called now fails at the same call, after the same reads, with this file's `TypeError` instead of the engine's "... is not a function". Its outcome is otherwise unchanged, and a collection carrying its own callable `find` is still called. The load path's catch shows its own fixed text either way.
+- [x] **Held (5), for two named decisions.**
+  - **The record sink policy (4).** `normalizeClientRecord` and `normalizeProjects`, with the 44 sinks: 7 URL encodes, 12 `dataset` writes, 3 `textContent` writes, 2 input `value` writes, 4 select `value` writes, and 16 helpers, options and collections.
+  - **`normalizeData`'s second `clients` read (1).** The only typed map re-tests the second read, which differs from the bare read only for an accessor that answers a list and then a non-list.
+- [x] **Proof**, beside `8f82a7d8` through the callers, in `clients-projects-settings-rounding-contracts`.
+  - **Settings bodies.** 52 of them, each run through a logging proxy:
+    - real `readInternal`-shaped bodies;
+    - empty, nullish, primitive and list bodies;
+    - missing, falsy, extra, inherited and getter-backed members;
+    - malformed elements and collections;
+    - a collection with its own `find`.
+
+    Each gives the same reads, in the same order and with the same receivers, and the same answer or failure. The two expected message classes are asserted as TypeErrors at the same point.
+  - **Load paths.** `loadPageData` and the dialog data load leave the same page state, show the same status text and log the same failure kind. A malformed body stops before `normalizeData`.
+  - **Rounding reader.** The same answers for every plain rule through both rounding readers, covering:
+    - all three increments;
+    - unsupported, absent and non-string increments;
+    - the `enabled` variants;
+    - inherited rules;
+    - nullish and primitive rules.
+
+    The read log differs only by the accepted increment's second read, and one accessor case records the approved difference.
+  - **Rounding editor.** The editor renders and saves the same for every increment the record or the workspace carries, in every mode.
+  - **Mutations.** 12, each caught.
+  - **Compiler probes.** 8, each load-bearing, including both `@returns {unknown}` annotations, which stop `Reflect`'s `any` leaking.
+  - **Retargeted pins.** Eight existing suites lift the wire reader where their version has it. The retired cascade pin and the `0.33.33.43.56` held-list pins are retargeted, with LATER notes.
+- [x] **Accounting.** `clients-projects.js` 7 to 5, browser 35 to 33. **2 closed and none introduced**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.43.56 - Clients/Projects normalisers, the wire trust boundary
 
 **Model: High Effort** - the page's wire trust boundary. The published contracts and each normaliser's reads were measured before anything was typed, and the parts that need a trust-policy decision are held rather than forced.
@@ -13,7 +64,7 @@
 - [x] **Held (7), with notes in the source, pending operator decisions.**
   - **The wire normalisers (6).** Typing `data`, `client` and `settings` as `unknown` closes 6 and exposes 32 member reads. A checked read, `Reflect.get(Object(value), key, value)`, matches each native read for objects and primitives - value, getter receiver and read order - but not a nullish body. Matching the native "Cannot read properties of null" needs a cast; answering `undefined` would coerce a malformed body into an empty record.
   - **`normalizeProjects`** would appear to close only because `Array.isArray` narrows `unknown` to an untyped array, leaving its element reads unchecked with nothing reporting them, so it is not counted.
-  - **`normalizeBillingRounding` (1).** Declaring it exposes a TS2322 at the rounding editor's increment-select write, because `vocabularyHas` is not a type predicate. The pinned note still calls this an inference cascade; the consumer it names has since moved. Closing it needs one of these:
+  - **`normalizeBillingRounding` (1).** Declaring it exposes a TS2322 at the rounding editor's increment-select write. *Corrected at `0.33.33.43.57`:* this entry said the cause was that `vocabularyHas` is not a type predicate. It is one (`@returns {value is string}`), and the compiler narrows with it. The cause is the editor's `inheritedRounding` option, whose `unknown` increment narrows to `{}`. The pinned note still calls this an inference cascade; the consumer it names has since moved. Closing it needs one of these:
     - an unsound predicate;
     - a `String()` coercion;
     - an inline `typeof` test that adds one read of `rounding.increment`.
