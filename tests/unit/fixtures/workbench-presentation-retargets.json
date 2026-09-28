@@ -96,7 +96,7 @@
       "names": [
         "createTaskFocusRelatedContextItem"
       ],
-      "newLine": 91,
+      "newLine": 90,
       "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusRelatedContextItem\"),",
       "targets": [
         {

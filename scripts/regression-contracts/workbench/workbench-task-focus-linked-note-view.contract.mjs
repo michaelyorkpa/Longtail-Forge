@@ -7,7 +7,6 @@ const { readText } = createProjectTextReader();
 const moduleActionsSource = readText("public/js/shared/module-actions.js");
 const notesScript = readText("public/js/notes.js");
 const relatedContextService = readText("src/services/workbench-task-focus-related-context.service.js");
-const workbenchScript = readText("public/js/workbench.js");
 const presentationScript = readText("public/js/workbench-task-focus-presentation.js");
 
 assert.match(
