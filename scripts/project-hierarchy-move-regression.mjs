@@ -49,7 +49,8 @@ assert.match(
 );
 assert.match(
   clientsProjects,
-  /function selectedProjectClientFilterValue\(\)[\s\S]*activeClientProjectsReadSurface\?\.querySelector\?\.\('\[name="clientId"\]'\)[\s\S]*value !== "All" && value !== "__workspace_projects__"/,
+  // `0.33.33.43.53` reads the same descriptor filter through the checked lookup for its `select`.
+  /function selectedProjectClientFilterValue\(\)[\s\S]*requireCheckedDom\(\)\.find\(activeClientProjectsReadSurface, '\[name="clientId"\]', HTMLSelectElement\)[\s\S]*value !== "All" && value !== "__workspace_projects__"/,
   "Project defaults should read the active descriptor Client filter instead of legacy page filter state",
 );
 assert.doesNotMatch(

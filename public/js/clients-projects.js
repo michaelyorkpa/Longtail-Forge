@@ -35,11 +35,9 @@
   };
   let activeClientProjectsReadDescriptor = null;
   /**
-   * **Deliberately undeclared, and it belongs with the surface boundary rather than here.**
-   * Declaring it `Element | null` closes its three evolving-`any` reads and opens five member
-   * reads that assume more than `Element` carries - `refresh` and `value` among them. Those
-   * consumers are the read-surface cluster, and narrowing them together is one deliberate step.
-   * **Discharged by** that cluster's own checkpoint. Pinned by `clients-projects-state-contracts`.
+   * The rendered read surface, as its one writer answers it: the framework's surface element, or
+   * `null` before it renders and on a page without one (`0.33.33.43.53`).
+   * @type {ReturnType<typeof renderClientProjectsReadSurface>}
    */
   let activeClientProjectsReadSurface = null;
   let clientProjectsViewBehaviorsRegistered = false;
@@ -1334,9 +1332,11 @@
    * @param {string} selector
    */
   function querySelectionInputs(selector) {
-    const roots = [activeClientProjectsReadSurface, document].filter(Boolean);
-    // The collected controls stay undeclared with the surface above: `querySelectorAll` answers
-    // `Element`, and the callers read `dataset` and `value` off what this returns.
+    // The surface is `null` or the element the framework asserted it rendered, so this keeps what
+    // `Boolean` kept.
+    const roots = [activeClientProjectsReadSurface, document].filter((root) => root !== null);
+    // The collected controls stay undeclared: `querySelectorAll` answers `Element`, and the callers
+    // read `dataset` and `value` off what this returns. They belong to the lookup boundary.
     const inputs = [];
     const seen = new Set();
 
@@ -3546,8 +3546,17 @@
       : "";
   }
 
+  /**
+   * The Projects page's client filter, when it names a real client.
+   *
+   * The control is the descriptor's `select` filter, rendered as `<select name="clientId">`, and
+   * nothing else on this surface is named `clientId`, so the checked lookup finds the element the
+   * bare lookup found and refuses nothing that could be there.
+   */
   function selectedProjectClientFilterValue() {
-    const control = activeClientProjectsReadSurface?.querySelector?.('[name="clientId"]');
+    const control = activeClientProjectsReadSurface
+      ? requireCheckedDom().find(activeClientProjectsReadSurface, '[name="clientId"]', HTMLSelectElement)
+      : null;
     const value = String(control?.value || "").trim();
     return value && value !== "All" && value !== "__workspace_projects__" ? value : "";
   }

@@ -242,13 +242,11 @@ describe("What did land", () => {
     assert.match(source, /tagOptions = loadedTags;/, "and the loader still fills it");
   });
 
-  it("leaves the read surface with the cluster its consumers belong to", () => {
-    // Discharged by the read-surface cluster's own checkpoint: declaring the slot closes three
-    // evolving-`any` reads and opens five that assume more than `Element` carries.
-    const at = source.indexOf("let activeClientProjectsReadSurface = null;");
-    const block = source.slice(source.lastIndexOf("/**", at), at);
-
-    assert.match(block, /opens five member\r?\n\s+\* reads that assume more than `Element` carries/);
-    assert.doesNotMatch(block, /@type \{/, "the surface is annotated; that deferral is discharged and this pin should go");
+  it("derives the read surface from the writer that fills it", () => {
+    // `0.33.33.43.53` discharged the deferral this case used to pin: the slot is the framework's
+    // surface element or `null`, and its reads were narrowed with it.
+    assert.match(source, /@type \{ReturnType<typeof renderClientProjectsReadSurface>\}\r?\n\s+\*\/\r?\n\s+let activeClientProjectsReadSurface = null;/,
+      "derived rather than restated, so the slot and its writer cannot drift");
+    assert.match(source, /activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\);/, "and the writer still fills it");
   });
 });
