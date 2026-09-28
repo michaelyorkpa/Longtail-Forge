@@ -566,6 +566,7 @@
         "tests/unit/clients-projects-normalizer-contracts.test.mjs",
         "tests/unit/clients-projects-project-assignment-contracts.test.mjs",
         "tests/unit/clients-projects-project-editor-contracts.test.mjs",
+        "tests/unit/clients-projects-record-writers-contracts.test.mjs",
         "tests/unit/clients-projects-related-projects-contracts.test.mjs",
         "tests/unit/clients-projects-state-contracts.test.mjs",
         "tests/unit/clients-projects-write-path-contracts.test.mjs",
@@ -942,12 +943,12 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 105,
+      "errorCount": 91,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
             "code": 2339,
-            "count": 7
+            "count": 6
           },
           {
             "code": 2345,
@@ -963,7 +964,7 @@
           },
           {
             "code": 7006,
-            "count": 55
+            "count": 42
           },
           {
             "code": 7031,
@@ -1601,8 +1602,8 @@
     }
   },
   "totals": {
-    "files": 1524,
-    "errors": 105,
+    "files": 1525,
+    "errors": 91,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

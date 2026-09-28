@@ -3902,6 +3902,22 @@
     return record;
   }
 
+  /**
+   * A client not yet saved, as the Add Client dialog builds it (`0.33.33.43.50`).
+   *
+   * The writer spreads the whole draft into its request and reads only `projects`, whose first
+   * entry it posts after the client is created. The dialog always sends none, so that branch is not
+   * reached today; it is kept as it stands.
+   * @typedef {Record<string, unknown> & { projects?: Array<Record<string, unknown>> }} ClientCreateDraft
+   */
+
+  /**
+   * POST the client, merge the saved record back into the draft, and post its first initial
+   * project, if it carries one, under the saved client.
+   * @param {ClientCreateDraft} client
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
   async function createClientRecord(client, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       const initialProjects = Array.isArray(client.projects) ? client.projects : [];
@@ -3940,6 +3956,13 @@
     });
   }
 
+  /**
+   * PUT one client. Two of the three callers strip the tag payload first; the third sends it only
+   * when the editor put `tagIds` on the record.
+   * @param {NormalizedClientRecord & { tagIds?: unknown }} client
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
   async function saveClientRecord(client, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       await requireApi().putJson(
@@ -3951,6 +3974,15 @@
     });
   }
 
+  /**
+   * POST a project draft under its target - the workspace route for the workspace grouping, the
+   * client's own route otherwise - and merge the saved record back into the draft. The draft is
+   * spread wholesale into the request, so it is typed as the open record it is.
+   * @param {NormalizedClientEntry} client
+   * @param {Record<string, unknown>} project
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
   async function createProjectRecord(client, project, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       const url = client.isWorkspaceScope
@@ -3973,6 +4005,11 @@
     });
   }
 
+  /**
+   * @param {NormalizedProjectRecord & { tagIds?: unknown }} project
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
   async function saveProjectRecord(project, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       await requireApi().putJson(
@@ -3985,6 +4022,12 @@
     });
   }
 
+  /**
+   * The record and the extra members as one request body, without `tagIds` unless the record owns
+   * it: only an editor that set tags sends them.
+   * @param {{ tagIds?: unknown }} record
+   * @param {Record<string, unknown>} [extraPayload]
+   */
   function withOptionalTagPayload(record, extraPayload = {}) {
     const payload = {
       ...record,
@@ -3998,6 +4041,12 @@
     return payload;
   }
 
+  /**
+   * A copy of a client without either tag payload spelling, so its save leaves the client's tags as
+   * they are. Both callers are client saves, and the copy keeps the client's own type for the save
+   * it feeds, which reads its `id`.
+   * @param {NormalizedClientRecord & { tagIds?: unknown, tag_ids?: unknown }} record
+   */
   function withoutTagPayload(record) {
     const payload = { ...record };
     delete payload.tagIds;
@@ -4005,6 +4054,11 @@
     return payload;
   }
 
+  /**
+   * @param {NormalizedProjectRecord} project
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
   async function archiveProjectRecord(project, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       await requireApi().deleteJson(
