@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). Remaining presentation planned (`39b71e81`): one seam, 32 functions / 651 lines. Its shared contract landed as `0.33.33.38.2.13`, so implementation resumes under `.42.47`; what the parent's extraction criterion requires is with the operator | 0 owned |
-| Claude | `0.33.33.43.52` | Field and status helpers typed at `0.33.33.43.51`. `clients-projects.js` 45 and `lists.js` 30 remain, all owned families. Next: the client editors; then the `activeClientProjectsReadSurface` state boundary, the tag/filter/modal helpers, and the normalisers (the wire trust boundary) last | 75 |
+| Claude | `0.33.33.43.53` | Client editors typed at `0.33.33.43.52`. `clients-projects.js` 37 and `lists.js` 30 remain, all owned families. Next: the `activeClientProjectsReadSurface` state boundary; then the tag/filter/modal helpers, the `saveClientSettings`/`querySelectionInputs` lookup boundary with the billing-contact conversion awaiting a decision, and the normalisers (the wire trust boundary) last | 67 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1623,41 +1623,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.52 - Clients/Projects client editors and the editor type tail
 
-**Model: Medium Effort** - annotations on five editors and two locals in one module, with one body spelling proved equivalent over the only values that can reach it.
-
-**Measured on `nightly` `88823b7a`:** 9 diagnostics.
-
-| Function | Diagnostics | Callers |
-| --- | --- | --- |
-| `createClientNameEditor` | 2: `client` (TS7006), and `options.showSaveButton` on a `{}` default (TS2339) | 1 |
-| `createBillingContactEditor` | 2: the same pair | 1 |
-| `createParentClientField` | 1 | 1 |
-| `populateParentClientSelect` | 1 | 2 |
-| `createAddProjectSubmitButton` | 1 | 2 |
-| `createProjectEditor` | 1 TS2345: `...identityFields.filter(Boolean)` leaves `null` in the type | - |
-| `createAddProjectForm` | 1 TS2739: `formFields` is inferred as labels only, then a `div` is pushed | - |
-
-**The callers, traced by the compiler** (each parameter temporarily typed `symbol`, then the file byte-restored):
-
-- **`createClientNameEditor` and `createBillingContactEditor`**: one caller each, the client editor, passing a `NormalizedClientRecord` and `{ showSaveButton: false }`. **Observation, not changed:** that is the only caller, so both save-button branches are not reached today.
-- **`createParentClientField`**: the name editor's `client`.
-- **`populateParentClientSelect`**: an `HTMLSelectElement` from both callers. The Add Client dialog passes no excluded id; the parent field passes the client's `id`, which `getClientDescendantIds` takes as a `string`. The body's `!select` guard stays.
-- **`createAddProjectSubmitButton`**: both callers pass a `NormalizedClientEntry`'s `id`. Its only sink is a `dataset` write, which takes a `string`. The record id stays `any` until the normalisers are typed.
-- **`createProjectEditor`'s `identityFields`**: `statusLabel` is a created `<label>`; `createProjectParentAssignment` always returns a created `<label>`; `createProjectClientAssignment` returns `null` or a created `<label>`. Read in full, no path returns anything else, so the array holds only `HTMLLabelElement | null`. On those values `Boolean(label)` and `label !== null` agree, and the compiler narrows the second, as in `0.33.33.43.49`.
-- **`createAddProjectForm`'s `formFields`**: `nameLabel`, then, with a client assignment, its `HTMLDivElement`. Nothing else is pushed.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Annotations from the callers:** the five editors' parameters, including `options` as `{ showSaveButton?: boolean }`, and `formFields` as `Array<HTMLLabelElement | HTMLDivElement>`.
-- [ ] **One body spelling:** `identityFields.filter(Boolean)` becomes `identityFields.filter((label) => label !== null)`. No other body changes.
-- [ ] **Excluded:** `saveClientSettings` (2), whose `container` stays undeclared for its recorded reason, and the `activeClientProjectsReadSurface` state (5).
-- [ ] **Proof.**
-  - Body identity for everything except the one spelling.
-  - Side-by-side DOM snapshots against `88823b7a`: each editor with and without its save button, the parent options, the contact fields, the submit button, and the project editor's field order in both layouts, with and without a client assignment.
-  - Mutations, compiler probes and a per-message delta.
-  - A Grep-tool search, raw and escaped, including `filter(Boolean)` pins.
-- [ ] **Expected accounting:** `clients-projects.js` 45 to 36, browser 75 to 66, with no message rising. **Corrected during implementation to 8, 45 to 37 and 75 to 67:** declaring `createBillingContactEditor`'s `client` exposed a new TS2322 at `input.value = client.billing_contact[fieldName]`, because `normalizeBillingContact` keeps each truthy value as it arrived (`unknown`) and only the input's `value` setter converts it. That annotation was backed out rather than banked, and spelling the conversion is a body change recorded for a decision.
-- [ ] **Verification:** range-explicit `verify:slice` from `88823b7a` on port 8101, and the four Clients/Projects page specs as the rendered gate.
+**Complete: 8 diagnostics closed, one filter spelled as a null test, and one relocated defect backed out.** See the archive entry. `clients-projects.js` 45 to 37, browser 75 to 67.
 
 #### 0.33.33.43.51 - Clients/Projects field and status helpers
 
