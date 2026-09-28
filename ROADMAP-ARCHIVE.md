@@ -1,5 +1,24 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.13 - Workbench Task Focus presentation contract
+
+**Model: Medium Effort** - declarations only, taken verbatim from a plan the compiler had already probed; the governance record follows the `0.33.33.38.2.12` precedent.
+
+- [x] **The prerequisite.** Codex's planning commit `39b71e81` for `0.33.33.42.47` moves the remaining Task Focus presentation - 32 functions / 651 lines of summary and details, timer display, related context, action strip and panel composition - into `public/js/workbench-task-focus-presentation.js`, published as `LongtailForge.workbenchTaskFocusPresentation`. Workbench keeps the state, writes, refresh, drift, deep links, exit and resume handling, focus, recovery and navigation. A new namespace member and its types are shared contracts, so they are Claude's.
+- [x] **The declarations.**
+  - The optional `workbenchTaskFocusPresentation` member sits beside the checklist member.
+  - Codex's ten declarations follow the checklist declarations: the related action, item, group and state; the presentation state, which extends the checklist state; the display timer; the mounts; the host; the renderer; and the factory.
+  - Once their doc comments are removed, they are identical to the plan's block. Each doc comment says what the renderer is handed and assumes, and none of them validates data.
+- [x] **The governance record.**
+  - `workbenchTaskFocusPresentation` is recorded as "Declared ahead of its writer: the remaining Task Focus presentation extraction publishes workbenchTaskFocusPresentation from public/js/workbench-task-focus-presentation.js and strikes this record."
+  - Known and declared members go 66 to 67; published stays 66. The governance counts and the namespace-root pins move with them. The Settings surface pins were already count-agnostic.
+- [x] **Proof.**
+  - **The host fits.** A host was built from Workbench's real `state`, its seven mount slots as accessors (three writable), the live collapsed flag and the 30 host functions. It was assigned to the declared host type, and to a mapped copy that turns every method into a function-typed property, so each parameter is checked strictly rather than bivariantly. No diagnostic appeared, before the branch and again on it. A negative control with two sabotaged members failed both assignments. Every probe file was byte-restored and hash-verified.
+  - **Governance, both ways.** Without the record, governance fails naming `workbenchTaskFocusPresentation` as declared but unpublished. With a temporary aliased writer (`namespace.workbenchTaskFocusPresentation = ...`), it fails demanding the spent record be struck. The restored tree passes.
+  - **Pins.** `tests/unit/workbench-task-focus-presentation-contract.test.mjs` pins every declaration, the member's placement and the record's text. A Grep-tool search, raw and escaped, found the only count pins in governance and `namespace-root-closure-contracts`.
+- [x] **Accounting.** No runtime file changes; browser diagnostics stay 75. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the contract is declared in browser-contracts.d.ts.
+
 ## Version 0.33.33.43.51 - Clients/Projects field and status helpers
 
 **Model: Medium Effort** - annotations only, on leaf helpers in one module; the one judgement, that two forwarders take their delegate's declared `unknown`, was recorded before implementation.
