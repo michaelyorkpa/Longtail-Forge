@@ -1638,6 +1638,19 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.60 - Lists link-picker provider options and debounce
+
+**Model: High Effort** - Preserve the two provider producers and native debounce behavior while discharging local typing deferrals.
+
+**Planning, not complete.** Baseline `1657a3aa306caa190430436d7874ee6eb995bd1e`; Lists 30 raw / 30 owned / 0 dom, browser 61. The 30 group into editor input aliases (9), saved-record consumers (7), event handlers (4), item field descriptors (2), option/select/suggestion consumers (4), link-picker provider/debounce (2), item progress (1), and declarative surface (1). Diagnostic codes: TS7006 20, TS2339 9, TS2345 1.
+
+- [ ] Type `listLinkProviderOptions` from its validated provider caller and its separate local fallback literals, without filling in absent fields or changing the shared declaration. Retain order, client visibility, last-provider selection and identifier fallback. An object-or-undefined map result permits an equivalent explicit undefined filter in place of Boolean.
+- [ ] Resolve `queueListEditorLinkTargetSearch`'s null timeout input at the native cancellation boundary; prove null and undefined are equivalent for the browser timer operation, with delay and replacement order unchanged. Expected two eliminations, none moved or introduced; back out a probe that exposes unrelated errors.
+- [ ] Compare lifted baseline/current functions, pin producer distinctions, run bounded fault injection with retained byte backup and SHA-256 restoration, and search raw/escaped spellings across scripts and tests.
+- [ ] Run Lists rendered coverage on isolated port 8102, canonical verification from the named full baseline, and checkpoint validation. Archive last in the implementation PR. Existing response, bootstrap and checked-DOM decisions remain intact.
+
+No shared prerequisite identified for this boundary. The other 28 diagnostics remain outside it; no Lists or parent closeout claim. Branch-local ledger figures require recomputation at integration.
+
 #### 0.33.33.43.53 - Clients/Projects read-surface state boundary
 
 **Complete: the read surface declared from its writer, 6 diagnostics closed, and two reads narrowed with proofs.** See the archive entry. `clients-projects.js` 37 to 31, browser 67 to 61.
