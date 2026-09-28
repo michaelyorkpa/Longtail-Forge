@@ -1656,7 +1656,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
   - Side-by-side DOM snapshots against `88823b7a`: each editor with and without its save button, the parent options, the contact fields, the submit button, and the project editor's field order in both layouts, with and without a client assignment.
   - Mutations, compiler probes and a per-message delta.
   - A Grep-tool search, raw and escaped, including `filter(Boolean)` pins.
-- [ ] **Expected accounting:** `clients-projects.js` 45 to 36, browser 75 to 66, with no message rising.
+- [ ] **Expected accounting:** `clients-projects.js` 45 to 36, browser 75 to 66, with no message rising. **Corrected during implementation to 8, 45 to 37 and 75 to 67:** declaring `createBillingContactEditor`'s `client` exposed a new TS2322 at `input.value = client.billing_contact[fieldName]`, because `normalizeBillingContact` keeps each truthy value as it arrived (`unknown`) and only the input's `value` setter converts it. That annotation was backed out rather than banked, and spelling the conversion is a body change recorded for a decision.
 - [ ] **Verification:** range-explicit `verify:slice` from `88823b7a` on port 8101, and the four Clients/Projects page specs as the rendered gate.
 
 #### 0.33.33.43.51 - Clients/Projects field and status helpers

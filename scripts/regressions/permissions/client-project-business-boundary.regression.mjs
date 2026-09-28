@@ -64,7 +64,9 @@ async function assertStaticContracts() {
   assert.doesNotMatch(browserSource, /function hideDescriptorField|function showDescriptorField/, "Client controls should not be rendered and hidden by the framework adapter");
   assert.match(browserSource, /function createProjectClientAssignment[\s\S]*if \(!clientsEnabledForWorkspace\(\)\) \{[\s\S]*return null/, "Edit Project should decline to create a Client selector outside Business workspaces");
   assert.match(browserSource, /function createAddProjectClientAssignment[\s\S]*if \(!clientsEnabledForWorkspace\(\)\) \{[\s\S]*return null/, "Add Project should decline to create a Client selector outside Business workspaces");
-  assert.match(browserSource, /clientAssignmentSelect = clientAssignmentLabel\?\.querySelector[\s\S]*identityFields\.filter\(Boolean\)/, "Edit Project should omit the absent Client field instead of appending hidden modal anatomy");
+  // `0.33.33.43.52` spells the filter as a null test the compiler narrows; only a created label or
+  // `null` reaches it, so it keeps what `Boolean` kept and still drops the absent Client field.
+  assert.match(browserSource, /clientAssignmentSelect = clientAssignmentLabel\?\.querySelector[\s\S]*identityFields\.filter\(\(label\) => label !== null\)/, "Edit Project should omit the absent Client field instead of appending hidden modal anatomy");
   assert.match(serviceSource, /assertProjectClientAssignmentAllowed\(workspaceSettings\.workspaceType, clientId, payload\)[\s\S]*assertProjectClientAssignmentAllowed\(workspaceSettings\.workspaceType, "", payload\)/, "Project create and update paths should share server-owned Client assignment rejection");
   assert.match(serviceSource, /function listProjects[\s\S]*workspaceType === "business"[\s\S]*filter\(\(project\) => !project\.client_id\)[\s\S]*map\(stripProjectClientContext\)/, "Personal and Family Project list reads should stay project-only and strip Client context");
 }
