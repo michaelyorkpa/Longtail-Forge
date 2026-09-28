@@ -40,7 +40,7 @@ assert.match(listsJs, /className:\s*"surface-modal-heading"[\s\S]*className:\s*"
 assert.match(listsJs, /className:\s*\[\s*"lists-item-advanced",\s*"surface-modal-group"\s*\][\s\S]*className:\s*"surface-modal-section-heading"[\s\S]*className:\s*\[\s*"lists-item-advanced-fields",\s*"surface-modal-section-body"\s*\]/, "The item editor Details disclosure should use the shared modal group and section anatomy");
 assert.match(listsJs, /api\.postJson\(`\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/items`/, "Lists item create route should remain module-owned");
 assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/items\/\$\{encodeURIComponent\(editingItemId\)\}`/, "Lists item edit route should remain module-owned");
-assert.match(listsJs, /api\.postJson\(`\/api\/lists\/\$\{encodeURIComponent\(list\.list_id\)\}\/items\/reorder`/, "Lists item reorder route should remain module-owned");
+assert.match(listsJs, /api\.postJson\(`\/api\/lists\/\$\{encodeURIComponent\(\x60\$\{list\.list_id\}\x60\)\}\/items\/reorder`/, "Lists item reorder route should remain module-owned");
 assert.match(listsJs, /\/api\/lists\/item-suggestions/, "Lists catalog suggestions should remain module-owned");
 
 assert.match(stylesheet, /\.surface-main-panel\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/, "Shared surface panels should not let nested content set a wider intrinsic width");
