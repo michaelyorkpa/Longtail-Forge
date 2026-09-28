@@ -4227,6 +4227,7 @@
     }
   }
 
+  /** @param {string | undefined} selector The write's `viewState.flashSelector`. */
   function flashSavedButton(selector) {
     // Keep success feedback attached to the button that initiated the save.
     if (!selector) {
@@ -4733,6 +4734,14 @@
     return normalizeBillingRounding(rounding);
   }
 
+  /**
+   * The client and project editors' reminder-default fields, seeded from the record's own policy.
+   * @param {{
+   *   legend: string,
+   *   inheritLabel: string,
+   *   value: ReturnType<typeof normalizeTaskReminderPolicy>,
+   * }} options
+   */
   function createTaskReminderPolicyEditor({ legend, inheritLabel, value }) {
     const fieldset = document.createElement("fieldset");
     const legendElement = document.createElement("legend");
@@ -4780,6 +4789,7 @@
     };
   }
 
+  /** @param {string} text @param {number} value */
   function createNumberField(text, value) {
     const label = document.createElement("label");
     const input = document.createElement("input");
@@ -5018,6 +5028,7 @@
     return editor;
   }
 
+  /** @param {HTMLSelectElement} select */
   function populateBillingPeriodStartDays(select) {
     for (let day = 1; day <= 28; day += 1) {
       select.appendChild(createOption(String(day), formatOrdinal(day)));
@@ -5055,6 +5066,7 @@
     return project.billing_period || getEffectiveClientBillingPeriod(client);
   }
 
+  /** @param {NormalizedClientEntry} client */
   function getProjectBillingPeriodInheritLabel(client) {
     const label = client.isWorkspaceScope ? "workspace" : "client";
 
@@ -5142,6 +5154,7 @@
     return incrementLabels[normalizedRounding.increment];
   }
 
+  /** @param {number} day */
   function formatOrdinal(day) {
     const suffix = day % 10 === 1 && day !== 11
       ? "st"
@@ -5189,6 +5202,7 @@
     );
   }
 
+  /** @param {string} value The normalised `"yes"`/`"no"` billable flag. */
   function createBillableCheckbox(value) {
     const label = document.createElement("label");
     label.className = "inline-option billable-option";
@@ -5209,6 +5223,13 @@
     return normalizeBillingContact({});
   }
 
+  /**
+   * A project status select, with the record's status selected.
+   *
+   * The record's status is always one of `projectStatuses`: the normaliser keeps a status only when
+   * it is in that list and otherwise writes `"Active"`.
+   * @param {string} value
+   */
   function createStatusSelect(value) {
     const select = document.createElement("select");
 
@@ -5221,6 +5242,11 @@
     return select;
   }
 
+  /**
+   * A client status select, with the record's status selected; like the project status, always one
+   * of `clientStatuses`.
+   * @param {string} value
+   */
   function createClientStatusSelect(value) {
     const select = document.createElement("select");
 
@@ -5233,6 +5259,12 @@
     return select;
   }
 
+  /**
+   * **A forwarder, so it takes the page controller's own parameters.** That `createOption` declares
+   * both `unknown` and hands them to the option's setters, which do the conversion; several callers
+   * pass record ids and names straight from the wire.
+   * @param {unknown} value @param {unknown} text
+   */
   function createOption(value, text) {
     return requirePageController().createOption(value, text);
   }
@@ -5241,6 +5273,7 @@
     return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
   }
 
+  /** @param {string} value */
   function formatToken(value) {
     return String(value || "")
       .split("_")
@@ -5249,6 +5282,11 @@
       .join(" ");
   }
 
+  /**
+   * **A forwarder, like `createOption`:** the page controller's `setStatus` declares its message
+   * `unknown`, and one caller hands over a thrown value's `message`, which can be anything.
+   * @param {unknown} message
+   */
   function setStatus(message, options = {}) {
     requirePageController().setStatus(null, message, options);
   }

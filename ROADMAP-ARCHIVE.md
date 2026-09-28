@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.51 - Clients/Projects field and status helpers
+
+**Model: Medium Effort** - annotations only, on leaf helpers in one module; the one judgement, that two forwarders take their delegate's declared `unknown`, was recorded before implementation.
+
+- [x] **Measured.** On `nightly` `5205f6fe`: 16 diagnostics in twelve helpers - 13 TS7006 and the reminder editor's 3 TS7031, one per destructured member.
+- [x] **The callers, traced by the compiler.** Every parameter was temporarily typed `symbol`, so each call site reported its argument type, and the file was then byte-restored.
+  - `createOption` (40 callers) and `setStatus` (21) forward to the page controller. It declares both `unknown` and converts in its own setters (`0.33.33.39.24`). Some callers pass raw record ids and names, and `handleClientProjectActionError` passes a thrown value's `message`.
+  - `formatToken`: strings. `formatOrdinal`: numbers. `createNumberField`: a label and a positive integer.
+  - `createTaskReminderPolicyEditor`: two labels and the record's normalised `taskReminderPolicy`.
+  - `createStatusSelect` and `createClientStatusSelect`: the record's `status`, and the add form's `"Active"`.
+  - `createBillableCheckbox`: the normalised `"yes"`/`"no"` flag.
+  - `populateBillingPeriodStartDays`: the start-day `HTMLSelectElement`.
+  - `getProjectBillingPeriodInheritLabel`: a `NormalizedClientEntry`.
+  - `flashSavedButton`: `viewState.flashSelector`, `string | undefined`.
+- [x] **The change: annotations only, from the callers.** Every body is unchanged.
+  - **The status selects take `string`.** The record status is `any` until the normalisers are typed. But each normaliser keeps a status only when it is in the page's own list, and otherwise writes `"Active"`.
+  - **The two forwarders take `unknown`**, the delegate's declared parameters. A compiler probe shows `string` would also compile today, because the non-string callers are `any`. So this is a recorded judgement, not a forced one: `string` would claim that wire ids and thrown messages are strings, which nothing proves.
+- [x] **One planning note corrected.** The plan (and the handoff that prompted it) said `flashSavedButton` only looked the button up. That came from a truncated read. It writes "Saved." and `is-saved` onto the button that started the write, and restores both after 1.6 seconds. The side-by-side run exposed it by reaching the real `window.setTimeout`. Nothing was changed, and the planning section was corrected in the implementation commit.
+- [x] **Proof.**
+  - **Body identity.** Every body equals its `5205f6fe` body once JSDoc is removed.
+  - **Side-by-side runs.** Every helper ran beside its `5205f6fe` version in its own fake document, with a capturing page controller, over the callers' argument shapes. Compared:
+    - the forwarded arguments, and that the same object arrives;
+    - formatter text;
+    - DOM snapshots of options, number fields, status selects, billable checkboxes and the start-day list;
+    - the reminder editor as built, toggled, edited and read back;
+    - the inherit labels, under the default and a custom workspace period;
+    - the saved-button flash and its restore.
+  - **Mutations.** Thirteen, each caught: swapped forwarded arguments, dropped status options, kept empty token parts, a lost twelfth-day exception, a zero minimum, a changed reminder default, an inverted grid toggle, inverted and wrong status lists, an inverted billable check, a short start-day list, a swapped inherit source, and an unrestored flash.
+  - **Compiler probes.** All twelve annotations are load-bearing: removing each one restores exactly its own diagnostics.
+  - **Existing coverage.** The 19 Clients/Projects-related unit files pass. The pin search, raw and escaped, found no signature pin to retarget.
+- [x] **Accounting.** `clients-projects.js` 61 to 45, browser 91 to 75: **16 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.42.46 - Extract the Task Focus checklist presentation seam
 
 **Model: High Effort** - preserve opaque reads, callback identity and Workbench ownership across a classic-script boundary.
