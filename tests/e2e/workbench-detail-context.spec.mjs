@@ -1,6 +1,6 @@
 import { test, expect } from "./support/isolated-workspace.mjs";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
-const source = createProjectTextReader().readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js");
 test("Task Focus buttons preserve native dataset conversion and failure ordering", async ({ isolatedWorkspace }) => {
   const { page } = isolatedWorkspace;
   await page.goto("/workbench.html");

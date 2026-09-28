@@ -6,6 +6,7 @@ const { readText } = createProjectTextReader();
 
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
+const presentationScript = readText("public/js/workbench-task-focus-presentation.js");
 
 assert.match(
   workbenchHtml,
@@ -44,8 +45,8 @@ assert.match(
   "Workbench state panels should leave hidden opposite-state surfaces out of layout and focus order",
 );
 assert.match(
-  functionBody(workbenchScript, "renderTaskFocusSurface"),
-  /taskFocusActionMount\.hidden = !isTaskFocus;[\s\S]*taskFocusBody\.hidden = !isTaskFocus;[\s\S]*taskFocusActionMount\.replaceChildren\(\);[\s\S]*taskFocusBody\.replaceChildren\(\);[\s\S]*if \(!isTaskFocus \|\| !active\) \{[\s\S]*return;[\s\S]*taskFocusActionMount\.appendChild\(createTaskFocusActionStrip\(active\)\);/,
+  functionBody(presentationScript, "renderTaskFocusSurface"),
+  /mounts\.taskFocusActionMount\.hidden = !isTaskFocus;[\s\S]*mounts\.taskFocusBody\.hidden = !isTaskFocus;[\s\S]*mounts\.taskFocusActionMount\.replaceChildren\(\);[\s\S]*mounts\.taskFocusBody\.replaceChildren\(\);[\s\S]*if \(!isTaskFocus \|\| !active\) \{[\s\S]*return;[\s\S]*mounts\.taskFocusActionMount\.appendChild\(createTaskFocusActionStrip\(active\)\);/,
   "Workbench should only build Task Focus actions and shells while Task Focus is the active view state",
 );
 

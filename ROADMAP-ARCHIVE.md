@@ -1,5 +1,200 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.47 - Extract Task Focus presentation
+
+**Model: High Effort** - one presentation boundary with opaque inputs, live state and mounts, and identity-sensitive event handoffs.
+
+- [x] **Scope.** Moved 29 functions / 631 function-block lines into the synchronous classic-script IIFE `public/js/workbench-task-focus-presentation.js`, published through the bound namespace alias as `workbenchTaskFocusPresentation`. Summary/details 10/180; timer display 6/143; related rendering 7/122; action strip 2/70; composition 4/116. Workbench retains state, API writes/refresh, drift persistence, deep link, exit guard, resume note, entry/apply/refresh, focus, recovery and fallback navigation. The three shared-use readers remain unchanged in Workbench and are injected beside the other 30 host functions. No new renderer methods; title keeps its declared method and Workbench delegator. All 223 non-moved function bodies compare byte-identically to baseline.
+- [x] **Live ownership.** Seven mount accessors (three writable), the collapsed getter, and a live state getter preserve ordering and identity. The first browser attempt found that capturing the state object was stale after `loadWorkbench` replaced it; the final host returns the current object without copying it. The comparison suite now replaces the whole state object, and snapshotting that getter is a caught mutation. Original callbacks remain the same objects and bare calls retain their receiver behavior. Partial panel-construction assignments retain their original failure order.
+- [x] **Branch-local accounting, not an integration total.** Baseline `9747680cef1a08903b09fa1b15146a8ad71037cd`: browser 67 ? 67, Workbench-owned 0 ? 0, raw `workbench.js` 0 ? 0, raw extracted presentation 0, checklist 0, Workbench DOM 0 ? 0. The canonical ledger adds program membership only; no diagnostic message is eliminated, introduced, moved or reclassified. Server/tests and scripts remain zero. Integration must recompute against its actual tree.
+- [x] **Published inventories.** Known/declared stay 67; published 66 ? 67; unique surfaces 68 ? 69; occurrences 71 ? 72; single-writer surfaces 66 ? 67 (two multi-writer surfaces unchanged); classic scripts 82 ? 83; browser sources 84 ? 85. The spent presentation type-only record is struck. Namespace and presentation signature pins retain their claims and now require the runtime writer. No `src/types` change.
+- [x] **Proof before canonical closeout.** Focused Workbench/namespace units 231/231; new extraction suite 12/12. Body identity covers all five groups after only the explicit live host paths and indentation are accounted for. DOM snapshots cover null/loading/error/empty/populated/blocked states; real shipped view/checklist helpers, callback/item identity, timer closures, live state/handles, getter receivers/read order and partial construction failures are exercised. Workbench static contracts and full-strict governance pass. Raw and escaped spelling searches use Node filesystem reads.
+- [x] **Targeted mutations.** `tests/mutations/workbench-presentation-extraction.breaks.mjs`: 11/11 behavioral assertion refusals, zero survivors, invalid/incidental or infrastructure outcomes. The token-identity case is excluded from the campaign oracle. Every run is bounded; retained byte copy and final SHA-256 restore verified: `ac6241e59f31aa9235f3e06a16d11ddea015af20b32a1b65ad5412dceefe95d5`. Retained final backup: `%TEMP%/ltf-breaks-h7EsoY/workbench-task-focus-presentation.js`.
+- [x] **Rendered evidence.** All 23 `workbench-*` specs plus `task-focus-exit-capture` and `task-blocked-recovery`, desktop/mobile on isolated 8102: **82 passed, zero retries**. First attempt was stopped after stale-state failures and artifacts retained in `%TEMP%/wb47-e2e-first`. A subsequent absolute-Windows-path selection ran only the two Task specs (6 passed), so it was not credited as the complete set; forward-slash relative paths selected all 25 specs, completing 82/82 in 50.5s at `%TEMP%/wb47-e2e-full`. Intermediate unit/source-pin failures and logs were retained and repaired before this final tree.
+- [x] **Full-gate inventory correction.** The first canonical attempt passed closeout and typechecking, then failed the Settings publication-count pin (unique 68 / occurrences 71). Retargeted only those two counts to 69/72; its 54 cases pass, and two bounded negative controls independently fail the corresponding assertion with retained byte-copy/SHA-256 restoration. Its known-member protection was unchanged. A second attempt passed all 5,548 units but lint identified the linked-note pin owner's now-unused Workbench source variable; removed that dead test read. The canonical gate is rerun on the completed tree; no skipped regression stage is counted as a pass.
+- [x] **Canonical delivery contract.** After this archive commit, verify the clean tree with `LTF_REGRESSION_BASE_SHA=9747680cef1a08903b09fa1b15146a8ad71037cd LTF_E2E_PORT=8102 npm run verify:slice`, then `npm run checkpoint:validate`. Actual routing and completion evidence belongs in the draft PR and READY handoff; this entry does not preclaim a future gate result.
+- [ ] **Parent acceptance remains with the operator.** Workbench-owned zero and combined raw zero are compiler facts. The extraction and preservation checkboxes of parent `.42` remain open pending the operator's ruling and integration review. No parent closeout is claimed.
+- [x] **Documentation disposition.** No docs change needed: internal extraction preserves the documented workflow; durable documentation remains deferred to branch closeout.
+
+### Retarget table
+
+Recount: 107 original reference lines / 135 name occurrences across 20 files. Of the names, 116 refer to the 29 moved functions and 19 to the three retained readers. Existing stubs stay stubs. The complete old/new source text, line numbers, definition destinations and preserved claims are in `tests/unit/fixtures/workbench-presentation-retargets.json`; this table indexes every original reference line (including unchanged ones), not only edited lines. New extraction, publication and script-order assertions add evidence without deleting earlier protection.
+
+| Lift/pin owner | Old line ? new line | Claim disposition |
+| --- | --- | --- |
+| `scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs` | 111 ? 112, 112 ? 113 | The same assertions follow the moved bodies; retained Workbench owners remain there. |
+| `scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs` | 27 ? 28, 28 ? 29 | The same assertions follow the moved bodies; retained Workbench owners remain there. |
+| `scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs` | 90 ? 90 | The same assertions follow the moved bodies; retained Workbench owners remain there. |
+| `scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs` | 30 ? 31, 31 ? 32, 35 ? 36, 40 ? 41, 41 ? 42, 91 ? 92 | The same assertions follow the moved bodies; retained Workbench owners remain there. |
+| `scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs` | 22 ? 23, 32 ? 33, 48 ? 49, 53 ? 54, 89 ? 90, 90 ? 91, 94 ? 95, 99 ? 100, 100 ? 101, 104 ? 105, 114 ? 115, 119 ? 120, 124 ? 125, 129 ? 130, 130 ? 131, 136 ? 137, 140 ? 141, 141 ? 142 | The same assertions follow the moved bodies; retained Workbench owners remain there. |
+| `scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs` | 80 ? 81, 81 ? 82, 85 ? 86, 90 ? 91, 95 ? 96, 100 ? 101, 142 ? 143 | The same assertions follow the moved bodies; retained Workbench owners remain there. |
+| `scripts/regression-contracts/workbench/workbench-view-state.contract.mjs` | 47 ? 48, 48 ? 49 | The same assertions follow the moved bodies; retained Workbench owners remain there. |
+| `tests/e2e/workbench-detail-context.spec.mjs` | 7 ? 7 | Both button bodies now lift the presentation; native dataset equivalence remains. |
+| `tests/unit/workbench-checklist-extraction.test.mjs` | 31 ? 31 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-checklist-readers.test.mjs` | 20 ? 20, 136 ? 136 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-completion-resume.test.mjs` | 35 ? 35 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-detail-context.test.mjs` | 18 ? 18, 20 ? 21, 26 ? 27, 28 ? 29, 29 ? 30, 31 ? 32, 36 ? 37, 37 ? 38, 40 ? 41, 41 ? 42, 46 ? 47, 50 ? 51, 51 ? 52 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-focus-handles.test.mjs` | 9 ? 9 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-focus-identity.test.mjs` | 19 ? 19, 23 ? 23, 27 ? 27, 62 ? 63 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-focus-readers.test.mjs` | 12 ? 13, 20 ? 21, 22 ? 23, 23 ? 24, 28 ? 29, 29 ? 30, 30 ? 31, 31 ? 32, 32 ? 33, 33 ? 34, 34 ? 35, 39 ? 40, 40 ? 41, 41 ? 42, 42 ? 43, 43 ? 44, 44 ? 45, 48 ? 49, 60 ? 61, 63 ? 64, 65 ? 66, 66 ? 67 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-focus-state.test.mjs` | 7 ? 7, 15 ? 15, 16 ? 16 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-inspector-handles.test.mjs` | 9 ? 9, 16 ? 16, 77 ? 78, 78 ? 79, 79 ? 80, 81 ? 82, 87 ? 88, 95 ? 96, 96 ? 97, 99 ? 100, 100 ? 101 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-related-context.test.mjs` | 9 ? 10, 63 ? 64, 66 ? 67, 71 ? 72, 72 ? 73 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-related-envelope.test.mjs` | 14 ? 14, 16 ? 16, 22 ? 23, 85 ? 86 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+| `tests/unit/workbench-timer-actions.test.mjs` | 14 ? 14 | Real-body lifts follow the presentation source; retained readers and existing test doubles stay local. |
+
+### Recorded plan and proposed parent interpretation
+
+#### Original extraction plan (re-baselined after the corrected prerequisite)
+
+**Model: High Effort** — one presentation boundary with opaque inputs, live handle access and identity-sensitive event handoffs. Planning only; no runtime or shared-contract implementation is authorized before Claude's prerequisite lands.
+
+**Measured baseline:** `9747680c` (PR #826, corrected host prerequisite landed). Browser 67; Workbench and the extracted checklist each 0 raw / 0 owned / 0 DOM. Version remains `0.33.32.45`. The exact name-based remainder is **60 functions / 1,138 function-block lines**, not an estimate of the eventual extraction. Measurement uses `extractFunctionBlock` on top-level declarations whose names contain `TaskFocus` or `taskFocus`: declaration through closing brace inclusive, internal blank lines included, JSDoc and inter-function gaps excluded (the same convention as `.42.46`'s 140). Nested callbacks are included once in their enclosing function.
+
+**One additional seam, not five checkpoints.** Publish `LongtailForge.workbenchTaskFocusPresentation` from `public/js/workbench-task-focus-presentation.js`. Combine summary/details, timer display, related-context rendering, action strip and panel/surface composition in this one synchronous IIFE. They all build the same live mode and share view acquisition, safe labels, badges, section summaries, disclosure and Workbench callbacks. Splitting them would duplicate hosts and introduce renderer-to-renderer dependencies without isolating a different workflow. Keep `.42.46`'s checklist component unchanged and compose it through its existing host wrapper. Implementation follows this planning commit under the same `.42.47`, with the archive commit last in one PR; the shared prerequisite has landed.
+
+Measured presentation inventory (29 functions / **631 lines**):
+
+| Internal group, not a separate publication | Functions and function-block lines | Total |
+| --- | --- | --- |
+| Summary and read-only details | `createTaskFocusSummary` 48; `taskFocusLeadText` 12; `createTaskDetailsSection` 26; `createTaskDetailFields` 32; `createTaskDetailField` 11; `taskFocusBadges` 9; `taskFocusTitle` 3; `taskFocusDueText` 16; `taskFocusAssigneesText` 8; `taskFocusTagBadges` 15 | 10 / 180 |
+| Timer presentation | `createTaskFocusTimerSection` 34; `createTaskFocusTimerBody` 14; `createTaskFocusTimerControls` 61; `createTaskFocusTimerButton` 7; `taskFocusTimerStatusText` 12; `taskFocusTimerSummaryText` 15 | 6 / 143 |
+| Related-context presentation | `createTaskFocusRelatedContextGroup` 28; `createTaskFocusRelatedContextItem` 46; `relatedContextTitle` 3; `relatedContextContextLabel` 10; `relatedContextBadges` 12; `relatedContextCanOpen` 4; `relatedContextActionLabel` 19 | 7 / 122 |
+| Action strip | `createTaskFocusActionStrip` 46; `createTaskFocusActionButton` 24 | 2 / 70 |
+| Panel and rendering composition | `createTaskFocusPanel` 23; `renderTaskFocusSurface` 30; `renderTaskFocusInspector` 39; `syncTaskFocusInspectorCollapseState` 24 | 4 / 116 |
+
+Of that inventory, 21 functions / 514 lines occur in the 60-name count. The other eight / 117 lines lack `TaskFocus` in their names. Conversely, the following **39 named functions / 624 lines stay in Workbench** (before small delegating wrappers are counted):
+
+- Checklist bridge and write-side readers: `requireTaskFocusChecklistRenderer` 13, `createTaskFocusChecklistSection` 3, `taskFocusChecklistRequiredField` 4, `taskFocusChecklistResultFields` 7, `taskFocusChecklistClosest` 5, `preserveTaskFocusChecklistData` 12, `applyTaskFocusChecklistResult` 19, `handleTaskFocusChecklistChange` 45.
+- Shared-use state and formatting readers: `taskFocusContextLabel` 8, `taskFocusRelatedContextState` 9, `taskFocusRelatedContextGroups` 3. These remain unchanged and are supplied through the host.
+- Entry, refresh and mutable state: `enterTaskFocus` 17, `taskFocusFromCandidate` 23, `refreshActiveTaskFocus` 45, `consumeTaskFocusResumeNote` 15, `refreshTaskFocusRelatedContext` 49, `normalizeTaskFocusRelatedContext` 31, `applyActiveTaskFocusTask` 22, `resetTaskFocusState` 5, `activeTaskFocusCandidate` 13, `currentTaskFocusId` 7, `isTaskFocusView` 3.
+- Deep link, exit and drift: `consumeTaskFocusDeepLink` 16, `applyTaskFocusDeepLink` 31, `installTaskFocusExitGuard` 19, `taskFocusExitSnapshot` 15, `writePendingTaskFocusDrift` 12, `clearPendingTaskFocusDrift` 7, `readPendingTaskFocusDrift` 16, `recoverPendingTaskFocusDrift` 27.
+- Selection, eligibility, policy and dispatch: `toggleTaskFocusInspectorCollapse` 8, `taskFocusLifecycleDisabledReason` 26, `currentTaskFocusTimer` 8, `taskFocusTimerEligibility` 32, `safeTaskFocusText` 3, `openNonTaskFocusFallback` 13, `openTaskFocusRelatedContextItem` 16, `taskFocusTimerResultTask` 3, `refreshWorkbenchAfterTaskFocusTimerMutation` 14.
+
+The name count also omits **12 directly related orchestration functions / 265 lines that stay**: `offerTaskResumeNoteBeforeExit` 21, `syncTaskCandidateResumeNote` 16, `openFocusedTaskEditor` 13, `completeFocusedTask` 29, `blockFocusedTask` 17, `resumeFocusedTask` 31, `changeFocus` 23, `focusActiveFocusQuestion` 10, `saveFocusedTaskTimer` 31, `finalizeFocusedTaskTimer` 23, `resetFocusedTaskTimer` 31, `offerTaskResumeNote` 20. This yields an explicitly classified focus cohort of 80 functions / 1,520 lines: 29/631 moving and 51/889 retained. It is not a count of all generic Workbench dependencies. Shared-use formatting, safe text, checked readers, timer arithmetic/ticking, candidate dispatch, navigation, the general Inspector shell/mobile controller and recurrence orchestration remain host code.
+
+**Preservation design.** Workbench retains the actual state object and all handle slots. Supply a live state accessor returning the current object by reference, not a captured initial object or a clone; supply mount properties as accessors over the existing slots. Three writable mount accessors preserve `createTaskFocusPanel`'s action-mount, body, then panel assignments, including partial assignments if construction throws. Inspector mount accessors are read-only. `taskFocusInspectorCollapsed` is a live read-only accessor; the toggle and all focus return remain Workbench-owned. Do not eagerly snapshot these values before the original guards or DOM operations. Bind host functions to local names and attach the same callback objects; keep the existing inline timer start/pause and related-item click closures at their current construction points. Keep thin host wrappers for current call sites; `taskFocusTitle` delegates to the renderer because entry, candidate projection and reset-confirmation also use it. Preserve default-argument reads of the live state, not a captured initial active task. Related source-label formatting stays in Workbench because the opener also consumes it.
+
+**One shared prerequisite — complete proposed declaration list below.** Claude owns all changes to `src/types`, namespace governance and declaration pins. No change is requested to the existing checklist contract. Add exactly one optional namespace member and one temporary type-only governance record, naming its future writer; strike that record when the implementation publishes through a bound namespace alias. All other types below are supporting declarations, not additional namespace publications. These are renderer transport/precondition types, not validators or new record contracts. `task` remains the actual `Record<string, unknown>` produced by `preserveTaskFocusChecklistData`; identity, checklist data and decorator payloads remain opaque. Related group/item metadata repeats the existing local consumer preconditions, not a claim that the normalizer validates those optional members. The normalizer proves arrays and required error/loading fields only. Timer display reuses the four-member published-record projection already in this file; it does not route timers through a validated reader.
+
+```ts
+// Within LongtailForgeBrowserNamespace:
+workbenchTaskFocusPresentation?: BrowserWorkbenchTaskFocusPresentation;
+
+export interface BrowserWorkbenchTaskFocusRelatedAction {
+  type?: string;
+  moduleActionId?: string;
+  params?: unknown;
+  fallbackUrl?: string;
+}
+export interface BrowserWorkbenchTaskFocusRelatedItem {
+  action?: BrowserWorkbenchTaskFocusRelatedAction;
+  moduleId?: string;
+  recordType?: string;
+  recordId?: unknown;
+  reason?: string;
+  title?: string;
+  sourceLabel?: string;
+  contextLabel?: string;
+  reasonLabel?: string;
+  badges?: unknown[];
+}
+export interface BrowserWorkbenchTaskFocusRelatedGroup {
+  id?: string;
+  label?: string;
+  reason?: string;
+  count?: number | string;
+  items?: BrowserWorkbenchTaskFocusRelatedItem[];
+}
+export interface BrowserWorkbenchTaskFocusRelatedState {
+  error: string;
+  groups: Array<BrowserWorkbenchTaskFocusRelatedGroup & { items: BrowserWorkbenchTaskFocusRelatedItem[] }>;
+  isLoading: boolean;
+  items: unknown[];
+  taskId: unknown;
+  meta?: unknown;
+  task?: unknown;
+}
+export interface BrowserWorkbenchTaskFocusPresentationState
+  extends BrowserWorkbenchTaskFocusChecklistState {
+  task?: Record<string, unknown> | null;
+  taskId?: unknown;
+  title?: string;
+  contextLabel?: string;
+  dueAt?: unknown;
+  priority?: unknown;
+  status?: unknown;
+  relatedContext?: BrowserWorkbenchTaskFocusRelatedState;
+}
+export type BrowserWorkbenchTaskFocusDisplayTimer = Partial<Pick<
+  BrowserTaskTimerRecord,
+  "active_timer_id" | "timer_status" | "accumulated_elapsed_seconds" | "last_active_start_time"
+>>;
+export interface BrowserWorkbenchTaskFocusPresentationMounts {
+  taskFocusActionMount: HTMLElement | null;
+  taskFocusBody: HTMLElement | null;
+  taskFocusPanelElement: HTMLElement | null;
+  readonly workbenchInspectorElement: HTMLElement | null;
+  readonly workbenchInspectorList: HTMLElement | null;
+  readonly workbenchInspectorCountText: HTMLElement | null;
+  readonly workbenchInspectorCollapseButton: HTMLButtonElement | null;
+}
+export interface BrowserWorkbenchTaskFocusPresentationHost {
+  readonly state: { readonly activeTaskFocus: BrowserWorkbenchTaskFocusPresentationState | null };
+  readonly mounts: BrowserWorkbenchTaskFocusPresentationMounts;
+  readonly taskFocusInspectorCollapsed: boolean;
+  requireView(): BrowserViewFactory;
+  requireWorkbenchElement<T extends HTMLElement>(element: T | null | undefined): T;
+  resolvedWorkbenchViewState(): string;
+  setWorkbenchInspectorCopy(heading: string, helper: string): void;
+  emptyState(message: string | null): HTMLDivElement;
+  safeTaskFocusText(value: unknown, fallback?: string): string;
+  safeRelatedContextText(value: unknown, fallback?: string): string;
+  relatedContextSourceLabel(item?: BrowserWorkbenchTaskFocusRelatedItem): string;
+  workbenchDetailField(value: unknown, key: string, optional?: boolean): unknown;
+  badge(label: unknown, type?: unknown): HTMLSpanElement;
+  formatToken(value: unknown): string;
+  formatCandidateDate(value: unknown): string;
+  formatDuration(totalSeconds: unknown): string;
+  readElapsedSeconds(timer: unknown): number;
+  actionButton(label: string | null, handler: EventListener, options?: { danger?: unknown }): HTMLButtonElement;
+  createWorkbenchSectionSummary: BrowserWorkbenchTaskFocusChecklistHost["createWorkbenchSectionSummary"];
+  setWorkbenchDisclosureOpen: BrowserWorkbenchTaskFocusChecklistHost["setWorkbenchDisclosureOpen"];
+  createTaskFocusChecklistSection(active: BrowserWorkbenchTaskFocusPresentationState | null): HTMLDetailsElement;
+  currentTaskFocusTimer(active?: BrowserWorkbenchTaskFocusPresentationState | null): BrowserWorkbenchTaskFocusDisplayTimer | null;
+  taskFocusTimerEligibility(active?: BrowserWorkbenchTaskFocusPresentationState | null): { eligible: boolean; reason: string };
+  taskFocusContextLabel(task?: { client_name?: unknown; project_name?: unknown }, active?: { contextLabel?: unknown } | null): string;
+  taskFocusRelatedContextState(active?: BrowserWorkbenchTaskFocusPresentationState | null): BrowserWorkbenchTaskFocusRelatedState;
+  taskFocusRelatedContextGroups(context?: BrowserWorkbenchTaskFocusRelatedState): BrowserWorkbenchTaskFocusRelatedState["groups"];
+  taskTimerSurfaceAvailable(): boolean;
+  taskFocusLifecycleDisabledReason(action: string, active?: BrowserWorkbenchTaskFocusPresentationState | null): string;
+  openFocusedTaskEditor(event: Event | null | undefined): Promise<void>;
+  completeFocusedTask(): Promise<void>;
+  blockFocusedTask(event: Event | null | undefined): Promise<void>;
+  resumeFocusedTask(): Promise<void>;
+  saveFocusedTaskTimer(timerStatus: string): Promise<void>;
+  finalizeFocusedTaskTimer(event?: Event | null): Promise<void>;
+  resetFocusedTaskTimer(): Promise<void>;
+  openTaskFocusRelatedContextItem(item?: BrowserWorkbenchTaskFocusRelatedItem, trigger?: EventTarget | null): Promise<void>;
+}
+export interface BrowserWorkbenchTaskFocusPresentationRenderer {
+  createPanel(): HTMLElement;
+  renderSurface(): void;
+  renderInspector(): void;
+  syncInspectorCollapse(collapsed: boolean, options?: { enableCollapse?: unknown }): void;
+  title(active?: BrowserWorkbenchTaskFocusPresentationState | null): string;
+}
+export interface BrowserWorkbenchTaskFocusPresentation {
+  create(host: BrowserWorkbenchTaskFocusPresentationHost): BrowserWorkbenchTaskFocusPresentationRenderer;
+}
+```
+
+The renderer's internal `WORKBENCH_VIEW_STATE_TASK_FOCUS` discriminator remains the existing literal `"task-focus"`; no new public mode vocabulary. Related action IDs retain their existing optional-string precondition and ready-before-dependency policy; this is not the opaque Inspector candidate path and must not change it. Extra object members remain present by identity and are not copied away. Claude should compiler-probe the actual host functions and live `ActiveTaskFocus` assignment before publishing this complete prerequisite; a mismatch returns here for a local seam correction, not a widened unrelated contract or added validation. The one type-only record should say: `Declared ahead of its writer: the remaining Task Focus presentation extraction publishes workbenchTaskFocusPresentation from public/js/workbench-task-focus-presentation.js and strikes this record.`
+
+**Proposed parent acceptance, explicitly for review.** Require all 29/631 presentation functions above to move, plus the already integrated checklist, before checking “Extract the self-contained Task Focus mode…”. The mode's complete Task Focus DOM construction, section/action ordering and Inspector-content rendering will then live behind the typed presentation factory and checklist seam. Workbench must retain live ownership and orchestration listed above by design. No presentation-sized helper may remain merely as an unextracted implementation behind an exported facade; only the named shared-use helpers, policy/read/write host functions and thin delegators remain. This is a proposal to interpret “self-contained mode” as self-contained presentation with typed events, not a unilateral narrowing or a claim of present completion. If the operator means extraction of the state machine as well, that is a different scope decision; do not silently mark the parent done after this plan.
+
+**Implementation acceptance after prerequisite:** baseline-versus-extracted body and DOM comparisons; real shipped helpers in sandbox flows; original active/item/callback identity and receiver/read order; live mount changes and failure placement; same check/uncheck, start/pause/finalize/reset, block/resume/complete, stale-related-response and loading/error/empty rendering. Mutations must challenge section/action order, listener wiring, live state/handles and guards, with retained byte backups and verified hashes. Search every moved spelling raw and escaped across scripts/tests and retarget every lift/pin without losing claims. Run Workbench/Task Focus desktop/mobile coverage on isolated 8102, then the assigned range-explicit canonical gate and checkpoint validation. Both browser files and checklist remain at zero; track classic-script, source and publication inventories; preserve contribution boundaries, safe labels, focus capture, recovery and fallback navigation. The parent preservation checkbox closes only on that rendered/integration evidence, not on this planning commit. No implementation, shared-file change, package change, PR or integration in this planning assignment.
+
 ## Version 0.33.33.43.53 - Clients/Projects read-surface state boundary
 
 **Model: Medium Effort** - one slot declared from its writer and its directly connected reads narrowed with it, two body spellings each proved equivalent over the values that can reach them.

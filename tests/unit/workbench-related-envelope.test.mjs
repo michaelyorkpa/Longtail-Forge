@@ -4,7 +4,7 @@ import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const read = createProjectTextReader();
-const source = read.readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + read.readText("public/js/workbench.js");
 const errors = read.readText("public/js/shared/error-contract.js");
 function fixture() {
   /** @type {{message: string}[]} */ const children = [];
@@ -15,6 +15,7 @@ function fixture() {
     emptyState: (/** @type {string} */ message) => ({ message }),
     createTaskFocusRelatedContextGroup: (/** @type {unknown} */ group) => group,
   });
+  vm.runInContext(`const mounts = { get taskFocusActionMount() { return taskFocusActionMount; }, set taskFocusActionMount(value) { taskFocusActionMount = value; }, get taskFocusBody() { return taskFocusBody; }, set taskFocusBody(value) { taskFocusBody = value; }, get taskFocusPanelElement() { return taskFocusPanelElement; }, set taskFocusPanelElement(value) { taskFocusPanelElement = value; }, get workbenchInspectorElement() { return workbenchInspectorElement; }, set workbenchInspectorElement(value) { workbenchInspectorElement = value; }, get workbenchInspectorList() { return workbenchInspectorList; }, set workbenchInspectorList(value) { workbenchInspectorList = value; }, get workbenchInspectorCountText() { return workbenchInspectorCountText; }, set workbenchInspectorCountText(value) { workbenchInspectorCountText = value; }, get workbenchInspectorCollapseButton() { return workbenchInspectorCollapseButton; }, set workbenchInspectorCollapseButton(value) { workbenchInspectorCollapseButton = value; } }; const host = { get state() { return state; }, get taskFocusInspectorCollapsed() { return taskFocusInspectorCollapsed; } };`, scope);
   const state = vm.runInContext("({ activeTaskFocus: { taskId: 'first' } })", scope);
   scope.state = state;
   for (const name of ["asRecord", "caughtMessage"]) vm.runInContext(extractFunctionBlock(errors, name), scope);

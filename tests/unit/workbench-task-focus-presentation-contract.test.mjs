@@ -161,14 +161,14 @@ describe("The presentation contract Codex requested", () => {
     expect(contracts).toMatch(/^ {2}workbenchTaskFocusChecklist\?: BrowserWorkbenchTaskFocusChecklist;\n(?: {2}(?:\/\*\*| \*).*\n)+ {2}workbenchTaskFocusPresentation\?: BrowserWorkbenchTaskFocusPresentation;$/m);
   });
 
-  it("records the member as a type-only declaration until its writer lands", () => {
+  it("publishes the member and strikes its spent type-only record", () => {
     const at = governance.indexOf("const TYPE_ONLY_DECLARATIONS = new Map(");
     expect(at).toBeGreaterThan(-1);
     const record = governance.slice(at, governance.indexOf(");", at));
-    expect(record).toContain("\"workbenchTaskFocusPresentation\",");
-    expect(record).toContain("\"Declared ahead of its writer: the remaining Task Focus presentation extraction publishes workbenchTaskFocusPresentation from public/js/workbench-task-focus-presentation.js and strikes this record.\",");
+    expect(record).not.toContain("workbenchTaskFocusPresentation");
+    expect(createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js")).toMatch(/namespace\.workbenchTaskFocusPresentation =/);
     expect(governance).toMatch(/declarationCoverage\.knownMembers\.length, 67,/);
     expect(governance).toMatch(/declarationCoverage\.declaredMembers\.length, 67,/);
-    expect(governance).toMatch(/declarationCoverage\.publishedMembers\.length, 66,/);
+    expect(governance).toMatch(/declarationCoverage\.publishedMembers\.length, 67,/);
   });
 });

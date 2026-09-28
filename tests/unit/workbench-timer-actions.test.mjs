@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
-const source = createProjectTextReader().readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + createProjectTextReader().readText("public/js/workbench.js");
 const names = ["taskFocusTimerResultTask", "saveTaskTimer", "pauseExistingTimer", "startExistingTimer", "refreshWorkbenchAfterTaskFocusTimerMutation", "finalizeSourceTaskTimer"];
 function fixture() {
   /** @type {unknown[][]} */ const calls = [];
@@ -16,6 +16,7 @@ function fixture() {
     updateTimerStatus: async (/** @type {unknown} */ timer, /** @type {unknown} */ status) => { calls.push(["update", timer, status]); },
     requireTaskRecords: () => ({ readTask: () => null }),
   });
+  vm.runInContext("const host = { get state() { return state; } };", scope);
   vm.runInContext(names.map(name => extractFunctionBlock(source, name)).join("\n"), scope);
   return { scope, calls };
 }

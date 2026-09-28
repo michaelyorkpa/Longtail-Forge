@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
-const source = createProjectTextReader().readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + createProjectTextReader().readText("public/js/workbench.js");
 function fixture() {
   /** @type {unknown[][]} */ const calls = [];
   const scope = vm.createContext({
@@ -17,6 +17,7 @@ function fixture() {
     emptyState: (/** @type {unknown} */ value) => value,
     taskFocusTitle: () => "Task", taskFocusDueText: () => "No due date", formatToken: (/** @type {unknown} */ v) => v,
   });
+  vm.runInContext("const host = { get state() { return state; } };", scope);
   vm.runInContext(["workbenchDetailField", "safeCandidateText", "safeTaskFocusText", "safeRelatedContextText", "looksLikeRawId", "taskFocusAssigneesText", "relatedContextBadges", "createTaskDetailField", "createTaskDetailFields", "offerTaskResumeNoteBeforeExit"].map(name => extractFunctionBlock(source, name)).join("\n"), scope);
   return { scope, calls };
 }

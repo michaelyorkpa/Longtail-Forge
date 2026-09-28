@@ -5,7 +5,7 @@ import { createFakeBrowserContext } from "../../scripts/test-support/fake-dom.mj
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const read = createProjectTextReader().readText;
-const source = read("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + read("public/js/workbench.js");
 const extracted = read("public/js/workbench-task-focus-checklist.js");
 const before = JSON.parse(read("tests/unit/fixtures/workbench-checklist-before-extraction.json"));
 const hosts = ["requireView", "emptyState", "safeTaskFocusText", "safeCandidateText", "looksLikeRawId",
@@ -32,6 +32,7 @@ function fixture(baseline = false) {
     renderWorkbench: () => calls.push(["render"]),
     setStatus: (/** @type {unknown} */ message) => calls.push(["status", message]),
   });
+  vm.runInContext("const host = { get state() { return state; } };", scope);
   vm.runInContext(read("public/js/shared/view-builder.js"), scope);
   vm.runInContext(read("public/js/shared/error-contract.js"), scope);
   scope.requireErrors = () => scope.window.LongtailForge.errors;
@@ -52,7 +53,7 @@ it("moves the eight baseline bodies without changing their tokens or adding host
     assert.equal(normalize(extractFunctionBlock(extracted, name)), normalize(String(block)), name);
   }
   assert.doesNotMatch(extracted, /\bstate\.|requireApi|fetch\(|localStorage|setTimeout/);
-  assert.match(read("views/protected/workbench.html"), /<script defer src="js\/workbench-task-focus-checklist\.js"><\/script>\s*<script defer src="js\/workbench\.js"><\/script>/);
+  assert.match(read("views/protected/workbench.html"), /<script defer src="js\/workbench-task-focus-checklist\.js"><\/script>\s*<script defer src="js\/workbench-task-focus-presentation\.js"><\/script>\s*<script defer src="js\/workbench\.js"><\/script>/);
 });
 
 it("matches the old section through real view and host functions for populated, pending, error and empty states", () => {

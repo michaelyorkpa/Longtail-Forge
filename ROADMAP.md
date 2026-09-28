@@ -120,12 +120,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). Remaining presentation planned (`39b71e81`, held at `b85c0dd8`): one seam, 29 functions / 631 lines once the three shared readers stay host code. Its shared contract landed as `0.33.33.38.2.13` and `0.33.33.38.2.14`, so implementation resumes under `.42.47`; what the parent's extraction criterion requires is with the operator | 0 owned |
-| Claude | `0.33.33.43.54` | Read surface typed at `0.33.33.43.53`. `clients-projects.js` 31 and `lists.js` 30 remain, all owned families. Next: the tag, filter and modal helpers (15); then the `saveClientSettings`/`querySelectionInputs` lookup boundary with the contact editor (5, the billing-contact conversion awaiting a decision), and the normalisers (the wire trust boundary, 11) last | 61 |
+| Codex | `0.33.33.43.60` | **`0.33.33.42` complete** at the `0.33.33.42.47` integration: Task Focus presentation and panel composition extracted behind the typed host contract; `workbench.js`, the presentation and the checklist each 0 raw / 0 owned / 0 DOM. Next: `lists.js`, reassigned from Claude at this integration; Codex's Lists children are numbered from `0.33.33.43.60` | 0 owned |
+| Claude | `0.33.33.43.54` | Read surface typed at `0.33.33.43.53`. `clients-projects.js` 31 and `lists.js` 30 remain, all owned families. Next: the tag, filter and modal helpers (15); then the `saveClientSettings`/`querySelectionInputs` lookup boundary with the contact editor (5; its billing-contact conversion approved by the operator with bounded proof), and the normalisers (the wire trust boundary, 11) last | 61 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
-**File ownership for the remainder of this conversion.** `lists.js` and its directly associated tests are **Claude's**; `workbench.js` is **Codex's**. `clients-projects.js` was **reassigned to Claude** at `0.33.33.43.31`, which opened it, and Codex's lane has not touched it. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
+**File ownership for the remainder of this conversion.** `workbench.js` is **Codex's**, and so, since the `0.33.33.42.47` integration, are `lists.js` and its directly associated tests, **reassigned from Claude** once Workbench closed so both lanes carry one remaining controller. `clients-projects.js` was **reassigned to Claude** at `0.33.33.43.31`, which opened it, and Codex's lane has not touched it. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
 
 **Remaining release obligations, their owner, and what each genuinely waits on:**
 
@@ -1609,10 +1609,20 @@ Today's measurement: `tasks.js` is 2,982 lines and 661 diagnostics; `task-dialog
 Today's measurement: `workbench.js` is **4,239 lines with 295 top-level names and 895 diagnostics**, and is touched by three earlier checkpoints — `0.33.33.33.7` scopes it, `0.33.33.34` moves its action-dependency table out, and `0.33.33.37` takes its legality core.
 
 - [x] **Extraction and typing ran as separate children, typing first.** Typing brought `workbench.js` to zero at `0.33.33.42.45`. Extraction then moves already-typed code seam by seam from `0.33.33.42.46`, so no behaviour is proved twice.
-- [ ] Extract the self-contained Task Focus mode behind typed inputs/events while preserving Workbench ownership of the live surface.
+- [x] **Extract Task Focus presentation and panel composition behind an explicit typed host contract, while Workbench retains live state and workflow orchestration.** **Amended by operator decision at the `0.33.33.42.47` integration**, replacing "Extract the self-contained Task Focus mode behind typed inputs/events while preserving Workbench ownership of the live surface". This is an explicit amendment to the parent's acceptance scope, not a claim that the whole Task Focus controller was extracted. Workbench's retained state and orchestration are retained by design, with no follow-up obligation to move them.
 - [x] Close full-strict debt in Workbench, action loading, candidate rendering, timers, and resume/recovery state (`0.33.33.42.45`: the browser ledger holds no Workbench diagnostics; the remaining 91 are Clients/Projects and Lists).
-- [ ] Preserve module contribution boundaries, no-raw-ID labels, focus capture, blocking recovery, and fallback navigation.
+- [x] Preserve module contribution boundaries, no-raw-ID labels, focus capture, blocking recovery, and fallback navigation (`0.33.33.42.47` integration: the full Workbench and Task Focus browser set and the canonical gate on the integrated tree - see the closure record below).
 - [x] Reduce the Workbench browser ledger to zero (`0.33.33.42.45`, integrated at PR #817).
+
+**Parent complete at the `0.33.33.42.47` integration.** Implementation complete (Codex, `b8c14cea`), integrated (this PR), and the preservation evidence passed on the integrated tree.
+
+- **Moved, into two classic-script seams behind typed host contracts:**
+  - `public/js/workbench-task-focus-checklist.js` (`0.33.33.42.46`): the checklist presentation, 8 functions / 140 lines.
+  - `public/js/workbench-task-focus-presentation.js` (`0.33.33.42.47`): the summary and read-only details, timer display, related-context rendering, action strip, and panel and surface composition, 29 functions / 631 lines.
+- **Retained in Workbench by design:** the live state and every write, refresh, drift, resume and exit handling, focus ownership, recovery and fallback navigation. So are the three shared readers the presentation receives through its host (`taskFocusContextLabel`, `taskFocusRelatedContextState`, `taskFocusRelatedContextGroups`, `0.33.33.38.2.14`). Five one-line delegators keep the existing call sites. The presentation reads Workbench's state through a live getter and its element slots through accessors, never a snapshot.
+- **Diagnostics:** `workbench.js`, the presentation and the checklist each 0 raw / 0 owned / 0 DOM. Browser totals now belong to Clients/Projects and Lists alone.
+- **Preservation evidence** is recorded separately in the integration PR: the full Workbench and Task Focus browser set, desktop and mobile, and the range-explicit canonical gate on the integrated tree.
+
 
 ### 0.33.33.43 - Type Lists, Files, and Clients/Projects browser controllers
 
