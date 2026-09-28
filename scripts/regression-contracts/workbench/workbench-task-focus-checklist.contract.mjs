@@ -14,6 +14,7 @@ const taskWorkEvidenceService = readText("src/modules/tasks/task-work-evidence.s
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
+const checklistScript = readText("public/js/workbench-task-focus-checklist.js");
 const workbenchScript = readText("public/js/workbench.js");
 
 assert.match(
@@ -28,27 +29,27 @@ assert.match(
   "Task Focus should render Checklist after summary and read-only Task Details",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusChecklistSection"),
+  extractFunctionBody(checklistScript, "createTaskFocusChecklistSection"),
   /dataset: \{[\s\S]*workbenchTaskFocusChecklist: ""[\s\S]*workbenchTaskFocusChecklistMount: ""[\s\S]*workbenchTaskFocusChecklistStructure: "check-only"[\s\S]*body\.addEventListener\("change", handleTaskFocusChecklistChange\)[\s\S]*setWorkbenchDisclosureOpen\(details, items\.length > 0\);/,
   "Checklist should be a stable check-only mount that opens by default when populated",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusChecklistBody"),
+  extractFunctionBody(checklistScript, "createTaskFocusChecklistBody"),
   /message: "Edit task to add checklist items\."[\s\S]*title: "No checklist items"/,
   "Empty Task Focus checklists should collapse with the required edit-task message",
 );
 assert.doesNotMatch(
-  extractFunctionBody(workbenchScript, "createTaskFocusChecklistBody"),
+  extractFunctionBody(checklistScript, "createTaskFocusChecklistBody"),
   /checklistAdd|taskChecklistAdd|checklist\/reorder|api\.(putJson|deleteJson)/,
   "Task Focus checklist body should not expose add, rename, reorder, or remove behavior",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusChecklistItem"),
+  extractFunctionBody(checklistScript, "createTaskFocusChecklistItem"),
   /type: "checkbox"[\s\S]*dataset: \{ workbenchTaskFocusChecklistToggle: "" \}[\s\S]*className: "workbench-task-checklist-label"/,
   "Task Focus checklist rows should render only a checkbox and read-only label",
 );
 assert.doesNotMatch(
-  extractFunctionBody(workbenchScript, "createTaskFocusChecklistItem"),
+  extractFunctionBody(checklistScript, "createTaskFocusChecklistItem"),
   /createActionButton|<button|type: "text"|textarea|select|taskChecklistAction/,
   "Task Focus checklist rows should not render structure-editing controls",
 );
