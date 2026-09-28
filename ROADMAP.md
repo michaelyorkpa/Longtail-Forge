@@ -1613,6 +1613,55 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.51 - Clients/Projects field and status helpers
+
+**Model: Medium Effort** - annotations only, on leaf helpers in one module. The one judgement, that two forwarders take their delegate's declared `unknown`, is recorded below before implementation.
+
+**Measured on `nightly` `5205f6fe`:** 16 diagnostics in twelve helpers.
+
+| Helper | Diagnostics | Call sites |
+| --- | --- | --- |
+| `createTaskReminderPolicyEditor` | 3 TS7031, one per destructured member | 2 |
+| `createNumberField` | 2 | 4 |
+| `createOption` | 2 | 40 |
+| `formatToken` | 1 | 5 |
+| `formatOrdinal` | 1 | 2 |
+| `createStatusSelect` | 1 | 2 |
+| `createClientStatusSelect` | 1 | 1 |
+| `createBillableCheckbox` | 1 | 3 |
+| `populateBillingPeriodStartDays` | 1 | 1 |
+| `getProjectBillingPeriodInheritLabel` | 1 | 2 |
+| `setStatus` | 1 | 21 |
+| `flashSavedButton` | 1 | 1 |
+
+**The callers, traced.** Every parameter was temporarily typed `symbol`, so each call site reported its argument type, and the file was then byte-restored.
+
+- **`createOption(value, text)`** forwards both arguments to `pageController.createOption`, which declares them `unknown` and hands them to the option's own setters (`0.33.33.39.24`). Most callers pass strings. The bulk client picker, the parent pickers and the project-client picker pass raw record ids and names, which stay `any` until the normalisers are typed. **Typed `unknown`, the delegate's declared parameters:** the conversion happens in the setters this body forwards to.
+- **`setStatus(message)`** forwards to `pageController.setStatus(null, message, options)`, whose message is `unknown`. Twenty callers pass text. `handleClientProjectActionError` passes a thrown value's `message`, which can be anything. **Typed `unknown`**, for the same reason.
+- **`formatToken(value)`**: all five callers pass strings - the task defaults' status, priority and assignee mode, and the status and priority lists. **`string`.**
+- **`formatOrdinal(day)`**: the start-day loop and `formatBillingPeriod`'s normalised start day, both numbers. **`number`**, which the body's arithmetic needs.
+- **`createNumberField(text, value)`**: the reminder editor's four calls, each a label and a positive integer. **`string`, `number`.**
+- **`createTaskReminderPolicyEditor({ legend, inheritLabel, value })`**: the client and project editors pass two labels and the record's normalised `taskReminderPolicy`. **`{ legend: string, inheritLabel: string, value: ReturnType<typeof normalizeTaskReminderPolicy> }`.**
+- **`createStatusSelect(value)` and `createClientStatusSelect(value)`**: the record's `status`, and the add form's `"Active"`. The record status is `any` until the normalisers are typed. At runtime, though, each normaliser keeps a status only when it is in the page's own list and otherwise writes `"Active"`, so it is always one of those strings. **`string`.**
+- **`createBillableCheckbox(value)`**: the client and project `billable` (the normaliser's `"yes"`/`"no"`), and the add form's `"no"` or its target client's billable. **`string`.**
+- **`populateBillingPeriodStartDays(select)`**: the billing-period editor's start-day select. **`HTMLSelectElement`.**
+- **`getProjectBillingPeriodInheritLabel(client)`**: the project editor and the add form pass a client entry. **`NormalizedClientEntry`.**
+- **`flashSavedButton(selector)`**: `persistClientProjectChange` passes `viewState.flashSelector`. **`string | undefined`.** **Observation, not changed:** past its two guards the body only looks the button up. It no longer flashes anything.
+
+**Scope, recorded before implementation:**
+
+- [ ] Annotations only, from the callers above. Every body is unchanged.
+- [ ] **Excluded:** the `activeClientProjectsReadSurface` declaration and its four reads (5 diagnostics). They are one state-typing boundary and get their own slice. That includes the page-controller registration's read, which sits below `setStatus`.
+- [ ] **Proof.**
+  - Body identity against `5205f6fe`.
+  - Lifted side-by-side runs over the argument shapes the real callers use, compared on DOM output: option value and text, number-field attributes, select and checkbox state, reminder-policy fields and `getValue`, the start-day list, inherit labels, and status-controller calls.
+  - A mutation campaign.
+  - Compiler probes that each annotation is load-bearing.
+  - A per-message diagnostic delta.
+  - A Grep-tool search, raw and escaped, for pins on the annotated signatures.
+- [ ] **Expected accounting:** `clients-projects.js` 61 to 45, browser 91 to 75, with no message rising.
+- [ ] **Verification:** range-explicit `verify:slice` from `5205f6fe` on port 8101, plus the Clients/Projects browser specs as the rendered gate.
+
 #### 0.33.33.43.50 - Clients/Projects record writers
 
 **Complete: 14 diagnostics closed with every body unchanged.** See the archive entry. The seven write paths were traced, then typed from their callers, and proved request-for-request against `f966eb38`. `clients-projects.js` 75 to 61, browser 105 to 91.
