@@ -6222,6 +6222,18 @@ export interface BrowserWorkbenchTaskFocusPresentationHost {
   finalizeFocusedTaskTimer(event?: Event | null): Promise<void>;
   resetFocusedTaskTimer(): Promise<void>;
   openTaskFocusRelatedContextItem(item?: BrowserWorkbenchTaskFocusRelatedItem, trigger?: EventTarget | null): Promise<void>;
+  /**
+   * Workbench's own context label, shared with its entry and candidate projection, so it is
+   * injected rather than exported by the renderer (`0.33.33.38.2.14`).
+   */
+  taskFocusContextLabel(task?: { client_name?: unknown; project_name?: unknown }, active?: { contextLabel?: unknown } | null): string;
+  /**
+   * Workbench's own related-context reader, shared with its refresh. Injected rather than exported:
+   * returned through the renderer, its wider declared type would no longer fit the refresh's state.
+   */
+  taskFocusRelatedContextState(active?: BrowserWorkbenchTaskFocusPresentationState | null): BrowserWorkbenchTaskFocusRelatedState;
+  /** Workbench's own related-group reader, shared with its page-controller snapshot. */
+  taskFocusRelatedContextGroups(context?: BrowserWorkbenchTaskFocusRelatedState): BrowserWorkbenchTaskFocusRelatedState["groups"];
 }
 
 /** One presentation renderer, bound to the host that created it. */

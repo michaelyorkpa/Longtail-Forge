@@ -13,13 +13,18 @@ import { createProjectTextReader } from "../../scripts/test-support/source-scan.
  * ways: it fails while the member has no writer and no record, and it fails once a writer appears
  * while the record still stands. The writer's checkpoint strikes the record and retargets the last
  * case here.
+ *
+ * `0.33.33.38.2.14` added three host members - Workbench's context label and related-context
+ * readers, which retained Workbench code shares - after Codex's held report found those reverse
+ * dependencies. They are injected through the host rather than exported by the renderer, because a
+ * renderer-declared related-context return is wider than the refresh's own state type.
  */
 
 const reader = createProjectTextReader();
 const contracts = reader.readText("src/types/browser-contracts.d.ts");
 const governance = reader.readText("scripts/regressions/framework/full-strict-governance.regression.mjs");
 
-/** The requested declarations, in order, as `39b71e81` wrote them. */
+/** The requested declarations, in order, as `39b71e81` wrote them, with `0.33.33.38.2.14`'s three host readers. */
 const REQUESTED = `export interface BrowserWorkbenchTaskFocusRelatedAction {
   type?: string;
   moduleActionId?: string;
@@ -112,6 +117,9 @@ export interface BrowserWorkbenchTaskFocusPresentationHost {
   finalizeFocusedTaskTimer(event?: Event | null): Promise<void>;
   resetFocusedTaskTimer(): Promise<void>;
   openTaskFocusRelatedContextItem(item?: BrowserWorkbenchTaskFocusRelatedItem, trigger?: EventTarget | null): Promise<void>;
+  taskFocusContextLabel(task?: { client_name?: unknown; project_name?: unknown }, active?: { contextLabel?: unknown } | null): string;
+  taskFocusRelatedContextState(active?: BrowserWorkbenchTaskFocusPresentationState | null): BrowserWorkbenchTaskFocusRelatedState;
+  taskFocusRelatedContextGroups(context?: BrowserWorkbenchTaskFocusRelatedState): BrowserWorkbenchTaskFocusRelatedState["groups"];
 }
 export interface BrowserWorkbenchTaskFocusPresentationRenderer {
   createPanel(): HTMLElement;
@@ -135,7 +143,7 @@ function declaredBlock() {
   expect(start, "the first declaration is present").toBeGreaterThan(-1);
   expect(last, "the factory is declared after the rest").toBeGreaterThan(start);
   return contracts.slice(start, contracts.indexOf("}\n", last) + 2)
-    .replace(/\/\*\*[\s\S]*?\*\/\n/g, "")
+    .replace(/[ \t]*\/\*\*[\s\S]*?\*\/\n/g, "")
     .replace(/\n\n/g, "\n");
 }
 
