@@ -279,6 +279,27 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.13 - Workbench Task Focus presentation contract
+
+**Model: Medium Effort** - declarations only, taken verbatim from a plan the compiler has already probed. The governance record follows the `0.33.33.38.2.12` precedent.
+
+The shared prerequisite for Codex's `0.33.33.42.47`. That checkpoint's planning commit, `39b71e81`, moves the remaining Task Focus presentation - 32 functions / 651 lines - into `public/js/workbench-task-focus-presentation.js`, published as `LongtailForge.workbenchTaskFocusPresentation`. Workbench keeps the state, writes, refresh, drift, deep links, exit and resume handling, focus, recovery and navigation.
+
+**Already probed, against `f6929b52`.** The proposed declarations were added temporarily, and a host was built from Workbench's real `state`, its seven mount slots as accessors (three writable), the live collapsed flag and the 30 host functions. It was assigned to the declared host type, and to a mapped copy that turns every method into a function-typed property, so each parameter is checked strictly rather than bivariantly. Browser diagnostics stayed at the baseline 75 with none added. A negative control, with two sabotaged members, failed on both assignments. Both files were byte-restored and hash-verified.
+
+**Scope, recorded before implementation:**
+
+- [ ] **Namespace.** `workbenchTaskFocusPresentation?: BrowserWorkbenchTaskFocusPresentation`, beside the checklist member.
+- [ ] **Declarations.** Codex's ten, verbatim, after the checklist declarations: the related action, item, group and state; the presentation state; the display timer; the mounts; the host; the renderer; and the factory. Each doc comment says what the renderer is handed and assumes, and that none of them validates data.
+- [ ] **Governance.** One `TYPE_ONLY_DECLARATIONS` record, in Codex's wording. Known and declared members go 66 to 67; published stays 66. The governance counts and the namespace-root pins move with it; the Settings surface pins are already count-agnostic.
+- [ ] **Unchanged.** No runtime file changes, and browser diagnostics stay 75.
+- [ ] **Proof.**
+  - The host probe and its negative control, re-run on the branch.
+  - A contract suite that pins the member, every declaration's name and signature, and the record's text.
+  - Governance probes: governance fails without the record, and an aliased writer would discharge the record.
+  - A Grep-tool search, raw and escaped, for count pins.
+- [ ] **Verification.** Range-explicit `verify:slice` from `f6929b52` on port 8101. Types only, so there is no rendered gate.
+
 #### 0.33.33.38.2.12 - Workbench Task Focus checklist contract
 
 **Complete: the checklist contract is declared ahead of its writer.** See the archive entry.
