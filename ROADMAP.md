@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.46` | `workbench.js` — typing complete and integrated at `0.33.33.42.45` (0 raw / 0 owned / 0 DOM). Next: Task Focus extraction, the open `.42` acceptance criterion | 0 owned |
+| Codex | `0.33.33.42.46` | `workbench.js` — typing complete and integrated at `0.33.33.42.45` (0 raw / 0 owned / 0 DOM). Task Focus checklist extraction planned (`6ad23bdf`); its shared contract landed as `0.33.33.38.2.12`, so implementation resumes | 0 owned |
 | Claude | `0.33.33.43.50` | Project assignment and context typed at `0.33.33.43.49`. `clients-projects.js` 75 and `lists.js` 30 remain, all owned families. Next: the record writers - client and project create, save and archive, and the tag-payload helpers | 105 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
@@ -281,33 +281,11 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.12 - Workbench Task Focus checklist contract
 
-**Model: High Effort** - the shared prerequisite for Codex's Task Focus checklist extraction (`0.33.33.42.46`), declared ahead of its writer through governance's own type-only record.
+**Complete: the checklist contract is declared ahead of its writer.** See the archive entry.
 
-**Why.** Codex's `0.33.33.42.46` planning commit (`6ad23bdf`) chose the extraction boundary: eight checklist presentation functions, 140 body lines, moved to `public/js/workbench-task-focus-checklist.js`. It publishes `LongtailForge.workbenchTaskFocusChecklist.create(host).render(active)`. A new namespace member and its types are shared contracts, so they are Claude's.
-
-Governance rejects a declared member with no runtime writer unless it is recorded in `TYPE_ONLY_DECLARATIONS` with a reason. That record is asserted by identity, so it must be struck the moment a writer appears. The mechanism exists for exactly this case, and the estate has never used it.
-
-**Measured before planning.** Codex's six requested host signatures match Workbench's own declarations on `nightly`:
-
-- `requireView(): BrowserViewFactory`;
-- `emptyState(message: string | null)`;
-- `safeTaskFocusText(value: unknown, fallback?: string)`;
-- `createWorkbenchSectionSummary({ bodyId?, count?, subtitle?, title })`;
-- `setWorkbenchDisclosureOpen(details: HTMLDetailsElement | null, open: unknown)`;
-- `handleTaskFocusChecklistChange(event: Event)`.
-
-So the host object Workbench will pass is assignable as requested.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Declarations.** Declare `BrowserWorkbenchTaskFocusChecklist`, `...Host`, `...State` and `...Renderer` with Codex's requested signatures. Reuse `BrowserViewFactory`; the state members are all optional producer preconditions, and the checklist items, progress and mutation identity stay `unknown`. Declare the optional `workbenchTaskFocusChecklist` namespace member. No other contract changes.
-- [ ] **Type-only record.** Record the member in `TYPE_ONLY_DECLARATIONS`, with the reason that its writer arrives in `0.33.33.42.46`, which must strike the record. Move the pinned known and declared counts from 65 to 66; the published count stays 65.
-- [ ] **Proof.**
-  - Governance passes with the record.
-  - It fails without the record (a declaration with no writer).
-  - It fails if a writer appears while the record stands (a spent record).
-  - The contract matches the requested signatures.
-  - A compiler probe shows Workbench's real host functions are assignable to the host contract.
+- The four `BrowserWorkbenchTaskFocusChecklist*` declarations and the optional `workbenchTaskFocusChecklist` member are declared with Codex's requested signatures.
+- The member is recorded in governance's `TYPE_ONLY_DECLARATIONS`, which `0.33.33.42.46` must strike when it publishes the member.
+- Browser diagnostics unchanged at 105.
 
 #### 0.33.33.38.2.11 - Opaque navigation hrefs
 
