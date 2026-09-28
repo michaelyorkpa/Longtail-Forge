@@ -5,7 +5,7 @@ import { createFakeBrowserContext } from "../../scripts/test-support/fake-dom.mj
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const read = createProjectTextReader().readText;
-const source = read("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + read("public/js/workbench.js");
 const names = ["requireWorkbenchElement", "buildWorkbenchHost", "createWorkbenchShell", "createGuidedFocusPanel", "createCalendarWeekLink", "createRecommendedActionPanel", "createSecondaryWorkbenchPanel", "createTimerSection", "createWorkbenchCardSection", "createWorkbenchSectionSummary", "createTaskFocusPanel", "renderFocusModes", "populateFocusScopeOptions", "replaceOptions", "renderRecommendedAction", "updateRecommendedCycleControls", "clampRecommendedCandidateIndex", "renderWorkbenchViewState", "toggleWorkbenchStatePanel", "handleClientFocusChange", "handleProjectFocusChange", "renderTimers", "flashActivatedTimer"];
 const handleNames = ["focusModeList", "clientFocusControl", "clientFocusInput", "projectFocusInput", "focusPanelElement", "calendarWeekLinkElement", "recommendedActionBody", "recommendedCycleControls", "recommendedCycleNextButton", "recommendedCyclePreviousButton", "recommendedActionPanelElement", "secondaryWorkbenchPanelElement", "taskFocusActionMount", "taskFocusBody", "taskFocusPanelElement", "changeFocusButton", "timerSectionElement", "timerCountText", "timerList"];
 
@@ -24,6 +24,7 @@ function fixture() {
     resolvedWorkbenchViewState: () => "focus-selection", pendingActivatedTimerKey: "",
     resetTaskFocusState: () => order.push("reset"), refreshFocusCandidates: async () => { order.push("refresh"); },
   });
+  vm.runInContext(`const mounts = { get taskFocusActionMount() { return taskFocusActionMount; }, set taskFocusActionMount(value) { taskFocusActionMount = value; }, get taskFocusBody() { return taskFocusBody; }, set taskFocusBody(value) { taskFocusBody = value; }, get taskFocusPanelElement() { return taskFocusPanelElement; }, set taskFocusPanelElement(value) { taskFocusPanelElement = value; }, get workbenchInspectorElement() { return workbenchInspectorElement; }, set workbenchInspectorElement(value) { workbenchInspectorElement = value; }, get workbenchInspectorList() { return workbenchInspectorList; }, set workbenchInspectorList(value) { workbenchInspectorList = value; }, get workbenchInspectorCountText() { return workbenchInspectorCountText; }, set workbenchInspectorCountText(value) { workbenchInspectorCountText = value; }, get workbenchInspectorCollapseButton() { return workbenchInspectorCollapseButton; }, set workbenchInspectorCollapseButton(value) { workbenchInspectorCollapseButton = value; } }; const host = { get state() { return state; }, get taskFocusInspectorCollapsed() { return taskFocusInspectorCollapsed; } };`, scope);
   vm.runInContext(read("public/js/shared/view-builder.js"), scope);
   scope.requireView = () => scope.window.LongtailForge.view;
   for (const constant of ["PROJECT_FOCUS_MODE_ID", "FOCUS_QUESTION_COPY", "WORKBENCH_VIEW_STATE_TASK_FOCUS", "WORKBENCH_CLIENT_FOCUS_KEY", "WORKBENCH_PROJECT_FOCUS_KEY"]) {

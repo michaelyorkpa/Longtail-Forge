@@ -11,6 +11,7 @@ const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
+const presentationScript = readText("public/js/workbench-task-focus-presentation.js");
 
 assert.match(
   workbenchHtml,
@@ -45,12 +46,12 @@ assert.match(
 );
 
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusActionStrip"),
+  extractFunctionBody(presentationScript, "createTaskFocusActionStrip"),
   /isBlocked[\s\S]*icon: "start"[\s\S]*id: "resume"[\s\S]*label: "Resume task"[\s\S]*onClick: resumeFocusedTask[\s\S]*icon: "pause"[\s\S]*id: "block"[\s\S]*label: "Block task"/,
   "Task Focus should switch its lifecycle control from Pause/Block to Play/Resume while the focused Task is Blocked",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusActionButton"),
+  extractFunctionBody(presentationScript, "createTaskFocusActionButton"),
   /iconOnly: true[\s\S]*text: ""[\s\S]*button\.dataset\.workbenchTaskFocusAction = id;[\s\S]*button\.dataset\.workbenchTaskFocusIconOnly = "true";/,
   "Task Focus actions should be icon-only controls with stable accessible labels and hooks",
 );
@@ -86,22 +87,22 @@ assert.match(
 );
 
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusSummary"),
+  extractFunctionBody(presentationScript, "createTaskFocusSummary"),
   /dataset: \{ workbenchTaskFocusSummary: "" \}[\s\S]*text: "Task Focus"[\s\S]*id: "workbench-task-focus-heading"[\s\S]*taskFocusBadges\(task, active\)/,
   "Task Focus should render a readable selected-task heading and summary",
 );
 assert.doesNotMatch(
-  extractFunctionBody(workbenchScript, "taskFocusLeadText"),
+  extractFunctionBody(presentationScript, "taskFocusLeadText"),
   /active\?\.contextLabel/,
   "Task Focus summary lead text should not duplicate the Client/Project context fallback",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "taskFocusBadges"),
+  extractFunctionBody(presentationScript, "taskFocusBadges"),
   /badge\(formatToken\(task\.status \|\| active\?\.status \|\| "open"\)[\s\S]*badge\(formatToken\(task\.priority \|\| active\?\.priority \|\| "normal"\)[\s\S]*dueText \? badge\(`Due \$\{dueText\}`, "due"\) : null[\s\S]*taskFocusTagBadges\(task\)/,
   "Task Focus summary badges should include status, priority, due date, and safe task tags",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "taskFocusTagBadges"),
+  extractFunctionBody(presentationScript, "taskFocusTagBadges"),
   /task\.directTags[\s\S]*task\.direct_tags[\s\S]*Reflect\.get\(Object\(tag\), "name", tag\) \|\| Reflect\.get\(Object\(tag\), "slug", tag\)[\s\S]*badge\(label, "tag"\)/,
   "Task Focus summary tag badges should come from safe direct-tag labels, not IDs",
 );
@@ -111,22 +112,22 @@ assert.match(
   "Task Focus should stack its summary badges below the title and context at the canonical phone breakpoint",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskDetailsSection"),
+  extractFunctionBody(presentationScript, "createTaskDetailsSection"),
   /workbenchTaskDetailsReadonly: "true"[\s\S]*createWorkbenchSectionSummary\([\s\S]*title: "Task Details"[\s\S]*setWorkbenchDisclosureOpen\(details, false\);/,
   "Task Details should be read-only and collapsed by default",
 );
 assert.doesNotMatch(
-  extractFunctionBody(workbenchScript, "createTaskDetailFields"),
+  extractFunctionBody(presentationScript, "createTaskDetailFields"),
   /createElement\("(input|select|textarea)"/,
   "Task Details should not render editable form controls",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskDetailFields"),
+  extractFunctionBody(presentationScript, "createTaskDetailFields"),
   /"Title"[\s\S]*"Status"[\s\S]*"Priority"[\s\S]*"Due"[\s\S]*"Assignees"[\s\S]*"Client"[\s\S]*"Project"[\s\S]*"Blocked reason"[\s\S]*"Description"/,
   "Task Details should include the safe read-only task metadata required by the roadmap",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "renderTaskFocusSurface"),
+  extractFunctionBody(presentationScript, "renderTaskFocusSurface"),
   /createTaskFocusSummary\(active\)[\s\S]*createTaskDetailsSection\(active\)[\s\S]*createTaskFocusChecklistSection\(active\)/,
   "Task Focus should preserve the action, summary, details, and checklist section order",
 );
@@ -137,8 +138,8 @@ assert.match(
   "Task Focus should not render Focus Selection overflow candidates in the right panel",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "renderTaskFocusInspector"),
-  /setWorkbenchInspectorCopy\("Task context", "Related work for the focused task\."\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*taskFocusRelatedContextGroups\(context\)[\s\S]*requireWorkbenchElement\(workbenchInspectorCountText\)\.textContent = String\(items\.length\);/,
+  extractFunctionBody(presentationScript, "renderTaskFocusInspector"),
+  /setWorkbenchInspectorCopy\("Task context", "Related work for the focused task\."\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*taskFocusRelatedContextGroups\(context\)[\s\S]*requireWorkbenchElement\(mounts\.workbenchInspectorCountText\)\.textContent = String\(items\.length\);/,
   "Task Focus Inspector should switch from More-in-this-focus candidate overflow to selected-task related context",
 );
 

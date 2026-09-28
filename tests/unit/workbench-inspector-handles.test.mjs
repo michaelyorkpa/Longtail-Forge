@@ -5,7 +5,7 @@ import { createFakeBrowserContext } from "../../scripts/test-support/fake-dom.mj
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const read = createProjectTextReader().readText;
-const source = read("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + read("public/js/workbench.js");
 const names = ["requireWorkbenchElement", "buildWorkbenchHost", "createWorkbenchShell", "createWorkbenchInspectorPanel", "initializeWorkbenchInspectorSlideOut", "syncWorkbenchInspectorViewport", "syncTaskFocusInspectorCollapseState", "setWorkbenchInspectorCopy", "renderWorkbenchInspector", "renderTaskFocusInspector"];
 
 function fixture() {
@@ -16,6 +16,7 @@ function fixture() {
     createTaskFocusPanel: () => browser.document.createElement("section"), createGuidedFocusPanel: () => browser.document.createElement("section"),
     createRecommendedActionPanel: () => browser.document.createElement("section"), createSecondaryWorkbenchPanel: () => browser.document.createElement("section"),
   });
+  vm.runInContext(`const mounts = { get taskFocusActionMount() { return taskFocusActionMount; }, set taskFocusActionMount(value) { taskFocusActionMount = value; }, get taskFocusBody() { return taskFocusBody; }, set taskFocusBody(value) { taskFocusBody = value; }, get taskFocusPanelElement() { return taskFocusPanelElement; }, set taskFocusPanelElement(value) { taskFocusPanelElement = value; }, get workbenchInspectorElement() { return workbenchInspectorElement; }, set workbenchInspectorElement(value) { workbenchInspectorElement = value; }, get workbenchInspectorList() { return workbenchInspectorList; }, set workbenchInspectorList(value) { workbenchInspectorList = value; }, get workbenchInspectorCountText() { return workbenchInspectorCountText; }, set workbenchInspectorCountText(value) { workbenchInspectorCountText = value; }, get workbenchInspectorCollapseButton() { return workbenchInspectorCollapseButton; }, set workbenchInspectorCollapseButton(value) { workbenchInspectorCollapseButton = value; } }; const host = { get state() { return state; }, get taskFocusInspectorCollapsed() { return taskFocusInspectorCollapsed; } };`, scope);
   vm.runInContext(read("public/js/shared/view-builder.js"), scope);
   const controller = { close: (/** @type {unknown} */ options) => calls.push(["close", options]) };
   const queries = [false, true].map(matches => ({ matches, addEventListener: (/** @type {unknown} */ event, /** @type {unknown} */ handler) => calls.push(["listen", event, handler]) }));

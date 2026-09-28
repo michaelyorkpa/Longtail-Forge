@@ -359,7 +359,7 @@ describe("namespace governance records the declaration by identity", () => {
 
   it("leaves the publication surface and occurrence counts alone", () => {
     // Each rose by one when `0.33.33.42.46` published the checklist; declaring moves neither.
-    assert.match(governance, /declarationCoverage\.uniqueSurfaces, 68/);
-    assert.match(governance, /declarationCoverage\.publicationOccurrences, 71/);
+    assert.match(governance, /declarationCoverage\.uniqueSurfaces, 69/);
+    assert.match(governance, /declarationCoverage\.publicationOccurrences, 72/);
   });
 });

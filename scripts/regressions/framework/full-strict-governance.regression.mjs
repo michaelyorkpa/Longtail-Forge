@@ -4133,8 +4133,8 @@ for (const [surface, record] of MULTI_WRITER_SURFACES) {
 // dispositions, and its own failure text. "Namespace governance failed" is not a diagnosis.
 //
 // **The counting vocabulary is part of the contract.** A unique publication surface is not a
-// publication occurrence and neither is a known `LongtailForge` member. The estate is 68
-// unique surfaces across 71 publication occurrences, of which 66 are namespace members and
+// publication occurrence and neither is a known `LongtailForge` member. The estate is 69
+// unique surfaces across 72 publication occurrences, of which 67 are namespace members and
 // two are bare globals; the three numbers are asserted separately below precisely so no
 // future reader can take one for another, which is how an earlier reconciliation went wrong.
 const declarationCoverage = collectDeclarationCoverage({});
@@ -4177,16 +4177,9 @@ assert.deepEqual(
 // A declaration with no publisher is either a genuine type-only contract or a stale one, and
 // they are not interchangeable. The record exists so the distinction is available the moment it
 // is needed, and it is asserted by identity so an entry cannot outlive the condition that
-// justified it. The checklist writer in `0.33.33.42.46` discharged the first record. The second
-// (`0.33.33.38.2.13`) is again a contract declared ahead of its writer, which that writer's
-// checkpoint must strike.
+// justified it. The checklist and presentation writers discharged their ahead-of-writer records.
 /** @type {Map<string, string>} */
-const TYPE_ONLY_DECLARATIONS = new Map([
-  [
-    "workbenchTaskFocusPresentation",
-    "Declared ahead of its writer: the remaining Task Focus presentation extraction publishes workbenchTaskFocusPresentation from public/js/workbench-task-focus-presentation.js and strikes this record.",
-  ],
-]);
+const TYPE_ONLY_DECLARATIONS = new Map();
 
 const declarationsMissingWriter = declarationCoverage.declaredMembersWithoutWriter
   .filter((member) => !TYPE_ONLY_DECLARATIONS.has(member));
@@ -4231,8 +4224,8 @@ const singleWriterSurfaces = declarationCoverage.uniqueSurfaces - declarationCov
 // `0.33.33.42.46` published the checklist seam from one file, raising this count by one.
 assert.equal(
   singleWriterSurfaces,
-  66,
-  "66 of the 68 unique publication surfaces must have exactly one canonical writer",
+  67,
+  "67 of the 69 unique publication surfaces must have exactly one canonical writer",
 );
 
 // D - NO UNRESOLVABLE ROOTED WRITE.
@@ -4299,14 +4292,12 @@ assert.doesNotMatch(
 
 // TERMINOLOGY - the three numbers are different numbers, asserted apart so no future summary
 // can print one as another.
-assert.equal(declarationCoverage.uniqueSurfaces, 68, "unique publication surfaces");
-assert.equal(declarationCoverage.publicationOccurrences, 71, "publication occurrences, which exceed unique surfaces");
-// `0.33.33.42.46` publishes the previously declared checklist seam and strikes its type-only record.
-// `0.33.33.38.2.13` declares `workbenchTaskFocusPresentation` ahead of its writer: known and
-// declared move to 67 while published stays 66 until `0.33.33.42.47` publishes it and strikes the record.
+assert.equal(declarationCoverage.uniqueSurfaces, 69, "unique publication surfaces");
+assert.equal(declarationCoverage.publicationOccurrences, 72, "publication occurrences, which exceed unique surfaces");
+// 0.33.33.42.47 publishes the presentation seam: all 67 declared members now have writers.
 assert.equal(declarationCoverage.knownMembers.length, 67, "known LongtailForge members, which are not all governed surfaces");
 assert.equal(declarationCoverage.declaredMembers.length, 67, "declared LongtailForge members");
-assert.equal(declarationCoverage.publishedMembers.length, 66, "LongtailForge members with a runtime writer");
+assert.equal(declarationCoverage.publishedMembers.length, 67, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
   "publication occurrences must exceed unique surfaces while any surface has co-writers",
