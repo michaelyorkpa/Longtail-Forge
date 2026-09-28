@@ -188,8 +188,23 @@ describe("The boundary changed its declaration and exactly two reads", () => {
     for (const name of ["refreshActiveClientProjectsReadSurface", "renderClientProjectsReadSurface", "initializeClientProjectsPage"]) {
       expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(withoutJsDoc(extractFunctionBlock(baseline, name)));
     }
+    // `0.33.33.43.55` later typed the collected selection inputs; its edits are named after these.
+    const LATER = [
+      [
+        "    // The collected controls stay undeclared: `querySelectorAll` answers `Element`, and the callers\n"
+          + "    // read `dataset` and `value` off what this returns. They belong to the lookup boundary.\n"
+          + "    const inputs = [];",
+        "    // The callers select the framework's row checkboxes, which `renderRowSelection` creates as\n"
+          + "    // `<input type=\"checkbox\">`; they read `dataset` and `value` off what this returns (`0.33.33.43.55`).\n"
+          + "    const inputs = [];",
+      ],
+      [
+        "        seen.add(input);\n        inputs.push(input);",
+        "        seen.add(input);\n        if (input instanceof HTMLInputElement) {\n          inputs.push(input);\n        }",
+      ],
+    ];
     for (const name of ["querySelectionInputs", "selectedProjectClientFilterValue"]) {
-      const expected = EDITS.reduce((body, [from, to]) => body.replace(from, to), withoutJsDoc(extractFunctionBlock(baseline, name)));
+      const expected = [...EDITS, ...LATER].reduce((body, [from, to]) => body.replace(from, to), withoutJsDoc(extractFunctionBlock(baseline, name)));
       expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(expected);
     }
     expect(smokeCheck(current)).toBe(smokeCheck(baseline));

@@ -309,8 +309,17 @@ function wrapperFields(outcome) {
 
 describe("The editors changed only their annotations, and one filter spelling", () => {
   it(`keeps every other body the ${BASE} body once JSDoc is removed`, () => {
+    // `0.33.33.43.55` later stated the contact write's conversion, with the operator's approval;
+    // that one line is named so every other line stays pinned to this checkpoint's body.
+    /** @type {Record<string, [string, string]>} */
+    const later = {
+      createBillingContactEditor: ["      input.value = `${client.billing_contact[fieldName]}`;", "      input.value = client.billing_contact[fieldName];"],
+    };
     for (const name of UNCHANGED_BODIES) {
-      expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(withoutJsDoc(extractFunctionBlock(baseline, name)));
+      const now = withoutJsDoc(extractFunctionBlock(current, name));
+      const [edited, original] = later[name] || ["", ""];
+      if (edited) expect(now.split(edited).length, `${name} carries its later edit once`).toBe(2);
+      expect(edited ? now.replace(edited, original) : now, name).toBe(withoutJsDoc(extractFunctionBlock(baseline, name)));
     }
   });
 

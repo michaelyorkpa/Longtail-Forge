@@ -327,6 +327,7 @@
         "tests/e2e/client-projects-edit-dialog-reflow.spec.mjs",
         "tests/e2e/client-projects-read-polish.spec.mjs",
         "tests/e2e/client-projects-restricted-descriptor.spec.mjs",
+        "tests/e2e/clients-projects-billing-contact-conversion.spec.mjs",
         "tests/e2e/console.spec.mjs",
         "tests/e2e/dashboard-bootstrap-sequencing.spec.mjs",
         "tests/e2e/files-filter-handles.spec.mjs",
@@ -558,6 +559,7 @@
         "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/clients-projects-bulk-update-contracts.test.mjs",
         "tests/unit/clients-projects-client-editors-contracts.test.mjs",
+        "tests/unit/clients-projects-contact-save-selection-contracts.test.mjs",
         "tests/unit/clients-projects-create-outcome-contracts.test.mjs",
         "tests/unit/clients-projects-descriptor-pipeline-contracts.test.mjs",
         "tests/unit/clients-projects-dialog-opener-contracts.test.mjs",
@@ -954,20 +956,12 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 46,
+      "errorCount": 41,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
-            "code": 7005,
-            "count": 1
-          },
-          {
             "code": 7006,
-            "count": 13
-          },
-          {
-            "code": 7034,
-            "count": 1
+            "count": 10
           },
           {
             "code": 7053,
@@ -1597,8 +1591,8 @@
     }
   },
   "totals": {
-    "files": 1536,
-    "errors": 46,
+    "files": 1538,
+    "errors": 41,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
