@@ -93,16 +93,13 @@ describe("what the closed root now refuses, proved by the compiler", () => {
     }
   });
 
-  it("declares the members the estate publishes, plus its recorded type-only declarations, by count", () => {
+  it("declares the members the estate publishes, by count", () => {
     const members = [...namespaceInterface().matchAll(/^ {2}(\w+)\?:/gm)].map(([, name]) => name);
     assert.equal(new Set(members).size, members.length, "no duplicate member names");
-    // `0.33.33.38.3.9` declared and published `checkedDom` together, so both sides moved to 65.
-    // `0.33.33.38.2.12` then declared `workbenchTaskFocusChecklist` ahead of its writer, recorded in
-    // governance's `TYPE_ONLY_DECLARATIONS`: 66 declared is the 65 published plus that one record,
-    // until `0.33.33.42.46` publishes it and strikes the record.
+    // `0.33.33.42.46` publishes the checklist seam: 66 declared, matching the 66 published.
     assert.equal(members.length, 66,
-      "66 declared members: the 65 the publication inventory publishes plus one recorded type-only declaration");
-    assert.ok(members.includes("workbenchTaskFocusChecklist"), "the type-only declaration is on the root");
+      "66 declared members, matching the 66 published");
+    assert.ok(members.includes("workbenchTaskFocusChecklist"), "the checklist declaration is on the root");
   });
 });
 

@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.46` | `workbench.js` — typing complete and integrated at `0.33.33.42.45` (0 raw / 0 owned / 0 DOM). Task Focus checklist extraction planned (`6ad23bdf`); its shared contract landed as `0.33.33.38.2.12`, so implementation resumes | 0 owned |
+| Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). About 1,140 lines of Task Focus remain in `workbench.js`. Next: plan the remaining presentation extraction as the fewest seams, with one list of the shared declarations they need | 0 owned |
 | Claude | `0.33.33.43.51` | Record writers typed at `0.33.33.43.50`. `clients-projects.js` 61 and `lists.js` 30 remain, all owned families. Next: the field and status helpers the editors build from; then the client editors, the tag/filter/modal helpers, and the normalisers (the wire trust boundary) last | 91 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
@@ -1593,11 +1593,11 @@ Today's measurement: `tasks.js` is 2,982 lines and 661 diagnostics; `task-dialog
 
 Today's measurement: `workbench.js` is **4,239 lines with 295 top-level names and 895 diagnostics**, and is touched by three earlier checkpoints — `0.33.33.33.7` scopes it, `0.33.33.34` moves its action-dependency table out, and `0.33.33.37` takes its legality core.
 
-- [ ] **Extraction and typing are provisionally two children, and the post-`0.33.33.38` remeasurement decides.** Task Focus extraction changes what the file contains; typing a surface and then extracting a mode from it would prove the same behaviour twice. The evidence for splitting is the file's size and its three prior dependencies; the evidence against is that the extraction may be small once `.34` and `.37` have taken their pieces. Measure before slicing.
+- [x] **Extraction and typing ran as separate children, typing first.** Typing brought `workbench.js` to zero at `0.33.33.42.45`. Extraction then moves already-typed code seam by seam from `0.33.33.42.46`, so no behaviour is proved twice.
 - [ ] Extract the self-contained Task Focus mode behind typed inputs/events while preserving Workbench ownership of the live surface.
-- [ ] Close full-strict debt in Workbench, action loading, candidate rendering, timers, and resume/recovery state.
+- [x] Close full-strict debt in Workbench, action loading, candidate rendering, timers, and resume/recovery state (`0.33.33.42.45`: the browser ledger holds no Workbench diagnostics; the remaining 91 are Clients/Projects and Lists).
 - [ ] Preserve module contribution boundaries, no-raw-ID labels, focus capture, blocking recovery, and fallback navigation.
-- [x] Reduce the Workbench browser ledger to zero (`0.33.33.42.45`, branch-local evidence awaiting integration).
+- [x] Reduce the Workbench browser ledger to zero (`0.33.33.42.45`, integrated at PR #817).
 
 ### 0.33.33.43 - Type Lists, Files, and Clients/Projects browser controllers
 
