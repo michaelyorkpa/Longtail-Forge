@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). About 1,140 lines of Task Focus remain in `workbench.js`. Next: plan the remaining presentation extraction as the fewest seams, with one list of the shared declarations they need | 0 owned |
-| Claude | `0.33.33.43.51` | Record writers typed at `0.33.33.43.50`. `clients-projects.js` 61 and `lists.js` 30 remain, all owned families. Next: the field and status helpers the editors build from; then the client editors, the tag/filter/modal helpers, and the normalisers (the wire trust boundary) last | 91 |
+| Claude | `0.33.33.43.52` | Field and status helpers typed at `0.33.33.43.51`. `clients-projects.js` 45 and `lists.js` 30 remain, all owned families. Next: the client editors; then the `activeClientProjectsReadSurface` state boundary, the tag/filter/modal helpers, and the normalisers (the wire trust boundary) last | 75 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1615,52 +1615,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.51 - Clients/Projects field and status helpers
 
-**Model: Medium Effort** - annotations only, on leaf helpers in one module. The one judgement, that two forwarders take their delegate's declared `unknown`, is recorded below before implementation.
-
-**Measured on `nightly` `5205f6fe`:** 16 diagnostics in twelve helpers.
-
-| Helper | Diagnostics | Call sites |
-| --- | --- | --- |
-| `createTaskReminderPolicyEditor` | 3 TS7031, one per destructured member | 2 |
-| `createNumberField` | 2 | 4 |
-| `createOption` | 2 | 40 |
-| `formatToken` | 1 | 5 |
-| `formatOrdinal` | 1 | 2 |
-| `createStatusSelect` | 1 | 2 |
-| `createClientStatusSelect` | 1 | 1 |
-| `createBillableCheckbox` | 1 | 3 |
-| `populateBillingPeriodStartDays` | 1 | 1 |
-| `getProjectBillingPeriodInheritLabel` | 1 | 2 |
-| `setStatus` | 1 | 21 |
-| `flashSavedButton` | 1 | 1 |
-
-**The callers, traced.** Every parameter was temporarily typed `symbol`, so each call site reported its argument type, and the file was then byte-restored.
-
-- **`createOption(value, text)`** forwards both arguments to `pageController.createOption`, which declares them `unknown` and hands them to the option's own setters (`0.33.33.39.24`). Most callers pass strings. The bulk client picker, the parent pickers and the project-client picker pass raw record ids and names, which stay `any` until the normalisers are typed. **Typed `unknown`, the delegate's declared parameters:** the conversion happens in the setters this body forwards to.
-- **`setStatus(message)`** forwards to `pageController.setStatus(null, message, options)`, whose message is `unknown`. Twenty callers pass text. `handleClientProjectActionError` passes a thrown value's `message`, which can be anything. **Typed `unknown`**, for the same reason.
-- **`formatToken(value)`**: all five callers pass strings - the task defaults' status, priority and assignee mode, and the status and priority lists. **`string`.**
-- **`formatOrdinal(day)`**: the start-day loop and `formatBillingPeriod`'s normalised start day, both numbers. **`number`**, which the body's arithmetic needs.
-- **`createNumberField(text, value)`**: the reminder editor's four calls, each a label and a positive integer. **`string`, `number`.**
-- **`createTaskReminderPolicyEditor({ legend, inheritLabel, value })`**: the client and project editors pass two labels and the record's normalised `taskReminderPolicy`. **`{ legend: string, inheritLabel: string, value: ReturnType<typeof normalizeTaskReminderPolicy> }`.**
-- **`createStatusSelect(value)` and `createClientStatusSelect(value)`**: the record's `status`, and the add form's `"Active"`. The record status is `any` until the normalisers are typed. At runtime, though, each normaliser keeps a status only when it is in the page's own list and otherwise writes `"Active"`, so it is always one of those strings. **`string`.**
-- **`createBillableCheckbox(value)`**: the client and project `billable` (the normaliser's `"yes"`/`"no"`), and the add form's `"no"` or its target client's billable. **`string`.**
-- **`populateBillingPeriodStartDays(select)`**: the billing-period editor's start-day select. **`HTMLSelectElement`.**
-- **`getProjectBillingPeriodInheritLabel(client)`**: the project editor and the add form pass a client entry. **`NormalizedClientEntry`.**
-- **`flashSavedButton(selector)`**: `persistClientProjectChange` passes `viewState.flashSelector`. **`string | undefined`.** Past its two guards it writes "Saved." and `is-saved` onto the button that started the write and restores both after 1.6 seconds. **Corrected during implementation:** the planning note said the body only looked the button up. That came from a truncated read of the function, and the runtime comparison exposed it.
-
-**Scope, recorded before implementation:**
-
-- [ ] Annotations only, from the callers above. Every body is unchanged.
-- [ ] **Excluded:** the `activeClientProjectsReadSurface` declaration and its four reads (5 diagnostics). They are one state-typing boundary and get their own slice. That includes the page-controller registration's read, which sits below `setStatus`.
-- [ ] **Proof.**
-  - Body identity against `5205f6fe`.
-  - Lifted side-by-side runs over the argument shapes the real callers use, compared on DOM output: option value and text, number-field attributes, select and checkbox state, reminder-policy fields and `getValue`, the start-day list, inherit labels, and status-controller calls.
-  - A mutation campaign.
-  - Compiler probes that each annotation is load-bearing.
-  - A per-message diagnostic delta.
-  - A Grep-tool search, raw and escaped, for pins on the annotated signatures.
-- [ ] **Expected accounting:** `clients-projects.js` 61 to 45, browser 91 to 75, with no message rising.
-- [ ] **Verification:** range-explicit `verify:slice` from `5205f6fe` on port 8101, plus the Clients/Projects browser specs as the rendered gate.
+**Complete: 16 diagnostics closed with every body unchanged.** See the archive entry. The twelve helpers were typed from their callers' argument types as the compiler reported them, and proved against `5205f6fe`. `clients-projects.js` 61 to 45, browser 91 to 75.
 
 #### 0.33.33.43.50 - Clients/Projects record writers
 
