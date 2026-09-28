@@ -1640,16 +1640,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.60 - Lists link-picker provider options and debounce
 
-**Model: High Effort** - Preserve the two provider producers and native debounce behavior while discharging local typing deferrals.
-
-**Planning, not complete.** Baseline `1657a3aa306caa190430436d7874ee6eb995bd1e`; Lists 30 raw / 30 owned / 0 dom, browser 61. The 30 group into editor input aliases (9), saved-record consumers (7), event handlers (4), item field descriptors (2), option/select/suggestion consumers (4), link-picker provider/debounce (2), item progress (1), and declarative surface (1). Diagnostic codes: TS7006 20, TS2339 9, TS2345 1.
-
-- [ ] Type `listLinkProviderOptions` from its validated provider caller and its separate local fallback literals, without filling in absent fields or changing the shared declaration. Retain order, client visibility, last-provider selection and identifier fallback. An object-or-undefined map result permits an equivalent explicit undefined filter in place of Boolean.
-- [ ] Resolve `queueListEditorLinkTargetSearch`'s null timeout input at the native cancellation boundary; prove null and undefined are equivalent for the browser timer operation, with delay and replacement order unchanged. Expected two eliminations, none moved or introduced; back out a probe that exposes unrelated errors.
-- [ ] Compare lifted baseline/current functions, pin producer distinctions, run bounded fault injection with retained byte backup and SHA-256 restoration, and search raw/escaped spellings across scripts and tests.
-- [ ] Run Lists rendered coverage on isolated port 8102, canonical verification from the named full baseline, and checkpoint validation. Archive last in the implementation PR. Existing response, bootstrap and checked-DOM decisions remain intact.
-
-No shared prerequisite identified for this boundary. The other 28 diagnostics remain outside it; no Lists or parent closeout claim. Branch-local ledger figures require recomputation at integration.
+**Implemented; awaiting integration.** Two owned diagnostics eliminated, Lists 30 to 28 raw / owned and 0 dom. The fallback remains a three-member local producer; native search cancellation retains its delay and ordering. See the archive for branch-local accounting, comparisons and the corrected browser assertion.
 
 #### 0.33.33.43.53 - Clients/Projects read-surface state boundary
 
