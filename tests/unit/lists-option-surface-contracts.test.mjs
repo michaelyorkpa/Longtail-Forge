@@ -157,13 +157,12 @@ describe("What the option surface declares, and what gates the rest", () => {
       "the option builder still writes a member that requires text, and its caller's rows are unproved");
   });
 
-  it("leaves the provider options untyped, because the two branches genuinely disagree", () => {
-    // Discharged by the fallback building the same shape the contract declares, which is a change
-    // to what this page offers rather than a typing decision.
+  it("types the two provider sources without populating fallback identifiers", () => {
+    // Discharged locally in .43.60: admit absent identifiers without adding them.
     const at = source.indexOf("function listLinkProviderOptions(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
-    assert.doesNotMatch(block, /@param \{[^}]*\} \[?providers\]?/,
-      "the providers parameter is annotated; re-decide this deferral");
+    assert.match(block, /@param \{BrowserListLinkTargetProvider\[\]\} \[providers\]/,
+      "the input comes from the validated wire reader");
     assert.match(source, /label: LIST_LINK_TYPE_LABELS\[targetType\],\r?\n\s+moduleId: moduleIdForListLinkTarget\(targetType\),\r?\n\s+targetType,/,
       "the fallback branch still builds a literal carrying none of id, provider or providerId");
   });
