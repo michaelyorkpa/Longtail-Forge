@@ -1646,7 +1646,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - **`createBillableCheckbox(value)`**: the client and project `billable` (the normaliser's `"yes"`/`"no"`), and the add form's `"no"` or its target client's billable. **`string`.**
 - **`populateBillingPeriodStartDays(select)`**: the billing-period editor's start-day select. **`HTMLSelectElement`.**
 - **`getProjectBillingPeriodInheritLabel(client)`**: the project editor and the add form pass a client entry. **`NormalizedClientEntry`.**
-- **`flashSavedButton(selector)`**: `persistClientProjectChange` passes `viewState.flashSelector`. **`string | undefined`.** **Observation, not changed:** past its two guards the body only looks the button up. It no longer flashes anything.
+- **`flashSavedButton(selector)`**: `persistClientProjectChange` passes `viewState.flashSelector`. **`string | undefined`.** Past its two guards it writes "Saved." and `is-saved` onto the button that started the write and restores both after 1.6 seconds. **Corrected during implementation:** the planning note said the body only looked the button up. That came from a truncated read of the function, and the runtime comparison exposed it.
 
 **Scope, recorded before implementation:**
 
