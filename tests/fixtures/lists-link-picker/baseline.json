@@ -1,0 +1,13 @@
+{
+  "base": "1657a3aa306caa190430436d7874ee6eb995bd1e",
+  "functions": {
+    "listLinkProviderOptions": "function listLinkProviderOptions(providers = []) {\n    const source = providers.length > 0\n      ? providers\n      : LIST_LINK_TARGET_ORDER.map((targetType) => ({\n          label: LIST_LINK_TYPE_LABELS[targetType],\n          moduleId: moduleIdForListLinkTarget(targetType),\n          targetType,\n        }));\n    const providersByType = new Map(source.map((provider) => [provider.targetType, provider]));\n\n    return LIST_LINK_TARGET_ORDER\n      .filter((targetType) => targetType !== \"client\" || usesBusinessScope())\n      .map((targetType) => providersByType.get(targetType))\n      .filter(Boolean)\n      .map((provider) => ({\n        label: provider.label || LIST_LINK_TYPE_LABELS[provider.targetType] || formatToken(provider.targetType),\n        moduleId: provider.moduleId || moduleIdForListLinkTarget(provider.targetType),\n        providerId: provider.providerId || provider.provider || provider.id || \"\",\n        targetType: provider.targetType,\n        value: provider.targetType,\n      }));\n  }",
+    "queueListEditorLinkTargetSearch": "function queueListEditorLinkTargetSearch() {\n    window.clearTimeout(state.linkTargetSearchTimer);\n    state.linkTargetSearchTimer = window.setTimeout(() => loadListEditorLinkTargets(), 180);\n  }",
+    "moduleIdForListLinkTarget": "function moduleIdForListLinkTarget(targetType = \"\") {\n    /** @type {Record<string, string>} */\n    const modulesByTargetType = {\n      client: \"client-projects\",\n      note: \"notes\",\n      project: \"client-projects\",\n      task: \"tasks\",\n    };\n    return modulesByTargetType[targetType] || \"\";\n  }",
+    "formatToken": "function formatToken(value) {\n    return String(value || \"\")\n      .replace(/[_-]+/g, \" \")\n      .replace(/\\b\\w/g, (letter) => letter.toUpperCase());\n  }"
+  },
+  "constants": [
+    "  const LIST_LINK_TARGET_ORDER = [\"task\", \"note\", \"project\", \"client\"];",
+    "  const LIST_LINK_TYPE_LABELS = {\n    client: \"Client\",\n    note: \"Note\",\n    project: \"Project\",\n    task: \"Task\",\n  };"
+  ]
+}
