@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.56 - Clients/Projects normalisers, the wire trust boundary
+
+**Model: High Effort** - the page's wire trust boundary. The published contracts and each normaliser's reads were measured before anything was typed, and the parts that need a trust-policy decision are held rather than forced.
+
+- [x] **Measured.** On `nightly` `03f859c0`: 11 diagnostics - the four wire normalisers (6), the rounding reader (1), the contact reader's accumulator (1) and the three permission readers (3).
+- [x] **Published contracts.** `BrowserClientRecord`, `BrowserProjectRecord` and their envelopes (`0.33.33.38.4.6.1`), with `isClientRecord` and `readClientRecord`, prove the create and update responses only. Nothing publishes or validates the `/api/client-projects` list body or the `/api/settings` body, so those stay `unknown`.
+- [x] **Closed (4).**
+  - `canCreateProjectForClient` and `canManageProjectClientScope` take the `string` every caller passes.
+  - `canCreateChildClient` takes the wire record ids as `unknown`; its only use is `===`.
+  - `normalizeBillingContact` starts from a declared `Record<string, unknown>` local - the same fresh object the literal was.
+- [x] **Held (7), with notes in the source, pending operator decisions.**
+  - **The wire normalisers (6).** Typing `data`, `client` and `settings` as `unknown` closes 6 and exposes 32 member reads. A checked read, `Reflect.get(Object(value), key, value)`, matches each native read for objects and primitives - value, getter receiver and read order - but not a nullish body. Matching the native "Cannot read properties of null" needs a cast; answering `undefined` would coerce a malformed body into an empty record.
+  - **`normalizeProjects`** would appear to close only because `Array.isArray` narrows `unknown` to an untyped array, leaving its element reads unchecked with nothing reporting them, so it is not counted.
+  - **`normalizeBillingRounding` (1).** Declaring it exposes a TS2322 at the rounding editor's increment-select write, because `vocabularyHas` is not a type predicate. The pinned note still calls this an inference cascade; the consumer it names has since moved. Closing it needs one of these:
+    - an unsound predicate;
+    - a `String()` coercion;
+    - an inline `typeof` test that adds one read of `rounding.increment`.
+- [x] **Proof.**
+  - **Body identity.** Every held and annotated body equals its `03f859c0` body with comments removed, and the contact reader differs by exactly its accumulator.
+  - **Side-by-side runs.** The contact reader answers what it did beside `03f859c0` for absent, empty, falsy, truthy, extra, inherited and getter-backed members, with a fresh record per call.
+  - **Mutations.** Four, each caught.
+  - **Compiler probes.** Every annotation is load-bearing.
+  - **Pins.** The raw and escaped pin search found nothing to retarget.
+  - **Existing coverage.** 268 related unit tests pass.
+- [x] **Accounting.** `clients-projects.js` 11 to 7, browser 39 to 35: **4 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.43.60 - Lists link-picker provider options and debounce
 
 **Model: High Effort** - Preserve distinct local/wire producers and native timer semantics without adding a shared prerequisite.

@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.61` | `0.33.33.42` complete; `lists.js` link-picker providers and debounce typed and integrated at `0.33.33.43.60`, Lists 30 to 28. Next: the seven saved-record consumers, traced against the normalised writer before choosing the reconciliation | 28 owned |
-| Claude | `0.33.33.43.56` | Contact editor, client save and selection inputs typed at `0.33.33.43.55`. `clients-projects.js` 11 remains, all in the normalisers; `lists.js` is Codex's. Next: the normalisers, the wire trust boundary, last | 41 |
+| Claude | `0.33.33.43.57` | Normaliser boundary partly typed at `0.33.33.43.56`. `clients-projects.js` 7 remain, **held for operator decisions**: the four wire normalisers (6 - how a checked read may treat a nullish wire body) and the rounding reader (1 - its increment-select cascade). `lists.js` is Codex's | 35 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1640,44 +1640,10 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.56 - Clients/Projects normalisers, the wire trust boundary
 
-**Model: High Effort** - the page's wire trust boundary. The published contracts and each normaliser's reads were measured before anything was typed, and the parts that need a trust-policy decision are held rather than forced.
+**Complete as scoped: 4 closed, 7 held for operator decisions.** See the archive entry. `clients-projects.js` 11 to 7, browser 39 to 35.
 
-**Measured on `nightly` `03f859c0`:** 11 diagnostics.
-- `normalizeClientRecord` 1, `normalizeData` 1, `normalizeProjects` 3 and `normalizeSettings` 1: the wire normalisers.
-- `normalizeBillingRounding` 1.
-- `normalizeBillingContact` 1 (TS7053 on its `{}` accumulator).
-- The three permission readers, 1 each.
-
-**Published contracts first.** `BrowserClientRecord`, `BrowserProjectRecord` and their envelopes (`0.33.33.38.4.6.1`), with the page's `isClientRecord` and `readClientRecord`, prove the **create and update** responses. Nothing publishes or validates the `/api/client-projects` list body or the `/api/settings` body that the normalisers receive. By the operator's rule, those stay `unknown`.
-
-**What can close without a policy change (4):**
-- `canCreateProjectForClient` and `canManageProjectClientScope` take `string`, which is what every caller passes.
-- `canCreateChildClient` takes `unknown`: it gets record ids the normaliser passes through from the wire, and its only use is `===`.
-- `normalizeBillingContact` starts its reducer from a declared `Record<string, unknown>` local - the same fresh object the literal was, with the same reads and writes.
-
-**What is held, pending operator decisions (7):**
-- **The wire normalisers (6).** Typing `data`, `client` and `settings` as `unknown` closes 6 and exposes 32 member reads: 18 on `client`, 7 on `data`, and 7 around `settings`. A checked read, `Reflect.get(Object(value), key, value)`, matches each native read exactly - value, getter receiver and read order - for objects and primitives. It cannot match a **nullish body**:
-  - the native read throws "Cannot read properties of null (reading ...)";
-  - reproducing that wording needs a cast;
-  - making the read optional instead would coerce a malformed body into an empty record.
-
-  Either is a trust-policy change. `normalizeProjects` would appear to close cleanly, but only because `Array.isArray` narrows `unknown` to an untyped array, leaving every element read unchecked with nothing reporting it. It is held with the others rather than counted.
-- **`normalizeBillingRounding` (1).** Declaring it exposes a TS2322 at the rounding editor's increment-select write, because `vocabularyHas` is not a type predicate. The recorded note calls this an inference cascade; the consumer it names has since moved. Closing it needs one of these:
-  - an unsound predicate on the shared `vocabularyHas`;
-  - a `String()` coercion;
-  - an inline `typeof` test, which adds a read of `rounding.increment`.
-
-  All three fall outside this slice's rules.
-
-**Scope, recorded before implementation:**
-
-- [ ] The four closures above, and notes on the three held wire normalisers that do not already carry one. No other body changes, and no normaliser or trust-policy change.
-- [ ] **Proof.**
-  - Body identity for every held and annotated function; the contact reader differing by exactly its accumulator.
-  - The contact reader compared beside `03f859c0` for absent, empty, falsy, truthy, extra, inherited and getter-backed members, with a fresh record per call.
-  - Mutations, compiler probes, a per-message delta, and raw and escaped pin searches.
-- [ ] **Expected accounting:** 4 closed, `clients-projects.js` 11 to 7 and browser 39 to 35. The 7 held await the operator.
-- [ ] **Verification:** range-explicit `verify:slice` from `03f859c0` on port 8101, and the Clients/Projects page specs.
+- **Held: the wire normalisers (6).** `normalizeData`, `normalizeClientRecord`, `normalizeProjects` and `normalizeSettings` receive bodies nothing validates. A checked read matches the native read for objects and primitives, but not for a nullish body. The decision is whether a checked required read may throw its own `TypeError` there, synchronously, or whether these wait for a validated list-response contract.
+- **Held: `normalizeBillingRounding` (1).** Its cascade reaches the increment-select write through the non-predicate `vocabularyHas`. The decision is whether an inline `typeof` test - one extra read of `rounding.increment`, observable only through a getter - is acceptable.
 
 #### 0.33.33.43.60 - Lists link-picker provider options and debounce
 
