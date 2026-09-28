@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.46` | `workbench.js` — typing complete and integrated at `0.33.33.42.45` (0 raw / 0 owned / 0 DOM). Task Focus checklist extraction planned (`6ad23bdf`); its shared contract landed as `0.33.33.38.2.12`, so implementation resumes | 0 owned |
-| Claude | `0.33.33.43.50` | Project assignment and context typed at `0.33.33.43.49`. `clients-projects.js` 75 and `lists.js` 30 remain, all owned families. Next: the record writers - client and project create, save and archive, and the tag-payload helpers | 105 |
+| Claude | `0.33.33.43.51` | Record writers typed at `0.33.33.43.50`. `clients-projects.js` 61 and `lists.js` 30 remain, all owned families. Next: the field and status helpers the editors build from; then the client editors, the tag/filter/modal helpers, and the normalisers (the wire trust boundary) last | 91 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1615,46 +1615,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.50 - Clients/Projects record writers
 
-**Model: High Effort** - the page's write paths, where the request shape and data integrity are the risk. They were traced before any typing.
-
-**Measured on `nightly` `f966eb38`:** 14 diagnostics:
-
-| Function | Diagnostics |
-| --- | --- |
-| `createClientRecord` | 2 TS7006, plus a TS2339 because its `viewState` defaulted to `{}` |
-| `saveClientRecord` | 2 |
-| `createProjectRecord` | 3 |
-| `saveProjectRecord` | 2 |
-| `archiveProjectRecord` | 2 |
-| `withOptionalTagPayload` | 1 |
-| `withoutTagPayload` | 1 |
-
-**The requests, traced.** Every writer runs its request inside `persistClientProjectChange(action, viewState, request)`, which owns the refresh, the flash, the open rows and the host-context completion.
-
-- **`createClientRecord`** POSTs `/api/clients` with `{ ...client, action }`. It merges the saved client back into the draft, records the saved identifiers on the action, and sets `viewState.openClientId`. If the draft carries initial projects, it then POSTs the first one to `/api/clients/:id/projects`. **Observation, not changed:** its only caller, the Add Client dialog, always sends `projects: []`, so that branch is not reached today.
-- **`saveClientRecord`** PUTs `/api/clients/:id` with `withOptionalTagPayload(client, { action })`. Two of its three callers pass `withoutTagPayload(client)`.
-- **`createProjectRecord`** POSTs `/api/projects` for the workspace grouping, and `/api/clients/:id/projects` otherwise, with `withOptionalTagPayload(project, { action })`. It merges the saved project back.
-- **`saveProjectRecord`** PUTs `/api/projects/:id` with `withOptionalTagPayload(project, { confirm_downstream_update, action })`.
-- **`archiveProjectRecord`** DELETEs `/api/projects/:id`, with no body.
-- **The tag payload.**
-  - `withOptionalTagPayload` spreads the record, then the extras, and drops `tagIds` unless the record owns it.
-  - `withoutTagPayload` copies the record without `tagIds` or `tag_ids`.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Callers.** Type the writers from their callers.
-  - Named draft types: `Record<string, unknown>` plus the one member read, because each draft is spread wholesale into its request.
-  - The normalised records with their save-time `tagIds`.
-  - `NormalizedClientEntry` for the project create target.
-  - The existing `ClientProjectAction` and `ClientProjectViewState` typedefs.
-- [ ] **Tag payload.** `withOptionalTagPayload` takes a record that may own `tagIds`. `withoutTagPayload` is generic and answers its input type less the two stripped keys, because its result feeds `saveClientRecord`, which reads `id`.
-- [ ] **Bodies.** Every body unchanged. No new option honoured. No `any`, casts or suppressions.
-- [ ] **Proof.**
-  - Bodies are unchanged against `f966eb38`.
-  - The real writers run beside their `f966eb38` versions through the real `persistClientProjectChange`, with a capturing API stub. Compare every request's method, URL and payload (key order included), the merged-back records, the action and view state, and the completion - for create, save and archive, with tags owned, absent and stripped.
-  - Mutations and compiler probes.
-  - Spellings searched raw and as escaped regexes with the Grep tool.
-  - The Clients/Projects rendered gate.
+**Complete: 14 diagnostics closed with every body unchanged.** See the archive entry. The seven write paths were traced, then typed from their callers, and proved request-for-request against `f966eb38`. `clients-projects.js` 75 to 61, browser 105 to 91.
 
 #### 0.33.33.43.49 - Clients/Projects project assignment and context
 
