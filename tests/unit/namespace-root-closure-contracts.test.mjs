@@ -93,13 +93,17 @@ describe("what the closed root now refuses, proved by the compiler", () => {
     }
   });
 
-  it("declares the members the estate publishes, by count", () => {
+  it("declares the members the estate publishes, plus its recorded type-only declarations, by count", () => {
     const members = [...namespaceInterface().matchAll(/^ {2}(\w+)\?:/gm)].map(([, name]) => name);
     assert.equal(new Set(members).size, members.length, "no duplicate member names");
-    // `0.33.33.42.46` publishes the checklist seam: 66 declared, matching the 66 published.
-    assert.equal(members.length, 66,
-      "66 declared members, matching the 66 published");
+    // `0.33.33.42.46` published the checklist seam: 66 declared, matching the 66 published.
+    // `0.33.33.38.2.13` then declared `workbenchTaskFocusPresentation` ahead of its writer, recorded
+    // in governance's `TYPE_ONLY_DECLARATIONS`: 67 declared is the 66 published plus that one record,
+    // until `0.33.33.42.47` publishes it and strikes the record.
+    assert.equal(members.length, 67,
+      "67 declared members: the 66 the publication inventory publishes plus one recorded type-only declaration");
     assert.ok(members.includes("workbenchTaskFocusChecklist"), "the checklist declaration is on the root");
+    assert.ok(members.includes("workbenchTaskFocusPresentation"), "the type-only declaration is on the root");
   });
 });
 
@@ -120,10 +124,12 @@ describe("the removal needed no runtime change", () => {
     const governance = read("scripts/regressions/framework/full-strict-governance.regression.mjs");
     assert.match(governance, /const UNDECLARED_PUBLICATION_BACKLOG = \[\];/,
       "the backlog stays a live, empty instrument");
-    // Both 66 since `0.33.33.38.2.12`: a type-only declaration adds to the declared and the known
-    // sets, while the published set stays 65 until its writer lands.
-    assert.match(governance, /assert\.equal\(declarationCoverage\.declaredMembers\.length, 66,/);
-    assert.match(governance, /assert\.equal\(declarationCoverage\.knownMembers\.length, 66,/,
-      "declared and known are both 66, and asserted apart");
+    // Both 67 since `0.33.33.38.2.13`: a type-only declaration adds to the declared and the known
+    // sets, while the published set stays 66 until its writer lands.
+    assert.match(governance, /assert\.equal\(declarationCoverage\.declaredMembers\.length, 67,/);
+    assert.match(governance, /assert\.equal\(declarationCoverage\.knownMembers\.length, 67,/,
+      "declared and known are both 67, and asserted apart");
+    assert.match(governance, /assert\.equal\(declarationCoverage\.publishedMembers\.length, 66,/,
+      "and published stays 66 until the writer lands");
   });
 });

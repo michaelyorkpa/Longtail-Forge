@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). About 1,140 lines of Task Focus remain in `workbench.js`. Next: plan the remaining presentation extraction as the fewest seams, with one list of the shared declarations they need | 0 owned |
+| Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). Remaining presentation planned (`39b71e81`): one seam, 32 functions / 651 lines. Its shared contract landed as `0.33.33.38.2.13`, so implementation resumes under `.42.47`; what the parent's extraction criterion requires is with the operator | 0 owned |
 | Claude | `0.33.33.43.52` | Field and status helpers typed at `0.33.33.43.51`. `clients-projects.js` 45 and `lists.js` 30 remain, all owned families. Next: the client editors; then the `activeClientProjectsReadSurface` state boundary, the tag/filter/modal helpers, and the normalisers (the wire trust boundary) last | 75 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
@@ -278,6 +278,14 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Order matters and is fixed by dependency, not by size.** Adoption of the root and the already-declared members can run immediately and needs no new contract. Undeclared members must be declared *and* adopted in one change each, on the rule `0.33.33.38.1` proved: declaring an existing consumed member retypes reads that already exist, and the monotonic ledger rejects the movement unless the consumers narrow in the same commit.
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
+
+#### 0.33.33.38.2.13 - Workbench Task Focus presentation contract
+
+**Complete: the presentation contract is declared ahead of its writer.** See the archive entry.
+
+- The ten `BrowserWorkbenchTaskFocus*` presentation declarations and the optional `workbenchTaskFocusPresentation` member are declared with Codex's requested signatures.
+- The member is recorded in governance's `TYPE_ONLY_DECLARATIONS`, which `0.33.33.42.47` must strike when it publishes the member.
+- Browser diagnostics unchanged at 75.
 
 #### 0.33.33.38.2.12 - Workbench Task Focus checklist contract
 
