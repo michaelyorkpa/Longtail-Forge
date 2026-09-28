@@ -1613,6 +1613,49 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.50 - Clients/Projects record writers
+
+**Model: High Effort** - the page's write paths, where the request shape and data integrity are the risk. They were traced before any typing.
+
+**Measured on `nightly` `f966eb38`:** 14 diagnostics:
+
+| Function | Diagnostics |
+| --- | --- |
+| `createClientRecord` | 2 TS7006, plus a TS2339 because its `viewState` defaulted to `{}` |
+| `saveClientRecord` | 2 |
+| `createProjectRecord` | 3 |
+| `saveProjectRecord` | 2 |
+| `archiveProjectRecord` | 2 |
+| `withOptionalTagPayload` | 1 |
+| `withoutTagPayload` | 1 |
+
+**The requests, traced.** Every writer runs its request inside `persistClientProjectChange(action, viewState, request)`, which owns the refresh, the flash, the open rows and the host-context completion.
+
+- **`createClientRecord`** POSTs `/api/clients` with `{ ...client, action }`. It merges the saved client back into the draft, records the saved identifiers on the action, and sets `viewState.openClientId`. If the draft carries initial projects, it then POSTs the first one to `/api/clients/:id/projects`. **Observation, not changed:** its only caller, the Add Client dialog, always sends `projects: []`, so that branch is not reached today.
+- **`saveClientRecord`** PUTs `/api/clients/:id` with `withOptionalTagPayload(client, { action })`. Two of its three callers pass `withoutTagPayload(client)`.
+- **`createProjectRecord`** POSTs `/api/projects` for the workspace grouping, and `/api/clients/:id/projects` otherwise, with `withOptionalTagPayload(project, { action })`. It merges the saved project back.
+- **`saveProjectRecord`** PUTs `/api/projects/:id` with `withOptionalTagPayload(project, { confirm_downstream_update, action })`.
+- **`archiveProjectRecord`** DELETEs `/api/projects/:id`, with no body.
+- **The tag payload.**
+  - `withOptionalTagPayload` spreads the record, then the extras, and drops `tagIds` unless the record owns it.
+  - `withoutTagPayload` copies the record without `tagIds` or `tag_ids`.
+
+**Scope, recorded before implementation:**
+
+- [ ] **Callers.** Type the writers from their callers.
+  - Named draft types: `Record<string, unknown>` plus the one member read, because each draft is spread wholesale into its request.
+  - The normalised records with their save-time `tagIds`.
+  - `NormalizedClientEntry` for the project create target.
+  - The existing `ClientProjectAction` and `ClientProjectViewState` typedefs.
+- [ ] **Tag payload.** `withOptionalTagPayload` takes a record that may own `tagIds`. `withoutTagPayload` is generic and answers its input type less the two stripped keys, because its result feeds `saveClientRecord`, which reads `id`.
+- [ ] **Bodies.** Every body unchanged. No new option honoured. No `any`, casts or suppressions.
+- [ ] **Proof.**
+  - Bodies are unchanged against `f966eb38`.
+  - The real writers run beside their `f966eb38` versions through the real `persistClientProjectChange`, with a capturing API stub. Compare every request's method, URL and payload (key order included), the merged-back records, the action and view state, and the completion - for create, save and archive, with tags owned, absent and stripped.
+  - Mutations and compiler probes.
+  - Spellings searched raw and as escaped regexes with the Grep tool.
+  - The Clients/Projects rendered gate.
+
 #### 0.33.33.43.49 - Clients/Projects project assignment and context
 
 **Complete: 17 diagnostics closed, with the result and callback contracts traced first.** See the archive entry. The Add Client shortcut's callback is declared, and its result is read through a checked reader without a cast. The context rows narrow their actions. `clients-projects.js` 92 to 75, browser 122 to 105.
