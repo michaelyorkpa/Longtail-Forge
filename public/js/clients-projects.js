@@ -582,6 +582,20 @@
     };
   }
 
+  /**
+   * The option callbacks the descriptor renderer hands an options-source behaviour.
+   *
+   * `registerBehavior` publishes its handler as `unknown`, so there is no framework context type to
+   * derive from. `flushMounts` passes both as functions, and the `{}` default passes neither, so both
+   * are declared optional and stay the capabilities they are: `mountSearchOptions` is checked for
+   * being callable, and `setOptions` is called optionally (`0.33.33.43.54`).
+   * @typedef {{
+   *   mountSearchOptions?: (options: unknown[], config?: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void,
+   *   setOptions?: (options: unknown[], config?: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void,
+   * }} ClientProjectOptionSourceContext
+   */
+
+  /** @param {ClientProjectOptionSourceContext} [context] */
   async function hydrateTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
     if (!tagOptions.length) {
       await loadClientProjectDialogData();
@@ -613,6 +627,7 @@
     return undefined;
   }
 
+  /** @param {ClientProjectOptionSourceContext} [context] */
   async function hydrateProjectClientFilterOptions({ setOptions } = {}) {
     if (!clientProjectData.clients.length) {
       await loadClientProjectDialogData();
@@ -697,23 +712,27 @@
   /**
    * Keep the toolbar's selected count in step with the surface's row checkboxes.
    *
-   * **`container` and the change `event` are deliberately left undeclared.** Declaring them is
-   * correct and multiplies reads rather than closing them: `closest()` answers `Element`, which
-   * carries no `dataset`, and a change event's `target` is an `EventTarget`, which carries no
-   * `matches`. Those are the checked-lookup boundary, not this checkpoint's.
+   * Declared from its two callers, the bulk-toolbar mounts, which pass their region `Element`
+   * (`0.33.33.43.54`). That exposed two reads, each narrowed where its producer already decides:
+   * - only the view renderer writes `data-view-surface-id`, on the `<section>` it creates, so the
+   *   nearest surface is that `HTMLElement` or nothing;
+   * - nothing dispatches a synthetic `change`, so every change reaching the surface comes from a
+   *   control inside it, and its target is that `Element`.
+   * @param {Element} container
    * @param {string} recordType
    */
   function bindDescriptorBulkSelection(container, recordType) {
     const surface = container.closest("[data-view-surface-id]");
     const flag = `clientProjects${recordType === "project" ? "Project" : "Client"}BulkSelectionBound`;
 
-    if (!surface || surface.dataset[flag]) {
+    if (!(surface instanceof HTMLElement) || surface.dataset[flag]) {
       return;
     }
 
     surface.dataset[flag] = "true";
     surface.addEventListener("change", (event) => {
-      if (!event.target.matches(`[data-view-row-select][data-view-row-select-type="${recordType}"]`)) {
+      if (!(event.target instanceof Element)
+        || !event.target.matches(`[data-view-row-select][data-view-row-select-type="${recordType}"]`)) {
         return;
       }
 
@@ -817,6 +836,7 @@
     return button;
   }
 
+  /** @param {HTMLButtonElement[]} [children] The footer's commit buttons. */
   function createModalCommitGroup(children = [], className = "") {
     return requireView().createElement("div", {
       className: ["surface-modal-footer-group", "surface-modal-footer-commit", className],
@@ -825,6 +845,7 @@
     });
   }
 
+  /** @param {HTMLDivElement} container The commit group `createModalCommitGroup` built. */
   function decorateModalFooterButtons(container) {
     container.querySelectorAll("button").forEach((button) => {
       button.classList.add("surface-modal-footer-action");
@@ -865,6 +886,7 @@
     focusTarget?.focus?.();
   }
 
+  /** @param {{ applyQueryActions?: boolean }} [options] */
   async function loadPageData(options = {}) {
     setStatus("Loading clients and projects...");
 
@@ -1231,6 +1253,11 @@
     return { label, select };
   }
 
+  /**
+   * A row's tag chips. `tags` is whatever the record carries: the body renders it only once it is
+   * an array, which is also what the tag list accepts.
+   * @param {HTMLSpanElement} container @param {unknown} tags
+   */
   function appendTagChips(container, tags) {
     if (!container) {
       return;
@@ -1254,6 +1281,10 @@
       : [];
   }
 
+  /**
+   * A tag picker field, with its selected tags as the tag picker accepts them.
+   * @param {string} label @param {unknown[]} [tags]
+   */
   function createTagPickerField(label, tags = [], targetKind = "record") {
     const element = document.createElement("div");
     element.dataset[`${targetKind}Tags`] = "";
@@ -1282,6 +1313,7 @@
     };
   }
 
+  /** @param {HTMLDivElement} container @param {unknown[]} [tags] */
   function mountTagPicker(container, tags = [], label = "Tags") {
     if (!container) {
       return null;
