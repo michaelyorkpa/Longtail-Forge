@@ -517,6 +517,7 @@
         "tests/mutations/user-admin-permission-matrix.breaks.mjs",
         "tests/mutations/user-admin-role-assignments.breaks.mjs",
         "tests/mutations/user-settings-preferences.breaks.mjs",
+        "tests/mutations/workbench-checklist-extraction.breaks.mjs",
         "tests/mutations/workbench-recommendation-cycle.breaks.mjs",
         "tests/mutations/workspace-settings-diagnostics.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
@@ -812,6 +813,7 @@
         "tests/unit/workbench-cache-readers.test.mjs",
         "tests/unit/workbench-candidate-dispatch.test.mjs",
         "tests/unit/workbench-card-state.test.mjs",
+        "tests/unit/workbench-checklist-extraction.test.mjs",
         "tests/unit/workbench-checklist-readers.test.mjs",
         "tests/unit/workbench-completion-resume.test.mjs",
         "tests/unit/workbench-detail-context.test.mjs",
@@ -939,6 +941,7 @@
         "public/js/time-tracking-timer-dialog.js",
         "public/js/user-admin.js",
         "public/js/user-settings.js",
+        "public/js/workbench-task-focus-checklist.js",
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
@@ -1601,7 +1604,7 @@
     }
   },
   "totals": {
-    "files": 1524,
+    "files": 1527,
     "errors": 105,
     "explicitAny": 0
   },

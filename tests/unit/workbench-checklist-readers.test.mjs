@@ -3,6 +3,7 @@ import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 const source = createProjectTextReader().readText("public/js/workbench.js");
+const checklistSource = createProjectTextReader().readText("public/js/workbench-task-focus-checklist.js");
 const names = ["taskFocusChecklistField", "taskFocusChecklistRequiredField", "taskFocusChecklistResultFields", "taskFocusChecklistClosest", "taskFocusChecklistItems", "taskFocusChecklistProgress", "formatTaskFocusChecklistProgress", "truncateTaskFocusChecklistLabel", "createTaskFocusChecklistItem", "createTaskFocusChecklistBody", "safeTaskFocusText", "safeCandidateText", "looksLikeRawId", "applyTaskFocusChecklistResult", "handleTaskFocusChecklistChange"];
 function fixture() {
   /** @type {unknown[][]} */ const calls = [];
@@ -19,7 +20,7 @@ function fixture() {
     renderTaskFocusSurface: () => calls.push(["surface"]), renderWorkbench: () => calls.push(["render"]),
     requireErrors: () => ({ caughtMessage: (/** @type {Error} */ e) => e.message }),
   });
-  vm.runInContext(names.map(name => extractFunctionBlock(source, name)).join("\n"), scope);
+  vm.runInContext(names.map(name => extractFunctionBlock(checklistSource.includes(`function ${name}(`) ? checklistSource : source, name)).join("\n"), scope);
   return { scope, state, calls };
 }
 it("preserves item arrays by identity, holes and fallback counts without validating opaque entries", () => {

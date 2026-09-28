@@ -7,7 +7,7 @@ import { createProjectTextReader } from "../../scripts/test-support/source-scan.
  * Declared ahead of its writer for Codex's `0.33.33.42.46`, which extracts eight checklist
  * presentation functions into `public/js/workbench-task-focus-checklist.js` and publishes
  * `LongtailForge.workbenchTaskFocusChecklist`. These cases pin the requested signatures and the
- * governance record that lets the declaration land first. Governance itself enforces the record
+ * discharged governance record that let the declaration land first. Governance enforces the record
  * both ways: it fails while the member has no writer and no record, and it fails once a writer
  * appears while the record still stands.
  */
@@ -57,11 +57,14 @@ describe("The checklist contract Codex requested", () => {
     ]);
   });
 
-  it("declares the optional namespace member, recorded as type-only until its writer strikes the record", () => {
+  it("declares the optional namespace member with a runtime writer and no spent type-only record", () => {
     expect(contracts).toMatch(/^ {2}workbenchTaskFocusChecklist\?: BrowserWorkbenchTaskFocusChecklist;$/m);
-    const at = governance.indexOf("const TYPE_ONLY_DECLARATIONS = new Map([");
+    const at = governance.indexOf("const TYPE_ONLY_DECLARATIONS = new Map(");
     expect(at).toBeGreaterThan(-1);
-    const record = governance.slice(at, governance.indexOf("]);", at));
-    expect(record).toMatch(/"workbenchTaskFocusChecklist",\n\s+"Declared ahead of its writer: 0\.33\.33\.42\.46 publishes it from public\/js\/workbench-task-focus-checklist\.js and strikes this record\.",/);
+    const record = governance.slice(at, governance.indexOf(";", at));
+    expect(record).not.toContain("workbenchTaskFocusChecklist");
+    const writer = reader.readText("public/js/workbench-task-focus-checklist.js");
+    expect(writer).toMatch(/const namespace = window\.LongtailForge \|\| \{\};/);
+    expect(writer).toMatch(/namespace\.workbenchTaskFocusChecklist = Object\.freeze\(\{ create \}\);/);
   });
 });
