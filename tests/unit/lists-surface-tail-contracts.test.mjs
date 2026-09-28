@@ -171,9 +171,12 @@ describe("What stayed open, and why", () => {
     const at = source.indexOf("async function runAction(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
 
-    assert.match(block, /seven readers now share this one root/);
-    assert.match(block, /`listState` and `readOnlyStateMessage` index the status label map/);
-    assert.equal(block.match(/discharged by/gi)?.length, 1,
+    assert.match(block, /seven readers share one optional-record boundary/);
+    for (const name of ["listState", "readOnlyStateMessage"]) {
+      assert.ok(block.includes(name));
+      assert.ok(extractFunctionBlock(source, name).includes("STATUS_LABELS[`${list.status}`]"));
+    }
+    assert.equal(block.match(/Discharged without/gi)?.length, 1,
       "still one condition, however many readers share it");
   });
 });

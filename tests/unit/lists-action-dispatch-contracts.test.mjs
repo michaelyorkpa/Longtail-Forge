@@ -114,35 +114,35 @@ describe("The one root four readers share", () => {
     const at = source.indexOf("async function runAction(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
 
-    assert.match(block, /seven readers now share this one root/,
+    assert.match(block, /seven readers share one optional-record boundary/,
       "the deferral is consolidated rather than repeated at each site");
     for (const reader of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems", "listState", "readOnlyStateMessage"]) {
       assert.ok(block.includes(reader), `${reader} is named in the shared note`);
     }
-    assert.match(block, /discharged by\*\* a caller or reader that vouches for a record as saved/i,
+    assert.match(block, /Discharged without claiming savedness/i,
       "with one discharge condition, not four");
-    assert.equal(block.match(/discharged by/gi)?.length, 1,
+    assert.equal(block.match(/Discharged without/gi)?.length, 1,
       "and exactly one, so the four sites cannot drift into four separate conditions");
   });
 
-  it("leaves all four readers' record parameter undeclared", () => {
+  it("types all seven readers without strengthening the normalized record", () => {
     for (const name of ["runAction", "moveItem", "listIndexItem", "detailActionButtons", "detailMetaItems", "listState", "readOnlyStateMessage"]) {
       const at = source.indexOf(`function ${name}(`);
       assert.notEqual(at, -1, `${name} still exists`);
       const block = source.slice(source.lastIndexOf("/**", at), at);
-      assert.doesNotMatch(block, /@param \{[^}]*\} \[?list\]?[\s@]/,
-        `${name}'s record is annotated; the shared deferral is discharged and this pin should go with it`);
+      assert.match(block, /@param \{BrowserNormalizedListRecord(?: \| undefined)?\} list[\s@]/,
+        `${name}'s record is annotated; the optional-record consumer contract must stay explicit`);
     }
   });
 
   it("keeps the reads that make it a real block, rather than a theoretical one", () => {
     // If any of these stops being how the reader uses the record, the deferral needs re-deciding
     // rather than re-pinning.
-    assert.match(source, /const listId = encodeURIComponent\(list\.list_id\);/, "runAction builds a route");
-    assert.match(source, /encodeURIComponent\(list\.list_id\)\}\/items\/reorder/, "moveItem builds a route");
-    assert.match(source, /LIST_TYPE_LABELS\[list\.list_type\]/, "listIndexItem indexes by column");
-    assert.match(source, /\["active", "completed"\]\.includes\(list\.status\)/, "detailActionButtons tests a fixed set");
-    assert.match(source, /STATUS_LABELS\[list\.status\] \|\| list\.status/, "detailMetaItems indexes by column");
+    assert.match(source, /const listId = encodeURIComponent\(`\$\{list\.list_id\}`\);/, "runAction builds a route");
+    assert.match(source, /encodeURIComponent\(`\$\{list\.list_id\}`\)\}\/items\/reorder/, "moveItem builds a route");
+    assert.match(source, /LIST_TYPE_LABELS\[`\$\{list\.list_type\}`\]/, "listIndexItem indexes by column");
+    assert.match(source, /isFinalizableListStatus\(list\.status\)/, "detailActionButtons tests a fixed set");
+    assert.match(source, /STATUS_LABELS\[`\$\{list\.status\}`\] \|\| list\.status/, "detailMetaItems indexes by column");
   });
 });
 
