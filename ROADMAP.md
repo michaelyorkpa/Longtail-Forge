@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.60` | **`0.33.33.42` complete** at the `0.33.33.42.47` integration: Task Focus presentation and panel composition extracted behind the typed host contract; `workbench.js`, the presentation and the checklist each 0 raw / 0 owned / 0 DOM. Next: `lists.js`, reassigned from Claude at this integration; Codex's Lists children are numbered from `0.33.33.43.60` | 0 owned |
-| Claude | `0.33.33.43.55` | Tag, filter and modal helpers typed at `0.33.33.43.54`. `clients-projects.js` 16 remains; `lists.js` is Codex's. Next: the contact editor, `saveClientSettings` and `querySelectionInputs` lookup boundary (5; the billing-contact conversion approved by the operator with bounded proof); then the normalisers (the wire trust boundary, 11) last | 46 |
+| Claude | `0.33.33.43.56` | Contact editor, client save and selection inputs typed at `0.33.33.43.55`. `clients-projects.js` 11 remains, all in the normalisers; `lists.js` is Codex's. Next: the normalisers, the wire trust boundary, last | 41 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1640,34 +1640,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.55 - Clients/Projects contact editor, client save and selection inputs
 
-**Model: Medium Effort** - one operator-approved conversion, and checked lookups whose element types are each fixed by one traced builder.
-
-**Measured on `nightly` `70e1808c`:** 5 diagnostics:
-- `createBillingContactEditor`'s `client`, held back at `0.33.33.43.52`;
-- `saveClientSettings`' `container` and its contact loop's `input`;
-- `querySelectionInputs`' evolving `inputs` array (TS7034 and TS7005).
-
-**The billing-contact conversion (operator-approved).** The write becomes `` input.value = `${client.billing_contact[fieldName]}` ``, and `client` takes `NormalizedClientRecord`.
-- The approval covers the input boundary only. `normalizeBillingContact`, the stored values, validation and the save and trim are unchanged.
-- The read count and evaluation order are unchanged: no `String()`, no extra fallback, no catch and no helper.
-- **Proved on real Chromium inputs** (`clients-projects-billing-contact-conversion.spec.mjs`), after the page's real normaliser runs:
-  - **Producer values** - text, whitespace, missing and falsy fields, truthy numbers and booleans, arrays and objects - display and trim identically.
-  - **Synthetic probes** - conversion hooks, a throwing hook and a Symbol - convert through the same `"string"` hint the same number of times. A failure stays synchronous, stays the same error class, and leaves the input unchanged.
-  - **Measured in Chrome 151:** the setter's `TypeError` reads "Failed to set the 'value' property on 'HTMLInputElement': Cannot convert a Symbol value to a string". The template's reads "Cannot convert a Symbol value to a string". That is the authorised setter-context prefix difference and nothing else.
-  - **Raw `null` fed around the normaliser is not equivalent** - the setter writes `""` and the template writes `"null"` - and is recorded as such. The normaliser turns every falsy value into `""`, so no path reaches it.
-
-**The checked lookups.** `saveClientSettings`' callers pass the name editor's wrapper or the nearest `.client-editor`, so its container is `Element | null`. Declaring that exposed the eight reads its note recorded. Each data attribute is written by exactly one builder in this file:
-- the name, billing-rate, billable and contact fields are `input`s;
-- the status and parent fields are `select`s.
-
-So each bare lookup becomes the shared checked lookup for that type, which finds the element the bare lookup found. The contact loop reads only inputs. Its key becomes a template, which yields the same property key the bare read produced, for a missing field too. `querySelectionInputs`' callers select only the framework's row checkboxes, which `renderRowSelection` creates as `<input>`, so it collects only inputs. The one difference, which no builder reaches, is pinned as a synthetic probe: a non-input carrying one of these attributes is no longer read.
-
-**Scope, recorded before implementation:**
-
-- [ ] The conversion and annotation above; the five checked lookups; the contact-input guard and template key; typed selection collection. No other body changes, and no normaliser change.
-- [ ] **Proof.** Body identity with every edit named; the real-browser conversion spec; side-by-side saves and selections against `70e1808c` with the real `checked-dom.js`; mutations, compiler probes and a per-message delta; and retargets of the three suites that pinned these bodies.
-- [ ] **Expected accounting:** 5 closed, `clients-projects.js` 16 to 11 - the normalisers alone - and browser 46 to 41.
-- [ ] **Verification:** range-explicit `verify:slice` from `70e1808c` on port 8101, and the Clients/Projects page specs with the conversion spec.
+**Complete: 5 diagnostics closed - the approved conversion stated and proved on real inputs, and the save and selection reads made checked.** See the archive entry. `clients-projects.js` 16 to 11, browser 46 to 41.
 
 #### 0.33.33.43.54 - Clients/Projects tag, filter and modal helpers
 
