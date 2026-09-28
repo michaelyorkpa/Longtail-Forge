@@ -177,12 +177,12 @@ describe("Deferrals this checkpoint recorded", () => {
       "the submit event is annotated; this deferral is discharged and the pin should go with it");
   });
 
-  it("leaves the reorder's list untyped while it builds a route from an optional identifier", () => {
+  it("types the reorder while preserving its optional record identifier", () => {
     // Discharged by taking the identifier from `state.editingListId`, which is text, or by a
     // caller that vouches for the record as saved.
     const block = source.slice(source.lastIndexOf("/**", source.indexOf("async function moveItem(")), source.indexOf("async function moveItem("));
-    assert.doesNotMatch(block, /@param \{[^}]*\} list/, "the reorder's list is annotated; re-decide this deferral");
-    assert.match(source, /encodeURIComponent\(list\.list_id\)\}\/items\/reorder/,
+    assert.match(block, /@param \{BrowserNormalizedListRecord\} list/, "the reorder accepts the optional normalized record");
+    assert.match(source, /encodeURIComponent\(`\$\{list\.list_id\}`\)\}\/items\/reorder/,
       "the route is still built from the record's own identifier");
     assert.match(contracts, /export interface BrowserNormalizedListRecord[\s\S]*?\n {2}list_id: string \| undefined;/,
       "and that identifier is still optional on the published record");

@@ -1820,14 +1820,12 @@
     }
   }
 
-  /**
-   * **Deliberately untyped, and it shares one root with three others.** See the note on `runAction`:
-   * the published record declares every column optional, and this builds a label by indexing on
-   * `list_type` and a selection by `list_id`.
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
    */
   function listIndexItem(list) {
     const view = requireView();
-    const typeLabel = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
+    const typeLabel = LIST_TYPE_LABELS[`${list.list_type}`] || list.list_type || "";
     const needed = nextNeededDate(list);
     const chips = [
       statusBadge(list.status),
@@ -1866,7 +1864,7 @@
    *
    * `updateUrl` is compared against `false` rather than tested for truth, so an absent option
    * updates the URL and only an explicit `false` suppresses it.
-   * @param {string} listId @param {{ updateUrl?: boolean }} [options]
+   * @param {string | undefined} listId @param {{ updateUrl?: boolean }} [options]
    */
   function selectList(listId, options = {}) {
     state.selectedListId = listId || "";
@@ -2004,9 +2002,15 @@
       || listsWorkflowActionStripDescriptor();
   }
 
-  /**
-   * **`list` is deliberately untyped, for the root recorded on `runAction`**: this tests
-   * `list.status` against a fixed set, and the published record declares that column optional.
+  /** Same two-value membership test, accepting an absent status without converting it.
+   * @param {string | undefined} status
+   */
+  function isFinalizableListStatus(status) {
+    return status === "active" || status === "completed";
+  }
+
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
    * @param {boolean} locked
    */
   function detailActionButtons(list, locked) {
@@ -2024,7 +2028,7 @@
       if (list.status === "active") {
         buttons.push(listWorkflowActionButton(actionById.get("complete-list"), list));
       }
-      if (["active", "completed"].includes(list.status)) {
+      if (isFinalizableListStatus(list.status)) {
         buttons.push(listWorkflowActionButton(actionById.get("finalize-list"), list));
       }
       const reusableActionId = list.is_reusable ? "unmark-reusable-list" : "mark-reusable-list";
@@ -2604,33 +2608,19 @@
     }
   }
 
-  /**
-   * Run one list or item action against the server, and report the list to reselect.
-   *
-   * **`list` is deliberately untyped, and seven readers now share this one root.**
-   *
-   * `BrowserNormalizedListRecord` extends `Partial<Omit<BrowserListSummary, ...>>` and declares
-   * `list_id: string | undefined` outright, because a draft the editor has not created yet has no
-   * identifier and no columns. Every reader that turns one of those members into something the
-   * platform requires as text therefore cannot take the record as declared:
-   *
-   * - `runAction` and `moveItem` build routes through `encodeURIComponent`.
-   * - `listIndexItem` indexes the type-label map and selects by identifier.
-   * - `detailActionButtons` tests `status` against a fixed set.
-   * - `detailMetaItems` indexes both label maps by `status` and `list_type`.
-   * - `listState` and `readOnlyStateMessage` index the status label map.
-   *
-   * `0.33.33.43.23` recorded the first of these against `moveItem`, `0.33.33.43.28` found the
-   * fifth, and `0.33.33.43.29` the sixth and seventh. It is one condition, not seven:
-   * **discharged by** a caller or reader that vouches for a record as saved - at which point all
-   * seven take it as declared - or by each reader taking its identifier from `state.editingListId`,
-   * which is text. Coercing at any of these sites would be new coercion on a path that currently
-   * forwards whatever the record held. Pinned by `lists-action-dispatch-contracts`.
+  /** The seven readers share one optional-record boundary: runAction, moveItem, listIndexItem,
+   * detailActionButtons, detailMetaItems, listState and readOnlyStateMessage.
+   * Discharged without claiming savedness: unreadable successful details remain incomplete records.
+   * Only a missing record is refused at the existing required read, with approved visible wording.
+   * @param {BrowserNormalizedListRecord | undefined} list
    * @param {string} action @param {string} [itemId] @param {string} [linkId]
    */
   async function runAction(action, list, itemId, linkId = "") {
     const api = requireApi();
-    const listId = encodeURIComponent(list.list_id);
+    if (list === undefined) {
+      throw new TypeError("The list action no longer has a record to read.");
+    }
+    const listId = encodeURIComponent(`${list.list_id}`);
     const itemPath = itemId ? `/items/${encodeURIComponent(itemId)}` : "";
 
     if (action === "complete-list") {
@@ -2676,20 +2666,8 @@
     return "";
   }
 
-  /**
-   * Move one item one place up or down, and persist the whole order.
-   *
-   * `direction` is the signed step the caller applies to the item's index, so it is a number
-   * rather than a named direction; the reorder is refused at either end.
-   *
-   * **`list` is deliberately untyped.** The published record's `list_id` is `string | undefined` -
-   * a draft has none - and this builds a route out of it through `encodeURIComponent`, which
-   * requires a value. The rows this reorders only ever render for a saved list, but nothing on
-   * this path proves that. **Discharged by** taking the identifier from `state.editingListId`,
-   * which is text, or by a caller that vouches for the record as saved. Pinned by
-   * `lists-write-path-contracts`.
-   * `itemId` is text-or-absent because `runAction` forwards its own optional argument straight
-   * through; an absent one matches no item and the reorder refuses at the lookup.
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
    * @param {string | undefined} itemId @param {number} direction
    */
   async function moveItem(list, itemId, direction) {
@@ -2705,7 +2683,7 @@
     const ordered = [...items];
     const [item] = ordered.splice(index, 1);
     ordered.splice(targetIndex, 0, item);
-    await api.postJson(`/api/lists/${encodeURIComponent(list.list_id)}/items/reorder`, {
+    await api.postJson(`/api/lists/${encodeURIComponent(`${list.list_id}`)}/items/reorder`, {
       items: ordered.map((entry, orderIndex) => ({
         list_item_id: entry.list_item_id,
         sort_order: orderIndex * 10,
@@ -3885,22 +3863,21 @@
   }
 
   /**
-   * `status` is required text rather than optional: both callers read it off a record whose own
-   * parameter is untyped, and the map lookup below cannot be indexed by an absent value.
-   * @param {string} status
+   * Normalized records may omit status; preserve the label lookup and its Read-only fallback.
+   * @param {string | undefined} status
    */
   function readonlyBadge(status) {
     const badge = document.createElement("span");
     badge.className = "lists-readonly-badge";
-    badge.textContent = `${STATUS_LABELS[status] || "Read-only"}`;
+    badge.textContent = `${STATUS_LABELS[`${status}`] || "Read-only"}`;
     return badge;
   }
 
-  /** @param {string} status */
+  /** @param {string | undefined} status */
   function statusBadge(status) {
     const badge = document.createElement("span");
     badge.className = `lists-status-badge is-${status || "unknown"}`;
-    badge.textContent = STATUS_LABELS[status] || status || "Unknown";
+    badge.textContent = STATUS_LABELS[`${status}`] || status || "Unknown";
     return badge;
   }
 
@@ -4132,8 +4109,9 @@
     ];
   }
 
-  /** **Deliberately untyped, for the root recorded on `runAction`**: this indexes the status
-   * label map, and the published record declares that column optional. */
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   */
   function listState(list) {
     const items = visibleItems(list);
     const checkedItems = list.progress
@@ -4145,7 +4123,7 @@
     const nextDate = nextNeededDate(list);
     const context = listContextLabel(list);
     const interrupted = list.status === "active" && totalItems > 0 && incompleteItems > 0 && checkedItems > 0;
-    const resumeLabel = interrupted ? "Resume" : STATUS_LABELS[list.status] || "Review";
+    const resumeLabel = interrupted ? "Resume" : STATUS_LABELS[`${list.status}`] || "Review";
     return {
       assignedUsers,
       checkedItems,
@@ -4158,8 +4136,9 @@
     };
   }
 
-  /** **Deliberately untyped, for the root recorded on `runAction`**: this indexes the status
-   * label map, and the published record declares that column optional. */
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   */
   function readOnlyStateMessage(list) {
     if (list.status === "finalized") {
       return "Finalized lists are read-only. Duplicate this record to start new active work.";
@@ -4170,7 +4149,7 @@
     if (list.status === "deleted") {
       return "Deleted lists are read-only. Restore this list before continuing.";
     }
-    return `${STATUS_LABELS[list.status] || "Locked"} lists are read-only.`;
+    return `${STATUS_LABELS[`${list.status}`] || "Locked"} lists are read-only.`;
   }
 
   /** @param {BrowserNormalizedListRecord} list */
@@ -4387,17 +4366,15 @@
     return [client?.name, project?.name, list.is_reusable ? "Reusable" : ""].filter(Boolean).join(" / ") || "Workspace";
   }
 
-  /**
-   * **Deliberately untyped, and it joins the root recorded on `runAction`** - now five readers.
-   * This indexes both label maps by `status` and `list_type`, which the published record declares
-   * optional because a draft has neither.
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
    */
   function detailMetaItems(list) {
     // Compact labeled meta line (Notes format): each value is a span with a "Label: value" tooltip,
     // separated by " - ", instead of the long pre-labeled run the header used to print.
     const items = [
-      ["Status", STATUS_LABELS[list.status] || list.status],
-      ["Type", LIST_TYPE_LABELS[list.list_type] || list.list_type],
+      ["Status", STATUS_LABELS[`${list.status}`] || list.status],
+      ["Type", LIST_TYPE_LABELS[`${list.list_type}`] || list.list_type],
       ["Context", listContextLabel(list)],
       ["Created", list.created_at ? formatDateTime(list.created_at) : ""],
       ["Updated", list.updated_at ? formatDateTime(list.updated_at) : ""],
@@ -4408,7 +4385,8 @@
       const item = document.createElement("span");
       const nodes = [];
 
-      item.textContent = value;
+      // The truthy filter above excludes nullish values before this DOM string setter.
+      item.textContent = `${value}`;
       item.title = `${label}: ${value}`;
       item.setAttribute("aria-label", `${label}: ${value}`);
       nodes.push(item);
