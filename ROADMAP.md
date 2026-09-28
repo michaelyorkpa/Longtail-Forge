@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.60` | **`0.33.33.42` complete** at the `0.33.33.42.47` integration: Task Focus presentation and panel composition extracted behind the typed host contract; `workbench.js`, the presentation and the checklist each 0 raw / 0 owned / 0 DOM. Next: `lists.js`, reassigned from Claude at this integration; Codex's Lists children are numbered from `0.33.33.43.60` | 0 owned |
-| Claude | `0.33.33.43.54` | Read surface typed at `0.33.33.43.53`. `clients-projects.js` 31 and `lists.js` 30 remain, all owned families. Next: the tag, filter and modal helpers (15); then the `saveClientSettings`/`querySelectionInputs` lookup boundary with the contact editor (5; its billing-contact conversion approved by the operator with bounded proof), and the normalisers (the wire trust boundary, 11) last | 61 |
+| Claude | `0.33.33.43.55` | Tag, filter and modal helpers typed at `0.33.33.43.54`. `clients-projects.js` 16 remains; `lists.js` is Codex's. Next: the contact editor, `saveClientSettings` and `querySelectionInputs` lookup boundary (5; the billing-contact conversion approved by the operator with bounded proof); then the normalisers (the wire trust boundary, 11) last | 46 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1640,41 +1640,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.54 - Clients/Projects tag, filter and modal helpers
 
-**Model: Medium Effort** - annotations on eight helpers, and two DOM narrowings in one listener, each decided by a traced producer.
-
-**Measured on `nightly` `1657a3aa`:** 15 diagnostics in nine helpers:
-- `hydrateTagFilterOptions` (2) and `hydrateProjectClientFilterOptions` (1): TS2339 on the `{}` default of a destructured bag;
-- `loadPageData` (1): the same, on `applyQueryActions`;
-- `bindDescriptorBulkSelection` (2), `createModalCommitGroup` (1), `decorateModalFooterButtons` (2), `appendTagChips` (2), `createTagPickerField` (2) and `mountTagPicker` (2): TS7006.
-
-**The option bags (operator correction A).**
-- The two hydrators are registered through `registerBehavior`, whose handler is published `unknown`, so no framework context type exists to reuse.
-- Their only caller is the view renderer's `flushMounts`, which always passes `mountSearchOptions` and `setOptions` as functions. The `{}` default passes neither.
-- So one local bag type declares exactly those two callbacks, both optional, with the published `BrowserSearchOptionsConfig`. The bodies are unchanged, so the callable check (`typeof mountSearchOptions === "function"`), the optional call (`setOptions?.(...)`) and the absent case behave as before. A non-callable `setOptions` still throws.
-- `loadPageData`'s one caller passes `{ applyQueryActions: false }`, so it declares that optional member.
-
-**The bulk-selection listener (operator correction B).** The note on `bindDescriptorBulkSelection` recorded what declaring it exposes, and the compiler confirms both: `closest()` answers `Element`, which has no `dataset`, and the change `target` is an `EventTarget | null`, which has no `matches`. Its two callers pass their region `Element`. Each read is narrowed where its producer already decides:
-- **The surface.** Only the view renderer writes `data-view-surface-id`, on the `<section>` it creates. `!surface` becomes `!(surface instanceof HTMLElement)`, which differs only for a non-HTML element carrying that attribute, and none can.
-- **The change target.** Nothing in the view framework or this page dispatches a synthetic `change`, so every change reaching the surface comes from a control inside it, whose target is that `Element`. `event.target instanceof Element` is checked before `matches`, and differs only for a non-element target: that used to throw inside the listener, and is now skipped. No producer dispatches one.
-- Nearest-surface selection, the bound flag, one listener per record type, record-type filtering and the selection updates are unchanged.
-
-**The other callers, traced by the compiler:** the commit group's `[]` or `HTMLButtonElement[]`; the footer's `HTMLDivElement`; the chips' `HTMLSpanElement` and a record's tags, which the body renders only as an array; the picker's label and its tags, as the tag picker accepts them (`unknown[]`); and its `HTMLDivElement`.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Annotations** on the eight helpers, and the two narrowings above; no other body changes.
-- [ ] **Excluded:** the contact editor, `saveClientSettings` and `querySelectionInputs` boundary (`0.33.33.43.55`) and the normalisers (last).
-- [ ] **Proof.**
-  - Body identity for the eight helpers, and the listener differing by exactly its two edits.
-  - Side-by-side runs against `1657a3aa`:
-    - the option bags with a callable, a non-callable and an absent `mountSearchOptions`, an absent bag, and a non-callable `setOptions` that still throws;
-    - `loadPageData` with and without holding back the query actions, and when the load fails;
-    - the listener across record types, a double binding and no surface.
-  - The one skipped non-element target, pinned as a synthetic probe rather than a producer value.
-  - The real-browser half through the rendered Projects bulk-toolbar case, which drives real row checkboxes through this listener.
-  - Mutations, compiler probes, a per-message delta, and raw and escaped pin searches.
-- [ ] **Expected accounting:** up to 15 closed, `clients-projects.js` 31 to 16 and browser 61 to 46, with nothing exposed banked.
-- [ ] **Verification:** range-explicit `verify:slice` from `1657a3aa` on port 8101, and the Clients/Projects page specs, including the bulk-toolbar case.
+**Complete: 15 diagnostics closed - eight helpers annotated and the bulk listener's two reads narrowed with proofs.** See the archive entry. `clients-projects.js` 31 to 16, browser 61 to 46.
 
 #### 0.33.33.43.53 - Clients/Projects read-surface state boundary
 
