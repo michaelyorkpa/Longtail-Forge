@@ -8,6 +8,7 @@ const moduleActionsSource = readText("public/js/shared/module-actions.js");
 const notesScript = readText("public/js/notes.js");
 const relatedContextService = readText("src/services/workbench-task-focus-related-context.service.js");
 const workbenchScript = readText("public/js/workbench.js");
+const presentationScript = readText("public/js/workbench-task-focus-presentation.js");
 
 assert.match(
   relatedContextService,
@@ -87,7 +88,7 @@ assert.doesNotMatch(
   "Unavailable note messages should not echo raw IDs or note bodies",
 );
 assert.doesNotMatch(
-  extractFunctionBody(workbenchScript, "createTaskFocusRelatedContextItem"),
+  extractFunctionBody(presentationScript, "createTaskFocusRelatedContextItem"),
   /innerHTML|notes-rendered-body|body_html|body_markdown/,
   "Task Focus Inspector should not embed note preview content inline",
 );

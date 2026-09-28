@@ -1,0 +1,2111 @@
+{
+  "baseline": "9747680cef1a08903b09fa1b15146a8ad71037cd",
+  "originalReferenceLines": 107,
+  "originalNameOccurrences": 135,
+  "movingFunctions": 29,
+  "movingReferenceLines": 95,
+  "movingNameOccurrences": 116,
+  "retainedReaderNames": [
+    "taskFocusContextLabel",
+    "taskFocusRelatedContextState",
+    "taskFocusRelatedContextGroups"
+  ],
+  "rows": [
+    {
+      "file": "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
+      "oldLine": 111,
+      "oldText": "  extractFunctionSpan(workbench, \"renderTaskFocusSurface\"),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 112,
+      "newText": "  extractFunctionSpan(presentationScript, \"renderTaskFocusSurface\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
+      "oldLine": 112,
+      "oldText": "  /if \\(taskTimerSurfaceAvailable\\(\\)\\)[\\s\\S]*createTaskFocusTimerSection/,",
+      "names": [
+        "createTaskFocusTimerSection"
+      ],
+      "newLine": 113,
+      "newText": "  /if \\(taskTimerSurfaceAvailable\\(\\)\\)[\\s\\S]*createTaskFocusTimerSection/,",
+      "targets": [
+        {
+          "name": "createTaskFocusTimerSection",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
+      "oldLine": 27,
+      "oldText": "  extractFunctionBody(workbenchScript, \"renderTaskFocusSurface\"),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 28,
+      "newText": "  extractFunctionBody(presentationScript, \"renderTaskFocusSurface\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
+      "oldLine": 28,
+      "oldText": "  /createTaskFocusSummary\\(active\\)[\\s\\S]*createTaskDetailsSection\\(active\\)[\\s\\S]*createTaskFocusChecklistSection\\(active\\)/,",
+      "names": [
+        "createTaskFocusSummary",
+        "createTaskDetailsSection"
+      ],
+      "newLine": 29,
+      "newText": "  /createTaskFocusSummary\\(active\\)[\\s\\S]*createTaskDetailsSection\\(active\\)[\\s\\S]*createTaskFocusChecklistSection\\(active\\)/,",
+      "targets": [
+        {
+          "name": "createTaskFocusSummary",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "createTaskDetailsSection",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
+      "oldLine": 90,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusRelatedContextItem\"),",
+      "names": [
+        "createTaskFocusRelatedContextItem"
+      ],
+      "newLine": 91,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusRelatedContextItem\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextItem",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+      "oldLine": 30,
+      "oldText": "  extractFunctionBody(workbenchScript, \"renderTaskFocusInspector\"),",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 31,
+      "newText": "  extractFunctionBody(presentationScript, \"renderTaskFocusInspector\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+      "oldLine": 31,
+      "oldText": "  /syncTaskFocusInspectorCollapseState\\(taskFocusInspectorCollapsed, \\{ enableCollapse: true \\}\\)[\\s\\S]*taskFocusRelatedContextState\\(\\)[\\s\\S]*createTaskFocusRelatedContextGroup\\(group\\)/,",
+      "names": [
+        "taskFocusRelatedContextState",
+        "createTaskFocusRelatedContextGroup",
+        "syncTaskFocusInspectorCollapseState"
+      ],
+      "newLine": 32,
+      "newText": "  /syncTaskFocusInspectorCollapseState\\(host\\.taskFocusInspectorCollapsed, \\{ enableCollapse: true \\}\\)[\\s\\S]*taskFocusRelatedContextState\\(\\)[\\s\\S]*createTaskFocusRelatedContextGroup\\(group\\)/,",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        },
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "syncTaskFocusInspectorCollapseState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+      "oldLine": 35,
+      "oldText": "  extractFunctionBody(workbenchScript, \"renderTaskFocusInspector\"),",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 36,
+      "newText": "  extractFunctionBody(presentationScript, \"renderTaskFocusInspector\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+      "oldLine": 40,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusRelatedContextItem\"),",
+      "names": [
+        "createTaskFocusRelatedContextItem"
+      ],
+      "newLine": 41,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusRelatedContextItem\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextItem",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+      "oldLine": 41,
+      "oldText": "  /const context = relatedContextContextLabel\\(item\\)[\\s\\S]*workbenchRelatedContextAction[\\s\\S]*workbenchRelatedContextRecord[\\s\\S]*const badges = relatedContextBadges\\(item\\)[\\s\\S]*openTaskFocusRelatedContextItem\\(item, event\\.currentTarget\\)/,",
+      "names": [
+        "relatedContextContextLabel",
+        "relatedContextBadges"
+      ],
+      "newLine": 42,
+      "newText": "  /const context = relatedContextContextLabel\\(item\\)[\\s\\S]*workbenchRelatedContextAction[\\s\\S]*workbenchRelatedContextRecord[\\s\\S]*const badges = relatedContextBadges\\(item\\)[\\s\\S]*openTaskFocusRelatedContextItem\\(item, event\\.currentTarget\\)/,",
+      "targets": [
+        {
+          "name": "relatedContextContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "relatedContextBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+      "oldLine": 91,
+      "oldText": "  extractFunctionBody(workbenchScript, \"syncTaskFocusInspectorCollapseState\"),",
+      "names": [
+        "syncTaskFocusInspectorCollapseState"
+      ],
+      "newLine": 92,
+      "newText": "  extractFunctionBody(presentationScript, \"syncTaskFocusInspectorCollapseState\"),",
+      "targets": [
+        {
+          "name": "syncTaskFocusInspectorCollapseState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 22,
+      "oldText": "  /createTaskFocusPanel\\(\\)[\\s\\S]*createGuidedFocusPanel\\(\\)[\\s\\S]*createRecommendedActionPanel\\(\\)[\\s\\S]*createSecondaryWorkbenchPanel\\(\\)[\\s\\S]*createWorkbenchInspectorPanel\\(\\)/,",
+      "names": [
+        "createTaskFocusPanel"
+      ],
+      "newLine": 23,
+      "newText": "  /createTaskFocusPanel\\(\\)[\\s\\S]*createGuidedFocusPanel\\(\\)[\\s\\S]*createRecommendedActionPanel\\(\\)[\\s\\S]*createSecondaryWorkbenchPanel\\(\\)[\\s\\S]*createWorkbenchInspectorPanel\\(\\)/,",
+      "targets": [
+        {
+          "name": "createTaskFocusPanel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 32,
+      "oldText": "  /renderRecommendedAction\\(\\);[\\s\\S]*renderTaskFocusSurface\\(\\);[\\s\\S]*renderWorkbenchInspector\\(\\);/,",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 33,
+      "newText": "  /renderRecommendedAction\\(\\);[\\s\\S]*renderTaskFocusSurface\\(\\);[\\s\\S]*renderWorkbenchInspector\\(\\);/,",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 48,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusActionStrip\"),",
+      "names": [
+        "createTaskFocusActionStrip"
+      ],
+      "newLine": 49,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusActionStrip\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusActionStrip",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 53,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusActionButton\"),",
+      "names": [
+        "createTaskFocusActionButton"
+      ],
+      "newLine": 54,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusActionButton\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusActionButton",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 89,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusSummary\"),",
+      "names": [
+        "createTaskFocusSummary"
+      ],
+      "newLine": 90,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusSummary\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusSummary",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 90,
+      "oldText": "  /dataset: \\{ workbenchTaskFocusSummary: \"\" \\}[\\s\\S]*text: \"Task Focus\"[\\s\\S]*id: \"workbench-task-focus-heading\"[\\s\\S]*taskFocusBadges\\(task, active\\)/,",
+      "names": [
+        "taskFocusBadges"
+      ],
+      "newLine": 91,
+      "newText": "  /dataset: \\{ workbenchTaskFocusSummary: \"\" \\}[\\s\\S]*text: \"Task Focus\"[\\s\\S]*id: \"workbench-task-focus-heading\"[\\s\\S]*taskFocusBadges\\(task, active\\)/,",
+      "targets": [
+        {
+          "name": "taskFocusBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 94,
+      "oldText": "  extractFunctionBody(workbenchScript, \"taskFocusLeadText\"),",
+      "names": [
+        "taskFocusLeadText"
+      ],
+      "newLine": 95,
+      "newText": "  extractFunctionBody(presentationScript, \"taskFocusLeadText\"),",
+      "targets": [
+        {
+          "name": "taskFocusLeadText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 99,
+      "oldText": "  extractFunctionBody(workbenchScript, \"taskFocusBadges\"),",
+      "names": [
+        "taskFocusBadges"
+      ],
+      "newLine": 100,
+      "newText": "  extractFunctionBody(presentationScript, \"taskFocusBadges\"),",
+      "targets": [
+        {
+          "name": "taskFocusBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 100,
+      "oldText": "  /badge\\(formatToken\\(task\\.status \\|\\| active\\?\\.status \\|\\| \"open\"\\)[\\s\\S]*badge\\(formatToken\\(task\\.priority \\|\\| active\\?\\.priority \\|\\| \"normal\"\\)[\\s\\S]*dueText \\? badge\\(`Due \\$\\{dueText\\}`, \"due\"\\) : null[\\s\\S]*taskFocusTagBadges\\(task\\)/,",
+      "names": [
+        "taskFocusTagBadges"
+      ],
+      "newLine": 101,
+      "newText": "  /badge\\(formatToken\\(task\\.status \\|\\| active\\?\\.status \\|\\| \"open\"\\)[\\s\\S]*badge\\(formatToken\\(task\\.priority \\|\\| active\\?\\.priority \\|\\| \"normal\"\\)[\\s\\S]*dueText \\? badge\\(`Due \\$\\{dueText\\}`, \"due\"\\) : null[\\s\\S]*taskFocusTagBadges\\(task\\)/,",
+      "targets": [
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 104,
+      "oldText": "  extractFunctionBody(workbenchScript, \"taskFocusTagBadges\"),",
+      "names": [
+        "taskFocusTagBadges"
+      ],
+      "newLine": 105,
+      "newText": "  extractFunctionBody(presentationScript, \"taskFocusTagBadges\"),",
+      "targets": [
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 114,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskDetailsSection\"),",
+      "names": [
+        "createTaskDetailsSection"
+      ],
+      "newLine": 115,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskDetailsSection\"),",
+      "targets": [
+        {
+          "name": "createTaskDetailsSection",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 119,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskDetailFields\"),",
+      "names": [
+        "createTaskDetailFields"
+      ],
+      "newLine": 120,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskDetailFields\"),",
+      "targets": [
+        {
+          "name": "createTaskDetailFields",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 124,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskDetailFields\"),",
+      "names": [
+        "createTaskDetailFields"
+      ],
+      "newLine": 125,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskDetailFields\"),",
+      "targets": [
+        {
+          "name": "createTaskDetailFields",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 129,
+      "oldText": "  extractFunctionBody(workbenchScript, \"renderTaskFocusSurface\"),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 130,
+      "newText": "  extractFunctionBody(presentationScript, \"renderTaskFocusSurface\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 130,
+      "oldText": "  /createTaskFocusSummary\\(active\\)[\\s\\S]*createTaskDetailsSection\\(active\\)[\\s\\S]*createTaskFocusChecklistSection\\(active\\)/,",
+      "names": [
+        "createTaskFocusSummary",
+        "createTaskDetailsSection"
+      ],
+      "newLine": 131,
+      "newText": "  /createTaskFocusSummary\\(active\\)[\\s\\S]*createTaskDetailsSection\\(active\\)[\\s\\S]*createTaskFocusChecklistSection\\(active\\)/,",
+      "targets": [
+        {
+          "name": "createTaskFocusSummary",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "createTaskDetailsSection",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 136,
+      "oldText": "  /resolvedWorkbenchViewState\\(\\) === WORKBENCH_VIEW_STATE_TASK_FOCUS[\\s\\S]*renderTaskFocusInspector\\(\\);[\\s\\S]*return;[\\s\\S]*const candidates = workbenchInspectorCandidates\\(\\);/,",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 137,
+      "newText": "  /resolvedWorkbenchViewState\\(\\) === WORKBENCH_VIEW_STATE_TASK_FOCUS[\\s\\S]*renderTaskFocusInspector\\(\\);[\\s\\S]*return;[\\s\\S]*const candidates = workbenchInspectorCandidates\\(\\);/,",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 140,
+      "oldText": "  extractFunctionBody(workbenchScript, \"renderTaskFocusInspector\"),",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 141,
+      "newText": "  extractFunctionBody(presentationScript, \"renderTaskFocusInspector\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+      "oldLine": 141,
+      "oldText": "  /setWorkbenchInspectorCopy\\(\"Task context\", \"Related work for the focused task\\.\"\\)[\\s\\S]*taskFocusRelatedContextState\\(\\)[\\s\\S]*taskFocusRelatedContextGroups\\(context\\)[\\s\\S]*requireWorkbenchElement\\(workbenchInspectorCountText\\)\\.textContent = String\\(items\\.length\\);/,",
+      "names": [
+        "taskFocusRelatedContextState",
+        "taskFocusRelatedContextGroups"
+      ],
+      "newLine": 142,
+      "newText": "  /setWorkbenchInspectorCopy\\(\"Task context\", \"Related work for the focused task\\.\"\\)[\\s\\S]*taskFocusRelatedContextState\\(\\)[\\s\\S]*taskFocusRelatedContextGroups\\(context\\)[\\s\\S]*requireWorkbenchElement\\(mounts\\.workbenchInspectorCountText\\)\\.textContent = String\\(items\\.length\\);/,",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        },
+        {
+          "name": "taskFocusRelatedContextGroups",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved Inspector context/count assertion; reader names retained, the inspected body moves and count mount path is explicit."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+      "oldLine": 80,
+      "oldText": "  extractFunctionBody(workbenchScript, \"renderTaskFocusSurface\"),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 81,
+      "newText": "  extractFunctionBody(presentationScript, \"renderTaskFocusSurface\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+      "oldLine": 81,
+      "oldText": "  /createTaskFocusSummary\\(active\\)[\\s\\S]*createTaskDetailsSection\\(active\\)[\\s\\S]*createTaskFocusChecklistSection\\(active\\)[\\s\\S]*createTaskFocusTimerSection\\(active\\)/,",
+      "names": [
+        "createTaskFocusSummary",
+        "createTaskDetailsSection",
+        "createTaskFocusTimerSection"
+      ],
+      "newLine": 82,
+      "newText": "  /createTaskFocusSummary\\(active\\)[\\s\\S]*createTaskDetailsSection\\(active\\)[\\s\\S]*createTaskFocusChecklistSection\\(active\\)[\\s\\S]*createTaskFocusTimerSection\\(active\\)/,",
+      "targets": [
+        {
+          "name": "createTaskFocusSummary",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "createTaskDetailsSection",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "createTaskFocusTimerSection",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+      "oldLine": 85,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusTimerSection\"),",
+      "names": [
+        "createTaskFocusTimerSection"
+      ],
+      "newLine": 86,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusTimerSection\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusTimerSection",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+      "oldLine": 90,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusTimerControls\"),",
+      "names": [
+        "createTaskFocusTimerControls"
+      ],
+      "newLine": 91,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusTimerControls\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusTimerControls",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+      "oldLine": 95,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusTimerControls\"),",
+      "names": [
+        "createTaskFocusTimerControls"
+      ],
+      "newLine": 96,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusTimerControls\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusTimerControls",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+      "oldLine": 100,
+      "oldText": "  extractFunctionBody(workbenchScript, \"createTaskFocusTimerControls\"),",
+      "names": [
+        "createTaskFocusTimerControls"
+      ],
+      "newLine": 101,
+      "newText": "  extractFunctionBody(presentationScript, \"createTaskFocusTimerControls\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusTimerControls",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+      "oldLine": 142,
+      "oldText": "  /applyActiveTaskFocusTask\\(taskFocusTimerResultTask\\(result\\)\\)[\\s\\S]*await loadWorkbench\\(\\)[\\s\\S]*renderTaskFocusSurface\\(\\)/,",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 143,
+      "newText": "  /applyActiveTaskFocusTask\\(taskFocusTimerResultTask\\(result\\)\\)[\\s\\S]*await loadWorkbench\\(\\)[\\s\\S]*renderTaskFocusSurface\\(\\)/,",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
+      "oldLine": 47,
+      "oldText": "  functionBody(workbenchScript, \"renderTaskFocusSurface\"),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 48,
+      "newText": "  functionBody(presentationScript, \"renderTaskFocusSurface\"),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
+      "oldLine": 48,
+      "oldText": "  /taskFocusActionMount\\.hidden = !isTaskFocus;[\\s\\S]*taskFocusBody\\.hidden = !isTaskFocus;[\\s\\S]*taskFocusActionMount\\.replaceChildren\\(\\);[\\s\\S]*taskFocusBody\\.replaceChildren\\(\\);[\\s\\S]*if \\(!isTaskFocus \\|\\| !active\\) \\{[\\s\\S]*return;[\\s\\S]*taskFocusActionMount\\.appendChild\\(createTaskFocusActionStrip\\(active\\)\\);/,",
+      "names": [
+        "createTaskFocusActionStrip"
+      ],
+      "newLine": 49,
+      "newText": "  /mounts\\.taskFocusActionMount\\.hidden = !isTaskFocus;[\\s\\S]*mounts\\.taskFocusBody\\.hidden = !isTaskFocus;[\\s\\S]*mounts\\.taskFocusActionMount\\.replaceChildren\\(\\);[\\s\\S]*mounts\\.taskFocusBody\\.replaceChildren\\(\\);[\\s\\S]*if \\(!isTaskFocus \\|\\| !active\\) \\{[\\s\\S]*return;[\\s\\S]*mounts\\.taskFocusActionMount\\.appendChild\\(createTaskFocusActionStrip\\(active\\)\\);/,",
+      "targets": [
+        {
+          "name": "createTaskFocusActionStrip",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/e2e/workbench-detail-context.spec.mjs",
+      "oldLine": 7,
+      "oldText": "  const bodies = [\"createTaskFocusActionButton\", \"createTaskFocusTimerButton\"].map(name => extractFunctionBlock(source, name));",
+      "names": [
+        "createTaskFocusTimerButton",
+        "createTaskFocusActionButton"
+      ],
+      "newLine": 7,
+      "newText": "  const bodies = [\"createTaskFocusActionButton\", \"createTaskFocusTimerButton\"].map(name => extractFunctionBlock(source, name));",
+      "targets": [
+        {
+          "name": "createTaskFocusTimerButton",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "createTaskFocusActionButton",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-checklist-extraction.test.mjs",
+      "oldLine": 31,
+      "oldText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 31,
+      "newText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-checklist-readers.test.mjs",
+      "oldLine": 20,
+      "oldText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]), renderWorkbench: () => calls.push([\"render\"]),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 20,
+      "newText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]), renderWorkbench: () => calls.push([\"render\"]),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-checklist-readers.test.mjs",
+      "oldLine": 136,
+      "oldText": "  s.renderTaskFocusSurface = () => { markers.push(s.state.activeTaskFocus.checklistMutationItemId); };",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 136,
+      "newText": "  s.renderTaskFocusSurface = () => { markers.push(s.state.activeTaskFocus.checklistMutationItemId); };",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-completion-resume.test.mjs",
+      "oldLine": 35,
+      "oldText": "    applyActiveTaskFocusTask: (/** @type {unknown} */ task) => calls.push([\"apply\", task]), renderTaskFocusSurface: () => calls.push([\"surface\"]), setStatus: /** @param {...unknown} args */ (...args) => calls.push([\"status\", ...args]),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 35,
+      "newText": "    applyActiveTaskFocusTask: (/** @type {unknown} */ task) => calls.push([\"apply\", task]), renderTaskFocusSurface: () => calls.push([\"surface\"]), setStatus: /** @param {...unknown} args */ (...args) => calls.push([\"status\", ...args]),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 18,
+      "oldText": "    taskFocusTitle: () => \"Task\", taskFocusDueText: () => \"No due date\", formatToken: (/** @type {unknown} */ v) => v,",
+      "names": [
+        "taskFocusTitle",
+        "taskFocusDueText"
+      ],
+      "newLine": 18,
+      "newText": "    taskFocusTitle: () => \"Task\", taskFocusDueText: () => \"No due date\", formatToken: (/** @type {unknown} */ v) => v,",
+      "targets": [
+        {
+          "name": "taskFocusTitle",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 20,
+      "oldText": "  vm.runInContext([\"workbenchDetailField\", \"safeCandidateText\", \"safeTaskFocusText\", \"safeRelatedContextText\", \"looksLikeRawId\", \"taskFocusAssigneesText\", \"relatedContextBadges\", \"createTaskDetailField\", \"createTaskDetailFields\", \"offerTaskResumeNoteBeforeExit\"].map(name => extractFunctionBlock(source, name)).join(\"\\n\"), scope);",
+      "names": [
+        "createTaskDetailFields",
+        "createTaskDetailField",
+        "taskFocusAssigneesText",
+        "relatedContextBadges"
+      ],
+      "newLine": 21,
+      "newText": "  vm.runInContext([\"workbenchDetailField\", \"safeCandidateText\", \"safeTaskFocusText\", \"safeRelatedContextText\", \"looksLikeRawId\", \"taskFocusAssigneesText\", \"relatedContextBadges\", \"createTaskDetailField\", \"createTaskDetailFields\", \"offerTaskResumeNoteBeforeExit\"].map(name => extractFunctionBlock(source, name)).join(\"\\n\"), scope);",
+      "targets": [
+        {
+          "name": "createTaskDetailFields",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "createTaskDetailField",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "taskFocusAssigneesText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "relatedContextBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 26,
+      "oldText": "  assert.equal(s.taskFocusAssigneesText({ get assignees() { reads++; return [assignee, { displayName: \"Bob\" }]; } }), \"Alice, Bob\");",
+      "names": [
+        "taskFocusAssigneesText"
+      ],
+      "newLine": 27,
+      "newText": "  assert.equal(s.taskFocusAssigneesText({ get assignees() { reads++; return [assignee, { displayName: \"Bob\" }]; } }), \"Alice, Bob\");",
+      "targets": [
+        {
+          "name": "taskFocusAssigneesText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 28,
+      "oldText": "  assert.equal(s.taskFocusAssigneesText({ assignees: [7, false, {}, { displayName: \"0123456789abcdef01234567\" }] }), \"Unassigned\");",
+      "names": [
+        "taskFocusAssigneesText"
+      ],
+      "newLine": 29,
+      "newText": "  assert.equal(s.taskFocusAssigneesText({ assignees: [7, false, {}, { displayName: \"0123456789abcdef01234567\" }] }), \"Unassigned\");",
+      "targets": [
+        {
+          "name": "taskFocusAssigneesText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 29,
+      "oldText": "  assert.throws(() => s.taskFocusAssigneesText({ assignees: [null] }), /detail value cannot be read/);",
+      "names": [
+        "taskFocusAssigneesText"
+      ],
+      "newLine": 30,
+      "newText": "  assert.throws(() => s.taskFocusAssigneesText({ assignees: [null] }), /detail value cannot be read/);",
+      "targets": [
+        {
+          "name": "taskFocusAssigneesText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 31,
+      "oldText": "  assert.throws(() => s.taskFocusAssigneesText({ assignees: [{ get displayName() { throw failure; } }] }), e => e === failure);",
+      "names": [
+        "taskFocusAssigneesText"
+      ],
+      "newLine": 32,
+      "newText": "  assert.throws(() => s.taskFocusAssigneesText({ assignees: [{ get displayName() { throw failure; } }] }), e => e === failure);",
+      "targets": [
+        {
+          "name": "taskFocusAssigneesText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 36,
+      "oldText": "  assert.equal(s.relatedContextBadges({ badges: rows })[0].type, type);",
+      "names": [
+        "relatedContextBadges"
+      ],
+      "newLine": 37,
+      "newText": "  assert.equal(s.relatedContextBadges({ badges: rows })[0].type, type);",
+      "targets": [
+        {
+          "name": "relatedContextBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 37,
+      "oldText": "  assert.equal(s.relatedContextBadges({ badges: [1, {}, { label: \"0123456789abcdef01234567\" }] }).length, 0);",
+      "names": [
+        "relatedContextBadges"
+      ],
+      "newLine": 38,
+      "newText": "  assert.equal(s.relatedContextBadges({ badges: [1, {}, { label: \"0123456789abcdef01234567\" }] }).length, 0);",
+      "targets": [
+        {
+          "name": "relatedContextBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 40,
+      "oldText": "  assert.equal(s.relatedContextBadges({ badges: many }).length, 4); assert.equal(sixth, true);",
+      "names": [
+        "relatedContextBadges"
+      ],
+      "newLine": 41,
+      "newText": "  assert.equal(s.relatedContextBadges({ badges: many }).length, 4); assert.equal(sixth, true);",
+      "targets": [
+        {
+          "name": "relatedContextBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 41,
+      "oldText": "  assert.throws(() => s.relatedContextBadges({ badges: [null] }), /detail value cannot be read/);",
+      "names": [
+        "relatedContextBadges"
+      ],
+      "newLine": 42,
+      "newText": "  assert.throws(() => s.relatedContextBadges({ badges: [null] }), /detail value cannot be read/);",
+      "targets": [
+        {
+          "name": "relatedContextBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 46,
+      "oldText": "    const rows = s.createTaskDetailFields({ task: { status } })[0].options.children;",
+      "names": [
+        "createTaskDetailFields"
+      ],
+      "newLine": 47,
+      "newText": "    const rows = s.createTaskDetailFields({ task: { status } })[0].options.children;",
+      "targets": [
+        {
+          "name": "createTaskDetailFields",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 50,
+      "oldText": "  assert.deepEqual(Array.from(s.createTaskDetailFields({ isLoading: true })), [\"Task details are loading.\"]);",
+      "names": [
+        "createTaskDetailFields"
+      ],
+      "newLine": 51,
+      "newText": "  assert.deepEqual(Array.from(s.createTaskDetailFields({ isLoading: true })), [\"Task details are loading.\"]);",
+      "targets": [
+        {
+          "name": "createTaskDetailFields",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-detail-context.test.mjs",
+      "oldLine": 51,
+      "oldText": "  assert.deepEqual(Array.from(s.createTaskDetailFields({ error: \"Failed\" })), [\"Failed\"]);",
+      "names": [
+        "createTaskDetailFields"
+      ],
+      "newLine": 52,
+      "newText": "  assert.deepEqual(Array.from(s.createTaskDetailFields({ error: \"Failed\" })), [\"Failed\"]);",
+      "targets": [
+        {
+          "name": "createTaskDetailFields",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-handles.test.mjs",
+      "oldLine": 9,
+      "oldText": "const names = [\"requireWorkbenchElement\", \"buildWorkbenchHost\", \"createWorkbenchShell\", \"createGuidedFocusPanel\", \"createCalendarWeekLink\", \"createRecommendedActionPanel\", \"createSecondaryWorkbenchPanel\", \"createTimerSection\", \"createWorkbenchCardSection\", \"createWorkbenchSectionSummary\", \"createTaskFocusPanel\", \"renderFocusModes\", \"populateFocusScopeOptions\", \"replaceOptions\", \"renderRecommendedAction\", \"updateRecommendedCycleControls\", \"clampRecommendedCandidateIndex\", \"renderWorkbenchViewState\", \"toggleWorkbenchStatePanel\", \"handleClientFocusChange\", \"handleProjectFocusChange\", \"renderTimers\", \"flashActivatedTimer\"];",
+      "names": [
+        "createTaskFocusPanel"
+      ],
+      "newLine": 9,
+      "newText": "const names = [\"requireWorkbenchElement\", \"buildWorkbenchHost\", \"createWorkbenchShell\", \"createGuidedFocusPanel\", \"createCalendarWeekLink\", \"createRecommendedActionPanel\", \"createSecondaryWorkbenchPanel\", \"createTimerSection\", \"createWorkbenchCardSection\", \"createWorkbenchSectionSummary\", \"createTaskFocusPanel\", \"renderFocusModes\", \"populateFocusScopeOptions\", \"replaceOptions\", \"renderRecommendedAction\", \"updateRecommendedCycleControls\", \"clampRecommendedCandidateIndex\", \"renderWorkbenchViewState\", \"toggleWorkbenchStatePanel\", \"handleClientFocusChange\", \"handleProjectFocusChange\", \"renderTimers\", \"flashActivatedTimer\"];",
+      "targets": [
+        {
+          "name": "createTaskFocusPanel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-identity.test.mjs",
+      "oldLine": 19,
+      "oldText": "    currentTaskFocusTimer: () => ({}), taskFocusTitle: () => \"Task\", readElapsedSeconds: () => 3,",
+      "names": [
+        "taskFocusTitle"
+      ],
+      "newLine": 19,
+      "newText": "    currentTaskFocusTimer: () => ({}), taskFocusTitle: () => \"Task\", readElapsedSeconds: () => 3,",
+      "targets": [
+        {
+          "name": "taskFocusTitle",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-identity.test.mjs",
+      "oldLine": 23,
+      "oldText": "    taskFocusRelatedContextState: () => ({}), normalizeTaskFocusRelatedContext: () => ({}),",
+      "names": [
+        "taskFocusRelatedContextState"
+      ],
+      "newLine": 23,
+      "newText": "    taskFocusRelatedContextState: () => ({}), normalizeTaskFocusRelatedContext: () => ({}),",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-identity.test.mjs",
+      "oldLine": 27,
+      "oldText": "    renderWorkbench: () => {}, renderTaskFocusSurface: () => {}, renderWorkbenchInspector: () => {}, renderWorkbenchViewState: () => {}, renderTaskFocusInspector: () => {},",
+      "names": [
+        "renderTaskFocusSurface",
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 27,
+      "newText": "    renderWorkbench: () => {}, renderTaskFocusSurface: () => {}, renderWorkbenchInspector: () => {}, renderWorkbenchViewState: () => {}, renderTaskFocusInspector: () => {},",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-identity.test.mjs",
+      "oldLine": 62,
+      "oldText": "    renderTaskFocusSurface: () => {}, renderWorkbenchInspector: () => {}, renderWorkbenchViewState: () => {},",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 63,
+      "newText": "    renderTaskFocusSurface: () => {}, renderWorkbenchInspector: () => {}, renderWorkbenchViewState: () => {},",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 12,
+      "oldText": "  for (const name of [\"workbenchCandidateField\", \"looksLikeRawId\", \"safeCandidateText\", \"safeTaskFocusText\", \"formatToken\", \"formatCandidateDate\", \"badge\", \"taskFocusFromCandidate\", \"taskFocusBadges\", \"taskFocusDueText\", \"taskFocusContextLabel\", \"taskFocusTagBadges\"])",
+      "names": [
+        "taskFocusBadges",
+        "taskFocusContextLabel",
+        "taskFocusDueText",
+        "taskFocusTagBadges"
+      ],
+      "newLine": 13,
+      "newText": "  for (const name of [\"workbenchCandidateField\", \"looksLikeRawId\", \"safeCandidateText\", \"safeTaskFocusText\", \"formatToken\", \"formatCandidateDate\", \"badge\", \"taskFocusFromCandidate\", \"taskFocusBadges\", \"taskFocusDueText\", \"taskFocusContextLabel\", \"taskFocusTagBadges\"])",
+      "targets": [
+        {
+          "name": "taskFocusBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        },
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 20,
+      "oldText": "  const badges = f.taskFocusBadges({ directTags: [{ name: \"First\" }, { slug: \"second\" }] });",
+      "names": [
+        "taskFocusBadges"
+      ],
+      "newLine": 21,
+      "newText": "  const badges = f.taskFocusBadges({ directTags: [{ name: \"First\" }, { slug: \"second\" }] });",
+      "targets": [
+        {
+          "name": "taskFocusBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 22,
+      "oldText": "  assert.deepEqual(Array.from(f.taskFocusBadges({}, null), b => b.textContent), [\"Open\", \"Normal\"]);",
+      "names": [
+        "taskFocusBadges"
+      ],
+      "newLine": 23,
+      "newText": "  assert.deepEqual(Array.from(f.taskFocusBadges({}, null), b => b.textContent), [\"Open\", \"Normal\"]);",
+      "targets": [
+        {
+          "name": "taskFocusBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 23,
+      "oldText": "  assert.deepEqual(Array.from(f.taskFocusBadges({ status: \"complete\", priority: \"low\" }), b => b.textContent).slice(0, 2), [\"Complete\", \"Low\"]);",
+      "names": [
+        "taskFocusBadges"
+      ],
+      "newLine": 24,
+      "newText": "  assert.deepEqual(Array.from(f.taskFocusBadges({ status: \"complete\", priority: \"low\" }), b => b.textContent).slice(0, 2), [\"Complete\", \"Low\"]);",
+      "targets": [
+        {
+          "name": "taskFocusBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 28,
+      "oldText": "  assert.equal(f.taskFocusDueText({ due_date: \" 2026-10-01 \", due_time: \" 10:30 \" }, { dueAt: \"ignored\" }), \"2026-10-01 10:30\");",
+      "names": [
+        "taskFocusDueText"
+      ],
+      "newLine": 29,
+      "newText": "  assert.equal(f.taskFocusDueText({ due_date: \" 2026-10-01 \", due_time: \" 10:30 \" }, { dueAt: \"ignored\" }), \"2026-10-01 10:30\");",
+      "targets": [
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 29,
+      "oldText": "  assert.equal(f.taskFocusDueText({ due_date: \"2026-10-01\" }), \"2026-10-01\");",
+      "names": [
+        "taskFocusDueText"
+      ],
+      "newLine": 30,
+      "newText": "  assert.equal(f.taskFocusDueText({ due_date: \"2026-10-01\" }), \"2026-10-01\");",
+      "targets": [
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 30,
+      "oldText": "  assert.equal(f.taskFocusDueText({ due_time: \"10:30\" }, { dueAt: \"2026-11-02T12:00Z\" }), \"2026-11-02\");",
+      "names": [
+        "taskFocusDueText"
+      ],
+      "newLine": 31,
+      "newText": "  assert.equal(f.taskFocusDueText({ due_time: \"10:30\" }, { dueAt: \"2026-11-02T12:00Z\" }), \"2026-11-02\");",
+      "targets": [
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 31,
+      "oldText": "  assert.equal(f.taskFocusDueText(), \"No due date\");",
+      "names": [
+        "taskFocusDueText"
+      ],
+      "newLine": 32,
+      "newText": "  assert.equal(f.taskFocusDueText(), \"No due date\");",
+      "targets": [
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 32,
+      "oldText": "  assert.equal(f.taskFocusDueText({}, null, { empty: \"\" }), \"\");",
+      "names": [
+        "taskFocusDueText"
+      ],
+      "newLine": 33,
+      "newText": "  assert.equal(f.taskFocusDueText({}, null, { empty: \"\" }), \"\");",
+      "targets": [
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 33,
+      "oldText": "  assert.equal(f.taskFocusDueText({ due_date: { toString: () => \" 2026-10-03 \" }, due_time: 123 }), \"2026-10-03 123\");",
+      "names": [
+        "taskFocusDueText"
+      ],
+      "newLine": 34,
+      "newText": "  assert.equal(f.taskFocusDueText({ due_date: { toString: () => \" 2026-10-03 \" }, due_time: 123 }), \"2026-10-03 123\");",
+      "targets": [
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 34,
+      "oldText": "  assert.equal(f.taskFocusDueText({ due_date: 0, due_time: false }), \"No due date\");",
+      "names": [
+        "taskFocusDueText"
+      ],
+      "newLine": 35,
+      "newText": "  assert.equal(f.taskFocusDueText({ due_date: 0, due_time: false }), \"No due date\");",
+      "targets": [
+        {
+          "name": "taskFocusDueText",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 39,
+      "oldText": "  assert.equal(f.taskFocusContextLabel({ client_name: \" Client \", project_name: \" Project \" }, { contextLabel: \"fallback\" }), \"Client / Project\");",
+      "names": [
+        "taskFocusContextLabel"
+      ],
+      "newLine": 40,
+      "newText": "  assert.equal(f.taskFocusContextLabel({ client_name: \" Client \", project_name: \" Project \" }, { contextLabel: \"fallback\" }), \"Client / Project\");",
+      "targets": [
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 40,
+      "oldText": "  assert.equal(f.taskFocusContextLabel({ client_name: id, project_name: \"Project\" }), \"Project\");",
+      "names": [
+        "taskFocusContextLabel"
+      ],
+      "newLine": 41,
+      "newText": "  assert.equal(f.taskFocusContextLabel({ client_name: id, project_name: \"Project\" }), \"Project\");",
+      "targets": [
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 41,
+      "oldText": "  assert.equal(f.taskFocusContextLabel({}, { contextLabel: \"Fallback\" }), \"Fallback\");",
+      "names": [
+        "taskFocusContextLabel"
+      ],
+      "newLine": 42,
+      "newText": "  assert.equal(f.taskFocusContextLabel({}, { contextLabel: \"Fallback\" }), \"Fallback\");",
+      "targets": [
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 42,
+      "oldText": "  assert.equal(f.taskFocusContextLabel({}, { contextLabel: id }), \"\");",
+      "names": [
+        "taskFocusContextLabel"
+      ],
+      "newLine": 43,
+      "newText": "  assert.equal(f.taskFocusContextLabel({}, { contextLabel: id }), \"\");",
+      "targets": [
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 43,
+      "oldText": "  assert.equal(f.taskFocusContextLabel(), \"\");",
+      "names": [
+        "taskFocusContextLabel"
+      ],
+      "newLine": 44,
+      "newText": "  assert.equal(f.taskFocusContextLabel(), \"\");",
+      "targets": [
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 44,
+      "oldText": "  assert.equal(f.taskFocusContextLabel({ client_name: { toString: () => \"Opaque client\" }, project_name: 0 }), \"Opaque client\");",
+      "names": [
+        "taskFocusContextLabel"
+      ],
+      "newLine": 45,
+      "newText": "  assert.equal(f.taskFocusContextLabel({ client_name: { toString: () => \"Opaque client\" }, project_name: 0 }), \"Opaque client\");",
+      "targets": [
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 48,
+      "oldText": "  const f = fixture(), labels = (/** @type {unknown} */ task) => Array.from(f.taskFocusTagBadges(task), b => b.textContent);",
+      "names": [
+        "taskFocusTagBadges"
+      ],
+      "newLine": 49,
+      "newText": "  const f = fixture(), labels = (/** @type {unknown} */ task) => Array.from(f.taskFocusTagBadges(task), b => b.textContent);",
+      "targets": [
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 60,
+      "oldText": "  assert.equal(f.taskFocusTagBadges({ directTags: [tag] })[0].textContent, \"Name\");",
+      "names": [
+        "taskFocusTagBadges"
+      ],
+      "newLine": 61,
+      "newText": "  assert.equal(f.taskFocusTagBadges({ directTags: [tag] })[0].textContent, \"Name\");",
+      "targets": [
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 63,
+      "oldText": "  assert.equal(f.taskFocusTagBadges({ directTags: [7] })[0].textContent, \"Seven\");",
+      "names": [
+        "taskFocusTagBadges"
+      ],
+      "newLine": 64,
+      "newText": "  assert.equal(f.taskFocusTagBadges({ directTags: [7] })[0].textContent, \"Seven\");",
+      "targets": [
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 65,
+      "oldText": "  assert.throws(() => f.taskFocusTagBadges({ directTags: [{ get name() { throw failure; } }] }), e => e === failure);",
+      "names": [
+        "taskFocusTagBadges"
+      ],
+      "newLine": 66,
+      "newText": "  assert.throws(() => f.taskFocusTagBadges({ directTags: [{ get name() { throw failure; } }] }), e => e === failure);",
+      "targets": [
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-readers.test.mjs",
+      "oldLine": 66,
+      "oldText": "  for (const value of [null, undefined]) assert.throws(() => f.taskFocusTagBadges({ directTags: [value] }), { name: \"TypeError\", message: \"Task Focus tag is unavailable.\" });",
+      "names": [
+        "taskFocusTagBadges"
+      ],
+      "newLine": 67,
+      "newText": "  for (const value of [null, undefined]) assert.throws(() => f.taskFocusTagBadges({ directTags: [value] }), { name: \"TypeError\", message: \"Task Focus tag is unavailable.\" });",
+      "targets": [
+        {
+          "name": "taskFocusTagBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-state.test.mjs",
+      "oldLine": 7,
+      "oldText": "const names = [\"workbenchSourceField\", \"taskFocusChecklistRequiredField\", \"taskFocusChecklistResultFields\", \"taskFocusChecklistClosest\", \"workbenchCandidateField\", \"taskFocusFromCandidate\", \"refreshActiveTaskFocus\", \"consumeTaskFocusResumeNote\", \"refreshTaskFocusRelatedContext\", \"normalizeTaskFocusRelatedContext\", \"taskFocusRelatedContextState\", \"applyActiveTaskFocusTask\", \"preserveTaskFocusChecklistData\", \"syncTaskCandidateResumeNote\", \"candidateTaskId\", \"applyTaskFocusChecklistResult\", \"handleTaskFocusChecklistChange\", \"taskFocusTimerEligibility\", \"activeTaskFocusCandidate\", \"taskFocusTitle\", \"taskFocusContextLabel\", \"safeTaskFocusText\", \"safeCandidateText\", \"looksLikeRawId\"];",
+      "names": [
+        "taskFocusTitle",
+        "taskFocusContextLabel",
+        "taskFocusRelatedContextState"
+      ],
+      "newLine": 7,
+      "newText": "const names = [\"workbenchSourceField\", \"taskFocusChecklistRequiredField\", \"taskFocusChecklistResultFields\", \"taskFocusChecklistClosest\", \"workbenchCandidateField\", \"taskFocusFromCandidate\", \"refreshActiveTaskFocus\", \"consumeTaskFocusResumeNote\", \"refreshTaskFocusRelatedContext\", \"normalizeTaskFocusRelatedContext\", \"taskFocusRelatedContextState\", \"applyActiveTaskFocusTask\", \"preserveTaskFocusChecklistData\", \"syncTaskCandidateResumeNote\", \"candidateTaskId\", \"applyTaskFocusChecklistResult\", \"handleTaskFocusChecklistChange\", \"taskFocusTimerEligibility\", \"activeTaskFocusCandidate\", \"taskFocusTitle\", \"taskFocusContextLabel\", \"safeTaskFocusText\", \"safeCandidateText\", \"looksLikeRawId\"];",
+      "targets": [
+        {
+          "name": "taskFocusTitle",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "taskFocusContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        },
+        {
+          "name": "taskFocusRelatedContextState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-state.test.mjs",
+      "oldLine": 15,
+      "oldText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]), renderWorkbenchInspector: () => calls.push([\"inspector\"]), renderWorkbenchViewState: () => calls.push([\"view\"]),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 15,
+      "newText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]), renderWorkbenchInspector: () => calls.push([\"inspector\"]), renderWorkbenchViewState: () => calls.push([\"view\"]),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-focus-state.test.mjs",
+      "oldLine": 16,
+      "oldText": "    renderTaskFocusInspector: () => calls.push([\"related\"]), renderWorkbench: () => calls.push([\"workbench\"]),",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 16,
+      "newText": "    renderTaskFocusInspector: () => calls.push([\"related\"]), renderWorkbench: () => calls.push([\"workbench\"]),",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 9,
+      "oldText": "const names = [\"requireWorkbenchElement\", \"buildWorkbenchHost\", \"createWorkbenchShell\", \"createWorkbenchInspectorPanel\", \"initializeWorkbenchInspectorSlideOut\", \"syncWorkbenchInspectorViewport\", \"syncTaskFocusInspectorCollapseState\", \"setWorkbenchInspectorCopy\", \"renderWorkbenchInspector\", \"renderTaskFocusInspector\"];",
+      "names": [
+        "renderTaskFocusInspector",
+        "syncTaskFocusInspectorCollapseState"
+      ],
+      "newLine": 9,
+      "newText": "const names = [\"requireWorkbenchElement\", \"buildWorkbenchHost\", \"createWorkbenchShell\", \"createWorkbenchInspectorPanel\", \"initializeWorkbenchInspectorSlideOut\", \"syncWorkbenchInspectorViewport\", \"syncTaskFocusInspectorCollapseState\", \"setWorkbenchInspectorCopy\", \"renderWorkbenchInspector\", \"renderTaskFocusInspector\"];",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "syncTaskFocusInspectorCollapseState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 16,
+      "oldText": "    createTaskFocusPanel: () => browser.document.createElement(\"section\"), createGuidedFocusPanel: () => browser.document.createElement(\"section\"),",
+      "names": [
+        "createTaskFocusPanel"
+      ],
+      "newLine": 16,
+      "newText": "    createTaskFocusPanel: () => browser.document.createElement(\"section\"), createGuidedFocusPanel: () => browser.document.createElement(\"section\"),",
+      "targets": [
+        {
+          "name": "createTaskFocusPanel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 77,
+      "oldText": "  f.scope.taskFocusRelatedContextState = () => { order.push(\"context\"); return {}; };",
+      "names": [
+        "taskFocusRelatedContextState"
+      ],
+      "newLine": 78,
+      "newText": "  f.scope.taskFocusRelatedContextState = () => { order.push(\"context\"); return {}; };",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 78,
+      "oldText": "  f.scope.taskFocusRelatedContextGroups = () => { order.push(\"groups\"); return [{ items: [{}] }]; };",
+      "names": [
+        "taskFocusRelatedContextGroups"
+      ],
+      "newLine": 79,
+      "newText": "  f.scope.taskFocusRelatedContextGroups = () => { order.push(\"groups\"); return [{ items: [{}] }]; };",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextGroups",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 79,
+      "oldText": "  f.scope.createTaskFocusRelatedContextGroup = () => { order.push(\"row\"); return f.document.createElement(\"div\"); };",
+      "names": [
+        "createTaskFocusRelatedContextGroup"
+      ],
+      "newLine": 80,
+      "newText": "  f.scope.createTaskFocusRelatedContextGroup = () => { order.push(\"row\"); return f.document.createElement(\"div\"); };",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 81,
+      "oldText": "  assert.throws(() => f.api.renderTaskFocusInspector(), { name: \"TypeError\" });",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 82,
+      "newText": "  assert.throws(() => f.api.renderTaskFocusInspector(), { name: \"TypeError\" });",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 87,
+      "oldText": "  assert.throws(() => f.api.renderTaskFocusInspector(), { name: \"TypeError\" });",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 88,
+      "newText": "  assert.throws(() => f.api.renderTaskFocusInspector(), { name: \"TypeError\" });",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 95,
+      "oldText": "  f.scope.taskFocusRelatedContextState = () => ({});",
+      "names": [
+        "taskFocusRelatedContextState"
+      ],
+      "newLine": 96,
+      "newText": "  f.scope.taskFocusRelatedContextState = () => ({});",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 96,
+      "oldText": "  f.scope.taskFocusRelatedContextGroups = () => [{ items: [{}] }, { items: [{}] }];",
+      "names": [
+        "taskFocusRelatedContextGroups"
+      ],
+      "newLine": 97,
+      "newText": "  f.scope.taskFocusRelatedContextGroups = () => [{ items: [{}] }, { items: [{}] }];",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextGroups",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 99,
+      "oldText": "  f.scope.createTaskFocusRelatedContextGroup = () => { builds += 1; vm.runInContext(\"workbenchInspectorList = null\", f.scope); return row; };",
+      "names": [
+        "createTaskFocusRelatedContextGroup"
+      ],
+      "newLine": 100,
+      "newText": "  f.scope.createTaskFocusRelatedContextGroup = () => { builds += 1; vm.runInContext(\"workbenchInspectorList = null\", f.scope); return row; };",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-inspector-handles.test.mjs",
+      "oldLine": 100,
+      "oldText": "  assert.throws(() => f.api.renderTaskFocusInspector(), { name: \"TypeError\" });",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 101,
+      "newText": "  assert.throws(() => f.api.renderTaskFocusInspector(), { name: \"TypeError\" });",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-context.test.mjs",
+      "oldLine": 9,
+      "oldText": "  for (const name of [\"workbenchCandidateField\", \"workbenchSourceField\", \"workbenchDetailField\", \"normalizeTaskFocusRelatedContext\", \"candidateModuleAction\", \"formatToken\", \"createTaskFocusRelatedContextGroup\", \"createTaskFocusRelatedContextItem\", \"relatedContextTitle\", \"relatedContextSourceLabel\", \"relatedContextContextLabel\", \"relatedContextBadges\", \"relatedContextCanOpen\", \"relatedContextActionLabel\", \"safeRelatedContextText\", \"looksLikeRawId\"])",
+      "names": [
+        "createTaskFocusRelatedContextGroup",
+        "createTaskFocusRelatedContextItem",
+        "relatedContextTitle",
+        "relatedContextContextLabel",
+        "relatedContextBadges",
+        "relatedContextCanOpen",
+        "relatedContextActionLabel"
+      ],
+      "newLine": 10,
+      "newText": "  for (const name of [\"workbenchCandidateField\", \"workbenchSourceField\", \"workbenchDetailField\", \"normalizeTaskFocusRelatedContext\", \"candidateModuleAction\", \"formatToken\", \"createTaskFocusRelatedContextGroup\", \"createTaskFocusRelatedContextItem\", \"relatedContextTitle\", \"relatedContextSourceLabel\", \"relatedContextContextLabel\", \"relatedContextBadges\", \"relatedContextCanOpen\", \"relatedContextActionLabel\", \"safeRelatedContextText\", \"looksLikeRawId\"])",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "createTaskFocusRelatedContextItem",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "relatedContextTitle",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "relatedContextContextLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "relatedContextBadges",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "relatedContextCanOpen",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        },
+        {
+          "name": "relatedContextActionLabel",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-context.test.mjs",
+      "oldLine": 63,
+      "oldText": "  f.createTaskFocusRelatedContextItem = (/** @type {unknown} */ item) => { calls.push(item); return item; };",
+      "names": [
+        "createTaskFocusRelatedContextItem"
+      ],
+      "newLine": 64,
+      "newText": "  f.createTaskFocusRelatedContextItem = (/** @type {unknown} */ item) => { calls.push(item); return item; };",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextItem",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-context.test.mjs",
+      "oldLine": 66,
+      "oldText": "    const group = f.createTaskFocusRelatedContextGroup({ count, items });",
+      "names": [
+        "createTaskFocusRelatedContextGroup"
+      ],
+      "newLine": 67,
+      "newText": "    const group = f.createTaskFocusRelatedContextGroup({ count, items });",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-context.test.mjs",
+      "oldLine": 71,
+      "oldText": "  assert.equal(f.createTaskFocusRelatedContextGroup({ count }).options.children[0].options.children[1].options.text, \"7\");",
+      "names": [
+        "createTaskFocusRelatedContextGroup"
+      ],
+      "newLine": 72,
+      "newText": "  assert.equal(f.createTaskFocusRelatedContextGroup({ count }).options.children[0].options.children[1].options.text, \"7\");",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-context.test.mjs",
+      "oldLine": 72,
+      "oldText": "  assert.throws(() => f.createTaskFocusRelatedContextGroup({ count: Symbol(\"count\") }), { name: \"TypeError\" });",
+      "names": [
+        "createTaskFocusRelatedContextGroup"
+      ],
+      "newLine": 73,
+      "newText": "  assert.throws(() => f.createTaskFocusRelatedContextGroup({ count: Symbol(\"count\") }), { name: \"TypeError\" });",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-envelope.test.mjs",
+      "oldLine": 14,
+      "oldText": "    syncTaskFocusInspectorCollapseState() {}, setWorkbenchInspectorCopy() {},",
+      "names": [
+        "syncTaskFocusInspectorCollapseState"
+      ],
+      "newLine": 14,
+      "newText": "    syncTaskFocusInspectorCollapseState() {}, setWorkbenchInspectorCopy() {},",
+      "targets": [
+        {
+          "name": "syncTaskFocusInspectorCollapseState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-envelope.test.mjs",
+      "oldLine": 16,
+      "oldText": "    createTaskFocusRelatedContextGroup: (/** @type {unknown} */ group) => group,",
+      "names": [
+        "createTaskFocusRelatedContextGroup"
+      ],
+      "newLine": 16,
+      "newText": "    createTaskFocusRelatedContextGroup: (/** @type {unknown} */ group) => group,",
+      "targets": [
+        {
+          "name": "createTaskFocusRelatedContextGroup",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-envelope.test.mjs",
+      "oldLine": 22,
+      "oldText": "  for (const name of [\"requireWorkbenchElement\", \"workbenchSourceField\", \"normalizeTaskFocusRelatedContext\", \"taskFocusRelatedContextState\", \"taskFocusRelatedContextGroups\", \"renderTaskFocusInspector\", \"refreshTaskFocusRelatedContext\"])",
+      "names": [
+        "taskFocusRelatedContextState",
+        "taskFocusRelatedContextGroups",
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 23,
+      "newText": "  for (const name of [\"requireWorkbenchElement\", \"workbenchSourceField\", \"normalizeTaskFocusRelatedContext\", \"taskFocusRelatedContextState\", \"taskFocusRelatedContextGroups\", \"renderTaskFocusInspector\", \"refreshTaskFocusRelatedContext\"])",
+      "targets": [
+        {
+          "name": "taskFocusRelatedContextState",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        },
+        {
+          "name": "taskFocusRelatedContextGroups",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench.js"
+        },
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-related-envelope.test.mjs",
+      "oldLine": 85,
+      "oldText": "    f.scope.renderTaskFocusInspector();",
+      "names": [
+        "renderTaskFocusInspector"
+      ],
+      "newLine": 86,
+      "newText": "    f.scope.renderTaskFocusInspector();",
+      "targets": [
+        {
+          "name": "renderTaskFocusInspector",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    },
+    {
+      "file": "tests/unit/workbench-timer-actions.test.mjs",
+      "oldLine": 14,
+      "oldText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]), renderWorkbenchInspector: () => calls.push([\"inspector\"]), renderWorkbenchViewState: () => calls.push([\"view\"]),",
+      "names": [
+        "renderTaskFocusSurface"
+      ],
+      "newLine": 14,
+      "newText": "    renderTaskFocusSurface: () => calls.push([\"surface\"]), renderWorkbenchInspector: () => calls.push([\"inspector\"]), renderWorkbenchViewState: () => calls.push([\"view\"]),",
+      "targets": [
+        {
+          "name": "renderTaskFocusSurface",
+          "from": "public/js/workbench.js",
+          "to": "public/js/workbench-task-focus-presentation.js"
+        }
+      ],
+      "claim": "Preserved; only the source owner and explicit live host paths change. Existing stubs remain stubs."
+    }
+  ],
+  "retargetedBodyReferenceLines": 96,
+  "retainedOnlyReferenceLines": 11
+}

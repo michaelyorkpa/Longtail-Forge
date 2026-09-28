@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
-const source = createProjectTextReader().readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + createProjectTextReader().readText("public/js/workbench.js");
 const nativeCall = "encodeURIComponent(`${taskId}`)";
 const urlConsumers = ["refreshActiveTaskFocus", "refreshTaskFocusRelatedContext", "completeFocusedTask", "resumeFocusedTask", "handleTaskFocusChecklistChange", "saveFocusedTaskTimer", "finalizeFocusedTaskTimer", "resetFocusedTaskTimer"];
 /** @param {unknown} id @param {string} name @param {boolean} original */
@@ -27,6 +27,7 @@ function fixture(id, name, original) {
     renderWorkbench: () => {}, renderTaskFocusSurface: () => {}, renderWorkbenchInspector: () => {}, renderWorkbenchViewState: () => {}, renderTaskFocusInspector: () => {},
     offerTaskResumeNote: () => {}, focusActiveFocusQuestion: () => {}, setTaskCompletionStatus: () => {}, renderTaskRecurrenceContinuity: () => {},
   });
+  vm.runInContext("const host = { get state() { return state; } };", scope);
   const block = extractFunctionBlock(source, name);
   assert.ok(block.includes(nativeCall), `${name} must exercise its native encoding boundary`);
   vm.runInContext(original ? block.replaceAll(nativeCall, "encodeURIComponent(taskId)") : block, scope);

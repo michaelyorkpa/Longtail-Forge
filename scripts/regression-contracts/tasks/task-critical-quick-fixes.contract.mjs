@@ -19,6 +19,7 @@ const tags = await readText("public/js/shared/tags.js");
 const taskDialog = await readText("public/js/task-dialog.js");
 const tasks = await readText("public/js/tasks.js");
 const workbench = await readText("public/js/workbench.js");
+const presentationScript = await readText("public/js/workbench-task-focus-presentation.js");
 const taskService = await readText("src/modules/tasks/tasks.service.js");
 const taskTimerService = await readText("src/modules/tasks/task-timers.service.js");
 const activeTimerRepository = await readText("src/modules/time-tracking/active-timers.repo.js");
@@ -108,7 +109,7 @@ assert.match(
   "the Task editor should remove its timer field when Time Tracking or Task Timers is disabled",
 );
 assert.match(
-  extractFunctionSpan(workbench, "renderTaskFocusSurface"),
+  extractFunctionSpan(presentationScript, "renderTaskFocusSurface"),
   /if \(taskTimerSurfaceAvailable\(\)\)[\s\S]*createTaskFocusTimerSection/,
   "Task Focus should append its timer section only when task timers are available",
 );

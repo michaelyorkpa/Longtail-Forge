@@ -3,7 +3,7 @@ import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
-const source = createProjectTextReader().readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + createProjectTextReader().readText("public/js/workbench.js");
 const names = ["workbenchSourceField", "taskFocusChecklistRequiredField", "taskFocusChecklistResultFields", "taskFocusChecklistClosest", "workbenchCandidateField", "taskFocusFromCandidate", "refreshActiveTaskFocus", "consumeTaskFocusResumeNote", "refreshTaskFocusRelatedContext", "normalizeTaskFocusRelatedContext", "taskFocusRelatedContextState", "applyActiveTaskFocusTask", "preserveTaskFocusChecklistData", "syncTaskCandidateResumeNote", "candidateTaskId", "applyTaskFocusChecklistResult", "handleTaskFocusChecklistChange", "taskFocusTimerEligibility", "activeTaskFocusCandidate", "taskFocusTitle", "taskFocusContextLabel", "safeTaskFocusText", "safeCandidateText", "looksLikeRawId"];
 
 function fixture() {
@@ -17,6 +17,7 @@ function fixture() {
     setStatus: (/** @type {unknown} */ message, /** @type {unknown} */ options) => calls.push(["status", message, options]),
     moduleEnabled: () => true,
   });
+  vm.runInContext("const host = { get state() { return state; } };", scope);
   const start = source.indexOf("  let state = {");
   const end = source.indexOf("  let tickIntervalId", start);
   assert.ok(start >= 0 && end > start);

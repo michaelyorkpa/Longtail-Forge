@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
-const source = createProjectTextReader().readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + createProjectTextReader().readText("public/js/workbench.js");
 const checklistSource = createProjectTextReader().readText("public/js/workbench-task-focus-checklist.js");
 const names = ["taskFocusChecklistField", "taskFocusChecklistRequiredField", "taskFocusChecklistResultFields", "taskFocusChecklistClosest", "taskFocusChecklistItems", "taskFocusChecklistProgress", "formatTaskFocusChecklistProgress", "truncateTaskFocusChecklistLabel", "createTaskFocusChecklistItem", "createTaskFocusChecklistBody", "safeTaskFocusText", "safeCandidateText", "looksLikeRawId", "applyTaskFocusChecklistResult", "handleTaskFocusChecklistChange"];
 function fixture() {

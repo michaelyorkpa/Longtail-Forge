@@ -3,9 +3,10 @@ import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
-const source = createProjectTextReader().readText("public/js/workbench.js");
+const source = createProjectTextReader().readText("public/js/workbench-task-focus-presentation.js") + "\n" + createProjectTextReader().readText("public/js/workbench.js");
 function fixture() {
   const scope = vm.createContext({});
+  vm.runInContext("const host = { get state() { return state; } };", scope);
   for (const name of ["workbenchCandidateField", "workbenchSourceField", "workbenchDetailField", "normalizeTaskFocusRelatedContext", "candidateModuleAction", "formatToken", "createTaskFocusRelatedContextGroup", "createTaskFocusRelatedContextItem", "relatedContextTitle", "relatedContextSourceLabel", "relatedContextContextLabel", "relatedContextBadges", "relatedContextCanOpen", "relatedContextActionLabel", "safeRelatedContextText", "looksLikeRawId"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   return scope;

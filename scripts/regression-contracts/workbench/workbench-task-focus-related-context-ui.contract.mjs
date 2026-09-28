@@ -10,6 +10,7 @@ const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
+const presentationScript = readText("public/js/workbench-task-focus-presentation.js");
 
 assert.match(
   workbenchHtml,
@@ -27,17 +28,17 @@ assert.match(
   "Selected task details should load before related context is fetched",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "renderTaskFocusInspector"),
-  /syncTaskFocusInspectorCollapseState\(taskFocusInspectorCollapsed, \{ enableCollapse: true \}\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*createTaskFocusRelatedContextGroup\(group\)/,
+  extractFunctionBody(presentationScript, "renderTaskFocusInspector"),
+  /syncTaskFocusInspectorCollapseState\(host\.taskFocusInspectorCollapsed, \{ enableCollapse: true \}\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*createTaskFocusRelatedContextGroup\(group\)/,
   "Task Focus Inspector should render groups from the selected-task related-context state",
 );
 assert.doesNotMatch(
-  extractFunctionBody(workbenchScript, "renderTaskFocusInspector"),
+  extractFunctionBody(presentationScript, "renderTaskFocusInspector"),
   /workbenchInspectorCandidates|recommendedOverflowCandidates/,
   "Task Focus Inspector must not render Focus Selection overflow candidates",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusRelatedContextItem"),
+  extractFunctionBody(presentationScript, "createTaskFocusRelatedContextItem"),
   /const context = relatedContextContextLabel\(item\)[\s\S]*workbenchRelatedContextAction[\s\S]*workbenchRelatedContextRecord[\s\S]*const badges = relatedContextBadges\(item\)[\s\S]*openTaskFocusRelatedContextItem\(item, event\.currentTarget\)/,
   "Related rows should render service-provided titles, source/reason labels, badges, and stable action hooks",
 );
@@ -88,8 +89,8 @@ assert.match(
   "Task Focus Inspector should expose a visible caret/collapse control and stable related-context body",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "syncTaskFocusInspectorCollapseState"),
-  /workbenchInspectorCollapsed[\s\S]*workbenchInspectorList\.hidden = enableCollapse && collapsed[\s\S]*aria-expanded/,
+  extractFunctionBody(presentationScript, "syncTaskFocusInspectorCollapseState"),
+  /workbenchInspectorCollapsed[\s\S]*mounts\.workbenchInspectorList\.hidden = enableCollapse && collapsed[\s\S]*aria-expanded/,
   "Task Focus Inspector collapse should preserve the side panel while hiding only the list body",
 );
 assert.match(

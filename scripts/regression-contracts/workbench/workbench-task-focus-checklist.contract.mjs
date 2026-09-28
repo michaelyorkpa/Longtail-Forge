@@ -16,6 +16,7 @@ const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const checklistScript = readText("public/js/workbench-task-focus-checklist.js");
 const workbenchScript = readText("public/js/workbench.js");
+const presentationScript = readText("public/js/workbench-task-focus-presentation.js");
 
 assert.match(
   workbenchHtml,
@@ -24,7 +25,7 @@ assert.match(
 );
 
 assert.match(
-  extractFunctionBody(workbenchScript, "renderTaskFocusSurface"),
+  extractFunctionBody(presentationScript, "renderTaskFocusSurface"),
   /createTaskFocusSummary\(active\)[\s\S]*createTaskDetailsSection\(active\)[\s\S]*createTaskFocusChecklistSection\(active\)/,
   "Task Focus should render Checklist after summary and read-only Task Details",
 );

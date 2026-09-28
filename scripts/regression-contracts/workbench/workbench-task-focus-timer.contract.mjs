@@ -17,6 +17,7 @@ const uiSurfaceContract = readText("docs/ui-surface-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
+const presentationScript = readText("public/js/workbench-task-focus-presentation.js");
 
 assert.match(
   workbenchHtml,
@@ -77,27 +78,27 @@ assert.match(
 );
 
 assert.match(
-  extractFunctionBody(workbenchScript, "renderTaskFocusSurface"),
+  extractFunctionBody(presentationScript, "renderTaskFocusSurface"),
   /createTaskFocusSummary\(active\)[\s\S]*createTaskDetailsSection\(active\)[\s\S]*createTaskFocusChecklistSection\(active\)[\s\S]*createTaskFocusTimerSection\(active\)/,
   "Task Focus should render the task-linked timer section after Checklist at the bottom of the main column",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusTimerSection"),
+  extractFunctionBody(presentationScript, "createTaskFocusTimerSection"),
   /workbenchTaskFocusTimer: ""[\s\S]*workbenchTaskFocusTimerDefaultOpen: "true"[\s\S]*workbenchTaskFocusTimerLinked: "task"[\s\S]*title: "Task Timer"[\s\S]*setWorkbenchDisclosureOpen\(details, true\);/,
   "Task Focus timer should be a default-open task-linked collapsible section with the shared summary caret",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusTimerControls"),
+  extractFunctionBody(presentationScript, "createTaskFocusTimerControls"),
   /label: "Start"[\s\S]*saveFocusedTaskTimer\("running"\)[\s\S]*label: "Pause"[\s\S]*saveFocusedTaskTimer\("paused"\)[\s\S]*label: "Save Time"[\s\S]*finalizeFocusedTaskTimer[\s\S]*label: "Reset"[\s\S]*resetFocusedTaskTimer/,
   "Task Focus timer controls should expose Start, Pause, Save Time, and Reset",
 );
 assert.doesNotMatch(
-  extractFunctionBody(workbenchScript, "createTaskFocusTimerControls"),
+  extractFunctionBody(presentationScript, "createTaskFocusTimerControls"),
   /createElement\("(select|input|textarea)"|Client|Project|workbenchManual/,
   "Task Focus timer controls should use the selected task context and not ask the user to reselect Client, Project, or Task",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "createTaskFocusTimerControls"),
+  extractFunctionBody(presentationScript, "createTaskFocusTimerControls"),
   /dataset: \{ workbenchTaskFocusTimerDisplay: "" \}[\s\S]*duration\.dataset\.workbenchDuration = timer\.active_timer_id;/,
   "The Task Timer control counter should be the focused task timer's live duration display",
 );
