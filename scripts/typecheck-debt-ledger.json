@@ -333,6 +333,7 @@
         "tests/e2e/files-filter-handles.spec.mjs",
         "tests/e2e/hidden-label-controls.spec.mjs",
         "tests/e2e/lists-element-handles.spec.mjs",
+        "tests/e2e/lists-link-picker.spec.mjs",
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
@@ -465,6 +466,7 @@
         "tests/mutations/footer-quick-action.breaks.mjs",
         "tests/mutations/help-article.breaks.mjs",
         "tests/mutations/hidden-label-safeguard.breaks.mjs",
+        "tests/mutations/lists-link-picker.breaks.mjs",
         "tests/mutations/login-public-demo.breaks.mjs",
         "tests/mutations/module-settings-snapshot.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
@@ -627,6 +629,7 @@
         "tests/unit/lists-field-builder-contracts.test.mjs",
         "tests/unit/lists-formatter-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
+        "tests/unit/lists-link-picker.test.mjs",
         "tests/unit/lists-option-surface-contracts.test.mjs",
         "tests/unit/lists-record-normalizer-contracts.test.mjs",
         "tests/unit/lists-row-builder-contracts.test.mjs",
@@ -956,7 +959,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 41,
+      "errorCount": 39,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -974,12 +977,8 @@
             "count": 9
           },
           {
-            "code": 2345,
-            "count": 1
-          },
-          {
             "code": 7006,
-            "count": 20
+            "count": 19
           }
         ]
       }
@@ -1591,8 +1590,8 @@
     }
   },
   "totals": {
-    "files": 1538,
-    "errors": 41,
+    "files": 1541,
+    "errors": 39,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

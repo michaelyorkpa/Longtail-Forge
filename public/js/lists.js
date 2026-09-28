@@ -50,6 +50,7 @@
     project: "Project",
     task: "Task",
   };
+  /** @type {BrowserListLinkTargetType[]} */
   const LIST_LINK_TARGET_ORDER = ["task", "note", "project", "client"];
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
@@ -2940,16 +2941,17 @@
   }
 
   /**
-   * **Deliberately untyped, and the fallback is why.** Declaring `providers` as the vouched-for
-   * contract exposes this reader's own fallback branch, which builds `{ label, moduleId,
-   * targetType }` literals carrying none of `id`, `provider` or `providerId` - and the map lookup
-   * that follows answers `| undefined` for a type the order names but the providers omit. That is
-   * eleven diagnostics for one, and it is a real mismatch between the two branches rather than a
-   * typing artefact. **Discharged by** the fallback building the same shape the contract declares,
-   * which is a change to what this page offers and not a typing decision. Pinned by
-   * `lists-option-surface-contracts`.
+   * Validated wire providers or the page's three-member fallback, kept distinct.
+   * The source projection admits absent provider identifiers because the fallback has none;
+   * it does not populate them or change the published wire contract. The legacy provider read
+   * remains optional, including inherited values, in the same fallback order.
+   * @typedef {Pick<BrowserListLinkTargetProvider, "label" | "moduleId" | "targetType">
+   *   & Partial<Pick<BrowserListLinkTargetProvider, "id" | "providerId">>
+   *   & { provider?: string }} ListPickerProvider
+   * @param {BrowserListLinkTargetProvider[]} [providers]
    */
   function listLinkProviderOptions(providers = []) {
+    /** @type {ListPickerProvider[]} */
     const source = providers.length > 0
       ? providers
       : LIST_LINK_TARGET_ORDER.map((targetType) => ({
@@ -2962,7 +2964,7 @@
     return LIST_LINK_TARGET_ORDER
       .filter((targetType) => targetType !== "client" || usesBusinessScope())
       .map((targetType) => providersByType.get(targetType))
-      .filter(Boolean)
+      .filter((provider) => provider !== undefined)
       .map((provider) => ({
         label: provider.label || LIST_LINK_TYPE_LABELS[provider.targetType] || formatToken(provider.targetType),
         moduleId: provider.moduleId || moduleIdForListLinkTarget(provider.targetType),
@@ -2988,7 +2990,7 @@
   }
 
   function queueListEditorLinkTargetSearch() {
-    window.clearTimeout(state.linkTargetSearchTimer);
+    window.clearTimeout(state.linkTargetSearchTimer ?? undefined);
     state.linkTargetSearchTimer = window.setTimeout(() => loadListEditorLinkTargets(), 180);
   }
 
