@@ -6082,6 +6082,171 @@ export interface BrowserWorkbenchTaskFocusChecklist {
 }
 
 /**
+ * One related-context item's open action, as the Task Focus presentation reads it
+ * (`0.33.33.38.2.13`).
+ *
+ * These are the presentation's existing local preconditions, not a validation: the normaliser
+ * proves the related arrays and the loading and error fields, and leaves these members as the
+ * server sent them. Action ids keep their optional-string precondition.
+ */
+export interface BrowserWorkbenchTaskFocusRelatedAction {
+  type?: string;
+  moduleActionId?: string;
+  params?: unknown;
+  fallbackUrl?: string;
+}
+
+/** One related-context item, as the presentation renders it. Every member is a precondition. */
+export interface BrowserWorkbenchTaskFocusRelatedItem {
+  action?: BrowserWorkbenchTaskFocusRelatedAction;
+  moduleId?: string;
+  recordType?: string;
+  recordId?: unknown;
+  reason?: string;
+  title?: string;
+  sourceLabel?: string;
+  contextLabel?: string;
+  reasonLabel?: string;
+  badges?: unknown[];
+}
+
+/** One related-context group, as the presentation renders it. */
+export interface BrowserWorkbenchTaskFocusRelatedGroup {
+  id?: string;
+  label?: string;
+  reason?: string;
+  count?: number | string;
+  items?: BrowserWorkbenchTaskFocusRelatedItem[];
+}
+
+/**
+ * The related context Workbench's normaliser produces: the arrays and the loading and error fields
+ * are proved there; the group and item members inside them stay preconditions.
+ */
+export interface BrowserWorkbenchTaskFocusRelatedState {
+  error: string;
+  groups: Array<BrowserWorkbenchTaskFocusRelatedGroup & { items: BrowserWorkbenchTaskFocusRelatedItem[] }>;
+  isLoading: boolean;
+  items: unknown[];
+  taskId: unknown;
+  meta?: unknown;
+  task?: unknown;
+}
+
+/**
+ * The active Task Focus as the presentation reads it: the checklist's view of it, plus the members
+ * the summary, timer, related context and actions render.
+ *
+ * The presentation receives Workbench's own active object, never a copy. `task` is the record
+ * `preserveTaskFocusChecklistData` produces, whose identity, checklist data and decorator payloads
+ * stay opaque.
+ */
+export interface BrowserWorkbenchTaskFocusPresentationState
+  extends BrowserWorkbenchTaskFocusChecklistState {
+  task?: Record<string, unknown> | null;
+  taskId?: unknown;
+  title?: string;
+  contextLabel?: string;
+  dueAt?: unknown;
+  priority?: unknown;
+  status?: unknown;
+  relatedContext?: BrowserWorkbenchTaskFocusRelatedState;
+}
+
+/**
+ * The four timer members the presentation displays - the projection of the published timer record
+ * Workbench already uses. Timers do not pass through a validated reader here.
+ */
+export type BrowserWorkbenchTaskFocusDisplayTimer = Partial<Pick<
+  BrowserTaskTimerRecord,
+  "active_timer_id" | "timer_status" | "accumulated_elapsed_seconds" | "last_active_start_time"
+>>;
+
+/**
+ * Workbench's element slots, handed over as accessors on the slots themselves, never a snapshot.
+ *
+ * The three writable slots are the ones building the panel assigns - the action mount, the body,
+ * then the panel - so a partial assignment survives a throw exactly where it did. The Inspector
+ * slots are read only.
+ */
+export interface BrowserWorkbenchTaskFocusPresentationMounts {
+  taskFocusActionMount: HTMLElement | null;
+  taskFocusBody: HTMLElement | null;
+  taskFocusPanelElement: HTMLElement | null;
+  readonly workbenchInspectorElement: HTMLElement | null;
+  readonly workbenchInspectorList: HTMLElement | null;
+  readonly workbenchInspectorCountText: HTMLElement | null;
+  readonly workbenchInspectorCollapseButton: HTMLButtonElement | null;
+}
+
+/**
+ * Everything the presentation reads from and calls on Workbench, injected rather than reached for.
+ *
+ * `state` is Workbench's own state object by reference, and `taskFocusInspectorCollapsed` a live
+ * read-only accessor; the collapse toggle and all focus return stay Workbench's. Each function is
+ * the existing Workbench function under its own name and signature: Workbench keeps view
+ * acquisition, text and date formatting, timer policy and arithmetic, lifecycle policy, every write
+ * and every navigation.
+ */
+export interface BrowserWorkbenchTaskFocusPresentationHost {
+  readonly state: { readonly activeTaskFocus: BrowserWorkbenchTaskFocusPresentationState | null };
+  readonly mounts: BrowserWorkbenchTaskFocusPresentationMounts;
+  readonly taskFocusInspectorCollapsed: boolean;
+  requireView(): BrowserViewFactory;
+  requireWorkbenchElement<T extends HTMLElement>(element: T | null | undefined): T;
+  resolvedWorkbenchViewState(): string;
+  setWorkbenchInspectorCopy(heading: string, helper: string): void;
+  emptyState(message: string | null): HTMLDivElement;
+  safeTaskFocusText(value: unknown, fallback?: string): string;
+  safeRelatedContextText(value: unknown, fallback?: string): string;
+  relatedContextSourceLabel(item?: BrowserWorkbenchTaskFocusRelatedItem): string;
+  workbenchDetailField(value: unknown, key: string, optional?: boolean): unknown;
+  badge(label: unknown, type?: unknown): HTMLSpanElement;
+  formatToken(value: unknown): string;
+  formatCandidateDate(value: unknown): string;
+  formatDuration(totalSeconds: unknown): string;
+  readElapsedSeconds(timer: unknown): number;
+  actionButton(label: string | null, handler: EventListener, options?: { danger?: unknown }): HTMLButtonElement;
+  createWorkbenchSectionSummary: BrowserWorkbenchTaskFocusChecklistHost["createWorkbenchSectionSummary"];
+  setWorkbenchDisclosureOpen: BrowserWorkbenchTaskFocusChecklistHost["setWorkbenchDisclosureOpen"];
+  createTaskFocusChecklistSection(active: BrowserWorkbenchTaskFocusPresentationState | null): HTMLDetailsElement;
+  currentTaskFocusTimer(active?: BrowserWorkbenchTaskFocusPresentationState | null): BrowserWorkbenchTaskFocusDisplayTimer | null;
+  taskFocusTimerEligibility(active?: BrowserWorkbenchTaskFocusPresentationState | null): { eligible: boolean; reason: string };
+  taskTimerSurfaceAvailable(): boolean;
+  taskFocusLifecycleDisabledReason(action: string, active?: BrowserWorkbenchTaskFocusPresentationState | null): string;
+  openFocusedTaskEditor(event: Event | null | undefined): Promise<void>;
+  completeFocusedTask(): Promise<void>;
+  blockFocusedTask(event: Event | null | undefined): Promise<void>;
+  resumeFocusedTask(): Promise<void>;
+  saveFocusedTaskTimer(timerStatus: string): Promise<void>;
+  finalizeFocusedTaskTimer(event?: Event | null): Promise<void>;
+  resetFocusedTaskTimer(): Promise<void>;
+  openTaskFocusRelatedContextItem(item?: BrowserWorkbenchTaskFocusRelatedItem, trigger?: EventTarget | null): Promise<void>;
+}
+
+/** One presentation renderer, bound to the host that created it. */
+export interface BrowserWorkbenchTaskFocusPresentationRenderer {
+  createPanel(): HTMLElement;
+  renderSurface(): void;
+  renderInspector(): void;
+  syncInspectorCollapse(collapsed: boolean, options?: { enableCollapse?: unknown }): void;
+  title(active?: BrowserWorkbenchTaskFocusPresentationState | null): string;
+}
+
+/**
+ * `LongtailForge.workbenchTaskFocusPresentation`, published by
+ * `public/js/workbench-task-focus-presentation.js` (`0.33.33.42.47`).
+ *
+ * Presentation only: the summary and details, timer display, related context, action strip and
+ * panel composition. It composes the checklist through its existing seam; Workbench keeps the
+ * state, writes, refresh, drift, deep links, exit and resume handling, focus, recovery and
+ * navigation.
+ */
+export interface BrowserWorkbenchTaskFocusPresentation {
+  create(host: BrowserWorkbenchTaskFocusPresentationHost): BrowserWorkbenchTaskFocusPresentationRenderer;
+}
+
+/**
  * The resume context both task-timer producers reconstruct.
  *
  * **Twelve members, built identically by three shapers.** `timerToTaskTimer` builds it from the
@@ -7960,6 +8125,11 @@ export interface LongtailForgeBrowserNamespace {
    * writer, `0.33.33.42.46`, through governance's type-only record, which that checkpoint strikes.
    */
   workbenchTaskFocusChecklist?: BrowserWorkbenchTaskFocusChecklist;
+  /**
+   * The Task Focus presentation Workbench composes (`0.33.33.38.2.13`). Declared ahead of its
+   * writer, `0.33.33.42.47`, through governance's type-only record, which that checkpoint strikes.
+   */
+  workbenchTaskFocusPresentation?: BrowserWorkbenchTaskFocusPresentation;
   /**
    * The same bootstrap, called once at load, as a synchronisation barrier.
    *

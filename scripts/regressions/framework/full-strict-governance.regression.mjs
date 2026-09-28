@@ -4177,9 +4177,16 @@ assert.deepEqual(
 // A declaration with no publisher is either a genuine type-only contract or a stale one, and
 // they are not interchangeable. The record exists so the distinction is available the moment it
 // is needed, and it is asserted by identity so an entry cannot outlive the condition that
-// justified it. The checklist writer in `0.33.33.42.46` discharged the first record.
+// justified it. The checklist writer in `0.33.33.42.46` discharged the first record. The second
+// (`0.33.33.38.2.13`) is again a contract declared ahead of its writer, which that writer's
+// checkpoint must strike.
 /** @type {Map<string, string>} */
-const TYPE_ONLY_DECLARATIONS = new Map();
+const TYPE_ONLY_DECLARATIONS = new Map([
+  [
+    "workbenchTaskFocusPresentation",
+    "Declared ahead of its writer: the remaining Task Focus presentation extraction publishes workbenchTaskFocusPresentation from public/js/workbench-task-focus-presentation.js and strikes this record.",
+  ],
+]);
 
 const declarationsMissingWriter = declarationCoverage.declaredMembersWithoutWriter
   .filter((member) => !TYPE_ONLY_DECLARATIONS.has(member));
@@ -4295,8 +4302,10 @@ assert.doesNotMatch(
 assert.equal(declarationCoverage.uniqueSurfaces, 68, "unique publication surfaces");
 assert.equal(declarationCoverage.publicationOccurrences, 71, "publication occurrences, which exceed unique surfaces");
 // `0.33.33.42.46` publishes the previously declared checklist seam and strikes its type-only record.
-assert.equal(declarationCoverage.knownMembers.length, 66, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 66, "declared LongtailForge members");
+// `0.33.33.38.2.13` declares `workbenchTaskFocusPresentation` ahead of its writer: known and
+// declared move to 67 while published stays 66 until `0.33.33.42.47` publishes it and strikes the record.
+assert.equal(declarationCoverage.knownMembers.length, 67, "known LongtailForge members, which are not all governed surfaces");
+assert.equal(declarationCoverage.declaredMembers.length, 67, "declared LongtailForge members");
 assert.equal(declarationCoverage.publishedMembers.length, 66, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
