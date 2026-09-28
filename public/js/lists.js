@@ -3863,8 +3863,7 @@
   }
 
   /**
-   * `status` is required text rather than optional: both callers read it off a record whose own
-   * parameter is untyped, and the map lookup below cannot be indexed by an absent value.
+   * Normalized records may omit status; preserve the label lookup and its Read-only fallback.
    * @param {string | undefined} status
    */
   function readonlyBadge(status) {
