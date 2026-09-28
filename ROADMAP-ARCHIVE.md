@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.50 - Clients/Projects record writers
+
+**Model: High Effort** - the page's write paths, where the request shape and data integrity are the risk. They were traced before any typing.
+
+- [x] **Measured.** On `nightly` `f966eb38`: 14 diagnostics across the seven writers. One is a TS2339 on `createClientRecord`'s `viewState`, which defaulted to `{}`.
+- [x] **The requests, traced.** Every writer runs inside `persistClientProjectChange`, which owns the refresh, the flash, the open rows and the host completion.
+  - **`createClientRecord`** POSTs `/api/clients` with `{ ...client, action }`. It merges the saved client back into the draft, records the saved identifiers on the action, and sets `viewState.openClientId`. It then posts the first initial project under the saved client. **Observation, not changed:** its only caller always sends `projects: []`, so that branch is not reached today.
+  - **`saveClientRecord`** PUTs `/api/clients/:id`.
+  - **`createProjectRecord`** POSTs `/api/projects` for the workspace grouping, `/api/clients/:id/projects` otherwise, and merges the saved project back.
+  - **`saveProjectRecord`** PUTs `/api/projects/:id` with `confirm_downstream_update`.
+  - **`archiveProjectRecord`** DELETEs `/api/projects/:id`, with no body.
+  - **The tag payload.** `withOptionalTagPayload` spreads the record then the extras, and drops `tagIds` unless the record owns it. `withoutTagPayload` copies a client without `tagIds` or `tag_ids`.
+- [x] **The change: annotations only, from the callers.**
+  - Named draft types, each an open record plus the one member read, because each draft is spread wholesale into its request.
+  - The normalised records with their save-time `tagIds`, and `NormalizedClientEntry` for the project target.
+  - The existing `ClientProjectAction` and `ClientProjectViewState` typedefs.
+  - Every body is unchanged, and no new option is honoured.
+- [x] **One planned type revised by the compiler.** `withoutTagPayload` was planned generic, over `{ tagIds?, tag_ids? }`. That constraint is a weak type, with every member optional, and a normalised client, which carries neither member, fails it with TS2559. Both callers are client saves, so it takes that concrete type and keeps it for the save it feeds.
+- [x] **Proof.**
+  - **Body identity.** Every body equals its `f966eb38` body once JSDoc is removed.
+  - **Request-for-request comparison.** Every writer ran through the real `persistClientProjectChange` beside its `f966eb38` version, against a capturing API, with responses built from the page's own lifted member lists so the real readers accept them. Twelve scenarios and three refused writes produced identical results. Compared: each request's method, URL and body (key order included), the merged-back drafts, actions, view state and open-row globals, and the refresh, flash, status and host-completion calls.
+  - **Mutations.** Nine, each caught: owned tags always stripped, extras spread first, `tag_ids` kept, the created client not reopened, a workspace project posted to a client route, the confirmation defaulting to true, the archive sent as an update, the initial project's id not defaulted, and the saved client not merged back.
+  - **Compiler probes.** Seven annotations are load-bearing.
+  - **Existing coverage.** The five writer and payload regressions and all 26 Clients/Projects unit files pass. So do the five Clients/Projects browser specs at both viewports - Edit Client, Add Client and Edit Project saves - run as the separate rendered gate.
+- [x] **Accounting.** `clients-projects.js` 75 to 61, browser 105 to 91: **14 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.38.2.12 - Workbench Task Focus checklist contract
 
 **Model: High Effort** - the shared prerequisite for Codex's Task Focus checklist extraction (`0.33.33.42.46`), declared ahead of its writer.
