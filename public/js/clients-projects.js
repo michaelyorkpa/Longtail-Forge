@@ -2152,6 +2152,12 @@
     });
   }
 
+  /**
+   * The client editor's name, parent, status and tag row. Its one caller passes
+   * `showSaveButton: false`, so the save-button branch is not reached today.
+   * @param {NormalizedClientRecord} client
+   * @param {{ showSaveButton?: boolean }} [options]
+   */
   function createClientNameEditor(client, options = {}) {
     const showSaveButton = options.showSaveButton !== false;
     const wrapper = document.createElement("div");
@@ -2192,6 +2198,7 @@
     return wrapper;
   }
 
+  /** @param {NormalizedClientRecord} client */
   function createParentClientField(client) {
     const label = document.createElement("label");
     const select = document.createElement("select");
@@ -2206,6 +2213,10 @@
     return label;
   }
 
+  /**
+   * The parent-client choices, leaving out a client and its descendants when one is named.
+   * @param {HTMLSelectElement} select
+   */
   function populateParentClientSelect(select, excludedClientId = "") {
     if (!select) {
       return;
@@ -2272,6 +2283,17 @@
     return wrapper;
   }
 
+  /**
+   * The client's billing-contact fields. Like the name editor, its one caller passes
+   * `showSaveButton: false`, so the form saves through the whole client editor.
+   *
+   * **`client` is left undeclared for now.** Declaring it `NormalizedClientRecord` is correct, but
+   * it exposes the contact write below: `normalizeBillingContact` keeps each truthy value as it
+   * arrived, so the value is `unknown`, and only the input's own `value` setter converts it.
+   * Spelling that conversion out is a body change, which `0.33.33.43.52` records for a decision
+   * rather than makes.
+   * @param {{ showSaveButton?: boolean }} [options]
+   */
   function createBillingContactEditor(client, options = {}) {
     const showSaveButton = options.showSaveButton !== false;
     const details = document.createElement("details");
@@ -2346,6 +2368,7 @@
     return details;
   }
 
+  /** @param {string} clientId The target entry's id, written to the button's `dataset`. */
   function createAddProjectSubmitButton(clientId) {
     const button = document.createElement("button");
 
@@ -3038,7 +3061,8 @@
       : [clientAssignmentLabel, parentProjectLabel, statusLabel];
     wrapper.append(
       nameLabel,
-      ...identityFields.filter(Boolean),
+      // Only a created label or `null` reaches this array, so this keeps what `Boolean` kept.
+      ...identityFields.filter((label) => label !== null),
       clientActions,
       taskDefaultsEditor.element,
       tagPicker.element,
@@ -3664,6 +3688,7 @@
     updateBillableState();
 
     const saveButton = createAddProjectSubmitButton(client.id);
+    /** @type {Array<HTMLLabelElement | HTMLDivElement>} */
     const formFields = [
       nameLabel,
     ];

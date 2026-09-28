@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.52 - Clients/Projects client editors and the editor type tail
+
+**Model: Medium Effort** - annotations on five editors and two locals in one module, with one body spelling proved equivalent over the only values that can reach it.
+
+- [x] **Measured.** On `nightly` `88823b7a`: 9 diagnostics - the five client editors (7) and two type mismatches in the project editor and the add-project form.
+- [x] **The callers, traced by the compiler.** Every parameter was temporarily typed `symbol`, and the file was byte-restored.
+  - `createClientNameEditor` and `createBillingContactEditor`: one caller each, passing a `NormalizedClientRecord` and `{ showSaveButton: false }`. **Observation, not changed:** both save-button branches are not reached today.
+  - `createParentClientField`: the record. `populateParentClientSelect`: an `HTMLSelectElement` from both callers.
+  - `createAddProjectSubmitButton`: a `NormalizedClientEntry`'s `id`, whose only sink is a `dataset` write, so it takes `string`.
+- [x] **The change.**
+  - Annotations from the callers, including `options` as `{ showSaveButton?: boolean }`, and `createAddProjectForm`'s `formFields` as the `Array<HTMLLabelElement | HTMLDivElement>` it holds.
+  - **One body spelling:** `identityFields.filter(Boolean)` became `filter((label) => label !== null)`, which the compiler narrows. Read in full, the three members are created labels or `createProjectClientAssignment`'s `null`, so the two filters agree on every value that can reach it. The business-boundary regression's pin on the old spelling was retargeted with its claim kept.
+- [x] **One relocated defect, backed out.** Declaring `createBillingContactEditor`'s `client` exposed a new TS2322 at `input.value = client.billing_contact[fieldName]`. `normalizeBillingContact` keeps each truthy value as it arrived, so the value is `unknown`, and only the input's `value` setter converts it. The annotation was backed out rather than banked. Spelling the conversion is a body change, **recorded for a decision**. The plan's 9 became 8.
+- [x] **One surplus annotation not added.** `populateParentClientSelect`'s excluded id already infers `string` from its default.
+- [x] **Proof.**
+  - **Body identity.** Every other body equals its `88823b7a` body once JSDoc is removed. The project editor differs by exactly the one line.
+  - **Side-by-side runs.** In a document that appends as the platform does - a non-node becomes a text node, so an escaped `null` would appear as the text "null" - the editors' DOM and save calls matched `88823b7a`:
+    - the name editor as its caller builds it, with its save button, and outside a business workspace;
+    - the parent choices, excluding a client and its descendants and keeping the current value;
+    - the contact editor in both modes, with its submits;
+    - the submit button;
+    - the project editor inline and in the modal, with and without a client assignment, and with simplified billing and an action target.
+  - **Mutations.** Fourteen, each caught, including a filter that keeps `null`, a changed modal field order and an untrimmed contact save. Two anchors that matched twice were widened and re-run.
+  - **Compiler probes.** Every remaining annotation and the spelling are load-bearing.
+  - **Existing coverage.** 221 Clients/Projects-related unit tests pass. The pin search, raw and escaped, found the one `filter(Boolean)` pin.
+- [x] **Accounting.** `clients-projects.js` 45 to 37, browser 75 to 67: **8 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.38.2.13 - Workbench Task Focus presentation contract
 
 **Model: Medium Effort** - declarations only, taken verbatim from a plan the compiler had already probed; the governance record follows the `0.33.33.38.2.12` precedent.

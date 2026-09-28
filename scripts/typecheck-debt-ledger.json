@@ -556,6 +556,7 @@
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/clients-projects-bulk-update-contracts.test.mjs",
+        "tests/unit/clients-projects-client-editors-contracts.test.mjs",
         "tests/unit/clients-projects-create-outcome-contracts.test.mjs",
         "tests/unit/clients-projects-descriptor-pipeline-contracts.test.mjs",
         "tests/unit/clients-projects-dialog-opener-contracts.test.mjs",
@@ -948,20 +949,12 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 75,
+      "errorCount": 67,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
             "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2739,
-            "count": 1
+            "count": 4
           },
           {
             "code": 7005,
@@ -969,7 +962,7 @@
           },
           {
             "code": 7006,
-            "count": 29
+            "count": 25
           },
           {
             "code": 7034,
@@ -1603,8 +1596,8 @@
     }
   },
   "totals": {
-    "files": 1530,
-    "errors": 75,
+    "files": 1531,
+    "errors": 67,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
