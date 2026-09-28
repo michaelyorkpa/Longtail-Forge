@@ -578,6 +578,7 @@
         "tests/unit/clients-projects-read-surface-contracts.test.mjs",
         "tests/unit/clients-projects-record-writers-contracts.test.mjs",
         "tests/unit/clients-projects-related-projects-contracts.test.mjs",
+        "tests/unit/clients-projects-settings-rounding-contracts.test.mjs",
         "tests/unit/clients-projects-state-contracts.test.mjs",
         "tests/unit/clients-projects-tag-filter-modal-contracts.test.mjs",
         "tests/unit/clients-projects-write-path-contracts.test.mjs",
@@ -960,12 +961,12 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 35,
+      "errorCount": 33,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
             "code": 7006,
-            "count": 7
+            "count": 5
           }
         ],
         "public/js/lists.js": [
@@ -1587,8 +1588,8 @@
     }
   },
   "totals": {
-    "files": 1542,
-    "errors": 35,
+    "files": 1543,
+    "errors": 33,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

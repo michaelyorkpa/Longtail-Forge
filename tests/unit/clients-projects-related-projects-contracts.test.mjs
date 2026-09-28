@@ -127,6 +127,9 @@ function renderedFrom(text) {
   vm.runInContext(declaration(text, "  const projectTaskAssigneeModeLabels = {", "\n  };"), context);
   vm.runInContext(declaration(text, "  let workspaceSettings = {", "\n  };"), context);
   for (const name of CLOSURE) vm.runInContext(extractFunctionBlock(text, name), context);
+  // `0.33.33.43.57` reads the rounding rule through the page's wire reader, so it joins the
+  // sandbox for any version that has one.
+  if (text.includes("  function readWireMember(")) vm.runInContext(extractFunctionBlock(text, "readWireMember"), context);
   const variants = vm.runInContext(`(() => {
     clientProjectData = normalizeData(wire);
     const [client, empty] = clientProjectData.clients;

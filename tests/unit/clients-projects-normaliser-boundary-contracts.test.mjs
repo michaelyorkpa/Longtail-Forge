@@ -13,6 +13,10 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
  * its `03f859c0` body once comments are removed, the contact reader differs by exactly its
  * accumulator, and it answers what it did for every contact shape - absent, empty, falsy, truthy,
  * extra and getter-backed members - with a fresh record on every call.
+ *
+ * LATER: `0.33.33.43.57` typed the settings reader and the rounding reader under the operator's
+ * approval, so they leave the unchanged and held lists here. Their proof is
+ * `clients-projects-settings-rounding-contracts`.
  */
 
 const BASE = "03f859c0";
@@ -29,7 +33,7 @@ const VERSIONS = [["current", current], [BASE, baseline]];
 
 const UNCHANGED = [
   "canCreateChildClient", "canCreateProjectForClient", "canManageProjectClientScope",
-  "normalizeClientRecord", "normalizeData", "normalizeProjects", "normalizeSettings", "normalizeBillingRounding",
+  "normalizeClientRecord", "normalizeData", "normalizeProjects",
 ];
 
 /** A function block without its comments, so only an annotation or a note can differ. @param {string} block */
@@ -95,7 +99,7 @@ describe("Only annotations, notes and the contact accumulator changed", () => {
   });
 
   it("records the held wire normalisers and rounding reader as pending, not typed", () => {
-    for (const name of ["normalizeData", "normalizeProjects", "normalizeSettings"]) {
+    for (const name of ["normalizeData", "normalizeProjects", "normalizeClientRecord"]) {
       const at = current.indexOf(`  function ${name}(`);
       const doc = current.slice(current.lastIndexOf("/**", at), at);
       expect(doc, name).toMatch(/pending/);

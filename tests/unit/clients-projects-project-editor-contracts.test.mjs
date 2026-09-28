@@ -22,6 +22,7 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 const source = createProjectTextReader().readText("public/js/clients-projects.js");
 
 const READERS = [
+  "readWireMember",
   "vocabularyHas",
   "normalizeBillingPeriod",
   "normalizeBillingRounding",

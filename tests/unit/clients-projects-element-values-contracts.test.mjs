@@ -110,6 +110,9 @@ function pageFrom(text, options = {}) {
   if (text.includes("  function requireCheckedDom() {")) {
     vm.runInContext(extractFunctionBlock(text, "requireCheckedDom"), sandbox);
   }
+  // `0.33.33.43.57` reads the rounding rule through the page's wire reader, so it joins the
+  // sandbox for any version that has one.
+  if (text.includes("  function readWireMember(")) vm.runInContext(extractFunctionBlock(text, "readWireMember"), sandbox);
   for (const name of LIFTED) {
     vm.runInContext(extractFunctionBlock(text, name), sandbox);
   }

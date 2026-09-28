@@ -245,7 +245,7 @@ describe("Reading one module setting", () => {
   }
 
   it("answers the stored value from the right module", () => {
-    const { readModuleSettingValue } = lift(["readModuleSettingValue"], { Object });
+    const { readModuleSettingValue } = lift(["readWireMember", "callWireMethod", "readModuleSettingValue"], { Object });
 
     assert.equal(readModuleSettingValue(settings(), "client-projects", "defaultBillingRate", "fallback"), "42");
   });
@@ -255,7 +255,7 @@ describe("Reading one module setting", () => {
    * value. Only one that was never written falls back.
    */
   it("keeps a falsy stored value rather than falling back", () => {
-    const { readModuleSettingValue } = lift(["readModuleSettingValue"], { Object });
+    const { readModuleSettingValue } = lift(["readWireMember", "callWireMethod", "readModuleSettingValue"], { Object });
 
     assert.equal(readModuleSettingValue(settings(), "client-projects", "billingPeriodStartDay", 99), 0);
     assert.equal(readModuleSettingValue(settings(), "client-projects", "emptyText", "fallback"), "");
@@ -263,7 +263,7 @@ describe("Reading one module setting", () => {
   });
 
   it("falls back for a setting with no value, an unknown setting, or an unknown module", () => {
-    const { readModuleSettingValue } = lift(["readModuleSettingValue"], { Object });
+    const { readModuleSettingValue } = lift(["readWireMember", "callWireMethod", "readModuleSettingValue"], { Object });
 
     assert.equal(readModuleSettingValue(settings(), "client-projects", "noValue", "fallback"), "fallback");
     assert.equal(readModuleSettingValue(settings(), "client-projects", "invented", "fallback"), "fallback");
@@ -271,7 +271,7 @@ describe("Reading one module setting", () => {
   });
 
   it("falls back for a payload carrying no module settings at all", () => {
-    const { readModuleSettingValue } = lift(["readModuleSettingValue"], { Object });
+    const { readModuleSettingValue } = lift(["readWireMember", "callWireMethod", "readModuleSettingValue"], { Object });
 
     assert.equal(readModuleSettingValue(null, "client-projects", "defaultBillingRate", "fallback"), "fallback");
     assert.equal(readModuleSettingValue({}, "client-projects", "defaultBillingRate", "fallback"), "fallback");
@@ -279,16 +279,15 @@ describe("Reading one module setting", () => {
 });
 
 describe("The cascade this checkpoint measured and did not bank", () => {
-  it("leaves the rounding reader untyped, and records why", () => {
-    // Declaring it makes the reader's return concrete, which flows through `normalizeData` into
-    // the client and project records and meets two consumers the current inference hides.
+  it("was discharged at 0.33.33.43.57, and the rounding reader now takes the wire's value", () => {
+    // The deferral this pinned is gone: the reader takes `unknown`, and its real consequence was
+    // the rounding editor's inherited increment, not the slots this note once named.
+    // `clients-projects-settings-rounding-contracts` proves the reader and the editor.
     const at = source.indexOf("function normalizeBillingRounding(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
 
-    assert.doesNotMatch(block, /@param \{[^}]*\} \[?rounding\]?/,
-      "the rounding reader is annotated; this deferral is discharged and the pin should go with it");
-    assert.match(block, /inference cascade,[\s*]*not a defect/,
-      "and the note still distinguishes the cascade from a dropped member");
+    assert.match(block, /@param \{unknown\} \[rounding\]/, "the rounding reader takes the wire's own value");
+    assert.doesNotMatch(block, /inference cascade/, "and the retired cascade note is gone");
   });
 
   it("confirms the member the cascade appeared to be about is genuinely built", () => {

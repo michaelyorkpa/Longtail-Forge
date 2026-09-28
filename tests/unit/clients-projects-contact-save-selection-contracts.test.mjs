@@ -78,6 +78,9 @@ function boundaryFrom(text, settings = {}) {
     function getEffectiveClientBillingPeriod(client) { return client.billing_period || { type: "calendarMonth", startDay: 1 }; }
     function getEffectiveClientBillingRounding(client) { return client.billing_rounding || { enabled: false, increment: "nearestQuarterHour" }; }
   `, context);
+  // `0.33.33.43.57` reads the rounding rule through the page's wire reader, so it joins the
+  // sandbox for any version that has one.
+  if (text.includes("  function readWireMember(")) vm.runInContext(extractFunctionBlock(text, "readWireMember"), context);
   for (const name of LIFTED) vm.runInContext(extractFunctionBlock(text, name), context);
   /** @type {BoundaryFunctions & { setSurface: (surface: unknown) => void }} */
   const page = vm.runInContext("({ saveClientSettings, querySelectionInputs, setSurface })", context);
