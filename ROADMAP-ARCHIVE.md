@@ -1,5 +1,37 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.54 - Clients/Projects tag, filter and modal helpers
+
+**Model: Medium Effort** - annotations on eight helpers, and two DOM narrowings in one listener, each decided by a traced producer.
+
+- [x] **Measured.** On `nightly` `1657a3aa`: 15 diagnostics in nine helpers. There were four TS2339s on the `{}` default of a destructured bag (`mountSearchOptions`, two `setOptions` and `applyQueryActions`) and eleven TS7006s.
+- [x] **The option bags (operator correction A).**
+  - `registerBehavior` publishes its handler as `unknown`, so no framework context type exists to reuse.
+  - The two hydrators' only caller, the renderer's `flushMounts`, always passes `mountSearchOptions` and `setOptions` as functions, and the `{}` default passes neither.
+  - So `ClientProjectOptionSourceContext` declares exactly those two, both optional, with the published `BrowserSearchOptionsConfig`. The bodies are unchanged, so the callable check, the optional call and the absent case stay as they were, and a non-callable `setOptions` still throws `TypeError: setOptions is not a function` - now pinned.
+  - `loadPageData` declares the one optional member its caller passes.
+- [x] **The bulk-selection listener (operator correction B).** Declared from its two callers' region `Element`, it exposed the two reads its note had recorded; the note is replaced. Each read is narrowed where its producer decides:
+  - **The surface.** Only the view renderer writes `data-view-surface-id`, on the `<section>` it creates, so the surface is checked as an `HTMLElement`.
+  - **The change target.** Nothing dispatches a synthetic `change`, so the target is checked as an `Element` before `matches`.
+  - **The one difference, which no producer reaches:** a non-element target, which used to throw inside the listener, is skipped. It is pinned as a synthetic probe, not a producer value.
+  - Nearest-surface selection, the bound flag, one listener per record type, record-type filtering and the selection updates are unchanged.
+- [x] **The rest, from the compiler-traced callers:** the commit group's buttons, the footer's `HTMLDivElement`, the chips' `HTMLSpanElement` with a record's tags (rendered only as an array), and the picker's label and `unknown[]` tags, as the tag picker accepts them.
+- [x] **Proof.**
+  - **Body identity.** Eight bodies equal their `1657a3aa` bodies once JSDoc is removed, and the listener differs by exactly its two edits.
+  - **Side-by-side runs**, with outcomes (thrown ones included) compared as data:
+    - the option bags with a callable, a non-callable and an absent `mountSearchOptions`, an absent bag, and a throwing non-callable `setOptions`;
+    - both hydrators inside and outside a business workspace;
+    - `loadPageData` holding back, applying and failing;
+    - the listener across record types, a double binding and no surface.
+  - **Real browser.** The real-browser half of the listener claim is the rendered Projects bulk-toolbar case, which drives real row checkboxes through it.
+  - **Mutations.** Nine, each caught.
+  - **Compiler probes.** Every annotation and both narrowings are load-bearing.
+  - **Pins.** The raw and escaped pin search found nothing to retarget.
+  - **Existing coverage.** 258 related unit tests pass.
+- [x] **Accounting.** `clients-projects.js` 31 to 16, browser 61 to 46: **15 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Recorded, not rewritten: `1657a3aa` lacks its `LTF-Checkpoint` trailer.** The `0.33.33.42.47` integration squash (#829) copied Codex's trailers with `tail -3`, and the message's trailing newline dropped `LTF-Checkpoint: 0.33.33.42.47`. CI never reads nightly's squash trailers - the pull-request gate validates only its own range - and published history is not rewritten. Every squash body is now checked for exactly three trailer lines before merging.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.42.47 - Extract Task Focus presentation
 
 **Model: High Effort** - one presentation boundary with opaque inputs, live state and mounts, and identity-sensitive event handoffs.
