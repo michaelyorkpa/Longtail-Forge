@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). Remaining presentation planned (`39b71e81`, held at `b85c0dd8`): one seam, 29 functions / 631 lines once the three shared readers stay host code. Its shared contract landed as `0.33.33.38.2.13` and `0.33.33.38.2.14`, so implementation resumes under `.42.47`; what the parent's extraction criterion requires is with the operator | 0 owned |
-| Claude | `0.33.33.43.53` | Client editors typed at `0.33.33.43.52`. `clients-projects.js` 37 and `lists.js` 30 remain, all owned families. Next: the `activeClientProjectsReadSurface` state boundary; then the tag/filter/modal helpers, the `saveClientSettings`/`querySelectionInputs` lookup boundary with the billing-contact conversion awaiting a decision, and the normalisers (the wire trust boundary) last | 67 |
+| Claude | `0.33.33.43.54` | Read surface typed at `0.33.33.43.53`. `clients-projects.js` 31 and `lists.js` 30 remain, all owned families. Next: the tag, filter and modal helpers (15); then the `saveClientSettings`/`querySelectionInputs` lookup boundary with the contact editor (5, the billing-contact conversion awaiting a decision), and the normalisers (the wire trust boundary, 11) last | 61 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1630,33 +1630,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 #### 0.33.33.43.53 - Clients/Projects read-surface state boundary
 
-**Model: Medium Effort** - one slot declared from its writer, and its directly connected reads narrowed with it. Two body spellings are each proved equivalent over the values that can reach them.
-
-**Measured on `nightly` `9747680c`:** 5 diagnostics.
-- `activeClientProjectsReadSurface`'s declaration (TS7034), recorded as a deliberate deferral to this cluster and pinned by `clients-projects-state-contracts`.
-- Its four reads (TS7005): `querySelectionInputs`, `selectedProjectClientFilterValue`, `refreshActiveClientProjectsReadSurface` and the page-controller smoke check.
-
-**Traced.** The one writer, `initializeClientProjectsPage`, stores `renderClientProjectsReadSurface()`. That returns `null`, or the framework's `renderSurface` result, which asserts it built a surface element before returning it. The declared type is therefore `BrowserViewSurfaceElement | null`, and it carries `refresh`.
-
-**The two exposures, and why each fix keeps behaviour:**
-- **`querySelectionInputs`.** `[surface, document].filter(Boolean)` does not narrow away `null`. The slot holds `null` or an element, and `document` is never falsy, so `root !== null` keeps exactly what `Boolean` kept.
-- **`selectedProjectClientFilterValue`.** It reads `value` off a plain `Element`. The server descriptor declares the filter `type: "select"`, and the framework renders it as `<select name="clientId">`. Nothing else in this module is named `clientId`: the module's own dialogs create selects without a `name`. So the checked lookup for `HTMLSelectElement` finds the element the bare lookup found. The static service injects `checked-dom.js` ahead of every page script, so the lookup adds no failure, and it is reached only when a surface exists. **The one difference, which no path reaches:** a non-`select` element named `clientId` is no longer read.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Declare the slot** from its writer, `ReturnType<typeof renderClientProjectsReadSurface>`, and discharge the deferral note and its pin.
-- [ ] **Two spellings**, as above; no other body changes. `querySelectionInputs`' own `inputs` diagnostics stay with the lookup boundary.
-- [ ] **Proof.**
-  - Body identity, with the two edits named exactly.
-  - Side-by-side runs against `9747680c` with the real `checked-dom.js`, comparing outcomes as data:
-    - the filter value with no surface, no filter, "All", the workspace token, a client and a padded client;
-    - the refresh with no surface, a surface, and a non-function `refresh`;
-    - selection-input discovery with and without a surface;
-    - the smoke check, unchanged.
-  - Mutations, compiler probes and a per-message delta.
-  - Grep-tool retargets of the state-contracts, project-assignment and hierarchy-move pins.
-- [ ] **Expected accounting:** 5 closed, plus the `input` parameter the typed root closes: `clients-projects.js` 37 to 31, browser 67 to 61.
-- [ ] **Verification:** range-explicit `verify:slice` from `9747680c` on port 8101, and the four Clients/Projects page specs.
+**Complete: the read surface declared from its writer, 6 diagnostics closed, and two reads narrowed with proofs.** See the archive entry. `clients-projects.js` 37 to 31, browser 67 to 61.
 
 #### 0.33.33.43.52 - Clients/Projects client editors and the editor type tail
 
