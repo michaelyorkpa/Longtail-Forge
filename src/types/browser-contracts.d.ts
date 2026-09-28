@@ -6027,6 +6027,61 @@ export interface BrowserWorkbenchBootstrap {
 }
 
 /**
+ * The active Task Focus as the checklist renderer reads it (`0.33.33.38.2.12`).
+ *
+ * Every member is optional and states what Workbench's producer supplies, not a validation: the
+ * renderer receives the original active object, never a copy. The checklist items, the progress
+ * the task carries, and the identity of the item being changed stay `unknown`, because the renderer
+ * reads them through its own checked readers and must not narrow them for Workbench.
+ */
+export interface BrowserWorkbenchTaskFocusChecklistState {
+  task?: { checklistItems?: unknown; checklistProgress?: unknown } | null;
+  isLoading?: boolean;
+  error?: string;
+  checklistError?: string;
+  checklistMutationItemId?: unknown;
+}
+
+/**
+ * The Workbench functions the checklist renderer calls, injected rather than reached for.
+ *
+ * Each is the existing Workbench function under its own name and signature: Workbench keeps its
+ * view acquisition, empty-state and text helpers, section summary, disclosure state, and the
+ * change handler that owns every checklist write. The renderer binds them to local names so each
+ * is still called bare.
+ */
+export interface BrowserWorkbenchTaskFocusChecklistHost {
+  requireView(): BrowserViewFactory;
+  emptyState(message: string | null): HTMLDivElement;
+  safeTaskFocusText(value: unknown, fallback?: string): string;
+  createWorkbenchSectionSummary(options: {
+    bodyId?: string;
+    count?: HTMLElement | null;
+    subtitle?: HTMLElement | null;
+    title: string;
+  }): HTMLElement;
+  setWorkbenchDisclosureOpen(details: HTMLDetailsElement | null, open: unknown): void;
+  handleTaskFocusChecklistChange(event: Event): Promise<void>;
+}
+
+/** One checklist renderer, bound to the host that created it. */
+export interface BrowserWorkbenchTaskFocusChecklistRenderer {
+  /** The checklist section for the active Task Focus, or for none. */
+  render(active: BrowserWorkbenchTaskFocusChecklistState | null): HTMLDetailsElement;
+}
+
+/**
+ * `LongtailForge.workbenchTaskFocusChecklist`, published by
+ * `public/js/workbench-task-focus-checklist.js` (`0.33.33.42.46`).
+ *
+ * Presentation only: Workbench keeps the Task Focus state, API writes, request guards, event
+ * handling, focus and recovery, and hands the renderer the host functions it needs.
+ */
+export interface BrowserWorkbenchTaskFocusChecklist {
+  create(host: BrowserWorkbenchTaskFocusChecklistHost): BrowserWorkbenchTaskFocusChecklistRenderer;
+}
+
+/**
  * The resume context both task-timer producers reconstruct.
  *
  * **Twelve members, built identically by three shapers.** `timerToTaskTimer` builds it from the
@@ -7900,6 +7955,11 @@ export interface LongtailForgeBrowserNamespace {
   viewSearchOptions?: BrowserViewSearchOptions;
   viewSurfaceDescriptor?: BrowserViewSurfaceDescriptorAdapter;
   viewResponseRecords?: BrowserViewResponseRecords;
+  /**
+   * The Task Focus checklist renderer Workbench composes (`0.33.33.38.2.12`). Declared ahead of its
+   * writer, `0.33.33.42.46`, through governance's type-only record, which that checkpoint strikes.
+   */
+  workbenchTaskFocusChecklist?: BrowserWorkbenchTaskFocusChecklist;
   /**
    * The same bootstrap, called once at load, as a synchronisation barrier.
    *

@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.12 - Workbench Task Focus checklist contract
+
+**Model: High Effort** - the shared prerequisite for Codex's Task Focus checklist extraction (`0.33.33.42.46`), declared ahead of its writer.
+
+- [x] **Why.**
+  - **The extraction.** Codex's planning commit `6ad23bdf` chose eight checklist presentation functions, 140 body lines, to move into `public/js/workbench-task-focus-checklist.js`. That file publishes `LongtailForge.workbenchTaskFocusChecklist.create(host).render(active)`. A new namespace member and its types are shared contracts, so they are Claude's.
+  - **The landing-order problem.** Codex noted that governance rejects a declared member with no runtime writer. It does, unless the member is recorded in `TYPE_ONLY_DECLARATIONS` with a reason. That record is asserted by identity and has to be struck once a writer appears. This is the mechanism's first use, so the declaration lands first, as a shared prerequisite should, instead of co-landing with Codex's writer.
+- [x] **The contract**, with Codex's requested signatures.
+  - `BrowserWorkbenchTaskFocusChecklist.create(host)` returns a `...Renderer`, and `render(active: ...State | null)` returns an `HTMLDetailsElement`.
+  - The `...Host` names Workbench's six existing functions by their own signatures.
+  - The `...State` keeps every member optional as a producer precondition. Checklist items, progress and mutation identity stay `unknown`.
+  - The optional namespace member is `workbenchTaskFocusChecklist`. No other contract changes.
+- [x] **The record.**
+  - `workbenchTaskFocusChecklist` is recorded as "declared ahead of its writer: 0.33.33.42.46 publishes it from public/js/workbench-task-focus-checklist.js and strikes this record."
+  - The pinned known and declared counts move from 65 to 66; published stays 65.
+  - Two unit pins that equated declared with published now count the record.
+  - The settings-renderer pin asserted "declaring a member does not discover one", but governance defines known as the union of declared and published. It is retargeted to its real claim: `settingsRenderer` was already published, so declaring it discovered nothing.
+- [x] **Proof.**
+  - **Governance, both directions.** It passes with the record. It fails without it: "declared but nothing publishes them: workbenchTaskFocusChecklist". It also fails once an aliased writer appears while the record stands: "a spent record must be struck". Every file was restored from a byte copy and verified by hash.
+  - **Compiler probe.** Workbench's six real host functions and its `ActiveTaskFocus | null` are assignable to the contract with no new diagnostic. A control with a mismatched change handler is refused with TS2322.
+  - **Contract pins.** A new suite pins the requested signatures and the record's reason.
+- [x] **Finding, recorded not changed.** A write through a call result, such as `requireNamespace().X = ...`, is invisible to the publication inventory, which resolves writers through bound aliases of `window.LongtailForge`. The first spent-record probe passed for exactly that reason. `0.33.33.42.46` must therefore publish through an alias or directly.
+- [x] **Accounting.** Browser 105, server/tests and scripts 0, no explicit `any`; root optionality now reads 66 declared of 66 known.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the contract is declared in `browser-contracts.d.ts`.
+
 ## Version 0.33.33.43.49 - Clients/Projects project assignment and context
 
 **Model: High Effort** - this cluster carried a result contract and a callback contract, and the compiler flagged both. Both were traced before any typing.

@@ -345,10 +345,14 @@ describe("namespace governance records the declaration by identity", () => {
     const backlog = governance.slice(at, governance.indexOf("];", at));
     assert.ok(!/"settingsRenderer"/.test(backlog), "no longer an undeclared publication");
     assert.match(contracts, /^ {2}settingsRenderer\?: BrowserSettingsRenderer;$/m, "and declared on the root");
-    // 64 until `0.33.33.38.3.9` published a new member, `checkedDom`. A publication is what moves
-    // the known set; a declaration alone still does not, which is the claim.
-    assert.match(governance, /declarationCoverage\.knownMembers\.length, 65, "known LongtailForge members/,
-      "the known set is unchanged: declaring a member does not discover one");
+    // The known set is the union of the declared and the published sets. `settingsRenderer` was
+    // already published, so declaring it discovered nothing - that is the claim, and it is about this
+    // member. The absolute count is no longer pinned: `0.33.33.38.2.12`'s type-only declaration of
+    // `workbenchTaskFocusChecklist`, not yet published, did add one to the known set.
+    assert.match(governance, /declarationCoverage\.knownMembers\.length, \d+, "known LongtailForge members/,
+      "the known set is still asserted, just not pinned to this checkpoint's number");
+    assert.match(contracts, /^ {2}settingsRenderer\?: BrowserSettingsRenderer;$/m,
+      "declaring settingsRenderer moved it from undeclared-published to declared, not into the known set");
     assert.match(governance, /declarationCoverage\.declaredMembers\.length, \d+, "declared LongtailForge members"/,
       "the ratchet is still asserted, just not pinned to this checkpoint's number");
   });

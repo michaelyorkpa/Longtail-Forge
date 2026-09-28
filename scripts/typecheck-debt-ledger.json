@@ -833,6 +833,7 @@
         "tests/unit/workbench-related-context.test.mjs",
         "tests/unit/workbench-related-envelope.test.mjs",
         "tests/unit/workbench-source-data.test.mjs",
+        "tests/unit/workbench-task-focus-checklist-contract.test.mjs",
         "tests/unit/workbench-task-opener.test.mjs",
         "tests/unit/workbench-timer-actions.test.mjs",
         "tests/unit/workbench-timer-card.test.mjs",
@@ -1600,7 +1601,7 @@
     }
   },
   "totals": {
-    "files": 1523,
+    "files": 1524,
     "errors": 105,
     "explicitAny": 0
   },
