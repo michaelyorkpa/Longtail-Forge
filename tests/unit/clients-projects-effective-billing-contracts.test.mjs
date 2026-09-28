@@ -161,7 +161,7 @@ describe("The client-level resolvers", () => {
 
 /** The formatters and everything they reach for. */
 function liftFormatters() {
-  const names = ["vocabularyHas", "normalizeBillingPeriod", "normalizeBillingRounding", "formatOrdinal",
+  const names = ["readWireMember", "vocabularyHas", "normalizeBillingPeriod", "normalizeBillingRounding", "formatOrdinal",
     "normalizeBillableFlag", "formatBillingPeriod", "formatBillingRounding", ...RESOLVERS,
     "getProjectRoundingInheritLabel", "formatProjectBillingSummary"];
   const sandbox = vm.createContext({

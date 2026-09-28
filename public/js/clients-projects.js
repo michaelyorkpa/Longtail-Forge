@@ -27,6 +27,11 @@
     },
     clients: [],
   };
+  /**
+   * The workspace settings the page holds, as `normalizeSettings` answers them. `workspaceType` is
+   * whatever the settings body held once it passed the vocabulary test (`0.33.33.43.57`).
+   * @type {ReturnType<typeof normalizeSettings>}
+   */
   let workspaceSettings = {
     defaultBillingRate: "",
     billingPeriod: { type: "calendarMonth", startDay: 1 },
@@ -4335,6 +4340,51 @@
   }
 
   /**
+   * One member of a value the page received from the wire, read the way a property access reads
+   * it (`0.33.33.43.57`, approved by the operator).
+   *
+   * A non-nullish value answers `Reflect.get(Object(value), key, value)`: its own or inherited
+   * member, with the value itself as a getter's receiver - what `value[key]` answers, a primitive's
+   * included. A nullish value is where the two kinds of read part, exactly where the bare reads did:
+   * - a **required** read throws a `TypeError` there, with this file's own message;
+   * - an **optional** read answers `undefined` without reading anything, as `?.` did.
+   *
+   * Nothing is validated, defaulted, filtered or converted: the answer is whatever the member holds.
+   * @param {unknown} value
+   * @param {string} key
+   * @param {{ optional?: boolean }} [options]
+   * @returns {unknown}
+   */
+  function readWireMember(value, key, { optional = false } = {}) {
+    if (value == null) {
+      if (optional) {
+        return undefined;
+      }
+      throw new TypeError(`Clients/Projects cannot read "${key}" from ${value === null ? "null" : "undefined"} loaded data.`);
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /**
+   * Calls a method of a value the page received from the wire, as `value[key](...args)` calls it:
+   * the member is read through `readWireMember`, then applied with the value itself as the receiver
+   * (`0.33.33.43.57`). A list answers its own list method; any other value answers whatever it
+   * carries under that name. A member that cannot be called still fails with a `TypeError` at the
+   * call, now with this file's message rather than the engine's.
+   * @param {unknown} value
+   * @param {string} key
+   * @param {unknown[]} args
+   * @returns {unknown}
+   */
+  function callWireMethod(value, key, args) {
+    const method = readWireMember(value, key);
+    if (typeof method !== "function") {
+      throw new TypeError(`Clients/Projects cannot call "${key}" on loaded data where it is not a function.`);
+    }
+    return Reflect.apply(method, value, args);
+  }
+
+  /**
    * One real client, as this page holds it.
    *
    * **A real client and the workspace grouping are different records, and this file has always
@@ -4343,8 +4393,12 @@
    * branch is extracted so that **its own literal names its type** - neither shape is restated, so
    * neither can drift from what is actually built.
    *
-   * The parameter stays as the wire delivered it: the normalisers below are what convert each
-   * member, and declaring it here would claim of the response what only they establish.
+   * The parameter stays as the wire delivered it, **pending an operator decision**
+   * (`0.33.33.43.57`). Reading it as `unknown` through `readWireMember` leaves `id`, `name`,
+   * `status` and the id links `unknown`, as they honestly are, and those meet 44 string sinks
+   * across the page - URL encodes, `dataset` writes, `textContent`, control values and
+   * string-typed helpers. Each already converts implicitly; making that explicit is a policy
+   * decision, not a typing one.
    */
   function normalizeClientRecord(client) {
     const clientBillable = normalizeBillableFlag(client.billable);
@@ -4452,10 +4506,11 @@
   /**
    * The `/api/client-projects` body, as the page holds it.
    *
-   * **The parameter stays as the wire delivered it, pending an operator decision** (`0.33.33.43.56`).
-   * Nothing validates this body, so its honest type is `unknown`, and declaring that exposes every
-   * member read below; a checked read matches each exactly except the native wording for a nullish
-   * body, which is a trust-boundary decision rather than a typing one.
+   * **The parameter stays as the wire delivered it, pending an operator decision** (`0.33.33.43.57`).
+   * Its reads can go through `readWireMember`, but `clients` is read twice - to test, then to map -
+   * and only a re-test of the second read types the map. That re-test differs from the bare read
+   * for one input alone: an accessor that answers a list and then something else, which the bare
+   * read would search for its own `map`.
    */
   function normalizeData(data) {
     // Normalize immediately after every load/save so render code can trust field shapes.
@@ -4545,10 +4600,10 @@
   }
 
   /**
-   * The wire's projects, in the page's own shape. **Left as the wire delivered it with
-   * `normalizeData`, pending the same decision** (`0.33.33.43.56`): typing `projects` as `unknown`
-   * would close its diagnostics only because `Array.isArray` narrows it to an untyped array,
-   * leaving every element read unchecked with nothing left to report it.
+   * The wire's projects, in the page's own shape. **Left as the wire delivered it, pending an
+   * operator decision** (`0.33.33.43.57`). Each element can be read as `unknown` through
+   * `readWireMember`, but then `id`, `name`, `status` and the id links are `unknown` too, and they
+   * reach string sinks across the page: see `normalizeClientRecord`.
    */
   function normalizeProjects(projects, clientBillable, clientId) {
     return Array.isArray(projects)
@@ -4585,8 +4640,12 @@
   }
 
   /**
-   * The `/api/settings` body, in the page's own shape. **Left as the wire delivered it with
-   * `normalizeData`, pending the same decision** (`0.33.33.43.56`).
+   * The `/api/settings` body, in the page's own shape.
+   *
+   * Nothing validates this body, so it is `unknown` and read through `readWireMember`
+   * (`0.33.33.43.57`). Its reads were optional, so a nullish body still produces the defaults it
+   * always did. `workspaceType` is read twice, to test and then to keep, as before.
+   * @param {unknown} settings
    */
   function normalizeSettings(settings) {
     const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
@@ -4598,8 +4657,8 @@
         enabled: readModuleSettingValue(settings, "time-tracking", "billingRoundingEnabled", false),
         increment: readModuleSettingValue(settings, "time-tracking", "billingRoundingIncrement", "nearestQuarterHour"),
       }),
-      workspaceType: ["business", "personal", "family"].includes(settings?.workspaceType)
-        ? settings.workspaceType
+      workspaceType: vocabularyHas(["business", "personal", "family"], readWireMember(settings, "workspaceType", { optional: true }))
+        ? readWireMember(settings, "workspaceType")
         : "business",
     };
   }
@@ -4612,13 +4671,24 @@
    * The module list and each module's settings are described only as far as this reader walks
    * them: a module is matched by `moduleId` and a setting by `id`, and both stay `unknown` because
    * nothing here vouches for either.
-   * @param {{ moduleSettings?: { moduleId?: unknown, settings?: { id?: unknown, value?: unknown }[] }[] } | null} settings
+   *
+   * The body arrives `unknown` and every access goes through the wire readers, in the order the
+   * bare reads made them (`0.33.33.43.57`). The optional reads stay optional. Each `find` is
+   * called as it was, with the collection as its receiver, so a list searches as it did and a
+   * malformed collection fails at the call. Each element's `moduleId` or `id` stays a required
+   * read, so a malformed element fails where it failed rather than being skipped. `Object.hasOwn`
+   * converts its argument to an object itself, so boxing the setting first answers the same.
+   * @param {unknown} settings
    * @param {string} moduleId @param {string} settingId @param {unknown} fallback
    */
   function readModuleSettingValue(settings, moduleId, settingId, fallback) {
-    const moduleDefinition = (settings?.moduleSettings || []).find((item) => item.moduleId === moduleId);
-    const setting = (moduleDefinition?.settings || []).find((item) => item.id === settingId);
-    return setting && Object.hasOwn(setting, "value") ? setting.value : fallback;
+    const moduleDefinition = callWireMethod(readWireMember(settings, "moduleSettings", { optional: true }) || [], "find", [
+      (/** @type {unknown} */ item) => readWireMember(item, "moduleId") === moduleId,
+    ]);
+    const setting = callWireMethod(readWireMember(moduleDefinition, "settings", { optional: true }) || [], "find", [
+      (/** @type {unknown} */ item) => readWireMember(item, "id") === settingId,
+    ]);
+    return setting && Object.hasOwn(Object(setting), "value") ? readWireMember(setting, "value") : fallback;
   }
 
   /**
@@ -4804,23 +4874,21 @@
   /**
    * One rounding rule, in the page's own increment vocabulary.
    *
-   * **Deliberately untyped, and the cascade is why.** Declaring the parameter makes this reader's
-   * return concrete, which flows through `normalizeData` into the client and project records and
-   * meets two consumers that the current inference hides: an editor slot that infers `null` from
-   * its initialiser, and a collection that infers `never[]` from an empty one. Neither is a
-   * dropped member - `canManage` *is* built by the normaliser - so this is an **inference cascade,
-   * not a defect**, and it belongs to the state-slot boundary rather than to this reader.
-   * **Discharged by** annotating those slots, which is the next boundary in this file. Pinned by
+   * `rounding` may be the wire's own value, so it is `unknown` and read optionally
+   * (`0.33.33.43.57`). The increment is **read once and kept**, as the operator approved: the value
+   * tested is the value returned. For plain data that is the same answer the old test-then-reread
+   * gave; for an accessor it is now one read, not two, which is the approved difference and not a
+   * claim about changing getters. `enabled` is still read after the increment. Pinned by
    * `clients-projects-normalizer-contracts`.
+   * @param {unknown} [rounding]
    */
   function normalizeBillingRounding(rounding) {
     const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
-    const increment = vocabularyHas(increments, rounding?.increment)
-      ? rounding.increment
-      : "nearestQuarterHour";
+    const candidateIncrement = readWireMember(rounding, "increment", { optional: true });
+    const increment = vocabularyHas(increments, candidateIncrement) ? candidateIncrement : "nearestQuarterHour";
 
     return {
-      enabled: Boolean(rounding?.enabled),
+      enabled: Boolean(readWireMember(rounding, "enabled", { optional: true })),
       increment,
     };
   }
@@ -4998,12 +5066,14 @@
    * One rounding field, following the same inheritance model as the billing period above.
    *
    * `inheritedRounding` is read directly and normalised on the way to the effective hint, so it is
-   * required; `value` is `null` while the record inherits.
+   * required; `value` is `null` while the record inherits. Every caller hands over a rule
+   * `normalizeBillingRounding` already produced - the workspace's, or a client's effective one -
+   * so it is typed as that reader's answer (`0.33.33.43.57`).
    * @param {{
    *   legend: string,
    *   inheritLabel: string,
    *   value: ReturnType<typeof normalizeOptionalBillingRounding>,
-   *   inheritedRounding: { enabled?: unknown, increment?: unknown },
+   *   inheritedRounding: ReturnType<typeof normalizeBillingRounding>,
    *   showModeWhenUnbillable?: boolean,
    * }} options
    */
@@ -5230,8 +5300,8 @@
   /**
    * A rounding rule as the page describes it.
    *
-   * The parameter states the two members `normalizeBillingRounding` reads rather than deriving from
-   * it, because that reader is deliberately untyped and a derivation would answer `any`.
+   * The parameter states the two members `normalizeBillingRounding` reads. That reader takes
+   * `unknown` since `0.33.33.43.57`, so this stays the narrower statement of what callers pass.
    *
    * The label map is indexed with the normaliser's increment, which is always one of the three keys
    * - an unknown increment falls back to `nearestQuarterHour` - but whose static type is `string`,

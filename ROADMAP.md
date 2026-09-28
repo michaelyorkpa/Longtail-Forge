@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.61` | `0.33.33.42` complete; `lists.js` link-picker providers and debounce typed and integrated at `0.33.33.43.60`, Lists 30 to 28. Next: the seven saved-record consumers, traced against the normalised writer before choosing the reconciliation | 28 owned |
-| Claude | `0.33.33.43.57` | Normaliser boundary partly typed at `0.33.33.43.56`. `clients-projects.js` 7 remain, **held for operator decisions**: the four wire normalisers (6 - how a checked read may treat a nullish wire body) and the rounding reader (1 - its increment-select cascade). `lists.js` is Codex's | 35 |
+| Claude | `0.33.33.43.58` | Settings reader and rounding snapshot typed at `0.33.33.43.57`. `clients-projects.js` 5 remain, **held for two named operator decisions**: the record sink policy (4 - `normalizeClientRecord`, `normalizeProjects`) and `normalizeData`'s second `clients` read (1). `lists.js` is Codex's | 33 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1638,12 +1638,30 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.57 - Clients/Projects settings reader and rounding snapshot
+
+**Complete as scoped: 2 closed, 5 held for two named operator decisions.** See the archive entry, which also records the operator's `0.33.33.43.57` approvals and the correction to `0.33.33.43.56`. `clients-projects.js` 7 to 5, browser 35 to 33.
+
+- **Held: the record sink policy (4).** Typing `normalizeClientRecord` and `normalizeProjects` through the approved reader leaves `id`, `name`, `status` and the id links `unknown`, and they meet 44 string sinks:
+
+  | Sink | Count |
+  |---|---|
+  | URL encodes | 7 |
+  | `dataset` writes | 12 |
+  | `textContent` writes | 3 |
+  | input `value` writes | 2 |
+  | select `value` writes | 4 |
+  | string-typed page helpers, options and collections | 16 |
+
+  The decision is whether each sink may make its existing implicit conversion explicit, reproducing that sink's own `null` handling, or whether these wait for a validated list-response contract.
+- **Held: `normalizeData`'s second `clients` read (1).** Typing the map needs a re-test of the second read. That differs from the bare read only for an accessor that answers a list and then something else, whose own `map` the bare read would call.
+
 #### 0.33.33.43.56 - Clients/Projects normalisers, the wire trust boundary
 
 **Complete as scoped: 4 closed, 7 held for operator decisions.** See the archive entry. `clients-projects.js` 11 to 7, browser 39 to 35.
 
 - **Held: the wire normalisers (6).** `normalizeData`, `normalizeClientRecord`, `normalizeProjects` and `normalizeSettings` receive bodies nothing validates. A checked read matches the native read for objects and primitives, but not for a nullish body. The decision is whether a checked required read may throw its own `TypeError` there, synchronously, or whether these wait for a validated list-response contract.
-- **Held: `normalizeBillingRounding` (1).** Its cascade reaches the increment-select write through the non-predicate `vocabularyHas`. The decision is whether an inline `typeof` test - one extra read of `rounding.increment`, observable only through a getter - is acceptable.
+- **Held: `normalizeBillingRounding` (1).** Decided at `0.33.33.43.57`. **Corrected there:** `vocabularyHas` *is* a type predicate; the cascade is the rounding editor's `unknown` inherited increment.
 
 #### 0.33.33.43.60 - Lists link-picker provider options and debounce
 

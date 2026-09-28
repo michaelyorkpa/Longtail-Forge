@@ -150,6 +150,9 @@ function pageFrom(text, options = {}) {
   vm.runInContext(declaration(text, "  let workspaceSettings = {", "\n  };"), context);
   vm.runInContext(`workspaceSettings.workspaceType = ${JSON.stringify(options.workspaceType || "business")};`, context);
   for (const name of CLOSURE) vm.runInContext(extractFunctionBlock(text, name), context);
+  // `0.33.33.43.57` reads the rounding rule through the page's wire reader, so it joins the
+  // sandbox for any version that has one.
+  if (text.includes("  function readWireMember(")) vm.runInContext(extractFunctionBlock(text, "readWireMember"), context);
   if (text.includes("  function readActionResultMember(")) {
     vm.runInContext(extractFunctionBlock(text, "readActionResultMember"), context);
   }
