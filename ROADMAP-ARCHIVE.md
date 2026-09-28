@@ -1,5 +1,27 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.53 - Clients/Projects read-surface state boundary
+
+**Model: Medium Effort** - one slot declared from its writer and its directly connected reads narrowed with it, two body spellings each proved equivalent over the values that can reach them.
+
+- [x] **Measured.** On `nightly` `9747680c`: 5 diagnostics. They were the slot's declaration, recorded as a deliberate deferral to this cluster, and its four reads: `querySelectionInputs`, `selectedProjectClientFilterValue`, `refreshActiveClientProjectsReadSurface` and the smoke check.
+- [x] **Declared from its writer.** `activeClientProjectsReadSurface` is `ReturnType<typeof renderClientProjectsReadSurface>`: the framework's `BrowserViewSurfaceElement`, which carries `refresh`, or `null` before it renders and on a page without one. The framework's `renderSurface` asserts it built a surface element before returning it. The deferral note and its `clients-projects-state-contracts` pin are discharged; the pin now asserts the slot is derived from, and filled by, its writer. The typed root also closes the selection callback's `input` parameter: 6 closed.
+- [x] **Two exposures, each fixed with a proof.**
+  - **`querySelectionInputs`.** `.filter(Boolean)` became `.filter((root) => root !== null)`. The slot holds `null` or an element, and `document` is never falsy.
+  - **`selectedProjectClientFilterValue`.** The bare lookup became the checked lookup for `HTMLSelectElement`, guarded by the surface. The server descriptor declares the filter `type: "select"`; the framework renders it as `<select name="clientId">`; nothing else in the module is named `clientId`. `checked-dom.js` is injected ahead of every page script. **The one difference, which no path reaches**, is pinned: a non-`select` element named `clientId` is no longer read.
+- [x] **Proof.**
+  - **Body identity.** Every other body, including the writer and the smoke check, equals its `9747680c` body. The two reads differ by exactly their named edits.
+  - **Side-by-side runs** beside `9747680c` with the real `checked-dom.js`, comparing outcomes (thrown ones included) as data:
+    - the filter value with no surface, no filter, "All", the workspace token, a client and a padded client;
+    - the refresh with no surface, a surface, and a non-function `refresh`;
+    - selection inputs with and without a surface, searched surface-first and counted once.
+  - **Mutations.** Seven, each caught: a kept `null` root, the page searched first, a double count, the filter looked up as an input, the workspace token passed as a client, an unchecked `refresh` call and an untrimmed value.
+  - **Compiler probes.** Removing the declaration restores all 6; reverting either spelling restores its exposure.
+  - **Retargets.** The project-assignment body pin names the new lookup as a third approved edit. The hierarchy-move pin reads the checked lookup, with its exclusions kept.
+  - **Existing coverage.** 226 Clients/Projects-related unit tests pass.
+- [x] **Accounting.** `clients-projects.js` 37 to 31, browser 67 to 61: **6 closed and no message rises**, measured per message. The ledger records the new suite.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.38.2.14 - Task Focus presentation host readers
 
 **Model: Medium Effort** - three host members on a declared contract, the design settled by a compiler probe before planning.

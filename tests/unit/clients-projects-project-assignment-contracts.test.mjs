@@ -231,6 +231,11 @@ describe("Only the two approved edits reach a body", () => {
         .replace(
           "const clientId = result?.completed ? result.detail?.recordId || \"\" : \"\";",
           "const clientId = readActionResultMember(result, \"completed\")\n          ? readActionResultMember(readActionResultMember(result, \"detail\"), \"recordId\") || \"\"\n          : \"\";",
+        )
+        // `0.33.33.43.53` narrowed the read surface, and with it this lookup of its client filter.
+        .replace(
+          "const control = activeClientProjectsReadSurface?.querySelector?.('[name=\"clientId\"]');",
+          "const control = activeClientProjectsReadSurface\n      ? requireCheckedDom().find(activeClientProjectsReadSurface, '[name=\"clientId\"]', HTMLSelectElement)\n      : null;",
         );
       expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(expected);
     }
