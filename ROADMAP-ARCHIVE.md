@@ -1,5 +1,24 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.14 - Task Focus presentation host readers
+
+**Model: Medium Effort** - three host members on a declared contract, the design settled by a compiler probe before planning.
+
+- [x] **Why.** Codex's held `0.33.33.42.47` report found three reverse dependencies its planning commit missed. Retained Workbench code calls:
+  - `taskFocusContextLabel`, from `applyActiveTaskFocusTask` and `activeTaskFocusCandidate`;
+  - `taskFocusRelatedContextState`, from `refreshTaskFocusRelatedContext`;
+  - `taskFocusRelatedContextGroups`, from the page-controller snapshot.
+- [x] **Codex's renderer-method proposal, refused by the compiler.** Declared on the renderer, the three real functions fit, even under strict checking. But `refreshTaskFocusRelatedContext` then fails with a new TS2322: it spreads `relatedContextState(...)` into Workbench's local `TaskFocusRelatedState`, and the declared return is wider - `meta?: unknown` against the local `meta?: {}`.
+- [x] **The host members instead.** The three stay Workbench's shared-use readers, which the plan's own rule keeps as host code, and are declared on `BrowserWorkbenchTaskFocusPresentationHost` with Codex's signatures, each doc-commented as injected rather than exported. The retained callers keep their precise local types and never touch the renderer, and dependencies run one way, from the presentation to its host.
+- [x] **Unchanged.** The namespace, the known, declared and published counts, and the type-only record. No runtime file changes; browser diagnostics stay 67.
+- [x] **Proof.**
+  - **The host fits.** Workbench's real host, with the three added, fits the declared host type and a mapped copy that checks each parameter strictly, with no diagnostic, both before the branch and on it. A negative control with two sabotaged members fails both assignments.
+  - **The suite is live.** `workbench-task-focus-presentation-contract.test.mjs` pins the three members in its expected block. Its comment stripping now also removes indented doc comments, and removing a member fails it.
+  - **Pins.** A Grep-tool search, raw and escaped, found the host block pinned only there. The other readers of these names lift Workbench's own functions, which did not change. Keeping them in Workbench also removes them from Codex's retarget inventory.
+  - All probe files were byte-restored and hash-verified.
+- [x] **Consequence for `0.33.33.42.47`.** The moving inventory becomes 29 functions / 631 lines. Codex restores the three helpers to `workbench.js` unchanged and passes them into the host, with no delegators.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the contract is declared in browser-contracts.d.ts.
+
 ## Version 0.33.33.43.52 - Clients/Projects client editors and the editor type tail
 
 **Model: Medium Effort** - annotations on five editors and two locals in one module, with one body spelling proved equivalent over the only values that can reach it.

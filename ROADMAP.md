@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). Remaining presentation planned (`39b71e81`): one seam, 32 functions / 651 lines. Its shared contract landed as `0.33.33.38.2.13`, so implementation resumes under `.42.47`; what the parent's extraction criterion requires is with the operator | 0 owned |
+| Codex | `0.33.33.42.47` | `workbench.js` — typing complete at `0.33.33.42.45`; the Task Focus checklist presentation was extracted and integrated at `0.33.33.42.46` (0 raw / 0 owned / 0 DOM). Remaining presentation planned (`39b71e81`, held at `b85c0dd8`): one seam, 29 functions / 631 lines once the three shared readers stay host code. Its shared contract landed as `0.33.33.38.2.13` and `0.33.33.38.2.14`, so implementation resumes under `.42.47`; what the parent's extraction criterion requires is with the operator | 0 owned |
 | Claude | `0.33.33.43.53` | Client editors typed at `0.33.33.43.52`. `clients-projects.js` 37 and `lists.js` 30 remain, all owned families. Next: the `activeClientProjectsReadSurface` state boundary; then the tag/filter/modal helpers, the `saveClientSettings`/`querySelectionInputs` lookup boundary with the billing-contact conversion awaiting a decision, and the normalisers (the wire trust boundary) last | 67 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
@@ -281,31 +281,10 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.14 - Task Focus presentation host readers
 
-**Model: Medium Effort** - three host members added to a declared contract. The design choice between them and three renderer methods was settled by a compiler probe before planning.
+**Complete: three host members, chosen over three renderer methods by the compiler.** See the archive entry.
 
-**Why.** Codex's held `0.33.33.42.47` report found three reverse dependencies that its planning commit missed. Retained Workbench code calls three helpers the plan had moved into the presentation:
-- `taskFocusContextLabel`, from `applyActiveTaskFocusTask` and `activeTaskFocusCandidate`;
-- `taskFocusRelatedContextState`, from `refreshTaskFocusRelatedContext`;
-- `taskFocusRelatedContextGroups`, from the page-controller snapshot.
-
-**Codex proposed three renderer methods; the compiler refused one.** With the three declared on the renderer, the real functions fit them, even under strict checking. But `refreshTaskFocusRelatedContext` then failed with a new TS2322: it spreads `relatedContextState(...)` into Workbench's local `TaskFocusRelatedState`, and the declared return is wider (`meta?: unknown` against the local `meta?: {}`).
-
-**The helpers stay in Workbench and are injected through the host instead.** They are shared-use state and format readers, which the plan's own rule keeps as host code. This way:
-- the retained callers keep their precise local types and never touch the renderer;
-- dependencies run one way, from the presentation to its host.
-
-The probe: the real host, with the three added, fits the declared host type and a strictly checked mapped copy with no diagnostic, and a sabotaged negative control fails both.
-
-**Scope, recorded before implementation:**
-
-- [ ] **Three host members**, after `openTaskFocusRelatedContextItem`, with Codex's signatures, each doc-commented as Workbench's own function, shared with retained state code and injected rather than exported:
-  - `taskFocusContextLabel(task?, active?): string`;
-  - `taskFocusRelatedContextState(active?): BrowserWorkbenchTaskFocusRelatedState`;
-  - `taskFocusRelatedContextGroups(context?): BrowserWorkbenchTaskFocusRelatedState["groups"]`.
-- [ ] **Unchanged:** the namespace, the known, declared and published counts, and the type-only record, which stays until the writer lands. No runtime file changes, and browser diagnostics stay 67.
-- [ ] **The contract suite's expected block** gains the three members; its comment stripping also removes indented doc comments.
-- [ ] **Proof.** The rejected renderer-method probe is recorded as the reason. The host probe and its negative control are re-run on the branch. A Grep-tool search, raw and escaped, covers pins on the host block.
-- [ ] **Verification.** Range-explicit `verify:slice` from `5f0612be` on port 8101. Types only, so there is no rendered gate.
+- `taskFocusContextLabel`, `taskFocusRelatedContextState` and `taskFocusRelatedContextGroups` stay Workbench's shared-use readers and are declared on the presentation host.
+- Namespace, counts and the type-only record unchanged; browser diagnostics unchanged at 67.
 
 #### 0.33.33.38.2.13 - Workbench Task Focus presentation contract
 
