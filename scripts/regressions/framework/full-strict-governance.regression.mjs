@@ -4175,11 +4175,17 @@ assert.deepEqual(
 // B - DECLARED MEMBER WITHOUT RUNTIME WRITER.
 //
 // A declaration with no publisher is either a genuine type-only contract or a stale one, and
-// they are not interchangeable. **The estate currently has neither**: every declared member is
-// published. The record exists so the distinction is available the moment it is needed, and it
-// is asserted by identity so an entry cannot outlive the condition that justified it.
+// they are not interchangeable. The record exists so the distinction is available the moment it
+// is needed, and it is asserted by identity so an entry cannot outlive the condition that
+// justified it. **Its first entry is a contract declared ahead of its writer** (`0.33.33.38.2.12`):
+// the writer's checkpoint must strike it, and the loop below fails if it does not.
 /** @type {Map<string, string>} */
-const TYPE_ONLY_DECLARATIONS = new Map();
+const TYPE_ONLY_DECLARATIONS = new Map([
+  [
+    "workbenchTaskFocusChecklist",
+    "Declared ahead of its writer: 0.33.33.42.46 publishes it from public/js/workbench-task-focus-checklist.js and strikes this record.",
+  ],
+]);
 
 const declarationsMissingWriter = declarationCoverage.declaredMembersWithoutWriter
   .filter((member) => !TYPE_ONLY_DECLARATIONS.has(member));
@@ -4294,8 +4300,10 @@ assert.doesNotMatch(
 // can print one as another.
 assert.equal(declarationCoverage.uniqueSurfaces, 67, "unique publication surfaces");
 assert.equal(declarationCoverage.publicationOccurrences, 70, "publication occurrences, which exceed unique surfaces");
-assert.equal(declarationCoverage.knownMembers.length, 65, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 65, "declared LongtailForge members");
+// `0.33.33.38.2.12` declared `workbenchTaskFocusChecklist` ahead of its writer: known and declared
+// move to 66 while published stays 65 until `0.33.33.42.46` publishes it and strikes the record.
+assert.equal(declarationCoverage.knownMembers.length, 66, "known LongtailForge members, which are not all governed surfaces");
+assert.equal(declarationCoverage.declaredMembers.length, 66, "declared LongtailForge members");
 assert.equal(declarationCoverage.publishedMembers.length, 65, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
