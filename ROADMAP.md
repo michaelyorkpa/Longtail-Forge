@@ -279,6 +279,34 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.14 - Task Focus presentation host readers
+
+**Model: Medium Effort** - three host members added to a declared contract. The design choice between them and three renderer methods was settled by a compiler probe before planning.
+
+**Why.** Codex's held `0.33.33.42.47` report found three reverse dependencies that its planning commit missed. Retained Workbench code calls three helpers the plan had moved into the presentation:
+- `taskFocusContextLabel`, from `applyActiveTaskFocusTask` and `activeTaskFocusCandidate`;
+- `taskFocusRelatedContextState`, from `refreshTaskFocusRelatedContext`;
+- `taskFocusRelatedContextGroups`, from the page-controller snapshot.
+
+**Codex proposed three renderer methods; the compiler refused one.** With the three declared on the renderer, the real functions fit them, even under strict checking. But `refreshTaskFocusRelatedContext` then failed with a new TS2322: it spreads `relatedContextState(...)` into Workbench's local `TaskFocusRelatedState`, and the declared return is wider (`meta?: unknown` against the local `meta?: {}`).
+
+**The helpers stay in Workbench and are injected through the host instead.** They are shared-use state and format readers, which the plan's own rule keeps as host code. This way:
+- the retained callers keep their precise local types and never touch the renderer;
+- dependencies run one way, from the presentation to its host.
+
+The probe: the real host, with the three added, fits the declared host type and a strictly checked mapped copy with no diagnostic, and a sabotaged negative control fails both.
+
+**Scope, recorded before implementation:**
+
+- [ ] **Three host members**, after `openTaskFocusRelatedContextItem`, with Codex's signatures, each doc-commented as Workbench's own function, shared with retained state code and injected rather than exported:
+  - `taskFocusContextLabel(task?, active?): string`;
+  - `taskFocusRelatedContextState(active?): BrowserWorkbenchTaskFocusRelatedState`;
+  - `taskFocusRelatedContextGroups(context?): BrowserWorkbenchTaskFocusRelatedState["groups"]`.
+- [ ] **Unchanged:** the namespace, the known, declared and published counts, and the type-only record, which stays until the writer lands. No runtime file changes, and browser diagnostics stay 67.
+- [ ] **The contract suite's expected block** gains the three members; its comment stripping also removes indented doc comments.
+- [ ] **Proof.** The rejected renderer-method probe is recorded as the reason. The host probe and its negative control are re-run on the branch. A Grep-tool search, raw and escaped, covers pins on the host block.
+- [ ] **Verification.** Range-explicit `verify:slice` from `5f0612be` on port 8101. Types only, so there is no rendered gate.
+
 #### 0.33.33.38.2.13 - Workbench Task Focus presentation contract
 
 **Complete: the presentation contract is declared ahead of its writer.** See the archive entry.
