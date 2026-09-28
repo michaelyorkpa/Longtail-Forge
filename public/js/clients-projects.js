@@ -1367,8 +1367,9 @@
     // The surface is `null` or the element the framework asserted it rendered, so this keeps what
     // `Boolean` kept.
     const roots = [activeClientProjectsReadSurface, document].filter((root) => root !== null);
-    // The collected controls stay undeclared: `querySelectorAll` answers `Element`, and the callers
-    // read `dataset` and `value` off what this returns. They belong to the lookup boundary.
+    // The callers select the framework's row checkboxes, which `renderRowSelection` creates as
+    // `<input type="checkbox">`; they read `dataset` and `value` off what this returns (`0.33.33.43.55`).
+    /** @type {HTMLInputElement[]} */
     const inputs = [];
     const seen = new Set();
 
@@ -1378,7 +1379,9 @@
           return;
         }
         seen.add(input);
-        inputs.push(input);
+        if (input instanceof HTMLInputElement) {
+          inputs.push(input);
+        }
       });
     });
 
@@ -2319,11 +2322,11 @@
    * The client's billing-contact fields. Like the name editor, its one caller passes
    * `showSaveButton: false`, so the form saves through the whole client editor.
    *
-   * **`client` is left undeclared for now.** Declaring it `NormalizedClientRecord` is correct, but
-   * it exposes the contact write below: `normalizeBillingContact` keeps each truthy value as it
-   * arrived, so the value is `unknown`, and only the input's own `value` setter converts it.
-   * Spelling that conversion out is a body change, which `0.33.33.43.52` records for a decision
-   * rather than makes.
+   * **The contact write states the conversion the input performed** (`0.33.33.43.55`, approved by the
+   * operator). `normalizeBillingContact` keeps each truthy value as it arrived, so the value is
+   * `unknown`; the template performs the same string conversion the `value` setter did, for every
+   * value the normaliser can hand it. It does not change the normaliser, the save or the trim.
+   * @param {NormalizedClientRecord} client
    * @param {{ showSaveButton?: boolean }} [options]
    */
   function createBillingContactEditor(client, options = {}) {
@@ -2345,7 +2348,7 @@
       label.textContent = labelText;
 
       const input = document.createElement("input");
-      input.value = client.billing_contact[fieldName];
+      input.value = `${client.billing_contact[fieldName]}`;
       input.dataset.billingContactField = fieldName;
 
       if (fieldName.includes("email")) {
@@ -2570,24 +2573,26 @@
    * callers can keep the editor open; otherwise it answers what the write answered.
    * `tagIds` is not part of the normalised record: this editor adds it for the save payload and
    * deletes it again when the picker is absent, so the parameter says the record may carry one.
-   * **`container` is deliberately left undeclared.** Declaring it `Element | null` is correct and
-   * costs eight new reads, less the two implicit-`any` parameters it closes: every control this
-   * reads off it - the name, status and parent selects, the billing inputs and the contact fields -
-   * becomes an `Element` that does not carry `value`, `checked` or `dataset`. That is the same
-   * checked-lookup boundary `lists.js` records. It waits for the checkpoint that narrows these
-   * handles. The tag picker and the two billing editors are no longer part of it: since
-   * `0.33.33.43.46` they come from the page's own maps, which take the `Element` a search answers.
+   *
+   * **The controls are read through checked lookups** (`0.33.33.43.55`). Each data attribute is
+   * written by exactly one builder in this file, on the element type named here - the name, rate,
+   * billable and contact `input`s and the status and parent `select`s - so each lookup finds the
+   * element the bare lookup found. The tag picker and the two billing editors come from the page's
+   * own maps (`0.33.33.43.46`), which take the `Element` a search answers.
    * @param {NormalizedClientRecord & { tagIds?: unknown }} client
+   * @param {Element | null} container The client editor, or `null` when a form sits outside one.
    * @param {ClientProjectViewState & { action?: string }} [options]
    */
   async function saveClientSettings(client, container, options = {}) {
-    const nameInput = container?.querySelector("[data-client-name-input]");
-    const statusSelect = container?.querySelector("[data-client-status-input]");
-    const parentClientSelect = container?.querySelector("[data-client-parent-field]");
+    const nameInput = container ? requireCheckedDom().find(container, "[data-client-name-input]", HTMLInputElement) : null;
+    const statusSelect = container ? requireCheckedDom().find(container, "[data-client-status-input]", HTMLSelectElement) : null;
+    const parentClientSelect = container ? requireCheckedDom().find(container, "[data-client-parent-field]", HTMLSelectElement) : null;
     const tagField = container?.querySelector("[data-client-tags]");
     const tagPicker = tagField ? tagPickersByField.get(tagField) : undefined;
-    const billingRateInput = container?.querySelector("[data-client-billing-rate-input]");
-    const billableInput = container?.querySelector("[data-client-billable-input]");
+    const billingRateInput = container
+      ? requireCheckedDom().find(container, "[data-client-billing-rate-input]", HTMLInputElement)
+      : null;
+    const billableInput = container ? requireCheckedDom().find(container, "[data-client-billable-input]", HTMLInputElement) : null;
 
     if (!nameInput?.value.trim()) {
       setStatus("Client name is required.");
@@ -2620,7 +2625,12 @@
     }
 
     container?.querySelectorAll("[data-billing-contact-field]").forEach((input) => {
-      client.billing_contact[input.dataset.billingContactField] = input.value.trim();
+      // Only the contact editor's inputs carry this attribute. The template key is the same property
+      // key the bare read produced, for a missing field too.
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      client.billing_contact[`${input.dataset.billingContactField}`] = input.value.trim();
     });
 
     if (billingRateInput && billableInput) {

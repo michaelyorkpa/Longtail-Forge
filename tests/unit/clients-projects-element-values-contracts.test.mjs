@@ -104,6 +104,12 @@ function pageFrom(text, options = {}) {
       vm.runInContext(text.slice(at, text.indexOf(";", at) + 1), sandbox);
     }
   }
+  // `0.33.33.43.55` reads the save's controls through the shared checked lookups, so the real
+  // contract and the page's own accessor join the sandbox for any version that uses them.
+  vm.runInContext(reader.readText("public/js/shared/checked-dom.js"), sandbox);
+  if (text.includes("  function requireCheckedDom() {")) {
+    vm.runInContext(extractFunctionBlock(text, "requireCheckedDom"), sandbox);
+  }
   for (const name of LIFTED) {
     vm.runInContext(extractFunctionBlock(text, name), sandbox);
   }

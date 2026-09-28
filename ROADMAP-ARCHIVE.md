@@ -1,5 +1,39 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.55 - Clients/Projects contact editor, client save and selection inputs
+
+**Model: Medium Effort** - one operator-approved conversion, and checked lookups whose element types are each fixed by one traced builder.
+
+- [x] **Measured.** On `nightly` `70e1808c`: 5 diagnostics:
+  - `createBillingContactEditor`'s `client`, held back at `0.33.33.43.52`;
+  - `saveClientSettings`' `container` and its contact loop's `input`;
+  - `querySelectionInputs`' evolving `inputs` array (two).
+- [x] **The billing-contact conversion, operator-approved.** The write is now `` input.value = `${client.billing_contact[fieldName]}` ``, with `client` typed `NormalizedClientRecord`.
+  - `normalizeBillingContact`, the stored values, validation and the save and trim are unchanged.
+  - The read count and evaluation order are unchanged.
+- [x] **Proved on real Chromium inputs** by `tests/e2e/clients-projects-billing-contact-conversion.spec.mjs`. It runs after the page's real normaliser, with the original write reproduced through the element's own setter (`Reflect.set`) rather than a cast.
+  - **Producer values** display and trim identically: text, whitespace, missing and falsy fields, truthy numbers and booleans, arrays and objects.
+  - **Synthetic probes** convert through the same `"string"` hint the same number of times. A throwing hook's own error propagates unchanged.
+  - **A Symbol** stays a synchronous `TypeError` that leaves the input unchanged. **Measured in Chrome 151:** the setter says "Failed to set the 'value' property on 'HTMLInputElement': Cannot convert a Symbol value to a string", and the template says "Cannot convert a Symbol value to a string". That is the authorised setter-context prefix, and only that.
+  - **Raw `null` fed around the normaliser is recorded as not equivalent** - `""` against `"null"` - and unreachable, because the normaliser turns every falsy value into `""`.
+- [x] **The checked lookups.**
+  - **`saveClientSettings`.** It takes its callers' `Element | null` container and reads its five controls through the shared checked lookups. Each lookup uses the type the attribute's one builder creates: the name, rate and billable `input`s and the status and parent `select`s.
+  - **The contact loop.** It reads only inputs. Its key is a template, which yields the same property key as the bare read, for a missing field too.
+  - **`querySelectionInputs`.** It collects only inputs: its callers select only the row checkboxes `renderRowSelection` creates as `<input>`.
+  - **The one difference, which no builder reaches**, is pinned as a synthetic probe: a non-input carrying these attributes is no longer read. The discharged "deliberately left undeclared" note is replaced.
+- [x] **Proof.**
+  - **Body identity.** Every edit is named.
+  - **Side-by-side runs** beside `70e1808c` with the real `checked-dom.js`: a full save, a parent move confirmed and declined, an empty name, no container, no billing inputs, and selection across the surface and page.
+  - **Mutations.** Ten, each caught.
+  - **Compiler probes.** Every annotation, lookup, guard and the conversion itself are load-bearing: reverting the conversion restores the TS2322.
+  - **Real browser.** The Edit Client billable save runs in the rendered specs.
+- [x] **Retargets, claims kept.**
+  - `clients-projects-client-editors-contracts` names the conversion as a later edit.
+  - `clients-projects-read-surface-contracts` names the selection typing.
+  - `clients-projects-element-values-contracts` gives its lifted save the real `checked-dom.js` and `requireCheckedDom`.
+- [x] **Accounting.** `clients-projects.js` 16 to 11 - the normalisers alone - and browser 46 to 41: **5 closed and no message rises**, measured per message. The ledger records the two new suites.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.43.54 - Clients/Projects tag, filter and modal helpers
 
 **Model: Medium Effort** - annotations on eight helpers, and two DOM narrowings in one listener, each decided by a traced producer.

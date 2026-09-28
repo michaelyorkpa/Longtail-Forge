@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.60` | **`0.33.33.42` complete** at the `0.33.33.42.47` integration: Task Focus presentation and panel composition extracted behind the typed host contract; `workbench.js`, the presentation and the checklist each 0 raw / 0 owned / 0 DOM. Next: `lists.js`, reassigned from Claude at this integration; Codex's Lists children are numbered from `0.33.33.43.60` | 0 owned |
-| Claude | `0.33.33.43.55` | Tag, filter and modal helpers typed at `0.33.33.43.54`. `clients-projects.js` 16 remains; `lists.js` is Codex's. Next: the contact editor, `saveClientSettings` and `querySelectionInputs` lookup boundary (5; the billing-contact conversion approved by the operator with bounded proof); then the normalisers (the wire trust boundary, 11) last | 46 |
+| Claude | `0.33.33.43.56` | Contact editor, client save and selection inputs typed at `0.33.33.43.55`. `clients-projects.js` 11 remains, all in the normalisers; `lists.js` is Codex's. Next: the normalisers, the wire trust boundary, last | 41 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1637,6 +1637,10 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.55 - Clients/Projects contact editor, client save and selection inputs
+
+**Complete: 5 diagnostics closed - the approved conversion stated and proved on real inputs, and the save and selection reads made checked.** See the archive entry. `clients-projects.js` 16 to 11, browser 46 to 41.
 
 #### 0.33.33.43.54 - Clients/Projects tag, filter and modal helpers
 
