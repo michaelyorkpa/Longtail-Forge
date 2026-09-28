@@ -1638,6 +1638,37 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.55 - Clients/Projects contact editor, client save and selection inputs
+
+**Model: Medium Effort** - one operator-approved conversion, and checked lookups whose element types are each fixed by one traced builder.
+
+**Measured on `nightly` `70e1808c`:** 5 diagnostics:
+- `createBillingContactEditor`'s `client`, held back at `0.33.33.43.52`;
+- `saveClientSettings`' `container` and its contact loop's `input`;
+- `querySelectionInputs`' evolving `inputs` array (TS7034 and TS7005).
+
+**The billing-contact conversion (operator-approved).** The write becomes `` input.value = `${client.billing_contact[fieldName]}` ``, and `client` takes `NormalizedClientRecord`.
+- The approval covers the input boundary only. `normalizeBillingContact`, the stored values, validation and the save and trim are unchanged.
+- The read count and evaluation order are unchanged: no `String()`, no extra fallback, no catch and no helper.
+- **Proved on real Chromium inputs** (`clients-projects-billing-contact-conversion.spec.mjs`), after the page's real normaliser runs:
+  - **Producer values** - text, whitespace, missing and falsy fields, truthy numbers and booleans, arrays and objects - display and trim identically.
+  - **Synthetic probes** - conversion hooks, a throwing hook and a Symbol - convert through the same `"string"` hint the same number of times. A failure stays synchronous, stays the same error class, and leaves the input unchanged.
+  - **Measured in Chrome 151:** the setter's `TypeError` reads "Failed to set the 'value' property on 'HTMLInputElement': Cannot convert a Symbol value to a string". The template's reads "Cannot convert a Symbol value to a string". That is the authorised setter-context prefix difference and nothing else.
+  - **Raw `null` fed around the normaliser is not equivalent** - the setter writes `""` and the template writes `"null"` - and is recorded as such. The normaliser turns every falsy value into `""`, so no path reaches it.
+
+**The checked lookups.** `saveClientSettings`' callers pass the name editor's wrapper or the nearest `.client-editor`, so its container is `Element | null`. Declaring that exposed the eight reads its note recorded. Each data attribute is written by exactly one builder in this file:
+- the name, billing-rate, billable and contact fields are `input`s;
+- the status and parent fields are `select`s.
+
+So each bare lookup becomes the shared checked lookup for that type, which finds the element the bare lookup found. The contact loop reads only inputs. Its key becomes a template, which yields the same property key the bare read produced, for a missing field too. `querySelectionInputs`' callers select only the framework's row checkboxes, which `renderRowSelection` creates as `<input>`, so it collects only inputs. The one difference, which no builder reaches, is pinned as a synthetic probe: a non-input carrying one of these attributes is no longer read.
+
+**Scope, recorded before implementation:**
+
+- [ ] The conversion and annotation above; the five checked lookups; the contact-input guard and template key; typed selection collection. No other body changes, and no normaliser change.
+- [ ] **Proof.** Body identity with every edit named; the real-browser conversion spec; side-by-side saves and selections against `70e1808c` with the real `checked-dom.js`; mutations, compiler probes and a per-message delta; and retargets of the three suites that pinned these bodies.
+- [ ] **Expected accounting:** 5 closed, `clients-projects.js` 16 to 11 - the normalisers alone - and browser 46 to 41.
+- [ ] **Verification:** range-explicit `verify:slice` from `70e1808c` on port 8101, and the Clients/Projects page specs with the conversion spec.
+
 #### 0.33.33.43.54 - Clients/Projects tag, filter and modal helpers
 
 **Complete: 15 diagnostics closed - eight helpers annotated and the bulk listener's two reads narrowed with proofs.** See the archive entry. `clients-projects.js` 31 to 16, browser 61 to 46.
