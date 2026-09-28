@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.61` | `0.33.33.42` complete; `lists.js` link-picker providers and debounce typed and integrated at `0.33.33.43.60`, Lists 30 to 28. Next: the seven saved-record consumers, traced against the normalised writer before choosing the reconciliation | 28 owned |
-| Claude | `0.33.33.43.56` | Contact editor, client save and selection inputs typed at `0.33.33.43.55`. `clients-projects.js` 11 remains, all in the normalisers; `lists.js` is Codex's. Next: the normalisers, the wire trust boundary, last | 41 |
+| Claude | `0.33.33.43.57` | Normaliser boundary partly typed at `0.33.33.43.56`. `clients-projects.js` 7 remain, **held for operator decisions**: the four wire normalisers (6 - how a checked read may treat a nullish wire body) and the rounding reader (1 - its increment-select cascade). `lists.js` is Codex's | 35 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1637,6 +1637,13 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.56 - Clients/Projects normalisers, the wire trust boundary
+
+**Complete as scoped: 4 closed, 7 held for operator decisions.** See the archive entry. `clients-projects.js` 11 to 7, browser 39 to 35.
+
+- **Held: the wire normalisers (6).** `normalizeData`, `normalizeClientRecord`, `normalizeProjects` and `normalizeSettings` receive bodies nothing validates. A checked read matches the native read for objects and primitives, but not for a nullish body. The decision is whether a checked required read may throw its own `TypeError` there, synchronously, or whether these wait for a validated list-response contract.
+- **Held: `normalizeBillingRounding` (1).** Its cascade reaches the increment-select write through the non-predicate `vocabularyHas`. The decision is whether an inline `typeof` test - one extra read of `rounding.increment`, observable only through a getter - is acceptable.
 
 #### 0.33.33.43.60 - Lists link-picker provider options and debounce
 

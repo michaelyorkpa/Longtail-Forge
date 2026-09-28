@@ -571,6 +571,7 @@
         "tests/unit/clients-projects-field-helpers-contracts.test.mjs",
         "tests/unit/clients-projects-hierarchy-readers-contracts.test.mjs",
         "tests/unit/clients-projects-module-action-contracts.test.mjs",
+        "tests/unit/clients-projects-normaliser-boundary-contracts.test.mjs",
         "tests/unit/clients-projects-normalizer-contracts.test.mjs",
         "tests/unit/clients-projects-project-assignment-contracts.test.mjs",
         "tests/unit/clients-projects-project-editor-contracts.test.mjs",
@@ -959,16 +960,12 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 39,
+      "errorCount": 35,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
             "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7053,
-            "count": 1
+            "count": 7
           }
         ],
         "public/js/lists.js": [
@@ -1590,8 +1587,8 @@
     }
   },
   "totals": {
-    "files": 1541,
-    "errors": 39,
+    "files": 1542,
+    "errors": 35,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -4449,6 +4449,14 @@
     return !entry.isWorkspaceScope;
   }
 
+  /**
+   * The `/api/client-projects` body, as the page holds it.
+   *
+   * **The parameter stays as the wire delivered it, pending an operator decision** (`0.33.33.43.56`).
+   * Nothing validates this body, so its honest type is `unknown`, and declaring that exposes every
+   * member read below; a checked read matches each exactly except the native wording for a nullish
+   * body, which is a trust-boundary decision rather than a typing one.
+   */
   function normalizeData(data) {
     // Normalize immediately after every load/save so render code can trust field shapes.
     const workspaceProjects = normalizeProjects(data.workspaceProjects || [], "yes", "");
@@ -4473,6 +4481,10 @@
     return clientProjectData.capabilities?.canCreateTopLevelClient === true;
   }
 
+  /**
+   * @param {unknown} clientId A record id as the normaliser passed it through from the wire. The
+   *   only use is `===`, which needs nothing more (`0.33.33.43.56`).
+   */
   function canCreateChildClient(clientId) {
     return clientProjectData.clients.some((client) => (
       client.id === clientId &&
@@ -4487,6 +4499,7 @@
       getRealClients().some((client) => client.canCreateProject && isActiveStatus(client.status));
   }
 
+  /** @param {string} clientId */
   function canCreateProjectForClient(clientId) {
     if (!clientId || clientId === "__workspace_projects__") {
       return clientProjectData.capabilities?.canCreateWorkspaceProject === true;
@@ -4495,6 +4508,7 @@
     return getRealClients().some((client) => client.id === clientId && client.canCreateProject === true);
   }
 
+  /** @param {string} clientId */
   function canManageProjectClientScope(clientId) {
     if (!clientId || clientId === "__workspace_projects__") {
       return clientProjectData.capabilities?.canManageWorkspaceProjects === true;
@@ -4530,6 +4544,12 @@
     openEditProjectActionFromQuery();
   }
 
+  /**
+   * The wire's projects, in the page's own shape. **Left as the wire delivered it with
+   * `normalizeData`, pending the same decision** (`0.33.33.43.56`): typing `projects` as `unknown`
+   * would close its diagnostics only because `Array.isArray` narrows it to an untyped array,
+   * leaving every element read unchecked with nothing left to report it.
+   */
   function normalizeProjects(projects, clientBillable, clientId) {
     return Array.isArray(projects)
       ? projects.map((project) => ({
@@ -4564,6 +4584,10 @@
       : [];
   }
 
+  /**
+   * The `/api/settings` body, in the page's own shape. **Left as the wire delivered it with
+   * `normalizeData`, pending the same decision** (`0.33.33.43.56`).
+   */
   function normalizeSettings(settings) {
     const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
     const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
@@ -5253,10 +5277,13 @@
    * @returns {Record<string, unknown>}
    */
   function normalizeBillingContact(contact) {
+    // The same fresh object the literal was, declared so the reducer may write any field name.
+    /** @type {Record<string, unknown>} */
+    const initialContact = {};
     return billingContactFields.reduce((billingContact, [fieldName]) => {
       billingContact[fieldName] = contact?.[fieldName] || "";
       return billingContact;
-    }, {});
+    }, initialContact);
   }
 
   /**
