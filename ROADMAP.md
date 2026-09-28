@@ -1628,6 +1628,36 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.53 - Clients/Projects read-surface state boundary
+
+**Model: Medium Effort** - one slot declared from its writer, and its directly connected reads narrowed with it. Two body spellings are each proved equivalent over the values that can reach them.
+
+**Measured on `nightly` `9747680c`:** 5 diagnostics.
+- `activeClientProjectsReadSurface`'s declaration (TS7034), recorded as a deliberate deferral to this cluster and pinned by `clients-projects-state-contracts`.
+- Its four reads (TS7005): `querySelectionInputs`, `selectedProjectClientFilterValue`, `refreshActiveClientProjectsReadSurface` and the page-controller smoke check.
+
+**Traced.** The one writer, `initializeClientProjectsPage`, stores `renderClientProjectsReadSurface()`. That returns `null`, or the framework's `renderSurface` result, which asserts it built a surface element before returning it. The declared type is therefore `BrowserViewSurfaceElement | null`, and it carries `refresh`.
+
+**The two exposures, and why each fix keeps behaviour:**
+- **`querySelectionInputs`.** `[surface, document].filter(Boolean)` does not narrow away `null`. The slot holds `null` or an element, and `document` is never falsy, so `root !== null` keeps exactly what `Boolean` kept.
+- **`selectedProjectClientFilterValue`.** It reads `value` off a plain `Element`. The server descriptor declares the filter `type: "select"`, and the framework renders it as `<select name="clientId">`. Nothing else in this module is named `clientId`: the module's own dialogs create selects without a `name`. So the checked lookup for `HTMLSelectElement` finds the element the bare lookup found. The static service injects `checked-dom.js` ahead of every page script, so the lookup adds no failure, and it is reached only when a surface exists. **The one difference, which no path reaches:** a non-`select` element named `clientId` is no longer read.
+
+**Scope, recorded before implementation:**
+
+- [ ] **Declare the slot** from its writer, `ReturnType<typeof renderClientProjectsReadSurface>`, and discharge the deferral note and its pin.
+- [ ] **Two spellings**, as above; no other body changes. `querySelectionInputs`' own `inputs` diagnostics stay with the lookup boundary.
+- [ ] **Proof.**
+  - Body identity, with the two edits named exactly.
+  - Side-by-side runs against `9747680c` with the real `checked-dom.js`, comparing outcomes as data:
+    - the filter value with no surface, no filter, "All", the workspace token, a client and a padded client;
+    - the refresh with no surface, a surface, and a non-function `refresh`;
+    - selection-input discovery with and without a surface;
+    - the smoke check, unchanged.
+  - Mutations, compiler probes and a per-message delta.
+  - Grep-tool retargets of the state-contracts, project-assignment and hierarchy-move pins.
+- [ ] **Expected accounting:** 5 closed, plus the `input` parameter the typed root closes: `clients-projects.js` 37 to 31, browser 67 to 61.
+- [ ] **Verification:** range-explicit `verify:slice` from `9747680c` on port 8101, and the four Clients/Projects page specs.
+
 #### 0.33.33.43.52 - Clients/Projects client editors and the editor type tail
 
 **Complete: 8 diagnostics closed, one filter spelled as a null test, and one relocated defect backed out.** See the archive entry. `clients-projects.js` 45 to 37, browser 75 to 67.
