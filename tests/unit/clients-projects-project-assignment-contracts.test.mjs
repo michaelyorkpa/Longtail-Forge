@@ -239,6 +239,13 @@ describe("Only the two approved edits reach a body", () => {
         .replace(
           "const control = activeClientProjectsReadSurface?.querySelector?.('[name=\"clientId\"]');",
           "const control = activeClientProjectsReadSurface\n      ? requireCheckedDom().find(activeClientProjectsReadSurface, '[name=\"clientId\"]', HTMLSelectElement)\n      : null;",
+        )
+        // `0.33.33.43.58` made the sinks' existing conversions explicit, with the operator's approval.
+        .replace("    select.value = project.client_id || \"\";", "    select.value = `${project.client_id || \"\"}`;")
+        .replace("    select.value = project.parent_project_id || \"\";", "    select.value = `${project.parent_project_id || \"\"}`;")
+        .replace(
+          "      select.value = [...select.options].some((option) => option.value === selectedClientId)\n        ? selectedClientId\n        : select.options[0]?.value || \"\";",
+          "      select.value = `${[...select.options].some((option) => option.value === selectedClientId)\n        ? selectedClientId\n        : select.options[0]?.value || \"\"}`;",
         );
       expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(expected);
     }

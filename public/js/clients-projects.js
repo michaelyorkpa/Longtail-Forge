@@ -1445,7 +1445,7 @@
 
     details.className = "client-item";
     details.open = true;
-    summary.textContent = client.name;
+    summary.textContent = `${client.name ?? ""}`;
     editor.className = "client-editor";
     editor.append(
       createClientNameEditor(client, { showSaveButton: false }),
@@ -1536,7 +1536,7 @@
 
         try {
           await requireApi().putJson(
-            `/api/clients/${encodeURIComponent(client.id)}`,
+            `/api/clients/${encodeURIComponent(`${client.id}`)}`,
             nextClient,
           );
           updatedCount += 1;
@@ -1926,7 +1926,7 @@
 
         try {
           await requireApi().putJson(
-            `/api/projects/${encodeURIComponent(project.id)}`,
+            `/api/projects/${encodeURIComponent(`${project.id}`)}`,
             nextProject,
           );
           updatedCount += 1;
@@ -2116,14 +2116,19 @@
 
   /**
    * Every real client below one client, excluding that client itself.
-   * @param {string} clientId
+   *
+   * The ids are the records' own values, collected by identity, so the collections hold `unknown`
+   * (`0.33.33.43.58`).
+   * @param {unknown} clientId
    */
   function getClientDescendantIds(clientId) {
     if (!clientId) {
       return [];
     }
 
+    /** @type {Set<unknown>} */
     const descendants = new Set();
+    /** @type {unknown[]} */
     const pending = [clientId];
 
     while (pending.length > 0) {
@@ -2143,7 +2148,8 @@
 
   /**
    * Every project below one project among its owner's projects, excluding that project itself.
-   * @param {string} projectId
+   * The ids are the records' own values, collected by identity (`0.33.33.43.58`).
+   * @param {unknown} projectId
    * @param {NormalizedClientEntry} client
    */
   function getProjectDescendantIds(projectId, client) {
@@ -2151,7 +2157,9 @@
       return [];
     }
 
+    /** @type {Set<unknown>} */
     const descendants = new Set();
+    /** @type {unknown[]} */
     const pending = [projectId];
 
     while (pending.length > 0) {
@@ -2207,15 +2215,16 @@
     label.textContent = "Client Name";
 
     const input = document.createElement("input");
-    input.value = client.name;
-    input.dataset.clientNameInput = client.id;
+    const clientName = client.name;
+    input.value = clientName === null ? "" : `${clientName}`;
+    input.dataset.clientNameInput = `${client.id}`;
     label.appendChild(input);
 
     const statusLabel = document.createElement("label");
     statusLabel.textContent = "Status";
 
     const statusSelect = createClientStatusSelect(client.status);
-    statusSelect.dataset.clientStatusInput = client.id;
+    statusSelect.dataset.clientStatusInput = `${client.id}`;
     statusLabel.appendChild(statusSelect);
     const tagPicker = createTagPickerField("Client Tags", client.tags, "client");
 
@@ -2225,7 +2234,7 @@
       const saveButton = document.createElement("button");
       saveButton.type = "button";
       saveButton.textContent = "Save Client";
-      saveButton.dataset.saveClientButton = client.id;
+      saveButton.dataset.saveClientButton = `${client.id}`;
       saveButton.addEventListener("click", async () => {
         await saveClientSettings(client, wrapper, {
           action: "client_updated",
@@ -2246,9 +2255,9 @@
     label.textContent = "Parent Client";
     label.hidden = !clientsEnabledForWorkspace();
     populateParentClientSelect(select, client.id);
-    select.dataset.clientParentInput = client.id;
+    select.dataset.clientParentInput = `${client.id}`;
     select.dataset.clientParentField = "";
-    select.value = client.parent_client_id || "";
+    select.value = `${client.parent_client_id || ""}`;
     label.appendChild(select);
     return label;
   }
@@ -2256,6 +2265,7 @@
   /**
    * The parent-client choices, leaving out a client and its descendants when one is named.
    * @param {HTMLSelectElement} select
+   * @param {unknown} [excludedClientId] A record's id as it holds it; tested, collected and compared.
    */
   function populateParentClientSelect(select, excludedClientId = "") {
     if (!select) {
@@ -2298,7 +2308,7 @@
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.textContent = "Save Client";
-    saveButton.dataset.saveClientSettingsButton = client.id;
+    saveButton.dataset.saveClientSettingsButton = `${client.id}`;
     saveButton.addEventListener("click", async () => {
       const saved = await saveClientSettings(client, options.saveRoot || wrapper.closest(".client-editor"), {
         action: "client_settings_updated",
@@ -2316,7 +2326,7 @@
     editProjectsButton.type = "button";
     editProjectsButton.textContent = "Edit Projects";
     editProjectsButton.addEventListener("click", () => {
-      window.location.href = `projects.html?client=${encodeURIComponent(client.id)}`;
+      window.location.href = `projects.html?client=${encodeURIComponent(`${client.id}`)}`;
     });
 
     actionTarget.append(saveButton, editProjectsButton);
@@ -2371,7 +2381,7 @@
       const saveButton = document.createElement("button");
       saveButton.type = "submit";
       saveButton.textContent = "Save Contact";
-      saveButton.dataset.saveBillingContactButton = client.id;
+      saveButton.dataset.saveBillingContactButton = `${client.id}`;
       form.appendChild(saveButton);
     }
 
@@ -2408,13 +2418,16 @@
     return details;
   }
 
-  /** @param {string} clientId The target entry's id, written to the button's `dataset`. */
+  /**
+   * @param {unknown} clientId The target entry's id as the record holds it, written to the button's
+   *   `dataset` with the conversion that write always made (`0.33.33.43.58`).
+   */
   function createAddProjectSubmitButton(clientId) {
     const button = document.createElement("button");
 
     button.type = "submit";
     button.textContent = "Add Project";
-    button.dataset.addProjectButton = clientId;
+    button.dataset.addProjectButton = `${clientId}`;
     return button;
   }
 
@@ -2478,12 +2491,12 @@
     // `null` is special-cased there, while `undefined` would have written the text "undefined".
     // `normalizeBillingRate` answers `text || null`, so it never produces that second case.
     billingRateInput.value = client.billing_rate ?? "";
-    billingRateInput.dataset.clientBillingRateInput = client.id;
+    billingRateInput.dataset.clientBillingRateInput = `${client.id}`;
     billingRateLabel.appendChild(billingRateInput);
 
     const billableLabel = createBillableCheckbox(client.billable);
     const billableInput = requireBillableInput(billableLabel);
-    billableInput.dataset.clientBillableInput = client.id;
+    billableInput.dataset.clientBillableInput = `${client.id}`;
 
     const billingPeriodEditor = createBillingPeriodEditor({
       legend: "Billing Period",
@@ -2510,7 +2523,7 @@
       saveButton = document.createElement("button");
       saveButton.type = "submit";
       saveButton.textContent = "Save Billing Settings";
-      saveButton.dataset.saveBillingSettingsButton = client.id;
+      saveButton.dataset.saveBillingSettingsButton = `${client.id}`;
     }
 
     const updateBillableState = () => {
@@ -2794,7 +2807,7 @@
   function createRelatedProjectNameCell(row) {
     const wrapper = document.createElement("span");
     wrapper.className = "client-projects-related-name";
-    wrapper.textContent = row.name;
+    wrapper.textContent = `${row.name ?? ""}`;
     appendTagChips(wrapper, row.project.tags);
     return wrapper;
   }
@@ -2896,22 +2909,23 @@
       const summaryLabel = document.createElement("span");
 
       details.className = "project-item";
-      details.dataset.projectId = project.id;
-      summaryLabel.textContent = project.name;
+      details.dataset.projectId = `${project.id}`;
+      summaryLabel.textContent = `${project.name ?? ""}`;
       summary.appendChild(summaryLabel);
       details.appendChild(summary);
     }
 
     const wrapper = document.createElement("div");
     wrapper.className = usesModalLayout ? "project-editor project-edit-form" : "project-editor";
-    wrapper.dataset.projectId = project.id;
+    wrapper.dataset.projectId = `${project.id}`;
 
     const nameLabel = document.createElement("label");
     nameLabel.className = "project-name-field";
     nameLabel.textContent = "Project Name";
 
     const nameInput = document.createElement("input");
-    nameInput.value = project.name;
+    const projectName = project.name;
+    nameInput.value = projectName === null ? "" : `${projectName}`;
     nameLabel.appendChild(nameInput);
 
     const statusLabel = document.createElement("label");
@@ -3010,7 +3024,7 @@
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.textContent = "Save Project";
-    saveButton.dataset.saveProjectButton = project.id;
+    saveButton.dataset.saveProjectButton = `${project.id}`;
     saveButton.addEventListener("click", async () => {
       if (!nameInput.value.trim()) {
         setStatus("Project name is required.");
@@ -3269,7 +3283,7 @@
     if (![...select.options].some((option) => option.value === (project.client_id || ""))) {
       select.appendChild(createOption(project.client_id || "", getProjectClientName(project.client_id) || "Current client"));
     }
-    select.value = project.client_id || "";
+    select.value = `${project.client_id || ""}`;
     select.disabled = select.options.length <= 1;
     label.appendChild(select);
     return label;
@@ -3297,8 +3311,10 @@
 
   /**
    * The parent-project picker for one project. The Add Project form passes a stub carrying only
-   * the three members read here, so the parameter names exactly those.
-   * @param {Pick<NormalizedProjectRecord, "id" | "client_id" | "parent_project_id">} project
+   * the three members read here, so the parameter names exactly those. The stub's `client_id` is the
+   * target entry's own id, which the record does not narrow, so that member is `unknown`
+   * (`0.33.33.43.58`).
+   * @param {Pick<NormalizedProjectRecord, "id" | "parent_project_id"> & { client_id: unknown }} project
    * @param {NormalizedClientEntry} client
    */
   function createProjectParentAssignment(project, client) {
@@ -3311,7 +3327,7 @@
       excludedProjectId: project.id,
       clientId: project.client_id || (client.isWorkspaceScope ? "" : client.id),
     });
-    select.value = project.parent_project_id || "";
+    select.value = `${project.parent_project_id || ""}`;
     label.appendChild(select);
     return label;
   }
@@ -3319,7 +3335,8 @@
   /**
    * @param {HTMLSelectElement | null} select A `querySelector("select")` answer from the Add Project
    *   form, so it may be absent; the early return is what handles that.
-   * @param {{ excludedProjectId?: string, clientId?: string }} [options]
+   * @param {{ excludedProjectId?: unknown, clientId?: unknown }} [options] Record ids as they are
+   *   held; tested, collected and compared (`0.33.33.43.58`).
    */
   function populateParentProjectSelect(select, { excludedProjectId = "", clientId = "" } = {}) {
     if (!select) {
@@ -3364,9 +3381,9 @@
       )).forEach((realClient) => {
         select.appendChild(createOption(realClient.id, `${treeIndent(getClientDepth(realClient))}${realClient.name}`));
       });
-      select.value = [...select.options].some((option) => option.value === selectedClientId)
+      select.value = `${[...select.options].some((option) => option.value === selectedClientId)
         ? selectedClientId
-        : select.options[0]?.value || "";
+        : select.options[0]?.value || ""}`;
       select.disabled = select.options.length <= 1;
     };
     refreshOptions(getDefaultProjectClientId(client));
@@ -3610,7 +3627,7 @@
 
   /**
    * The entry a project's client id names, or the workspace grouping for none or an unknown one.
-   * @param {string} clientId
+   * @param {unknown} clientId A record's or control's client id; only tested and compared.
    */
   function getProjectTargetClient(clientId) {
     if (!clientId) {
@@ -3620,7 +3637,7 @@
     return getRealClients().find((client) => client.id === clientId) || getWorkspaceProjectClient();
   }
 
-  /** @param {string} clientId */
+  /** @param {unknown} clientId A record's client id as it holds it; only tested and compared. */
   function getProjectClientName(clientId) {
     if (!clientId) {
       return "";
@@ -4047,7 +4064,7 @@
   async function saveClientRecord(client, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       await requireApi().putJson(
-        `/api/clients/${encodeURIComponent(client.id)}`,
+        `/api/clients/${encodeURIComponent(`${client.id}`)}`,
         withOptionalTagPayload(client, {
           action,
         }),
@@ -4068,7 +4085,7 @@
     return persistClientProjectChange(action, viewState, async () => {
       const url = client.isWorkspaceScope
         ? "/api/projects"
-        : `/api/clients/${encodeURIComponent(client.id)}/projects`;
+        : `/api/clients/${encodeURIComponent(`${client.id}`)}/projects`;
 
       const result = await requireApi().postJson(
         url,
@@ -4094,7 +4111,7 @@
   async function saveProjectRecord(project, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       await requireApi().putJson(
-        `/api/projects/${encodeURIComponent(project.id)}`,
+        `/api/projects/${encodeURIComponent(`${project.id}`)}`,
         withOptionalTagPayload(project, {
           confirm_downstream_update: action.confirm_downstream_update === true,
           action,
@@ -4143,7 +4160,7 @@
   async function archiveProjectRecord(project, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       await requireApi().deleteJson(
-        `/api/projects/${encodeURIComponent(project.id)}`,
+        `/api/projects/${encodeURIComponent(`${project.id}`)}`,
       );
     });
   }
@@ -4393,33 +4410,34 @@
    * branch is extracted so that **its own literal names its type** - neither shape is restated, so
    * neither can drift from what is actually built.
    *
-   * The parameter stays as the wire delivered it, **pending an operator decision**
-   * (`0.33.33.43.57`). Reading it as `unknown` through `readWireMember` leaves `id`, `name`,
-   * `status` and the id links `unknown`, as they honestly are, and those meet 44 string sinks
-   * across the page - URL encodes, `dataset` writes, `textContent`, control values and
-   * string-typed helpers. Each already converts implicitly; making that explicit is a policy
-   * decision, not a typing one.
+   * The client arrives as the wire delivered it, so it is `unknown`, and every member is read
+   * through `readWireMember` where the bare reads made it (`0.33.33.43.58`, approved by the
+   * operator). `id`, `name`, `status` and the id links stay whatever the wire held - nothing is
+   * validated, stringified or replaced - so each is `unknown` here, and the page's sinks make their
+   * own existing conversion explicit where they write one. `status` is still read twice, to test
+   * and then to keep.
+   * @param {unknown} client
    */
   function normalizeClientRecord(client) {
-    const clientBillable = normalizeBillableFlag(client.billable);
+    const clientBillable = normalizeBillableFlag(readWireMember(client, "billable"));
 
     return {
-      id: client.id,
-      name: client.name,
-      parent_client_id: client.parent_client_id || "",
-      status: clientStatuses.includes(client.status) ? client.status : "Active",
+      id: readWireMember(client, "id"),
+      name: readWireMember(client, "name"),
+      parent_client_id: readWireMember(client, "parent_client_id") || "",
+      status: vocabularyHas(clientStatuses, readWireMember(client, "status")) ? readWireMember(client, "status") : "Active",
       billable: clientBillable,
-      billing_rate: normalizeBillingRate(client.billing_rate),
-      billing_period: normalizeOptionalBillingPeriod(client.billing_period),
-      billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
-      billing_contact: normalizeBillingContact(client.billing_contact),
-      canCreateChild: client.can_create_child === true,
-      canCreateProject: client.can_create_project === true,
-      canManage: client.can_manage === true,
-      canManageProjects: client.can_manage_projects === true,
-      taskReminderPolicy: normalizeTaskReminderPolicy(client.taskReminderPolicy),
-      tags: normalizeTags(client.tags),
-      projects: normalizeProjects(client.projects || [], clientBillable, client.id),
+      billing_rate: normalizeBillingRate(readWireMember(client, "billing_rate")),
+      billing_period: normalizeOptionalBillingPeriod(readWireMember(client, "billing_period")),
+      billing_rounding: normalizeOptionalBillingRounding(readWireMember(client, "billing_rounding")),
+      billing_contact: normalizeBillingContact(readWireMember(client, "billing_contact")),
+      canCreateChild: readWireMember(client, "can_create_child") === true,
+      canCreateProject: readWireMember(client, "can_create_project") === true,
+      canManage: readWireMember(client, "can_manage") === true,
+      canManageProjects: readWireMember(client, "can_manage_projects") === true,
+      taskReminderPolicy: normalizeTaskReminderPolicy(readWireMember(client, "taskReminderPolicy")),
+      tags: normalizeTags(readWireMember(client, "tags")),
+      projects: normalizeProjects(readWireMember(client, "projects") || [], clientBillable, readWireMember(client, "id")),
     };
   }
 
@@ -4437,7 +4455,7 @@
    * workspace capabilities exactly as before, so creating and managing projects inside the grouping
    * works as it always did.
    * @param {ReturnType<typeof normalizeProjects>} workspaceProjects
-   * @param {Record<string, unknown> | null} [capabilities]
+   * @param {unknown} [capabilities] The wire's capabilities, read optionally as `?.` read them.
    */
   function buildWorkspaceProjectsGrouping(workspaceProjects, capabilities) {
     const simplifiedBilling = usesProjectRoundingOnly();
@@ -4451,8 +4469,8 @@
       billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
       billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
       billing_contact: normalizeBillingContact({}),
-      canCreateProject: capabilities?.can_create_workspace_project === true,
-      canManageProjects: capabilities?.can_manage_workspace_projects === true,
+      canCreateProject: readWireMember(capabilities, "can_create_workspace_project", { optional: true }) === true,
+      canManageProjects: readWireMember(capabilities, "can_manage_workspace_projects", { optional: true }) === true,
       taskReminderPolicy: normalizeTaskReminderPolicy({ inherited: true }),
       isWorkspaceScope: /** @type {const} */ (true),
       projects: workspaceProjects,
@@ -4506,27 +4524,40 @@
   /**
    * The `/api/client-projects` body, as the page holds it.
    *
-   * **The parameter stays as the wire delivered it, pending an operator decision** (`0.33.33.43.57`).
-   * Its reads can go through `readWireMember`, but `clients` is read twice - to test, then to map -
-   * and only a re-test of the second read types the map. That re-test differs from the bare read
-   * for one input alone: an accessor that answers a list and then something else, which the bare
-   * read would search for its own `map`.
+   * Nothing validates this body, so it is `unknown`, and each member is read through
+   * `readWireMember` where the bare reads made it (`0.33.33.43.58`, approved by the operator).
+   *
+   * `clients` is read once to test and, only when that answer is a list, a second time to map -
+   * as before. The second answer is re-tested rather than trusted, because only a list types the
+   * map. **Approved refusal:** if the first answer was a list and the second is not - which only an
+   * accessor can produce - this throws its own `TypeError` instead of calling whatever the second
+   * answer carries; it does not fall back to `[]` or reuse the first answer.
+   * @param {unknown} data
    */
   function normalizeData(data) {
     // Normalize immediately after every load/save so render code can trust field shapes.
-    const workspaceProjects = normalizeProjects(data.workspaceProjects || [], "yes", "");
+    const workspaceProjects = normalizeProjects(readWireMember(data, "workspaceProjects") || [], "yes", "");
+    /** @param {unknown} listedClients The second answer, read where the map always read it. */
+    const mapListedClients = (listedClients) => {
+      if (!Array.isArray(listedClients)) {
+        throw new TypeError("Clients/Projects clients collection changed while being read.");
+      }
+      /** @type {unknown[]} */
+      const clientElements = listedClients;
+      return clientElements.map(normalizeClientRecord);
+    };
     /** @type {NormalizedClientEntry[]} */
-    const clients = Array.isArray(data.clients) ? data.clients.map(normalizeClientRecord) : [];
+    const clients = Array.isArray(readWireMember(data, "clients")) ? mapListedClients(readWireMember(data, "clients")) : [];
 
     if (isProjectsPage && (workspaceProjects.length > 0 || clients.length === 0)) {
-      clients.unshift(buildWorkspaceProjectsGrouping(workspaceProjects, data.capabilities));
+      clients.unshift(buildWorkspaceProjectsGrouping(workspaceProjects, readWireMember(data, "capabilities")));
     }
 
     return {
       capabilities: {
-        canCreateTopLevelClient: data.capabilities?.can_create_top_level_client === true,
-        canCreateWorkspaceProject: data.capabilities?.can_create_workspace_project === true,
-        canManageWorkspaceProjects: data.capabilities?.can_manage_workspace_projects === true,
+        canCreateTopLevelClient: readWireMember(readWireMember(data, "capabilities"), "can_create_top_level_client", { optional: true }) === true,
+        canCreateWorkspaceProject: readWireMember(readWireMember(data, "capabilities"), "can_create_workspace_project", { optional: true }) === true,
+        canManageWorkspaceProjects: readWireMember(readWireMember(data, "capabilities"), "can_manage_workspace_projects", { optional: true }) === true,
       },
       clients,
     };
@@ -4600,28 +4631,35 @@
   }
 
   /**
-   * The wire's projects, in the page's own shape. **Left as the wire delivered it, pending an
-   * operator decision** (`0.33.33.43.57`). Each element can be read as `unknown` through
-   * `readWireMember`, but then `id`, `name`, `status` and the id links are `unknown` too, and they
-   * reach string sinks across the page: see `normalizeClientRecord`.
+   * The wire's projects, in the page's own shape.
+   *
+   * `Array.isArray` proves a list, not its elements, so each element is `unknown` and read through
+   * `readWireMember` where the bare reads made it (`0.33.33.43.58`): a malformed element still fails
+   * at the read that failed before, rather than being skipped. A non-list is still an empty list.
+   * `id`, `name`, `status` and the id links stay whatever the wire held, as on the client record.
+   * @param {unknown} projects
+   * @param {string} clientBillable The owning client's normalised billable flag, or `"yes"`.
+   * @param {unknown} clientId The owning client's id as the wire held it, or `""`.
    */
   function normalizeProjects(projects, clientBillable, clientId) {
     return Array.isArray(projects)
-      ? projects.map((project) => ({
-          id: project.id,
-          client_id: project.client_id || clientId || "",
-          parent_project_id: project.parent_project_id || "",
-          name: project.name,
-          billable: usesProjectRoundingOnly() ? "no" : normalizeBillableFlag(project.billable, clientBillable),
-          billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(project.billing_rate),
-          billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(project.billing_period),
-          billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
-          canManage: project.can_manage === true,
-          taskDefaults: normalizeProjectTaskDefaults(project.taskDefaults || project.task_defaults || project),
-          taskReminderPolicy: normalizeTaskReminderPolicy(project.taskReminderPolicy),
-          tags: normalizeTags(project.tags),
-          status: projectStatuses.includes(project.status)
-            ? project.status
+      ? projects.map((/** @type {unknown} */ project) => ({
+          id: readWireMember(project, "id"),
+          client_id: readWireMember(project, "client_id") || clientId || "",
+          parent_project_id: readWireMember(project, "parent_project_id") || "",
+          name: readWireMember(project, "name"),
+          billable: usesProjectRoundingOnly() ? "no" : normalizeBillableFlag(readWireMember(project, "billable"), clientBillable),
+          billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(readWireMember(project, "billing_rate")),
+          billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(readWireMember(project, "billing_period")),
+          billing_rounding: normalizeOptionalBillingRounding(readWireMember(project, "billing_rounding")),
+          canManage: readWireMember(project, "can_manage") === true,
+          taskDefaults: normalizeProjectTaskDefaults(
+            readWireMember(project, "taskDefaults") || readWireMember(project, "task_defaults") || project,
+          ),
+          taskReminderPolicy: normalizeTaskReminderPolicy(readWireMember(project, "taskReminderPolicy")),
+          tags: normalizeTags(readWireMember(project, "tags")),
+          status: vocabularyHas(projectStatuses, readWireMember(project, "status"))
+            ? readWireMember(project, "status")
             : "Active",
         }))
       : [];
@@ -4630,11 +4668,11 @@
   /** @param {unknown} tags */
   function normalizeTags(tags) {
     return Array.isArray(tags)
-      ? tags.map((tag) => ({
-          tag_id: String(tag.tag_id || "").trim(),
-          name: String(tag.name || "").trim(),
-          slug: String(tag.slug || "").trim(),
-          color: String(tag.color || "").trim(),
+      ? tags.map((/** @type {unknown} */ tag) => ({
+          tag_id: String(readWireMember(tag, "tag_id") || "").trim(),
+          name: String(readWireMember(tag, "name") || "").trim(),
+          slug: String(readWireMember(tag, "slug") || "").trim(),
+          color: String(readWireMember(tag, "color") || "").trim(),
         })).filter((tag) => tag.tag_id)
       : [];
   }
@@ -4712,22 +4750,21 @@
    * Nine members, three of them in two or three spellings each, and every one `unknown`: this
    * reader is what tests them against the closed vocabularies and falls back when they do not
    * match. Nothing upstream vouches for any of them.
-   * @param {{
-   *   defaultAssigneeMode?: unknown, default_assignee_mode?: unknown, priority?: unknown,
-   *   sortOrder?: unknown, status?: unknown, task_default_assignee_mode?: unknown,
-   *   task_default_priority?: unknown, task_default_sort_order_json?: unknown,
-   *   task_default_status?: unknown
-   * }} [defaults]
+   * `unknown`, because a wire project hands over whichever bag it carries (`0.33.33.43.58`); every
+   * member stays a required read, so a `null` bag still fails at its first one.
+   * @param {unknown} [defaults]
    */
   function normalizeProjectTaskDefaults(defaults = {}) {
-    const priority = defaults.priority || defaults.task_default_priority;
-    const status = defaults.status || defaults.task_default_status;
-    const assigneeMode = defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode;
+    const priority = readWireMember(defaults, "priority") || readWireMember(defaults, "task_default_priority");
+    const status = readWireMember(defaults, "status") || readWireMember(defaults, "task_default_status");
+    const assigneeMode = readWireMember(defaults, "defaultAssigneeMode")
+      || readWireMember(defaults, "default_assignee_mode")
+      || readWireMember(defaults, "task_default_assignee_mode");
 
     return {
       priority: vocabularyHas(taskDefaultPriorities, priority) ? priority : "normal",
       status: vocabularyHas(taskDefaultStatuses, status) ? status : "open",
-      sortOrder: normalizeProjectTaskSortOrder(defaults.sortOrder || defaults.task_default_sort_order_json),
+      sortOrder: normalizeProjectTaskSortOrder(readWireMember(defaults, "sortOrder") || readWireMember(defaults, "task_default_sort_order_json")),
       defaultAssigneeMode: vocabularyHas(taskDefaultAssigneeModes, assigneeMode) ? assigneeMode : "creator",
     };
   }
@@ -4740,8 +4777,11 @@
    * @param {unknown} value
    */
   function normalizeProjectTaskSortOrder(value) {
+    // `Array.isArray` proves a list, not its items, so they stay `unknown` until tested (`0.33.33.43.58`).
+    /** @type {unknown[]} */
     const rawItems = Array.isArray(value) ? value : parseJsonArray(value);
-    const ordered = rawItems.filter((item) => defaultProjectTaskSortOrder.includes(item));
+    // `vocabularyHas` answers what `includes` answered for every item: the order holds only text.
+    const ordered = rawItems.filter((/** @type {unknown} */ item) => vocabularyHas(defaultProjectTaskSortOrder, item));
 
     defaultProjectTaskSortOrder.forEach((item) => {
       if (!ordered.includes(item)) {
@@ -4759,7 +4799,7 @@
   function parseJsonArray(value) {
     try {
       const parsed = JSON.parse(String(value || "[]"));
-      return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()) : [];
+      return Array.isArray(parsed) ? parsed.map((/** @type {unknown} */ item) => String(item || "").trim()) : [];
     } catch {
       return [];
     }
@@ -4770,16 +4810,25 @@
    *
    * `inherited` is `!== false` rather than truthy, so a policy that says nothing about inheritance
    * inherits; the two offset lists accept a nested `offsets` bag and both flat spellings.
-   * @param {{
-   *   dateOnly?: unknown, dateTime?: unknown, date_only?: unknown, date_time?: unknown,
-   *   inherited?: unknown, offsets?: { dateOnly?: unknown, dateTime?: unknown } | null
-   * } | null} [policy]
+   * The policy arrives `unknown` from the wire, and its optional reads stay optional through
+   * `readWireMember`, in the same order (`0.33.33.43.58`).
+   * @param {unknown} [policy]
    */
   function normalizeTaskReminderPolicy(policy) {
+    /** @param {string} key */
+    const optionalPolicyMember = (key) => readWireMember(policy, key, { optional: true });
+    /** @param {string} key */
+    const optionalOffset = (key) => readWireMember(optionalPolicyMember("offsets"), key, { optional: true });
     return {
-      inherited: policy?.inherited !== false,
-      dateTime: normalizeReminderOffsetList(policy?.offsets?.dateTime || policy?.dateTime || policy?.date_time, [120, 1440]),
-      dateOnly: normalizeReminderOffsetList(policy?.offsets?.dateOnly || policy?.dateOnly || policy?.date_only, [4320, 1440]),
+      inherited: optionalPolicyMember("inherited") !== false,
+      dateTime: normalizeReminderOffsetList(
+        optionalOffset("dateTime") || optionalPolicyMember("dateTime") || optionalPolicyMember("date_time"),
+        [120, 1440],
+      ),
+      dateOnly: normalizeReminderOffsetList(
+        optionalOffset("dateOnly") || optionalPolicyMember("dateOnly") || optionalPolicyMember("date_only"),
+        [4320, 1440],
+      ),
     };
   }
 
@@ -4792,7 +4841,7 @@
    */
   function normalizeReminderOffsetList(values, fallback) {
     const offsets = (Array.isArray(values) ? values : [])
-      .map((value) => Number.parseInt(`${value}`, 10))
+      .map((/** @type {unknown} */ value) => Number.parseInt(`${value}`, 10))
       .filter((value) => Number.isFinite(value) && value > 0)
       .slice(0, 2);
 
@@ -4860,11 +4909,11 @@
   }
 
   /**
-   * One billing period, or `null` when the record inherits it.
-   * @param {{ startDay?: unknown, type?: unknown } | null} [period]
+   * One billing period, or `null` when the record inherits it. `period` is the wire's own value.
+   * @param {unknown} [period]
    */
   function normalizeOptionalBillingPeriod(period) {
-    if (!period || period.type === "inherit") {
+    if (!period || readWireMember(period, "type") === "inherit") {
       return null;
     }
 
@@ -4893,9 +4942,9 @@
     };
   }
 
-  /** @param {{ enabled?: unknown, increment?: unknown, type?: unknown } | null} [rounding] */
+  /** @param {unknown} [rounding] The wire's own rounding value (`0.33.33.43.58`). */
   function normalizeOptionalBillingRounding(rounding) {
-    if (!rounding || rounding.type === "inherit") {
+    if (!rounding || readWireMember(rounding, "type") === "inherit") {
       return null;
     }
 
@@ -5343,7 +5392,9 @@
    * **Present, not coerced.** A falsy value becomes `""`, but a truthy one is passed through as it
    * arrived - there is no `String()` here - so the values are `unknown` rather than text. The
    * editor trims on the way in; this reader does not.
-   * @param {Record<string, unknown> | null} [contact]
+   * `contact` arrives `unknown` from the wire and each field is an optional read, as `?.[]` was
+   * (`0.33.33.43.58`).
+   * @param {unknown} [contact]
    * @returns {Record<string, unknown>}
    */
   function normalizeBillingContact(contact) {
@@ -5351,7 +5402,7 @@
     /** @type {Record<string, unknown>} */
     const initialContact = {};
     return billingContactFields.reduce((billingContact, [fieldName]) => {
-      billingContact[fieldName] = contact?.[fieldName] || "";
+      billingContact[fieldName] = readWireMember(contact, fieldName, { optional: true }) || "";
       return billingContact;
     }, initialContact);
   }
@@ -5399,9 +5450,10 @@
   /**
    * A project status select, with the record's status selected.
    *
-   * The record's status is always one of `projectStatuses`: the normaliser keeps a status only when
-   * it is in that list and otherwise writes `"Active"`.
-   * @param {string} value
+   * The normaliser keeps a status only when it passed the `projectStatuses` test, and otherwise
+   * writes `"Active"`; what it keeps is its second read of the wire, so it is `unknown` here
+   * (`0.33.33.43.58`). It is only compared with `===`, which answers as it always did.
+   * @param {unknown} value
    */
   function createStatusSelect(value) {
     const select = document.createElement("select");
@@ -5416,9 +5468,9 @@
   }
 
   /**
-   * A client status select, with the record's status selected; like the project status, always one
-   * of `clientStatuses`.
-   * @param {string} value
+   * A client status select, with the record's status selected. Like the project status, it is the
+   * normaliser's kept value, `unknown` here and only compared with `===` (`0.33.33.43.58`).
+   * @param {unknown} value
    */
   function createClientStatusSelect(value) {
     const select = document.createElement("select");

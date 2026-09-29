@@ -178,7 +178,12 @@ const withoutJsDoc = (block) => block.replace(/[ \t]*\/\*\*[\s\S]*?\*\/\n/g, "")
 describe("The writers changed only their annotations", () => {
   it("keeps every writer's body the f966eb38 body once JSDoc is removed", () => {
     for (const name of WRITERS) {
-      expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(withoutJsDoc(extractFunctionBlock(baseline, name)));
+      const expected = withoutJsDoc(extractFunctionBlock(baseline, name))
+        // `0.33.33.43.58` made the sinks' existing conversions explicit, with the operator's approval at each route.
+        .replace("        `/api/clients/${encodeURIComponent(client.id)}`,", "        `/api/clients/${encodeURIComponent(`${client.id}`)}`,")
+        .replace("        : `/api/clients/${encodeURIComponent(client.id)}/projects`;", "        : `/api/clients/${encodeURIComponent(`${client.id}`)}/projects`;")
+        .replace("        `/api/projects/${encodeURIComponent(project.id)}`,", "        `/api/projects/${encodeURIComponent(`${project.id}`)}`,");
+      expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(expected);
     }
   });
 });

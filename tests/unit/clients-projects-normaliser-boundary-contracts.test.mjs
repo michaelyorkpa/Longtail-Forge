@@ -16,7 +16,9 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
  *
  * LATER: `0.33.33.43.57` typed the settings reader and the rounding reader under the operator's
  * approval, so they leave the unchanged and held lists here. Their proof is
- * `clients-projects-settings-rounding-contracts`.
+ * `clients-projects-settings-rounding-contracts`. `0.33.33.43.58` then typed the record normalisers
+ * and `normalizeData`, discharging the hold, and read the contact through the wire reader; their
+ * proof is `clients-projects-record-normaliser-contracts`.
  */
 
 const BASE = "03f859c0";
@@ -33,7 +35,6 @@ const VERSIONS = [["current", current], [BASE, baseline]];
 
 const UNCHANGED = [
   "canCreateChildClient", "canCreateProjectForClient", "canManageProjectClientScope",
-  "normalizeClientRecord", "normalizeData", "normalizeProjects",
 ];
 
 /** A function block without its comments, so only an annotation or a note can differ. @param {string} block */
@@ -45,6 +46,9 @@ function contactReaderFrom(text) {
   const at = text.indexOf("  const billingContactFields = [");
   expect(at).toBeGreaterThan(-1);
   vm.runInContext(text.slice(at, text.indexOf("];", at) + 2), context);
+  // `0.33.33.43.58` reads the wire records through the page's wire reader, so it joins the
+  // sandbox for any version that has one.
+  if (text.includes("  function readWireMember(")) vm.runInContext(extractFunctionBlock(text, "readWireMember"), context);
   vm.runInContext(extractFunctionBlock(text, "normalizeBillingContact"), context);
   /** @type {(contact?: unknown) => Record<string, unknown>} */
   const normalizeBillingContact = vm.runInContext("normalizeBillingContact", context);
@@ -95,15 +99,17 @@ describe("Only annotations, notes and the contact accumulator changed", () => {
     expect(withoutComments(extractFunctionBlock(current, "normalizeBillingContact")))
       .toBe(withoutComments(extractFunctionBlock(baseline, "normalizeBillingContact"))
         .replace("    return billingContactFields.reduce(", "    const initialContact = {};\n    return billingContactFields.reduce(")
-        .replace("    }, {});", "    }, initialContact);"));
+        .replace("    }, {});", "    }, initialContact);")
+        // `0.33.33.43.58` reads each field through the page's wire reader, optionally as `?.[]` did.
+        .replace("      billingContact[fieldName] = contact?.[fieldName] || \"\";", "      billingContact[fieldName] = readWireMember(contact, fieldName, { optional: true }) || \"\";"));
   });
 
-  it("records the held wire normalisers and rounding reader as pending, not typed", () => {
-    for (const name of ["normalizeData", "normalizeProjects", "normalizeClientRecord"]) {
+  it("records the hold on the wire normalisers as discharged at 0.33.33.43.58", () => {
+    for (const [name, parameter] of [["normalizeData", "data"], ["normalizeProjects", "projects"], ["normalizeClientRecord", "client"]]) {
       const at = current.indexOf(`  function ${name}(`);
       const doc = current.slice(current.lastIndexOf("/**", at), at);
-      expect(doc, name).toMatch(/pending/);
-      expect(doc, name).not.toMatch(/@param/);
+      expect(doc, name).not.toMatch(/pending/);
+      expect(doc, name).toMatch(new RegExp(`@param \\{unknown\\} ${parameter}\\b`));
     }
   });
 });

@@ -309,22 +309,53 @@ function wrapperFields(outcome) {
 
 describe("The editors changed only their annotations, and one filter spelling", () => {
   it(`keeps every other body the ${BASE} body once JSDoc is removed`, () => {
-    // `0.33.33.43.55` later stated the contact write's conversion, with the operator's approval;
-    // that one line is named so every other line stays pinned to this checkpoint's body.
-    /** @type {Record<string, [string, string]>} */
+    // `0.33.33.43.55` later stated the contact write's conversion, with the operator's approval, and
+    // `0.33.33.43.58` made the sinks' existing conversions explicit, with the operator's approval. Each later line is
+    // named and reversed, so every other line stays pinned to this checkpoint's body.
+    /** @type {Record<string, Array<[string, string]>>} */
     const later = {
-      createBillingContactEditor: ["      input.value = `${client.billing_contact[fieldName]}`;", "      input.value = client.billing_contact[fieldName];"],
+      createBillingContactEditor: [
+        ["      input.value = `${client.billing_contact[fieldName]}`;", "      input.value = client.billing_contact[fieldName];"],
+        ["      saveButton.dataset.saveBillingContactButton = `${client.id}`;", "      saveButton.dataset.saveBillingContactButton = client.id;"],
+      ],
+      createClientNameEditor: [
+        ["    const clientName = client.name;\n    input.value = clientName === null ? \"\" : `${clientName}`;", "    input.value = client.name;"],
+        ["    input.dataset.clientNameInput = `${client.id}`;", "    input.dataset.clientNameInput = client.id;"],
+        ["    statusSelect.dataset.clientStatusInput = `${client.id}`;", "    statusSelect.dataset.clientStatusInput = client.id;"],
+        ["      saveButton.dataset.saveClientButton = `${client.id}`;", "      saveButton.dataset.saveClientButton = client.id;"],
+      ],
+      createParentClientField: [
+        ["    select.dataset.clientParentInput = `${client.id}`;", "    select.dataset.clientParentInput = client.id;"],
+        ["    select.value = `${client.parent_client_id || \"\"}`;", "    select.value = client.parent_client_id || \"\";"],
+      ],
+      createAddProjectSubmitButton: [
+        ["    button.dataset.addProjectButton = `${clientId}`;", "    button.dataset.addProjectButton = clientId;"],
+      ],
     };
     for (const name of UNCHANGED_BODIES) {
-      const now = withoutJsDoc(extractFunctionBlock(current, name));
-      const [edited, original] = later[name] || ["", ""];
-      if (edited) expect(now.split(edited).length, `${name} carries its later edit once`).toBe(2);
-      expect(edited ? now.replace(edited, original) : now, name).toBe(withoutJsDoc(extractFunctionBlock(baseline, name)));
+      let now = withoutJsDoc(extractFunctionBlock(current, name));
+      for (const [edited, original] of later[name] || []) {
+        expect(now.split(edited).length, `${name} carries its later edit once`).toBe(2);
+        now = now.replace(edited, original);
+      }
+      expect(now, name).toBe(withoutJsDoc(extractFunctionBlock(baseline, name)));
     }
   });
 
   it("changes exactly one line of the project editor", () => {
-    const now = withoutJsDoc(extractFunctionBlock(current, "createProjectEditor"));
+    let now = withoutJsDoc(extractFunctionBlock(current, "createProjectEditor"));
+    // `0.33.33.43.58` made the sinks' existing conversions explicit, with the operator's approval; those
+    // five lines are named and reversed first, so this checkpoint's one line stays the only other edit.
+    for (const [edited, original] of [
+      ["      details.dataset.projectId = `${project.id}`;", "      details.dataset.projectId = project.id;"],
+      ["      summaryLabel.textContent = `${project.name ?? \"\"}`;", "      summaryLabel.textContent = project.name;"],
+      ["    wrapper.dataset.projectId = `${project.id}`;", "    wrapper.dataset.projectId = project.id;"],
+      ["    const projectName = project.name;\n    nameInput.value = projectName === null ? \"\" : `${projectName}`;", "    nameInput.value = project.name;"],
+      ["    saveButton.dataset.saveProjectButton = `${project.id}`;", "    saveButton.dataset.saveProjectButton = project.id;"],
+    ]) {
+      expect(now.split(edited).length, "each later conversion appears once").toBe(2);
+      now = now.replace(edited, original);
+    }
     expect(now.split(CHANGED_LINE[0]).length, "the new spelling appears once").toBe(2);
     expect(now.replace(CHANGED_LINE[0], CHANGED_LINE[1])).toBe(withoutJsDoc(extractFunctionBlock(baseline, "createProjectEditor")));
   });

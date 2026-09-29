@@ -103,6 +103,9 @@ function answersFrom(text) {
   });
   for (const name of CONSTANTS) vm.runInContext(arrayDeclaration(text, name), context);
   vm.runInContext(text.slice(text.indexOf("  const billingContactFields = ["), text.indexOf("];", text.indexOf("  const billingContactFields = [")) + 2), context);
+  // `0.33.33.43.58` reads the wire records through the page's wire reader, so it joins the
+  // sandbox for any version that has one.
+  if (text.includes("  function readWireMember(")) vm.runInContext(extractFunctionBlock(text, "readWireMember"), context);
   for (const name of [...SUPPORT, ...READERS]) vm.runInContext(extractFunctionBlock(text, name), context);
   const script = `(() => {
     clientProjectData = normalizeData(wire);

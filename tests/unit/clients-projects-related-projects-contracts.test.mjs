@@ -159,7 +159,8 @@ describe("Only the two approved edits reach a body", () => {
       const expected = withoutJsDoc(extractFunctionBlock(baseline, name)).replace(
         "createRelatedProjectTableList(client, relatedProjects, options)",
         "createRelatedProjectTableList(client, relatedProjects)",
-      );
+      // `0.33.33.43.58` made the sinks' existing conversions explicit, with the operator's approval.
+      ).replace("    wrapper.textContent = row.name;", "    wrapper.textContent = `${row.name ?? \"\"}`;");
       expect(withoutJsDoc(extractFunctionBlock(current, name)), name).toBe(expected);
     }
   });

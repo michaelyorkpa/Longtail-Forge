@@ -156,7 +156,8 @@ describe("The precondition the project rate field rests on", () => {
     // `?? ""` matches the DOM's own conversion of `null`, and would differ only for `undefined`.
     // Both of the rate's branches answer `null` or `normalizeBillingRate`, which answers text or
     // `null` - `.43.34` pins that reader directly.
-    assert.match(body, /billing_rate: usesProjectRoundingOnly\(\) \? null : normalizeBillingRate\(project\.billing_rate\),/);
+    // `0.33.33.43.58` reads the wire project through the page's wire reader; the branches are unchanged.
+    assert.match(body, /billing_rate: usesProjectRoundingOnly\(\) \? null : normalizeBillingRate\(readWireMember\(project, "billing_rate"\)\),/);
   });
 
   it("is what the project editor's rate field coalesces against", () => {

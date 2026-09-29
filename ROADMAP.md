@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.62` | `lists.js` optional-record consumers typed and integrated at `0.33.33.43.61`, Lists 28 to 21. Next: the item field descriptor pair (`itemFormField` / `buildItemFieldNode`), traced before any contract changes, returning any exact shared prerequisite | 21 owned |
-| Claude | `0.33.33.43.58` | Settings reader and rounding snapshot typed at `0.33.33.43.57`. `clients-projects.js` 5 remain, **held for two named operator decisions**: the record sink policy (4 - `normalizeClientRecord`, `normalizeProjects`) and `normalizeData`'s second `clients` read (1). `lists.js` is Codex's | 26 |
+| Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1637,6 +1637,10 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.58 - Clients/Projects record normalisers and their sinks
+
+**Complete: 5 diagnostics closed, and `clients-projects.js` is at zero.** See the archive entry, which records the operator's `0.33.33.43.58` approvals, the ratified `.43.57` wording and the sink inventory. Browser 26 to 21, all of it in Codex's `lists.js`. Clients/Projects zero is a family claim only: it is not browser zero or release acceptance.
 
 #### 0.33.33.43.61 - Lists optional-record consumers
 

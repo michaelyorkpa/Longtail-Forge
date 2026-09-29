@@ -25,6 +25,10 @@ import { createProjectTextReader, extractFunctionBlock, scannableSource } from "
 const source = createProjectTextReader().readText("public/js/clients-projects.js");
 
 const READERS = [
+  // `0.33.33.43.58` reads the wire records through the page's wire reader, and the client
+  // record tests its status through the page's vocabulary test.
+  "readWireMember",
+  "vocabularyHas",
   "normalizeBillingRate",
   "normalizeOptionalBillingPeriod",
   "normalizeOptionalBillingRounding",

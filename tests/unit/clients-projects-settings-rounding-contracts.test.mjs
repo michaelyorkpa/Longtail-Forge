@@ -565,21 +565,21 @@ describe("The rounding editor renders and saves as before", () => {
 
 describe("Only the settings and rounding readers changed", () => {
   it(`keeps every other function touched here the ${BASE} body`, () => {
-    for (const name of [
-      "normalizeData", "normalizeClientRecord", "normalizeProjects", "normalizeOptionalBillingRounding",
-      "createBillingRoundingEditor", "formatBillingRounding", "normalizeBillingPeriod", "vocabularyHas",
-    ]) {
+    // LATER: `0.33.33.43.58` typed the record normalisers, `normalizeData` and the optional rounding
+    // reader under the operator's approval, so they leave this list;
+    // `clients-projects-record-normaliser-contracts` proves them against `1c78eaf0`.
+    for (const name of ["createBillingRoundingEditor", "formatBillingRounding", "normalizeBillingPeriod", "vocabularyHas"]) {
       expect(withoutComments(extractFunctionBlock(current, name)), name).toBe(withoutComments(extractFunctionBlock(baseline, name)));
     }
     expect(declaration(current, "  let workspaceSettings = {", "\n  };")).toBe(declaration(baseline, "  let workspaceSettings = {", "\n  };"));
   });
 
-  it("holds the record normalisers and normalizeData for the two named decisions", () => {
+  it("held the record normalisers and normalizeData until 0.33.33.43.58 discharged both decisions", () => {
     for (const name of ["normalizeData", "normalizeClientRecord", "normalizeProjects"]) {
       const at = current.indexOf(`  function ${name}(`);
       const doc = current.slice(current.lastIndexOf("/**", at), at);
-      expect(doc, name).toMatch(/pending an\s+(?:\*\s+)?operator decision/);
-      expect(doc, name).not.toMatch(/@param/);
+      expect(doc, name).not.toMatch(/pending an\s+(?:\*\s+)?operator decision/);
+      expect(doc, name).toMatch(/@param \{unknown\}/);
     }
   });
 });

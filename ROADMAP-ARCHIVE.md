@@ -1,5 +1,72 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.58 - Clients/Projects record normalisers and their sinks
+
+**Model: High Effort** - the page's wire records reach every Clients/Projects surface. Identifiers stay as the wire held them, and each sink states the conversion its operation already made, under approved rules.
+
+- [x] **Operator approvals, 2026-09-29**, recorded so they are not asked again.
+  - **Record normalisers and their sinks.** Conversions are made explicit at the operation that already performs them, with that operation's own `null` and `undefined` handling:
+
+    | Sink | Rule |
+    |---|---|
+    | URL encoding | `` encodeURIComponent(`${v}`) `` |
+    | `dataset` write | `` `${v}` `` |
+    | `select.value` | `` `${v}` `` |
+    | `textContent` | `` `${v ?? ""}` `` |
+    | `HTMLInputElement.value` | `` v === null ? "" : `${v}` `` |
+
+    - `v` is the whole original right-hand side.
+    - Browser setter prefixes are approved for Symbols and objects that cannot convert.
+    - Only helpers that carry the raw value widen.
+  - **`normalizeData`'s second `clients` read.** It is re-tested. A non-list second answer, after a list first answer, throws `TypeError("Clients/Projects clients collection changed while being read.")`. **This is a new refusal, recorded as a behavior decision**, and it covers a second answer with its own callable `map` too.
+  - **Ratified:** the `.43.57` application-owned `TypeError` for a non-callable settings `find`.
+- [x] **Measured first.** On `nightly` `1c78eaf0`: `clients-projects.js` 5, Lists 21 (TS7006 12, TS2339 9), browser 26. Typing the record normalisers closes the 5 and exposes 44 first-order consequences, the same inventory `.43.57` measured.
+- [x] **Normalisers.** These take `unknown` and read through `readWireMember`, with every read keeping its required or optional kind, order and count:
+  - `normalizeData`, `normalizeClientRecord` and `normalizeProjects`;
+  - the grouping's capabilities;
+  - the reminder policy, task defaults, tags, contact, optional billing period and optional rounding readers.
+
+  Raw elements are `unknown` before any read, whether they are callback parameters, `clientElements` or the sort-order `rawItems`. `status` is still read twice. Identifiers stay the wire's own values.
+- [x] **Corrected from the plan: `normalizeBillingPeriod` is unchanged.** Its widening compiled away, because its only wire caller passes a truth-narrowed value its all-optional parameter already accepts. So it was reverted as surplus, and it matches `1c78eaf0` byte for byte.
+- [x] **Platform sinks (29).**
+  - 7 URL encodes, in the bulk updates, the client-page link and the four record writers.
+  - 13 `dataset` writes: the name, status, parent, save, contact, rate, billable and project markers, and the add-project marker that widening `createAddProjectSubmitButton` brought into scope.
+  - 3 `textContent` writes: the client summary, the related-project name cell and the project summary.
+  - 2 input `value` writes, the client and project names. Each reads the name once, at its original point.
+  - 4 select `value` writes: parent client, project client, parent project and the Add Project client picker.
+- [x] **Helpers (16 consequences).** The following take `unknown` because they only test, compare or collect:
+  - `createAddProjectSubmitButton`, `getProjectClientName`, `getProjectTargetClient`;
+  - `createStatusSelect`, `createClientStatusSelect`, `populateParentClientSelect`;
+  - `populateParentProjectSelect`'s options;
+  - the two descendant collectors, whose `Set` and pending list are declared `unknown` rather than an inferred `Set<any>`.
+
+  The Add Project stub's `client_id` is `unknown`. Payloads, stored records and names are untouched.
+- [x] **Proof.**
+  - **Side by side against `1c78eaf0`**, through the real normalisers, in `clients-projects-record-normaliser-contracts`. The runs cover:
+    - projects and clients pages, in Business and personal workspaces;
+    - real service-shaped bodies, and empty, nullish and primitive ones;
+    - non-list collections, malformed and sparse elements;
+    - every reminder, task-default and billing shape;
+    - identifiers and names of other kinds;
+    - extra, inherited and getter-backed members.
+
+    Each run gives the same reads in the same order with the same receivers, and the same records with the same members, value types and identities. A nullish failure is the same `TypeError` at the same member the engine named. A getter's own error propagates as that very error.
+  - **The approved refusal.** It is proved against the old behavior it replaces: the engine's `TypeError`, or a second answer's own `map`.
+  - **Native controls in Chromium**, in `clients-projects-record-sink-conversion`. All five rules were checked on 22 probes each, and the setter and the rule agree on value, selection, hook calls, failure kind and the hook's own error. The probes include:
+    - `null` and `undefined`;
+    - falsy values and whitespace;
+    - objects and conversion hooks, including a throwing one;
+    - Symbols and null-prototype objects;
+    - a select with matching options.
+
+    Only conversion failures differ in wording, and only at setters. Two real page functions write the same DOM from both versions.
+  - **Mutations.** 16, each caught and attributed to named tests. The two sink-rule mutations are also caught in Chromium.
+  - **Compiler probes.** 25, each load-bearing. Four more annotations are shown to stop array-library `any`.
+  - **Pins.** Seven suites now lift the wire reader. Thirteen pins across nine suites are retargeted to their exact `.43.58` lines, and so are the checked-DOM and bulk-toolbar pins.
+  - **Found by the rendered gate.** The `.43.55` billing-contact Chromium spec lifts the contact reader with `new Function`. The pin search covered unit lifts but not browser ones, and `verify:slice` does not run browser specs, so the first rendered run was where the missing wire reader surfaced. The spec now ships the reader beside the normaliser. `verify:slice` was re-run on the corrected tree.
+- [x] **Accounting.** `clients-projects.js` 5 to 0, browser 26 to 21: **5 closed and none introduced**, measured per message. The ledger records both new suites.
+- [x] **Documentation disposition.** No docs change needed: internal checkpoint; the owning inventory describes ownership, not typing.
+
 ## Version 0.33.33.43.61 - Lists optional-record consumers
 
 **Model: High Effort** - Reconcile seven consumers of optional normalized records while preserving their runtime distinctions.
@@ -39,7 +106,8 @@
   - **Collection calls.** Each `find` goes through `callWireMethod`, which reads the method through the reader and applies it with the collection as its receiver.
   - **Rounding reader.** `normalizeBillingRounding` takes `unknown` and snapshots the increment.
   - **Connected slots.** The `workspaceSettings` slot is typed from `normalizeSettings`; every consumer of its now-`unknown` `workspaceType` compares it. `createBillingRoundingEditor`'s `inheritedRounding` is typed as the rounding reader's answer, which all three callers pass.
-- [x] **One named message change beyond the approval's letter.** A `find` that cannot be called now fails at the same call, after the same reads, with this file's `TypeError` instead of the engine's "... is not a function". Its outcome is otherwise unchanged, and a collection carrying its own callable `find` is still called. The load path's catch shows its own fixed text either way.
+- [x] **CI disclosure (recorded at `0.33.33.43.58`).** The first attempt of *Complete maintenance release rehearsal* on #836 failed at `bounded-nginx-caddy`, 1.5 s in, with an uncaught `socket hang up`. A single rerun of that job passed. **The root cause is not established.** The run is recorded as recovered, not as proven unrelated because a retry passed. The rehearsal gate is unchanged.
+- [x] **One named message change beyond the approval's letter.** *Ratified by the operator at `0.33.33.43.58`.* A `find` that cannot be called now fails at the same call, after the same reads, with this file's `TypeError` instead of the engine's "... is not a function". Its outcome is otherwise unchanged, and a collection carrying its own callable `find` is still called. The load path's catch shows its own fixed text either way.
 - [x] **Held (5), for two named decisions.**
   - **The record sink policy (4).** `normalizeClientRecord` and `normalizeProjects`, with the 44 sinks: 7 URL encodes, 12 `dataset` writes, 3 `textContent` writes, 2 input `value` writes, 4 select `value` writes, and 16 helpers, options and collections.
   - **`normalizeData`'s second `clients` read (1).** The only typed map re-tests the second read, which differs from the bare read only for an accessor that answers a list and then a non-list.

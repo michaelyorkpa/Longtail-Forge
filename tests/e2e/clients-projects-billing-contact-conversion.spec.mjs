@@ -24,7 +24,9 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 const source = createProjectTextReader().readText("public/js/clients-projects.js");
 const fieldsAt = source.indexOf("  const billingContactFields = [");
 const FIELDS_DECLARATION = source.slice(fieldsAt, source.indexOf("];", fieldsAt) + 2);
-const NORMALIZER = extractFunctionBlock(source, "normalizeBillingContact");
+// `0.33.33.43.58` reads each contact field through the page's wire reader, so the reader is shipped
+// alongside the normaliser it serves.
+const NORMALIZER = `${extractFunctionBlock(source, "readWireMember")}\n${extractFunctionBlock(source, "normalizeBillingContact")}`;
 
 test("the contact write converts exactly as the input setter did, on real inputs", async ({ page }) => {
   expect(fieldsAt).toBeGreaterThan(-1);

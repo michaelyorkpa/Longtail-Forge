@@ -23,7 +23,10 @@ const source = createProjectTextReader().readText("public/js/clients-projects.js
  */
 function lift(names, extra = {}) {
   const sandbox = vm.createContext({ ...extra });
-  for (const name of names) {
+  // `0.33.33.43.58` reads the wire records through the page's wire reader, and the sort order
+  // tests its items through the page's vocabulary test, so both join every lift that lacks them.
+  const shared = ["readWireMember", "vocabularyHas"].filter((name) => !names.includes(name));
+  for (const name of [...shared, ...names]) {
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   }
   return vm.runInContext(`({ ${names.join(", ")} })`, sandbox);
@@ -293,7 +296,8 @@ describe("The cascade this checkpoint measured and did not bank", () => {
   it("confirms the member the cascade appeared to be about is genuinely built", () => {
     // `canManage` surfaced in the cascade and is not dropped: the normaliser writes it. Recording
     // that is what keeps the next checkpoint from chasing a defect that is not there.
-    assert.match(source, /canManage: client\.can_manage === true,/,
+    // `0.33.33.43.58` reads the wire record through the page's wire reader; the member is still built.
+    assert.match(source, /canManage: readWireMember\(client, "can_manage"\) === true,/,
       "the normaliser still builds the capability the cascade named");
   });
 });
