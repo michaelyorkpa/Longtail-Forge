@@ -28,6 +28,8 @@ const source = reader.readText("public/js/clients-projects.js");
 const checkedDomSource = reader.readText("public/js/shared/checked-dom.js");
 
 const EDITOR_READERS = [
+  // `0.33.33.43.58` reads the wire records through the page's wire reader.
+  "readWireMember",
   "vocabularyHas",
   "parseJsonArray",
   "normalizeProjectTaskSortOrder",

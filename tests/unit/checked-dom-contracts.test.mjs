@@ -260,8 +260,9 @@ describe("The one optional lookup keeps its fallback", () => {
 
   it("narrows to a button because a button is the only thing that ever carries the marker", () => {
     assert.equal(occurrences(page, "dataset.addProjectButton ="), 1);
+    // `0.33.33.43.58` made the marker write's existing conversion explicit, with the operator's approval.
     assert.match(extractFunctionBlock(page, "createAddProjectSubmitButton"),
-      /const button = document\.createElement\("button"\);[\s\S]*button\.dataset\.addProjectButton = clientId;/);
+      /const button = document\.createElement\("button"\);[\s\S]*button\.dataset\.addProjectButton = `\$\{clientId\}`;/);
   });
 });
 

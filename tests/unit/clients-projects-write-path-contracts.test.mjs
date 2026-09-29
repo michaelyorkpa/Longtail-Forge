@@ -136,6 +136,8 @@ describe("The billing contact is every named field, not a map of text", () => {
     const sandbox = vm.createContext({});
     const at = source.indexOf("  const billingContactFields = ");
     vm.runInContext(source.slice(at, source.indexOf("];", at) + 2), sandbox);
+    // `0.33.33.43.58` reads the wire records through the page's wire reader.
+    vm.runInContext(extractFunctionBlock(source, "readWireMember"), sandbox);
     vm.runInContext(extractFunctionBlock(source, "normalizeBillingContact"), sandbox);
 
     return vm.runInContext("({ normalizeBillingContact, billingContactFields })", sandbox);

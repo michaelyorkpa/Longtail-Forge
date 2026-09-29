@@ -45,9 +45,10 @@ assert.match(extractFunctionBody(clientsProjectsScript, "syncClientProjectsBulkT
 assert.match(extractFunctionBody(clientsProjectsScript, "createProjectBulkControls"), /createBulkClientSelect\(\)[\s\S]*shouldChangeClient:\s*true/, "Project bulk controls should keep module-owned Client reassignment semantics");
 assert.match(extractFunctionBody(clientsProjectsScript, "createBulkClientSelect"), /if \(!clientsEnabledForWorkspace\(\)\) \{[\s\S]*return null/, "Project Client reassignment should stay hidden outside Business workspaces");
 assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /canChangeClient = clientsEnabledForWorkspace\(\) && shouldChangeClient[\s\S]*client_id:\s*canChangeClient \? nextClientId : project\.client_id/, "Project bulk payloads should not submit Client IDs outside Business workspaces");
-assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /\/api\/projects\/\$\{encodeURIComponent\(project\.id\)\}/, "Project bulk updates should keep existing granular project routes");
+// `0.33.33.43.58` made each route's existing id conversion explicit, with the operator's approval.
+assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /\/api\/projects\/\$\{encodeURIComponent\(`\$\{project\.id\}`\)\}/, "Project bulk updates should keep existing granular project routes");
 assert.doesNotMatch(extractFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /\/api\/projects\/bulk|\/api\/client-projects\/bulk/, "Project bulk updates should not invent a bulk route in this slice");
-assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkClientUpdate"), /\/api\/clients\/\$\{encodeURIComponent\(client\.id\)\}/, "Client bulk updates should keep existing granular client routes");
+assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkClientUpdate"), /\/api\/clients\/\$\{encodeURIComponent\(`\$\{client\.id\}`\)\}/, "Client bulk updates should keep existing granular client routes");
 assert.match(extractFunctionBody(clientsProjectsScript, "formatBulkResultMessage"), /could not be updated/, "Bulk updates should keep partial-failure messaging in the module adapter");
 assert.match(extractFunctionBody(clientsProjectsScript, "refreshClientProjectsAfterBulkUpdate"), /refreshClientProjectData\(\)[\s\S]*refreshActiveClientProjectsReadSurface\(\)/, "Descriptor bulk saves should refresh both module data and active descriptor surfaces");
 

@@ -164,6 +164,9 @@ function helpersFrom(text) {
   vm.runInContext(declaration(text, "  const clientStatuses = [", "];"), context);
   vm.runInContext(declaration(text, "  const projectStatuses = [", "];"), context);
   vm.runInContext(declaration(text, "  let workspaceSettings = {", "\n  };"), context);
+  // `0.33.33.43.58` reads the wire records through the page's wire reader, so it joins the
+  // sandbox for any version that has one.
+  if (text.includes("  function readWireMember(")) vm.runInContext(extractFunctionBlock(text, "readWireMember"), context);
   for (const name of CLOSURE) vm.runInContext(extractFunctionBlock(text, name), context);
   /** @type {HelperFunctions} */
   const page = vm.runInContext(`({ ${[...HELPERS, "normalizeTaskReminderPolicy"].join(", ")} })`, context);
