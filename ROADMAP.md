@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.43.62` | `lists.js` optional-record consumers typed and integrated at `0.33.33.43.61`, Lists 28 to 21. Next: the item field descriptor pair (`itemFormField` / `buildItemFieldNode`), traced before any contract changes, returning any exact shared prerequisite | 21 owned |
-| Claude | `0.33.33.43.58` | Settings reader and rounding snapshot typed at `0.33.33.43.57`. `clients-projects.js` 5 remain, **held for two named operator decisions**: the record sink policy (4 - `normalizeClientRecord`, `normalizeProjects`) and `normalizeData`'s second `clients` read (1). `lists.js` is Codex's | 26 |
+| Claude | `0.33.33.43.58` | **In progress:** the Clients/Projects record normalisers, `normalizeData` and their connected sinks, under the operator's `0.33.33.43.58` approvals. `lists.js` is Codex's | 26 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1637,6 +1637,68 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.58 - Clients/Projects record normalisers and their sinks
+
+**Model: High Effort** - the page's wire records reach every Clients/Projects surface. Identifiers stay as the wire held them, and each sink makes its existing conversion explicit under an approved rule.
+
+**Approved by the operator on 2026-09-29, recorded here so they are not asked again.**
+
+- **Record normalisers and their connected sinks.** `normalizeClientRecord`, `normalizeProjects` and their raw elements are typed through `readWireMember`, and the page-local consumers are reconciled here.
+  - **Conversion rules.** Where an operation already converts, the conversion is made explicit there, with that operation's own `null` and `undefined` handling:
+
+    | Sink | Rule |
+    |---|---|
+    | URL encoding | `` encodeURIComponent(`${v}`) `` |
+    | `dataset` write | `` `${v}` `` |
+    | `select.value` | `` `${v}` `` |
+    | `textContent` | `` `${v ?? ""}` `` |
+    | `HTMLInputElement.value` | `` v === null ? "" : `${v}` `` |
+
+    Here `v` is the whole original right-hand side, fallbacks included. Read counts and evaluation order are preserved, and a value needed twice is read once, at its original point.
+  - **Wording.** Browser-added setter or context prefixes are approved, for Symbols and for objects that cannot convert. The failure keeps its exception kind and its catch or rejection path.
+  - **Ruled out:**
+    - stringifying the stored record, rewriting payloads, replacing identifiers or trimming names;
+    - response validation;
+    - catching or replacing getter and conversion-hook errors.
+  - **Helpers.** Only declarations that carry the raw value widen. Forwarding, truthiness, strict equality and identity-sensitive collections keep the original value, and closed vocabularies do not widen for an `unknown` needle.
+- **`normalizeData`'s second `clients` read: re-test.**
+  - The first read answers the existing `Array.isArray` test. A non-list first answer still takes the `[]` branch, with no second read.
+  - A list first answer is read a second time, at the mapping point. That second answer is captured and re-tested, with no third read.
+  - A list second answer is mapped through its own `map`, with its elements typed `unknown`.
+  - A non-list second answer throws `TypeError("Clients/Projects clients collection changed while being read.")`. **This is a new refusal, recorded as a behavior decision**, even when that second answer carries its own callable `map`.
+- **Ratified: the `.43.57` settings `find` wording.** The application-owned `TypeError` for a non-callable `find` at the two settings-reader calls is ratified. It extended the earlier approval beyond its literal scope and was disclosed at the time. Callable custom `find` methods, their receiver, the optional reads and fallbacks, the required element reads and the load path's state all stay as they are.
+
+**Measured first.** On `nightly` `1c78eaf0`: `clients-projects.js` 5, Lists 21 (TS7006 12, TS2339 9), browser 26.
+- Typing the record normalisers and `normalizeData` closes all 5.
+- It exposes **44** first-order consequences, the same inventory `0.33.33.43.57` measured:
+  - 28 platform sinks: 7 URL encodes, 12 `dataset` writes, 3 `textContent` writes, 2 input `value` writes and 4 select `value` writes;
+  - 16 helper, option and collection consequences.
+
+**Scope.**
+
+- [ ] **Normalisers.** `normalizeClientRecord`, `normalizeProjects`, `normalizeData` and the grouping's capabilities read through `readWireMember`, with raw elements typed `unknown`. The connected sub-normalisers take `unknown`: the reminder policy, task defaults, sort order, JSON array, tags, contact, billing period and optional rounding. Every read keeps its required or optional kind, its order and its count.
+- [ ] **Platform sinks.** The 28 sinks, plus the `dataset` write inside `createAddProjectSubmitButton` that widening it brings into scope (13 `dataset` writes in all), each follow its approved rule.
+- [ ] **Helpers.**
+  - These widen to `unknown` where they only test, compare or collect: `createAddProjectSubmitButton`, `getProjectClientName`, `getProjectTargetClient`, `createStatusSelect`, `createClientStatusSelect`, `populateParentClientSelect`, `populateParentProjectSelect`'s options and the two descendant collectors.
+  - The collectors' `Set` and pending list are declared `unknown`, rather than the `Set<any>` an untyped `new Set()` infers.
+  - The Add Project stub's `client_id` carries the target entry's own id, so that member is `unknown`.
+
+**Acceptance.**
+- `clients-projects.js` 5 to 0, measured per message, with none introduced. Browser 26 to 21 before any Codex integration.
+- **Native-control proof in Chromium** for each conversion class, covering:
+  - `null` against `undefined`;
+  - falsy values, whitespace and objects;
+  - conversion failures;
+  - a select with matching options;
+  - representative page call sites.
+- **Comparison against `1c78eaf0`**, through the real normalisers and callers, of:
+  - produced records and member presence;
+  - hierarchy and selection behavior, labels, request routes and payloads;
+  - read counts and order, and unchanged failures;
+  - the approved second-read refusal.
+- Targeted mutations, compiler probes, and raw and escaped pin searches.
+- Rendered Clients/Projects workflows on 8101.
 
 #### 0.33.33.43.61 - Lists optional-record consumers
 
