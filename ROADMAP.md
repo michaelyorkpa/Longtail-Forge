@@ -4810,3 +4810,13 @@ The Creator studio tool can be much richer if it pushes content out to these pla
   - [ ] Launch website
 
 - [ ] Launch Social Media
+
+#### 0.33.33.43.62 - Lists item field descriptor consumers
+
+**Model: High Effort** - Trace opaque contributed descriptors through native Node-or-text and control sinks without inventing validation.
+
+- [ ] Baseline `1c78eaf020b81f111a5c9a4ab23417df6b70a6c8`: Lists 21 raw / 21 owned / 0 DOM (12 TS7006, 9 TS2339), Clients/Projects 5, browser 26. Preserve the prior branch and held stash; no dependency changes or install.
+- [ ] Restore runAction/moveItem purpose documentation, signed direction and bounds, and absent itemId rationale; the accepted optional-record and missing-record behavior is unchanged.
+- [ ] Trace listsItemFormSurfaceDescriptor through contributed and fallback fields, itemFormField, createItemFieldFromDescriptor, buildItemFieldNode and createItemNameField/control builders. The published field contract guarantees only field and optional width; readListsFields checks those only. First-party literal labels/types do not prove contributed members.
+- [ ] Reconcile the two parameter diagnostics and connected consumers only where native Node-or-text behavior, dispatch, labels, width, option order/defaults and checkbox checked/submitted-value distinction are preserved. Retain byte backups for compiler probes; do not bank new messages. Return exact shared prerequisite evidence if required.
+- [ ] Compare baseline/current branches and real add/edit item workflows on isolated 8102; search raw and escaped pins, use focused mutations with SHA-256 restores, and report per-message changes. Run range-explicit verify:slice then checkpoint:validate on the finished committed tree. Archive last and deliver a draft PR; Claude owns integration.
