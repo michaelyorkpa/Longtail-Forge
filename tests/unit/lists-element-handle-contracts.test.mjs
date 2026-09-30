@@ -166,13 +166,13 @@ describe("What this narrowing is, and what it leaves standing", () => {
     assert.match(source, /clientFilter = findListsSelect\(/, "and the handles it is given are narrowed to one");
   });
 
-  it("leaves the project populator deferred on nullability rather than on the subtype", () => {
+  it("establishes the required project write after its existing RHS work", () => {
     // Discharged by deciding what an absent project control should do - a product question. A
     // guard here would turn today's throw into a silent skip.
     const at = source.indexOf("function populateProjectOptions(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
-    assert.doesNotMatch(block, /@param \{[^}]*\} select/, "the populator's select is annotated; re-decide this deferral");
-    assert.match(source, /select\.value = projects\.some/, "it still writes the control's value unguarded");
+    assert.match(block, /@param \{HTMLSelectElement \| null\} select/);
+    assert.match(source, /const selectedValue = projects\.some[\s\S]*requireListsHandle\(select, "project select"\)\.value = `\$\{selectedValue\}`;/, "RHS work precedes the required write");
   });
 
   it("discharges the option sink without claiming that user IDs were validated", () => {

@@ -433,10 +433,11 @@
      * @type {Promise<void> | null}
      */
     dialogDataReady: null,
+    /** @type {unknown} */
     editingListId: "",
     /**
-     * The list the editor currently holds - the **normalized page record**, not the wire summary.
-     * @type {BrowserNormalizedListRecord | null}
+     * The exact normalized page record or opaque host record the editor currently holds.
+     * @type {unknown}
      */
     editorList: null,
     /**
@@ -876,19 +877,78 @@
    * @typedef {{ result?: unknown, trigger?: unknown }} ListEditorHostContext
    */
 
-  /** @param {ListEditorHostContext | null} [hostContext] */
+  /** @param {unknown} value @param {PropertyKey} key @param {boolean} [optional] @returns {unknown} */
+  function listEditorField(value, key, optional = false) {
+    if (value === null || value === undefined) {
+      if (optional) return undefined;
+      throw new TypeError("The list editor value cannot be read.");
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @param {PropertyKey} key @param {unknown[]} args @returns {unknown} */
+  function callListEditorMember(value, key, args) {
+    const method = listEditorField(value, key);
+    if (typeof method !== "function") throw new TypeError(`The list editor value has no callable ${String(key)}.`);
+    return Reflect.apply(method, value, args);
+  }
+
+  /** Native computed-member conversion, including objects whose primitive result is a Symbol.
+   * @param {unknown} key @returns {unknown}
+   */
+  function listEditorLinkTypeLabel(key) {
+    const propertyKey = Reflect.ownKeys(Object.fromEntries([[key, null]]))[0];
+    return Reflect.get(LIST_LINK_TYPE_LABELS, propertyKey);
+  }
+
+  /** Exhaust the same iterator as an editor spread, without reading target-owned hooks twice.
+   * @param {unknown} input @returns {unknown[]}
+   */
+  function listEditorValues(input) {
+    const method = listEditorField(input, Symbol.iterator, true);
+    if (typeof method !== "function") throw new TypeError("The list editor collection is not iterable.");
+    const iterator = Reflect.apply(method, input, []);
+    if ((typeof iterator !== "object" || iterator === null) && typeof iterator !== "function") {
+      throw new TypeError("The list editor iterator did not return an object.");
+    }
+    const next = listEditorField(iterator, "next");
+    const values = [];
+    while (true) {
+      if (typeof next !== "function") throw new TypeError("The list editor iterator has no callable next.");
+      const step = Reflect.apply(next, iterator, []);
+      if ((typeof step !== "object" || step === null) && typeof step !== "function") {
+        throw new TypeError("The list editor iterator next did not return an object.");
+      }
+      if (listEditorField(step, "done")) return values;
+      values.push(listEditorField(step, "value"));
+    }
+  }
+
+  /** @param {unknown} value @param {unknown} key @returns {unknown} */
+  function listEditorIndex(value, key) {
+    if (value === null || value === undefined) return undefined;
+    const propertyKey = Reflect.ownKeys(Object.fromEntries([[key, null]]))[0];
+    return Reflect.get(Object(value), propertyKey, value);
+  }
+
+  /** @param {unknown} status */
+  function isListEditorClosedStatus(status) {
+    return status === "archived" || status === "deleted" || status === "finalized";
+  }
+
+  /** @param {unknown} [params] @param {ListEditorHostContext | null} [hostContext] */
   async function openListEditor(params = {}, hostContext = null) {
     await prepareListDialogData();
 
     const mode = normalizeListEditorMode(params);
     const listId = readListEditorId(params);
-    let list = params.list || params.record || params.listRecord || null;
+    let list = listEditorField(params, "list") || listEditorField(params, "record") || listEditorField(params, "listRecord") || null;
 
     if (mode === "edit") {
       if (!list && listId) {
         list = await loadListDetail(listId);
       }
-      if (!list?.list_id) {
+      if (!listEditorField(list, "list_id", true)) {
         throw new Error("List ID is required.");
       }
     }
@@ -896,7 +956,7 @@
     const result = openListDialog(mode === "add" ? null : list, {
       defaults: normalizeListEditorDefaults(params),
       hostContext,
-      trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
+      trigger: listEditorField(params, "returnFocusTo") || listEditorField(params, "trigger") || hostContext?.trigger || null,
     });
     return hostContext?.result || result;
   }
@@ -916,47 +976,16 @@
     return state.dialogDataReady;
   }
 
-  /**
-   * The module-action parameter bag, as a host may send it.
-   *
-   * `openListEditor` is published as `params?: unknown`, so nothing here is proved: this is what
-   * the three readers below tolerate. Every member is `unknown` because each reader is what
-   * converts it - `String(...)` for the mode, `||` to `""` for the identifiers and defaults - so
-   * declaring one `string` would claim of the host what only the reader's own return establishes.
-   * @typedef {{
-   *   actionMode?: unknown, client_id?: unknown, clientId?: unknown, context?: unknown,
-   *   description?: unknown, id?: unknown, listId?: unknown, list_id?: unknown,
-   *   listType?: unknown, list_type?: unknown, mode?: unknown,
-   *   projectId?: unknown, project_id?: unknown, recordId?: unknown, title?: unknown
-   * }} ListEditorParamsInput
-   */
-
-  /** @param {ListEditorParamsInput} [params] */
+  /** @param {unknown} [params] */
   function normalizeListEditorMode(params = {}) {
-    const mode = String(params.mode || params.actionMode || "").toLowerCase();
+    const mode = String(listEditorField(params, "mode") || listEditorField(params, "actionMode") || "").toLowerCase();
     return mode === "edit" ? "edit" : "add";
   }
 
-  /**
-   * **Still deliberately untyped, and `0.33.33.43.30` measured exactly why the fix that worked for
-   * the defaults does not work here.**
-   *
-   * Templating the chain - the conversion that discharged `normalizeListEditorDefaults` - is not
-   * behaviour-preserving for this reader, because **its result is tested for truthiness before it
-   * is converted**: `openListEditor` runs `if (!list && listId)` and only then fetches. Three value
-   * kinds are truthy yet stringify to empty - `[]`, `new String("")` and an object whose `toString`
-   * answers `""` - so templating would turn a fetch that happens today into one that does not.
-   *
-   * That is a behaviour change, not a typing decision, and it is the difference between this reader
-   * and the defaults one: nothing downstream of the defaults branches on truthiness before the
-   * conversion, and this does.
-   *
-   * **Discharged by** deciding what a truthy non-text identifier should mean - a product question -
-   * or by the published `params` type naming the identifier as text. Pinned by
-   * `lists-editor-surface-contracts`.
-   */
+  // Keep identifiers opaque through the truthiness gate; conversion belongs to loadListDetail.
+  /** @param {unknown} [params] */
   function readListEditorId(params = {}) {
-    return params.listId || params.list_id || params.recordId || params.id || "";
+    return listEditorField(params, "listId") || listEditorField(params, "list_id") || listEditorField(params, "recordId") || listEditorField(params, "id") || "";
   }
 
   /**
@@ -974,17 +1003,16 @@
    * ten write the same text, because a falsy result and an empty result are the same `""` here.
    * **That is why this half is safe and `readListEditorId` is not**: nothing downstream of these
    * branches on their truthiness before the conversion.
-   * @param {ListEditorParamsInput} [params]
+   * @param {unknown} [params]
    */
   function normalizeListEditorDefaults(params = {}) {
-    /** @type {{ clientId?: unknown, projectId?: unknown }} */
-    const context = params.context || {};
+    const context = listEditorField(params, "context") || {};
     return {
-      client_id: `${params.client_id || params.clientId || context.clientId || ""}`,
-      description: `${params.description || ""}`,
-      list_type: `${params.list_type || params.listType || ""}`,
-      project_id: `${params.project_id || params.projectId || context.projectId || ""}`,
-      title: `${params.title || ""}`,
+      client_id: `${listEditorField(params, "client_id") || listEditorField(params, "clientId") || listEditorField(context, "clientId") || ""}`,
+      description: `${listEditorField(params, "description") || ""}`,
+      list_type: `${listEditorField(params, "list_type") || listEditorField(params, "listType") || ""}`,
+      project_id: `${listEditorField(params, "project_id") || listEditorField(params, "projectId") || listEditorField(context, "projectId") || ""}`,
+      title: `${listEditorField(params, "title") || ""}`,
     };
   }
 
@@ -1720,13 +1748,13 @@
    * **The fallback is the collection's own summary, and that path is load-bearing**: a rejected
    * detail request still contributes a rendered list rather than dropping it. `null` is only
    * answered when there is no summary to fall back to.
-   * @param {string} listId @param {BrowserListSummary | null} [fallback]
+   * @param {unknown} listId @param {BrowserListSummary | null} [fallback]
    * @returns {Promise<BrowserNormalizedListRecord | null>}
    */
   async function loadListDetail(listId, fallback = null) {
     const api = requireApi();
     try {
-      const result = await api.getJson(`/api/lists/${encodeURIComponent(listId)}?includeDeleted=true&includeDeletedItems=true`, {
+      const result = await api.getJson(`/api/lists/${encodeURIComponent(`${listId}`)}?includeDeleted=true&includeDeletedItems=true`, {
         cache: "no-store",
       });
       const detail = readListDetail(result);
@@ -2574,10 +2602,36 @@
     });
   }
 
-  /** @param {string} targetType */
+  /** Opaque host records retain their own collection map. The normalized page projection above
+   * keeps its writer-derived contract; this editor path promises neither a row nor an array.
+   * @param {unknown} list @returns {unknown}
+   */
+  function listEditorContextItems(list) {
+    return callListEditorMember(listEditorField(list, "links") || [], "map", [(/** @type {unknown} */ link) => {
+      const target = listEditorField(link, "target") || {};
+      const targetType = listEditorField(link, "target_type") || "";
+      const typeLabel = listEditorLinkTypeLabel(targetType) || formatToken(targetType);
+      const displayLabel = listEditorField(target, "label") || unavailableLinkedRecordLabel(targetType);
+      return {
+        className: "lists-linked-context-row",
+        displayLabel,
+        fullLabel: displayLabel,
+        hintLabel: typeLabel,
+        isAvailable: Boolean(listEditorField(target, "label")),
+        moduleId: listEditorField(target, "moduleId") || listEditorField(target, "module_id") || targetType || "lists",
+        removable: false,
+        secondaryLabel: typeLabel,
+        sourceUrl: listEditorField(target, "url") || "",
+        targetId: listEditorField(target, "id") || listEditorField(target, "target_id") || "",
+        targetType,
+      };
+    }]);
+  }
+
+  /** @param {unknown} targetType */
   function unavailableLinkedRecordLabel(targetType) {
-    const typeLabel = LIST_LINK_TYPE_LABELS[targetType] || formatToken(targetType);
-    return typeLabel ? `Unavailable ${typeLabel.toLowerCase()}` : "Unavailable linked record";
+    const typeLabel = listEditorLinkTypeLabel(targetType) || formatToken(targetType);
+    return typeLabel ? `Unavailable ${callListEditorMember(typeLabel, "toLowerCase", [])}` : "Unavailable linked record";
   }
 
   /**
@@ -3356,7 +3410,7 @@
     requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = true;
     requireListsHandle(listFormStatus, "list form status").textContent = "Adding linked record...";
     try {
-      await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links`, listLinkPayload(target));
+      await api.postJson(`/api/lists/${encodeURIComponent(`${state.editingListId}`)}/links`, listLinkPayload(target));
       await refreshListEditor(state.editingListId);
       requireListsHandle(listFormStatus, "list form status").textContent = "";
     } catch (error) {
@@ -3405,7 +3459,7 @@
 
     requireListsHandle(listFormStatus, "list form status").textContent = "Removing linked record...";
     try {
-      await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links/${encodeURIComponent(linkId)}/remove`, {});
+      await api.postJson(`/api/lists/${encodeURIComponent(`${state.editingListId}`)}/links/${encodeURIComponent(linkId)}/remove`, {});
       await refreshListEditor(state.editingListId);
       requireListsHandle(listFormStatus, "list form status").textContent = "";
     } catch (error) {
@@ -3432,17 +3486,17 @@
   /** @param {ListLinkComparable} [target] */
   function listEditorHasLinkTarget(target = {}) {
     return [
-      ...(state.editorList?.links || []),
+      ...listEditorValues(listEditorField(state.editorList, "links", true) || []),
       ...state.editorStagedTargets,
     ].some((entry) => sameListLinkTarget(entry, target));
   }
 
-  /** @param {ListLinkComparable} [left] @param {ListLinkComparable} [right] */
+  /** @param {unknown} [left] @param {unknown} [right] */
   function sameListLinkTarget(left = {}, right = {}) {
-    const leftType = left.targetType || left.target_type || left.target?.target_type || "";
-    const rightType = right.targetType || right.target_type || right.target?.target_type || "";
-    const leftId = left.targetId || left.target_id || left.target?.target_id || "";
-    const rightId = right.targetId || right.target_id || right.target?.target_id || "";
+    const leftType = listEditorField(left, "targetType") || listEditorField(left, "target_type") || listEditorField(listEditorField(left, "target"), "target_type", true) || "";
+    const rightType = listEditorField(right, "targetType") || listEditorField(right, "target_type") || listEditorField(listEditorField(right, "target"), "target_type", true) || "";
+    const leftId = listEditorField(left, "targetId") || listEditorField(left, "target_id") || listEditorField(listEditorField(left, "target"), "target_id", true) || "";
+    const rightId = listEditorField(right, "targetId") || listEditorField(right, "target_id") || listEditorField(listEditorField(right, "target"), "target_id", true) || "";
     return leftType === rightType && leftId === rightId;
   }
 
@@ -3465,21 +3519,21 @@
   function renderListEditorLinkedItems() {
     const parts = listEditorPickerParts();
     const removable = canManageListLinks();
-    const savedItems = linkedContextItems(state.editorList || {}).map((item, index) => ({
-      ...item,
-      link: state.editorList?.links?.[index],
+    const savedItems = callListEditorMember(listEditorContextItems(state.editorList || {}), "map", [(/** @type {unknown} */ item, /** @type {unknown} */ index) => ({
+      ...Object(item),
+      link: listEditorIndex(listEditorField(state.editorList, "links", true), index),
       removable,
-    }));
+    })]);
     const stagedItems = state.editorStagedTargets.map((target) => ({
       ...target,
       displayLabel: target.displayLabel || unavailableLinkedRecordLabel(target.targetType),
       removable,
       target,
     }));
-    parts.setLinkedItems?.([...savedItems, ...stagedItems]);
+    parts.setLinkedItems?.([...listEditorValues(savedItems), ...stagedItems]);
   }
 
-  /** @param {string} listId */
+  /** @param {unknown} listId */
   async function refreshListEditor(listId) {
     const list = await loadListDetail(listId);
     if (!list) {
@@ -3498,7 +3552,7 @@
     return list;
   }
 
-  /** @param {BrowserNormalizedListRecord | null} [list] */
+  /** @param {unknown} [list] */
   function configureListEditorPicker(list = null) {
     const parts = listEditorPickerParts();
     state.linkTargets = [];
@@ -3521,10 +3575,10 @@
   /**
    * A draft has no status, and a record whose status is not text never matched one of the three
    * anyway - so the added `typeof` test answers exactly what `includes` already answered.
-   * @param {BrowserNormalizedListRecord | null} [list]
+   * @param {unknown} [list]
    */
   function canManageListLinks(list = state.editorList) {
-    return !(list && typeof list.status === "string" && ["archived", "deleted", "finalized"].includes(list.status));
+    return !(list && typeof listEditorField(list, "status") === "string" && isListEditorClosedStatus(listEditorField(list, "status")));
   }
 
   /**
@@ -3537,7 +3591,7 @@
    * `unknown`; naming the bag then turned one diagnostic into five, because the local's reads
    * reach two option populators that require text. The defaults reader now answers text, so the
    * shape it produces is the shape this declares.
-   * @param {BrowserNormalizedListRecord | null} [list]
+   * @param {unknown} [list]
    * @param {{
    *   defaults?: ReturnType<typeof normalizeListEditorDefaults>,
    *   hostContext?: ListDialogHostContext | null,
@@ -3551,17 +3605,17 @@
     // what `0.33.33.43.23` could not write, because the members were `{}` rather than text.
     /** @type {Partial<ReturnType<typeof normalizeListEditorDefaults>>} */
     const defaults = options.defaults || {};
-    state.editingListId = list?.list_id || "";
+    state.editingListId = listEditorField(list, "list_id", true) || "";
     state.editorList = list;
     state.listDialogHostContext = options.hostContext || null;
     state.listDialogHostContextSettled = false;
     requireListsHandle(listDialogTitle, "list dialog title").textContent = list ? "Edit List" : "Create List";
-    requireListsHandle(listTitleInput, "list title control").value = list?.title || defaults.title || "";
-    requireListsHandle(listDescriptionInput, "list description control").value = list?.description || defaults.description || "";
-    requireListsHandle(listTypeInput, "list type control").value = list?.list_type || defaults.list_type || defaultListType();
+    requireListsHandle(listTitleInput, "list title control").value = `${listEditorField(list, "title", true) || defaults.title || ""}`;
+    requireListsHandle(listDescriptionInput, "list description control").value = `${listEditorField(list, "description", true) || defaults.description || ""}`;
+    requireListsHandle(listTypeInput, "list type control").value = `${listEditorField(list, "list_type", true) || defaults.list_type || defaultListType()}`;
     setContextControlsVisible(shouldShowContextControls(requireListsHandle(listTypeInput, "list type control").value));
-    populateClientOptions(list?.client_id || defaults.client_id || "");
-    populateProjectOptions(listProjectInput, list?.client_id || defaults.client_id || "", list?.project_id || defaults.project_id || "");
+    populateClientOptions(listEditorField(list, "client_id", true) || defaults.client_id || "");
+    populateProjectOptions(listProjectInput, listEditorField(list, "client_id", true) || defaults.client_id || "", listEditorField(list, "project_id", true) || defaults.project_id || "");
     requireListsHandle(listFormStatus, "list form status").textContent = "";
     requireListsHandle(listSaveButton, "list save button").textContent = list ? "Save List" : "Create List";
     configureListEditorPicker(list);
@@ -3640,7 +3694,7 @@
       requireListsHandle(listSaveButton, "list save button").disabled = true;
       requireListsHandle(listFormStatus, "list form status").textContent = "Saving...";
       if (state.editingListId) {
-        await api.putJson(`/api/lists/${encodeURIComponent(state.editingListId)}`, payload);
+        await api.putJson(`/api/lists/${encodeURIComponent(`${state.editingListId}`)}`, payload);
       } else {
         const result = await api.postJson("/api/lists", payload);
         savedListId = readSavedListId(result);
@@ -3650,7 +3704,7 @@
         state.selectedListId = savedListId || state.selectedListId;
       }
       for (const target of state.editorStagedTargets) {
-        await api.postJson(`/api/lists/${encodeURIComponent(savedListId)}/links`, listLinkPayload(target));
+        await api.postJson(`/api/lists/${encodeURIComponent(`${savedListId}`)}/links`, listLinkPayload(target));
       }
       state.editorStagedTargets = [];
       if (typeof state.listDialogHostContext?.refresh === "function") {
@@ -3691,23 +3745,18 @@
     setStatus("");
   }
 
+  /** @param {unknown} [selectedClientId] */
   function populateClientOptions(selectedClientId = "") {
     replaceOptions(listClientInput, [
       option("", "Workspace"),
       ...state.clients.filter((client) => !client.isWorkspaceScope).map((client) => option(client.id, client.optionLabel || client.name)),
     ]);
-    requireListsHandle(listClientInput, "list client select").value = selectedClientId || "";
+    requireListsHandle(listClientInput, "list client select").value = `${selectedClientId || ""}`;
   }
 
-  /**
-   * **Still deferred, and on nullability rather than on the subtype.** `0.33.33.43.25` narrowed the
-   * handles, so the select is no longer the obstacle; what remains is that this writes
-   * `select.value` unguarded at the end. Declaring the parameter nullable opens that read, and
-   * declaring it non-null refuses the caller that hands it a handle which really can be absent.
-   * A guard would turn today's throw into a silent skip, which is a behaviour change this slice
-   * does not authorise. **Discharged by** deciding what an absent project control should do -
-   * a product question, not a typing one. Pinned by `lists-element-handle-contracts`.
-   */
+  // The optional checked select may be absent. Preserve option replacement and RHS work
+  // before refusing the final required write, where the original null assignment threw.
+  /** @param {HTMLSelectElement | null} select @param {unknown} [selectedClientId] @param {unknown} [selectedProjectId] */
   function populateProjectOptions(select, selectedClientId = "all", selectedProjectId = "") {
     const projects = allProjects().filter((project) => {
       if (!usesBusinessScope()) {
@@ -3723,7 +3772,8 @@
       option("", "No project"),
       ...projects.map((project) => option(project.id, project.optionLabel || project.name)),
     ]);
-    select.value = projects.some((project) => project.id === selectedProjectId) ? selectedProjectId : "";
+    const selectedValue = projects.some((project) => project.id === selectedProjectId) ? selectedProjectId : "";
+    requireListsHandle(select, "project select").value = `${selectedValue}`;
   }
 
   function syncClientFromProject() {

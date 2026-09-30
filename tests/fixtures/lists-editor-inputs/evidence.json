@@ -1,0 +1,69 @@
+{
+  "base": "18e19e3e5f817b904a7c95f9202f335f9ff1f4e3",
+  "branchLocal": true,
+  "accounting": {
+    "raw": [
+      12,
+      2
+    ],
+    "owned": [
+      12,
+      2
+    ],
+    "dom": [
+      0,
+      0
+    ],
+    "TS7006": [
+      3,
+      2
+    ],
+    "TS2339": [
+      9,
+      0
+    ],
+    "eliminated": [
+      "public/js/lists.js: error TS2339: Property 'list' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'record' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'listRecord' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'returnFocusTo' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'trigger' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'listId' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'list_id' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'recordId' does not exist on type '{}'.",
+      "public/js/lists.js: error TS2339: Property 'id' does not exist on type '{}'.",
+      "public/js/lists.js: error TS7006: Parameter 'select' implicitly has an 'any' type."
+    ],
+    "introduced": [],
+    "remaining": [
+      "public/js/lists.js: error TS7006: Parameter 'surface' implicitly has an 'any' type.",
+      "public/js/lists.js: error TS7006: Parameter 'items' implicitly has an 'any[]' type."
+    ],
+    "serverTests": 0,
+    "scripts": 0
+  },
+  "probes": {
+    "annotationOnly": "14 unbanked; two TS2345 plus nine unknown-member consequences and three isolated parameters",
+    "normalizedEditorSlot": "restoring BrowserNormalizedListRecord | null introduces TS2322 at the raw host assignment; restored"
+  },
+  "proof": {
+    "focusedUnits": 104,
+    "additionalRetargetUnits": 15,
+    "browser": "48/48 desktop/mobile, port 8102, no retries",
+    "chromium": "151.0.7922.34",
+    "nativeCasesPerProject": 16,
+    "unitMutations": "4/4 assertion-caught",
+    "browserMutations": "2/2 assertion-caught",
+    "restoreSHA256": "47a2a3bf7b4007e6736bd624b0cdfec66cb48f25d46c99950831910bf23c931e",
+    "pinMutations": "3/3 wrong-route assertion failures; same SHA-256 restores"
+  },
+  "retargets": [
+    "lists-editor-params, lists-editor-surface, lists-write-path: discharged unknown-input deferrals; preserve truthiness and fallbacks",
+    "lists-element-handle and lists-option-surface: nullable write proved at required sink after RHS",
+    "normalized-list-record: only editor host state becomes unknown; normalized page contract preserved",
+    "workspace-context and normalized-list-record: lift shipped field/status readers",
+    "lists-event-consumers: reverse only the two explicit URI sink spellings before baseline body identity comparison",
+    "three Lists regression contracts: exact native URI and fallback lowercase spelling substitutions; route/method/order claims unchanged"
+  ],
+  "search": "Node filesystem raw and unescaped-regex fragment/name search across scripts/ and tests/, including new Function lifts; historical fixture bodies remain pinned unchanged"
+}
