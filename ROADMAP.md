@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.43.65` | `lists.js` event consumers typed and integrated at `0.33.33.43.64`, Lists 16 to 12. Next: the editor opening and identifier readers (`openListEditor`, `readListEditorId`) recommended, measured before a boundary is drawn; three isolated parameters also remain | 12 owned |
+| Codex | `0.33.33.43.65` | `lists.js` editor input reconciliation: branch-local 12 to 2, awaiting integration; surface decoration and progress arithmetic remain | 2 owned, branch-local |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open** while delegated Lists work is outstanding | 0 |
@@ -1664,15 +1664,9 @@ For `.43.64`, the four recorded messages and one invocation of the captured nati
 
 #### 0.33.33.43.65 - Lists editor input and record consumers
 
-**Model: High Effort** - An opaque module-action record crosses editor state, native field setters and linked-record consumers without normalization.
+**Model: High Effort** - Opaque host records cross editor state and connected native/collection consumers.
 
-**Planning checkpoint; implement in this same branch.** Base `18e19e3e5f817b904a7c95f9202f335f9ff1f4e3`, measured Lists/browser 12 raw/owned (3 TS7006, 9 TS2339), DOM zero and Clients/Projects zero. Dependencies unchanged; no install. Nine messages belong to openListEditor/readListEditorId. A reversible unknown-input annotation probe produced 14 raw (including two normalizer argument mismatches); it was restored to SHA-256 `6a13e41165b2e34399ba189dd252c5a74794f13b01bd1964518674a1531959e2`, with nothing banked.
-
-- **Producer trace:** the published editor accepts unknown params; openAdd/openEdit and registry action adapters spread the host input and override mode, while direct openListEditor remains open. list/record/listRecord are forwarded by identity, with detail loading only when no supplied record exists and the raw identifier is truthy. The normalized response is one writer, not proof that host records are normalized. Preserve []/boxed-empty/object-empty IDs reaching a fetch before native encoding.
-- **One connected boundary:** the two requested readers, their mode/default readers, openListDialog and editorList/editingListId writers/consumers, including linked-record projection/collection calls, controls, save/refresh IDs and callback details. Use required/optional reads as the original expressions require; preserve raw identity, repeated getter reads, native string conversion placement, collection methods/receivers and error paths. No shared contract or response validation policy is proposed. Report a concrete shared prerequisite if one is exposed.
-- **Adjacent parameter:** nullable project selection is part of this editor's field population. Include its one diagnostic only if its final checked write preserves RHS evaluation and null failure placement; the normal handle comes from the existing checked select lookup. Surface decoration and progress arithmetic are independent and stay out. Expected target is nine or ten baseline eliminations, never a netted intermediate; report exact messages from the finished tree.
-- **Authority:** use the recorded native string-sink and limited failure-wording/native-probe delegations, with each changed wording and operation disclosed. No coercion before the original truthiness test, no new fallback, ID substitution, filtering, cleanup or earlier validation; no casts, suppressions or shared changes.
-- **Evidence/delivery:** committed baseline bodies with full-history unit pins, real editor add/edit workflows and hostile-but-supported inputs compared at their real sinks, callback/collection/getter identity and ordering, raw and escaped fragment/lift searches including new Function, targeted mutations and SHA-256 restores, compiler probes and per-message ledger delta. Isolated Lists browser workflows on 8102; plan then implementation then archive with LTF trailers; committed-tree verify:slice from the full base and checkpoint:validate, then one draft PR to nightly. Claude retains integration ownership; do not touch stashes or other worktrees.
+**Branch-local evidence awaiting integration.** Base `18e19e3e5f817b904a7c95f9202f335f9ff1f4e3`; Lists/browser 12 to 2 raw/owned, DOM 0 to 0. Nine editor member diagnostics and the connected nullable project parameter are eliminated; surface decoration and progress arithmetic remain. Archive records producer trace, delegated wording, sink conversions, proof and final-gate handoff. This does not close Lists or .43; Claude recomputes integration totals.
 
 #### 0.33.33.43.64 - Lists form and detail event consumers
 
