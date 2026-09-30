@@ -543,6 +543,7 @@
         "tests/typecheck/namespace-root-closure.fixture.mjs",
         "tests/typecheck/page-controller-status-recipients.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
+        "tests/typecheck/task-lifecycle-status.fixture.mjs",
         "tests/typecheck/task-server-contracts.fixture.mjs",
         "tests/typecheck/task-workflow-contracts.fixture.mjs",
         "tests/typecheck/time-tracking-edge-contracts.fixture.mjs",
@@ -774,6 +775,7 @@
         "tests/unit/task-dialog-tail-consumers.test.mjs",
         "tests/unit/task-editor-normalizers.test.mjs",
         "tests/unit/task-editor-request.test.mjs",
+        "tests/unit/task-lifecycle-status.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
         "tests/unit/task-option-catalog-contracts.test.mjs",
@@ -1588,7 +1590,7 @@
     }
   },
   "totals": {
-    "files": 1560,
+    "files": 1562,
     "errors": 0,
     "explicitAny": 0
   },

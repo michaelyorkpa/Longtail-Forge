@@ -1,4 +1,4 @@
-export type TaskLifecycleStatus = "open" | "in_progress" | "blocked" | "complete" | "archived" | string;
+export type TaskLifecycleStatus = "open" | "in_progress" | "blocked" | "complete" | "archived";
 
 export interface TaskBlockRecoveryRecord {
   blocked_reason?: string | null;
@@ -6,6 +6,11 @@ export interface TaskBlockRecoveryRecord {
   task_id?: string | null;
   title?: string | null;
 }
+
+/** Recovery classifies persisted strings without applying write-time defaults. */
+export type RawTaskBlockRecoveryRecord = Omit<TaskBlockRecoveryRecord, "status"> & {
+  status?: string | null;
+};
 
 export interface TaskBlockRecoveryEffects {
   emitTaskUpdated: boolean;
@@ -42,13 +47,13 @@ export interface TaskBlockRecoveryTransition {
 }
 
 export interface ParentBlockTransitionInput {
-  blockingChild: TaskBlockRecoveryRecord;
-  parentTask: TaskBlockRecoveryRecord;
+  blockingChild: RawTaskBlockRecoveryRecord;
+  parentTask: RawTaskBlockRecoveryRecord;
 }
 
 export interface ParentRecoveryTransitionInput {
   incompleteBlockingChildCount: number;
-  parentTask: TaskBlockRecoveryRecord;
+  parentTask: RawTaskBlockRecoveryRecord;
 }
 
 export type ChildStatusRollupEffect = "block_parents" | "recover_parents" | "none";
