@@ -113,5 +113,30 @@
     "fullLists": 42,
     "restoredFocused": 2,
     "finalErrorHelperFocused": 2
+  },
+  "routePinMutations": {
+    "rows": [
+      {
+        "name": "item create",
+        "status": 1,
+        "assertion": true
+      },
+      {
+        "name": "item edit",
+        "status": 1,
+        "assertion": true
+      },
+      {
+        "name": "link create",
+        "status": 1,
+        "assertion": true
+      },
+      {
+        "name": "link remove",
+        "status": 1,
+        "assertion": true
+      }
+    ],
+    "sha": "6a13e41165b2e34399ba189dd252c5a74794f13b01bd1964518674a1531959e2"
   }
 }
