@@ -83,8 +83,8 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /registerListsViewBehaviors/);
   assert.match(listsJs, /renderDescriptorDataTable/);
   assert.match(listsJs, /renderDescriptorModalForm/);
-  assert.match(listsJs, /dataset\.listsTitle/);
-  assert.match(listsJs, /dataset\.listCreate/);
+  assert.match(listsJs, /setListsSurfaceHook\(pageHeading, "listsTitle"\)/);
+  assert.match(listsJs, /setListsSurfaceHook\(createAction, "listCreate"\)/);
   assert.match(listsJs, /"listFilterStatus"/);
   // 0.33.33.35.1.2: this filter option label lived only in the deleted lists.js fallback
   // descriptor. The manifest surface declares the option set, so that is what it reads now.
@@ -92,11 +92,11 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /"listFilterAssignee"/);
   assert.match(listsJs, /"listFilterNeeded"/);
   assert.match(listsJs, /"listFilterArchive"/);
-  assert.match(listsJs, /dataset\.listDetail/);
+  assert.match(listsJs, /setListsSurfaceHook\(detail, "listDetail"\)/);
   assert.match(listsJs, /dataset\.listDialog/);
   assert.match(listsJs, /listBusinessControl/);
   assert.match(listsJs, /listContextControl/);
-  assert.match(listsJs, /dataset\.listsIndexPanel/);
+  assert.match(listsJs, /setListsSurfaceHook\(indexPanel, "listsIndexPanel"\)/);
   assert.match(listsJs, /dataset\.listsIndexContent/);
   assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/);
   assert.match(listsJs, /params\.set\("status"/);
