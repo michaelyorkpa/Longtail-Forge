@@ -1,3 +1,4 @@
+import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "vitest";
@@ -169,14 +170,14 @@ describe("the collection assembly", () => {
     const body = slice(listsSource, "async function loadListDetail(listId, fallback = null) {");
     assert.match(body, /return fallback \? normalizeListRecord\(fallback, \[\]\) : null;/,
       "a failed detail still contributes its summary rather than dropping the list");
-    assert.match(listsSource, /@param \{string\} listId @param \{BrowserListSummary \| null\} \[fallback\]/,
+    assert.match(listsSource, /@param \{unknown\} listId @param \{BrowserListSummary \| null\} \[fallback\]/,
       "and the fallback is the wire summary, not the page record");
   });
 
   it("annotates the page slot as normalized records, not wire summaries", () => {
     assert.match(listsSource, /@type \{BrowserNormalizedListRecord\[\]\}\s*\n\s*\*\/\s*\n\s*lists: \[\],/,
       "state.lists holds what the normaliser produced");
-    assert.match(listsSource, /@type \{BrowserNormalizedListRecord \| null\}\s*\n\s*\*\/\s*\n\s*editorList: null,/);
+    assert.match(listsSource, /@type \{unknown\}\s*\n\s*\*\/\s*\n\s*editorList: null,/);
     assert.match(listsSource, /@type \{BrowserNormalizedListRecord \| null\}\s*\n\s*\*\/\s*\n\s*itemDialogList: null,/);
   });
 
@@ -203,6 +204,7 @@ describe("the collection assembly", () => {
 describe("behaviour the annotations must not have moved", () => {
   it("keeps the link-management rule for every status it rejected before", () => {
     const built = new Function("state", [
+      ["listEditorField", "isListEditorClosedStatus"].map(name => extractFunctionBlock(listsSource, name)).join("\n"),
       slice(listsSource, "function canManageListLinks(list = state.editorList) {"),
       "  return canManageListLinks;",
     ].join("\n"))({ editorList: null });

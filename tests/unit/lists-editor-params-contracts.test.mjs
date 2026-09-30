@@ -22,6 +22,7 @@ const source = createProjectTextReader().readText("public/js/lists.js");
 /** @param {string} name */
 function lift(name) {
   const sandbox = vm.createContext({});
+  vm.runInContext(extractFunctionBlock(source, "listEditorField"), sandbox);
   vm.runInContext(extractFunctionBlock(source, name), sandbox);
   return vm.runInContext(name, sandbox);
 }
@@ -123,8 +124,8 @@ describe("The editor identifier cannot be discharged the same way", () => {
 
     const at = source.indexOf("function readListEditorId(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
-    assert.doesNotMatch(block, /@param \{[^}]*\} \[?params\]?/,
-      "the identifier reader is annotated; this deferral is discharged and the pin should go with it");
+    assert.match(block, /@param \{unknown\} \[params\]/,
+      "the identifier stays opaque through its existing truthiness gate");
   });
 });
 

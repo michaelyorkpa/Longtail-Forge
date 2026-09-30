@@ -133,7 +133,7 @@ describe("What the option surface declares, and what gates the rest", () => {
       "and the reader's own cast says the same, rather than claiming more than it checked");
   });
 
-  it("keeps the project-control deferral and discharges the option sink locally", () => {
+  it("discharges the nullable project write while retaining opaque option sinks", () => {
     // This case originally pinned four primitives as gated on the `dom` family. `0.33.33.43.25`
     // narrowed the module handles, which is exactly what that deferral named as its discharge, so
     // the gate is gone and the pin now records what actually remains.
@@ -144,14 +144,14 @@ describe("What the option surface declares, and what gates the rest", () => {
     assert.match(source.slice(source.lastIndexOf("/**", refillAt), refillAt), /@param \{HTMLSelectElement \| null\} \[select\]/,
       "and the refill is typed, because it reads `.options`");
 
-    // The project-control deferral remains; .43.63 discharges the option conversion boundary. `0.33.33.43.26`
+    // .43.65 discharges the nullable project write; .43.63 discharged the option conversion boundary. `0.33.33.43.26`
     // closed `decorateFilterControl` with the same narrowing, so it is no longer among them.
     for (const name of ["populateProjectOptions"]) {
       const at = source.indexOf(`function ${name}(`);
       assert.notEqual(at, -1, `${name} still exists`);
       const block = source.slice(source.lastIndexOf("/**", at), at);
-      assert.doesNotMatch(block, /@param \{[^}]*\} (select|value|surface)/,
-        `${name} is annotated; that deferral is discharged and this pin should go with it`);
+      assert.match(block, /@param \{HTMLSelectElement \| null\} select/,
+        `${name} admits the actual nullable handle`);
     }
     assert.match(source, /@param \{unknown\} value @param \{unknown\} label/,
       "opaque callers stay opaque until the existing native sinks");

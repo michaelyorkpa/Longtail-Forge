@@ -188,18 +188,18 @@ describe("Deferrals this checkpoint recorded", () => {
       "and that identifier is still optional on the published record");
   });
 
-  it("had its option bag discharged by 0.33.33.43.30, leaving the identifier half deferred", () => {
+  it("keeps the option defaults textual and the discharged identifier opaque", () => {
     // This pinned the dialog's bag as blocked on the module-action root. That root was split:
     // the defaults half is discharged, so the bag is now declared; the identifier half stands,
     // because its result is tested for truthiness before anything converts it.
     const block = source.slice(source.lastIndexOf("/**", source.indexOf("function openListDialog(")), source.indexOf("function openListDialog("));
     assert.match(block, /defaults\?: ReturnType<typeof normalizeListEditorDefaults>/,
       "the bag takes the shape the defaults reader now produces");
-    assert.match(source, /client_id: `\$\{params\.client_id \|\| params\.clientId \|\| context\.clientId \|\| ""\}`,/,
+    assert.match(source, /client_id: `\$\{listEditorField\(params, "client_id"\) \|\| listEditorField\(params, "clientId"\) \|\| listEditorField\(context, "clientId"\) \|\| ""\}`,/,
       "and the defaults are text, by the conversion that already happened at the control");
 
     const idBlock = source.slice(source.lastIndexOf("/**", source.indexOf("function readListEditorId(")), source.indexOf("function readListEditorId("));
-    assert.doesNotMatch(idBlock, /@param \{[^}]*\} \[?params\]?/,
-      "the identifier reader is annotated; that half is discharged and this pin should go with it");
+    assert.match(idBlock, /@param \{unknown\} \[params\]/,
+      "the discharged identifier remains opaque");
   });
 });

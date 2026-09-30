@@ -59,7 +59,7 @@ assert.match(listsJs, /readListsIndexPanel\(activeListsViewDescriptor\?\.indexPa
 assert.doesNotMatch(listsJs, /selectList\(lists\[0\]\.list_id/, "Lists should not auto-select the first list on initial render");
 assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/, "Lists query route should stay module-owned");
 assert.match(listsJs, /api\.postJson\("\/api\/lists", payload\)/, "Lists create route should stay module-owned");
-assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(state\.editingListId\)\}`/, "Lists update route should stay module-owned");
+assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(`\$\{state\.editingListId\}`\)\}`/, "Lists update route should stay module-owned");
 assert.match(listsJs, /createItemDialogShell\(/, "Lists item add/edit form is a framework-rendered modal");
 assert.match(listsJs, /createListDetailsPanel\(list\)/, "Lists detail should render a collapsible List Details panel");
 assert.match(listsJs, /view\.createLinkedContextList\(/, "Lists detail should render linked records through the shared read-only linked-context list");

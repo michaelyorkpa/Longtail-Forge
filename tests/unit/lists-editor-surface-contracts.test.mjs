@@ -15,7 +15,7 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
  * gained an empty-string default, and `{...}[undefined]` and `{...}[""]` are both absent, so both
  * still fall through to `""`.
  *
- * The three deferrals this checkpoint recorded are pinned at the bottom. Each has a discharge
+ * Historical deferrals and their subsequent discharges are pinned at the bottom. Each has a discharge
  * condition, and each case fails when that condition stops being the reason.
  */
 
@@ -25,6 +25,7 @@ const source = createProjectTextReader().readText("public/js/lists.js");
 function readers() {
   const sandbox = vm.createContext({});
   for (const name of [
+    "listEditorField",
     "normalizeListEditorMode",
     "readListEditorId",
     "normalizeListEditorDefaults",
@@ -297,30 +298,30 @@ describe("Lists link payload", () => {
 });
 
 describe("Deferrals this checkpoint recorded", () => {
-  it("leaves the identifier reader untyped while its consumer requires text", () => {
+  it("keeps identifiers opaque until the original URI sink", () => {
     // The reason: typing the bag honestly makes this return `{}` rather than `any`, and the
     // identifier then cannot reach a consumer that requires text. Discharged by a reader that
     // vouches for it as text, or by the published `params` type naming it.
     const reader = extractFunctionBlock(source, "readListEditorId");
     assert.ok(!/@param \{ListEditorParamsInput\}/.test(reader),
       "readListEditorId is annotated; its deferral is discharged and this pin should go with it");
-    assert.match(source, /@param \{string\} listId @param \{BrowserListSummary \| null\} \[fallback\]/,
-      "loadListDetail no longer requires text; re-decide the identifier reader's deferral");
+    assert.match(source, /@param \{unknown\} listId @param \{BrowserListSummary \| null\} \[fallback\]/,
+      "the loader accepts the raw identifier");
   });
 
-  it("leaves the editor opener's bag untyped while the record it forwards is not vouched for", () => {
+  it("keeps the editor host record unvalidated and opaque", () => {
     // The reason: `params.list` is forwarded straight to a dialog that requires a normalized
     // record, and nothing on this path validates it. Discharged by a reader that vouches for it.
     const opener = extractFunctionBlock(source, "openListEditor");
-    assert.ok(/params\.list \|\| params\.record \|\| params\.listRecord/.test(opener),
+    assert.ok(/listEditorField\(params, "list"\) \|\| listEditorField\(params, "record"\) \|\| listEditorField\(params, "listRecord"\)/.test(opener),
       "the three record spellings changed; re-decide this deferral rather than re-pin it");
     // Anchored inside the dialog's own block rather than on the line before its declaration:
     // `0.33.33.43.30` added an `options` parameter after this one, which broke an anchor that
     // reached through to `function openListDialog` while the claim it guards was unchanged.
     const dialogAt = source.indexOf("function openListDialog(");
     const dialogBlock = source.slice(source.lastIndexOf("/**", dialogAt), dialogAt);
-    assert.match(dialogBlock, /@param \{BrowserNormalizedListRecord \| null\} \[list\]/,
-      "openListDialog no longer requires a normalized record; re-decide the opener's deferral");
+    assert.match(dialogBlock, /@param \{unknown\} \[list\]/,
+      "the dialog must admit the raw host record");
   });
 
   it("leaves the field decorator untyped while it reads dataset off a query result", () => {
