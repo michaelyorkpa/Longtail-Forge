@@ -12,6 +12,31 @@
 - [x] **Accounting.** Canonical `typecheck:ledger:write`: server/tests 0 to 0 (880 files), browser 0 to 0 (85), scripts 0 to 0 (597), combined 1,562 files with zero diagnostics and zero explicit-any nodes; all 31 first-party declaration probes pass. The two added test/compiler files extend coverage from 1,560; no file is omitted. Per-message delta is empty: no eliminated baseline debt, introduced debt, movement or reclassification. This strengthens a contract rather than reducing diagnostics.
 - [x] **Disposition and final gate.** No docs change needed: existing Tasks workflow documentation remains accurate; durable documentation is deferred by the internal-checkpoint contract. Final committed-tree verification is range-explicit `LTF_REGRESSION_BASE_SHA=9e7924c2107cee5d1fa410364e23c23b4911bf2e npm run verify:slice`, followed by `checkpoint:validate`; actual routing/results accompany the draft-PR handoff. No browser surface changed or browser server started. Protected integration belongs to Claude; .46 remains queued pending .45's delivered shape and recorded ownership.
 
+**Integrated onto `nightly` at `74ecf988` by Claude.**
+
+- **Shared paths.**
+  - `nightly` had moved one checkpoint since Codex's base, `0.33.33.44.47`, which changed 12 paths against Codex's 9. They intersect in the two roadmap files and the ledger.
+  - The roadmap conflict was coordination text only. `nightly`'s reconciled rows were kept, and Codex's `.38.5` row was taken with its em dash restored; it had been written as `?`.
+  - Both archive entries are kept.
+- **Ledger.** It was regenerated from the combined tree, and it is byte-identical to the textual merge.
+  - It covers 1,562 files: `server-tests` 879, browser 86 and scripts 597. There are 0 diagnostics and no explicit `any`.
+  - Codex's branch counted 880 and 85 because `0.33.33.44.47` moved the browser boundary fixture after Codex's base.
+  - The per-message delta is empty.
+- **Review of the boundary.**
+  - The union closes exactly, and the new compiler fixture pins both directions.
+  - The predicate is the existing `STATUSES.has` membership test at the write boundary.
+  - `RawTaskBlockRecoveryRecord` declares `status?: string | null`, the effective type the collapsed union already gave the recovery inputs. No accepted input is widened, and no raw record is relabelled as validated.
+  - **That is where the 16 sites closed.** The criterion proposed a read-side predicate. None was placed, because the engine never converts a persisted row into a lifecycle status, and doing so would change which parents are blocked. This is accepted as the behaviour-preserving reading of the criterion, and recorded here so the deviation is visible.
+  - `TaskRecord.status` stays `string`, pinned by the fixture, and the browser vocabulary is untouched.
+- **Observation, not a defect.** The guard is sound only while `STATUSES` holds no value outside the union. Today the two match exactly, and the unit suite pins that the five are recognised and other spellings are not. The compiler does not link the set's members to the type. No action is scheduled.
+- **Integrator re-run, with byte-exact restores.**
+  - Reopening the union fails both closed-type fixture assertions.
+  - Dropping the predicate's result type gives TS2322 at the normaliser's return.
+  - Always-true and always-false membership each fail the unit suite.
+  - The restored tree compiles clean.
+
+  On the combined tree, the lifecycle and recovery suites pass 20 of 20, and governance passes at 1,562 files.
+
 ## Version 0.33.33.44.47 - Permanent browser-zero proof
 
 **Model: High Effort** - governance and the checked-file universe: the proof that browser debt cannot return, and that no file can escape checking to hide it.
