@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38 - Rollup acceptance record, and the 0.33.33.40 and 0.33.33.41 parents
+
+**Model: High Effort** - parent acceptance across three rollups: every tick must cite evidence, and anything without it must be escalated rather than stretched.
+
+- [x] **Scope.** This is bookkeeping only, cut from `nightly` `85f9ce6e` after `0.33.33.38.5` and `0.33.33.44.47` were integrated. No source, test, ledger or generated file changes.
+- [x] **Method.** A read-only audit classified all 38 open criteria: 24 in `0.33.33.38`, 9 in `0.33.33.40` and `0.33.33.40.2`, and 5 in `0.33.33.41`. It found none unsupported outright. Every citation used here was then re-checked before ticking:
+  - archive titles and quotes for each cited child;
+  - git history for the ordering claims: `6bd4e313` precedes the first `.39`-`.44` child, and `shared/task-lifecycle-legality.js` is unchanged since `0.33.33.37`;
+  - the tree for the code claims: no listener casts its event target, `BrowserApi` still answers `Promise<unknown>`, and `task-dialog.js` is one IIFE.
+- [x] **`0.33.33.40` and `0.33.33.41` are complete.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. `0.33.33.40.2` was never drawn; its fields were typed where their contracts landed, and it is recorded as absorbed.
+- [x] **`0.33.33.38`: 23 of 24 recorded, and one escalated.**
+  - `0.33.33.38.2`'s closing table had already discharged its family's standing rules, and they are now ticked with it.
+  - Three criteria are recorded as amended, each with its authority:
+    - adoption timing was superseded by the rollup's own "declare and adopt together" rule;
+    - the uncertain surfaces were declared as compatibility surfaces under `0.33.33.38.2.5`'s "declared member or compile error" criterion;
+    - event targets are narrowed at each listener rather than through a shared helper.
+  - **Escalated, not ticked:** "these children publish nothing". Five later children added runtime readers, and only `0.33.33.38.3.9`'s carries a recorded authorisation beyond its own checkpoint.
+- [x] **Disclosed rather than hidden.** `0.33.33.38.4.8.5`'s checked double assertion stands under the 2026-09-08 audit's ruling. The `isUserRecord` and leading-slash misses are cited with their fixes.
+- [x] **Stale statements.** Sections that still claimed open work now carry a note naming what closed it:
+  - the index signature;
+  - the "does not close" note;
+  - `workspaceDeletionState`;
+  - the Lists and Notes producer reads;
+  - `0.33.33.38.4.3.5`'s count envelopes;
+  - Notes' "not drawn yet".
+
+  Historical counts are left as history, and each parent says so. The coordination rows are updated to match.
+- [x] **New carried finding.** Three unchecked casts through `unknown` in `shared/view-search-options.js`, from `0.33.33.35.2`, are recorded with an owner. They predate this rollup and do not affect its acceptance.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `85f9ce6e`, and `checkpoint:validate` run on the final tree; the results are in the pull request. No durable documentation, version bump or changelog entry.
+
 ## Version 0.33.33.38.5 - Server task lifecycle vocabulary
 
 **Model: Medium Effort** - Close one validated server vocabulary without changing tolerant persisted-input classification.
