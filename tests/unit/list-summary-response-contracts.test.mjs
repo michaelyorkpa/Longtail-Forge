@@ -1,3 +1,4 @@
+import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "vitest";
@@ -111,6 +112,7 @@ function liftLoadListDetail(respond) {
     // `PREDICATE_PARTS` already carries the record test it rests on.
     slice(listsSource, "function readListProgressBag(value) {"),
     slice(listsSource, "function normalizeListRecord(list = {}, items = [], links = []) {"),
+    ...["listEditorField", "isListSortObject", "listSortNumeric", "compareListSortOrders"].map(name => extractFunctionBlock(listsSource, name)),
     slice(listsSource, "function normalizeListProgress(progress = {}, items = []) {"),
     slice(listsSource, "function nextNeededDateFromItems(items = []) {"),
     slice(listsSource, "async function loadListDetail(listId, fallback = null) {"),

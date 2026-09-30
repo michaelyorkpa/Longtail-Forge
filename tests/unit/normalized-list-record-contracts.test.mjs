@@ -36,6 +36,7 @@ function slice(source, opener) {
 function liftNormalizer() {
   const built = new Function("encodeURIComponent", [
     slice(listsSource, "function normalizeListRecord(list = {}, items = [], links = []) {"),
+    ...["listEditorField", "isListSortObject", "listSortNumeric", "compareListSortOrders"].map(name => extractFunctionBlock(listsSource, name)),
     slice(listsSource, "function normalizeListProgress(progress = {}, items = []) {"),
     slice(listsSource, "function nextNeededDateFromItems(items = []) {"),
     // `0.33.33.43.21` routed the progress bag through a checker, so the normaliser reaches for
