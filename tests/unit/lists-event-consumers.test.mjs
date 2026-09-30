@@ -16,7 +16,8 @@ describe("Lists event consumer boundary", () => {
       assert.equal(body, extractFunctionBlock(original, name), name);
     }
     for (const name of ["saveList", "moveItem", "refreshLists"]) {
-      assert.equal(extractFunctionBlock(source, name), baseline.functions[name], `${name} body unchanged`);
+      const body = extractFunctionBlock(source, name).replaceAll("encodeURIComponent(`${state.editingListId}`)", "encodeURIComponent(state.editingListId)").replaceAll("encodeURIComponent(`${savedListId}`)", "encodeURIComponent(savedListId)");
+      assert.equal(body, baseline.functions[name], `${name} body unchanged apart from .43.65 native URI conversions`);
     }
   });
 

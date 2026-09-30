@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.43.65` | `lists.js` event consumers typed and integrated at `0.33.33.43.64`, Lists 16 to 12. Next: the editor opening and identifier readers (`openListEditor`, `readListEditorId`) recommended, measured before a boundary is drawn; three isolated parameters also remain | 12 owned |
+| Codex | `0.33.33.43.65` | `lists.js` editor input reconciliation: branch-local 12 to 2, awaiting integration; surface decoration and progress arithmetic remain | 2 owned, branch-local |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open** while delegated Lists work is outstanding | 0 |
@@ -1661,6 +1661,12 @@ Escalate only a concrete behavior difference outside this authority, or evidence
 **Lists failure-wording delegation (operator ruling, 2026-09-30).** Codex may implement and Claude may approve application-owned TypeErrors replacing an existing reached native TypeError from a required nullish member read, an absent/non-callable member invocation, or an existing native interface precondition. Preserve successful inputs, no-ops, preceding work, receivers, read order, catch boundaries and original getter/method/hook exceptions. New filtering, earlier validation and shared framework changes remain excluded. So do new rejection of inputs that previously succeeded, and any permissions or data-integrity change. Record old/new behavior in normal checkpoint evidence; no separate message approval or catalogue is required within these bounds.
 
 For `.43.64`, the four recorded messages and one invocation of the captured native HTMLFormElement.elements getter at each reached FormData argument boundary are explicitly approved. The probe uses the candidate as receiver without consulting its own properties; the real constructor remains single and in its original evaluation order. Only the isolated native wrong-receiver TypeError is translated; other exceptions propagate. This added intrinsic operation is an authorized difference, not a claim of zero added reads. Claude may approve a similarly small non-mutating Lists-local native interface probe when it invokes no target-owned hooks, mutates no application data and preserves the original operation's accepted inputs. Extra user-controlled property reads and broader policy changes still require escalation.
+
+#### 0.33.33.43.65 - Lists editor input and record consumers
+
+**Model: High Effort** - Opaque host records cross editor state and connected native/collection consumers.
+
+**Branch-local evidence awaiting integration.** Base `18e19e3e5f817b904a7c95f9202f335f9ff1f4e3`; Lists/browser 12 to 2 raw/owned, DOM 0 to 0. Nine editor member diagnostics and the connected nullable project parameter are eliminated; surface decoration and progress arithmetic remain. Archive records producer trace, delegated wording, sink conversions, proof and final-gate handoff. This does not close Lists or .43; Claude recomputes integration totals.
 
 #### 0.33.33.43.64 - Lists form and detail event consumers
 

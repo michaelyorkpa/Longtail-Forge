@@ -1,3 +1,4 @@
+import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "vitest";
@@ -109,7 +110,7 @@ describe("the machinery the declaration exposed as dead is gone", () => {
 describe("the checks that always answered the same way now say so", () => {
   it("reduces the list-link check to the status rule it always was", () => {
     const body = slice(PAGES["lists.js"], "function canManageListLinks(list = state.editorList) {");
-    const canManage = new Function("state", body + "\nreturn canManageListLinks;")({ editorList: null });
+    const canManage = new Function("state", ["listEditorField", "isListEditorClosedStatus"].map(name => extractFunctionBlock(PAGES["lists.js"], name)).join("\n") + "\n" + body + "\nreturn canManageListLinks;")({ editorList: null });
     assert.equal(canManage({ status: "active" }), true);
     assert.equal(canManage(null), true, "no list is not a locked list");
     for (const status of ["archived", "deleted", "finalized"]) {
