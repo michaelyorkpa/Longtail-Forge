@@ -4818,3 +4818,41 @@ The Creator studio tool can be much richer if it pushes content out to these pla
   - [ ] Launch website
 
 - [ ] Launch Social Media
+
+### 0.33.33.43.63 - Lists catalog and option consumers (planned; wording decision held)
+
+**Model: High Effort** — a validated cache-to-consumer boundary and two native DOM text sinks with a measured failure-wording decision.
+
+**Baseline:** `07c3d32e92ff967301d9e1caead2768f390e288b`, fetched origin/nightly; clean new branch `agent/0.33.33-codex-lists-consumers-43-63`. Package/lock unchanged; no install. Live compiler: browser **19**, all Lists **19 raw / 19 owned / 0 DOM**; Clients/Projects **0**. Codes: TS7006 **10**, TS2339 **9**. Branch-local evidence, not a future integration total.
+
+**Measured remainder:** editor opening/identifier readers 9 (openListEditor 5, readListEditorId 4); event consumers 4 (saveItem, saveList, handleDetailClick, handleDetailSubmit); catalog/option consumers 3 (updateSuggestionDatalist callback and option's two parameters); surface decoration 1; nullable project selection 1; progress item arithmetic 1.
+
+**Proposed boundary: three catalog/option diagnostics.** loadItemSuggestions reads through readItemSuggestions, which establishes BrowserListItemSuggestion[] or null. The element predicate proves nonempty string identities/names, finite nonnegative amounts and nullable text, preserving producer objects. The success writer stores the returned array by identity; the catch writer stores []. These are the cache's only two writers. Derive its value type as NonNullable<ReturnType<typeof readItemSuggestions>>, keeping the key opaque. Connected readers are itemSuggestionsForList, updateSuggestionDatalist and existing selection/fill consumers; their map/find receivers, comparisons and defaults remain unchanged.
+
+The option factory also receives literal choices, normalized client/project options, opaque user IDs and descriptor pairs from the original two custom map calls. The latter stay unvalidated: the catalog contract does not prove the factory's other inputs. No shared signature or framework addition is required.
+
+**Compiler probe, restored:** derived map plus unknown option parameters and the two sink conversions below gives **16 raw / 16 owned / 0 DOM**, TS7006 **7**, TS2339 **9**. Only the suggestion callback and option value/label messages disappear; no new message. Source restore SHA-256: `5b51ec3daee13050d1c6ea4eac56b63c3cdb2cb6114b76454a7a5db77dcd0ebd`. An initial probe targeted the wrong identical text assignment; it was restored and corrected before this measurement. Neither probe is implementation; no elimination is banked.
+
+**Named decision: option setter conversion wording.** Proposed at the original assignments, in the same order:
+
+```js
+element.value = `${value}`;
+element.textContent = label == null ? null : `${label}`;
+```
+
+The nullish branch preserves the nullable textContent setter's empty text. This is not an append: a Node label is stringified here today and remains so. No filtering, fallback, ID substitution, bridge or new rejection is proposed. Prior append/input-type approvals do not automatically authorize different setter messages.
+
+**Chromium 151.0.7922.34 measurement: 24 before/after cases.** Both setters tested with whitespace text, number, null, undefined, false, empty string, array, Node, conversion object, Symbol, unconvertible object and throwing conversion hook. Twenty cases match stored value/text, call count and thrown-hook identity. Four differ only in the prefix of a synchronous TypeError:
+
+| Sink / input | Existing message | Proposed message |
+| --- | --- | --- |
+| value / Symbol | Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert a Symbol value to a string | Cannot convert a Symbol value to a string |
+| value / Object.create(null) | Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert object to primitive value | Cannot convert object to primitive value |
+| textContent / Symbol | Failed to set the 'textContent' property on 'Node': Cannot convert a Symbol value to a string | Cannot convert a Symbol value to a string |
+| textContent / Object.create(null) | Failed to set the 'textContent' property on 'Node': Cannot convert object to primitive value | Cannot convert object to primitive value |
+
+Failed setters leave the element unchanged. Value failure precedes the label write; thrown conversion-hook values preserve identity. Native messages are observations, not portable engine assertions. Arbitrary descriptor pair members can reach these sinks; first-party string labels are not proof of universal unreachability. **Hold implementation for this narrow wording decision.** No shared prerequisite is requested.
+
+**Proof after the decision:** commit baseline bodies as fixtures pinned to this full baseline by a unit suite; browser specs must not read Git history. Cover real catalog-to-datalist/fill and native option before/after behavior, real add/edit workflows on isolated 8102, and targeted mutations with byte-copy/SHA-256 restores. Preserve all .43.61/.43.62 protections. Search raw and escaped spellings, function lifts and browser new Function constructions. The initial non-shell inventory names lists-item-suggestion-contracts, lists-option-surface-contracts, lists-write-path-contracts, required-member-acquisition-contracts and the committed descriptor baseline. Unrelated Notes/Workbench/Time Entries text matches remain untouched. Retarget claims, not coverage.
+
+**Delivery:** one checkpoint, planning commit then implementation then archive last, with three LTF trailers. Final per-message ledger evidence; clean committed-tree verify:slice from the full baseline above and checkpoint:validate, then draft PR into nightly and READY. This plan is not completed or banked work. Claude owns integration; no other worktree, stashes, shared files or protected branches are touched.
