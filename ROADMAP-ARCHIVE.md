@@ -16,6 +16,8 @@
 - [x] **Scope retained.** .43.61 missing-versus-incomplete records and .43.62 collection/iterator, input.type, append and recovery decisions remain untouched. No package/lock, changelog, durable-documentation sweep, shared contract or runtime helper change. docs:suggest reviewed; no owning workflow document changes are needed.
 - [x] **Remaining work.** Lists **16**: nine editor parameter reads, four event parameters, and one each in surface decoration, project selection and progress arithmetic. Not a Lists or parent closeout. Recommend tracing the four event consumers' real target/failure paths as the next separately assigned boundary, without pre-authorizing refusal or wording changes.
 
+**Final-gate correction:** the first canonical run stopped in units on the remaining lists-element-handle-contracts deferral pin (no regression buckets ran). Its unvalidated-user-ID assertion is retained verbatim; the obsolete untyped-option assertion now requires both opaque parameters. The pin inventory now also searches the shorter function declaration prefix and quoted lift names. Production and rendered evidence are unchanged; the corrected committed tree receives a new canonical run.
+
 **Final verification handoff:** after this final bookkeeping commit, run range-explicit verify:slice from `07c3d32e92ff967301d9e1caead2768f390e288b` on the clean committed tree, then checkpoint:validate. The READY report and draft PR carry the actual Change set, routing, completion and results; this entry does not pre-claim a gate that has not run. Hold the submitted branch unchanged for Claude's integration.
 
 ## Version 0.33.33.43.62 - Lists item field descriptor consumers

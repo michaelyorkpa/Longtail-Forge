@@ -6,13 +6,286 @@
     "element.value = value",
     "element.textContent = label",
     "itemSuggestionsForList",
-    "updateSuggestionDatalist"
+    "updateSuggestionDatalist",
+    "function option(",
+    "\"option\"",
+    "'option'"
   ],
   "hits": [
+    {
+      "file": "tests/e2e/audit-log-filter-selection.spec.mjs",
+      "line": 57,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/audit-log-filter-selection.spec.mjs",
+      "line": 68,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/calendar-subscription-settings.spec.mjs",
+      "line": 138,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/calendar-subscription-settings.spec.mjs",
+      "line": 265,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/client-projects-add-dialog-flow.spec.mjs",
+      "line": 28,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/clients-projects-record-sink-conversion.spec.mjs",
+      "line": 109,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/hidden-label-controls.spec.mjs",
+      "line": 79,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/hidden-label-controls.spec.mjs",
+      "line": 95,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/hidden-label-controls.spec.mjs",
+      "line": 103,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/lists-field-descriptor-boundary.spec.mjs",
+      "line": 7,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/lists-field-descriptor-boundary.spec.mjs",
+      "line": 45,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/lists-field-descriptor-boundary.spec.mjs",
+      "line": 177,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/lists-option-consumers.spec.mjs",
+      "line": 8,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/lists-option-consumers.spec.mjs",
+      "line": 37,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-collections.spec.mjs",
+      "line": 81,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-editor-fields-links.spec.mjs",
+      "line": 118,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-editor-fields-links.spec.mjs",
+      "line": 171,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-editor-fields-links.spec.mjs",
+      "line": 372,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-editor-fields-links.spec.mjs",
+      "line": 390,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-editor-fields-links.spec.mjs",
+      "line": 410,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-editor-fields-links.spec.mjs",
+      "line": 418,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-kind-labels.spec.mjs",
+      "line": 36,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-tag-surface.spec.mjs",
+      "line": 65,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-tag-surface.spec.mjs",
+      "line": 66,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 56,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 57,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 63,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 65,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 80,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 82,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 83,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 84,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 92,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-target-picker.spec.mjs",
+      "line": 120,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-visibility-scoping.spec.mjs",
+      "line": 34,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-visibility-scoping.spec.mjs",
+      "line": 46,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notes-visibility-scoping.spec.mjs",
+      "line": 63,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/notification-page-controls.spec.mjs",
+      "line": 35,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/tasks-dom-close.spec.mjs",
+      "line": 16,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/tasks-filter-controls.spec.mjs",
+      "line": 20,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/tasks-filter-controls.spec.mjs",
+      "line": 21,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/tasks-filter-controls.spec.mjs",
+      "line": 66,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/workbench-focus-handles.spec.mjs",
+      "line": 20,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/e2e/workbench-focus-handles.spec.mjs",
+      "line": 23,
+      "spelling": "\"option\""
+    },
     {
       "file": "tests/e2e/workbench-reflective-audit.spec.mjs",
       "line": 8,
       "spelling": "element.textContent = label"
+    },
+    {
+      "file": "tests/unit/calendar-adapter-contracts.test.mjs",
+      "line": 164,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/calendar-settings-scope-contracts.test.mjs",
+      "line": 14,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/clients-projects-client-editors-contracts.test.mjs",
+      "line": 150,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/clients-projects-element-values-contracts.test.mjs",
+      "line": 77,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/clients-projects-field-editor-contracts.test.mjs",
+      "line": 70,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/clients-projects-field-helpers-contracts.test.mjs",
+      "line": 140,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/clients-projects-project-assignment-contracts.test.mjs",
+      "line": 138,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/clients-projects-record-normaliser-contracts.test.mjs",
+      "line": 449,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/clients-projects-settings-rounding-contracts.test.mjs",
+      "line": 506,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/lists-element-handle-contracts.test.mjs",
+      "line": 181,
+      "spelling": "function option("
     },
     {
       "file": "tests/unit/lists-item-suggestion-contracts.test.mjs",
@@ -38,6 +311,16 @@
       "file": "tests/unit/lists-option-consumers.test.mjs",
       "line": 17,
       "spelling": "updateSuggestionDatalist"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 26,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 56,
+      "spelling": "\"option\""
     },
     {
       "file": "tests/unit/lists-option-consumers.test.mjs",
@@ -85,9 +368,89 @@
       "spelling": "itemSuggestionsForList"
     },
     {
+      "file": "tests/unit/notes-bulk-edit.test.mjs",
+      "line": 34,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-editor-fields-links.test.mjs",
+      "line": 36,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-editor-fields-links.test.mjs",
+      "line": 273,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-kind-labels.test.mjs",
+      "line": 13,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-kind-labels.test.mjs",
+      "line": 38,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-kind-labels.test.mjs",
+      "line": 39,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-linked-panel-mount.test.mjs",
+      "line": 96,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-primary-context-pins.test.mjs",
+      "line": 28,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-target-picker.test.mjs",
+      "line": 33,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-target-picker.test.mjs",
+      "line": 137,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-value-readers.test.mjs",
+      "line": 18,
+      "spelling": "function option("
+    },
+    {
       "file": "tests/unit/notes-value-readers.test.mjs",
       "line": 19,
       "spelling": "element.value = value"
+    },
+    {
+      "file": "tests/unit/notes-value-readers.test.mjs",
+      "line": 19,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notes-visibility-scoping.test.mjs",
+      "line": 31,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/notification-preferences-render.test.mjs",
+      "line": 145,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/reporting-filter-contracts.test.mjs",
+      "line": 263,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/reporting-filter-contracts.test.mjs",
+      "line": 403,
+      "spelling": "\"option\""
     },
     {
       "file": "tests/unit/required-member-acquisition-contracts.test.mjs",
@@ -95,9 +458,84 @@
       "spelling": "function option(value, label)"
     },
     {
+      "file": "tests/unit/required-member-acquisition-contracts.test.mjs",
+      "line": 25,
+      "spelling": "function option("
+    },
+    {
+      "file": "tests/unit/settings-page-controller-behaviour.test.mjs",
+      "line": 473,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/settings-page-controller-behaviour.test.mjs",
+      "line": 474,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/settings-page-controller-behaviour.test.mjs",
+      "line": 475,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/tasks-filter-controls.test.mjs",
+      "line": 88,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/tasks-filter-controls.test.mjs",
+      "line": 89,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/tasks-filter-controls.test.mjs",
+      "line": 100,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/tasks-filter-controls.test.mjs",
+      "line": 135,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/time-entries-bulk-tags-contracts.test.mjs",
+      "line": 136,
+      "spelling": "\"option\""
+    },
+    {
       "file": "tests/unit/time-entries-filtering-contracts.test.mjs",
       "line": 147,
       "spelling": "element.value = value"
+    },
+    {
+      "file": "tests/unit/time-entries-filtering-contracts.test.mjs",
+      "line": 400,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/timer-dialog-options-contracts.test.mjs",
+      "line": 77,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/user-settings-preferences-contracts.test.mjs",
+      "line": 321,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/view-builder-node-and-values.test.mjs",
+      "line": 185,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/view-renderer-tail-behaviour.test.mjs",
+      "line": 189,
+      "spelling": "\"option\""
+    },
+    {
+      "file": "tests/unit/workbench-focus-handles.test.mjs",
+      "line": 23,
+      "spelling": "\"option\""
     }
   ]
 }
