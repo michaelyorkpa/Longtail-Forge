@@ -1,6 +1,5 @@
-/** @typedef {import("../../types/task-block-recovery-contracts.d.ts").TaskBlockRecoveryRecord} TaskBlockRecoveryRecord */
+/** @typedef {import("../../types/task-block-recovery-contracts.d.ts").RawTaskBlockRecoveryRecord} RawTaskBlockRecoveryRecord */
 /** @typedef {import("../../types/task-block-recovery-contracts.d.ts").TaskBlockRecoveryTransition} TaskBlockRecoveryTransition */
-/** @typedef {import("../../types/task-block-recovery-contracts.d.ts").TaskLifecycleStatus} TaskLifecycleStatus */
 
 export const AUTO_BLOCKED_REASON_PREFIX = "Blocked by incomplete child task";
 
@@ -97,8 +96,8 @@ export function planParentRecoveryTransition({ parentTask, incompleteBlockingChi
 /**
  * Select the parent-rollup side effect for a persisted child status change.
  *
- * @param {TaskLifecycleStatus | null | undefined} previousStatus
- * @param {TaskLifecycleStatus | null | undefined} nextStatus
+ * @param {RawTaskBlockRecoveryRecord["status"]} previousStatus
+ * @param {RawTaskBlockRecoveryRecord["status"]} nextStatus
  * @returns {import("../../types/task-block-recovery-contracts.d.ts").ChildStatusRollupEffect}
  */
 export function childStatusRollupEffect(previousStatus, nextStatus) {
@@ -112,12 +111,12 @@ export function childStatusRollupEffect(previousStatus, nextStatus) {
   return isTaskTerminalStatus(next) ? "recover_parents" : "block_parents";
 }
 
-/** @param {TaskLifecycleStatus | null | undefined} status */
+/** @param {RawTaskBlockRecoveryRecord["status"]} status */
 export function isTaskTerminalStatus(status) {
   return TERMINAL_STATUSES.has(normalizedStatus(status));
 }
 
-/** @param {TaskBlockRecoveryRecord | TaskLifecycleStatus | null | undefined} taskOrStatus */
+/** @param {RawTaskBlockRecoveryRecord | RawTaskBlockRecoveryRecord["status"]} taskOrStatus */
 export function isIncompleteTask(taskOrStatus) {
   const status = typeof taskOrStatus === "object" && taskOrStatus !== null
     ? taskOrStatus.status
@@ -125,7 +124,7 @@ export function isIncompleteTask(taskOrStatus) {
   return !isTaskTerminalStatus(status);
 }
 
-/** @param {TaskBlockRecoveryRecord | null | undefined} task */
+/** @param {RawTaskBlockRecoveryRecord | null | undefined} task */
 export function shouldPauseRunningTimersForBlockedTask(task) {
   return normalizedStatus(task?.status) === "blocked";
 }

@@ -1,3 +1,4 @@
+/** @typedef {import("../../types/task-block-recovery-contracts.d.ts").TaskLifecycleStatus} TaskLifecycleStatus */
 import {
   CreateTaskSchema,
   TaskChecklistItemCreateSchema,
@@ -3060,10 +3061,22 @@ async function readTaskCompletionContinuity(task) {
   });
 }
 
-/** @param {unknown} value */
+/**
+ * Membership after the existing write-boundary conversion; raw recovery reads stay separate.
+ * @param {string} status
+ * @returns {status is TaskLifecycleStatus}
+ */
+function isTaskLifecycleStatus(status) {
+  return STATUSES.has(status);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {TaskLifecycleStatus}
+ */
 function normalizeStatus(value) {
   const status = String(value || "").trim();
-  return STATUSES.has(status) ? status : "open";
+  return isTaskLifecycleStatus(status) ? status : "open";
 }
 
 /** @param {unknown} value */
