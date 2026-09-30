@@ -15,6 +15,20 @@
 - [x] **Per-message branch-local accounting.** Lists/browser **2 raw / 2 owned / 0 DOM to 0 / 0 / 0**: only TS7006 parameter `surface` in decorateListsDeclarativeSurface and TS7006 parameter `items` in normalizeListProgress disappear. No introduced message, omitted file, suppression, cast, weakened contract or reclassification. Clients/Projects stays zero. Canonical final ledger: **878 server/tests + 85 browser + 597 scripts = 1,560 files**, all diagnostics and explicit-any nodes zero; all six browser owner sums and all families zero. New test files enter checked programs at zero.
 - [x] **Disposition.** Implementation and archive are one checkpoint. Range-explicit verify:slice from the full base and checkpoint:validate run after this final bookkeeping commit; their actual routing/results belong in the PR and READY handoff. No durable documentation, version bump or changelog release entry for this internal checkpoint. No remaining implementation blocker. Claude alone integrates and records .43/.44 parent acceptance; browser zero on this branch is not a protected integration claim.
 
+**Integrated onto `nightly` at `f29b3aa0` by Claude, and with it the `0.33.33.43` parent is recorded complete.**
+
+- **Shared paths.** `nightly` had not moved since Codex's base, so its side changed 0 paths against Codex's 14. The intersection was empty and the merge was clean.
+- **Ledger.** It was regenerated from the combined tree, and it is identical to Codex's branch ledger. It covers 1,560 files with **0 diagnostics across all three programs** and no explicit `any`, and every browser family (`.40`-`.44`) and `dom` is at 0. Per message, exactly the two target TS7006 (`items`, `surface`) disappear, and none are added.
+- **Review of the number conversion.** It follows the native steps exactly:
+  - both operands are evaluated first, then converted left before right;
+  - `undefined` and `null` are tested strictly, and `document.all` is handled as an object;
+  - the `Symbol.toPrimitive` hook is read once and invoked through the built-in `call`, and an object result throws;
+  - `valueOf` and `toString` are each read once, and their callability is tested with `typeof` or a proxy probe that runs no traps and is exact for `document.all`. This is approved under the delegated authority as a non-mutating native probe.
+- **Review of the result.** Mixed kinds throw after both conversions. A BigInt difference throws exactly where `sort`'s own conversion of the result would, and ordinary numbers pass unchanged. That BigInt message is approved under the delegation.
+- **Review of the surface hooks.** `lists.js` is a sloppy-mode classic script, so `Reflect.set` on a primitive `dataset` reproduces the silently ignored write, and object datasets keep their assignment.
+- **Evidence.** The browser comparison covers `document.all` as a hook, as `valueOf`, as `toString`, as the operand and behind a proxy, plus revoked proxies. The fixture is pinned to `f29b3aa0` by a full-history unit suite. The mutations include removing the BigInt check and coercing with `Number()`, the callability probe, and the strict-nullish test.
+- **Parent acceptance.** `0.33.33.43`'s five criteria are ticked in the roadmap with their evidence. `0.33.33.44`'s permanent browser-zero proof and `0.33.33.48`'s release closeout are not claimed.
+
 ## Version 0.33.33.43.65 - Lists editor input and record consumers
 
 **Model: High Effort** - Raw host records cross editor state, control setters and collection protocols.
