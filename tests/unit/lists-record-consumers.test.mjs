@@ -9,6 +9,7 @@ const baseline = JSON.parse(readFileSync("tests/fixtures/lists-record-consumers/
 /** @param {boolean} before */
 function fixture(before) {
   const sandbox = vm.createContext({ window: {}, URLSearchParams });
+  if (!before) for (const name of ["listEventField", "callListEventMember"]) vm.runInContext(extractFunctionBlock(source, name), sandbox);
   vm.runInContext(readFileSync("public/js/shared/error-contract.js", "utf8"), sandbox);
   vm.runInContext(baseline.constants.join("\n"), sandbox);
   vm.runInContext(`

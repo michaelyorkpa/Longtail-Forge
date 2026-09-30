@@ -486,6 +486,8 @@
      * @type {BrowserNormalizedListRecord[]}
      */
     lists: [],
+    // Native event datasets supply text; synthetic action targets can carry opaque identities.
+    /** @type {unknown} */
     selectedListId: new URLSearchParams(window.location.search).get("list") || "",
     /**
      * The workspace's users, as the options payload supplied them.
@@ -1867,14 +1869,14 @@
    *
    * `updateUrl` is compared against `false` rather than tested for truth, so an absent option
    * updates the URL and only an explicit `false` suppresses it.
-   * @param {string | undefined} listId @param {{ updateUrl?: boolean }} [options]
+   * @param {unknown} listId @param {{ updateUrl?: boolean }} [options]
    */
   function selectList(listId, options = {}) {
     state.selectedListId = listId || "";
     if (options.updateUrl !== false) {
       const params = new URLSearchParams(window.location.search);
       if (state.selectedListId) {
-        params.set("list", state.selectedListId);
+        params.set("list", `${state.selectedListId}`);
       } else {
         params.delete("list");
       }
@@ -2200,24 +2202,52 @@
     itemDialog?.removeAttribute("open");
   }
 
-  /**
-   * **`event` is deliberately untyped, and the binding is why.** This is registered with
-   * `itemDialogForm.addEventListener("submit", saveItem)`, so the listener's contextual type is
-   * `SubmitEvent`, whose `target` the DOM declares `EventTarget | null`. Typing this parameter
-   * narrower - a bag whose `target` is a form - is refused at that registration; typing it as the
-   * event makes every read below a `dom` diagnostic, because `EventTarget` carries no `dataset`,
-   * no `elements`, and is not a `FormData` source. The trade is three parameter diagnostics for
-   * more `dom` ones. **Discharged by** a checked form accessor at the handler's head, which refuses
-   * nothing that can occur but is an executable guard this slice does not authorise, or by the
-   * shared view layer handing submit handlers a form. `saveList` carries the same deferral.
-   * Pinned by `lists-write-path-contracts`.
-   */
+
+  // Operator-approved extra intrinsic operation at each existing FormData argument boundary.
+  // Capture the untampered native receiver check; it accepts forms from other documents
+  // without reading their own properties. It neither constructs FormData nor reads payloads.
+  const listFormElementsGetter = Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, "elements")?.get;
+
+  /** @param {unknown} value @returns {value is HTMLFormElement} */
+  function isListEventForm(value) {
+    if (!listFormElementsGetter) {
+      throw new TypeError("The list submission requires a form.");
+    }
+    try {
+      Reflect.apply(listFormElementsGetter, value, []);
+      return true;
+    } catch (error) {
+      if (error instanceof TypeError) return false;
+      throw error;
+    }
+  }
+
+  /** @param {unknown} value */
+  function requireListEventForm(value) {
+    if (!isListEventForm(value)) throw new TypeError("The list submission requires a form.");
+    return value;
+  }
+
+  /** @param {unknown} value @param {string} key @returns {unknown} */
+  function listEventField(value, key) {
+    if (value === null || value === undefined) throw new TypeError("The list event target cannot be read.");
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @param {string} key @param {unknown[]} args @returns {unknown} */
+  function callListEventMember(value, key, args) {
+    const method = listEventField(value, key);
+    if (typeof method !== "function") throw new TypeError(`The list event target has no callable ${key}.`);
+    return Reflect.apply(method, value, args);
+  }
+
+  /** @param {Event} event */
   async function saveItem(event) {
     const api = requireApi();
     event.preventDefault();
     const form = event.target;
-    const listId = form.dataset.listId;
-    const editingItemId = form.dataset.editingItemId || "";
+    const listId = listEventField(listEventField(form, "dataset"), "listId");
+    const editingItemId = listEventField(listEventField(form, "dataset"), "editingItemId") || "";
     /**
      * Form entries, plus the two members the next two lines rewrite.
      *
@@ -2226,7 +2256,7 @@
      * is what the bag actually holds by the time it leaves, not a loosening.
      * @type {Record<string, FormDataEntryValue | boolean | number>}
      */
-    const payload = Object.fromEntries(new FormData(form).entries());
+    const payload = Object.fromEntries(new FormData(requireListEventForm(form)).entries());
 
     payload.quantity = payload.quantity || 1;
     payload.save_to_catalog = payload.save_to_catalog === "true";
@@ -2234,9 +2264,9 @@
       requireListsHandle(itemDialogSave, "item save button").disabled = true;
       requireListsHandle(itemDialogFormStatus, "item form status").textContent = "Saving item...";
       if (editingItemId) {
-        await api.putJson(`/api/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(editingItemId)}`, payload);
+        await api.putJson(`/api/lists/${encodeURIComponent(`${listId}`)}/items/${encodeURIComponent(`${editingItemId}`)}`, payload);
       } else {
-        await api.postJson(`/api/lists/${encodeURIComponent(listId)}/items`, payload);
+        await api.postJson(`/api/lists/${encodeURIComponent(`${listId}`)}/items`, payload);
       }
       closeItemDialog();
       await refreshLists(listId);
@@ -2672,16 +2702,17 @@
     });
   }
 
+  /** @param {Event} event */
   async function handleDetailClick(event) {
-    const actionElement = event.target.closest("[data-list-action], [data-item-action]");
+    const actionElement = callListEventMember(event.target, "closest", ["[data-list-action], [data-item-action]"]);
     if (!actionElement) {
       return;
     }
 
-    const list = state.lists.find((entry) => entry.list_id === actionElement.dataset.listId);
-    const itemId = actionElement.dataset.itemId || "";
-    const linkId = actionElement.dataset.linkId || "";
-    const action = actionElement.dataset.listAction || actionElement.dataset.itemAction;
+    const list = state.lists.find((entry) => entry.list_id === listEventField(listEventField(actionElement, "dataset"), "listId"));
+    const itemId = listEventField(listEventField(actionElement, "dataset"), "itemId") || "";
+    const linkId = listEventField(listEventField(actionElement, "dataset"), "linkId") || "";
+    const action = listEventField(listEventField(actionElement, "dataset"), "listAction") || listEventField(listEventField(actionElement, "dataset"), "itemAction");
 
     try {
       setStatus("Saving...");
@@ -2714,7 +2745,7 @@
    * Discharged without claiming savedness: unreadable successful details remain incomplete records.
    * Only a missing record is refused at the existing required read, with approved visible wording.
    * @param {BrowserNormalizedListRecord | undefined} list
-   * @param {string} action @param {string} [itemId] @param {string} [linkId]
+   * @param {unknown} action @param {unknown} [itemId] @param {unknown} [linkId]
    */
   async function runAction(action, list, itemId, linkId = "") {
     const api = requireApi();
@@ -2722,7 +2753,7 @@
       throw new TypeError("The list action no longer has a record to read.");
     }
     const listId = encodeURIComponent(`${list.list_id}`);
-    const itemPath = itemId ? `/items/${encodeURIComponent(itemId)}` : "";
+    const itemPath = itemId ? `/items/${encodeURIComponent(`${itemId}`)}` : "";
 
     if (action === "complete-list") {
       await api.postJson(`/api/lists/${listId}/complete`, {});
@@ -2761,7 +2792,7 @@
       await moveItem(list, itemId, action === "move-item-up" ? -1 : 1);
     } else if (action === "remove-link") {
       if (linkId) {
-        await api.postJson(`/api/lists/${listId}/links/${encodeURIComponent(linkId)}/remove`, {});
+        await api.postJson(`/api/lists/${listId}/links/${encodeURIComponent(`${linkId}`)}/remove`, {});
       }
     }
     return "";
@@ -2773,7 +2804,7 @@
    * itemId may be absent because runAction forwards its optional argument unchanged.
    * Normalized records can have absent columns, including on a successful unreadable detail response.
    * @param {BrowserNormalizedListRecord} list
-   * @param {string | undefined} itemId @param {number} direction
+   * @param {unknown} itemId @param {number} direction
    */
   async function moveItem(list, itemId, direction) {
     const api = requireApi();
@@ -2796,13 +2827,14 @@
     });
   }
 
+  /** @param {Event} event */
   async function handleDetailSubmit(event) {
     const api = requireApi();
-    if (event.target.matches("[data-list-link-form]")) {
+    if (callListEventMember(event.target, "matches", ["[data-list-link-form]"])) {
       event.preventDefault();
       const form = event.target;
-      const listId = form.dataset.listId;
-      const payload = Object.fromEntries(new FormData(form).entries());
+      const listId = listEventField(listEventField(form, "dataset"), "listId");
+      const payload = Object.fromEntries(new FormData(requireListEventForm(form)).entries());
       if (payload.target_type === "task" && !payload.target_id) {
         setStatus("Select a task to link.", true);
         return;
@@ -2810,8 +2842,8 @@
 
       try {
         setStatus("Adding link...");
-        await api.postJson(`/api/lists/${encodeURIComponent(listId)}/links`, payload);
-        form.reset();
+        await api.postJson(`/api/lists/${encodeURIComponent(`${listId}`)}/links`, payload);
+        callListEventMember(form, "reset", []);
         await refreshLists(listId);
         setStatus("");
       } catch (error) {
@@ -3589,7 +3621,7 @@
     state.listDialogHostContext = null;
   }
 
-  /** Same deferral as `saveItem`: see the note there for why the submit event stays untyped. */
+  /** @param {Event} event */
   async function saveList(event) {
     const api = requireApi();
     event.preventDefault();
@@ -3650,6 +3682,7 @@
     }
   }
 
+  /** @param {unknown} [selectedId] */
   async function refreshLists(selectedId = state.selectedListId) {
     setStatus("Loading lists...");
     await loadLists();
