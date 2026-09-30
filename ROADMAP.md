@@ -1652,11 +1652,15 @@ Codex may implement, and Claude may approve at review, an explicit native string
 This is not one template for every DOM property: nullable DOMString, ordinary DOMString and properties with special conversion rules keep their own behavior. It does not authorize any of these:
 - filtering, validation, defaults, ID substitution or input restrictions;
 - upstream normalization, reordered operations or changed cleanup;
-- new application messages, or a numeric or boolean conversion policy;
+- application messages outside the limited failure-wording delegation below, or a numeric or boolean conversion policy;
 - extending Node-or-text beyond its approved sinks;
 - shared-declaration widening, casts, suppressions or shared-framework expansion.
 
 Escalate only a concrete behavior difference outside this authority, or evidence that contradicts a preservation claim.
+
+**Lists failure-wording delegation (operator ruling, 2026-09-30).** Codex may implement and Claude may approve application-owned TypeErrors replacing an existing reached native TypeError from a required nullish member read, an absent/non-callable member invocation, or an existing native interface precondition. Preserve successful inputs, no-ops, preceding work, receivers, read order, catch boundaries and original getter/method/hook exceptions. New filtering, earlier validation and shared framework changes remain excluded. Record old/new behavior in normal checkpoint evidence; no separate message approval or catalogue is required within these bounds.
+
+For `.43.64`, the four recorded messages and one invocation of the captured native HTMLFormElement.elements getter at each reached FormData argument boundary are explicitly approved. The probe uses the candidate as receiver without consulting its own properties; the real constructor remains single and in its original evaluation order. Only the isolated native wrong-receiver TypeError is translated; other exceptions propagate. This added intrinsic operation is an authorized difference, not a claim of zero added reads. Claude may approve a similarly small non-mutating Lists-local native interface probe when it invokes no target-owned hooks, mutates no application data and preserves the original operation's accepted inputs. Extra user-controlled property reads and broader policy changes still require escalation.
 
 #### 0.33.33.43.64 - Lists form and detail event consumers
 
