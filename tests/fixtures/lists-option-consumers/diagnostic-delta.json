@@ -1,0 +1,13 @@
+{
+  "base": "07c3d32e92ff967301d9e1caead2768f390e288b",
+  "before": 19,
+  "after": 16,
+  "removed": [
+    "public/js/lists.js|TS7006: Parameter 'label' implicitly has an 'any' type.",
+    "public/js/lists.js|TS7006: Parameter 'suggestion' implicitly has an 'any' type.",
+    "public/js/lists.js|TS7006: Parameter 'value' implicitly has an 'any' type."
+  ],
+  "introduced": [],
+  "domBefore": 0,
+  "domAfter": 0
+}

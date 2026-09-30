@@ -1,0 +1,51 @@
+{
+  "sourceSha256": "9d761eebdb1f94b0f2bf5d5d26eb12cd60646ae2a359fe09020c9d8facd87733",
+  "cases": [
+    "label before value loses partial progress",
+    "loose nullish equality collapses document.all",
+    "missing nullish branch stringifies absent labels"
+  ],
+  "results": [
+    {
+      "name": "label before value loses partial progress",
+      "outcome": "assertion",
+      "detail": "an assertion refused the mutation",
+      "elapsedMs": 1070
+    },
+    {
+      "name": "loose nullish equality collapses document.all",
+      "outcome": "assertion",
+      "detail": "an assertion refused the mutation",
+      "elapsedMs": 1098
+    },
+    {
+      "name": "missing nullish branch stringifies absent labels",
+      "outcome": "assertion",
+      "detail": "an assertion refused the mutation",
+      "elapsedMs": 1141
+    }
+  ],
+  "caught": [
+    {
+      "name": "label before value loses partial progress",
+      "outcome": "assertion",
+      "detail": "an assertion refused the mutation",
+      "elapsedMs": 1070
+    },
+    {
+      "name": "loose nullish equality collapses document.all",
+      "outcome": "assertion",
+      "detail": "an assertion refused the mutation",
+      "elapsedMs": 1098
+    },
+    {
+      "name": "missing nullish branch stringifies absent labels",
+      "outcome": "assertion",
+      "detail": "an assertion refused the mutation",
+      "elapsedMs": 1141
+    }
+  ],
+  "survivors": [],
+  "unusable": [],
+  "totalMs": 4312
+}

@@ -453,6 +453,9 @@
      * @type {BrowserNormalizedListRecord | null}
      */
     itemDialogList: null,
+    /** The two writers store the validated reader's array or an empty array, without cloning.
+     * @type {Map<unknown, NonNullable<ReturnType<typeof readItemSuggestions>>>}
+     */
     itemSuggestions: new Map(),
     /**
      * The pending picker-search debounce, or `null` when none is scheduled.
@@ -2951,9 +2954,9 @@
   /**
    * One catalog suggestion, as the page holds it.
    *
-   * Nothing here proves any of it: the suggestions come from a cache this reader does not own, and
-   * every member is passed straight to `setFormValue`, which tolerates whatever arrives. `item_name`
-   * is the exception and is text-or-absent, because the match lowercases it.
+   * The cache now derives its rows from `readItemSuggestions`. This smaller consumer vocabulary
+   * describes only the members passed to `setFormValue`; it adds no validation or cache writes.
+   * `item_name` remains text-or-absent in this consumer because the match lowercases it.
    * @typedef {{
    *   catalog_item_id?: unknown, estimated_cost?: unknown, item_name?: string,
    *   notes?: unknown, quantity?: unknown, unit?: unknown, url?: unknown, vendor_name?: unknown
@@ -4375,9 +4378,8 @@
    * named**: narrowing the handles where they are declared. The parameter is a select because this
    * reads `.options`, which no other control carries.
    *
-   * `option` alone still stands deferred, on its own second gate: it writes `element.value`, which
-   * requires text, while one caller hands it `state.users`' `user_id` - `unknown`, because nothing
-   * validates the options payload those rows come from.
+   * `option` accepts opaque values from user rows and contributed descriptors. Its native setter
+   * conversions are made explicit there, without imposing a text precondition on those callers.
    * @param {HTMLSelectElement | null} [select] @param {HTMLOptionElement[]} [options]
    */
   function replaceOptions(select, options = []) {
@@ -4391,10 +4393,16 @@
     }
   }
 
+  /**
+   * Preserve the native setters' conversions, including nullable textContent and their order.
+   * Intrinsic conversion errors lose their native setter prefix; conversion-hook throws survive.
+   * @param {unknown} value @param {unknown} label
+   */
   function option(value, label) {
     const element = document.createElement("option");
-    element.value = value;
-    element.textContent = label;
+    element.value = `${value}`;
+    element.textContent =
+      label === null || label === undefined ? null : `${label}`;
     return element;
   }
 

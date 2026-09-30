@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.43.63` | `lists.js` item field descriptors typed and integrated at `0.33.33.43.62`, Lists 21 to 19. Next: measured from the remaining 19 (TS7006 10, TS2339 9) before a boundary is drawn | 19 owned |
+| Codex | `0.33.33.43.63` | `lists.js` catalog cache and option sinks: branch-local 19 to 16, pending protected integration; next boundary remains unassigned | 16 owned |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open** while delegated Lists work is outstanding | 0 |

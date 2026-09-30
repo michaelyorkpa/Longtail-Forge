@@ -175,12 +175,13 @@ describe("What this narrowing is, and what it leaves standing", () => {
     assert.match(source, /select\.value = projects\.some/, "it still writes the control's value unguarded");
   });
 
-  it("leaves the option builder deferred on its own second gate, not on the handles", () => {
+  it("discharges the option sink without claiming that user IDs were validated", () => {
     // `element.value` requires text while one caller hands it `state.users`' `user_id`, which is
     // `unknown` because nothing validates the options payload.
     const at = source.indexOf("function option(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
-    assert.doesNotMatch(block, /@param \{[^}]*\} value/, "the option builder is annotated; re-decide this deferral");
+    assert.match(block, /@param \{unknown\} value @param \{unknown\} label/,
+      "the approved sink conversion does not narrow either opaque caller value");
     assert.match(source, /@type \{\{ user_id\?: unknown \}\[\]\}/, "and the users rows are still unproved");
   });
 });
