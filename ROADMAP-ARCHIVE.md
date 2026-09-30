@@ -15,6 +15,8 @@
 - [x] **Per-message accounting.** Exactly public/js/lists.js moves: **12 to 2 raw / 12 to 2 owned / 0 to 0 DOM**; TS2339 9 to 0 and TS7006 3 to 2. The removed members are list, record, listRecord, returnFocusTo, trigger, listId, list_id, recordId and id; the removed parameter is select. No new or reclassified diagnostic message. Server/tests and scripts zero; explicit-any nodes zero. Canonical shrink-only ledger regenerated from the final implementation.
 - [x] **Remaining scope.** Two parameter diagnostics: decorateListsDeclarativeSurface(surface), normalizeListProgress(items). Recommend drawing the next boundary from their actual query/progress producers; do not claim Lists or .43 complete or self-assign another checkpoint.
 
+**Final-tree hygiene:** normalized three new test files to consistent LF after diff checking found terminal CRLFs. Executable bodies are unchanged; canonical verification is rerun after this correction rather than borrowing the earlier tree's result.
+
 **Final verification handoff:** after this archive commit, confirm the tree is clean, run verify:slice with LTF_REGRESSION_BASE_SHA=18e19e3e5f817b904a7c95f9202f335f9ff1f4e3, then checkpoint:validate. READY/draft PR will report actual routing and results. No package/changelog or durable documentation changes; docs:suggest reviewed, internal checkpoint disposition only. Claude retains protected integration ownership.
 
 ## Version 0.33.33.43.64 - Lists form and detail event consumers
