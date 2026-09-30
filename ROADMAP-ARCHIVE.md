@@ -20,6 +20,17 @@
 
 **Final verification handoff:** after this final bookkeeping commit, run range-explicit verify:slice from `07c3d32e92ff967301d9e1caead2768f390e288b` on the clean committed tree, then checkpoint:validate. The READY report and draft PR carry the actual Change set, routing, completion and results; this entry does not pre-claim a gate that has not run. Hold the submitted branch unchanged for Claude's integration.
 
+**Integrated onto `nightly` at `07c3d32e` by Claude.**
+
+- **Shared paths.** `nightly` had not moved since Codex's base, so its side changed 0 paths against Codex's 16. The changed-path intersection was empty and the merge was clean.
+- **Ledger.** It was regenerated from the combined tree, and it is identical to Codex's branch ledger because nothing intervened: 1,552 files and browser 19 to 16. That is Lists 16 (TS7006 7, TS2339 9) and Clients/Projects 0. Per message, exactly the three target TS7006 disappear (`label`, `suggestion`, `value`), and none are added.
+- **Review.** The review confirmed several things:
+  - the exact approved `option()` spelling, in its original order;
+  - the cache's two writers never store `null`, because a `null` read throws into the catch, which stores `[]`;
+  - the browser spec reads a fixture, not git history, and a full-history unit suite pins that fixture to `07c3d32e`;
+  - the three retargeted pins keep their claims.
+- **Bookkeeping.** The operator's standing authority for the remaining `lists.js` conversions was recorded in the roadmap's Lists context, and the `.43.62` catalogue comparison was recorded as completed.
+
 ## Version 0.33.33.43.62 - Lists item field descriptor consumers
 
 **Model: High Effort** - Opaque contributed values cross custom collections, iterator protocols and native DOM conversion boundaries.
@@ -46,7 +57,7 @@
 
 - **Shared paths.** Measured from both full diffs against `1c78eaf0`, the changed-path intersection was exactly `ROADMAP.md`, `ROADMAP-ARCHIVE.md` and the ledger.
 - **Ledger.** It was regenerated from the combined tree rather than taken from either branch: 1,550 files, with browser 21 to 19 against `ac25dd5d`. That is Lists 19 (TS7006 10, TS2339 9) and Clients/Projects 0. Per message, only the two target TS7006 differ.
-- **Review.** The review confirmed collect-before-convert with a single native append, and cleanup only at the pair binding's early stop. Of the 13 application messages, the four originally approved texts were checked verbatim. The nine extension texts were reported for the operator's comparison with the catalogue given to Codex.
+- **Review.** The review confirmed collect-before-convert with a single native append, and cleanup only at the pair binding's early stop. Of the 13 application messages, the four originally approved texts were checked verbatim. **Catalogue comparison, completed:** the operator compared the nine extension texts with the catalogue given to Codex, against the committed `readListItemOptionValues` at `07c3d32e`. All nine match, including the expanded pair and controls templates, and they supplement the four. The comparison is closed; this record was updated at the `0.33.33.43.63` integration.
 - **Bookkeeping.** The same integration corrected the stale `0.33.33.44.1` lane row.
 - **A `0.33.33.43.58` defect, found and corrected here.** The first protected browser run on #842 failed while loading `clients-projects-record-sink-conversion.spec.mjs`. That spec read its baseline with `git show 1c78eaf0:...`, and the browser job checks out one commit.
   - On #839 the spec passed because `1c78eaf0` was that PR's base and so was present. Here it is not.

@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.43.63` | `lists.js` catalog cache and option sinks: branch-local 19 to 16, pending protected integration; next boundary remains unassigned | 16 owned |
+| Codex | `0.33.33.43.64` | `lists.js` catalog cache and option sinks typed and integrated at `0.33.33.43.63`, Lists 19 to 16. Next: measured from the remaining 16 (TS7006 7, TS2339 9) before a boundary is drawn | 16 owned |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open** while delegated Lists work is outstanding | 0 |
@@ -1637,6 +1637,30 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+**Standing authority for the remaining `lists.js` conversions (operator ruling, 2026-09-29).**
+
+Codex may implement, and Claude may approve at review, an explicit native string conversion **without another operator ruling** when every one of these holds:
+- the existing operation and its actual IDL or string contract establish the conversion, not the parameter's name;
+- the change makes that existing conversion explicit at the same sink;
+- accepted values, `null`/`undefined` handling, existing fallbacks, successful results, receivers, read counts, conversion order and preceding side effects are preserved;
+- failure stays synchronous at the same observable operation, with the same error kind;
+- exceptions from getters or conversion hooks are not caught, replaced or wrapped;
+- the only difference is the intrinsic loss or change of the engine's operation-specific prefix;
+- focused evidence supports the claim, and no diagnostic is added, hidden or reclassified.
+
+This is not one template for every DOM property: nullable DOMString, ordinary DOMString and properties with special conversion rules keep their own behavior. It does not authorize any of these:
+- filtering, validation, defaults, ID substitution or input restrictions;
+- upstream normalization, reordered operations or changed cleanup;
+- new application messages, or a numeric or boolean conversion policy;
+- extending Node-or-text beyond its approved sinks;
+- shared-declaration widening, casts, suppressions or shared-framework expansion.
+
+Escalate only a concrete behavior difference outside this authority, or evidence that contradicts a preservation claim.
+
+#### 0.33.33.43.63 - Lists catalog and option consumers
+
+**Complete: integrated onto `nightly` at `07c3d32e`.** Three owned diagnostics eliminated: Lists 19 to 16 raw and owned, with 0 DOM. The suggestion cache takes its type from its validated writer, and `option()` makes its two setters' existing conversions explicit, in their original order and with the strict nullish branch the operator approved. See the archive for the evidence and the integration accounting.
 
 #### 0.33.33.43.62 - Lists item field descriptor consumers
 
