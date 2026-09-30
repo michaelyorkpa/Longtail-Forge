@@ -167,14 +167,14 @@ describe("What the write path declares", () => {
 });
 
 describe("Deferrals this checkpoint recorded", () => {
-  it("leaves the submit handlers' event untyped while the registration requires the event type", () => {
-    // Discharged by a checked form accessor at the handler's head, or by the shared view layer
-    // handing submit handlers a form. Narrowing the parameter is refused at the registration.
+  it("discharges event deferral at the required FormData argument, not the handler head", () => {
     assert.match(source, /addEventListener\("submit", saveList\)/);
     assert.match(source, /addEventListener\("submit", saveItem\)/);
-    const block = source.slice(source.lastIndexOf("/**", source.indexOf("async function saveItem(")), source.indexOf("async function saveItem("));
-    assert.doesNotMatch(block, /@param \{[^}]*\} event/,
-      "the submit event is annotated; this deferral is discharged and the pin should go with it");
+    assert.match(source, /new FormData\(requireListEventForm\(form\)\)/);
+    for (const name of ["saveItem", "saveList", "handleDetailClick", "handleDetailSubmit"]) {
+      const block = source.slice(source.lastIndexOf("/**", source.indexOf(`async function ${name}(`)), source.indexOf(`async function ${name}(`));
+      assert.match(block, /@param \{Event\} event/);
+    }
   });
 
   it("types the reorder while preserving its optional record identifier", () => {

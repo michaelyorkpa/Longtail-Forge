@@ -72,8 +72,8 @@ assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/complete/, "Complete workflow
 assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/finalize/, "Finalize workflow route should remain Lists-owned");
 assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/reopen/, "Reopen workflow route should remain Lists-owned");
 assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/mark-reusable/, "Reusable workflow route should remain Lists-owned");
-assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/links/, "Linked-record add route should remain Lists-owned");
-assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/links\/\$\{encodeURIComponent\(linkId\)\}\/remove/, "Linked-record remove route should remain Lists-owned");
+assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(\x60\$\{listId\}\x60\)\}\/links/, "Linked-record add route should remain Lists-owned");
+assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/links\/\$\{encodeURIComponent\(\x60\$\{linkId\}\x60\)\}\/remove/, "Linked-record remove route should remain Lists-owned");
 assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/, "Business client/project controls should remain workspace-scoped");
 assert.match(listsJs, /setContextControlsVisible\(usesBusinessScope\(\)\)/, "Personal and Family workspace context behavior should remain preserved");
 

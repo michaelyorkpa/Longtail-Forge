@@ -1,0 +1,143 @@
+{
+  "base": "9426f0414a1ce16b3ee45d02792288bfc00ae1a0",
+  "before": {
+    "raw": 16,
+    "owned": 16,
+    "dom": 0
+  },
+  "after": {
+    "raw": 12,
+    "owned": 12,
+    "dom": 0
+  },
+  "removed": [
+    {
+      "file": "public/js/lists.js",
+      "function": "saveItem",
+      "code": 7006,
+      "message": "Parameter 'event' implicitly has an 'any' type."
+    },
+    {
+      "file": "public/js/lists.js",
+      "function": "handleDetailClick",
+      "code": 7006,
+      "message": "Parameter 'event' implicitly has an 'any' type."
+    },
+    {
+      "file": "public/js/lists.js",
+      "function": "handleDetailSubmit",
+      "code": 7006,
+      "message": "Parameter 'event' implicitly has an 'any' type."
+    },
+    {
+      "file": "public/js/lists.js",
+      "function": "saveList",
+      "code": 7006,
+      "message": "Parameter 'event' implicitly has an 'any' type."
+    }
+  ],
+  "added": [],
+  "probes": {
+    "eventAnnotationOnly": 26,
+    "withoutNativePredicate": 14,
+    "withoutNativePredicateErrors": [
+      "public/js/lists.js(2259,53): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'HTMLFormElement | undefined'.",
+      "public/js/lists.js(2837,55): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'HTMLFormElement | undefined'."
+    ]
+  },
+  "sourceSha256": "6a13e41165b2e34399ba189dd252c5a74794f13b01bd1964518674a1531959e2",
+  "unitMutations": {
+    "results": [
+      {
+        "name": "method receiver lost",
+        "outcome": "assertion",
+        "detail": "an assertion refused the mutation",
+        "elapsedMs": 1085
+      },
+      {
+        "name": "null target silently accepted",
+        "outcome": "assertion",
+        "detail": "an assertion refused the mutation",
+        "elapsedMs": 1095
+      },
+      {
+        "name": "selection identity replaced",
+        "outcome": "assertion",
+        "detail": "an assertion refused the mutation",
+        "elapsedMs": 1107
+      }
+    ],
+    "caught": [
+      {
+        "name": "method receiver lost",
+        "outcome": "assertion",
+        "detail": "an assertion refused the mutation",
+        "elapsedMs": 1085
+      },
+      {
+        "name": "null target silently accepted",
+        "outcome": "assertion",
+        "detail": "an assertion refused the mutation",
+        "elapsedMs": 1095
+      },
+      {
+        "name": "selection identity replaced",
+        "outcome": "assertion",
+        "detail": "an assertion refused the mutation",
+        "elapsedMs": 1107
+      }
+    ],
+    "survivors": [],
+    "unusable": [],
+    "totalMs": 4277
+  },
+  "browserMutations": {
+    "rows": [
+      {
+        "name": "realm restriction",
+        "status": 1,
+        "assertion": true
+      },
+      {
+        "name": "early form probe",
+        "status": 1,
+        "assertion": true
+      }
+    ],
+    "sha": "6a13e41165b2e34399ba189dd252c5a74794f13b01bd1964518674a1531959e2",
+    "backup": "C:\\Users\\micha\\AppData\\Local\\Temp\\ltf-breaks-YcHIMW\\lists.js"
+  },
+  "browser": {
+    "version": "151.0.7922.34",
+    "comparisonCases": 25,
+    "fullLists": 44,
+    "restoredFocused": 2,
+    "finalErrorHelperFocused": 4,
+    "querySinkCases": 7
+  },
+  "routePinMutations": {
+    "rows": [
+      {
+        "name": "item create",
+        "status": 1,
+        "assertion": true
+      },
+      {
+        "name": "item edit",
+        "status": 1,
+        "assertion": true
+      },
+      {
+        "name": "link create",
+        "status": 1,
+        "assertion": true
+      },
+      {
+        "name": "link remove",
+        "status": 1,
+        "assertion": true
+      }
+    ],
+    "sha": "6a13e41165b2e34399ba189dd252c5a74794f13b01bd1964518674a1531959e2"
+  }
+}

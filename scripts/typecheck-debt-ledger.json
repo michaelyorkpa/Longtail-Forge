@@ -334,6 +334,7 @@
         "tests/e2e/files-filter-handles.spec.mjs",
         "tests/e2e/hidden-label-controls.spec.mjs",
         "tests/e2e/lists-element-handles.spec.mjs",
+        "tests/e2e/lists-event-consumers.spec.mjs",
         "tests/e2e/lists-field-descriptor-boundary.spec.mjs",
         "tests/e2e/lists-link-picker.spec.mjs",
         "tests/e2e/lists-option-consumers.spec.mjs",
@@ -634,6 +635,7 @@
         "tests/unit/lists-editor-params-contracts.test.mjs",
         "tests/unit/lists-editor-surface-contracts.test.mjs",
         "tests/unit/lists-element-handle-contracts.test.mjs",
+        "tests/unit/lists-event-consumers.test.mjs",
         "tests/unit/lists-field-builder-contracts.test.mjs",
         "tests/unit/lists-formatter-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
@@ -970,7 +972,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 16,
+      "errorCount": 12,
       "diagnostics": {
         "public/js/lists.js": [
           {
@@ -979,7 +981,7 @@
           },
           {
             "code": 7006,
-            "count": 7
+            "count": 3
           }
         ]
       }
@@ -1591,8 +1593,8 @@
     }
   },
   "totals": {
-    "files": 1552,
-    "errors": 16,
+    "files": 1554,
+    "errors": 12,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

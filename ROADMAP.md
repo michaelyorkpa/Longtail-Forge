@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.43.64` | `lists.js` catalog cache and option sinks typed and integrated at `0.33.33.43.63`, Lists 19 to 16. Next: measured from the remaining 16 (TS7006 7, TS2339 9) before a boundary is drawn | 16 owned |
+| Codex | `0.33.33.43.65` | `lists.js` event consumers typed and integrated at `0.33.33.43.64`, Lists 16 to 12. Next: the editor opening and identifier readers (`openListEditor`, `readListEditorId`) recommended, measured before a boundary is drawn; three isolated parameters also remain | 12 owned |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open** while delegated Lists work is outstanding | 0 |
@@ -1652,11 +1652,21 @@ Codex may implement, and Claude may approve at review, an explicit native string
 This is not one template for every DOM property: nullable DOMString, ordinary DOMString and properties with special conversion rules keep their own behavior. It does not authorize any of these:
 - filtering, validation, defaults, ID substitution or input restrictions;
 - upstream normalization, reordered operations or changed cleanup;
-- new application messages, or a numeric or boolean conversion policy;
+- application messages outside the limited failure-wording delegation below, or a numeric or boolean conversion policy;
 - extending Node-or-text beyond its approved sinks;
 - shared-declaration widening, casts, suppressions or shared-framework expansion.
 
 Escalate only a concrete behavior difference outside this authority, or evidence that contradicts a preservation claim.
+
+**Lists failure-wording delegation (operator ruling, 2026-09-30).** Codex may implement and Claude may approve application-owned TypeErrors replacing an existing reached native TypeError from a required nullish member read, an absent/non-callable member invocation, or an existing native interface precondition. Preserve successful inputs, no-ops, preceding work, receivers, read order, catch boundaries and original getter/method/hook exceptions. New filtering, earlier validation and shared framework changes remain excluded. So do new rejection of inputs that previously succeeded, and any permissions or data-integrity change. Record old/new behavior in normal checkpoint evidence; no separate message approval or catalogue is required within these bounds.
+
+For `.43.64`, the four recorded messages and one invocation of the captured native HTMLFormElement.elements getter at each reached FormData argument boundary are explicitly approved. The probe uses the candidate as receiver without consulting its own properties; the real constructor remains single and in its original evaluation order. Only the isolated native wrong-receiver TypeError is translated; other exceptions propagate. This added intrinsic operation is an authorized difference, not a claim of zero added reads. Claude may approve a similarly small non-mutating Lists-local native interface probe when it invokes no target-owned hooks, mutates no application data and preserves the original operation's accepted inputs. Extra user-controlled property reads and broader policy changes still require escalation.
+
+#### 0.33.33.43.64 - Lists form and detail event consumers
+
+**Model: High Effort** - Required event reads and the native form interface preserve receivers, opaque identity and failure placement.
+
+**Complete: integrated onto `nightly` at `9426f041`.** Baseline `9426f0414a1ce16b3ee45d02792288bfc00ae1a0`; Lists/browser 16 to 12 raw and owned, DOM remains zero. Four listener parameter diagnostics eliminated, with no introduced diagnostic message. The operator-approved native form probe and bounded failure-wording delegation are recorded above; archive entry carries the trace, comparisons, mutations and remaining scope. This does not close Lists or .43.
 
 #### 0.33.33.43.63 - Lists catalog and option consumers
 

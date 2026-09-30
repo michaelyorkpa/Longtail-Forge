@@ -157,7 +157,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /state\.editorStagedTargets/);
   assert.match(listsJs, /renderListEditorLinkedItems/);
   assert.doesNotMatch(extractFunctionSpan(listsJs, "createListDialogShell"), /target_id|task_search|task_picker|Paste record ID/);
-  assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/links/);
+  assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(\x60\$\{listId\}\x60\)\}\/links/);
   assert.match(listsJs, /remove-link/);
   assert.match(listsJs, /Linked Records/);
   assert.match(listsJs, /Unavailable linked record/);

@@ -172,10 +172,10 @@ describe("What the dispatch surface declares", () => {
     // `runRegisteredListBehavior` calls `runAction` with two arguments, so the third really is
     // absent on a live path; `moveItem` then matches no item and refuses at the lookup.
     const runActionBlock = source.slice(source.lastIndexOf("/**", source.indexOf("async function runAction(")), source.indexOf("async function runAction("));
-    assert.match(runActionBlock, /@param \{string\} \[itemId\]/);
+    assert.match(runActionBlock, /@param \{unknown\} \[itemId\]/);
 
     const moveItemBlock = source.slice(source.lastIndexOf("/**", source.indexOf("async function moveItem(")), source.indexOf("async function moveItem("));
-    assert.match(moveItemBlock, /@param \{string \| undefined\} itemId/);
+    assert.match(moveItemBlock, /@param \{unknown\} itemId/);
     assert.match(source, /const selectedId = await runAction\(action, list\);/,
       "and the two-argument call that makes it absent is still there");
   });
