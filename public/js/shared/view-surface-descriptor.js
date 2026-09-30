@@ -1,5 +1,3 @@
-// @ts-check
-
 (function attachViewSurfaceDescriptor(global) {
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptorAdapter} BrowserViewSurfaceDescriptorAdapterContract */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} BrowserViewSurfaceDescriptorContract */

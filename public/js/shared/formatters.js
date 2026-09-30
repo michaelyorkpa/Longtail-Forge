@@ -1,5 +1,3 @@
-// @ts-check
-
 (function () {
   const namespace = window.LongtailForge || {};
   const currencyFormatter = new Intl.NumberFormat("en-US", {
