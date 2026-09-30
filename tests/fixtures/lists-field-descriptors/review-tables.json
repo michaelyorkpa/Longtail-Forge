@@ -1,0 +1,1958 @@
+{
+  "base": "1c78eaf020b81f111a5c9a4ab23417df6b70a6c8",
+  "chromium": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "protocol": [
+    {
+      "site": "pair",
+      "input": "valid",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return",
+        [
+          "return",
+          true,
+          0
+        ]
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"><option value=\"v\">Label</option></select></label>"
+    },
+    {
+      "site": "pair",
+      "input": "function-objects",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return",
+        [
+          "return",
+          true,
+          0
+        ]
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"><option value=\"v\">Label</option></select></label>"
+    },
+    {
+      "site": "pair",
+      "input": "short-zero",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"><option value=\"undefined\"></option></select></label>"
+    },
+    {
+      "site": "pair",
+      "input": "short-one",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"><option value=\"v\"></option></select></label>"
+    },
+    {
+      "site": "pair",
+      "input": "done-truthy",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"><option value=\"undefined\"></option></select></label>"
+    },
+    {
+      "site": "pair",
+      "input": "method-missing",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "object is not iterable (cannot read property Symbol(Symbol.iterator))"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair is not iterable."
+      },
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "method-null",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "object is not iterable (cannot read property Symbol(Symbol.iterator))"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair is not iterable."
+      },
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "method-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "object is not iterable (cannot read property Symbol(Symbol.iterator))"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair is not iterable."
+      },
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "method-getter-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "method-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "iterator-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Result of the Symbol.iterator method is not an object"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair iterator method did not return an object."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "next-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "number 7 is not a function"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair iterator has no callable next."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "next-getter-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "next-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "step-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Iterator result 7 is not an object"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair iterator next method did not return an object."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "done-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "value-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "return-null",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return"
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"><option value=\"v\">Label</option></select></label>"
+    },
+    {
+      "site": "pair",
+      "input": "return-undefined",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return"
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"><option value=\"v\">Label</option></select></label>"
+    },
+    {
+      "site": "pair",
+      "input": "return-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "number 7 is not a function"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair iterator has no callable return."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return"
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "return-result-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Iterator result 7 is not an object"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option pair iterator return method did not return an object."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return",
+        [
+          "return",
+          true,
+          0
+        ]
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "pair",
+      "input": "return-getter-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return"
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "return-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return",
+        [
+          "return",
+          true,
+          0
+        ]
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "pair",
+      "input": "option-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        "get-return",
+        [
+          "return",
+          true,
+          0
+        ],
+        "convert"
+      ],
+      "cleanup": true,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "controls",
+      "input": "valid",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "function-objects",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "short-zero",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"></select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "short-one",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">v</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "done-truthy",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\"></select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "method-missing",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Spread syntax requires ...iterable[Symbol.iterator] to be a function"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option controls are not iterable."
+      },
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "controls",
+      "input": "method-null",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Spread syntax requires ...iterable[Symbol.iterator] to be a function"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option controls are not iterable."
+      },
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "controls",
+      "input": "method-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Spread syntax requires ...iterable[Symbol.iterator] to be a function"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option controls are not iterable."
+      },
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "controls",
+      "input": "method-getter-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "controls",
+      "input": "method-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "controls",
+      "input": "iterator-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Result of the Symbol.iterator method is not an object"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option controls iterator method did not return an object."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "controls",
+      "input": "next-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "select.append is not a function"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option controls iterator has no callable next."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "controls",
+      "input": "next-getter-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "controls",
+      "input": "next-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "controls",
+      "input": "step-number",
+      "nativeError": {
+        "name": "TypeError",
+        "message": "Iterator result 7 is not an object"
+      },
+      "approvedError": {
+        "name": "TypeError",
+        "message": "The list item option controls iterator next method did not return an object."
+      },
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false
+    },
+    {
+      "site": "controls",
+      "input": "done-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "controls",
+      "input": "value-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    },
+    {
+      "site": "controls",
+      "input": "return-null",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "return-undefined",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "return-number",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "return-result-number",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "return-getter-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "return-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ]
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": false,
+      "rendered": "<label>Status<select name=\"purchase_status\">vLabel</select></label>"
+    },
+    {
+      "site": "controls",
+      "input": "option-throws",
+      "nativeError": null,
+      "approvedError": null,
+      "orderedReadsCalls": [
+        "get-iterator",
+        [
+          "iterator",
+          true,
+          0
+        ],
+        "get-next",
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          0
+        ],
+        [
+          "value",
+          0
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "value",
+          1
+        ],
+        [
+          "next",
+          true,
+          0
+        ],
+        [
+          "done",
+          2
+        ],
+        "convert"
+      ],
+      "cleanup": false,
+      "originalThrownValuePreserved": true
+    }
+  ],
+  "append": [
+    {
+      "which": "children",
+      "kind": "text",
+      "before": {
+        "html": "<label>Label<select name=\"field\">BeforeLabelAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">BeforeLabelAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "zero",
+      "before": {
+        "html": "<label>Label<select name=\"field\">Before0After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">Before0After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "false",
+      "before": {
+        "html": "<label>Label<select name=\"field\">BeforefalseAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">BeforefalseAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "null",
+      "before": {
+        "html": "<label>Label<select name=\"field\">BeforenullAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">BeforenullAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "undefined",
+      "before": {
+        "html": "<label>Label<select name=\"field\">BeforeundefinedAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">BeforeundefinedAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "empty",
+      "before": {
+        "html": "<label>Label<select name=\"field\">BeforeAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">BeforeAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "space",
+      "before": {
+        "html": "<label>Label<select name=\"field\">Before  After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">Before  After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "array",
+      "before": {
+        "html": "<label>Label<select name=\"field\">BeforeA,BAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">BeforeA,BAfter</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "node",
+      "before": {
+        "html": "<label>Label<select name=\"field\">Before<b>Node text</b>After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": true,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">Before<b>Node text</b>After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": true,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "object",
+      "before": {
+        "html": "<label>Label<select name=\"field\">BeforenumberAfter</select></label>",
+        "hooks": [
+          "string"
+        ],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">BeforenumberAfter</select></label>",
+        "hooks": [
+          "string"
+        ],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "throw",
+      "before": {
+        "html": "<label></label>",
+        "error": {
+          "name": "Error",
+          "message": "hook failure"
+        },
+        "hooks": [
+          "throw"
+        ],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label></label>",
+        "error": {
+          "name": "Error",
+          "message": "hook failure"
+        },
+        "hooks": [
+          "throw"
+        ],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "effect-throw",
+      "before": {
+        "html": "<label>hook effect</label>",
+        "error": {
+          "name": "Error",
+          "message": "hook failure"
+        },
+        "hooks": [
+          "effect"
+        ],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>hook effect</label>",
+        "error": {
+          "name": "Error",
+          "message": "hook failure"
+        },
+        "hooks": [
+          "effect"
+        ],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "symbol",
+      "before": {
+        "html": "<label></label>",
+        "error": {
+          "name": "TypeError",
+          "message": "Failed to execute 'append' on 'Element': Cannot convert a Symbol value to a string"
+        },
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label></label>",
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot convert a Symbol value to a string"
+        },
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "unconvertible",
+      "before": {
+        "html": "<label></label>",
+        "error": {
+          "name": "TypeError",
+          "message": "Failed to execute 'append' on 'Element': Cannot convert object to primitive value"
+        },
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label></label>",
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot convert object to primitive value"
+        },
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "fake-node",
+      "before": {
+        "html": "<label>Label<select name=\"field\">Before[object Node]After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">Before[object Node]After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "foreign-node",
+      "before": {
+        "html": "<label>Label<select name=\"field\">Before<b>Foreign text</b>After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": true,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label>Label<select name=\"field\">Before[object HTMLElement]After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    },
+    {
+      "which": "children",
+      "kind": "proxy",
+      "before": {
+        "html": "<label>Label<select name=\"field\">Before[object Object]After</select></label>",
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      },
+      "after": {
+        "html": "<label></label>",
+        "error": {
+          "name": "Error",
+          "message": "prototype trap"
+        },
+        "hooks": [],
+        "reads": 0,
+        "identity": false,
+        "controlParent": null
+      }
+    }
+  ],
+  "chromiumVersion": "151.0.7922.34"
+}

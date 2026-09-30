@@ -2250,12 +2250,8 @@
       || listsItemFormDescriptor();
   }
 
-  /**
-   * **Deliberately untyped, and the consumer is why.** Declaring `fieldName` resolves this
-   * reader's return to the published descriptor union, whose `label` is `unknown` through its
-   * index signature - and `createItemNameField` appends that value directly, which requires text
-   * or a node. **Discharged by** the descriptor contract naming `label`, or by a reader that
-   * vouches for it. Pinned by `lists-surface-tail-contracts`.
+  /** A field name from the item editor; contributed members remain opaque.
+   * @param {string} fieldName
    */
   function itemFormField(fieldName) {
     return listsItemFormSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
@@ -2281,6 +2277,7 @@
     return node;
   }
 
+  /** @param {ReturnType<typeof itemFormField> & { width?: string }} field */
   function buildItemFieldNode(field) {
     const view = requireView();
     if (field.field === "item_name") {
@@ -2298,7 +2295,7 @@
       return selectField(field.label || "Assigned", field.field, [option("", "Unassigned")]);
     }
     if (field.type === "select") {
-      const node = selectField(field.label || field.field, field.field, optionsFromDescriptor(field).map(([value, label]) => option(value, label)));
+      const node = selectField(field.label || field.field, field.field, itemFieldOptionControls(field));
       applySelectDefault(node, field.default);
       return node;
     }
@@ -2322,20 +2319,119 @@
   /**
    * The `[value, label]` pairs one descriptor field offers.
    *
-   * A contributor may send either form: a pair already, or a record this reader flattens. Every
-   * member stays `unknown` because this converts none of them - it picks the first present
-   * spelling and hands the result to the option builder, which is what writes them.
-   * @param {{ options?: (unknown[] | {
-   *   id?: unknown, label?: unknown, text?: unknown, value?: unknown
-   * })[] }} [field]
+   * The contributor owns both map operations; neither result has a promised collection shape.
+   * @param {BrowserListsFieldDescriptor | { options?: unknown }} [field]
+   * @returns {unknown}
    */
   function optionsFromDescriptor(field = {}) {
-    return (field.options || []).map((entry) => {
+    const collection = field.options || [];
+    /** @type {unknown} */
+    const map = Reflect.get(Object(collection), "map", collection);
+    if (typeof map !== "function") {
+      throw new TypeError("The list item options collection has no callable map.");
+    }
+    /** @param {unknown} entry @returns {unknown} */
+    const readEntry = (entry) => {
       if (Array.isArray(entry)) {
         return entry;
       }
-      return [entry.value ?? entry.id ?? "", entry.label ?? entry.text ?? entry.value ?? ""];
-    });
+      return [listItemOptionEntryField(entry, "value") ?? listItemOptionEntryField(entry, "id") ?? "",
+        listItemOptionEntryField(entry, "label") ?? listItemOptionEntryField(entry, "text") ?? listItemOptionEntryField(entry, "value") ?? ""];
+    };
+    /** @type {unknown} */
+    const result = Reflect.apply(map, collection, [readEntry]);
+    return result;
+  }
+
+  /** Required entry reads preserve primitive boxing and the original receiver.
+   * @param {unknown} entry @param {string} key @returns {unknown}
+   */
+  function listItemOptionEntryField(entry, key) {
+    if (entry === null || entry === undefined) {
+      throw new TypeError("A list item option entry cannot be read.");
+    }
+    return Reflect.get(Object(entry), key, entry);
+  }
+
+  /** @param {BrowserListsFieldDescriptor | { options?: unknown }} field @returns {unknown} */
+  function itemFieldOptionControls(field) {
+    const mapped = optionsFromDescriptor(field);
+    /** @type {unknown} */
+    const map = mapped === null || mapped === undefined ? undefined : Reflect.get(Object(mapped), "map", mapped);
+    if (typeof map !== "function") {
+      throw new TypeError("The mapped list item options have no callable map.");
+    }
+    /** @param {unknown} entry */
+    const render = (entry) => {
+      const [value, label] = readListItemOptionValues(entry, true);
+      return option(value, label);
+    };
+    /** @type {unknown} */
+    const result = Reflect.apply(map, mapped, [render]);
+    return result;
+  }
+
+  /** Two local protocol sites: pair binding closes after two values; controls spread exhausts.
+   * Next/done/value failures do not close. Simple binding has no throwing assignment target,
+   * so IteratorClose with an existing throw completion is unreachable here.
+   * @param {unknown} input @param {boolean} pair @returns {unknown[]}
+   */
+  function readListItemOptionValues(input, pair) {
+    const subject = pair ? "pair" : "controls";
+    /** @type {unknown} */
+    const method = input === null || input === undefined ? undefined : Reflect.get(Object(input), Symbol.iterator, input);
+    if (typeof method !== "function") {
+      throw new TypeError(`The list item option ${subject} ${pair ? "is" : "are"} not iterable.`);
+    }
+    /** @type {unknown} */
+    const iterator = Reflect.apply(method, input, []);
+    if ((typeof iterator !== "object" || iterator === null) && typeof iterator !== "function") {
+      throw new TypeError(`The list item option ${subject} iterator method did not return an object.`);
+    }
+    /** @type {unknown} */
+    const next = Reflect.get(iterator, "next", iterator);
+    /** @type {unknown[]} */
+    const values = [];
+    while (!pair || values.length < 2) {
+      if (typeof next !== "function") {
+        throw new TypeError(`The list item option ${subject} iterator has no callable next.`);
+      }
+      /** @type {unknown} */
+      const step = Reflect.apply(next, iterator, []);
+      if ((typeof step !== "object" || step === null) && typeof step !== "function") {
+        throw new TypeError(`The list item option ${subject} iterator next method did not return an object.`);
+      }
+      /** @type {unknown} */
+      const done = Reflect.get(step, "done", step);
+      if (done) {
+        return values;
+      }
+      /** @type {unknown} */
+      const value = Reflect.get(step, "value", step);
+      values.push(value);
+    }
+    // Only pair binding stops early. Native spread has no IteratorClose on these failures.
+    /** @type {unknown} */
+    const close = Reflect.get(iterator, "return", iterator);
+    if (close !== undefined && close !== null) {
+      if (typeof close !== "function") {
+        throw new TypeError("The list item option pair iterator has no callable return.");
+      }
+      /** @type {unknown} */
+      const result = Reflect.apply(close, iterator, []);
+      if ((typeof result !== "object" || result === null) && typeof result !== "function") {
+        throw new TypeError("The list item option pair iterator return method did not return an object.");
+      }
+    }
+    return values;
+  }
+
+  /** Collect before conversion, inside append's argument evaluation (after its method lookup).
+   * @param {unknown} options @returns {(Node | string)[]}
+   */
+  function listItemOptionChildren(options) {
+    const values = readListItemOptionValues(options, false);
+    return values.map((child) => child instanceof Node ? child : `${child}`);
   }
 
   /** @param {Partial<ReturnType<typeof itemFormField>>} [field] */
@@ -2355,7 +2451,8 @@
     input.dataset.listItemName = "";
     dataList.id = listId;
     dataList.dataset.listItemSuggestions = "";
-    label.append(field.label || "Item", input, dataList);
+    const labelValue = field.label || "Item";
+    label.append(labelValue instanceof Node ? labelValue : `${labelValue}`, input, dataList);
     input.addEventListener("input", () => applySuggestionSelection(input.form, state.itemDialogList, input.value));
     return label;
   }
@@ -2363,10 +2460,10 @@
   /**
    * One labelled checkbox.
    *
-   * The three text parameters are text because the DOM requires it: two are assigned to `name` and
-   * `value`, and the third is appended as a label child. `checked` stays `unknown` - it is only
+   * Name and submitted value come from local string producers. Labels stay opaque until the
+   * native append boundary; same-realm Nodes retain identity. `checked` stays `unknown` - it is only
    * ever tested for truthiness.
-   * @param {string} labelText @param {string} name @param {string} value
+   * @param {unknown} labelText @param {string} name @param {string} value
    * @param {{ checked?: unknown }} [options]
    */
   function checkboxField(labelText, name, value, options = {}) {
@@ -2382,7 +2479,7 @@
       input.checked = true;
       input.defaultChecked = true;
     }
-    label.append(input, labelText);
+    label.append(input, labelText instanceof Node ? labelText : `${labelText}`);
     return label;
   }
 
@@ -2608,7 +2705,8 @@
     }
   }
 
-  /** The seven readers share one optional-record boundary: runAction, moveItem, listIndexItem,
+  /** Run one list or item action against the server and return the list identifier to reselect.
+   * The seven readers share one optional-record boundary: runAction, moveItem, listIndexItem,
    * detailActionButtons, detailMetaItems, listState and readOnlyStateMessage.
    * Discharged without claiming savedness: unreadable successful details remain incomplete records.
    * Only a missing record is refused at the existing required read, with approved visible wording.
@@ -2666,7 +2764,11 @@
     return "";
   }
 
-  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+  /** Move one item by a signed index step and persist the resulting whole order.
+   * A negative direction moves toward the start; a positive direction moves toward the end.
+   * A missing item or a target outside either bound returns without sending a reorder request.
+   * itemId may be absent because runAction forwards its optional argument unchanged.
+   * Normalized records can have absent columns, including on a successful unreadable detail response.
    * @param {BrowserNormalizedListRecord} list
    * @param {string | undefined} itemId @param {number} direction
    */
@@ -4176,14 +4278,14 @@
   }
 
   /**
-   * One labelled input. The three text parameters are text because the DOM requires it: two are
-   * assigned to `type` and `name`, and the third is appended as a label child.
-   * @param {string} labelText @param {string} type @param {string} name
+   * One labelled input. Name comes from a checked field name; label and type remain opaque
+   * until their approved native conversion boundaries. Existing attribute work precedes append.
+   * @param {unknown} labelText @param {unknown} type @param {string} name
    */
   function inputField(labelText, type, name, attributes = {}) {
     const label = document.createElement("label");
     const input = document.createElement("input");
-    input.type = type;
+    input.type = `${type}`;
     input.name = name;
     Object.entries(attributes).forEach(([key, value]) => {
       if (value === undefined || value === null || value === false) {
@@ -4191,11 +4293,11 @@
       }
       input.setAttribute(key, value);
     });
-    label.append(labelText, input);
+    label.append(labelText instanceof Node ? labelText : `${labelText}`, input);
     return label;
   }
 
-  /** @param {string} labelText @param {string} name */
+  /** @param {unknown} labelText @param {string} name */
   function textareaField(labelText, name, attributes = {}) {
     const label = document.createElement("label");
     const textarea = document.createElement("textarea");
@@ -4203,20 +4305,20 @@
     Object.entries(attributes).forEach(([key, value]) => {
       textarea.setAttribute(key, value);
     });
-    label.append(labelText, textarea);
+    label.append(labelText instanceof Node ? labelText : `${labelText}`, textarea);
     return label;
   }
 
   /**
    * One labelled select, filled with options the caller already built.
-   * @param {string} labelText @param {string} name @param {HTMLOptionElement[]} options
+   * @param {unknown} labelText @param {string} name @param {unknown} options
    */
   function selectField(labelText, name, options) {
     const label = document.createElement("label");
     const select = document.createElement("select");
     select.name = name;
-    select.append(...options);
-    label.append(labelText, select);
+    select.append(...listItemOptionChildren(options));
+    label.append(labelText instanceof Node ? labelText : `${labelText}`, select);
     return label;
   }
 

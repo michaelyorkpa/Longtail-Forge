@@ -1,0 +1,80 @@
+[
+  {
+    "name": "itemFormField",
+    "bodyIdentical": true,
+    "before": "8ee3e91e457a7902dd2087b93de9d8627d2ecc05eefff1472723574e86415681",
+    "after": "8ee3e91e457a7902dd2087b93de9d8627d2ecc05eefff1472723574e86415681"
+  },
+  {
+    "name": "createItemFieldFromDescriptor",
+    "bodyIdentical": true,
+    "before": "636b21811b82381e76922cc65cb2370231ff0acacf0ddd9f9949a37206a0e20a",
+    "after": "636b21811b82381e76922cc65cb2370231ff0acacf0ddd9f9949a37206a0e20a"
+  },
+  {
+    "name": "buildItemFieldNode",
+    "bodyIdentical": false,
+    "before": "ecae31d52e998f10b784f0576b233dd3b2a696fbd57949a3a4e687204b5e3aac",
+    "after": "eb9b99a5629869b9244d8c96cab1c16726e3c5559722cf12d89ab4cd0bc09b09"
+  },
+  {
+    "name": "optionsFromDescriptor",
+    "bodyIdentical": false,
+    "before": "30e25ee29bd30f884355cdeea235d1dd82b00249e555ce48c05e4650181003f8",
+    "after": "4d1115ea3388251040c4ae6eb592b471dcd6a21ad12ac0886b801fdecd3f1b10"
+  },
+  {
+    "name": "createItemNameField",
+    "bodyIdentical": false,
+    "before": "fe9d1e1c22b6a3f01933b4f1d7b1b4d3928e28d825886d5726d41a7fc08bc820",
+    "after": "1a6dd8e042e9557818d47c87cc087885d7830706474b723e6b4245634efccc12"
+  },
+  {
+    "name": "checkboxField",
+    "bodyIdentical": false,
+    "before": "ee9dd772692d2996398977aba60a34530991603564b56e4aeb49634fc039c110",
+    "after": "bf51fa71d16c60c2ce10495ff15223fc6995d6fdfc3906c30d1a4a6ff964e773"
+  },
+  {
+    "name": "inputField",
+    "bodyIdentical": false,
+    "before": "dadce6a68d2c60f6efa8d83ba22d9e494ecb6092cbae87f9a9458e703adcfe9b",
+    "after": "634a8934b3af89a1b879f3ff6fb56f9519c01f0ad19a129a0e92a57da6b88c1c"
+  },
+  {
+    "name": "textareaField",
+    "bodyIdentical": false,
+    "before": "ec6919802a27b8b5c28a442c23ba69342f48174471f7d4759396b6b022f82a18",
+    "after": "f0aa7bc56822376f68154b71c28cd35ed3a33655d287daaf7346132361f4a782"
+  },
+  {
+    "name": "selectField",
+    "bodyIdentical": false,
+    "before": "62042a82509ddb7101b8d51081c3d88b43f61a96e597cb87982db0eabb6833b8",
+    "after": "7cc8e047839cb5577ffac3dc2f0d0014806cb811fde3e977ff422ef2047e3be4"
+  },
+  {
+    "name": "applySelectDefault",
+    "bodyIdentical": true,
+    "before": "c37f9e23e5130d2b099ce3627238e53844cc6ff365ebb340d66cf8395ad599eb",
+    "after": "c37f9e23e5130d2b099ce3627238e53844cc6ff365ebb340d66cf8395ad599eb"
+  },
+  {
+    "name": "option",
+    "bodyIdentical": true,
+    "before": "d2173ff6cbb9d5cf9d1327a704cd780ce0e714e9a9384d45d6dbee16746c69af",
+    "after": "d2173ff6cbb9d5cf9d1327a704cd780ce0e714e9a9384d45d6dbee16746c69af"
+  },
+  {
+    "name": "runAction",
+    "bodyIdentical": true,
+    "before": "e430ab27df042d3f4a9322f85bbb11e9ddb2f766d9b56dfc4bb3388770cef304",
+    "after": "e430ab27df042d3f4a9322f85bbb11e9ddb2f766d9b56dfc4bb3388770cef304"
+  },
+  {
+    "name": "moveItem",
+    "bodyIdentical": true,
+    "before": "738247a53c830e87145603c79b159e06f4badcc92648e9cf3452d8082b946a98",
+    "after": "738247a53c830e87145603c79b159e06f4badcc92648e9cf3452d8082b946a98"
+  }
+]

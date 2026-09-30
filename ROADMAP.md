@@ -120,10 +120,10 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.43.62` | `lists.js` optional-record consumers typed and integrated at `0.33.33.43.61`, Lists 28 to 21. Next: the item field descriptor pair (`itemFormField` / `buildItemFieldNode`), traced before any contract changes, returning any exact shared prerequisite | 21 owned |
+| Codex | `0.33.33.43.63` | `lists.js` item field descriptors typed and integrated at `0.33.33.43.62`, Lists 21 to 19. Next: measured from the remaining 19 (TS7006 10, TS2339 9) before a boundary is drawn | 19 owned |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
-| Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
+| Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open** while delegated Lists work is outstanding | 0 |
 
 **File ownership for the remainder of this conversion.** `workbench.js` is **Codex's**, and so, since the `0.33.33.42.47` integration, are `lists.js` and its directly associated tests, **reassigned from Claude** once Workbench closed so both lanes carry one remaining controller. `clients-projects.js` was **reassigned to Claude** at `0.33.33.43.31`, which opened it, and Codex's lane has not touched it. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
 
@@ -1637,6 +1637,10 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.62 - Lists item field descriptor consumers
+
+**Complete: integrated onto `nightly` after `0.33.33.43.58`.** Two owned diagnostics eliminated, Lists 21 to 19 raw / owned and 0 DOM. Labels, option collections and the input type reach their native sinks under the operator-approved local conversions, and the options path's iterator failures carry the approved application messages. See the archive for the branch-local evidence, the measured protocol tables and the integration accounting.
 
 #### 0.33.33.43.58 - Clients/Projects record normalisers and their sinks
 
