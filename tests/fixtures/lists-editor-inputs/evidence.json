@@ -52,10 +52,12 @@
     "browser": "48/48 desktop/mobile, port 8102, no retries",
     "chromium": "151.0.7922.34",
     "nativeCasesPerProject": 16,
-    "unitMutations": "4/4 assertion-caught",
+    "unitMutations": "5/5 assertion-caught on final iterator implementation",
     "browserMutations": "2/2 assertion-caught",
-    "restoreSHA256": "47a2a3bf7b4007e6736bd624b0cdfec66cb48f25d46c99950831910bf23c931e",
-    "pinMutations": "3/3 wrong-route assertion failures; same SHA-256 restores"
+    "restoreSHA256": "dfa2a9a947bda014b68a1055df409a9f62d468a4a3c96ea7c3f572304b173306",
+    "pinMutations": "3/3 wrong-route assertion failures; same SHA-256 restores",
+    "initialRestoreSHA256": "47a2a3bf7b4007e6736bd624b0cdfec66cb48f25d46c99950831910bf23c931e",
+    "iteratorCorrection": "A side-by-side adversarial iterator changed Array.prototype.push: baseline succeeded while the initial temporary accumulator failed. Replaced accumulation with direct generator yielding. Retained regression and extra-push mutation; original incidental-error mutation classification was not credited, assertion wrapper corrected and all five caught."
   },
   "retargets": [
     "lists-editor-params, lists-editor-surface, lists-write-path: discharged unknown-input deferrals; preserve truthiness and fallbacks",

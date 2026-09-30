@@ -117,7 +117,7 @@ describe("Lists opaque editor input reconciliation", () => {
       ['listEditorValues({[Symbol.iterator](){return 7;}})',"The list editor iterator did not return an object."],
       ['listEditorValues({[Symbol.iterator](){return {next:7};}})',"The list editor iterator has no callable next."],
       ['listEditorValues({[Symbol.iterator](){return {next(){return 7;}};}})',"The list editor iterator next did not return an object."],
-    ]) assert.throws(()=>vm.runInContext(expr,sandbox),{name:"TypeError",message});
+    ]) assert.throws(()=>vm.runInContext(`[...${expr}]`,sandbox),{name:"TypeError",message});
   });
   it("preserves both linked projection maps, optional sinks and original link identity", () => {
     for (const sink of [true, false]) {
@@ -134,6 +134,18 @@ describe("Lists opaque editor input reconciliation", () => {
       }
       assert.deepEqual(plain(results[1]),plain(results[0]));
       assert.equal(results[1].identity,sink);
+    }
+  });
+
+  it("does not introduce an array push operation while consuming a host iterator", () => {
+    for(const before of [true,false]) {
+      const sandbox=fixture(before,["listEditorHasLinkTarget","sameListLinkTarget"], `
+        const state={editorList:{links:{[Symbol.iterator](){let n=0;return {next(){
+          Array.prototype.push=function(){throw new Error("unexpected push");};
+          return n++?{done:true}:{done:false,value:{targetType:"task",targetId:7}};
+        }}}}},editorStagedTargets:[]};
+      `);
+      assert.doesNotThrow(() => assert.equal(vm.runInContext('listEditorHasLinkTarget({targetType:"task",targetId:7})',sandbox),true));
     }
   });
 

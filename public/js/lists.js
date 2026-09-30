@@ -902,26 +902,27 @@
   }
 
   /** Exhaust the same iterator as an editor spread, without reading target-owned hooks twice.
-   * @param {unknown} input @returns {unknown[]}
+   * @param {unknown} input @returns {Generator<unknown, void, unknown>}
    */
   function listEditorValues(input) {
-    const method = listEditorField(input, Symbol.iterator, true);
-    if (typeof method !== "function") throw new TypeError("The list editor collection is not iterable.");
-    const iterator = Reflect.apply(method, input, []);
-    if ((typeof iterator !== "object" || iterator === null) && typeof iterator !== "function") {
-      throw new TypeError("The list editor iterator did not return an object.");
-    }
-    const next = listEditorField(iterator, "next");
-    const values = [];
-    while (true) {
-      if (typeof next !== "function") throw new TypeError("The list editor iterator has no callable next.");
-      const step = Reflect.apply(next, iterator, []);
-      if ((typeof step !== "object" || step === null) && typeof step !== "function") {
-        throw new TypeError("The list editor iterator next did not return an object.");
+    return (function* readValues() {
+      const method = listEditorField(input, Symbol.iterator, true);
+      if (typeof method !== "function") throw new TypeError("The list editor collection is not iterable.");
+      const iterator = Reflect.apply(method, input, []);
+      if ((typeof iterator !== "object" || iterator === null) && typeof iterator !== "function") {
+        throw new TypeError("The list editor iterator did not return an object.");
       }
-      if (listEditorField(step, "done")) return values;
-      values.push(listEditorField(step, "value"));
-    }
+      const next = listEditorField(iterator, "next");
+      while (true) {
+        if (typeof next !== "function") throw new TypeError("The list editor iterator has no callable next.");
+        const step = Reflect.apply(next, iterator, []);
+        if ((typeof step !== "object" || step === null) && typeof step !== "function") {
+          throw new TypeError("The list editor iterator next did not return an object.");
+        }
+        if (listEditorField(step, "done")) return;
+        yield listEditorField(step, "value");
+      }
+    })();
   }
 
   /** @param {unknown} value @param {unknown} key @returns {unknown} */
