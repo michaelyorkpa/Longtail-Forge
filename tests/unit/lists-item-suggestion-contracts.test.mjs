@@ -377,15 +377,15 @@ describe("this child stays inside the suggestions producer", () => {
     "and the suggestions reader still borrows nothing from it");
   });
 
-  it("adds no state annotation the measurement did not require", () => {
-    // Anchored on the slot above: asserting the line alone would pass with an annotation added
-    // directly above it, which is exactly the change this claim is about.
+  it("derives the cache from the validated writer without changing its neighboring slot", () => {
+    // Retargeted in .43.63: the cache now inherits its proven writer, while the neighboring
+    // slot and empty Map construction remain unchanged.
     //
     // `0.33.33.43.20` narrowed this by one line. It originally reached down to
     // `linkTargetSearchTimer` as well, which made a legitimate decision about a *different* slot
     // fail this claim; that checkpoint annotated the debounce handle and nothing here. The upward
     // anchor is what this guards, and it is kept.
-    assert.match(page, /\n {4}itemDialogList: null,\n {4}itemSuggestions: new Map\(\),\n/,
-      "the Map slot is left exactly as it was, because narrowing the read did not block anything");
+    assert.match(page, /\n {4}itemDialogList: null,\n {4}\/\*\*[\s\S]*?@type \{Map<unknown, NonNullable<ReturnType<typeof readItemSuggestions>>>\}[\s\S]*?\*\/\n {4}itemSuggestions: new Map\(\),\n/,
+      "the measured cache consumer now inherits its actual reader; adjacent state remains untouched");
   });
 });
