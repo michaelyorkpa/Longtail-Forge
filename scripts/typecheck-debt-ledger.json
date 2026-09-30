@@ -340,6 +340,7 @@
         "tests/e2e/lists-link-picker.spec.mjs",
         "tests/e2e/lists-option-consumers.spec.mjs",
         "tests/e2e/lists-record-consumers.spec.mjs",
+        "tests/e2e/lists-zero.spec.mjs",
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
@@ -475,6 +476,7 @@
         "tests/mutations/lists-editor-inputs.breaks.mjs",
         "tests/mutations/lists-link-picker.breaks.mjs",
         "tests/mutations/lists-record-consumers.breaks.mjs",
+        "tests/mutations/lists-zero.breaks.mjs",
         "tests/mutations/login-public-demo.breaks.mjs",
         "tests/mutations/module-settings-snapshot.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
@@ -652,6 +654,7 @@
         "tests/unit/lists-surface-tail-contracts.test.mjs",
         "tests/unit/lists-view-descriptor-boundary.test.mjs",
         "tests/unit/lists-write-path-contracts.test.mjs",
+        "tests/unit/lists-zero.test.mjs",
         "tests/unit/login-public-demo-contracts.test.mjs",
         "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/managed-session-contracts.test.mjs",
@@ -975,15 +978,8 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2,
-      "diagnostics": {
-        "public/js/lists.js": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ]
-      }
+      "errorCount": 0,
+      "diagnostics": {}
     },
     "scripts": {
       "config": "tsconfig.scripts.json",
@@ -1592,8 +1588,8 @@
     }
   },
   "totals": {
-    "files": 1557,
-    "errors": 2,
+    "files": 1560,
+    "errors": 0,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

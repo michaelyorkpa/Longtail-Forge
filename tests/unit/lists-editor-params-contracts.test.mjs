@@ -145,14 +145,10 @@ describe("What the discharge unblocked, and what it did not", () => {
     assert.match(source, /state\.dialogDataReady = null;/, "and the failure path still clears it for a retry");
   });
 
-  it("leaves the declarative-surface decorator untyped, on an arithmetic rather than a doubt", () => {
-    // Discharged by narrowing this function's query results together, as one deliberate step.
+  it("discharges the surface input without asserting the query results' subtype", () => {
     const at = source.indexOf("function decorateListsDeclarativeSurface(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
-
-    assert.doesNotMatch(block, /@param \{[^}]*\} surface/,
-      "the decorator is annotated; that deferral is discharged and this pin should go with it");
-    assert.match(block, /opens \*\*five\*\* `dataset` reads/,
-      "and the note still records the count that made it the wrong trade");
+    assert.match(block, /@param \{HTMLElement\} surface/);
+    assert.match(extractFunctionBlock(source, "decorateListsDeclarativeSurface"), /setListsSurfaceHook\(pageHeading, "listsTitle"\)/);
   });
 });

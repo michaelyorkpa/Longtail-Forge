@@ -34,6 +34,7 @@ function normalisers() {
   for (const name of [
     "isResponseRecord",
     "readListProgressBag",
+    "listEditorField", "isListSortObject", "listSortNumeric", "compareListSortOrders",
     "normalizeListProgress",
     "normalizeListRecord",
   ]) {
@@ -358,7 +359,8 @@ describe("What this boundary declares, and the two conditions that would dischar
   it("holds the second deferral's condition: sort_order is unknown by contract", () => {
     assert.match(contracts, /export interface BrowserListItem \{[\s\S]*?\n {2}sort_order: unknown;/);
     assert.match(contracts, /\*\*`quantity`, `estimated_cost`, `actual_cost` and `sort_order` stay\s*\n \* `unknown`\*\*/);
-    assert.ok(source.includes("**Discharged by** the producer coercing"));
+    assert.match(source, /@param \{ListItemInput\[\]\} \[items\]/);
+    assert.match(source, /compareListSortOrders\(left\.sort_order \?\? 0, right\.sort_order \?\? 0\)/, "both reads and nullish fallbacks precede conversion");
   });
 
   it("types the record reader's list without claiming what the wire did not send", () => {
