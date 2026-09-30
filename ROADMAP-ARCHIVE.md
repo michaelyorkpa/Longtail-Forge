@@ -20,6 +20,17 @@
 
 **Final verification handoff:** run canonical verify:slice after this bookkeeping commit on the clean tree with LTF_REGRESSION_BASE_SHA=9426f0414a1ce16b3ee45d02792288bfc00ae1a0, then checkpoint:validate. READY and the draft PR will report the actual Change set, routing and results rather than pre-claiming them here. No package/release or durable-documentation change; hold submitted HEAD for Claude.
 
+**Integrated onto `nightly` at `9426f041` by Claude.**
+
+- **Shared paths.** `nightly` had not moved since Codex's base, so its side changed 0 paths against Codex's 14. The intersection was empty and the merge was clean.
+- **Ledger.** It was regenerated from the combined tree, and it is identical to Codex's branch ledger: 1,554 files and browser 16 to 12. That is Lists 12 (TS7006 3, TS2339 9) and Clients/Projects 0. Per message, exactly the four `event` TS7006 disappear, and none are added.
+- **Review.** The review confirmed each part of the ruling:
+  - **The form probe.** The `elements` getter is captured from the `HTMLFormElement.prototype` descriptor and applied with the candidate as receiver. It sits inside the existing `new FormData(...)` argument, after the `dataset` reads, with the constructor looked up first and one real construction. Its `catch` covers only the probe, maps only `TypeError`, and never reads the candidate's own properties.
+  - **Target reads.** `event.target` is read as often as before. `closest` and `matches` are each read once and applied with the original receiver, and the unmatched-target no-op is kept. The failures stay outside the handlers' catches, after `requireApi()` and `preventDefault()`.
+  - **The `reset` wording.** The delegated `reset` wording replaces a reachable native failure: a form control named `reset` overrides the method. It sits inside the original catch.
+  - **Pins and fixtures.** The route pins keep their exact routes. The browser fixture is pinned in a full-history unit suite.
+- **Bookkeeping.** The delegation paragraph gained the ruling's remaining exclusions: new rejection of previously succeeding inputs, and permissions or data-integrity changes.
+
 ## Version 0.33.33.43.63 - Lists catalog and option consumers
 
 **Model: High Effort** - A validated cache reaches two native conversion sinks whose opaque inputs and failure ordering must remain intact.
