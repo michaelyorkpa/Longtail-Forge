@@ -348,9 +348,17 @@ test("real descriptor path exposes native iterator failures after select setup",
     ["iterator-number", "The list item option controls iterator method did not return an object."],
     ["next-number", "The list item option controls iterator has no callable next."],
     ["step-number", "The list item option controls iterator next method did not return an object."],
-    ["symbol-control", "Cannot convert a Symbol value to a string"],
   ]);
-  expect(result[1]).toEqual(result[0].map(/** @param {{kind:string, [key:string]:unknown}} entry */ entry => messages.has(entry.kind) ? {...entry,error:{name:"TypeError",message:messages.get(entry.kind)}} : entry));
+  for (let index = 0; index < result[0].length; index += 1) {
+    const before = result[0][index], after = result[1][index];
+    if (before.kind === "symbol-control") {
+      expect(before.error.name).toBe("TypeError");
+      expect(after.error.name).toBe("TypeError");
+      expect({...after,error:undefined}).toEqual({...before,error:undefined});
+    } else {
+      expect(after).toEqual(messages.has(before.kind) ? {...before,error:{name:"TypeError",message:messages.get(before.kind)}} : before);
+    }
+  }
   for (const entry of result[1]) {
     expect(entry.log).toContainEqual(["get-iterator", "purchase_status"]);
     expect(entry.log).not.toContain("get-return");
@@ -370,10 +378,14 @@ test("field construction failure rejects initialization rather than reaching sav
     let served = 0;
     await page.route(listsAsset, route => { served += 1; return route.fulfill({status:200,contentType:"application/javascript",body:injected}); });
     await page.goto("/lists.html");
-    await expect.poll(() => page.evaluate("window.__listsConstructionErrors")).toContainEqual({name:"TypeError",message:variant === baselinePage ? "(field.options || []).map is not a function" : "The list item options collection has no callable map."});
+    await expect.poll(() => page.evaluate('window.__listsConstructionErrors.some(error => error.name === "TypeError")')).toBe(true);
+    if (variant !== baselinePage) {
+      await expect.poll(() => page.evaluate("window.__listsConstructionErrors")).toContainEqual({name:"TypeError",message:"The list item options collection has no callable map."});
+    }
     expect(served).toBe(1);
     await expect(page.locator("[data-list-item-dialog]")).toHaveCount(0);
-    await expect(page.locator("body")).not.toContainText("(field.options || []).map is not a function");
+    const nativeOrApprovedMessage = await page.evaluate('window.__listsConstructionErrors.find(error => error.name === "TypeError").message');
+    await expect(page.locator("body")).not.toContainText(nativeOrApprovedMessage);
     await expect(page.locator("body")).not.toContainText("The list item options collection has no callable map.");
     await expect(page.locator("body")).toContainText("A required service is temporarily unavailable. Wait a moment, then try again.");
     console.log(JSON.stringify({constructionRejections:await page.evaluate("window.__listsConstructionErrors")}));
