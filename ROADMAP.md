@@ -118,12 +118,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 | Lane | Next ID | Boundary | Live count |
 | --- | --- | --- | --- |
-| Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
-| Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
+| Codex | `0.33.33.40.33` | `notes.js` - Notes owned debt closed at `0.33.33.40.32`, raw at `0.33.33.40.33` | 0 — complete |
+| Codex | `0.33.33.41.27` | Tasks family - owned debt closed at `0.33.33.41.26`, raw at `0.33.33.41.27` | 0 — complete |
 | Codex | `0.33.33.43.66` | `lists.js` - the **Lists** module family, **complete at zero** at `0.33.33.43.66` | 0 — complete |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
-| Codex | `0.33.33.38.5` | **Assigned 2026-09-30:** the server `TaskLifecycleStatus` contract boundary and its directly owning Tasks code and tests (see the ownership record below). Independent of the browser proof | server - 16 measured sites |
+| Codex | `0.33.33.38.5` | **Complete at the `0.33.33.38.5` integration.** The server lifecycle vocabulary is closed to its five values, and the write normalizer proves membership | server 0 |
 | Claude | `0.33.33.44.47` | **Complete.** The final permanent browser-zero proof: the browser section is retired at zero, and every owned file must be one its compiler checked | browser 0 |
 | Claude | `0.33.33.44` final proof | **Complete at `0.33.33.44.47`.** `0.33.33.44.1` opened the family; its owner sum first reached zero at `0.33.33.44.46`, and the permanent proof closed the parent. Its six criteria are ticked against their evidence in its section | 0 |
 
@@ -139,10 +139,10 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | **Complete at the `0.33.33.42.47` integration.** Typing reached zero at `0.33.33.42.45`, and the Task Focus extraction criterion was met by `0.33.33.42.46` and `.42.47` under the amended parent criterion. See the parent's closure record. |
 | Verification-tool hardening | Claude | **Done at `0.33.33.25.11`** (see the archive entry). An unrouted path now escalates the whole plan to the full gate, even beside routed bookkeeping; `verify:slice` refuses an empty selection instead of passing; and the collector includes tracked uncommitted edits alongside a committed range. `verify:slice` alone is sufficient proof again, and the interim "also run `npm run check`" workaround is retired. |
 | Edit Client browser coverage | Claude | **Done at `0.33.33.43.46`.** `client-projects-edit-dialog-reflow.spec.mjs` now carries a permanent Edit Client case, at both viewports, that saves tags and both billing editors. It replaces the temporary `0.33.33.38.3.9` probe. |
-| `0.33.33.38.5` — server task lifecycle status vocabulary | Codex (assigned 2026-09-30) | **Assigned, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
+| `0.33.33.38.5` — server task lifecycle status vocabulary | Codex | **Complete at the `0.33.33.38.5` integration.** `TaskLifecycleStatus` names exactly five values. The write normalizer proves membership through a predicate, and the recovery engine takes the raw persisted strings it has always classified. `TaskRecord.status` and the browser vocabulary are unchanged. See the archive entry. |
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **`0.33.33.44` is complete at `0.33.33.44.47`** (Claude). **`0.33.33.38` does not close merely because browser diagnostics are zero**: its acceptance is recorded through ordinary rollup bookkeeping only once `0.33.33.38.5` is integrated and its remaining criteria are supported by evidence. |
-| `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Found unrecorded at `0.33.33.44.47`.** Both families reached zero (`0.33.33.40.3`, `0.33.33.41.2`), and no delegated diagnostic remains, but neither parent's criteria are ticked. Recorded through the same rollup bookkeeping as `0.33.33.38`, against each child's archived evidence. Not claimed by `0.33.33.44.47`. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **`0.33.33.44` is complete at `0.33.33.44.47`** (Claude). **`0.33.33.38.5` is integrated, so every `0.33.33.38` child is complete, but `0.33.33.38` does not close on that alone.** 24 of its criteria are unticked. Its acceptance is recorded through rollup bookkeeping once each criterion is audited against its children's archived evidence, which is Claude's next action together with the `0.33.33.40` / `0.33.33.41` row below. |
+| `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Found unrecorded at `0.33.33.44.47`.** Notes reached zero at `0.33.33.40.32` (owned) and `0.33.33.40.33` (raw), and Tasks at `0.33.33.41.26` and `0.33.33.41.27`; no delegated diagnostic remains, but neither parent's criteria are ticked. Recorded through the same rollup bookkeeping as `0.33.33.38`, against each child's archived evidence. Not claimed by `0.33.33.44.47`. |
 | `0.33.33.45`–`.47` | Claude, Codex, Claude | After convergence: `.45` (Claude) measures module-development defaults and extracts only helpers with real consumers; `.46` (Codex) builds the strict-clean module scaffold once `.45` has set the module shape, recording path ownership before edits; `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
@@ -1194,20 +1194,14 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
-**Model: Medium Effort - 16 measured sites in one module, and a proven runtime guarantee.** Inherited from `0.33.33.37`.
+**Model: Medium Effort** - One server validation boundary and its tolerant recovery consumers.
 
-**The openness is accidental, and the evidence is threefold.** `TaskLifecycleStatus` in `src/types/task-block-recovery-contracts.d.ts` reads `"open" | "in_progress" | "blocked" | "complete" | "archived" | string`, and the trailing member collapses the union to `string`, so the five literals are documentation rather than type. Against that:
+**Complete: the vocabulary is closed, and the one real validation boundary proves it.** See the archive entry.
 
-- **Every sibling type in the same file is closed.** `TaskBlockRecoveryPatch.status` is `"blocked" | "open"`, and `kind`, `reason`, `searchReason`, and `ChildStatusRollupEffect` are all closed unions. The author writes closed unions where they are meant.
-- **The runtime is closed and validated.** `normalizeStatus` at `tasks.service.js:3066` is `STATUSES.has(status) ? status : "open"` - an unrecognised status is coerced, not stored - and `STATUSES` at `:85` is the same five values.
-- **The engine is tolerant of anything but treats nothing extra as valid.** `normalizedStatus` is `String(value ?? "")` and every question it answers is set membership, so an unknown status is simply not terminal and not blocked. That is a safe default, not a supported vocabulary member. A deliberately open contract would have been written to keep its literals - this one does not.
-
-**The cost is measured, not estimated.** The server-tests program is at zero errors. Narrowing the type produces exactly **16**: `task-block-recovery-engine.js` 1, `tasks.service.js` 11, `tests/unit/task-block-recovery-engine.test.mjs` 4. Every one is `TaskRecord.status: string` or a plain `string` reaching a parameter that now wants the union.
-
-- [ ] Narrow the union and satisfy all 16 sites by **making the existing runtime validation visible to TypeScript** - a predicate at the boundary where a persisted row becomes a lifecycle status. `0.33.33.36`'s standard applies exactly: the runtime value is valid, and TypeScript can see why. **No cast, no assertion, no suppression.**
-- [ ] Do not narrow `TaskRecord.status` itself as a shortcut; that reaches far past this checkpoint. If the predicate cannot be placed without doing so, stop and report rather than widening the scope.
-- [ ] Retarget nothing in the four test sites that is behavioural. They construct records with `status: "..."` literals; if a behavioural assertion has to change, the change is wrong.
-- [ ] **Do not merge the server vocabulary with the browser one.** `BrowserTaskLifecycleLegality`'s closed browser vocabulary and this server type describe different layers, and `0.33.33.37` published them separately on purpose. Narrowing this one does not make them the same contract.
+- **`TaskLifecycleStatus` names exactly five values.** `normalizeStatus`, the write boundary, proves membership through `isTaskLifecycleStatus`.
+- **The recovery engine never turns a persisted row into a lifecycle status.** It classifies raw strings, and distinct unknown statuses still block parents. Its inputs are therefore typed as those raw strings (`RawTaskBlockRecoveryRecord`), which is the type the collapsed union already gave them.
+- **That is how the 16 sites closed, not by the read-side predicate the criterion proposed.** No such boundary exists, and inventing one would have changed which parents are blocked.
+- `TaskRecord.status` stays `string`, and the browser vocabulary is untouched.
 
 **Withdrawn: the previous `0.33.33.38.3` page-state child.** Its 4,374-diagnostic family was 1,561 unannotated parameters, which belong to `.39`-`.44`, plus 2,038 of page-local state that the rollup already forbids `.38` from inventing shapes for, plus 775 double-counted with the DOM and nullability cohorts. There is no shared contract left underneath it. The one genuinely shared thing that classification was reaching for is the namespace declaration, which `.38.1` and `.38.2` now own with measurement behind it.
 
