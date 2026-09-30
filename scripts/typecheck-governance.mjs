@@ -39,7 +39,9 @@ const locatedDiagnostics = new Map();
 /** @type {readonly ProgramDefinition[]} */
 const PROGRAMS = Object.freeze([
   Object.freeze({ id: "server-tests", config: "tsconfig.json", environment: "node", roots: ["server.js", "worker.js", "src/", "tests/"] }),
-  Object.freeze({ id: "browser", config: "tsconfig.public.json", environment: "dom", roots: ["public/js/"] }),
+  // The browser boundary fixture sits under `tests/`, but only `tsconfig.public.json` compiles it:
+  // it proves a browser import is refused, so it must be read in the browser environment.
+  Object.freeze({ id: "browser", config: "tsconfig.public.json", environment: "dom", roots: ["public/js/", "tests/typecheck/browser-database-boundary.fixture.mjs"] }),
   Object.freeze({ id: "scripts", config: "tsconfig.scripts.json", environment: "node", roots: ["scripts/", "eslint.config.js", "playwright.config.js", "vitest.config.mjs"] }),
 ]);
 
@@ -67,9 +69,15 @@ function activeRoadmapCheckpoint() {
   return heading ? heading[1] : readActiveRoadmapCursor({ roadmapSource });
 }
 
-/** @param {string} filePath @param {ProgramDefinition} definition */
+/**
+ * A file a program names exactly belongs to that program, even inside another program's
+ * directory root. Otherwise it belongs to the program whose directory root contains it.
+ * @param {string} filePath @param {ProgramDefinition} definition
+ */
 function isOwnedRoot(filePath, definition) {
-  return definition.roots.some((root) => root.endsWith("/") ? filePath.startsWith(root) : filePath === root);
+  if (definition.roots.includes(filePath)) return true;
+  if (PROGRAMS.some((other) => other !== definition && other.roots.includes(filePath))) return false;
+  return definition.roots.some((root) => root.endsWith("/") && filePath.startsWith(root));
 }
 
 /** @param {ProgramDefinition} definition @returns {ProgramState} */
@@ -81,7 +89,16 @@ function collectProgram(definition) {
   /** @type {ParsedDiagnostic[]} */
   const located = [];
   locatedDiagnostics.set(definition.id, located);
-  for (const diagnostic of runCompiler(definition.config)) {
+  const { diagnostics: compilerDiagnostics, compiledFiles } = runCompiler(definition.config, { listFiles: true });
+  // `0.33.33.44.47`: ownership is not checking. A file the program owns but its compiler never
+  // reads - one excluded by the config, or one its include globs do not match - would carry no
+  // diagnostics however much debt it held. Every owned file must be one the compiler checked, and
+  // this runs before both the verify and the ledger-write paths, so neither can record around it.
+  const unchecked = uncheckedOwnedFiles(files, compiledFiles);
+  if (unchecked.length > 0) {
+    throw new Error(`${definition.id} owns files its compiler does not check: ${unchecked.join(", ")}. An owned file must be compiled, or its debt could hide.`);
+  }
+  for (const diagnostic of compilerDiagnostics) {
     if (diagnostic.filePath !== "$global" && !owned.has(diagnostic.filePath)) continue;
     located.push(diagnostic);
     const key = `${diagnostic.filePath}\u0000${diagnostic.code}`;
@@ -97,10 +114,24 @@ function collectProgram(definition) {
   return { config: definition.config, environment: definition.environment, files, errorCount, diagnostics };
 }
 
-/** @param {string} configPath @returns {ParsedDiagnostic[]} */
-function runCompiler(configPath) {
+/**
+ * Owned files the compiler did not read, in their owned order.
+ * @param {readonly string[]} ownedFiles @param {ReadonlySet<string>} compiledFiles
+ * @returns {string[]}
+ */
+function uncheckedOwnedFiles(ownedFiles, compiledFiles) {
+  return ownedFiles.filter((filePath) => !compiledFiles.has(filePath));
+}
+
+/**
+ * One compiler run. With `listFiles`, the compiler also names every file it read, which is the
+ * evidence that an owned file was checked rather than merely listed.
+ * @param {string} configPath @param {{ listFiles?: boolean }} [options]
+ * @returns {{ diagnostics: ParsedDiagnostic[], compiledFiles: Set<string> }}
+ */
+function runCompiler(configPath, { listFiles = false } = {}) {
   const compilerPath = path.join(rootDir, "node_modules", "typescript", "bin", "tsc");
-  const result = spawnSync(process.execPath, [compilerPath, "--pretty", "false", "-p", configPath], {
+  const result = spawnSync(process.execPath, [compilerPath, "--pretty", "false", "-p", configPath, ...(listFiles ? ["--listFiles"] : [])], {
     cwd: rootDir,
     encoding: "utf8",
     maxBuffer: 128 * 1024 * 1024,
@@ -108,6 +139,8 @@ function runCompiler(configPath) {
   if (result.error) throw result.error;
   /** @type {ParsedDiagnostic[]} */
   const diagnostics = [];
+  /** @type {Set<string>} */
+  const compiledFiles = new Set();
   for (const line of `${result.stdout || ""}\n${result.stderr || ""}`.split(/\r?\n/)) {
     const located = line.match(/^(.*?)\((\d+),(\d+)\): error TS(\d+): (.*)$/);
     if (located) {
@@ -121,11 +154,18 @@ function runCompiler(configPath) {
       continue;
     }
     const global = line.match(/^error TS(\d+): (.*)$/);
-    if (global) diagnostics.push({ filePath: "$global", code: Number(global[1]), line: 0, column: 0, message: global[2] });
+    if (global) {
+      diagnostics.push({ filePath: "$global", code: Number(global[1]), line: 0, column: 0, message: global[2] });
+      continue;
+    }
+    // A listed file is printed as an absolute path on its own line; diagnostic continuations
+    // are indented, so they never match.
+    const listed = line.trim();
+    if (listFiles && listed === line && path.isAbsolute(listed)) compiledFiles.add(toRepoPath(listed));
   }
   if (result.status === 0 && diagnostics.length > 0) throw new Error(`${configPath} reported diagnostics with a successful exit`);
   if (result.status !== 0 && diagnostics.length === 0) throw new Error(`${configPath} failed without parseable diagnostics:\n${result.stderr || result.stdout}`);
-  return diagnostics;
+  return { diagnostics, compiledFiles };
 }
 
 /** @returns {string[]} */
@@ -290,7 +330,7 @@ function countExplicitAnyAnnotations(source) {
 /** @returns {{ config: string, firstPartyFiles: number, errors: number }} */
 function collectDeclarationProbe() {
   const firstPartyFiles = fs.readdirSync(path.join(rootDir, "src", "types")).filter((name) => name.endsWith(".d.ts")).map((name) => `${declarationPrefix}${name}`).sort();
-  const failures = runCompiler("tsconfig.declarations.json").filter((diagnostic) => diagnostic.filePath === "$global" || diagnostic.filePath.startsWith(declarationPrefix));
+  const failures = runCompiler("tsconfig.declarations.json").diagnostics.filter((diagnostic) => diagnostic.filePath === "$global" || diagnostic.filePath.startsWith(declarationPrefix));
   if (failures.length > 0) throw new Error(`First-party declaration probe failed: ${JSON.stringify(failures)}`);
   return { config: "tsconfig.declarations.json", firstPartyFiles: firstPartyFiles.length, errors: 0 };
 }
@@ -573,4 +613,4 @@ if (path.resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {
   });
 }
 
-export { PROGRAMS, collectGovernanceState, collectSourcePolicy, countExplicitAnyAnnotations, firstPartyJavaScriptFiles, isFirstPartyDirectoryName, locatedDiagnostics, printClassification, validateShrinkOnly };
+export { PROGRAMS, collectGovernanceState, collectSourcePolicy, countExplicitAnyAnnotations, firstPartyJavaScriptFiles, isFirstPartyDirectoryName, locatedDiagnostics, printClassification, uncheckedOwnedFiles, validateShrinkOnly };

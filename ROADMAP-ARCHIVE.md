@@ -1,5 +1,48 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.44.47 - Permanent browser-zero proof
+
+**Model: High Effort** - governance and the checked-file universe: the proof that browser debt cannot return, and that no file can escape checking to hide it.
+
+- [x] **Base and scope.** Branch `agent/0.33.33.44.47-browser-zero-proof` from `nightly` `9e7924c2`; planning `46c7011e`, implementation `e9692bc0`. One proof checkpoint. It touches governance, two regressions, the ledger and three leading comments in `public/js/shared/`. No runtime, delivery, dependency, version or durable-documentation change.
+- [x] **Ownership is not checking.** Governance proved every first-party file was owned by exactly one program, but never that the program's compiler read it. Each program now compiles with `--listFiles`, and `collectProgram` refuses any owned file absent from that list. It runs inside `collectGovernanceState`, which both `npm run typecheck` and `npm run typecheck:ledger:write` call first, so neither path can record around it.
+- [x] **The check found a live instance of the hole.**
+  - `tests/typecheck/browser-database-boundary.fixture.mjs` was owned by `server-tests`, whose config excludes it, and compiled only by the browser program, which discarded its diagnostics as not its own.
+  - Shown on the baseline code: when the fixture's expectation stops firing, the browser compiler reports TS2578, yet governance still reported an exact ledger match.
+  - It is now owned by the browser program. The ownership rule is that a file a program names exactly belongs to that program, even inside another program's directory root.
+  - The ledger moves that one file from `server-tests` (878 to 877) to browser (85 to 86). Totals, diagnostics and `expectedErrorDirectives` are unchanged.
+- [x] **Pragmas: three redundant and removed, eight load-bearing and kept.**
+  - Eleven browser `// @ts-check` pragmas were measured. Removing all eleven produced 8 new TS2300 (`Duplicate identifier`), each on the typedef name at line 1.
+  - The cause, reproduced in a minimal project on the repository's TypeScript 7.0.2: a `@typedef` JSDoc at byte 0, directly before an IIFE statement, is declared twice. Any leading comment prevents it.
+  - The pragmas in `api-client`, `app-shell-bootstrap`, `cached-fetch`, `checked-dom`, `error-contract`, `page-controller`, `records` and `view-response-records` are kept byte-identical, each file's SHA-256 matched to HEAD. Those in `formatters`, `task-records` and `view-surface-descriptor` are removed.
+  - Checking comes from program-level `checkJs`, not from any pragma. The authority covered comment-only removal of redundant pragmas, so no typedef was moved.
+- [x] **Retired at zero, on the existing model.** The governance regression now asserts:
+  - browser `errorCount` 0 and an empty diagnostics map;
+  - a file list equal to the live `public/js` estate plus the boundary fixture, with a floor against an emptied list;
+  - combined totals of 0.
+
+  This replaces "every remaining diagnostic belongs to the browser program". All three sections and their inventories stay, and nothing is deleted.
+- [x] **Pins.**
+  - Each program's `exclude`, roots and config, and the fixture's owner.
+  - `uncheckedOwnedFiles`, the refusal at collection time, and `main` collecting before either path runs.
+  - The ledger-write validator refusing regained browser debt on an existing file and on a new dirty file.
+  - The navigation regression's "must remain outside whole-file checking", which pinned a missing pragma, is retargeted to `strictCleanOwnerState` `{ owned: true, diagnostics: 0 }`, as `0.33.33.26.2` did for the server estate.
+- [x] **Live mutations, through the real commands, with byte-exact restores.** Each mutation ran through both `npm run typecheck` and `npm run typecheck:ledger:write`:
+  - an `exclude` entry for a browser file;
+  - a stray `.mjs` under `public/js`;
+  - a regained TS7006 in an existing browser file;
+  - a new browser file with a diagnostic;
+  - the broken fixture expectation.
+
+  **All 10 runs were refused**, and the ledger's hash was unchanged after every write attempt. All files were restored and verified by SHA-256, and the created files were removed. Six static mutations of the new pins also failed as intended: dropping `--listFiles`, disabling the refusal, a grown `exclude`, the fixture owned by `server-tests`, and a seeded browser or navigation diagnostic.
+- [x] **Delivery preserved.** Three leading comment lines are the only browser change.
+  - The focused unit suites for the three files pass 70 of 70.
+  - The rendered sample on port 8101 passes 20 of 20 at both viewports: app load, console on six pages, Dashboard bootstrap sequencing, and the Tasks dashboard consumer.
+  - Compiler options, script order, classic delivery, namespace contracts and the no-build model are untouched.
+- [x] **Out of scope, left to `0.33.33.48`:** ledger deletion, the version bump, the changelog rollup, packaging closeout and the durable documentation sweep.
+- [x] **Parent acceptance.** `0.33.33.44`'s six criteria are ticked in the roadmap against this evidence, with the pragma criterion recorded as amended by measurement. `0.33.33.38` is not claimed. The `0.33.33.40` and `0.33.33.41` parents were found without acceptance records, and that is recorded as a coordination obligation.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `9e7924c2`, and `checkpoint:validate` run on the final tree; the results are in the pull request. No durable documentation, version bump or changelog entry for this internal checkpoint.
+
 ## Version 0.33.33.43.66 - Lists surface and progress closeout
 
 **Model: High Effort** - Two final inputs connect DOM writes and opaque native arithmetic without narrowing the producer contract.

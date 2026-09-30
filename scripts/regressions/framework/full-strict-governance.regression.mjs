@@ -23,6 +23,7 @@ import {
   countExplicitAnyAnnotations,
   firstPartyJavaScriptFiles,
   isFirstPartyDirectoryName,
+  uncheckedOwnedFiles,
   validateShrinkOnly,
 } from "../../typecheck-governance.mjs";
 import { compareDottedVersions } from "../../lib/roadmap-cursor.mjs";
@@ -131,6 +132,37 @@ assert.deepEqual(scriptsConfig.include, ["scripts/**/*.mjs", "eslint.config.js",
 assert.equal(declarationConfig.compilerOptions.skipLibCheck, false);
 assert.equal(declarationConfig.compilerOptions.strict, true);
 assert.deepEqual(declarationConfig.include, ["src/types/**/*.d.ts"]);
+// `0.33.33.44.47`: an `exclude` entry is how a first-party file could be owned yet never read by
+// its compiler, so each program's exclusions are pinned. The governance run separately refuses any
+// owned file its compiler did not list, on both the verify and the ledger-write paths.
+assert.deepEqual(serverConfig.exclude, ["node_modules", "archive", "data", "logs", "images", "public", "styles", "views", "tests/typecheck/browser-database-boundary.fixture.mjs"]);
+assert.deepEqual(browserConfig.exclude, ["node_modules"]);
+assert.deepEqual(scriptsConfig.exclude, ["node_modules", "archive", "data", "logs"]);
+// The one first-party file the server/test config excludes is the browser boundary fixture, which
+// only the browser config compiles. It is owned where it is compiled; before `0.33.33.44.47` it was
+// owned by the program that excluded it, and the program that compiled it discarded its diagnostics.
+assert.deepEqual(PROGRAMS.map((program) => [program.id, program.config, program.roots]), [
+  ["server-tests", "tsconfig.json", ["server.js", "worker.js", "src/", "tests/"]],
+  ["browser", "tsconfig.public.json", ["public/js/", "tests/typecheck/browser-database-boundary.fixture.mjs"]],
+  ["scripts", "tsconfig.scripts.json", ["scripts/", "eslint.config.js", "playwright.config.js", "vitest.config.mjs"]],
+]);
+assert.equal(
+  strictCleanOwnerProgram("tests/typecheck/browser-database-boundary.fixture.mjs"),
+  "browser",
+  "the browser boundary fixture belongs to the only program that compiles it",
+);
+assert.deepEqual(uncheckedOwnedFiles(["public/js/a.js", "public/js/b.mjs"], new Set(["public/js/a.js"])), ["public/js/b.mjs"]);
+assert.deepEqual(uncheckedOwnedFiles(["public/js/a.js"], new Set(["node_modules/typescript/lib/lib.d.ts", "public/js/a.js"])), []);
+assert.match(
+  governanceSource,
+  /runCompiler\(definition\.config, \{ listFiles: true \}\);[\s\S]*const unchecked = uncheckedOwnedFiles\(files, compiledFiles\);\s*if \(unchecked\.length > 0\) \{\s*throw new Error\(/,
+  "every program collection must refuse an owned file its compiler did not list",
+);
+assert.match(
+  governanceSource,
+  /async function main\(\) \{\s*const state = collectGovernanceState\(\);[\s\S]*if \(process\.argv\.includes\("--write"\)\) writeLedger\(state\);\s*else verifyLedger\(state\);/,
+  "the verify and ledger-write paths must both run on a freshly collected, ownership-checked state",
+);
 assert.doesNotMatch(firstPartySource, /\bValidatedService\b/, "blanket-widened service exports must stay retired");
 assert.doesNotMatch(
   firstPartyTypeSource,
@@ -306,10 +338,35 @@ assert.deepEqual(
 // Retirement is a floor for the whole program, so the per-checkpoint pins above
 // are now implied by it rather than the other way round. The pins stay because
 // they name which checkpoint closed which owner, which the floor cannot say.
+//
+// 0.33.33.44.47 retires the browser program, the last of the three, on the same
+// model. Its section and owned-file inventory stay, its diagnostics map is
+// empty, its error count is zero, and it may never regain debt. It is still
+// checked: the governance run refuses any owned file its compiler did not list.
+assert.equal(
+  ledger.programs.browser.errorCount,
+  0,
+  "the browser program's ledger section is retired at zero and may never regain debt",
+);
+assert.deepEqual(
+  Object.keys(ledger.programs.browser.diagnostics),
+  [],
+  "the retired browser program carries no per-file debt",
+);
+const browserEstate = liveFiles.filter((filePath) => filePath.startsWith("public/js/"));
+assert.ok(
+  browserEstate.length > 80,
+  "the retired browser program still compiles the whole browser estate, not an emptied file list",
+);
+assert.deepEqual(
+  ledger.programs.browser.files,
+  [...browserEstate, "tests/typecheck/browser-database-boundary.fixture.mjs"],
+  "the browser program's file list is every first-party script under public/js plus the boundary fixture only it compiles",
+);
 assert.equal(
   ledger.totals.errors,
-  ledger.programs.browser.errorCount,
-  "with two of the three programs retired at zero, every remaining diagnostic belongs to the browser program",
+  0,
+  "with all three programs retired at zero, the combined universe carries no strict diagnostics",
 );
 const scriptInfrastructureDebt = Object.keys(ledger.programs.scripts.diagnostics)
   .filter((filePath) => filePath.startsWith("scripts/lib/") || filePath.startsWith("scripts/test-support/"));
@@ -778,6 +835,17 @@ const seededDiagnosticPath = increasedDiagnostic.programs["server-tests"].files[
 if (!seededDiagnosticPath) throw new Error("The shrink-only mutation proof requires at least one server/test program file.");
 increasedDiagnostic.programs["server-tests"].diagnostics[seededDiagnosticPath] = [{ code: 7006, count: 1 }];
 assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), /7006 increased 0 -> 1/, "the closed server/test program must reject any regained diagnostic");
+// The retired browser program refuses regained debt through the same ledger-write validator, on a
+// file it already owns and on a new one.
+const regainedBrowserDiagnostic = cloneLedger();
+const seededBrowserPath = regainedBrowserDiagnostic.programs.browser.files[0];
+if (!seededBrowserPath) throw new Error("The shrink-only mutation proof requires at least one browser program file.");
+regainedBrowserDiagnostic.programs.browser.diagnostics[seededBrowserPath] = [{ code: 2339, count: 1 }];
+assert.throws(() => validateShrinkOnly(ledger, regainedBrowserDiagnostic), /browser: .+: 2339 increased 0 -> 1/, "the retired browser program must reject any regained diagnostic");
+const newDirtyBrowserFile = cloneLedger();
+newDirtyBrowserFile.programs.browser.files.push("public/js/synthetic-new.js");
+newDirtyBrowserFile.programs.browser.diagnostics["public/js/synthetic-new.js"] = [{ code: 7006, count: 1 }];
+assert.throws(() => validateShrinkOnly(ledger, newDirtyBrowserFile), /public\/js\/synthetic-new\.js: new file has 1 strict diagnostic/, "a new browser file may not arrive with debt");
 const increasedAny = cloneLedger();
 increasedAny.explicitAnyByFile["server.js"] = (increasedAny.explicitAnyByFile["server.js"] || 0) + 1;
 assert.throws(() => validateShrinkOnly(ledger, increasedAny), /explicit any increased/);

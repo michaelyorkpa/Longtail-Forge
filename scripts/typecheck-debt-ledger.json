@@ -535,7 +535,6 @@
         "tests/mutations/workbench-recommendation-cycle.breaks.mjs",
         "tests/mutations/workspace-settings-diagnostics.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
-        "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
         "tests/typecheck/descriptor-action-list-contracts.fixture.mjs",
@@ -976,7 +975,8 @@
         "public/js/workbench-task-focus-checklist.js",
         "public/js/workbench-task-focus-presentation.js",
         "public/js/workbench.js",
-        "public/js/workspace-settings.js"
+        "public/js/workspace-settings.js",
+        "tests/typecheck/browser-database-boundary.fixture.mjs"
       ],
       "errorCount": 0,
       "diagnostics": {}

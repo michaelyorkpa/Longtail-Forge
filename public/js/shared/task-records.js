@@ -1,5 +1,3 @@
-// @ts-check
-
 /**
  * Single-task response records: what the server actually sends back when one task is the answer.
  *

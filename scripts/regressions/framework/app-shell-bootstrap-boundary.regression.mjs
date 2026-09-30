@@ -30,10 +30,10 @@ assert.match(
   /@returns \{Promise<AppShellBootstrap>\}[\s\S]*async function bootstrap/,
   "the producing service must stay typed against the shared envelope",
 );
-assert.doesNotMatch(
-  navigationSource,
-  /^\/\/ @ts-check\r?\n/,
-  "the large navigation runtime must remain outside whole-file checking",
+assert.deepEqual(
+  strictCleanOwnerState("public/js/navigation.js"),
+  { owned: true, diagnostics: 0 },
+  "the navigation runtime is whole-file checked by the browser program and must stay strict-clean there",
 );
 assert.match(
   navigationSource,
