@@ -4,6 +4,7 @@ import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs
 import { test } from "./support/isolated-workspace.mjs";
 
 const source = fs.readFileSync(new URL("../../public/js/lists.js", import.meta.url), "utf8");
+const errorSource = fs.readFileSync(new URL("../../public/js/shared/error-contract.js", import.meta.url), "utf8");
 const baseline = JSON.parse(fs.readFileSync(new URL("../fixtures/lists-event-consumers/baseline.json", import.meta.url), "utf8"));
 const helpers = ["isListEventForm", "requireListEventForm", "listEventField", "callListEventMember"].map(name => extractFunctionBlock(source, name)).join("\n");
 const getter = source.match(/const listFormElementsGetter = [^;]+;/)?.[0];
@@ -13,9 +14,10 @@ const current = Object.fromEntries(Object.keys(baseline.functions).map(name => [
 test("real event consumers preserve paths, receiver order and native form acceptance", async ({ isolatedWorkspace, browser }, testInfo) => {
   const { page } = isolatedWorkspace;
   await page.goto("/lists.html");
-  const rows = await page.evaluate(async ({ baseline, current, helpers, getter }) => {
+  const rows = await page.evaluate(async ({ baseline, current, helpers, getter, errorSource }) => {
+    const errors = new Function("window", errorSource + "; return window.LongtailForge.errors;")({});
     const rows = [];
-    const kinds = ["add", "edit", "foreign", "detached", "no-window", "link", "unmatched", "svg", "action", "null-save", "null-click", "null-submit", "text", "noncallable-matches", "nonform", "matching-nonform", "target-hook", "method-hook", "method-throws", "dataset-hook", "formdata-throws", "repeated-target", "save-list-hook"];
+    const kinds = ["add", "edit", "foreign", "detached", "no-window", "link", "unmatched", "svg", "action", "null-save", "null-click", "null-submit", "text", "noncallable-matches", "nonform", "matching-nonform", "target-hook", "method-hook", "method-throws", "dataset-hook", "formdata-throws", "repeated-target", "save-list-hook", "reset-noncallable", "reset-hook"];
     for (const kind of kinds) {
       const run = async (/** @type {boolean} */ before) => {
         /** @type {unknown[]} */ const log = [];
@@ -37,7 +39,7 @@ test("real event consumers preserve paths, receiver order and native form accept
         }
         /** @type {unknown} */ let target;
         let name = "saveItem";
-        if (["link", "unmatched", "matching-nonform", "null-submit", "noncallable-matches", "repeated-target"].includes(kind)) name = "handleDetailSubmit";
+        if (["link", "unmatched", "matching-nonform", "null-submit", "noncallable-matches", "repeated-target", "reset-noncallable", "reset-hook"].includes(kind)) name = "handleDetailSubmit";
         if (["svg", "action", "null-click", "text", "method-hook", "method-throws"].includes(kind)) name = "handleDetailClick";
         if (kind === "save-list-hook") name = "saveList";
         if (kind.startsWith("null-")) target = null;
@@ -63,6 +65,8 @@ test("real event consumers preserve paths, receiver order and native form accept
             return method;
           } };
         } else target = form;
+        if (kind === "reset-noncallable") Object.defineProperty(form, "reset", { value: 7 });
+        if (kind === "reset-hook") Object.defineProperty(form, "reset", { get() { log.push("reset-get"); throw sentinel; } });
         let reads = 0;
         const event = {
           get target() {
@@ -99,7 +103,7 @@ test("real event consumers preserve paths, receiver order and native form accept
           closeItemDialog: () => log.push("close"),
           refreshLists: async (/** @type {unknown} */ id) => log.push(["refresh", id]),
           setStatus: (/** @type {unknown[]} */ ...args) => log.push(["status", ...args]),
-          requireErrors: () => ({ caughtMessage: (/** @type {Error} */ error) => { log.push("caught"); return error.message; } }),
+          requireErrors: () => ({ caughtMessage: (/** @type {unknown} */ error, /** @type {string} */ fallback) => { log.push(["caught", error === sentinel]); return errors.caughtMessage(error, fallback); } }),
           get FormData() {
             log.push("FormData-lookup");
             return function (/** @type {HTMLFormElement} */ candidate) {
@@ -122,7 +126,7 @@ test("real event consumers preserve paths, receiver order and native form accept
       rows.push({ kind, before: await run(true), after: await run(false) });
     }
     return rows;
-  }, { baseline: baseline.functions, current, helpers, getter });
+  }, { baseline: baseline.functions, current, helpers, getter, errorSource });
   const changed = new Map([
     ["null-save", "The list event target cannot be read."], ["null-click", "The list event target cannot be read."], ["null-submit", "The list event target cannot be read."],
     ["text", "The list event target has no callable closest."], ["noncallable-matches", "The list event target has no callable matches."],
@@ -131,6 +135,11 @@ test("real event consumers preserve paths, receiver order and native form accept
   for (const row of rows) {
     // Wrong forms are refused by the probe, before the one real constructor would run.
     const beforeLog = ["nonform", "matching-nonform"].includes(row.kind) ? row.before.log.filter(entry => entry !== "FormData-construct") : row.before.log;
+    if (row.kind === "reset-noncallable") {
+      expect(row.after.log.at(-1)).toEqual(["status", "The list event target has no callable reset.", true]);
+      expect(row.before.log.at(-1)).not.toEqual(row.after.log.at(-1));
+      beforeLog[beforeLog.length - 1] = row.after.log.at(-1);
+    }
     expect(row.after.log.filter(entry => entry !== "native-probe"), row.kind).toEqual(beforeLog);
     const reached = row.before.log.includes("FormData-lookup");
     expect(row.after.log.filter(entry => entry === "native-probe")).toHaveLength(reached ? 1 : 0);
@@ -145,7 +154,8 @@ test("real event consumers preserve paths, receiver order and native form accept
       expect(row.after.log.filter(entry => entry === "FormData-construct")).toHaveLength(1);
       expect(row.after.log.filter(entry => entry === "formdata")).toHaveLength(1);
     }
-    if (row.kind.endsWith("hook") || ["method-throws", "formdata-throws"].includes(row.kind)) expect(row.after.error?.identity, row.kind).toBe(true);
+    if (row.kind === "reset-hook") expect(row.after.log).toContainEqual(["caught", true]);
+    else if (row.kind.endsWith("hook") || ["method-throws", "formdata-throws"].includes(row.kind)) expect(row.after.error?.identity, row.kind).toBe(true);
   }
   await testInfo.attach("event-comparison", { body: JSON.stringify({ version: browser.version(), rows }, null, 2), contentType: "application/json" });
 });

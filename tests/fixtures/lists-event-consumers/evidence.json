@@ -109,8 +109,9 @@
   },
   "browser": {
     "version": "151.0.7922.34",
-    "comparisonCases": 23,
+    "comparisonCases": 25,
     "fullLists": 42,
-    "restoredFocused": 2
+    "restoredFocused": 2,
+    "finalErrorHelperFocused": 2
   }
 }
