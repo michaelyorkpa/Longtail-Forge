@@ -52,14 +52,14 @@ for (const helper of [
 }
 
 for (const hook of [
-  "dataset.listsTitle",
-  "dataset.listCreate",
+  'setListsSurfaceHook(pageHeading, "listsTitle")',
+  'setListsSurfaceHook(createAction, "listCreate")',
   "dataset.listsStatus",
-  "dataset.listsFilters",
-  "dataset.listsIndexPanel",
+  'setListsSurfaceHook(filterForm, "listsFilters")',
+  'setListsSurfaceHook(indexPanel, "listsIndexPanel")',
   "dataset.listsIndexContent",
   "dataset.listsList",
-  "dataset.listDetail",
+  'setListsSurfaceHook(detail, "listDetail")',
   "dataset.listDialog",
   "dataset.listForm",
 ]) {

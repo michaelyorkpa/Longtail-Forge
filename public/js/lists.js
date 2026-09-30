@@ -1361,25 +1361,42 @@
     };
   }
 
-  /**
-   * **Deliberately untyped, and the arithmetic is why.** Declaring `surface` closes this one
-   * parameter and opens **five** `dataset` reads further down the same function, each needing the
-   * narrowing `0.33.33.43.25` established. Every one of those is behind a truthiness guard and
-   * would be safe, but five executable narrowings to close one parameter is the wrong trade, and
-   * the gate's per-code rule would refuse the result besides.
-   * **Discharged by** narrowing this function's seven query results together, as one deliberate
-   * step rather than as a by-product. Pinned by `lists-editor-params-contracts`.
+  /** A property bag promises no member value or writability, only an object receiver.
+   * @param {unknown} value @returns {value is Record<string, unknown>}
+   */
+  function isListsDatasetBag(value) {
+    return (typeof value === "object" && value !== null) || typeof value === "function";
+  }
+
+  /** Preserve the original dataset assignment, including primitive receivers and ignored failed writes.
+   * @param {Element} element @param {string} key
+   */
+  function setListsSurfaceHook(element, key) {
+    const dataset = listEditorField(element, "dataset");
+    if (dataset === null || dataset === undefined) {
+      throw new TypeError("The Lists surface element has no dataset to decorate.");
+    }
+    if (isListsDatasetBag(dataset)) {
+      dataset[key] = "";
+    } else {
+      // Native assignment boxes the target but retains its original receiver, including legacy document.all.
+      Reflect.set(Object(dataset), key, "", dataset);
+    }
+  }
+
+  /** The descriptor renderer supplies the surface; optional query results keep their existing gates.
+   * @param {HTMLElement} surface
    */
   function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDescriptor) {
     const view = requireView();
     const pageHeading = surface.querySelector(".view-page-title");
     if (pageHeading) {
-      pageHeading.dataset.listsTitle = "";
+      setListsSurfaceHook(pageHeading, "listsTitle");
     }
 
     const createAction = surface.querySelector('[data-surface-action="lists.create"], [data-surface-action="create-list"]');
     if (createAction) {
-      createAction.dataset.listCreate = "";
+      setListsSurfaceHook(createAction, "listCreate");
     }
 
     const header = surface.querySelector(".view-page-header");
@@ -1392,12 +1409,12 @@
       || surface.querySelector(".view-filter-panel");
     filterPanel?.classList.add("lists-filters-panel");
     if (filterPanel) {
-      filterPanel.dataset.listsFiltersPanel = "";
+      setListsSurfaceHook(filterPanel, "listsFiltersPanel");
     }
     const filterForm = surface.querySelector("[data-view-filter-form]");
     filterForm?.classList.add("lists-filters");
     if (filterForm) {
-      filterForm.dataset.listsFilters = "";
+      setListsSurfaceHook(filterForm, "listsFilters");
     }
 
     decorateFilterControl(surface, "status", "listFilterStatus");
@@ -1418,11 +1435,11 @@
       || surface.querySelector(".view-collapsible-index");
     indexPanel?.classList.add("lists-index-panel");
     if (indexPanel) {
-      indexPanel.dataset.listsIndexPanel = "";
+      setListsSurfaceHook(indexPanel, "listsIndexPanel");
     }
     const summaryTitle = indexPanel?.querySelector(".view-collapsible-index-title");
     if (summaryTitle) {
-      summaryTitle.dataset.listsCount = "";
+      setListsSurfaceHook(summaryTitle, "listsCount");
       summaryTitle.textContent = listSelectorTitle(descriptor);
     }
     const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
@@ -1435,7 +1452,7 @@
       || surface.querySelector(".view-stacked-detail");
     detail?.classList.add("lists-detail-panel");
     if (detail) {
-      detail.dataset.listDetail = "";
+      setListsSurfaceHook(detail, "listDetail");
     }
     detail?.replaceChildren(view.createEmptyState({
       message: "Select a list.",
@@ -3913,29 +3930,62 @@
    * @typedef {{ progress?: unknown, sourceUrl?: unknown, source_url?: unknown }} ListResumeContextInput
    */
 
-  /**
-   * **One parameter here is still deliberately untyped, and the gate is why.**
-   *
-   * The shrink-only ledger refuses an increase **per diagnostic code per file**, not merely on the
-   * file's total, so a boundary that closes thirty and opens three is refused - correctly, because
-   * the three are real. `0.33.33.43.19` recorded two annotations that each opened one.
-   *
-   * **The first is discharged.** Typing `normalizeListRecord`'s `list` forced `list.progress`,
-   * published `unknown`, through this reader's narrower door; narrowing the published member
-   * instead was tried and was worse, because it made `BrowserListSummary` unassignable at both
-   * callers. `0.33.33.43.21` wrote `readListProgressBag` at the readers, which vouches for the bag
-   * without touching the contract, and `list` is now typed.
-   *
-   * **The second stands.** Typing this reader's `items` puts `BrowserListItem.sort_order` -
-   * `unknown` **by deliberate contract**, because the column is numeric but nothing coerces it -
-   * into the comparator's arithmetic below. Declaring it numeric here would be false; wrapping
-   * the comparator would be new coercion in a path required to preserve its ordering.
-   * **Discharged by** the producer coercing that column, or the contract proving it.
-   *
-   * That condition is pinned by `lists-record-normalizer-contracts`, so a reason that stops being
-   * true fails a case rather than sitting here - the failure `0.33.33.43.8`'s deferral had for six
-   * checkpoints because nothing guarded it.
+  /** @param {unknown} value @returns {value is object} */
+  function isListSortObject(value) {
+    if (value === undefined || value === null) return false;
+    return typeof value === "object" || typeof value === "function" || typeof value === "undefined";
+  }
+
+  /** Native ToNumeric with the subtraction operator's number hint and conversion order.
+   * BigInt stays BigInt; Number on an object would otherwise silently admit it.
+   * @param {unknown} value @returns {number | bigint}
    */
+  function listSortNumeric(value) {
+    if (isListSortObject(value)) {
+      const exotic = listEditorField(value, Symbol.toPrimitive);
+      if (exotic !== null && exotic !== undefined) {
+        /** @type {unknown} */
+        const primitive = Reflect.apply(Function.prototype.call, exotic, [value, "number"]);
+        if (isListSortObject(primitive)) {
+          throw new TypeError("The list sort order cannot be converted to a primitive.");
+        }
+        return listSortNumeric(primitive);
+      }
+      for (const key of ["valueOf", "toString"]) {
+        const method = listEditorField(value, key);
+        if (typeof method !== "function" && !(isListSortObject(method) && typeof new Proxy(method, {}) === "function")) continue;
+        /** @type {unknown} */
+        const primitive = Reflect.apply(Function.prototype.call, method, [value]);
+        if (!isListSortObject(primitive)) {
+          return listSortNumeric(primitive);
+        }
+      }
+      throw new TypeError("The list sort order cannot be converted to a primitive.");
+    }
+    return typeof value === "bigint" ? value : Number(value);
+  }
+
+  /** Both member reads precede left then right conversion, just as in native subtraction.
+   * @param {unknown} left @param {unknown} right @returns {number}
+   */
+  function compareListSortOrders(left, right) {
+    const leftNumeric = listSortNumeric(left);
+    const rightNumeric = listSortNumeric(right);
+    let difference;
+    if (typeof leftNumeric === "number" && typeof rightNumeric === "number") {
+      difference = leftNumeric - rightNumeric;
+    } else if (typeof leftNumeric === "bigint" && typeof rightNumeric === "bigint") {
+      difference = leftNumeric - rightNumeric;
+    } else {
+      // Native subtraction refuses mixed numeric kinds before producing a result.
+      throw new TypeError("Lists cannot mix BigInt and number sort orders.");
+    }
+    // Sort would refuse this primitive result immediately, without another observable read.
+    if (typeof difference === "bigint") {
+      throw new TypeError("The list item sort order difference is not a number.");
+    }
+    return difference;
+  }
 
   /**
    * The progress summary the page holds, from whichever spellings arrived.
@@ -3945,6 +3995,7 @@
    * `||`. Deleted items are filtered first, and the next-unchecked label is taken in `sort_order`
    * order with `?? 0` for an absent one.
    * @param {ListProgressInput} [progress]
+   * @param {ListItemInput[]} [items]
    * @returns {BrowserListProgressSummary}
    */
   function normalizeListProgress(progress = {}, items = []) {
@@ -3953,7 +4004,7 @@
     const completedCount = visible.filter((item) => item.completed_at).length;
     const nextUnchecked = visible
       .slice()
-      .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
+      .sort((left, right) => compareListSortOrders(left.sort_order ?? 0, right.sort_order ?? 0))
       .find((item) => !item.checked_at && !item.completed_at);
 
     return {
