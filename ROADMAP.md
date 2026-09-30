@@ -141,13 +141,18 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Edit Client browser coverage | Claude | **Done at `0.33.33.43.46`.** `client-projects-edit-dialog-reflow.spec.mjs` now carries a permanent Edit Client case, at both viewports, that saves tags and both billing editors. It replaces the temporary `0.33.33.38.3.9` probe. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Codex | **Complete at the `0.33.33.38.5` integration.** `TaskLifecycleStatus` names exactly five values. The write normalizer proves membership through a predicate, and the recovery engine takes the raw persisted strings it has always classified. `TaskRecord.status` and the browser vocabulary are unchanged. See the archive entry. |
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **`0.33.33.44` is complete at `0.33.33.44.47`** (Claude). **`0.33.33.38.5` is integrated, so every `0.33.33.38` child is complete, but `0.33.33.38` does not close on that alone.** 24 of its criteria are unticked. Its acceptance is recorded through rollup bookkeeping once each criterion is audited against its children's archived evidence, which is Claude's next action together with the `0.33.33.40` / `0.33.33.41` row below. |
-| `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Found unrecorded at `0.33.33.44.47`.** Notes reached zero at `0.33.33.40.32` (owned) and `0.33.33.40.33` (raw), and Tasks at `0.33.33.41.26` and `0.33.33.41.27`; no delegated diagnostic remains, but neither parent's criteria are ticked. Recorded through the same rollup bookkeeping as `0.33.33.38`, against each child's archived evidence. Not claimed by `0.33.33.44.47`. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **`0.33.33.44` is complete at `0.33.33.44.47`.** **`0.33.33.38`: 23 of its 24 open criteria are recorded against evidence (2026-09-30). It stays open on one operator ruling**, the "publish nothing" clause. See the parent's acceptance record. |
+| `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
 | `0.33.33.45`–`.47` | Claude, Codex, Claude | After convergence: `.45` (Claude) measures module-development defaults and extracts only helpers with real consumers; `.46` (Codex) builds the strict-clean module scaffold once `.45` has set the module shape, recording path ownership before edits; `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
+- **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. They date from `0.33.33.35.2`, before this rollup:
+  - the created popup is claimed to be an `OptionsPopup`;
+  - that popup, and a field control, are claimed to be `Node`s.
+
+  They are unchecked claims, not validated narrowings. The governance source policy does not forbid casts, so nothing flags them. Owner: Claude, as shared framework code. Discharged by typing the popup and control as the DOM elements they are; not by leaving the claim in place.
 - **Eight browser `// @ts-check` pragmas are load-bearing** — recorded by `0.33.33.44.47`. Under TypeScript 7.0.2 a `@typedef` JSDoc at byte 0, directly before an IIFE statement, is declared twice and reports TS2300; the pragma keeps it off byte 0. They check nothing, since `checkJs` is program-wide. Removing one fails the typecheck at once, so this cannot regress silently. Discharged by a compiler that no longer double-declares, or by an authorized comment-layout change; not by deleting them.
 - **`FileEditorRow`'s member cannot be declared required** — recorded by `0.33.33.43.9`, **still live**: `normalizeFileEditorRow` may return a caller's own object without passing it through `fileRow`, so the row cannot promise what only one of its two producers guarantees. `0.33.33.43.16` and `.43.18` both confirmed it and left it standing. Owner: Claude, with `files.js`; it does **not** block that file's zero, which is already reached.
 - **`lists.js` progress bag has no checker** — recorded by `0.33.33.43.19`, **resolved by `0.33.33.43.21`**. `readListProgressBag` now vouches for the bag with the response readers, so `BrowserListSummary.progress` stays `unknown` and the record normaliser's `list` is typed. It also closed a latent crash: `isListSummary` never looked inside the bag, so a server sending `progress: null` threw on a bare member read. Carried no longer.
@@ -168,6 +173,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 ### 0.33.33.38 - Publish the browser contracts whose causes are genuinely shared
 
 **Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
+
+**Acceptance, recorded 2026-09-30: 23 of its 24 open criteria are met, and the parent stays open on one ruling.** Every child is complete, `0.33.33.38.5` included, and the browser program is retired at zero by `0.33.33.44.47`. Each criterion is ticked against its evidence. `0.33.33.38.2`'s closing table already discharged that family's standing rules; they are now ticked with it. **The one exception is the "publish nothing" clause below**: five later children added runtime readers, so it is escalated for a ruling rather than ticked. The counts in this section are historical measurements; every family and owner is now at 0.
 
 **Resliced a second time, against post-`0.33.33.37` HEAD, because the previous slice classified `TS2339` by the *receiver type the compiler printed* rather than by the *declaration that produced it*.** Those are not the same thing, and where they disagree the printed type is the symptom. The browser program is now **10,375** diagnostics; every one of them is classified below into exactly one root family, with no duplicate and no orphan.
 
@@ -230,11 +237,18 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **The third correction: the previous slice had no child for the largest genuinely shared contract in the estate.** `scripts/test-support/browser-publication-inventory.mjs` reports **64 published surfaces - 62 namespace members and 2 bare-window writes**. `LongtailForgeBrowserNamespace` declares **13**. The other **49 resolve through the index signature**, and **943 diagnostics are attributable to a namespace member** by direct read or single-hop alias. `LongtailForge.view` alone accounts for **529** of them, because `const view = window.LongtailForge.view` and `const workbenchViewHelpers = window.LongtailForge.view` each start a file-wide cascade from one untyped read.
 
-- [ ] **`0.33.33.34` through `.37` published six contract interfaces that were never wired to the namespace, and that is a pattern to close rather than to repeat.** `BrowserViewActionSecurity`, `BrowserViewSearchOptions`, `BrowserViewDataBinding`, `BrowserViewModalStack`, `BrowserTaskLifecycleLegality`, and `BrowserFilePreviewActions` are each declared in `browser-contracts.d.ts` and referenced only by a local `/** @type {X | undefined} */` cast in the consumer. Each cast is honest - it is checked against a real interface - but the namespace still says `unknown`, so every other consumer of the same surface starts over. `BrowserAssetVersion` shows the finished shape: it is a declared namespace member and needs no cast anywhere.
-- [ ] **A `.d.ts` declaration is not a namespace writer.** Declaring `view` adds no writer to `window.LongtailForge.view`, moves none of its 30 members, and changes no runtime value. The frozen-factory constraint governs publication, and these children publish nothing.
-- [ ] **No diagnostic-debt trade.** No explicit `any`, no suppression, no unchecked cast, no `unknown`-to-assertion gymnastics, and no contract widened or narrowed to make a number move.
-- [ ] **Each child publishes contract vocabulary; adoption is `0.33.33.39` through `.44`.** A child may adopt its own contracts in shared framework files it already owns. No child converts a module controller.
-- [ ] **Report measured effect separately from hypothesis.** Each child states the diagnostics it was predicted to address and the delta it actually produced.
+- [x] **`0.33.33.34` through `.37` published six contract interfaces that were never wired to the namespace, and that is a pattern to close rather than to repeat.** `BrowserViewActionSecurity`, `BrowserViewSearchOptions`, `BrowserViewDataBinding`, `BrowserViewModalStack`, `BrowserTaskLifecycleLegality`, and `BrowserFilePreviewActions` are each declared in `browser-contracts.d.ts` and referenced only by a local `/** @type {X | undefined} */` cast in the consumer. Each cast is honest - it is checked against a real interface - but the namespace still says `unknown`, so every other consumer of the same surface starts over. `BrowserAssetVersion` shows the finished shape: it is a declared namespace member and needs no cast anywhere. (Wired: `0.33.33.38.2.2.1` declared `taskLifecycleLegality`, `viewActionSecurity`, `viewDataBinding`, `viewModalStack` and `viewSearchOptions` and removed the local casts; `0.33.33.38.2.3.1` declared all nine `filePreview` members. No consumer casts to any of the six.)
+- [ ] **A `.d.ts` declaration is not a namespace writer.** Declaring `view` adds no writer to `window.LongtailForge.view`, moves none of its 30 members, and changes no runtime value. The frozen-factory constraint governs publication, and these children publish nothing. **Escalated at the 2026-09-30 acceptance record, not ticked.** The declaration half held: no declaration child added a writer. The clause "these children publish nothing" did not hold for five later children, which added runtime readers:
+  - `0.33.33.38.3.9`: `checkedDom`, under the 2026-09-25 ownership ruling and this rollup's own `.38.3` criterion;
+  - `0.33.33.38.3.11`: `view.partsOf`, on the existing factory;
+  - `0.33.33.38.4.3.1`: the new `taskRecords` surface;
+  - `0.33.33.38.4.11`: `errors.readBulkFailures`, on an already declared surface;
+  - `0.33.33.38.4.2.1`: a reader on the already declared `notesLinkedPanel`.
+
+  Only the first carries a recorded authorisation beyond its own checkpoint. The others were reviewed and merged through protected pull requests, and `taskRecords` entered the roadmap only in the closeout that recorded it. **Awaiting an operator ruling** on whether to amend the clause to the declaration children and accept the five as recorded.
+- [x] **No diagnostic-debt trade.** No explicit `any`, no suppression, no unchecked cast, no `unknown`-to-assertion gymnastics, and no contract widened or narrowed to make a number move. (Explicit `any` stayed 0 throughout and no suppression entered. **Disclosed:** `0.33.33.38.4.8.5` kept one checked double assertion through `unknown` in `readRuntimeDiagnosticsResponse`, directly after complete section validation. The 2026-09-08 audit found that validation complete, with 38 of 38 leaf violations refused, and ruled its removal unauthorised cleanup. One unsound predicate, `isUserRecord`, was corrected by `0.33.33.38.4.4.7`.)
+- [x] **Each child publishes contract vocabulary; adoption is `0.33.33.39` through `.44`.** A child may adopt its own contracts in shared framework files it already owns. No child converts a module controller. **(Superseded by this rollup's later rules.** `0.33.33.38.1` proved that declaring an existing consumed member cannot be separated from adopting it; that is `0.33.33.38.2`'s ordering rule, and the `.38.1` finding recorded after `0.33.33.38.5`. The two-lane amendment then placed `0.33.33.38.3` DOM work inside the page controllers. So children adopted in controllers where the rule required it, for example `0.33.33.38.3.3`, `.38.3.9` and `.38.3.10`.)
+- [x] **Report measured effect separately from hypothesis.** Each child states the diagnostics it was predicted to address and the delta it actually produced. (Honoured: the children's records set the measured delta beside the prediction. Examples are `0.33.33.38.2.2.5.1`, "measured movement is 3, not 13", `0.33.33.38.2.6.7`, "eleven, not the twenty-four", `0.33.33.38.3.2`, "25, not the 17", and `0.33.33.38.5`'s refreshed sixteen-site inventory.)
 
 **The three families this rollup excludes are assigned, not orphaned.** "Not `.38`" is a disposition only once each diagnostic has a named owner, and every one of the 6,953 excluded diagnostics falls inside a file that `0.33.33.39` through `.44` already own and are already required to reduce to zero. The split below is the measured distribution across those owners, so the `0.33.33.38` remeasurement gate re-derives their child boundaries from a real starting partition rather than from a residual.
 
@@ -250,8 +264,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **That table is the original pre-`0.33.33.38` partition and is kept as the historical starting point, not as the current budget.** The authoritative figures live with the `0.33.33.39`-`.44` budget table above and are **4,641 / 1,858 / 167**, re-derived from the tree after the classifier corrections and the `billing` deletion. **Two owner tables reading as current is how a stale number survives**, so this one now says which it is.
 
-- [ ] **The assorted family is split by controller and is not one owner's problem.** Its 170 diagnostics are `TS2345` 55, `TS2322` 40, `TS2698` 16 and a long tail; each is a local mismatch in the file that holds it, and each is closed by that file's typing child rather than by a shared contract.
-- [ ] **These figures are a partition, not a forecast.** `0.33.33.38.1` changes what the compiler can see, so the mandatory remeasurement gate re-derives every one of them before `.39` through `.44` are sliced.
+- [x] **The assorted family is split by controller and is not one owner's problem.** Its 170 diagnostics are `TS2345` 55, `TS2322` 40, `TS2698` 16 and a long tail; each is a local mismatch in the file that holds it, and each is closed by that file's typing child rather than by a shared contract. (Each owner closed its own assorted debt, and no shared assorted contract was made. Every browser family, assorted included, is 0 from the `0.33.33.43.66` integration.)
+- [x] **These figures are a partition, not a forecast.** `0.33.33.38.1` changes what the compiler can see, so the mandatory remeasurement gate re-derives every one of them before `.39` through `.44` are sliced. (The remeasurement ran before any slicing. `6bd4e313` (2026-08-29) re-derived the `.39`-`.44` budgets from the corrected classifier, before the first `.39`-`.44` child, `0.33.33.40.1`, on 2026-09-01. `0.33.33.38.2.4.2` then made classification a repository command.)
 
 **Resolved and withdrawn: the `LinkTargetCandidate` versus `LinkTarget` question inherited from `0.33.33.36`.** The distinction is **intentional, correctly placed, and already correctly expressed** - the item is closed with no change to make.
 
@@ -281,9 +295,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **`LongtailForge.api` is not a contract problem at all, and that is the checkpoint's largest single finding.** Its 226 diagnostics across 29 files are **entirely member optionality**: 148 through an aliased `const api = window.LongtailForge?.api` and 78 through `window.LongtailForge.api` directly. `api` has been a declared member since before this rollup and `BrowserApi` is accurate. **Not one of the 226 comes from a method return.** The five methods return `Promise<unknown>` because a fetch body is an untrusted wire value; those consumer narrowings live in the `unknown` family and belong to `.38.4`. **Typing `getJson`'s return to move a number would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.**
 
-- [ ] **Order matters and is fixed by dependency, not by size.** Adoption of the root and the already-declared members can run immediately and needs no new contract. Undeclared members must be declared *and* adopted in one change each, on the rule `0.33.33.38.1` proved: declaring an existing consumed member retypes reads that already exist, and the monotonic ledger rejects the movement unless the consumers narrow in the same commit.
-- [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
-- [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
+- [x] **Order matters and is fixed by dependency, not by size.** Adoption of the root and the already-declared members can run immediately and needs no new contract. Undeclared members must be declared *and* adopted in one change each, on the rule `0.33.33.38.1` proved: declaring an existing consumed member retypes reads that already exist, and the monotonic ledger rejects the movement unless the consumers narrow in the same commit. (Discharged in `0.33.33.38.2`'s closing table: the last three children ran writer, then declaration, then closure.)
+- [x] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`. (Discharged in the closing table: no cast, non-null assertion, suppression or permissive signature was added, and explicit `any` stayed 0.)
+- [x] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct. (Discharged in the closing table: honoured by every child, and `0.33.33.38.2.6` drew three semantic classes and drained all three.)
 
 #### 0.33.33.38.2.14 - Task Focus presentation host readers
 
@@ -402,7 +416,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Lists needed a small local boundary and got exactly that.** `modules` is declared `unknown[]` because the constructor proves the container and not its elements; a file-local predicate proves only `id === "lists"` on a plain object, reusing the file's existing record test. One malformed-input behaviour changed and is named in the archive rather than glossed: a truthy non-string label now takes the same local default the missing case already used.
 
-**Namespace zero is not namespace completion.** Four publications remain undeclared and the index signature still exists; diagnostic count, declaration coverage and permissiveness are three separate acceptance questions.
+**Namespace zero is not namespace completion.** Four publications remain undeclared and the index signature still exists; diagnostic count, declaration coverage and permissiveness are three separate acceptance questions. **(Since completed: `0.33.33.38.2.3.3` declared the last four publications, and `0.33.33.38.2.5` removed the index signature.)**
 
 #### 0.33.33.38.2.8 - The fallback-object acquisitions
 
@@ -429,7 +443,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.38.2.3` | Do not justify this child by diagnostic count | `0.33.33.38.2.3.3` closed four diagnostics, all contextual, and said so. |
 | `0.33.33.38.2.3` | The five zero-consumer members | `billing` was deleted on positive evidence by `0.33.33.38.2.2.7`; the other four are declared and **kept for compatibility**, with no consumer invented for any of them. |
 
-**This does not close `0.33.33.38`.** `0.33.33.38.3`'s DOM cohort is untouched, `0.33.33.38.4` has visible and latent boundaries outstanding, and `0.33.33.38.5` has its own owner. A closed root namespace proves nothing about nested payloads, parameters or DOM values.
+**This does not close `0.33.33.38`.** `0.33.33.38.3`'s DOM cohort is untouched, `0.33.33.38.4` has visible and latent boundaries outstanding, and `0.33.33.38.5` has its own owner. A closed root namespace proves nothing about nested payloads, parameters or DOM values. **(Since then `0.33.33.38.3`'s DOM cohort and `0.33.33.38.4`'s boundaries have closed, the `dom` and `unknown` families are 0, and `0.33.33.38.5` is integrated. See the parent's acceptance record.)**
 
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
@@ -500,7 +514,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 `workspaceContext` (15 / 24 files) and `workspaceContextReady` (11 / 17). Across both, **74 reads are optional-chained and only 16 are direct** - the widest consumer footprint in the estate and the most deliberately absence-tolerant.
 
-- [ ] **Do not convert this cohort to required delivery.** The right change for most sites is an optional root read, not a checked accessor. `0.33.33.35.1.1` built the cold-load bootstrap around this surface being absent.
+- [x] **Do not convert this cohort to required delivery.** The right change for most sites is an optional root read, not a checked accessor. `0.33.33.35.1.1` built the cold-load bootstrap around this surface being absent. (Discharged in the closing table: the context is an optional read at every consumer, proved by `0.33.33.38.2.9`.)
 
 #### 0.33.33.38.2.2.5.1 - Declare the app-shell refresh and readiness pair
 
@@ -538,8 +552,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **The children are drawn by writer risk, because that is what every preflight in this rollup has actually turned on.** `icons` landed because its writer's parameter debt was independent; `settingsRenderer` did not because its writer's was not; `tags` did not because its writer crosses the network. **Grouping by consumer count or diagnostic size would have predicted none of those three.**
 
-- [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
-- [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
+- [x] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing. (Discharged in the closing table: done for every child, including `0.33.33.39.3`, drawn as a prerequisite because its writer was not ready.)
+- [x] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child. (Discharged in the closing table: they did, and `parked` is 0.)
 
 #### 0.33.33.38.2.2.6.6.1 - `LongtailForge.notificationSubscriptions`
 
@@ -594,9 +608,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **`billing` is gone and is not this child's to declare.** `0.33.33.38.2.2.7` established it was superseded and deleted it; the four that remain - `overlayHost`, `supportView`, `sessionAuthWarnings`, `helpPageReady` - each carry a recorded verdict, and **two of them are recorded as uncertain rather than live.** Declaring an uncertain surface here would be the drift this child exists to stop.
 
-- [ ] The single- and zero-consumer members produce almost no diagnostics - **14 and 2** respectively under corrected attribution - because their one consumer already narrows locally or guards. `viewActionSecurity`, `viewSearchOptions`, `viewDataBinding`, `viewModalStack`, and `filePreview` **already have accurate published interfaces and are cast locally at their single consumer** - wiring them is mechanical and removes the cast.
-- [ ] **Do not justify this child by diagnostic count.** Its value is that the namespace stops drifting, which is why it belongs next to the governance child rather than to the typing ones.
-- [ ] Five members have no consumer at all: `billing` (`shared/billing.js`), `helpPageReady` (`help.js`), `overlayHost` (`shared/overlay-host.js`), and `sessionAuthWarnings` and `supportView` (both `navigation.js`). **Four produce zero diagnostics and `supportView` produces two.** Establish whether each is a live seam, an external hook, a compatibility surface, or a ghost **before** declaring it - and where repository evidence cannot settle it, **record the uncertainty rather than declaring by default.** A declaration with no runtime owner is its own kind of drift, and declaration coverage is not a reason to immortalise a dead global.
+- [x] The single- and zero-consumer members produce almost no diagnostics - **14 and 2** respectively under corrected attribution - because their one consumer already narrows locally or guards. `viewActionSecurity`, `viewSearchOptions`, `viewDataBinding`, `viewModalStack`, and `filePreview` **already have accurate published interfaces and are cast locally at their single consumer** - wiring them is mechanical and removes the cast. (Wired: the four `view*` casts went when `0.33.33.38.2.2.1` declared those members, and `filePreview`'s cast when `0.33.33.38.2.3.1` declared it.)
+- [x] **Do not justify this child by diagnostic count.** Its value is that the namespace stops drifting, which is why it belongs next to the governance child rather than to the typing ones. (Discharged in the closing table: `0.33.33.38.2.3.3` closed four diagnostics, all contextual, and said so.)
+- [x] Five members have no consumer at all: `billing` (`shared/billing.js`), `helpPageReady` (`help.js`), `overlayHost` (`shared/overlay-host.js`), and `sessionAuthWarnings` and `supportView` (both `navigation.js`). **Four produce zero diagnostics and `supportView` produces two.** Establish whether each is a live seam, an external hook, a compatibility surface, or a ghost **before** declaring it - and where repository evidence cannot settle it, **record the uncertainty rather than declaring by default.** A declaration with no runtime owner is its own kind of drift, and declaration coverage is not a reason to immortalise a dead global. (Done in order. `0.33.33.38.2.2.7` set each verdict first: `billing` was deleted on positive evidence, and `sessionAuthWarnings` and `helpPageReady` were recorded **uncertain - preserve**. `0.33.33.38.2.3.3` then declared the four survivors as compatibility surfaces, each promising only what its writer publishes. **This reverses the section's note that declaring an uncertain surface would be drift.** Its authority is `0.33.33.38.2.5`'s ticked criterion: once the catch-all went, "the choice is a declared member or a compile error", and the preserve verdicts ruled out deleting them.)
 
 #### 0.33.33.38.2.3.1 - The ready module-action dialog adapters
 
@@ -614,7 +628,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Each contract promises only the validation that exists.** `supportView` is a **record boundary**, not a Support View DTO: the adapter proves a non-array object and the writer publishes a shallow frozen copy, so the fields consumers read stay `unknown` and closing them remains `0.33.33.38.4` work. `sessionAuthWarnings.show` raises a warning and resolves when the dialog closes - it is not an authentication grant, a session-restoration API, or a promise that unsaved work survived. `helpPageReady` is the boolean sentinel it has always been, not a readiness promise.
 
-**Coverage is not completion.** The root index signature is still present; removing it is `0.33.33.38.2.5`'s guarded closeout, and diagnostic count, declaration coverage and permissiveness are three separate acceptance questions.
+**Coverage is not completion.** The root index signature is still present; removing it is `0.33.33.38.2.5`'s guarded closeout, and diagnostic count, declaration coverage and permissiveness are three separate acceptance questions. **(Since removed by `0.33.33.38.2.5`.)**
 
 #### 0.33.33.38.2.3.2 - The ready quiet-tail surfaces
 
@@ -643,10 +657,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Model: High Effort - 1,479 diagnostics measured, corrected down from the 2,169 the previous slice claimed.**
 
-- [ ] Add checked DOM lookup and assert helpers that return the correct element subtype or fail explicitly. Do not turn a required element into an optional no-op. **Begun by `0.33.33.38.3.1`**, which took one page's core form as the first cohort and kept its helpers file-local: a single consumer is not evidence for a shared helper, and the second real consumer is what should extract one. **Under the two-lane split that second consumer may now appear in the delegated lane**; extraction into `public/js/shared/` is Claude's, so a Codex child keeps its helpers file-local and records the demand rather than reaching across the boundary. That child's break set includes turning each required control into an optional no-op, and each is refused. **The shared contract is published by `0.33.33.38.3.9`**: `find` and `require`, injected into every rendered page. **Zero-debt pages are decided (2026-09-25): they keep their file-local helpers.** Moving an already-zero controller onto the shared contract only to remove a duplicate is deferred cleanup. It is not a prerequisite for `.42` or a reason to widen `.38.3.10`, and may be taken during relevant future work or a separately justified consolidation.
-- [ ] Add explicit event-target narrowing rather than a cast at each listener. `EventTarget` is only 10 diagnostics; the 861 are `Element` where a subtype is needed.
-- [ ] **The nullability cohort splits three ways and only two are yours.** Of 1,327 `TS18047`/`TS18048`: **549 are the namespace surface** (`.38.2`), **449 are DOM lookup results**, **265 are the declared-null element caches** the `cacheXElements()` pattern produces, and 64 are neither. The previous slice assigned the whole cohort to DOM.
-- [ ] The declared-null caches are a different shape from a lookup result and may need a different answer; measure them separately rather than forcing one helper over both.
+**Complete.** Every `0.33.33.38.3` child is complete, and the `dom` family is 0 from the `0.33.33.43.66` integration. The measurement above is historical.
+
+- [x] Add checked DOM lookup and assert helpers that return the correct element subtype or fail explicitly. Do not turn a required element into an optional no-op. **Begun by `0.33.33.38.3.1`**, which took one page's core form as the first cohort and kept its helpers file-local: a single consumer is not evidence for a shared helper, and the second real consumer is what should extract one. **Under the two-lane split that second consumer may now appear in the delegated lane**; extraction into `public/js/shared/` is Claude's, so a Codex child keeps its helpers file-local and records the demand rather than reaching across the boundary. That child's break set includes turning each required control into an optional no-op, and each is refused. **The shared contract is published by `0.33.33.38.3.9`**: `find` and `require`, injected into every rendered page. **Zero-debt pages are decided (2026-09-25): they keep their file-local helpers.** Moving an already-zero controller onto the shared contract only to remove a duplicate is deferred cleanup. It is not a prerequisite for `.42` or a reason to widen `.38.3.10`, and may be taken during relevant future work or a separately justified consolidation. (Met. `0.33.33.38.3.1` to `.38.3.8` added checked file-local lookups, whose break sets refuse turning a required control into a no-op. `0.33.33.38.3.9` published the shared `checkedDom` contract; `.38.3.10` adopted it in Lists and `.38.3.11` extended the view layer. `dom` is 0.)
+- [x] Add explicit event-target narrowing rather than a cast at each listener. `EventTarget` is only 10 diagnostics; the 861 are `Element` where a subtype is needed. (Met by explicit narrowing at each listener rather than a shared helper. No listener in `public/js` casts its event target; targets are narrowed with `instanceof`, for example at `0.33.33.39.3`, `.39.23` and `.43.64`. No shared event-target contract was published.)
+- [x] **The nullability cohort splits three ways and only two are yours.** Of 1,327 `TS18047`/`TS18048`: **549 are the namespace surface** (`.38.2`), **449 are DOM lookup results**, **265 are the declared-null element caches** the `cacheXElements()` pattern produces, and 64 are neither. The previous slice assigned the whole cohort to DOM. (Honoured. The namespace share closed under `0.33.33.38.2`, and the namespace family is 0. The lookup and cache shares closed through `0.33.33.38.3` and the `.40`-`.44` DOM work, and `dom` is 0.)
+- [x] The declared-null caches are a different shape from a lookup result and may need a different answer; measure them separately rather than forcing one helper over both. (Measured per page where the caches arose, not at rollup level. `0.33.33.38.3.9`'s contract answers the difference in two steps: `find` may answer `null` at capture, and `require` refuses it at use. `0.33.33.38.3.10` measured Lists' cached handles separately (55 null-possible reads on 16 handles), and requires each at its read, never at capture.)
 
 #### 0.33.33.38.3.1 - The Workspace Settings core form/control lookups
 
@@ -706,7 +722,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Complete: 41 diagnostics, twelve bindings, one page** - the second `0.33.33.38.3` cohort, on the pattern `0.33.33.38.3.1` established. See the archive entry. The DOM family fell **1,461 to 1,422** and `assorted` **142 to 140**; params and state did not move.
 
-**The live cohort was 25, not the 17 the audit expected** - and three of those 25 are `workspaceDeletionState`, a page-state binding rather than a DOM one, which is why it is **still outstanding** after this child. The audit's figure was an expectation, and it is corrected here rather than treated as a quota.
+**The live cohort was 25, not the 17 the audit expected** - and three of those 25 are `workspaceDeletionState`, a page-state binding rather than a DOM one, which is why it is **still outstanding** after this child. The audit's figure was an expectation, and it is corrected here rather than treated as a quota. **(Since closed: `workspace-settings.js` carries no diagnostic, and the browser program is 0.)**
 
 **Three subtypes the core form did not need**: a real `<dialog>` for `showModal`/`close`, `<button>` for `disabled`, and a plain `HTMLElement` for the nodes this page only reads `hidden` or `textContent` from. Each traced to the host that builds it: `view.createModal` makes a `<dialog>`, `createActionButton` a `<button>`, `field({ type: "text" })` an `<input>`, and the acknowledgement marker is the field **shell**, a `<label>`.
 
@@ -715,6 +731,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 **Capture and failure timing are preserved.** All twelve are still queried once at module evaluation; each required control is checked at the use point that already dereferenced it, including the two inside `loadWorkspaceDeletion`'s `catch`. The listener bindings stay optional because they always were: **this page treats these controls as optional to bind and required to render onto, and that inconsistency is preserved rather than harmonised**, because harmonising it would change behaviour under the guise of typing.
 
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
+
+**Complete.** Every `0.33.33.38.4` child is complete, and the genuine `unknown` family is 0. The counts in this section are historical.
 
 **`LongtailForge.userPreferences` is owned here, moved out of `0.33.33.38.2.2.6.5` by that child's preflight.** It was listed as a narrow pure surface and it is neither. `public/js/navigation.js` publishes it **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null`. **The warning that survives is the one about the vocabulary**: nothing checks that the server sent one of the three views the page can render, so a closed string union would be a claim about the API that no code makes. **Do not declare it as one and do not cast it.**
 
@@ -731,10 +749,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 - [x] **Carry-forward from `0.33.33.38.2.2.2`: `workspace-settings.js` reads `moduleId` and `lifecycle` off the array `settingsHost.attachmentSections` returns.** **Discharged by `0.33.33.38.4.5.9`**, which validated the workspace placement against its producer without weakening the surface: `attachmentSections` still answers `unknown[]`, and the page now reads the raw catalog itself rather than the helper that collapses it. That array is part of the `GET /api/settings/catalog` body, so declaring the surface truthfully as `unknown[]` made the trust boundary visible; the consumer now narrows with a predicate before sorting. **The diagnostic moved to its true owner - it is not evidence that the contract should be weakened**, and the baseline is 408 rather than 407 because of it. Expect this number to move again as later `.38.2.2` children declare their surfaces; each such move is a boundary becoming visible, not new debt.
 
-- [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at the network and view boundaries.
-- [ ] **`BrowserApi` already returns `Promise<unknown>` from all five methods, and that is correct.** A fetch body is an untrusted runtime value; the contract is right and the consumer is what needs a narrowing step. **Do not type `getJson`'s return to remove errors** - that would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.
-- [ ] **Every one of them is a real boundary, and none is attributable to an undeclared namespace member** - which is what makes the boundary with `0.33.33.38.2.2` hard rather than a judgement call. A `TS18046` whose subject is an undeclared member is namespace work no matter what code the compiler emitted; a `TS18046` on a value that is still unshaped after its member is declared is this child's.
-- [ ] Read the producer before publishing any contract, and do not tighten a deliberately extensible contract to remove errors.
+- [x] Add named API response and descriptor handoff contracts with `unknown` narrowing at the network and view boundaries. (API responses: `0.33.33.38.4.1` through `.38.4.15.1`, after which the `unknown` family is 0. Descriptor handoffs were narrowed by `0.33.33.39.8`, `0.33.33.43.1` and `0.33.33.43.42`.)
+- [x] **`BrowserApi` already returns `Promise<unknown>` from all five methods, and that is correct.** A fetch body is an untrusted runtime value; the contract is right and the consumer is what needs a narrowing step. **Do not type `getJson`'s return to remove errors** - that would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation. (Honoured: all five methods still return `Promise<unknown>`, and the consumers narrow.)
+- [x] **Every one of them is a real boundary, and none is attributable to an undeclared namespace member** - which is what makes the boundary with `0.33.33.38.2.2` hard rather than a judgement call. A `TS18046` whose subject is an undeclared member is namespace work no matter what code the compiler emitted; a `TS18046` on a value that is still unshaped after its member is declared is this child's. (Honoured: `0.33.33.38.2.2` and `.38.2.2.6.1` moved the namespace-attributable `TS18046` to their members' owners. All 64 members are now declared, so the boundary is settled.)
+- [x] Read the producer before publishing any contract, and do not tighten a deliberately extensible contract to remove errors. (Honoured, with two misses found and corrected: the unsound `isUserRecord` predicate, fixed by `0.33.33.38.4.4.7`, and `0.33.33.38.4.13.1`'s leading-slash guard, which no producer satisfied, fixed by `0.33.33.38.4.13.4`.)
 
 **Resliced by producer, because a boundary is a thing that produces values and a diagnostic count is not.** The 378 were dumped from the durable classifier and traced back to what produced them. **Two kinds, and they are not variants of each other**: 147 are values a `catch` clause bound, produced by throw sites and shaped by one already-declared contract; 231 are API bodies, produced by 74 distinct calls across nineteen endpoint families. Splitting the first by file would have made 32 children of one boundary; splitting the second by count would have cut single endpoint families in half.
 
@@ -841,7 +859,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.3.5 - The task count envelopes
 
-**2 diagnostics.** `result.counts` and `result.count` from the attachment and note count routes - two envelopes over two other modules' counters.
+**2 diagnostics.** `result.counts` and `result.count` from the attachment and note count routes - two envelopes over two other modules' counters. **Discharged without a child of its own:** the attachment tally by `0.33.33.38.4.9.6`, and the note count through `notesLinkedPanel.readForTarget` by `0.33.33.38.4.2.1`.
 
 #### 0.33.33.38.4.3.6 - The task relationship list
 
@@ -1024,7 +1042,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 - [x] `result.suggestions`, `result.providers` and `result.targets` are three more producers, each needing its own trace. **A provider descriptor is not a link target**, and `state.linkTargets` is a direct handoff to check before it is adopted. **All three are complete and this box was stale, not open.** Providers and targets closed with this child's own note above; `result.suggestions` closed as `0.33.33.38.4.7.2.1`, whose `isItemSuggestion` validates all seven members `BrowserListItemSuggestion` promises - including both nullable-text sets through `SUGGESTION_NULLABLE_COLUMNS` - under 26 assertions. Confirmed against the implementation **and** its suite before the box was ticked.
 
 
-**Providers and targets are complete: 2 diagnostics closed, 9 eliminated in total, and the picker can no longer be handed a catalogue the server never advertised.** See the archive entry. They were traced together because they are two members of **one exact envelope from one endpoint**, and typed apart because they are two producers: a five-member provider projection, and a linked-context target that is exact **because the shaper spreads the framework's own total reconstruction**. The deferred list-summary read and the suggestions producer remain this child's open work.
+**Providers and targets are complete: 2 diagnostics closed, 9 eliminated in total, and the picker can no longer be handed a catalogue the server never advertised.** See the archive entry. They were traced together because they are two members of **one exact envelope from one endpoint**, and typed apart because they are two producers: a five-member provider projection, and a linked-context target that is exact **because the shaper spreads the framework's own total reconstruction**. The deferred list-summary read and the suggestions producer remain this child's open work. **(Both since closed: the summary read by `0.33.33.38.4.7.2.2` and the suggestions by `0.33.33.38.4.7.2.1`.)**
 
 #### 0.33.33.38.4.7.2.2 - The list summary collection
 
@@ -1120,7 +1138,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.12.1 - The Markdown preview response
 
-**Complete: 1 diagnostic, four members, two of them constants, and one security guarantee named rather than assumed.** See the archive entry. `previewMarkdown` reconstructs `bodyFormat`, `bodyMarkdown`, `bodyHtml` and `bodyHtmlFormat` with no spread, and the browser assigns `bodyHtml` to `innerHTML` **because `renderMarkdownToSafeHtml` produced it**. Defaulting an unreadable body to `""` had made two claims at once: that the note renders to nothing, and that unvouchable markup was safe to write into the document. The revision and link-target producers remain this child's open work.
+**Complete: 1 diagnostic, four members, two of them constants, and one security guarantee named rather than assumed.** See the archive entry. `previewMarkdown` reconstructs `bodyFormat`, `bodyMarkdown`, `bodyHtml` and `bodyHtmlFormat` with no spread, and the browser assigns `bodyHtml` to `innerHTML` **because `renderMarkdownToSafeHtml` produced it**. Defaulting an unreadable body to `""` had made two claims at once: that the note renders to nothing, and that unvouchable markup was safe to write into the document. The revision and link-target producers remain this child's open work. **(Both since closed: link targets by `0.33.33.38.4.12.2` and revisions by `0.33.33.38.4.12.3`.)**
 
 #### 0.33.33.38.4.12.2 - The Notes link-target directory response
 
@@ -1561,26 +1579,48 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
 
+**Complete, recorded 2026-09-30 with the `0.33.33.38` acceptance record.** Notes' owned debt reached zero at `0.33.33.40.32` and its raw diagnostics at `0.33.33.40.33`. Its four criteria and `0.33.33.40.2`'s five are ticked against the children's archived evidence. The measurements below are historical.
+
 Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-level names and 1,306 diagnostics** — the largest single owner in the browser program. **This is already too large for one implementation child** on the evidence of every comparable `0.33.33.32` child, but its internal boundaries are not drawn here because `0.33.33.33.6` rescopes it and `0.33.33.38` changes what its diagnostics are.
 
 **Resliced into implementation children by `0.33.33.40.1`, which typed the page-state store and learned why the rest cannot follow the same shape.** The owner budget is **494** after `0.33.33.38.4.2` closed the six response-handoff state fields: params 377, state 95, assorted 22. It was 528 before that child, and the 34 it lost were eliminated as a prerequisite of the Notes response boundary rather than banked for a later `0.33.33.40` child. `notes.js` carries far more than that - the rest belongs to the DOM and genuine-`unknown` families other checkpoints own - so size this from the classifier, never from the file total.
 
-- [ ] Close full-strict debt in Notes and its browser-owned helpers using named state, response, DOM, and action contracts.
-- [ ] Preserve secure/plain note separation, safe Markdown, revision rules, linked context, attachments, and modal focus.
-- [ ] Do not redesign the Notes surface or split new classic-script subsystems.
-- [ ] Reduce the Notes browser ledger to zero with focused desktop/mobile proof.
+- [x] Close full-strict debt in Notes and its browser-owned helpers using named state, response, DOM, and action contracts. (`0.33.33.40.32`: `.40` reaches 0 params, 0 state and 0 assorted. `0.33.33.40.33`: `notes.js` goes from 4 to 0 raw. The contracts came from these checkpoints:
+  - state: `0.33.33.40.1`;
+  - responses: `0.33.33.38.4.2` and its children;
+  - DOM: `0.33.33.40.3`, `.40.4` and `.40.33`;
+  - actions: `0.33.33.40.32`.)
+- [x] Preserve secure/plain note separation, safe Markdown, revision rules, linked context, attachments, and modal focus. (Each child proved the workflow it touched with rendered desktop and mobile coverage, and named any behaviour it changed:
+  - secure notes: `0.33.33.40.4` and `.40.20`;
+  - Markdown: `.40.22`;
+  - revisions: `.40.19`;
+  - linked context: `.40.5`, `.40.6`, `.40.23`, `.40.28` and `.40.31`;
+  - attachments: `.40.25`;
+  - focus: `.40.3`, `.40.4`, `.40.7` and `.40.32`.)
+- [x] Do not redesign the Notes surface or split new classic-script subsystems. (Honoured. No Notes classic script was added, and the only surface changes are the ones individual children named and justified.)
+- [x] Reduce the Notes browser ledger to zero with focused desktop/mobile proof. (`0.33.33.40.32` and `.40.33`, each with rendered desktop and mobile proof. The browser section is retired at 0 by `0.33.33.44.47`.)
 
 #### 0.33.33.40.2 - The Notes wire-boundary state fields
 
+**Never drawn: absorbed.** Its fields were typed where their contracts landed:
+- six at `0.33.33.38.4.2`;
+- link targets at `0.33.33.40.5`;
+- primary context at `.40.6`;
+- `selectedNoteIds` and `bulkTagPicker` at `.40.8`;
+- `availableTags` at `.40.12`;
+- context summaries at `.40.31`.
+
+Notes state reached 0 at `0.33.33.40.32`.
+
 **`0.33.33.40.1` proved this child cannot be drawn as a state child, and that is its most useful result.** Annotating the whole state object with one named `NotesPageState` contract - the shape the reslice expected - closes 47 state diagnostics and **opens 40 genuine `unknown` ones**, because `notes: []`, `collections: []`, `availableTags: []`, `selectedNote: null` and their siblings hold **unvalidated API bodies that `never[]` and `null` were silently permitting reads through**. Reading a property off `never` is legal; reading one off `unknown` is not.
 
-- [ ] **The transfer is real and belongs to `0.33.33.38.4`, not here.** The full-object contract was measured, not guessed: state 1,823 to 1,776, `unknown` 378 to 418, `0.33.33.40` 534 to 490, and the per-file-per-code ledger rejected it on `notes.js` `TS18046` 49 to 89.
-- [ ] **`0.33.33.38.4.2` answered half of this and the circular dependency is gone.** A note, a note-list item, pagination and a collection now have named contracts narrowed at runtime, so the fields that store them are typed. **What is still waiting is the rest**: a link target, a tag and the primary-context records have no contract yet, and `tagPicker`/`bulkTagPicker` wait on `LongtailForge.tags` rather than on any response.
-- [ ] **So this child waits on the Notes response contracts.** Once a note, a collection, a tag and a link target have named validated shapes, the state fields that hold them can be typed and the whole object can carry one contract. **Do not type them as `unknown` first** - that trades a hidden boundary for a visible one without settling anything.
-- [ ] **Six of the sixteen fields left this child at `0.33.33.38.4.2` and must not be counted here again.** `selectedNote`, `editorNote`, `notes` and `collections` are the direct storage handoff for the Notes entity and collection contracts that child published; `notesPagination` and `bulkCollections` store the same two narrowed responses and could not be left behind without re-opening them. **Those six are closed, and their 32 state diagnostics were eliminated there, not here.**
-- [ ] The fields still concerned are `availableTags`, `editorContextSummaries`, `editorSelectedTarget`, `editorStagedTargets`, `linkTargets`, `primaryContextClients`, `primaryContextProjects`, `selectedNoteIds`, `tagPicker` and `bulkTagPicker`. **`tagPicker` and `bulkTagPicker` are a different blocker**: their consumers optional-chain into `readTagIds`, so they need `LongtailForge.tags` declared rather than a response contract.
+- [x] **The transfer is real and belongs to `0.33.33.38.4`, not here.** The full-object contract was measured, not guessed: state 1,823 to 1,776, `unknown` 378 to 418, `0.33.33.40` 534 to 490, and the per-file-per-code ledger rejected it on `notes.js` `TS18046` 49 to 89. (Honoured: `0.33.33.38.4.2` took the transfer and recorded it rather than banking it.)
+- [x] **`0.33.33.38.4.2` answered half of this and the circular dependency is gone.** A note, a note-list item, pagination and a collection now have named contracts narrowed at runtime, so the fields that store them are typed. **What is still waiting is the rest**: a link target, a tag and the primary-context records have no contract yet, and `tagPicker`/`bulkTagPicker` wait on `LongtailForge.tags` rather than on any response. (Discharged: link targets by `0.33.33.38.4.12.2`, tags by `0.33.33.38.4.14` and `.38.2.2.10`, and primary context by `0.33.33.40.6`.)
+- [x] **So this child waits on the Notes response contracts.** Once a note, a collection, a tag and a link target have named validated shapes, the state fields that hold them can be typed and the whole object can carry one contract. **Do not type them as `unknown` first** - that trades a hidden boundary for a visible one without settling anything. (Honoured: each field was typed only once its contract existed, at `0.33.33.40.5`, `.40.8` and `.40.12`.)
+- [x] **Six of the sixteen fields left this child at `0.33.33.38.4.2` and must not be counted here again.** `selectedNote`, `editorNote`, `notes` and `collections` are the direct storage handoff for the Notes entity and collection contracts that child published; `notesPagination` and `bulkCollections` store the same two narrowed responses and could not be left behind without re-opening them. **Those six are closed, and their 32 state diagnostics were eliminated there, not here.** (Recorded by `0.33.33.38.4.2`, which closed the six and eliminated their 32 state diagnostics there.)
+- [x] The fields still concerned are `availableTags`, `editorContextSummaries`, `editorSelectedTarget`, `editorStagedTargets`, `linkTargets`, `primaryContextClients`, `primaryContextProjects`, `selectedNoteIds`, `tagPicker` and `bulkTagPicker`. **`tagPicker` and `bulkTagPicker` are a different blocker**: their consumers optional-chain into `readTagIds`, so they need `LongtailForge.tags` declared rather than a response contract. (All closed. The named ones were closed where the absorption note above says, and `tagPicker` by the family total: Notes state is 0 from `0.33.33.40.32`.)
 
-**Later `0.33.33.40.x` children are not drawn yet.** The remaining 378 parameter and 23 assorted diagnostics have not been clustered, and `0.33.33.40.1` deliberately did not touch them. Draw those boundaries from the classifier after `0.33.33.40.2`, not from this section.
+**Later `0.33.33.40.x` children are not drawn yet.** The remaining 378 parameter and 23 assorted diagnostics have not been clustered, and `0.33.33.40.1` deliberately did not touch them. Draw those boundaries from the classifier after `0.33.33.40.2`, not from this section. **(Historical: `0.33.33.40.3` through `.40.34` were drawn and closed.)**
 
 ### 0.33.33.41 - Type Tasks and Task Dialog browser controllers
 
@@ -1588,11 +1628,18 @@ Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-le
 
 Today's measurement: `tasks.js` is 2,982 lines and 661 diagnostics; `task-dialog.js` is already IIFE-isolated and is not in the `0.33.33.33` estate.
 
-- [ ] Close full-strict debt in Tasks, Task Dialog, and task-owned browser helpers.
-- [ ] **Type against the post-`0.33.33.37` shape.** That checkpoint extracts the shared status-and-timer legality core and leaves visibility, disabled-reason messaging, and DOM state local. Do not plan typing work around the pre-`.37` arrangement, and do not re-consolidate what `.37` deliberately left separate.
-- [ ] Preserve list authority, canonical editor behavior, recurrence scope, blocking recovery, timer state, checklist saves, and action policy.
-- [ ] Keep Task Dialog's shared closure intact except for already-authorized policy extraction.
-- [ ] Reduce this browser ledger cohort to zero with rendered lifecycle coverage.
+**Complete, recorded 2026-09-30 with the `0.33.33.38` acceptance record.** Tasks' owned debt reached zero at `0.33.33.41.26` and its raw diagnostics at `0.33.33.41.27`. Its five criteria are ticked against the children's archived evidence and the tree. The measurement above is historical.
+
+- [x] Close full-strict debt in Tasks, Task Dialog, and task-owned browser helpers. (`0.33.33.41.26`: owned debt 20 to 0. `0.33.33.41.27`: `tasks.js` 26 to 0 raw. Task Dialog and the task-owned helpers are at 0, and the browser section is retired at 0 by `0.33.33.44.47`.)
+- [x] **Type against the post-`0.33.33.37` shape.** That checkpoint extracts the shared status-and-timer legality core and leaves visibility, disabled-reason messaging, and DOM state local. Do not plan typing work around the pre-`.37` arrangement, and do not re-consolidate what `.37` deliberately left separate. (Git evidence: `shared/task-lifecycle-legality.js` has one commit, `8aa9d14d` at `0.33.33.37`, and `tasks.js`, `task-dialog.js` and `workbench.js` still consume it. No `.41` child re-consolidated what `.37` left local.)
+- [x] Preserve list authority, canonical editor behavior, recurrence scope, blocking recovery, timer state, checklist saves, and action policy. (Each child proved the behaviour it touched with rendered coverage, and pre-existing findings were recorded rather than changed:
+  - blocking recovery: `0.33.33.41.3`, `.41.21` and `.41.25`;
+  - timers: `.41.6`, `.41.9`, `.41.20` and `.41.22`;
+  - checklists: `.41.18` and `.41.19`;
+  - recurrence: `.41.7`, `.41.15` and `.41.16`;
+  - list authority: `.41.24`, `.41.26` and `.41.27`.)
+- [x] Keep Task Dialog's shared closure intact except for already-authorized policy extraction. (Git evidence: `task-dialog.js` is still one IIFE of 4,240 lines. The only task file added since `0.33.33.37` is `shared/task-records.js`, the response-record surface from `0.33.33.38.4.3.1`, not a split of the dialog.)
+- [x] Reduce this browser ledger cohort to zero with rendered lifecycle coverage. (`0.33.33.41.27`, with rendered lifecycle proofs in `0.33.33.41.25`, `.41.17`, `.41.7`, `.41.3` and `.41.16`.)
 
 #### 0.33.33.41.1 - Look a task behavior handler up by a key its map declares
 
