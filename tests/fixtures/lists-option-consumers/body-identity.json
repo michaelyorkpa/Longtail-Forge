@@ -1,0 +1,63 @@
+{
+  "base": "07c3d32e92ff967301d9e1caead2768f390e288b",
+  "onlyChangedExecutableFunction": "option",
+  "baselineAstHash": "5e1d35c94e328d0c47e4d21cf678c2b27fb07136b5b8d94a5d9a0b244cc06d68",
+  "currentWithBaselineOptionAstHash": "5e1d35c94e328d0c47e4d21cf678c2b27fb07136b5b8d94a5d9a0b244cc06d68",
+  "functions": {
+    "option": {
+      "baseline": "d2173ff6cbb9d5cf9d1327a704cd780ce0e714e9a9384d45d6dbee16746c69af",
+      "current": "eaf73eabb8c50a352882ba971b09f19b78a6e45024786eef475f713a8443bf21",
+      "identical": false
+    },
+    "isResponseRecord": {
+      "baseline": "62175fe280dedfef53ab195495fd4977a1e6a5dce25753898077bdf14844a411",
+      "current": "62175fe280dedfef53ab195495fd4977a1e6a5dce25753898077bdf14844a411",
+      "identical": true
+    },
+    "hasListNullableText": {
+      "baseline": "217fbe42f8fe8d3563ce8966bd6fc79e940dfc6f1c9245685d9a38f5c1ea6bbc",
+      "current": "217fbe42f8fe8d3563ce8966bd6fc79e940dfc6f1c9245685d9a38f5c1ea6bbc",
+      "identical": true
+    },
+    "isCatalogAmount": {
+      "baseline": "8198ae762be7e6aabb33f69a98b812e3559083f407e0213b1edb82c834e041eb",
+      "current": "8198ae762be7e6aabb33f69a98b812e3559083f407e0213b1edb82c834e041eb",
+      "identical": true
+    },
+    "isItemSuggestion": {
+      "baseline": "e7eb1d6d5c01d0764da5a924d7bc80572f5e9286346ec8c6f7950b49b7821968",
+      "current": "e7eb1d6d5c01d0764da5a924d7bc80572f5e9286346ec8c6f7950b49b7821968",
+      "identical": true
+    },
+    "readItemSuggestions": {
+      "baseline": "07d9db51b89a45dcc17f03e0d5dccce1a749ecd9921725a97dbdfd14c8a4d41e",
+      "current": "07d9db51b89a45dcc17f03e0d5dccce1a749ecd9921725a97dbdfd14c8a4d41e",
+      "identical": true
+    },
+    "loadItemSuggestions": {
+      "baseline": "e518c54adca7713dbcc00ad50b01fc906034208543002082e324240839e4f511",
+      "current": "e518c54adca7713dbcc00ad50b01fc906034208543002082e324240839e4f511",
+      "identical": true
+    },
+    "itemSuggestionsForList": {
+      "baseline": "5e7c1a4674074505b4fb5d3b4fe5a368dd7e487f4dd46c014c8b7990c472f8cc",
+      "current": "5e7c1a4674074505b4fb5d3b4fe5a368dd7e487f4dd46c014c8b7990c472f8cc",
+      "identical": true
+    },
+    "updateSuggestionDatalist": {
+      "baseline": "dcf2081baf7ad21b6b8c30886447ffff175af60eb5a86bcda3eef4fb6c36a2c2",
+      "current": "dcf2081baf7ad21b6b8c30886447ffff175af60eb5a86bcda3eef4fb6c36a2c2",
+      "identical": true
+    },
+    "suggestionLabel": {
+      "baseline": "2f66919dbff6c41b5226749b900553af2ad2d4026f5b0926d550c48cff40e10b",
+      "current": "2f66919dbff6c41b5226749b900553af2ad2d4026f5b0926d550c48cff40e10b",
+      "identical": true
+    },
+    "applySuggestionSelection": {
+      "baseline": "b26432c5b974115286498532e9b890700931185b551804389f481fba17aa3313",
+      "current": "b26432c5b974115286498532e9b890700931185b551804389f481fba17aa3313",
+      "identical": true
+    }
+  }
+}

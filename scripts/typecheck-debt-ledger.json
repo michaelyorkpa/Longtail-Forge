@@ -336,6 +336,7 @@
         "tests/e2e/lists-element-handles.spec.mjs",
         "tests/e2e/lists-field-descriptor-boundary.spec.mjs",
         "tests/e2e/lists-link-picker.spec.mjs",
+        "tests/e2e/lists-option-consumers.spec.mjs",
         "tests/e2e/lists-record-consumers.spec.mjs",
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
@@ -637,6 +638,7 @@
         "tests/unit/lists-formatter-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
         "tests/unit/lists-link-picker.test.mjs",
+        "tests/unit/lists-option-consumers.test.mjs",
         "tests/unit/lists-option-protocol.test.mjs",
         "tests/unit/lists-option-surface-contracts.test.mjs",
         "tests/unit/lists-record-consumers.test.mjs",
@@ -968,7 +970,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 19,
+      "errorCount": 16,
       "diagnostics": {
         "public/js/lists.js": [
           {
@@ -977,7 +979,7 @@
           },
           {
             "code": 7006,
-            "count": 10
+            "count": 7
           }
         ]
       }
@@ -1589,8 +1591,8 @@
     }
   },
   "totals": {
-    "files": 1550,
-    "errors": 19,
+    "files": 1552,
+    "errors": 16,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -1,0 +1,103 @@
+{
+  "rawAndEscaped": true,
+  "needles": [
+    "itemSuggestions: new Map()",
+    "function option(value, label)",
+    "element.value = value",
+    "element.textContent = label",
+    "itemSuggestionsForList",
+    "updateSuggestionDatalist"
+  ],
+  "hits": [
+    {
+      "file": "tests/e2e/workbench-reflective-audit.spec.mjs",
+      "line": 8,
+      "spelling": "element.textContent = label"
+    },
+    {
+      "file": "tests/unit/lists-item-suggestion-contracts.test.mjs",
+      "line": 176,
+      "spelling": "updateSuggestionDatalist"
+    },
+    {
+      "file": "tests/unit/lists-item-suggestion-contracts.test.mjs",
+      "line": 314,
+      "spelling": "updateSuggestionDatalist"
+    },
+    {
+      "file": "tests/unit/lists-item-suggestion-contracts.test.mjs",
+      "line": 388,
+      "spelling": "itemSuggestions: new Map()"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 17,
+      "spelling": "itemSuggestionsForList"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 17,
+      "spelling": "updateSuggestionDatalist"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 74,
+      "spelling": "itemSuggestions: new Map()"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 89,
+      "spelling": "itemSuggestionsForList"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 94,
+      "spelling": "updateSuggestionDatalist"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 101,
+      "spelling": "itemSuggestionsForList"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 102,
+      "spelling": "itemSuggestionsForList"
+    },
+    {
+      "file": "tests/unit/lists-option-consumers.test.mjs",
+      "line": 108,
+      "spelling": "itemSuggestions: new Map()"
+    },
+    {
+      "file": "tests/unit/lists-option-surface-contracts.test.mjs",
+      "line": 47,
+      "spelling": "itemSuggestionsForList"
+    },
+    {
+      "file": "tests/unit/lists-option-surface-contracts.test.mjs",
+      "line": 48,
+      "spelling": "itemSuggestionsForList"
+    },
+    {
+      "file": "tests/unit/lists-write-path-contracts.test.mjs",
+      "line": 43,
+      "spelling": "itemSuggestionsForList"
+    },
+    {
+      "file": "tests/unit/notes-value-readers.test.mjs",
+      "line": 19,
+      "spelling": "element.value = value"
+    },
+    {
+      "file": "tests/unit/required-member-acquisition-contracts.test.mjs",
+      "line": 25,
+      "spelling": "function option(value, label)"
+    },
+    {
+      "file": "tests/unit/time-entries-filtering-contracts.test.mjs",
+      "line": 147,
+      "spelling": "element.value = value"
+    }
+  ]
+}

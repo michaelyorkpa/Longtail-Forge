@@ -1,0 +1,1148 @@
+[
+  {
+    "project": "desktop",
+    "base": "07c3d32e92ff967301d9e1caead2768f390e288b",
+    "browser": "151.0.7922.34",
+    "rows": [
+      {
+        "sink": "value",
+        "kind": "text",
+        "before": {
+          "value": " label ",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": " label ",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "number",
+        "before": {
+          "value": "7",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "7",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "null",
+        "before": {
+          "value": "null",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "null",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "undefined",
+        "before": {
+          "value": "undefined",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "undefined",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "false",
+        "before": {
+          "value": "false",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "false",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "empty",
+        "before": {
+          "value": "",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "array",
+        "before": {
+          "value": "x,y",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "x,y",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "node",
+        "before": {
+          "value": "[object HTMLSpanElement]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "[object HTMLSpanElement]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "object",
+        "before": {
+          "value": "object-label",
+          "text": "other",
+          "calls": [
+            "input",
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "object-label",
+          "text": "other",
+          "calls": [
+            "input",
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "symbol",
+        "before": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "unconvertible",
+        "before": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert object to primitive value",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert object to primitive value",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "throwing",
+        "before": {
+          "value": "",
+          "text": "",
+          "calls": [
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        },
+        "after": {
+          "value": "",
+          "text": "",
+          "calls": [
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "document.all",
+        "before": {
+          "value": "[object HTMLAllCollection]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "[object HTMLAllCollection]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "text",
+        "before": {
+          "value": "other",
+          "text": " label ",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": " label ",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "number",
+        "before": {
+          "value": "other",
+          "text": "7",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "7",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "null",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "undefined",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "false",
+        "before": {
+          "value": "other",
+          "text": "false",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "false",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "empty",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "array",
+        "before": {
+          "value": "other",
+          "text": "x,y",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "x,y",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "node",
+        "before": {
+          "value": "other",
+          "text": "[object HTMLSpanElement]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "[object HTMLSpanElement]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "object",
+        "before": {
+          "value": "other",
+          "text": "object-label",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "object-label",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "symbol",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'textContent' property on 'Node': Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "unconvertible",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'textContent' property on 'Node': Cannot convert object to primitive value",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert object to primitive value",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "throwing",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "document.all",
+        "before": {
+          "value": "other",
+          "text": "[object HTMLAllCollection]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "[object HTMLAllCollection]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      }
+    ]
+  },
+  {
+    "project": "mobile",
+    "base": "07c3d32e92ff967301d9e1caead2768f390e288b",
+    "browser": "151.0.7922.34",
+    "rows": [
+      {
+        "sink": "value",
+        "kind": "text",
+        "before": {
+          "value": " label ",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": " label ",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "number",
+        "before": {
+          "value": "7",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "7",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "null",
+        "before": {
+          "value": "null",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "null",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "undefined",
+        "before": {
+          "value": "undefined",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "undefined",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "false",
+        "before": {
+          "value": "false",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "false",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "empty",
+        "before": {
+          "value": "",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "array",
+        "before": {
+          "value": "x,y",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "x,y",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "node",
+        "before": {
+          "value": "[object HTMLSpanElement]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "[object HTMLSpanElement]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "object",
+        "before": {
+          "value": "object-label",
+          "text": "other",
+          "calls": [
+            "input",
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "object-label",
+          "text": "other",
+          "calls": [
+            "input",
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "symbol",
+        "before": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "unconvertible",
+        "before": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert object to primitive value",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "",
+          "text": "",
+          "calls": [],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert object to primitive value",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "throwing",
+        "before": {
+          "value": "",
+          "text": "",
+          "calls": [
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        },
+        "after": {
+          "value": "",
+          "text": "",
+          "calls": [
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        }
+      },
+      {
+        "sink": "value",
+        "kind": "document.all",
+        "before": {
+          "value": "[object HTMLAllCollection]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "[object HTMLAllCollection]",
+          "text": "other",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "text",
+        "before": {
+          "value": "other",
+          "text": " label ",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": " label ",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "number",
+        "before": {
+          "value": "other",
+          "text": "7",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "7",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "null",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "undefined",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "false",
+        "before": {
+          "value": "other",
+          "text": "false",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "false",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "empty",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "array",
+        "before": {
+          "value": "other",
+          "text": "x,y",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "x,y",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "node",
+        "before": {
+          "value": "other",
+          "text": "[object HTMLSpanElement]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "[object HTMLSpanElement]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "object",
+        "before": {
+          "value": "other",
+          "text": "object-label",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "object-label",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": null
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "symbol",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'textContent' property on 'Node': Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert a Symbol value to a string",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "unconvertible",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Failed to set the 'textContent' property on 'Node': Cannot convert object to primitive value",
+            "identity": false
+          }
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other"
+          ],
+          "error": {
+            "name": "TypeError",
+            "message": "Cannot convert object to primitive value",
+            "identity": false
+          }
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "throwing",
+        "before": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        },
+        "after": {
+          "value": "other",
+          "text": "",
+          "calls": [
+            "other",
+            "input"
+          ],
+          "error": {
+            "name": "",
+            "message": "",
+            "identity": true
+          }
+        }
+      },
+      {
+        "sink": "textContent",
+        "kind": "document.all",
+        "before": {
+          "value": "other",
+          "text": "[object HTMLAllCollection]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        },
+        "after": {
+          "value": "other",
+          "text": "[object HTMLAllCollection]",
+          "calls": [
+            "other"
+          ],
+          "error": null
+        }
+      }
+    ]
+  }
+]

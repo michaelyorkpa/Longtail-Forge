@@ -1,0 +1,438 @@
+{
+  "base": "07c3d32e92ff967301d9e1caead2768f390e288b",
+  "version": "151.0.7922.34",
+  "rows": [
+    {
+      "property": "value",
+      "kind": "text",
+      "before": {
+        "value": " label ",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": " label ",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "number",
+      "before": {
+        "value": "7",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "7",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "null",
+      "before": {
+        "value": "null",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "null",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "undefined",
+      "before": {
+        "value": "undefined",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "undefined",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "false",
+      "before": {
+        "value": "false",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "false",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "empty",
+      "before": {
+        "value": "",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "array",
+      "before": {
+        "value": "x,y",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "x,y",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "node",
+      "before": {
+        "value": "[object HTMLSpanElement]",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "[object HTMLSpanElement]",
+        "text": "Before",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "object",
+      "before": {
+        "value": "object-label",
+        "text": "Before",
+        "calls": 1,
+        "error": null
+      },
+      "after": {
+        "value": "object-label",
+        "text": "Before",
+        "calls": 1,
+        "error": null
+      }
+    },
+    {
+      "property": "value",
+      "kind": "symbol",
+      "before": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert a Symbol value to a string",
+          "sameThrown": false
+        }
+      },
+      "after": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot convert a Symbol value to a string",
+          "sameThrown": false
+        }
+      }
+    },
+    {
+      "property": "value",
+      "kind": "unconvertible",
+      "before": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Failed to set the 'value' property on 'HTMLOptionElement': Cannot convert object to primitive value",
+          "sameThrown": false
+        }
+      },
+      "after": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot convert object to primitive value",
+          "sameThrown": false
+        }
+      }
+    },
+    {
+      "property": "value",
+      "kind": "throwing",
+      "before": {
+        "value": "before",
+        "text": "Before",
+        "calls": 1,
+        "error": {
+          "name": "",
+          "message": "",
+          "sameThrown": true
+        }
+      },
+      "after": {
+        "value": "before",
+        "text": "Before",
+        "calls": 1,
+        "error": {
+          "name": "",
+          "message": "",
+          "sameThrown": true
+        }
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "text",
+      "before": {
+        "value": "before",
+        "text": " label ",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": " label ",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "number",
+      "before": {
+        "value": "before",
+        "text": "7",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "7",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "null",
+      "before": {
+        "value": "before",
+        "text": "",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "undefined",
+      "before": {
+        "value": "before",
+        "text": "",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "false",
+      "before": {
+        "value": "before",
+        "text": "false",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "false",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "empty",
+      "before": {
+        "value": "before",
+        "text": "",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "array",
+      "before": {
+        "value": "before",
+        "text": "x,y",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "x,y",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "node",
+      "before": {
+        "value": "before",
+        "text": "[object HTMLSpanElement]",
+        "calls": 0,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "[object HTMLSpanElement]",
+        "calls": 0,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "object",
+      "before": {
+        "value": "before",
+        "text": "object-label",
+        "calls": 1,
+        "error": null
+      },
+      "after": {
+        "value": "before",
+        "text": "object-label",
+        "calls": 1,
+        "error": null
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "symbol",
+      "before": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Failed to set the 'textContent' property on 'Node': Cannot convert a Symbol value to a string",
+          "sameThrown": false
+        }
+      },
+      "after": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot convert a Symbol value to a string",
+          "sameThrown": false
+        }
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "unconvertible",
+      "before": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Failed to set the 'textContent' property on 'Node': Cannot convert object to primitive value",
+          "sameThrown": false
+        }
+      },
+      "after": {
+        "value": "before",
+        "text": "Before",
+        "calls": 0,
+        "error": {
+          "name": "TypeError",
+          "message": "Cannot convert object to primitive value",
+          "sameThrown": false
+        }
+      }
+    },
+    {
+      "property": "textContent",
+      "kind": "throwing",
+      "before": {
+        "value": "before",
+        "text": "Before",
+        "calls": 1,
+        "error": {
+          "name": "",
+          "message": "",
+          "sameThrown": true
+        }
+      },
+      "after": {
+        "value": "before",
+        "text": "Before",
+        "calls": 1,
+        "error": {
+          "name": "",
+          "message": "",
+          "sameThrown": true
+        }
+      }
+    }
+  ]
+}
