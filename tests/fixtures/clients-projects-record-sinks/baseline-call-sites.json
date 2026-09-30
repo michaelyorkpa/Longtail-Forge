@@ -1,0 +1,8 @@
+{
+  "commit": "1c78eaf020b81f111a5c9a4ab23417df6b70a6c8",
+  "source": "public/js/clients-projects.js",
+  "functions": {
+    "createAddProjectSubmitButton": "function createAddProjectSubmitButton(clientId) {\n    const button = document.createElement(\"button\");\n\n    button.type = \"submit\";\n    button.textContent = \"Add Project\";\n    button.dataset.addProjectButton = clientId;\n    return button;\n  }",
+    "createRelatedProjectNameCell": "function createRelatedProjectNameCell(row) {\n    const wrapper = document.createElement(\"span\");\n    wrapper.className = \"client-projects-related-name\";\n    wrapper.textContent = row.name;\n    appendTagChips(wrapper, row.project.tags);\n    return wrapper;\n  }"
+  }
+}

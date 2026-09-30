@@ -146,17 +146,14 @@ describe("The read-only message for a locked list", () => {
 });
 
 describe("What stayed open, and why", () => {
-  it("leaves the descriptor field reader untyped, because its consumer appends the label", () => {
-    // Discharged by the descriptor contract naming `label`, or by a reader that vouches for it.
-    // Declaring the parameter resolves the return to the published union, whose `label` is
-    // `unknown` through its index signature.
+  it("discharges the field deferral at the local native sink without claiming validated labels", () => {
     const at = source.indexOf("function itemFormField(");
     const block = source.slice(source.lastIndexOf("/**", at), at);
 
-    assert.doesNotMatch(block, /@param \{[^}]*\} fieldName/,
-      "the field reader is annotated; this deferral is discharged and the pin should go with it");
-    assert.match(source, /label\.append\(field\.label \|\| "Item", input, dataList\);/,
-      "and the name field still appends that value directly");
+    assert.match(block, /@param \{string\} fieldName/);
+    assert.match(source, /const labelValue = field\.label \|\| "Item";/);
+    assert.match(source, /label\.append\(labelValue instanceof Node \? labelValue : `\$\{labelValue\}`, input, dataList\);/,
+      "the original fallback is read once and converted at the one original append");
   });
 
   it("gave the record reference a name rather than two inline shapes", () => {

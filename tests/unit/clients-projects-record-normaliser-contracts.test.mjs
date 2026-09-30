@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import { FakeDocument, fakeDomConstructors } from "../../scripts/test-support/fake-dom.mjs";
@@ -524,6 +525,22 @@ describe("The representative sinks receive the value they always did", () => {
         return requests;
       }));
       expect(now, String(id)).toEqual(before);
+    }
+  });
+});
+
+describe("The browser spec's baseline fixture", () => {
+  it(`is the ${BASE} source of the two call sites it compares`, () => {
+    // The browser jobs check out one commit, so the sink spec reads its baseline from this fixture;
+    // this suite has the full history, so it proves the fixture is what that commit shipped.
+    /** @type {{ commit: string, source: string, functions: Record<string, string> }} */
+    const fixture = JSON.parse(readFileSync(new URL("../fixtures/clients-projects-record-sinks/baseline-call-sites.json", import.meta.url), "utf8"));
+    expect(fixture.commit.startsWith(BASE)).toBe(true);
+    expect(fixture.source).toBe("public/js/clients-projects.js");
+    expect(Object.keys(fixture.functions)).toEqual(["createAddProjectSubmitButton", "createRelatedProjectNameCell"]);
+    for (const [name, block] of Object.entries(fixture.functions)) {
+      expect(block, name).toBe(extractFunctionBlock(baseline, name));
+      expect(block, `${name} changed since`).not.toBe(extractFunctionBlock(current, name));
     }
   });
 });

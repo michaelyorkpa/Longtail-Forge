@@ -1,5 +1,5 @@
 /* global document */
-import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
@@ -23,14 +23,16 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
  * error staying that very error. The one wording difference is the setter's context prefix on a
  * conversion failure, which the operator approved. Then two real page functions run from both
  * versions, to show the page's own call sites write the same DOM.
+ *
+ * The baseline versions come from a committed fixture, not from git history: the browser jobs
+ * check out one commit, so an older commit is not there to read. The unit suite
+ * `clients-projects-record-normaliser-contracts`, which runs with full history, pins the fixture to
+ * the named commit.
  */
 
 const source = createProjectTextReader().readText("public/js/clients-projects.js");
-const baseline = execFileSync("git", ["show", "1c78eaf0:public/js/clients-projects.js"], {
-  cwd: process.cwd(),
-  encoding: "utf8",
-  maxBuffer: 64 * 1024 * 1024,
-});
+/** @type {{ commit: string, functions: Record<string, string> }} */
+const baselineCallSites = JSON.parse(readFileSync(new URL("../fixtures/clients-projects-record-sinks/baseline-call-sites.json", import.meta.url), "utf8"));
 
 /** The rule each operation now states, as shipped at its sites. */
 const SHIPPED_RULES = [
@@ -198,7 +200,7 @@ test("each sink's stated conversion writes what its setter wrote, on native cont
 test("the page's own call sites write the same DOM from both versions", async ({ page }) => {
   const functions = {
     current: [extractFunctionBlock(source, "createAddProjectSubmitButton"), extractFunctionBlock(source, "createRelatedProjectNameCell")],
-    baseline: [extractFunctionBlock(baseline, "createAddProjectSubmitButton"), extractFunctionBlock(baseline, "createRelatedProjectNameCell")],
+    baseline: [baselineCallSites.functions.createAddProjectSubmitButton, baselineCallSites.functions.createRelatedProjectNameCell],
   };
   expect(functions.current[0]).not.toBe(functions.baseline[0]);
   expect(functions.current[1]).not.toBe(functions.baseline[1]);
