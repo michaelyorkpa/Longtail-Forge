@@ -110,9 +110,10 @@
   "browser": {
     "version": "151.0.7922.34",
     "comparisonCases": 25,
-    "fullLists": 42,
+    "fullLists": 44,
     "restoredFocused": 2,
-    "finalErrorHelperFocused": 2
+    "finalErrorHelperFocused": 4,
+    "querySinkCases": 7
   },
   "routePinMutations": {
     "rows": [

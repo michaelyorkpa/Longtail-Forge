@@ -134,7 +134,7 @@ test("real event consumers preserve paths, receiver order and native form accept
   ]);
   for (const row of rows) {
     // Wrong forms are refused by the probe, before the one real constructor would run.
-    const beforeLog = ["nonform", "matching-nonform"].includes(row.kind) ? row.before.log.filter(entry => entry !== "FormData-construct") : row.before.log;
+    const beforeLog = ["nonform", "matching-nonform"].includes(row.kind) ? row.before.log.filter(entry => entry !== "FormData-construct") : [...row.before.log];
     if (row.kind === "reset-noncallable") {
       expect(row.after.log.at(-1)).toEqual(["status", "The list event target has no callable reset.", true]);
       expect(row.before.log.at(-1)).not.toEqual(row.after.log.at(-1));
@@ -158,4 +158,39 @@ test("real event consumers preserve paths, receiver order and native form accept
     else if (row.kind.endsWith("hook") || ["method-throws", "formdata-throws"].includes(row.kind)) expect(row.after.error?.identity, row.kind).toBe(true);
   }
   await testInfo.attach("event-comparison", { body: JSON.stringify({ version: browser.version(), rows }, null, 2), contentType: "application/json" });
+});
+
+test("opaque selection keeps identity until the native query-string sink", async ({ isolatedWorkspace, browser }, testInfo) => {
+  const { page } = isolatedWorkspace;
+  await page.goto("/lists.html");
+  const rows = await page.evaluate(({ before, after }) => {
+    return ["text", "number", "object", "symbol", "throwing", "undefined", "surrogate"].map(kind => {
+      const run = (/** @type {string} */ body) => {
+        /** @type {unknown[]} */ const log = [];
+        const sentinel = {};
+        const id = kind === "text" ? " kept " : kind === "number" ? 7 : kind === "symbol" ? Symbol("id") : kind === "undefined" ? undefined : kind === "surrogate" ? "\ud800" : {
+          toString() { log.push("convert"); if (kind === "throwing") throw sentinel; return "kept/value"; },
+        };
+        const state = { selectedListId: id };
+        const host = { location: { search: "?keep=yes", pathname: "/lists.html" }, history: { replaceState(/** @type {unknown} */ a, /** @type {unknown} */ b, /** @type {string} */ url) { log.push(url); } } };
+        const select = new Function("state", "window", "renderDetail", "selectedList", "collapseIndexAfterSelection", "updateListSelectionState", body + "; return selectList;")(
+          state, host, () => log.push("render"), () => null, () => log.push("collapse"), () => log.push("selection"),
+        );
+        let error = null;
+        try { select(id); }
+        catch (e) { error = { name: e instanceof Error ? e.name : "", message: e instanceof Error ? e.message : "", identity: e === sentinel }; }
+        return { log, identity: state.selectedListId === (id || ""), error };
+      };
+      return { kind, before: run(before), after: run(after) };
+    });
+  }, { before: baseline.functions.selectList, after: current.selectList });
+  for (const row of rows) {
+    expect(row.after.log, row.kind).toEqual(row.before.log);
+    expect(row.after.identity).toBe(true);
+    if (row.kind === "symbol") {
+      expect(row.before.error?.name).toBe("TypeError");
+      expect(row.after.error?.name).toBe("TypeError");
+    } else expect(row.after.error).toEqual(row.before.error);
+  }
+  await testInfo.attach("query-sink-comparison", { body: JSON.stringify({ version: browser.version(), rows }, null, 2), contentType: "application/json" });
 });
