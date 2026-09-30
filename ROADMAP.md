@@ -123,23 +123,27 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.43.66` | `lists.js` - the **Lists** module family, **complete at zero** at `0.33.33.43.66` | 0 — complete |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
+| Codex | `0.33.33.38.5` | **Assigned 2026-09-30:** the server `TaskLifecycleStatus` contract boundary and its directly owning Tasks code and tests (see the ownership record below). Independent of the browser proof | server - 16 measured sites |
+| Claude | `0.33.33.44.47` | **Assigned 2026-09-30:** the final permanent browser-zero proof child and its protected integration | browser 0 |
 | Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open.** The delegated `.40`-`.43` work reached zero at `0.33.33.43.66`, so the final proof child is now unblocked, but it is not yet drawn or claimed | 0 |
 
 **File ownership for the remainder of this conversion.** `workbench.js` is **Codex's**, and so, since the `0.33.33.42.47` integration, are `lists.js` and its directly associated tests, **reassigned from Claude** once Workbench closed so both lanes carry one remaining controller. `clients-projects.js` was **reassigned to Claude** at `0.33.33.43.31`, which opened it, and Codex's lane has not touched it. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
+
+**Reassignment, 2026-09-30, by operator ruling.** Codex is assigned `0.33.33.38.5`: `src/types/task-block-recovery-contracts.d.ts`, the Tasks server code that owns the lifecycle status there (`src/modules/tasks/tasks.service.js` and `src/modules/tasks/task-block-recovery-engine.js`), and the tests that directly own them. **The browser-only Codex ownership restriction is superseded for that boundary alone**; it opens no other server work. Claude owns the final permanent browser-zero proof, `0.33.33.44.47`, and its integration. The two proceed in parallel, and each is integrated when its evidence is ready. After they converge, the release sequence is `0.33.33.45` (Claude), `0.33.33.46` (Codex, once `.45` has established the module shape), `0.33.33.47` (Claude) and then `0.33.33.48` (Claude).
 
 **Remaining release obligations, their owner, and what each genuinely waits on:**
 
 | Obligation | Owner | Genuine prerequisite or unresolved decision |
 | --- | --- | --- |
-| `0.33.33.43` closeout | Claude | `lists.js` 91 raw (30 owned, 61 `dom`) at its deferral floor - **now 30 raw (30 owned, no `dom`) after `0.33.33.38.3.10` and `.38.3.11`**; `clients-projects.js` 143 raw at `0.33.33.38.3.9`, **133 with no `dom` after `0.33.33.43.46`**, continuing by feature. Neither waits on a product decision. Both files' remaining `dom` reads were waiting on a framework-wide checked-lookup decision; **that decision is now made** (2026-09-25): they are the shared checked-DOM prerequisite, `0.33.33.38.3`, Claude's next priority. **Published by `0.33.33.38.3.9`** as `LongtailForge.checkedDom`, which closed all 17 `clients-projects.js` lookups; `lists.js`'s 61 is Claude's next child. **`0.33.33.43.44` corrected a Lists response boundary** that had refused every real list since `9427cf2d`, and **`0.33.33.43.45` restored the Lists dialog on every other page**, broken since `1da0fdd0`; see the archive entries. |
-| `0.33.33.42` closeout | Codex | **Typing:** Workbench-owned and raw diagnostics reach zero in `0.33.33.42.45`, **integrated** with its opaque Inspector candidate boundary preserved. Elapsed time is integrated under the 2026-09-25 start-timestamp ruling, closed with **no permanent exception**; the focus-mode handoff is integrated. **Workbench-owned zero is not `.42` complete**, and three figures are reported separately: Workbench-owned, raw `workbench.js` (and any extracted file), and parent acceptance. The two `dataset` diagnostics close in `0.33.33.42.44` through the published shared checked-DOM lookup and the explicitly approved equivalent dataset conversion; Task Focus extraction is an open acceptance criterion, scheduled with Codex after the typing children. `0.33.33.42.22`, called reserved "pending the integrator's scope decision" in six archive entries, **never had a recorded scope** in this file, the archive or any commit, and every Workbench boundary it could have named is now assigned or ruled - **retired unused** by the integrator. |
+| `0.33.33.43` closeout | Claude | **Complete at the `0.33.33.43.66` integration (#852).** Files, Clients/Projects and Lists are each at zero, and the parent's five criteria are ticked against their evidence in its section. |
+| `0.33.33.42` closeout | Codex | **Complete at the `0.33.33.42.47` integration.** Typing reached zero at `0.33.33.42.45`, and the Task Focus extraction criterion was met by `0.33.33.42.46` and `.42.47` under the amended parent criterion. See the parent's closure record. |
 | Verification-tool hardening | Claude | **Done at `0.33.33.25.11`** (see the archive entry). An unrouted path now escalates the whole plan to the full gate, even beside routed bookkeeping; `verify:slice` refuses an empty selection instead of passing; and the collector includes tracked uncommitted edits alongside a committed range. `verify:slice` alone is sufficient proof again, and the interim "also run `npm run check`" workaround is retired. |
 | Edit Client browser coverage | Claude | **Done at `0.33.33.43.46`.** `client-projects-edit-dialog-reflow.spec.mjs` now carries a permanent Edit Client case, at both viewports, that saves tags and both billing editors. It replaces the temporary `0.33.33.38.3.9` probe. |
-| `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
-| Task Focus extraction | Codex lane, after the typing children | **Open, and still warranted - measured 2026-09-24.** The criterion allowed that extraction might prove small once `.34` and `.37` had taken their pieces; it has not. The Task Focus core is 58 functions / ~1,228 lines, and Task Focus, Inspector, focus-mode and drift/resume together are ~1,843 lines - **37% of a file that has grown from 4,239 to 4,974 lines**. Typing proceeded as its own children, so the one-child-or-two question is answered by what happened: two. **Smallest next action:** once the typing children land, one bounded child defines the typed seam the criterion names and extracts the smallest self-contained piece behind it, measuring and extracting together rather than as a separate analysis checkpoint. Not to be started inside the typing closeout. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder at `0.33.33.42.40` is `lists.js` 91, `clients-projects.js` 206, `workbench.js` 6 - and the `dom` family at 90. `.44` proves the whole program at zero and is therefore last. **The delegated work reached zero at `0.33.33.43.66`** (browser 0), which unblocks both closures; each remains its own obligation. |
-| `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
-| `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
+| `0.33.33.38.5` — server task lifecycle status vocabulary | Codex (assigned 2026-09-30) | **Assigned, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
+| Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | The delegated work reached zero at `0.33.33.43.66`. **`0.33.33.44` closes through `0.33.33.44.47`** (Claude). **`0.33.33.38` does not close merely because browser diagnostics are zero**: its acceptance is recorded through ordinary rollup bookkeeping only once `0.33.33.38.5` and `0.33.33.44.47` are integrated and its remaining criteria are supported by evidence. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | After convergence: `.45` (Claude) measures module-development defaults and extracts only helpers with real consumers; `.46` (Codex) builds the strict-clean module scaffold once `.45` has set the module shape, recording path ownership before edits; `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
+| `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
@@ -2247,6 +2251,33 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] **Retire the browser ledger section at zero — do not delete it.** Prove the estate is still fully listed and checked after retirement.
 - [ ] Confirm all classic pages and the Dashboard bridge retain their existing delivery modes.
 - [ ] Prove the three-program `npm run typecheck` is green with zero suppressions, first-party omissions, or unexplained explicit `any`.
+
+#### 0.33.33.44.47 - Permanent browser-zero proof
+
+**Model: High Effort** - governance and the checked-file universe: the proof that browser debt cannot return, and that no file can escape checking to hide it.
+
+**Baseline.** `nightly` `9e7924c2`: 1,560 files, 0 diagnostics in every program, 0 explicit `any`. This is one proof checkpoint, not separate measurement, pragma and retirement checkpoints.
+
+- [ ] **Redundant browser pragmas.** Remove the browser `// @ts-check` pragmas that remain; program-level `checkJs` is authoritative.
+  - Measured now at **11**, all at line 1 of `public/js/shared/`. The earlier count of nine was a prior measurement.
+  - The change is comment-only. The `tests/typecheck/` negative fixtures keep theirs.
+  - The one pin that describes a pragma as a checking boundary is retargeted to the live owned-and-clean contract, as `0.33.33.26.2` did.
+- [ ] **Retire the browser section at zero, as `server-tests` and `scripts` are retired.**
+  - All three sections and their owned-file inventories stay. Browser keeps `errorCount` 0 and empty diagnostics.
+  - Governance asserts that browser may never regain debt, and that the program still carries the whole browser estate.
+  - The ledger is not deleted, and no new retirement framework is introduced.
+- [ ] **Close the gap that could hide a file.** Governance proves every first-party file is *owned*, but not that the compiler *checks* it.
+  - As it stands, an `exclude` entry, or a `.mjs` file under `public/js/`, would be owned but never compiled.
+  - The governance run will require every owned file to appear in its program's compiled file list, on both the verify and the ledger-write paths.
+  - The governance regression will pin each program's `exclude`.
+- [ ] **Prove it cannot regress.** Extend the existing governance regression, rather than adding a new mechanism, so that it shows:
+  - browser debt cannot return;
+  - an owned-but-unchecked file is refused;
+  - the ledger-write path refuses both.
+
+  Then show the same live, with temporary mutations restored byte-exact: an excluded file, a stray `.mjs`, and a new diagnostic.
+- [ ] **Preserve delivery.** Compiler strictness, classic-script delivery, the Dashboard bridge, script ordering, namespace contracts and no-build operation are all unchanged. The file universe is proven as it stands, not frozen at 1,560.
+- [ ] **Out of scope, belonging to `0.33.33.48`:** ledger deletion, a version bump, the changelog rollup, packaging closeout and the durable documentation sweep.
 
 #### 0.33.33.44.1 - The Workspace Settings operator readouts
 
