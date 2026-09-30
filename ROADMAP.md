@@ -120,7 +120,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.43.65` | `lists.js` editor input reconciliation: branch-local 12 to 2, awaiting integration; surface decoration and progress arithmetic remain | 2 owned, branch-local |
+| Codex | `0.33.33.43.66` | `lists.js` editor inputs typed and integrated at `0.33.33.43.65`, Lists 12 to 2. Next: the last two, surface decoration (recommended first) and progress arithmetic, measured before the boundary is drawn. When Lists reaches zero, `.43`'s acceptance is recorded under the rollup rules | 2 owned |
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44` final proof | `0.33.33.44.1`, the Workspace Settings operator readouts, is **complete**. The `.44` owner-sum first reached zero at `0.33.33.44.46`, when 30 ownerless DOM diagnostics still remained in that file; the family's owned debt is zero today. **`.44` acceptance, the permanent browser-program zero proof, stays open** while delegated Lists work is outstanding | 0 |
@@ -1666,7 +1666,7 @@ For `.43.64`, the four recorded messages and one invocation of the captured nati
 
 **Model: High Effort** - Opaque host records cross editor state and connected native/collection consumers.
 
-**Branch-local evidence awaiting integration.** Base `18e19e3e5f817b904a7c95f9202f335f9ff1f4e3`; Lists/browser 12 to 2 raw/owned, DOM 0 to 0. Nine editor member diagnostics and the connected nullable project parameter are eliminated; surface decoration and progress arithmetic remain. Archive records producer trace, delegated wording, sink conversions, proof and final-gate handoff. This does not close Lists or .43; Claude recomputes integration totals.
+**Complete: integrated onto `nightly` at `18e19e3e`.** Base `18e19e3e5f817b904a7c95f9202f335f9ff1f4e3`; Lists/browser 12 to 2 raw/owned, DOM 0 to 0. Nine editor member diagnostics and the connected nullable project parameter are eliminated; surface decoration and progress arithmetic remain. Archive records producer trace, delegated wording, sink conversions, proof and final-gate handoff. This does not close Lists or .43; Claude recomputes integration totals.
 
 #### 0.33.33.43.64 - Lists form and detail event consumers
 

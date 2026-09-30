@@ -21,6 +21,19 @@
 
 **Final verification handoff:** after this archive commit, confirm the tree is clean, run verify:slice with LTF_REGRESSION_BASE_SHA=18e19e3e5f817b904a7c95f9202f335f9ff1f4e3, then checkpoint:validate. READY/draft PR will report actual routing and results. No package/changelog or durable documentation changes; docs:suggest reviewed, internal checkpoint disposition only. Claude retains protected integration ownership.
 
+**Integrated onto `nightly` at `18e19e3e` by Claude.**
+
+- **Shared paths.** `nightly` had not moved since Codex's base, so its side changed 0 paths against Codex's 20. The intersection was empty and the merge was clean.
+- **Ledger.** It was regenerated from the combined tree, and it is identical to Codex's branch ledger: 1,557 files and browser 12 to 2. The two left are Lists TS7006 on `surface` and `items`; Clients/Projects is 0. Per message, exactly the nine TS2339 on the `{}` parameter-bag members and the one `select` TS7006 disappear, and none are added.
+- **Review.** The review confirmed each part:
+  - **Checked readers.** `listEditorField` and `callListEditorMember` use delegated wording at reached nullish or non-callable failures, with an optional mode mirroring `?.`.
+  - **Property keys.** `listEditorLinkTypeLabel` and `listEditorIndex` reproduce the native key conversion through `Object.fromEntries` and `Reflect.ownKeys`: each conversion hook fires once, and Symbol keys are accepted. This is an accepted, non-mutating implementation difference.
+  - **Spread iteration.** `listEditorValues` emulates the spread at the same evaluation point: `Symbol.iterator` and `next` are each read once, `done` before `value`, and there is no cleanup on exhaustion.
+  - **Opaque editor records.** `listEditorContextItems` mirrors `linkedContextItems` read for read, keeping the collection's own `map`; the typed original serves the normalized detail view.
+  - **Identifiers.** `readListEditorId` keeps the identifier opaque through its truthiness check.
+  - **Project select.** `populateProjectOptions` still replaces the options and computes the right-hand side before its required write fails. The shared checked-DOM `require` raises the same `TypeError` kind, and the Chromium comparison covers the null select.
+  - **Conversions and pins.** The input, select and URL templates fall under the standing authority, with right-hand sides that cannot be `null`. The browser fixture is pinned to `18e19e3e` by a full-history unit suite.
+
 ## Version 0.33.33.43.64 - Lists form and detail event consumers
 
 **Model: High Effort** - Four listeners share target reads, native form requirements and failure ordering.
