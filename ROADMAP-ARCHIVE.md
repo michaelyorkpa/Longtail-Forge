@@ -28,6 +28,11 @@
 - **Ledger.** It was regenerated from the combined tree rather than taken from either branch: 1,550 files, with browser 21 to 19 against `ac25dd5d`. That is Lists 19 (TS7006 10, TS2339 9) and Clients/Projects 0. Per message, only the two target TS7006 differ.
 - **Review.** The review confirmed collect-before-convert with a single native append, and cleanup only at the pair binding's early stop. Of the 13 application messages, the four originally approved texts were checked verbatim. The nine extension texts were reported for the operator's comparison with the catalogue given to Codex.
 - **Bookkeeping.** The same integration corrected the stale `0.33.33.44.1` lane row.
+- **A `0.33.33.43.58` defect, found and corrected here.** The first protected browser run on #842 failed while loading `clients-projects-record-sink-conversion.spec.mjs`. That spec read its baseline with `git show 1c78eaf0:...`, and the browser job checks out one commit.
+  - On #839 the spec passed because `1c78eaf0` was that PR's base and so was present. Here it is not.
+  - `nightly` and promotion use the same one-commit checkout, so the defect was latent there too.
+  - The two baseline call sites the spec compares now come from a committed fixture, `tests/fixtures/clients-projects-record-sinks/baseline-call-sites.json`. The record-normaliser unit suite runs with full history and pins that fixture to `1c78eaf0`; the pin was shown to fail on a drifted fixture.
+  - No browser spec reads git history any more, and no product code changed.
 
 ## Version 0.33.33.43.58 - Clients/Projects record normalisers and their sinks
 
