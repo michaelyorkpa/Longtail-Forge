@@ -1,0 +1,17 @@
+{
+  "base": "1c78eaf020b81f111a5c9a4ab23417df6b70a6c8",
+  "browserBefore": 26,
+  "browserAfter": 24,
+  "delta": [
+    {
+      "message": "public/js/lists.js|TS7006|Parameter 'fieldName' implicitly has an 'any' type.",
+      "before": 1,
+      "after": 0
+    },
+    {
+      "message": "public/js/lists.js|TS7006|Parameter 'field' implicitly has an 'any' type.",
+      "before": 1,
+      "after": 0
+    }
+  ]
+}

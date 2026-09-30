@@ -333,6 +333,7 @@
         "tests/e2e/files-filter-handles.spec.mjs",
         "tests/e2e/hidden-label-controls.spec.mjs",
         "tests/e2e/lists-element-handles.spec.mjs",
+        "tests/e2e/lists-field-descriptor-boundary.spec.mjs",
         "tests/e2e/lists-link-picker.spec.mjs",
         "tests/e2e/lists-record-consumers.spec.mjs",
         "tests/e2e/login.spec.mjs",
@@ -634,6 +635,7 @@
         "tests/unit/lists-formatter-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
         "tests/unit/lists-link-picker.test.mjs",
+        "tests/unit/lists-option-protocol.test.mjs",
         "tests/unit/lists-option-surface-contracts.test.mjs",
         "tests/unit/lists-record-consumers.test.mjs",
         "tests/unit/lists-record-normalizer-contracts.test.mjs",
@@ -964,7 +966,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 26,
+      "errorCount": 24,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -979,7 +981,7 @@
           },
           {
             "code": 7006,
-            "count": 12
+            "count": 10
           }
         ]
       }
@@ -1591,8 +1593,8 @@
     }
   },
   "totals": {
-    "files": 1546,
-    "errors": 26,
+    "files": 1548,
+    "errors": 24,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

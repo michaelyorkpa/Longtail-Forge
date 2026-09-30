@@ -1,0 +1,32 @@
+[
+  {
+    "name": "first custom map loses its receiver",
+    "find": "Reflect.apply(map, collection, [readEntry])",
+    "replace": "Reflect.apply(map, undefined, [readEntry])"
+  },
+  {
+    "name": "missing entry loses its approved refusal",
+    "find": "if (entry === null || entry === undefined)",
+    "replace": "if (false)"
+  },
+  {
+    "name": "pair early close disappears",
+    "find": "const close = Reflect.get(iterator, \"return\", iterator);",
+    "replace": "const close = undefined;"
+  },
+  {
+    "name": "child conversion happens during collection",
+    "find": "const value = Reflect.get(step, \"value\", step);",
+    "replace": "const raw = Reflect.get(step, \"value\", step);\n      const value = raw instanceof Node ? raw : `${raw}`;"
+  },
+  {
+    "name": "append lookup moves after collection",
+    "find": "select.append(...listItemOptionChildren(options));",
+    "replace": "const children = listItemOptionChildren(options);\n    select.append(...children);"
+  },
+  {
+    "name": "item name fallback pin loses its claim",
+    "find": "const labelValue = field.label || \"Item\";",
+    "replace": "const labelValue = field.label;"
+  }
+]

@@ -57,6 +57,7 @@ function lift(name) {
     HTMLSelectElement: FakeHTMLSelectElement,
     HTMLTextAreaElement: FakeHTMLTextAreaElement,
   });
+  vm.runInContext(extractFunctionBlock(source, "listItemOptionEntryField"), sandbox);
   vm.runInContext(extractFunctionBlock(source, name), sandbox);
   return vm.runInContext(name, sandbox);
 }
