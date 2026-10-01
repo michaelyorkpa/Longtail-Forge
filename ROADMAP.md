@@ -170,7 +170,7 @@ Any further path needs a recorded assignment first.
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
 | `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is complete at the `.46.1` integration.** Its first READY head was held at review and corrected under D1. The `.46` acceptance did not run the regression suite, and `.47.2`'s measurement found seven failures with the generated module present. Under the operator's D3 amendment:
   - `.46.1` (Codex) corrected the two template defects;
-  - the integrator's adopted-module acceptance passed the full gate, 348/348. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. `.47.2` is next, then `0.33.33.48`. |
+  - the integrator's adopted-module acceptance passed the full gate, 348/348. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. **`.47.2` is complete:** the locality and scaffold measurements, recorded as hypotheses. `0.33.33.48` is next. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
@@ -2874,9 +2874,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 **No dependency-cycle measurement tool exists in the current tree**, and nothing in `0.33.33.33` adds one, so this checkpoint still owns building it. Every number it proposes is a hypothesis until that tool produces a baseline.
 
 - [x] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet. (`0.33.33.47.1`: the espree-based tool records one runtime cycle of 88 files, closed by `modules.service.js -> registry.js`. `audit:cycles:check` is a hard closeout gate that refuses growth. `0.33.33.47.3` corrected its measurement basis: the enforcement measurement leaves out only the one authorized composition edge, and the raw measurement stays reported.)
-- [ ] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count.
-- [ ] Target zero framework-file edits for standard module capabilities and strict-clean new module output, but label timing/locality expectations as hypotheses until measured.
-- [ ] Do not turn raw file or line counts into quality gates detached from dependency or behavior ownership.
+- [x] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count. (`0.33.33.47.2`: measured descriptively over nightly's history, and on the delivered scaffold at its `.46.1` adopted-module acceptance.)
+- [x] Target zero framework-file edits for standard module capabilities and strict-clean new module output, but label timing/locality expectations as hypotheses until measured. (`0.33.33.47.2`: strict-clean output met. Zero framework edits not met for Support View classification and default grants; disclosed, and recorded for 0.34.)
+- [x] Do not turn raw file or line counts into quality gates detached from dependency or behavior ownership. (`0.33.33.47.2` adds no gate; its counts are recorded as hypotheses.)
 
 **Drawn as two children on 2026-10-01**, split by dependency, not by measurement step. `.47.1` needs nothing from the scaffold. `.47.2`'s measurements include scaffold-to-green time, so it cannot start until `0.33.33.46` integrates.
 
@@ -2891,12 +2891,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.47.2 - Locality and scaffold measurements
 
-**Model: Medium Effort** - measurements recorded as hypotheses, not gates; starts after `0.33.33.46` integrates.
-
-**Unblocked by the `0.33.33.46` integration.** The delivered scaffold is on `nightly`.
-
-- [ ] Record median files touched for module-local changes, cross-module or framework edits for a standard capability, scaffold-to-green time, and ceremony-file count, each against the delivered scaffold.
-- [ ] Target zero framework-file edits for standard module capabilities, and strict-clean new module output. Timing and locality expectations stay labelled as hypotheses until measured.
+**Complete: measurements recorded as hypotheses, not gates.** See the archive entry.
+- **Strict-clean new module output:** met.
+- **Zero framework-file edits for standard module capabilities:** not met. Two adoption steps, Support View classification and default grants, are recorded as a carried finding and a 0.34 architecture improvement.
 
 #### 0.33.33.47.3 - The cycle ratchet's single composition-edge exception
 

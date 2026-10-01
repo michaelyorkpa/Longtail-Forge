@@ -1,5 +1,66 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.47.2 - Locality and scaffold measurements
+
+**Model: Medium Effort** - measurements recorded as hypotheses, not gates.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.47.2-locality-measurements` from `nightly` `3fda2895`.
+  - **Measurement only.** No gate, tool or runtime change. The history measurement was a one-off script whose rules are recorded exactly below.
+  - **Scaffold figures** come from the `0.33.33.46.1` adopted-module acceptance, and its fixture keeps them: `tests/fixtures/module-adoption/adoption-sample.json`.
+- [x] **History: how local real changes have been.** This is descriptive, not causal. The windows hold different kinds of work: the 0.33.33 window is mostly strict-typing work, and the other window mostly feature work. So the contrast is not proof that the typing program caused any improvement.
+  - **The source.** The first-parent history of `origin/nightly` through `d65a82a2` (2026-10-01), from 2026-06-01: 1,100 changes. Earlier bootstrap commits are excluded.
+  - **What a change is.** One first-parent commit, measured by `git diff --name-only --no-renames <first parent> <commit>`, so a squash merge and an older merge commit are measured alike.
+  - **How paths are classified.** These are the repository's own rules where they exist:
+    - **ceremony:** `isCeremonyPath` from `scripts/release/checkpoint-commits.mjs`, covering the roadmap, archive, changelog, decisions, package files, docs and help;
+    - **derived:** the ledger, the regression manifest and exceptions, the generated catalog, the schema snapshot and the baselines;
+    - **test:** `tests/`, `scripts/regressions/`, `scripts/regression-contracts/`, `scripts/test-support/` and `scripts/*-regression.mjs`;
+    - **module:** `src/modules/<id>/**`, plus the browser assets and protected views that `d65a82a2`'s manifests declare for exactly one module;
+    - **framework:** every other `src/**`, `server.js`, `worker.js`, `public/**`, `views/**` and `styles/**`;
+    - **tooling:** everything else.
+
+    Ownership comes from today's manifests, so an old path no module declares any more counts as framework.
+  - **Change shapes:**
+    - **module-local:** exactly one module's product files, and no framework product file;
+    - **module-plus-framework;**
+    - **cross-module:** two or more modules;
+    - **framework-only;**
+    - **non-product.**
+  - **Results:**
+
+    | Window | Changes | Module-local share | Module-local files touched, median (p90) | Product files, median | Module-touching changes that touched framework | Median framework files | Touched two or more modules |
+    |---|---|---|---|---|---|---|---|
+    | 0.33.33, subject names it (2026-08-07 to 10-01) | 561 | 133/561 = 24% | 6 (13) | 1 | 97/231 = 42% | 1 | 35/231 |
+    | Every other change (2026-06-01 to 09-25) | 539 | 32/539 = 6% | 14.5 (32) | 2 | 248/296 = 84% | 4 | 195/296 |
+    | All since 2026-06-01 | 1,100 | 165/1,100 = 15% | 7 (17) | 1 | 345/527 = 65% | 3 | 230/527 |
+
+  - **A module-local change, by kind.** In the 0.33.33 window, the median is 1 module file, 3 test files, 2 ceremony files, 1 derived file and 0 tooling files.
+- [x] **The delivered scaffold, measured at its adopted-module acceptance.** This was the `0.33.33.46.1` combined tree, a full-history clone outside the OS temp tree.
+  - **Generation:** `module:create` 0.835s, giving 11 generated files. Derived: the catalog (0.826s) and the ledger (8.373s).
+  - **Reviewed adoption: 14 authored files, none module-local.**
+    - 8 test inventories;
+    - 2 documentation files;
+    - 2 runtime/framework files: the Support View gate, and the legacy baseline checksum in `src/db/migrations.js`;
+    - 2 migration/schema files: new migration 093, and the `current.sql` seed. A new migration file is still non-module-local work.
+
+    Derived: `current.generated.sql`, refreshed and unchanged. Applying the reviewed patch took 0.072s, and the schema refresh 1.086s.
+  - **Full verification:** `verify:slice` 228.3s, full gate, 348/348.
+  - **Generation to the first completely green adopted module:** about 12 minutes of wall time, in the adoption preparation (generation about 16:54Z, green 17:06:43Z).
+    - **Included:** authoring and security-reviewing the adoption, the upgrade probe, and one failing full-gate iteration. That iteration found the five migration-inventory regressions.
+    - **Excluded:** the earlier diagnostic runs that identified the categories.
+    - **Mechanical replay** on the corrected candidate: 242s.
+  - **Ceremony files.** Per checkpoint they stay the roadmap and the archive. Per module, the derived files are 2 regenerated plus 1 refreshed and unchanged, and the authored repository-adoption files are 14.
+- [x] **Targets, as hypotheses:**
+  - **Strict-clean new module output: met.** 0 diagnostics in every program. The controller is browser-owned, and the six runtime files and the test are server-tests-owned.
+  - **Zero framework-file edits for standard module capabilities: not met.**
+    - **What needed framework files:** Support View classification (the gate), and default-grant installation (migration 093, the `current.sql` seed, and the baseline checksum in `src/db/migrations.js`).
+    - **What else was outside the module:** the inventories pinned in eight regressions, and two docs.
+
+    This is disclosed rather than redefined as module-local. Declarative Support View and default-grant adoption is recorded for 0.34 planning.
+  - **Timing and locality expectations stay hypotheses.**
+    - **The locality hypothesis:** a module-local change touches about 6 files, 1 of them product code (median, 0.33.33 window).
+    - **The adoption-cost hypothesis:** 14 reviewed files, about 12 minutes to first green with known categories, and 4 minutes as a mechanical replay.
+- [x] **Disposition.** `verify:slice` and `checkpoint:validate` ran on the final tree. No docs change needed: measurements are recorded in the roadmap archive, and the durable adoption guidance is a `0.33.33.48` obligation.
+
 ## Version 0.33.33.46.1 - Scaffold template corrections and reviewed adoption
 
 **Model: Medium Effort** - Two template defects and the existing disposable fixture, without adoption or security-policy changes.
