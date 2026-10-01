@@ -166,15 +166,7 @@ Any further path needs a recorded assignment first.
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
-- **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. They date from `0.33.33.35.2`, before `0.33.33.38`:
-  - the created popup is claimed to be an `OptionsPopup`;
-  - that popup, and a field control, are claimed to be `Node`s.
-
-  This is a contract-honesty finding, not a demonstrated runtime defect, and the `.38` retrospective acceptance does not approve it. **Owner: Claude. It needs a bounded disposition before `0.33.33.48` release acceptance**, one of:
-  - correct the typing with focused real-browser and fixture proof;
-  - document the exact runtime or producer guarantee, and why a retained assertion is justified under policy.
-
-  Relabelling an unchecked assertion as checked is not a disposition, and `0.33.33.38.4.8.5`'s approval is no authority for it. It is not part of `0.33.33.45`, and becomes an earlier prerequisite only if a real `.45` or `.46` dependency is shown.
+- **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. **Discharged by `0.33.33.48.1`, which corrected all three and kept none**, with real-browser, fixture and compiler proof. A source pin keeps casts through `unknown` out of that file. Carried no longer.
 - **Eight browser `// @ts-check` pragmas are load-bearing** — recorded by `0.33.33.44.47`. Under TypeScript 7.0.2 a `@typedef` JSDoc at byte 0, directly before an IIFE statement, is declared twice and reports TS2300; the pragma keeps it off byte 0. They check nothing, since `checkJs` is program-wide. Removing one fails the typecheck at once, so this cannot regress silently. Discharged by a compiler that no longer double-declares, or by an authorized comment-layout change; not by deleting them.
 - **`FileEditorRow`'s member cannot be declared required** — recorded by `0.33.33.43.9`, **still live**: `normalizeFileEditorRow` may return a caller's own object without passing it through `fileRow`, so the row cannot promise what only one of its two producers guarantees. `0.33.33.43.16` and `.43.18` both confirmed it and left it standing. Owner: Claude, with `files.js`; it does **not** block that file's zero, which is already reached.
 - **`lists.js` progress bag has no checker** — recorded by `0.33.33.43.19`, **resolved by `0.33.33.43.21`**. `readListProgressBag` now vouches for the bag with the response readers, so `BrowserListSummary.progress` stays `unknown` and the record normaliser's `list` is typed. It also closed a latent crash: `isListSummary` never looked inside the bag, so a server sending `progress: null` threw on a bare member read. Carried no longer.
@@ -2854,6 +2846,13 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
 - [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the concrete failures recorded across the `0.33.33.32` children.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
+
+#### 0.33.33.48.1 - The `view-search-options` casts
+
+**Complete: all three casts corrected, none kept.** See the archive entry.
+- The popup is typed as the `HTMLDivElement` it is.
+- The Enter path narrows with `instanceof HTMLElement`, and the cleanup with `instanceof Node`.
+- A real-browser spec passed identically before and after.
 
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 

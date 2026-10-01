@@ -60,22 +60,6 @@
   /** @typedef {{ key?: string, preventDefault?: () => void }} FieldControlEvent */
 
   /**
-   * The suggestion popup. `style` is optional-and-writable because the fake DOM starts without
-   * one and this module installs a plain object in that case.
-   * @typedef {{
-   *   click?: () => void,
-   *   hidden?: boolean,
-   *   id?: string,
-   *   className?: string,
-   *   parentNode?: { removeChild?: (node: unknown) => unknown } | null,
-   *   querySelector?: (selector: string) => { click?: () => void } | null,
-   *   replaceChildren?: (...nodes: unknown[]) => void,
-   *   setAttribute?: (name: string, value: string) => void,
-   *   style?: Record<string, string>,
-   * }} OptionsPopup
-   */
-
-  /**
    * @typedef {{
    *   emptyMessage?: string,
    *   maxResults?: number,
@@ -171,7 +155,9 @@
       control._viewSearchOptionsCleanup();
     }
 
-    const popup = /** @type {OptionsPopup} */ (/** @type {unknown} */ (document.createElement("div")));
+    // The popup is the element this creates, typed as what it is. Until `0.33.33.48.1` it was cast
+    // through `unknown` to a structural type and back to a `Node` to be appended.
+    const popup = document.createElement("div");
     const popupId = `view-search-options-${++searchOptionsCounter}`;
     popup.id = popupId;
     popup.className = "view-search-options";
@@ -179,7 +165,7 @@
     popup.setAttribute?.("role", "listbox");
 
     if (document.body?.appendChild) {
-      document.body.appendChild(/** @type {Node} */ (/** @type {unknown} */ (popup)));
+      document.body.appendChild(popup);
     }
 
     control.autocomplete = "off";
@@ -250,7 +236,9 @@
         return;
       }
       const firstOption = popup.querySelector?.(".view-search-option");
-      if (!firstOption) {
+      // Only this module fills the popup, and its options are the buttons it builds, so a match is
+      // an `HTMLElement`; the check is what lets `click` be called without claiming it.
+      if (!(firstOption instanceof HTMLElement)) {
         return;
       }
       event.preventDefault?.();
@@ -281,7 +269,7 @@
 
   /**
    * @param {FieldControl} control
-   * @param {OptionsPopup} popup
+   * @param {HTMLElement} popup
    * @param {FieldOption} option
    * @returns {HTMLButtonElement}
    */
@@ -334,8 +322,12 @@
    * @returns {void}
    */
   function cleanupDetachedSearchOptions(control) {
+    // `contains` is asked only about a real node. Every control first-party code mounts is one; a
+    // control that is not - an `EventTarget` standing in for an input, or a node from another realm -
+    // skips cleanup rather than being claimed as a `Node` it may not be.
     if (typeof document.body?.contains !== "function"
-      || document.body.contains(/** @type {Node} */ (/** @type {unknown} */ (control)))) {
+      || !(control instanceof Node)
+      || document.body.contains(control)) {
       return;
     }
     control._viewSearchOptionsCleanup?.();
@@ -343,7 +335,7 @@
 
   /**
    * @param {FieldControl} control
-   * @param {OptionsPopup} popup
+   * @param {HTMLElement} popup
    * @returns {void}
    */
   function showSearchOptions(control, popup) {
@@ -354,7 +346,7 @@
 
   /**
    * @param {FieldControl} control
-   * @param {OptionsPopup} popup
+   * @param {HTMLElement} popup
    * @returns {void}
    */
   function hideSearchOptions(control, popup) {
@@ -365,7 +357,7 @@
   /**
    * Place the popup against the control, flipping above it when there is more room there.
    * @param {FieldControl} control
-   * @param {OptionsPopup} popup
+   * @param {HTMLElement} popup
    * @returns {void}
    */
   function positionSearchOptions(control, popup) {
@@ -385,9 +377,6 @@
       Math.max(8, rect.left || 8),
       Math.max(8, viewportWidth - width - 8),
     );
-    if (!popup.style) {
-      popup.style = {};
-    }
     popup.style.left = `${left}px`;
     popup.style.top = `${openAbove ? Math.max(8, rect.top - availableHeight - spacing) : rect.bottom + spacing}px`;
     popup.style.width = `${width}px`;

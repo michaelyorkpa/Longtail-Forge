@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19101,
+    "activeAssertionCount": 19102,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19915,
+    "effectiveAssertionCount": 19916,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -8804,11 +8804,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 43,
+      "assertionCount": 44,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view shared capabilities contract.",
-      "entryPointAssertionCount": 43,
+      "entryPointAssertionCount": 44,
       "id": "legacy.view.shared.capabilities",
       "legacy": true,
       "path": "scripts/view-shared-capabilities-regression.mjs",
