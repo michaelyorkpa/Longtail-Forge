@@ -171,7 +171,7 @@ Any further path needs a recorded assignment first.
 | `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is complete at the `.46.1` integration.** Its first READY head was held at review and corrected under D1. The `.46` acceptance did not run the regression suite, and `.47.2`'s measurement found seven failures with the generated module present. Under the operator's D3 amendment:
   - `.46.1` (Codex) corrected the two template defects;
   - the integrator's adopted-module acceptance passed the full gate, 348/348. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. **`.47.2` is complete:** the locality and scaffold measurements, recorded as hypotheses. `0.33.33.48` is next. |
-| `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
+| `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. **`.48.2` is complete:** the ledger machinery is retired behind an absolute zero gate that keeps the file-universe and owned-means-checked guarantees. The closeout, tagged `0.33.33.48`, completes the durable documentation, the planned final gates and the artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
@@ -2908,9 +2908,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **`0.33.33.48` is not the first time any program reaches zero.** The server/test program was retired at zero at `0.33.33.26.2`, the scripts program at `0.33.33.32.28.1`, and the browser program is retired at zero by `0.33.33.44`. This checkpoint deletes the temporary three-program ledger **as a whole**, after all three are already permanently zero, and migrates or retires the governance that reads it.
 
-- [ ] **Delete the temporary compiler ledger only after all three programs are already retired at zero**, and migrate or retire every governance assertion that reads it — including the program-list assertion, the per-owner strict-clean pins, the shrink-only mutation proof, and the three retirement assertions themselves.
-- [ ] **Prove the three direct programs remain complete after deletion.** Removing the ledger removes the universe check that currently refuses an unowned first-party file; that guarantee must survive in another form or the deletion has weakened the estate.
-- [ ] Retire superseded honesty/seam/pragma inventories in the same pass.
+- [x] **Delete the temporary compiler ledger only after all three programs are already retired at zero**, and migrate or retire every governance assertion that reads it — including the program-list assertion, the per-owner strict-clean pins, the shrink-only mutation proof, and the three retirement assertions themselves. (`0.33.33.48.2`: deleted with its write script and probe. Every reading assertion migrated one-for-one, or was superseded by the absolute zero gate.)
+- [x] **Prove the three direct programs remain complete after deletion.** Removing the ledger removes the universe check that currently refuses an unowned first-party file; that guarantee must survive in another form or the deletion has weakened the estate. (`0.33.33.48.2`: the gate keeps both the program universe and owned-means-checked. Live probes refused an unowned first-party file and an owned file its compiler did not check.)
+- [x] Retire superseded honesty/seam/pragma inventories in the same pass. (`0.33.33.48.2` retired the last of them, the browser-diagnostic classification; the honesty and seam inventories went at `0.33.33.12`, and their credited records now name the gate.)
 - [ ] **Correct the two `docs/module-contract.md` statements `0.33.33.34` made false**, deferred here because the checkpoint gate reserves durable documentation for this closeout. The document still describes `LongtailForge.filesDialog.openFilePreview()` as a live compatibility entry, which `0.33.33.34` deleted when it reduced that namespace to its canonical Files owner; and it still describes the framework action dispatcher without the dependency loading it now owns through `moduleActions.dependenciesFor` and `moduleActions.ensureDependencies`. Both corrections are drafted in the `0.33.33.34` archive entry.
 - [ ] **Extend `docs/e2e-testing.md`'s row for `client-projects-edit-dialog-reflow.spec.mjs`**, which still describes Edit Project only. Since `0.33.33.43.46` the spec also carries the Edit Client case and Edit Project's tag-survival assertion. Deferred here because the checkpoint gate reserves durable documentation for this closeout.
 - [ ] **Document what `0.33.33.45` changed for module authors.** Deferred here, because the checkpoint gate reserves durable documentation for this closeout.
@@ -2941,7 +2941,8 @@ Second, the previous wording said to "delete the browser ledger section at zero"
     - the five regressions that pin the live migration inventory;
     - `docs/database.md`;
   - that `db:schema:refresh` writes only `current.generated.sql`;
-  - the evidence model: a reviewable adoption diff with its baseline, and a full-gate acceptance in a full-history clone outside the OS temp tree.
+  - the evidence model: a reviewable adoption diff with its baseline, and a full-gate acceptance in a full-history clone outside the OS temp tree;
+  - in the scaffold's `docs.txt` template, a pointer to that guidance, and the removal of the retired ledger from its "Catalog or ledger regeneration" sentence, which `0.33.33.48.2` made stale. The template is Codex's `0.33.33.46` path, so the ownership amendment is recorded before it is edited.
 - [ ] **Explain the real reviewed process for adding discovered tests**, per the operator's 2026-10-01 ruling:
   - using an appropriate existing canonical area where one fits;
   - when necessary, a new area's separate registration and review;
@@ -2958,41 +2959,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.48.2 - Retire the temporary typecheck ledger and its debt inventories
 
-**Model: High Effort** - the lasting typecheck gate changes form: every guarantee the ledger carried must survive explicitly, and the regression migration is large and mechanical.
-
-**Scope.** Tooling and regressions only, under the operator's direction to proceed with `0.33.33.48` under its existing prerequisites. Durable documentation of the new gate belongs to the closeout.
-
-- [ ] **The gate.** Without a ledger, `npm run typecheck` enforces all of these:
-  - zero diagnostics in each of the three programs, and zero explicit `any`, each refused with its exact location;
-  - the program universe: every first-party JavaScript file is owned by exactly one program;
-  - owned-means-checked: each program's compiler lists every file it owns;
-  - the suppression policy;
-  - the first-party declaration probe.
-
-  The write mode, the shrink-only validator, the reclassification machinery and the checkpoint stamp are removed. An unknown option, such as the retired `--write`, is refused.
-- [ ] **Delete `scripts/typecheck-debt-ledger.json`,** together with the `typecheck:ledger:write` script and its contract pin. A pin proves nothing reads the ledger again.
-- [ ] **Ownership without the ledger.**
-  - **The rule.** A static ownership rule, exported by the governance script, names the program that owns a file.
-  - **The probe.** It replaces the ledger-backed probe, and the probe's importers migrate one-for-one to ownership pins.
-  - **Diagnostics.** They are not re-pinned per file, because the gate enforces zero for every owned file.
-- [ ] **Migrate the governance regression's ledger reads one-for-one,** wherever a meaningful replacement exists:
-  - **per-file diagnostic pins** become ownership pins. Unlike the ledger reads they replace, these fail when a file leaves its program;
-  - **explicit-any pins** read the live source policy;
-  - **group filters** assert program ownership;
-  - **the shrink-only mutation proofs** become zero-gate mutation proofs.
-
-  The absolute gate supersedes the retirement-at-zero assertions.
-- [ ] **Retire the browser-diagnostic classification,** together with its fixture pins. It was the family, owner and root-optionality debt inventory that drove the browser program to zero.
-  - **What stays.** `declaredNamespaceMembers` stays with the declaration-coverage inventory, which remains a live namespace contract.
-  - **The retired assertions** are credited under the coverage policy, each with its disposition.
-- [ ] **Coverage records.** Historical credited retirements that name the ledger as an owner path are re-pointed to its successors, the zero gate and the governance regression. This is recorded as a reviewed policy edit.
-- [ ] **Proof: live mutation probes through the real `npm run typecheck`,** in a disposable full-history clone outside the OS temp tree. Each of these is refused, and the unchanged tree passes:
-  - a diagnostic introduced in each program;
-  - an explicit `any`;
-  - an unowned first-party file;
-  - an owned file its compiler does not check;
-  - a forbidden suppression;
-  - the retired `--write`.
+**Complete: the ledger is retired behind an absolute zero gate.** See the archive entry.
+- **Kept:** the program universe, owned-means-checked, the suppression policy and the declaration probe. Every diagnostic and every explicit `any` is now refused outright, naming its location.
+- **Retired:** the ledger, its write mode and probe, and the browser-diagnostic classification. The classifier's 22 assertions are credited as a self-proving `dead-target` retirement.
 
 #### 0.33.33.48.1 - The `view-search-options` casts
 
