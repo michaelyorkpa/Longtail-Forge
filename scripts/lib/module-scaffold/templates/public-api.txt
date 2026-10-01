@@ -1,0 +1,13 @@
+import { Router } from "express";
+import { apiKeyAsyncRoute } from "../../core/http.js";
+import { requireApiKey } from "../../middleware/require-api-key.js";
+import { publicApiData, publicApiList } from "../../core/public-api-responses.js";
+import { recordsService } from "./records.service.js";
+
+export const publicRoutes = Router();
+publicRoutes.get("/api/v1/__ID__", requireApiKey("__KEY__:read"), apiKeyAsyncRoute(async (request, response) => {
+  response.json(publicApiList(await recordsService.list(request.apiSession, request.query), request.apiSession));
+}));
+publicRoutes.get("/api/v1/__ID__/:id", requireApiKey("__KEY__:read"), apiKeyAsyncRoute(async (request, response) => {
+  response.json(publicApiData(await recordsService.read(request.apiSession, request.params.id), request.apiSession));
+}));

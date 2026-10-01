@@ -8,6 +8,7 @@
     "node": ">=24.7 <25"
   },
   "scripts": {
+    "module:create": "node scripts/create-module.mjs",
     "start": "node server.js",
     "artifact:build": "node scripts/build-runtime-artifact.mjs",
     "artifact:smoke": "node scripts/runtime-artifact-smoke.mjs",
