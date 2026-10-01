@@ -2949,6 +2949,11 @@ Second, the previous wording said to "delete the browser ledger section at zero"
   - `maximumActiveScripts` and other ceiling changes as reviewed policy edits.
 
   Do not claim that ordinary regeneration automatically authorizes increases the tools reject.
+- [ ] **Dependency correction, scoped apart from the checkout repair** (operator, 2026-10-01). It lands as its own `0.33.33.48`-labelled pull request before the closeout.
+  - **`espree`** becomes a declared development dependency. Only verification tooling imports it: the cycle gate and the regression source measure.
+  - **The high `npm audit` finding** is cleared with the in-range, development-only `brace-expansion` 5.0.12.
+  - **Enforcement is unchanged.** `npm audit --audit-level=high` stays enforced, with no threshold change, omission or suppression.
+  - **The two moderate runtime findings,** `ip-address` and `markdown-it`, are diagnosed and recorded, not upgraded.
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
 - [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the concrete failures recorded across the `0.33.33.32` children.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.

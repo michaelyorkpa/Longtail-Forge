@@ -127,6 +127,7 @@
     "@playwright/test": "^1.62.1",
     "@types/node": "^26.2.0",
     "eslint": "^10.8.1",
+    "espree": "^11.2.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },

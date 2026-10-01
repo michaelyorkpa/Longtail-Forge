@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["dependencies", "markdown", "release", "tooling"],
-  description: "Pins the reviewed ESLint 10.8, Node types 26.2.0, and Markdown-it 15 dependency baseline and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
+  description: "Pins the reviewed ESLint 10.8, Node types 26.2.0, and Markdown-it 15 dependency baseline, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
   runMode: "static",
 });
 
@@ -36,6 +36,24 @@ assert.equal(requireDependencies(eslintLock, "eslint lock entry")["@eslint/confi
 assert.equal(eslintConfigHelpersLock.version, "0.7.0", "config-helpers should resolve to the reviewed 0.7 baseline");
 assert.equal(requireDependencies(eslintLock, "eslint lock entry").minimatch, "^10.2.5", "ESLint should retain its reviewed minimatch range");
 assert.equal(minimatchLock.version, "10.2.5", "minimatch should resolve to the reviewed 10.2.5 baseline");
+
+// `0.33.33.48`: brace-expansion reaches the tree only through ESLint's minimatch. 5.0.12 is the
+// first release outside GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p and GHSA-q2hr-2g5m-vwhr, the high
+// finding that failed `npm audit --audit-level=high`.
+const braceExpansionLock = requireLockEntry(packageLock, "node_modules/brace-expansion");
+assert.equal(requireDependencies(minimatchLock, "minimatch lock entry")["brace-expansion"], "^5.0.5", "minimatch should retain its reviewed brace-expansion range");
+assert.equal(braceExpansionLock.version, "5.0.12", "brace-expansion should resolve to the advisory-patched 5.0.12");
+assert.equal(braceExpansionLock.dev, true, "the resolved brace-expansion package must remain development-only");
+
+// `0.33.33.48`: the dependency-cycle gate and the regression source measure parse JavaScript with
+// espree, and no runtime file imports it. It is a declared development dependency rather than one
+// ESLint happens to install, and it stays out of the production install.
+const espreeLock = requireLockEntry(packageLock, "node_modules/espree");
+assert.equal(requireDevDependencies(packageJson).espree, "^11.2.0", "the cycle gate's parser must be a declared development dependency");
+assert.equal(requireDependencies(packageJson).espree, undefined, "espree must remain development-only tooling");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root").espree, "^11.2.0", "the lockfile root should match the espree package contract");
+assert.equal(espreeLock.version, "11.2.0", "the resolved espree should remain the version ESLint already uses");
+assert.equal(espreeLock.dev, true, "the resolved espree package must remain development-only");
 
 assert.equal(requireDevDependencies(packageJson)["@types/node"], "^26.2.0", "Node types should use the reviewed 26.2.0 development baseline");
 assert.equal(requireDependencies(packageJson)["@types/node"], undefined, "Node types must remain development-only tooling");
