@@ -124,7 +124,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Codex | `0.33.33.38.5` | **Complete at the `0.33.33.38.5` integration.** The server lifecycle vocabulary is closed to its five values, and the write normalizer proves membership | server 0 |
-| Codex | `0.33.33.46` | **Released at the `0.33.33.45.3` integration:** the strict-clean module scaffold, within the path ownership recorded below | new paths only |
+| Codex | `0.33.33.46` | **Complete at the `0.33.33.46` integration.** The strict-clean module scaffold, with the D1 Vitest test home. Untouched output passed the complete scaffold acceptance on the combined tree. | new paths only |
 | Claude | `0.33.33.44.47` | **Complete.** The final permanent browser-zero proof: the browser section is retired at zero, and every owned file must be one its compiler checked | browser 0 |
 | Claude | `0.33.33.44` final proof | **Complete at `0.33.33.44.47`.** `0.33.33.44.1` opened the family; its owner sum first reached zero at `0.33.33.44.46`, and the permanent proof closed the parent. Its six criteria are ticked against their evidence in its section | 0 |
 
@@ -163,7 +163,7 @@ Any further path needs a recorded assignment first.
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
 | `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Both complete.** `0.33.33.44` closed at `0.33.33.44.47`. `0.33.33.38` closed when the operator's 2026-10-01 ruling settled its last criterion; it is recorded in the parent and carried in the `0.33.33.45.1` bookkeeping. |
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
-| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is released**, with its path ownership recorded in the file-ownership section above, under the operator's 2026-10-01 ruling. Its first READY head was held at review, and Codex corrects it under the operator's 2026-10-01 D1 amendment. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. `.46` integrates once its corrected head passes the complete scaffold acceptance on the combined tree. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is complete** at its integration. Its first READY head was held at review, and Codex corrected it under the operator's 2026-10-01 D1 amendment. Untouched output passed the complete scaffold acceptance on the combined tree. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. `.47.2` is next, then `0.33.33.48`. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
@@ -2813,13 +2813,19 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Model: High Effort** - The generator defines the default architecture inherited by future modules.
 
-- [ ] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and a generated Vitest unit-test home (amended 2026-10-01; see below).
-- [ ] **The scaffold inherits whatever `0.33.33.45` actually extracts, not what it proposed.** Build the generator against the measured post-`.45` module shape.
-- [ ] Emit no empty-array padding, speculative concern composition, route DSL, framework edits, or Support Tickets feature behavior.
-- [ ] **Generated output must enter all three permanent-zero programs clean.** A scaffold that produces a diagnostic in the server, scripts, or browser program is not done, and its browser controller must already be IIFE-isolated to the `0.33.33.33` standard.
-- [ ] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
-- [ ] Require untouched scaffold output to pass the normal validation contract without a transpile step.
-- [ ] D1 correction implemented and focused proof complete; combined-tree cycle and full scaffold acceptance remain pending with Claude. The generated initial test is a collected Vitest unit, not a discovered regression; see the archive for positive/negative admission evidence. The 2026-10-01 amendment (coordination commit `00387875`) authorizes the exact matching `module:create` entry in `scripts/package-script-contracts.json`; that entry resolves the initial final-gate hold. See the archive for the twelve-file scaffold, real catalog/boot/permission/search proof, three-program fixture compilation and cleanup evidence. Base `cce9619f0eee4377fc4ef7f7342ab167457a1660`; planning `1f248e43`, implementation `94276fd8`. No Support Tickets behavior, shared runtime change or dependency change. Claude owns integration.
+**Complete at the `0.33.33.46` integration.** See the archive entry.
+- **What it generates.** `npm run module:create -- <module-id>` emits the twelve-file skeleton in the post-`.45` shape, including a collected, strict-clean Vitest unit-test home.
+- **How it was accepted.** Untouched output passed the complete scaffold acceptance on a disposable copy of the combined tree:
+  - catalog, compiler-program membership, the generated test, ledger and typecheck;
+  - closeout, including the `0.33.33.47.3` cycle gate;
+  - the retained boot and registration proof.
+
+- [x] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and a generated Vitest unit-test home (amended 2026-10-01; see below).
+- [x] **The scaffold inherits whatever `0.33.33.45` actually extracts, not what it proposed.** Build the generator against the measured post-`.45` module shape.
+- [x] Emit no empty-array padding, speculative concern composition, route DSL, framework edits, or Support Tickets feature behavior.
+- [x] **Generated output must enter all three permanent-zero programs clean.** A scaffold that produces a diagnostic in the server, scripts, or browser program is not done, and its browser controller must already be IIFE-isolated to the `0.33.33.33` standard.
+- [x] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
+- [x] Require untouched scaffold output to pass the normal validation contract without a transpile step.
 
 **Amended by the operator on 2026-10-01 (D1).** The "regression-area home" requirement is replaced. This is an explicit amendment to the acceptance criterion, not a claim that a Vitest file is a registered regression area.
 - **The new requirement:**
@@ -2828,9 +2834,7 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - **What does not change.** Canonical regression areas, discovery conventions, manifest ceilings and routing do not change to admit scaffold output. No existing discovered regression is retired or moved under this authorization.
 - **Future discovered tests.** They may use an appropriate existing canonical area. A genuinely new area needs separate registration and review, and the guidance distinguishes the two cases.
 
-**Held at review on 2026-10-01.** The first READY head, `d0c67e07` (PR #861), generated `scripts/regressions/<id>/records.regression.mjs` with `area: "<id>"`. Discovery refuses that file for three reasons: the area is not canonical, the directory does not match the area, and it exceeds the shrink-only active ceiling. The fixture missed this because it ran the file directly with Node.
-- **What happens next.** Codex corrects the scaffold under D1, in its recorded paths only.
-- **What integration waits for.** It also waits for `0.33.33.47.3`. Before integrating, it repeats the complete scaffold acceptance on the corrected combined tree, because passing `.47.3` alone does not certify `.46`.
+**Held at review, then corrected.** The first READY head, `d0c67e07`, generated a discovered regression that discovery refuses. Codex corrected the scaffold under D1 at `f198985a`.
 
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
@@ -2857,6 +2861,8 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 #### 0.33.33.47.2 - Locality and scaffold measurements
 
 **Model: Medium Effort** - measurements recorded as hypotheses, not gates; starts after `0.33.33.46` integrates.
+
+**Unblocked by the `0.33.33.46` integration.** The delivered scaffold is on `nightly`.
 
 - [ ] Record median files touched for module-local changes, cross-module or framework edits for a standard capability, scaffold-to-green time, and ceremony-file count, each against the delivered scaffold.
 - [ ] Target zero framework-file edits for standard module capabilities, and strict-clean new module output. Timing and locality expectations stay labelled as hypotheses until measured.
