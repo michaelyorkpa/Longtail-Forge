@@ -1,0 +1,23 @@
+// Classic-script isolation: declarations belong inside the IIFE, never to the page global scope.
+(() => {
+  "use strict";
+  const host = document.querySelector("[data-__ID__-records]");
+  if (!host) return;
+  const api = window.LongtailForge?.api;
+  if (!api) { host.textContent = "The page could not be loaded."; return; }
+  void api.getJson("/api/__ID__").then(result => {
+    if (!result || typeof result !== "object" || !("records" in result) || !Array.isArray(result.records)) {
+      throw new Error("The records response is invalid.");
+    }
+    const nodes = result.records.map(record => {
+      if (!record || typeof record !== "object" || !("title" in record) || typeof record.title !== "string") {
+        throw new Error("The record title is invalid.");
+      }
+      const node = document.createElement("p");
+      node.textContent = record.title;
+      return node;
+    });
+    if (nodes.length) host.replaceChildren(...nodes);
+    else host.textContent = "No records yet.";
+  }).catch(() => { host.textContent = "The records could not be loaded."; });
+})();

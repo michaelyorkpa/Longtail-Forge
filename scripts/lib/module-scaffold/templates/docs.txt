@@ -1,0 +1,7 @@
+# __TITLE__ module
+
+Generated starting point, not a finished workflow. The repository deliberately returns no records until module-owned persistence is implemented; no migration, seed data or mutation route is invented.
+
+`module.js` is the sole contribution entry. Keep it together until a measured concern justifies splitting it. The service owns canonical paging and shaping; browser code only renders returned records. Browser reads require `__KEY__.view`; public API reads require `__KEY__:read`. Search activation registers `__ID__.records` through the shared reference indexer.
+
+Implement storage and permission-aware record reads before adding a workflow. Add migrations through the normal migration tool if storage requires them. Build the catalog with `npm run modules:registry:generate`, regenerate the normal regression inventories when adopting the generated regression, and run `npm run verify:slice`. Runtime JavaScript needs no transpilation. Keep the browser controller as an IIFE and compile it under the browser program.

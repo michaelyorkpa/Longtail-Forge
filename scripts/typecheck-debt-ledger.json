@@ -668,6 +668,7 @@
         "tests/unit/module-action-keys-contracts.test.mjs",
         "tests/unit/module-actions-registry.test.mjs",
         "tests/unit/module-entry-defaults.test.mjs",
+        "tests/unit/module-scaffold.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
         "tests/unit/module-settings-snapshot.test.mjs",
         "tests/unit/mutation-runner-contracts.test.mjs",
@@ -1035,6 +1036,7 @@
         "scripts/clients-projects-strict-closeout-regression.mjs",
         "scripts/container-deployment-smoke.mjs",
         "scripts/create-migration.mjs",
+        "scripts/create-module.mjs",
         "scripts/dashboard-workbench-regression.mjs",
         "scripts/data-files-security-static-consolidation.mjs",
         "scripts/database-adapter-contract-regression.mjs",
@@ -1113,6 +1115,7 @@
         "scripts/lib/github-change-classification.mjs",
         "scripts/lib/licensing-gates.mjs",
         "scripts/lib/migration-schema-workflow.mjs",
+        "scripts/lib/module-scaffold/index.mjs",
         "scripts/lib/package-script-runner.mjs",
         "scripts/lib/parameter-binding-audit.mjs",
         "scripts/lib/public-demo-baseline-activation.mjs",
@@ -1598,7 +1601,7 @@
     }
   },
   "totals": {
-    "files": 1570,
+    "files": 1573,
     "errors": 0,
     "explicitAny": 0
   },

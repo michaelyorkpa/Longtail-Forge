@@ -1,0 +1,3 @@
+# __TITLE__
+
+This is a read-only starting point. It has no records until its owning repository is implemented. No create or edit workflow is provided. Access requires the module's view permission; API access uses its read scope.
