@@ -124,12 +124,30 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Codex | `0.33.33.38.5` | **Complete at the `0.33.33.38.5` integration.** The server lifecycle vocabulary is closed to its five values, and the write normalizer proves membership | server 0 |
+| Codex | `0.33.33.46` | **Released at the `0.33.33.45.3` integration:** the strict-clean module scaffold, within the path ownership recorded below | new paths only |
 | Claude | `0.33.33.44.47` | **Complete.** The final permanent browser-zero proof: the browser section is retired at zero, and every owned file must be one its compiler checked | browser 0 |
 | Claude | `0.33.33.44` final proof | **Complete at `0.33.33.44.47`.** `0.33.33.44.1` opened the family; its owner sum first reached zero at `0.33.33.44.46`, and the permanent proof closed the parent. Its six criteria are ticked against their evidence in its section | 0 |
 
 **File ownership for the remainder of this conversion.** `workbench.js` is **Codex's**, and so, since the `0.33.33.42.47` integration, are `lists.js` and its directly associated tests, **reassigned from Claude** once Workbench closed so both lanes carry one remaining controller. `clients-projects.js` was **reassigned to Claude** at `0.33.33.43.31`, which opened it, and Codex's lane has not touched it. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
 
 **Reassignment, 2026-09-30, by operator ruling.** Codex is assigned `0.33.33.38.5`: `src/types/task-block-recovery-contracts.d.ts`, the Tasks server code that owns the lifecycle status there (`src/modules/tasks/tasks.service.js` and `src/modules/tasks/task-block-recovery-engine.js`), and the tests that directly own them. **The browser-only Codex ownership restriction is superseded for that boundary alone**; it opens no other server work. Claude owns the final permanent browser-zero proof, `0.33.33.44.47`, and its integration. The two proceed in parallel, and each is integrated when its evidence is ready. After they converge, the release sequence is `0.33.33.45` (Claude), `0.33.33.46` (Codex, once `.45` has established the module shape), `0.33.33.47` (Claude) and then `0.33.33.48` (Claude).
+
+**`0.33.33.46` path ownership, recorded at the `0.33.33.45.3` integration (2026-10-01) under the operator's ruling.** Codex owns the following.
+- **The generator:** `scripts/create-module.mjs`, and anything under a new `scripts/lib/module-scaffold/` for its helpers and templates.
+- **The npm entry:** the single `module:create` entry in `package.json`'s `scripts`, with no dependency or lockfile change.
+- **Its tests:** new `tests/unit/module-scaffold*.test.mjs`, plus `scripts/regressions/framework/module-scaffold.regression.mjs` if a regression is the right home. If that regression is added, Codex also owns the regenerated coverage files: `scripts/regression-coverage-manifest.json`, `scripts/regression-coverage-exceptions.json` and the generated block in `docs/regression-suite.md`.
+- **Branch evidence:** the branch-local ledger.
+- **Bookkeeping:** `.46`'s roadmap and archive entries.
+
+The throwaway module is generated into a disposable fixture outside the tracked tree, and removed afterwards.
+
+**Not owned:**
+- `src/**`. The scaffold makes no framework edit and changes no first-party module; it consumes `createModuleEntry`, `core/public-api-responses.js` and `core/search/record-indexer.js` as they are.
+- `public/**` and `views/**`.
+- Any other package or lockfile change.
+- Durable documentation, which is deferred to `0.33.33.48`.
+
+Any further path needs a recorded assignment first.
 
 **Remaining release obligations, their owner, and what each genuinely waits on:**
 
@@ -143,7 +161,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
 | `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Both complete.** `0.33.33.44` closed at `0.33.33.44.47`. `0.33.33.38` closed when the operator's 2026-10-01 ruling settled its last criterion; it is recorded in the parent and carried in the `0.33.33.45.1` bookkeeping. |
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
-| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is drawn as three children**, approved 2026-10-01; **`.45.1` and `.45.2` are complete.** `.45.3` (manifest defaults and Time Tracking composition) follows. `.46` (Codex) starts once `.45.3` integrates: Claude then records its path ownership and releases it without a further sequencing ruling. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is released**, with its path ownership recorded in the file-ownership section above, under the operator's 2026-10-01 ruling. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
@@ -2752,13 +2770,19 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
 
+**Complete at the `0.33.33.45.3` integration.** It ran as the three children approved on 2026-10-01, and its five criteria are ticked against them below. The measurements in the next paragraph are historical.
+
 **Two of the four proposed extractions are verified against the current tree and two are not.** `createModuleEntry` has **8 first-party consumers** under `src/modules/*/module.js`, comfortably past the Two-Module Rule. The Time Tracking manifest is **587 lines**, still above the 500-line threshold this checkpoint uses. The public API response helpers and the record-indexer control flow were **not located under their roadmap names** in a current search, so their consumer counts are unverified and are hypotheses until the checkpoint measures them.
 
-- [ ] **Measure each proposed extraction against the current tree before extracting it.** Apply the Two-Module Rule with counted consumers, not with the names this roadmap uses. If an extraction has fewer than two real consumers, record that and drop it rather than building the abstraction.
-- [ ] Centralize the byte-identical public API response helpers and repeated record-indexer control flow **where at least two existing consumers are counted**.
-- [ ] Default proven `createModuleEntry` constants only where all 8 current consumers agree; do not hide meaningful module declarations.
-- [ ] Keep route/service behavior explicit and do not create a route DSL, new manifest fields, empty concern files, or plugin hooks.
-- [ ] Compose the 587-line Time Tracking manifest only where the current 500-line/75-line thresholds prove cohesive concern owners.
+- [x] **Measure each proposed extraction against the current tree before extracting it.** Apply the Two-Module Rule with counted consumers, not with the names this roadmap uses. If an extraction has fewer than two real consumers, record that and drop it rather than building the abstraction. (Each child measured inside its implementation, against a committed fixture of every body it replaced. Two premises were corrected rather than followed:
+  - Tasks' workspace alias is not a duplicate, so it stayed local.
+  - Of six manifest fields the eight modules agree on, two are meaningful declarations and stayed explicit.
+
+  The `nullableText` duplicates the measurement found were left alone, by ruling.)
+- [x] Centralize the byte-identical public API response helpers and repeated record-indexer control flow **where at least two existing consumers are counted**. (`0.33.33.45.1`: envelopes and pager across five route and five service files, and the workspace alias where three implementations matched. `0.33.33.45.2`: one orchestration helper for six record indexers.)
+- [x] Default proven `createModuleEntry` constants only where all 8 current consumers agree; do not hide meaningful module declarations. (`0.33.33.45.3`: all eight agree on six fields. The four empty values are defaulted. `browserAssetsDir` and `protectedViewsDir` stay explicit, as meaningful module declarations, by the operator's 2026-10-01 ruling.)
+- [x] Keep route/service behavior explicit and do not create a route DSL, new manifest fields, empty concern files, or plugin hooks. (No DSL, new manifest field, empty concern file or hook. The three helpers are plain functions their callers invoke, and routes and services still declare themselves.)
+- [x] Compose the 587-line Time Tracking manifest only where the current 500-line/75-line thresholds prove cohesive concern owners. (`0.33.33.45.3`: three multi-field concerns, following the Tasks and Notes precedent. The single-field sections stay inline, because splitting them would serve only line count.)
 
 **Measured against `nightly` `aeeae78c` and drawn as three children, approved by operator ruling on 2026-10-01.** Each child measures within its implementation and adopts its helper across all of that helper's consumers. There are no measure-only or proof-pair checkpoints. The `nullableText` repository duplicates and other cleanup found by the measurement stay out of all three.
 
@@ -2778,15 +2802,11 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.45.3 - Manifest defaults and cohesive Time Tracking composition
 
-**Model: High Effort** - framework defaults for four values that all eight manifests declare identically, and a Time Tracking composition only where the thresholds prove it.
-
-- [ ] **Default only four fields:** `publicViews: []`, `seedHooks: []`, `repairHooks: []` and `migrationsDir: null`.
-  - Each constructed manifest gets fresh default arrays.
-  - A supplied value is kept, and the validator still refuses invalid explicit values.
-  - Omission and defaulting behaviour is defined clearly, and malformed input is never silently sanitized.
-- [ ] **`browserAssetsDir` and `protectedViewsDir` stay explicit in each module.** Neither is inferred from the framework helper's `import.meta.url`, and no repository-layout convention is introduced.
-- [ ] **Compose the 587-line Time Tracking manifest only along genuinely cohesive concerns** that meet the 500-line and 75-line thresholds. Module identity, routes, permissions, dependency order and app/worker activation are unchanged.
-- [ ] **Proof.** The normalised module inventory stays equivalent. Wherever composition moves a function reference, activation and registration behaviour is proved directly.
+**Complete: four manifest defaults in `createModuleEntry`, and Time Tracking composed along three concerns.** See the archive entry.
+- **The defaults.** All eight modules now omit `publicViews`, `seedHooks`, `repairHooks` and `migrationsDir`. A default applies only to an absent field.
+- **Explicit fields.** The module directories stay explicit in every module.
+- **Time Tracking.** It composes permissions, events and integrations, the concerns the Tasks and Notes precedent shares. `module.js` goes from 587 to 388 lines.
+- **Evidence.** The full before/after registry inventory is identical.
 
 ### 0.33.33.46 - Add the strict-clean module scaffold
 
@@ -2821,6 +2841,13 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Retire superseded honesty/seam/pragma inventories in the same pass.
 - [ ] **Correct the two `docs/module-contract.md` statements `0.33.33.34` made false**, deferred here because the checkpoint gate reserves durable documentation for this closeout. The document still describes `LongtailForge.filesDialog.openFilePreview()` as a live compatibility entry, which `0.33.33.34` deleted when it reduced that namespace to its canonical Files owner; and it still describes the framework action dispatcher without the dependency loading it now owns through `moduleActions.dependenciesFor` and `moduleActions.ensureDependencies`. Both corrections are drafted in the `0.33.33.34` archive entry.
 - [ ] **Extend `docs/e2e-testing.md`'s row for `client-projects-edit-dialog-reflow.spec.mjs`**, which still describes Edit Project only. Since `0.33.33.43.46` the spec also carries the Edit Client case and Edit Project's tag-survival assertion. Deferred here because the checkpoint gate reserves durable documentation for this closeout.
+- [ ] **Document what `0.33.33.45` changed for module authors.** Deferred here, because the checkpoint gate reserves durable documentation for this closeout.
+  - **`docs/module-development.md`:**
+    - Tasks and Notes are no longer the only consumers of concern composition; Time Tracking now composes permissions, events and integrations.
+    - The four manifest defaults mean a new module omits those fields.
+    - The shared public API envelope and pager, and the record-indexer helper, are what new modules use.
+  - **`docs/architecture.md`:** the same statement about concern-composition consumers.
+  - **`docs/module-contract.md`:** the examples still declaring the four defaulted fields are valid, but no longer needed.
 - [ ] **Record `0.33.33.25.11` in `docs/regression-suite.md` and correct the `0.33.33.25.6` paragraph**, which still says every `verify:slice` outcome "focused, full-check, and empty" runs the ledger; an empty selection is now refused. Deferred here because the checkpoint gate reserves durable documentation for this closeout.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
 - [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of `0.33.33.25.5`, unchanged at `0.33.33.32.28.1`, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.

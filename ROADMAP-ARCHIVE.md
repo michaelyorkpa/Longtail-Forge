@@ -1,5 +1,43 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.45.3 - Manifest defaults and cohesive Time Tracking composition
+
+**Model: High Effort** - framework defaults for four values that all eight manifests declare identically, and a Time Tracking composition only where the thresholds prove it.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.45.3-manifest-defaults` from `nightly` `ef93ebd5`; implementation `37613a3c`. The two directories stay explicit, by the operator's 2026-10-01 ruling. No other cleanup.
+- [x] **The defaults.** `createModuleEntry` builds the entry's manifest as a copy, adding `publicViews: []`, `seedHooks: []`, `repairHooks: []` and `migrationsDir: null` only where the field is absent.
+  - A supplied value is kept as given, whether valid, invalid or explicitly `undefined`, so the validator judges it exactly as before. The suite proves an invalid `seedHooks` or `repairHooks` is still refused.
+  - Every constructed manifest gets fresh arrays.
+  - The caller's object is not mutated. No importer outside each `module.js` reads the raw manifest.
+  - All eight modules dropped the four declarations, and each keeps `browserAssetsDir` and `protectedViewsDir` explicit.
+- [x] **The Time Tracking composition.**
+  - Three concerns, the ones the Tasks and Notes precedent shares, each a set of closely related fields:
+    - `module.permissions.js`: five fields, 61 lines;
+    - `module.events.js`: three fields, 64 lines;
+    - `module.integrations.js`: seven fields, 100 lines.
+  - The blocks moved verbatim, and each field is assigned explicitly at its original position, so key and array order are unchanged.
+  - The concerns are data only, with no imports and no functions. No function reference moved, and activation stays in `module.js`.
+  - `module.js` goes from 587 to 388 lines.
+  - Settings, Help, reporting, views and dashboard each stay inline: each is a single field below the 75-line concern threshold, and splitting them would serve only line count.
+- [x] **Two source readers retargeted, with coverage kept.**
+  - **`reporting-closeout`.** Its permission slice had always run from inside `protectedViews` to the resource definitions. It now reads the same text in manifest order, across `module.js` and the moved blocks, and that text is shown equal to the old slice apart from splice-point whitespace. Its resource slice reads the permissions concern, and is identical to before.
+  - **The protocol-relative URL guard.** It now also reads `module.events.js`, where Time Tracking's one `url:` writer moved. Without that change, the guard would have silently stopped seeing it.
+- [x] **Before and after.** The registry inventory is identical before and after:
+  - all 8 modules, in the same activation order;
+  - all 32 registry listings;
+  - each manifest's content, with functions compared by name and source hash and routers by route stack;
+  - activation hooks.
+
+  The one difference is that the four defaulted keys now sit last in each manifest's own key order. The only key iteration, the validator's unknown-field check, cannot observe that.
+- [x] **Proof.**
+  - **The suite.** `tests/unit/module-entry-defaults.test.mjs` covers defaulting and fresh arrays, identity of supplied values, explicit `undefined`, invalid values refused, directories never defaulted, non-mutation, the source pins for all eight modules, and data-only, explicitly assigned concerns.
+  - **Mutations.** 8 of 8 were caught: replacing an explicit `undefined`, a shared array, a defaulted directory, mutating in place, sanitising `seedHooks`, an `undefined` `migrationsDir`, a dropped default, and a spread concern. Files were restored byte-exact.
+  - **Regressions.** The bundled-module registry, settings and reporting contribution suites, Help, the Time Entries screen, Workbench timer, Dashboard entry and Notes catalog all pass. The bundled catalog is current.
+- [x] **Parent acceptance.** `0.33.33.45`'s five criteria are ticked against its three children.
+- [x] **`.46` released.** Codex's path ownership for `0.33.33.46` is recorded in the coordination section. It covers new generator, test and bookkeeping paths only; `src/**` is excluded, so there are no framework edits.
+- [x] **Accounting.** The ledger adds four strict-clean files: 1,570 files, 0 diagnostics in every program, and no explicit `any`.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `ef93ebd5`, and `checkpoint:validate` run on the final tree. No docs change now. The composition and defaults guidance, and the stale consumer statements in `docs/module-development.md` and `docs/architecture.md`, are recorded as a `0.33.33.48` obligation.
+
 ## Version 0.33.33.45.2 - Common record-indexer orchestration
 
 **Model: High Effort** - the orchestration is extracted; each module keeps its own reader, document builder and eligibility policy.
