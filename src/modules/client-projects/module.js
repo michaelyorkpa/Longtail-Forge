@@ -42,10 +42,7 @@ const clientProjectsModule = {
   browserApiRoutes: [clientsRoutes],
   publicApiRoutes: [],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     { label: "Projects", href: "projects.html", requiredPermissions: ["projects.manage"] },
     { label: "Clients", href: "clients.html", parent: "projects.html", requiredPermissions: ["clients.manage"] },
@@ -403,7 +400,6 @@ const clientProjectsModule = {
       },
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "clients-projects-script",
