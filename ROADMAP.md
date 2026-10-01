@@ -2838,13 +2838,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.46.1 - Correct scaffold templates and state reviewed adoption
 
-**Model: Medium Effort** - Two specified template corrections and existing-fixture proofs; no framework or adoption policy edits.
+**Model: Medium Effort** - Two specified template corrections with focused fixture proofs.
 
-- **Plan/base:** `d65a82a2ef73502979f6f1602d88cb104c108920`, branch `agent/0.33.33-codex-module-scaffold-46-1`. D3 Option 1: emitted files need no repair; full repository acceptance requires reviewed adoption outside those files. Codex owns generator/templates, directly owning tests and bookkeeping. Claude owns adoption/security and final adopted-module acceptance.
-- [ ] Remove undeclared Markdown Help and its mapping (12 to 11 files), keeping the inline article. Add icons immediately after navigation, preserving the other scripts and module behavior.
-- [ ] Generated guidance names reviewed API scopes/docs, module/manifest/search and public-demo inventories, Support View classification, default-grant migration, consolidated seeds and generated-schema refresh. Retain D1 test-home and regression-admission guidance.
-- [ ] Extend the existing fixture with copied Help-layout and view-contract checks, each live-proved by its defect and exact failure reason, followed by byte-exact restore. Retain compiler membership, collected unit test, discovery, boot and cleanup proofs. No recursive full gate or unadopted-sample acceptance claim.
-- [ ] Implementation then archive commit, range-explicit verify:slice, checkpoint validation and draft PR. Full adopted-module acceptance remains Claude's obligation.
+- [ ] Template correction and focused proof complete; final committed-tree verification and protected integration pending. See the archive for both positive/negative checks, 11-file inline-Help output and D3 Option 1. Full adopted-module acceptance remains Claude-owned; the unadopted fixture does not establish it. Base `d65a82a2ef73502979f6f1602d88cb104c108920`; planning `e5d90f18`, implementation `c00a38d9`.
 
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
