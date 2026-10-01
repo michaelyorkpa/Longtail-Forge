@@ -1,0 +1,21 @@
+{
+  "base": "422ba20251644dc997ea6624411f7058711139d8",
+  "indexers": {
+    "src/modules/lists/search-indexers.js": {
+      "indexListRecord": "async function indexListRecord({ workspaceId, recordId }) {\n  if (!recordId) {\n    const lists = await listsRepository.list(workspaceId, { includeDeleted: false });\n    const documents = [];\n\n    for (const list of lists) {\n      documents.push(await listToSearchDocument(list));\n    }\n\n    return { documents };\n  }\n\n  const list = await listsRepository.readById(workspaceId, recordId);\n\n  if (!list || list.status === \"deleted\") {\n    return null;\n  }\n\n  return listToSearchDocument(list);\n}"
+    },
+    "src/modules/tasks/search-indexers.js": {
+      "indexTaskRecord": "async function indexTaskRecord({ workspaceId, recordId }) {\n  if (!recordId) {\n    const tasks = await tasksRepository.readAll(workspaceId);\n    const documents = [];\n\n    for (const task of tasks) {\n      documents.push(await taskToSearchDocument(task));\n    }\n\n    return { documents };\n  }\n\n  const task = await tasksRepository.readById(workspaceId, recordId);\n\n  if (!task) {\n    return null;\n  }\n\n  return taskToSearchDocument(task);\n}"
+    },
+    "src/modules/notes/search-indexers.js": {
+      "indexNoteRecord": "async function indexNoteRecord({ workspaceId, recordId }) {\n  if (!recordId) {\n    const notes = await notesRepository.list(workspaceId, { includeDeleted: false });\n    const documents = [];\n\n    for (const note of notes) {\n      const document = await noteToSearchDocument(note);\n      if (document) {\n        documents.push(document);\n      }\n    }\n\n    return { documents };\n  }\n\n  const note = await notesRepository.readById(workspaceId, recordId);\n  if (!note) {\n    return null;\n  }\n\n  return noteToSearchDocument(note);\n}"
+    },
+    "src/modules/time-tracking/search-indexers.js": {
+      "indexTimeEntryRecord": "async function indexTimeEntryRecord({ workspaceId, recordId }) {\n  if (!recordId) {\n    const entries = await timeEntriesRepository.readAll(workspaceId);\n    const documents = [];\n\n    for (const entry of entries) {\n      documents.push(await timeEntryToSearchDocument(entry));\n    }\n\n    return { documents };\n  }\n\n  const entry = await timeEntriesRepository.readById(workspaceId, recordId);\n\n  if (!entry) {\n    return null;\n  }\n\n  return timeEntryToSearchDocument(entry);\n}"
+    },
+    "src/modules/client-projects/search-indexers.js": {
+      "indexClientRecord": "async function indexClientRecord({ workspaceId, recordId }) {\n  if (!recordId) {\n    const clients = await clientsRepository.readAll(workspaceId);\n    const documents = [];\n\n    for (const client of clients) {\n      documents.push(await clientToSearchDocument(client));\n    }\n\n    return { documents };\n  }\n\n  const client = await clientsRepository.readById(workspaceId, recordId);\n\n  if (!client) {\n    return null;\n  }\n\n  return clientToSearchDocument(client);\n}",
+      "indexProjectRecord": "async function indexProjectRecord({ workspaceId, recordId }) {\n  if (!recordId) {\n    const projects = await projectsRepository.readAll(workspaceId);\n    const documents = [];\n\n    for (const project of projects) {\n      documents.push(await projectToSearchDocument(project));\n    }\n\n    return { documents };\n  }\n\n  const project = await projectsRepository.readById(workspaceId, recordId);\n\n  if (!project) {\n    return null;\n  }\n\n  return projectToSearchDocument(project);\n}"
+    }
+  }
+}

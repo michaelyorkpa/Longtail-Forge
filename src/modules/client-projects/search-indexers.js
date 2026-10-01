@@ -1,4 +1,5 @@
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
+import { indexSearchReference } from "../../core/search/record-indexer.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { clientsRepository } from "./clients.repo.js";
 import { projectsRepository } from "./projects.repo.js";
@@ -21,25 +22,12 @@ function registerClientProjectsSearchIndexers() {
 }
 
 /** @param {SearchReference} reference */
-async function indexClientRecord({ workspaceId, recordId }) {
-  if (!recordId) {
-    const clients = await clientsRepository.readAll(workspaceId);
-    const documents = [];
-
-    for (const client of clients) {
-      documents.push(await clientToSearchDocument(client));
-    }
-
-    return { documents };
-  }
-
-  const client = await clientsRepository.readById(workspaceId, recordId);
-
-  if (!client) {
-    return null;
-  }
-
-  return clientToSearchDocument(client);
+async function indexClientRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: (workspaceId) => clientsRepository.readAll(workspaceId),
+    readOne: (workspaceId, recordId) => clientsRepository.readById(workspaceId, recordId),
+    toDocument: clientToSearchDocument,
+  });
 }
 
 /** @param {ClientRecord} client */
@@ -75,25 +63,12 @@ async function clientToSearchDocument(client) {
 }
 
 /** @param {SearchReference} reference */
-async function indexProjectRecord({ workspaceId, recordId }) {
-  if (!recordId) {
-    const projects = await projectsRepository.readAll(workspaceId);
-    const documents = [];
-
-    for (const project of projects) {
-      documents.push(await projectToSearchDocument(project));
-    }
-
-    return { documents };
-  }
-
-  const project = await projectsRepository.readById(workspaceId, recordId);
-
-  if (!project) {
-    return null;
-  }
-
-  return projectToSearchDocument(project);
+async function indexProjectRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: (workspaceId) => projectsRepository.readAll(workspaceId),
+    readOne: (workspaceId, recordId) => projectsRepository.readById(workspaceId, recordId),
+    toDocument: projectToSearchDocument,
+  });
 }
 
 /** @param {ProjectRecord} project */
