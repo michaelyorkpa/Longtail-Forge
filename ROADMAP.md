@@ -171,7 +171,7 @@ Any further path needs a recorded assignment first.
 | `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is complete at the `.46.1` integration.** Its first READY head was held at review and corrected under D1. The `.46` acceptance did not run the regression suite, and `.47.2`'s measurement found seven failures with the generated module present. Under the operator's D3 amendment:
   - `.46.1` (Codex) corrected the two template defects;
   - the integrator's adopted-module acceptance passed the full gate, 348/348. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. **`.47.2` is complete:** the locality and scaffold measurements, recorded as hypotheses. `0.33.33.48` is next. |
-| `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. **`.48.2` is complete:** the ledger machinery is retired behind an absolute zero gate that keeps the file-universe and owned-means-checked guarantees. The closeout, tagged `0.33.33.48`, completes the durable documentation, the planned final gates and the artifact identity proof. |
+| `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. **`.48.2` is complete:** the ledger machinery is retired behind an absolute zero gate that keeps the file-universe and owned-means-checked guarantees. **`.48.3` gives the Nightly full gate and the promotion fallback full history** at their exact SHAs, so the history-pinned unit tests can run there. The closeout, tagged `0.33.33.48`, completes the durable documentation, the planned final gates and the artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
@@ -2959,30 +2959,10 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.48.3 - Give the Nightly and promotion test gates the history their tests read
 
-**Model: High Effort** - a CI checkout-policy change on two protected jobs. The exact-SHA, proof-reuse and artifact contracts must not move.
-
-**Authority.** The operator's 2026-10-01 ruling, Option A: change `fetch-depth` from 1 to 0 only in `nightly.yml` `jobs.integration-gate` and `promotion.yml` `jobs.release-gate`.
-- It repairs the history requirement of tests that have already shipped.
-- It does not revoke D3's restriction on checkout changes for the adoption experiment.
-- It does not adopt the fixture migration (Option B), and does not record it as mandatory future work.
-
-- [ ] **The defect.** Since 2026-09-25 (run 36135711754, `0.33.33.43.41`), the Nightly full gate has failed at `check:fast` on every push that changed code.
-  - **The cause.** 23 unit test files load committed baselines through `git show <sha>:<path>`, but the job checked out a single commit.
-  - **Why the PR gate never saw it.** It checks out full history.
-  - **What was lost.** The nightly regressions, audit, artifact and exact-SHA proof never ran for those commits, and promotion's fallback release gate would fail the same way.
-- [ ] **The change.** Exactly two `fetch-depth` values become `0`, each with a short comment naming the historical-baseline dependency.
-  - **The exact-SHA `ref:` expressions are unchanged:** Nightly's classify-selected revision, and promotion's pull-request head SHA.
-  - **Also unchanged:** pinned action versions, permissions, credentials, triggers, job conditions, proof-reuse rules, artifact identity, and every other checkout.
-- [ ] **Workflow contracts.** Both repaired checkouts are pinned together with their exact-SHA refs, and every other checkout is pinned to its existing depth. The change can then neither widen nor regress unnoticed.
-- [ ] **Clean-clone evidence,** in fresh clones from GitHub, not the local repository.
-  - Every historical input the tests read resolves under the proposed policy.
-  - The integration gate's own sequence passes.
-  - Any input reachable only from a temporary branch is named.
-
-  The promotion fallback's requirement is shown by its contract and by the equivalent clean checkout, never by a proof-reuse run.
-- [ ] **Post-merge proof.** The new push-triggered Nightly run for the merged SHA is checked job by job. A downstream failure the repair exposes is reported separately and does not count as restored.
-
-The durable documentation of the full-history requirement for the development and unit suite belongs to the `0.33.33.48` closeout. Runtime installation and the candidate artifact gain no history requirement.
+**Complete at merge: the two test gates read full history at their exact SHAs.** See the archive entry.
+- **Changed:** `fetch-depth: 0` in `nightly.yml` `integration-gate` and in `promotion.yml` `release-gate` only. Every other checkout, ref and policy is unchanged, and the full checkout inventory is pinned.
+- **Evidence before merge:** in fresh clones from GitHub, all 40 historical inputs resolve from durable `nightly`, and the integration gate's sequence passes.
+- **Pending at merge:** the push-triggered Nightly run for the merged SHA. The `0.33.33.48` closeout records it, with any downstream failure it exposes reported separately.
 
 #### 0.33.33.48.2 - Retire the temporary typecheck ledger and its debt inventories
 

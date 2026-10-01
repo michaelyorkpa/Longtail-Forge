@@ -1,5 +1,50 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.48.3 - Give the Nightly and promotion test gates the history their tests read
+
+**Model: High Effort** - a CI checkout-policy change on two protected jobs. The exact-SHA, proof-reuse and artifact contracts had to stay where they were.
+
+- [x] **Baseline and scope.**
+  - **Base.** Branch `agent/0.33.33.48.3-history-checkout` from `nightly` `6bf80195` (refreshed and recorded; `nightly` and lean-core matched). Planning `52a1fa88`, implementation `221d928e`.
+  - **Authority.** The operator's 2026-10-01 ruling, Option A. It repairs the history requirement of tests that have already shipped. It does not revoke D3's restriction on checkout changes for the adoption experiment, and it does not adopt the fixture migration (Option B).
+- [x] **The defect.** Since 2026-09-25 (run 36135711754, `0.33.33.43.41`), the Nightly full gate failed at `npm run check:fast` on every push that changed code.
+  - **The cause.** 23 unit test files load committed baselines through `git show <sha>:<path>`, and the job checked out one commit.
+  - **Why the PR gate never saw it.** It checks out full history.
+  - **What was lost.** The gate stopped at that step, so the nightly regressions, `npm audit`, the artifact and the exact-SHA proof never ran for those commits. Promotion's fallback release gate checks out the same way and would have failed identically.
+- [x] **The change.** `fetch-depth: 1` became `0` in `nightly.yml` `jobs.integration-gate` and in `promotion.yml` `jobs.release-gate`, each with a two-line comment naming the historical-baseline dependency.
+  - **Refs.** Nightly keeps `ref: ${{ needs.classify_changes.outputs.revision }}`, and promotion keeps `ref: ${{ github.event.pull_request.head.sha }}`.
+  - **Unchanged:** pinned action versions, permissions, credentials policy, triggers, job conditions, proof-reuse rules, artifact identity, and the other 11 checkouts.
+  - **Confirmed** by parsing both files with a YAML parser and listing every checkout's ref and depth.
+- [x] **Workflow contracts.** `release.github-release-operations` now pins the complete per-job checkout inventory of both workflows: 5 Nightly checkouts and 8 promotion checkouts, each with its ref and depth.
+  - **The comments** on both repaired jobs are pinned too.
+  - **The reader.** In-memory probes show it sees a moving-branch ref, a widened checkout and a reverted depth.
+  - **Real-file mutations.** Four were each caught, and both files were restored byte-identically:
+    - the Nightly full gate's depth reverted;
+    - the Nightly browser gate widened;
+    - the promotion release gate moved to `ref: nightly`;
+    - the promotion comment removed.
+  - **Unchanged.** The existing exact-revision count ("validation, browser, and proof jobs must reuse the exact checked-out nightly revision") and the classify-checkout pins.
+- [x] **Clean-clone evidence,** in fresh clones fetched from GitHub, never the local repository, whose objects could hide missing history.
+  - **The inputs.** The 26 history-dependent tests read 40 `sha:path` inputs across 26 commits.
+    - In a full clone (130 refs, the set `fetch-depth: 0` fetches), all 40 resolve.
+    - All 40 are reachable from durable `origin/nightly`. **None relies on a temporary branch.**
+  - **The integration gate's own sequence,** run in that clone at `6bf80195` with full history, passed:
+    - `npm run closeout`, with no hard failure;
+    - `npm run check:fast`: zero diagnostics, and 349/349 unit test files (5,686 tests), including the 23 that fail in a one-commit checkout;
+    - `npm run test:regressions`: 348/348.
+  - **A durable-history-only clone,** `nightly`, `main` and tags, passed all 26 history test files (207 tests).
+  - **The promotion fallback.** Its requirement is shown by its contract pin and by this equivalent clean checkout, not by any proof-reuse run. No promotion or deployment was triggered.
+- [x] **Recorded, unchanged.** Three tests early-return in a shallow checkout before their "pin the fixture to its named base" case: `public-api-response-helpers`, `record-indexer-orchestration` and `task-lifecycle-status`. Their main assertions are hermetic. Under the repaired policy those cases now run in the Nightly gate too.
+- [ ] **Pending at merge: the post-merge proof.** The push-triggered Nightly run for the merged SHA has to show five things before this is restored:
+  - `check:fast` completes, and the full regression suite runs;
+  - the dependency audit runs;
+  - the artifact is built and uploaded;
+  - the browser gate passes;
+  - the exact-SHA proof publishes for that SHA.
+
+  The `0.33.33.48` closeout records the run. **Known in advance:** the locked tree carries one high `npm audit` finding, dev-only `brace-expansion` 5.0.9 through `eslint` and `minimatch`. So `npm audit --audit-level=high` is expected to fail next, and it is reported separately as its own dependency correction.
+- [x] **Disposition.** `verify:slice` with its range explicit from `6bf80195`, and `checkpoint:validate`, both on the final tree. Docs updated: the generated regression inventory in `docs/regression-suite.md`. The durable full-history requirement for the development and unit suite is documented in the `0.33.33.48` closeout.
+
 ## Version 0.33.33.48.2 - Retire the temporary typecheck ledger and its debt inventories
 
 **Model: High Effort** - the lasting typecheck gate changed form, so every guarantee the ledger carried had to survive explicitly, and the regression migration was large and mechanical.
