@@ -1,5 +1,41 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.45.1 - Public API envelope and paging helpers
+
+**Model: High Effort** - one framework home for helpers copied across five public API route files and five service files, with each caller's contract preserved exactly.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.45.1-public-api-helpers` from `nightly` `aeeae78c`; planning `8dc9bb7d`, implementation `7c3fa9a5`.
+  - Measured within the implementation, from a committed fixture of every replaced body taken at `aeeae78c`.
+  - The `nullableText` repository duplicates and the other cleanup the measurement found stay out, by ruling.
+- [x] **What moved.**
+  - **The envelopes.** `publicApiData` and `publicApiList` were byte-identical in all five route files, and now have one home.
+  - **The pager.** `pagePublicApiItems` was byte-identical in all five service files. Its `clampInteger` came in two spellings, which differ only on `null` and `undefined`, where both reach the fallback.
+  - **The workspace alias.** `withWorkspaceFallback` is the shared alias of Lists, Notes and Time Tracking: guard non-objects, spread the record, then read `workspace_id`.
+- [x] **What stayed, and why.** Two aliases are different implementations, and a getter-backed record keeps a different workspace under their orders. The suite records that difference.
+  - Tasks reads `workspace_id` through `Reflect.get` before spreading.
+  - The framework Clients/Projects alias reads before spreading and recurses into `projects`.
+
+  Both are byte-identical to the baseline, with no mode flag or adapter.
+- [x] **A correction to the ruling's premise, stated openly.** The ruling named Lists and Notes as the matching pair. **Time Tracking's alias is the same executable body**, which the fixture shows, so it adopts the shared alias as well. The one alias that differs among the three modules the ruling compared is Tasks'.
+- [x] **Truthful types.**
+  - The helpers are generic, and declare no return types beyond what the code builds, so each caller's data, item and record types flow through inference.
+  - The alias admits only a record, as each replaced copy did. A first draft also admitted `null` and `undefined`, which was wider than every copy, and was narrowed back.
+  - **A compiler probe kept the callers' contracts honest**: a wrong-shaped pager fails Lists' declared `ListsPublicApiListResult` with TS2322, and the probe was restored byte-exact.
+- [x] **Owners keep their policy.** Authorization, Notes' exposure filter and public-note shaping, and every module's response construction are unchanged. There is no field filtering, new validation or behaviour change.
+- [x] **Before and after.**
+  - **The suite.** `tests/unit/public-api-response-helpers.test.mjs` lifts every replaced copy and compares it with the shared helper:
+    - envelope output, data identity, and the order members are read;
+    - pages over 8 item counts, 32 limit values and 6 offset values per copy, including conversion hooks, their call order, and thrown-error identity;
+    - the alias over non-records and records, with the full proxy-trap log of a getter-backed record.
+  - **Consumer files.** A mechanical check shows each of the ten changed only by the import, the removed helpers, orphaned typedefs and renamed calls.
+  - **End to end.** Six public API regressions pass on the new tree: Time Tracking, Notes and Lists, the framework Clients/Projects writes, API key scopes, and Tasks.
+- [x] **Mutations.** 12 of 12 behaviour breaks were caught: bounds, default, radix, parse method, has-more, the alias read order, the guard, `||` versus `??`, the list read order, the version, and data copying. One equivalent mutation, `String(value)` without `??`, survives as it should. The file was restored byte-exact.
+- [x] **Accounting.** The ledger adds the two new strict-clean files, so 1,564 files, with 0 diagnostics in every program and no explicit `any`.
+- [x] **Also carried in this pull request.**
+  - The `0.33.33.38` closure under the operator's 2026-10-01 ruling, recorded in two separate parts: the declaration-only clarification, and the retrospective acceptance of four runtime readers, which is not blanket authority.
+  - The `view-search-options` finding, updated to the disposition the operator set.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `aeeae78c`, and `checkpoint:validate` run on the final tree; the results are in the pull request. No docs change is needed, because the documented envelopes and paging are unchanged.
+
 ## Version 0.33.33.38 - Rollup acceptance record, and the 0.33.33.40 and 0.33.33.41 parents
 
 **Model: High Effort** - parent acceptance across three rollups: every tick must cite evidence, and anything without it must be escalated rather than stretched.

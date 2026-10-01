@@ -141,18 +141,22 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Edit Client browser coverage | Claude | **Done at `0.33.33.43.46`.** `client-projects-edit-dialog-reflow.spec.mjs` now carries a permanent Edit Client case, at both viewports, that saves tags and both billing editors. It replaces the temporary `0.33.33.38.3.9` probe. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Codex | **Complete at the `0.33.33.38.5` integration.** `TaskLifecycleStatus` names exactly five values. The write normalizer proves membership through a predicate, and the recovery engine takes the raw persisted strings it has always classified. `TaskRecord.status` and the browser vocabulary are unchanged. See the archive entry. |
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **`0.33.33.44` is complete at `0.33.33.44.47`.** **`0.33.33.38`: 23 of its 24 open criteria are recorded against evidence (2026-09-30). It stays open on one operator ruling**, the "publish nothing" clause. See the parent's acceptance record. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Both complete.** `0.33.33.44` closed at `0.33.33.44.47`. `0.33.33.38` closed when the operator's 2026-10-01 ruling settled its last criterion; it is recorded in the parent and carried in the `0.33.33.45.1` bookkeeping. |
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
-| `0.33.33.45`–`.47` | Claude, Codex, Claude | After convergence: `.45` (Claude) measures module-development defaults and extracts only helpers with real consumers; `.46` (Codex) builds the strict-clean module scaffold once `.45` has set the module shape, recording path ownership before edits; `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is drawn as three children**, approved 2026-10-01; **`.45.1` is complete.** `.45.2` (indexer orchestration) and `.45.3` (manifest defaults and Time Tracking composition) follow. `.46` (Codex) starts once `.45.3` integrates: Claude then records its path ownership and releases it without a further sequencing ruling. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
-- **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. They date from `0.33.33.35.2`, before this rollup:
+- **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. They date from `0.33.33.35.2`, before `0.33.33.38`:
   - the created popup is claimed to be an `OptionsPopup`;
   - that popup, and a field control, are claimed to be `Node`s.
 
-  They are unchecked claims, not validated narrowings. The governance source policy does not forbid casts, so nothing flags them. Owner: Claude, as shared framework code. Discharged by typing the popup and control as the DOM elements they are; not by leaving the claim in place.
+  This is a contract-honesty finding, not a demonstrated runtime defect, and the `.38` retrospective acceptance does not approve it. **Owner: Claude. It needs a bounded disposition before `0.33.33.48` release acceptance**, one of:
+  - correct the typing with focused real-browser and fixture proof;
+  - document the exact runtime or producer guarantee, and why a retained assertion is justified under policy.
+
+  Relabelling an unchecked assertion as checked is not a disposition, and `0.33.33.38.4.8.5`'s approval is no authority for it. It is not part of `0.33.33.45`, and becomes an earlier prerequisite only if a real `.45` or `.46` dependency is shown.
 - **Eight browser `// @ts-check` pragmas are load-bearing** — recorded by `0.33.33.44.47`. Under TypeScript 7.0.2 a `@typedef` JSDoc at byte 0, directly before an IIFE statement, is declared twice and reports TS2300; the pragma keeps it off byte 0. They check nothing, since `checkJs` is program-wide. Removing one fails the typecheck at once, so this cannot regress silently. Discharged by a compiler that no longer double-declares, or by an authorized comment-layout change; not by deleting them.
 - **`FileEditorRow`'s member cannot be declared required** — recorded by `0.33.33.43.9`, **still live**: `normalizeFileEditorRow` may return a caller's own object without passing it through `fileRow`, so the row cannot promise what only one of its two producers guarantees. `0.33.33.43.16` and `.43.18` both confirmed it and left it standing. Owner: Claude, with `files.js`; it does **not** block that file's zero, which is already reached.
 - **`lists.js` progress bag has no checker** — recorded by `0.33.33.43.19`, **resolved by `0.33.33.43.21`**. `readListProgressBag` now vouches for the bag with the response readers, so `BrowserListSummary.progress` stays `unknown` and the record normaliser's `list` is typed. It also closed a latent crash: `isListSummary` never looked inside the bag, so a server sending `progress: null` threw on a bare member read. Carried no longer.
@@ -174,7 +178,13 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
 
-**Acceptance, recorded 2026-09-30: 23 of its 24 open criteria are met, and the parent stays open on one ruling.** Every child is complete, `0.33.33.38.5` included, and the browser program is retired at zero by `0.33.33.44.47`. Each criterion is ticked against its evidence. `0.33.33.38.2`'s closing table already discharged that family's standing rules; they are now ticked with it. **The one exception is the "publish nothing" clause below**: five later children added runtime readers, so it is escalated for a ruling rather than ticked. The counts in this section are historical measurements; every family and owner is now at 0.
+**Complete. Acceptance was recorded on 2026-09-30, and the last criterion closed on 2026-10-01.** Every child is complete, `0.33.33.38.5` included, and the browser program is retired at zero by `0.33.33.44.47`. Each criterion is ticked against its evidence. `0.33.33.38.2`'s closing table had already discharged that family's standing rules, and they are ticked with it.
+
+The "publish nothing" criterion was escalated, then closed by the operator's 2026-10-01 ruling, which did two separate things:
+- clarified the clause to cover declaration-only children;
+- retrospectively accepted four shipped runtime readers. That acceptance is not standing authority for future publications.
+
+The counts in this section are historical measurements; every family and owner is now at 0.
 
 **Resliced a second time, against post-`0.33.33.37` HEAD, because the previous slice classified `TS2339` by the *receiver type the compiler printed* rather than by the *declaration that produced it*.** Those are not the same thing, and where they disagree the printed type is the symptom. The browser program is now **10,375** diagnostics; every one of them is classified below into exactly one root family, with no duplicate and no orphan.
 
@@ -238,14 +248,17 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 **The third correction: the previous slice had no child for the largest genuinely shared contract in the estate.** `scripts/test-support/browser-publication-inventory.mjs` reports **64 published surfaces - 62 namespace members and 2 bare-window writes**. `LongtailForgeBrowserNamespace` declares **13**. The other **49 resolve through the index signature**, and **943 diagnostics are attributable to a namespace member** by direct read or single-hop alias. `LongtailForge.view` alone accounts for **529** of them, because `const view = window.LongtailForge.view` and `const workbenchViewHelpers = window.LongtailForge.view` each start a file-wide cascade from one untyped read.
 
 - [x] **`0.33.33.34` through `.37` published six contract interfaces that were never wired to the namespace, and that is a pattern to close rather than to repeat.** `BrowserViewActionSecurity`, `BrowserViewSearchOptions`, `BrowserViewDataBinding`, `BrowserViewModalStack`, `BrowserTaskLifecycleLegality`, and `BrowserFilePreviewActions` are each declared in `browser-contracts.d.ts` and referenced only by a local `/** @type {X | undefined} */` cast in the consumer. Each cast is honest - it is checked against a real interface - but the namespace still says `unknown`, so every other consumer of the same surface starts over. `BrowserAssetVersion` shows the finished shape: it is a declared namespace member and needs no cast anywhere. (Wired: `0.33.33.38.2.2.1` declared `taskLifecycleLegality`, `viewActionSecurity`, `viewDataBinding`, `viewModalStack` and `viewSearchOptions` and removed the local casts; `0.33.33.38.2.3.1` declared all nine `filePreview` members. No consumer casts to any of the six.)
-- [ ] **A `.d.ts` declaration is not a namespace writer.** Declaring `view` adds no writer to `window.LongtailForge.view`, moves none of its 30 members, and changes no runtime value. The frozen-factory constraint governs publication, and these children publish nothing. **Escalated at the 2026-09-30 acceptance record, not ticked.** The declaration half held: no declaration child added a writer. The clause "these children publish nothing" did not hold for five later children, which added runtime readers:
-  - `0.33.33.38.3.9`: `checkedDom`, under the 2026-09-25 ownership ruling and this rollup's own `.38.3` criterion;
-  - `0.33.33.38.3.11`: `view.partsOf`, on the existing factory;
-  - `0.33.33.38.4.3.1`: the new `taskRecords` surface;
-  - `0.33.33.38.4.11`: `errors.readBulkFailures`, on an already declared surface;
-  - `0.33.33.38.4.2.1`: a reader on the already declared `notesLinkedPanel`.
+- [x] **A `.d.ts` declaration is not a namespace writer.** Declaring `view` adds no writer to `window.LongtailForge.view`, moves none of its 30 members, and changes no runtime value. The frozen-factory constraint governs publication, and these children publish nothing.
+  - **Clarified by operator ruling, 2026-10-01: the clause applies to declaration-only children.** Declaring a `.d.ts` member adds no runtime writer and changes no runtime publication. That half held throughout: no declaration child added a writer.
+  - **Separately, the operator retrospectively accepted four runtime additions that had already shipped**, each under its named checkpoint scope and recorded review evidence:
+    - `0.33.33.38.3.11`: `view.partsOf`;
+    - `0.33.33.38.4.3.1`: `taskRecords`;
+    - `0.33.33.38.4.11`: `errors.readBulkFailures`;
+    - `0.33.33.38.4.2.1`: the `notesLinkedPanel` reader.
 
-  Only the first carries a recorded authorisation beyond its own checkpoint. The others were reviewed and merged through protected pull requests, and `taskRecords` entered the roadmap only in the closeout that recorded it. **Awaiting an operator ruling** on whether to amend the clause to the declaration children and accept the five as recorded.
+    `taskRecords` entered the roadmap only in the closeout that recorded it, and had no prior authorisation. Neither passing protected CI nor the pull-request review supplied scope approval; the 2026-10-01 ruling did.
+  - **`0.33.33.38.3.9`'s `checkedDom` keeps its existing authorisation**, the 2026-09-25 ownership ruling.
+  - **This acceptance is not blanket authority.** Any new runtime helper still needs an appropriately declared scope before implementation.
 - [x] **No diagnostic-debt trade.** No explicit `any`, no suppression, no unchecked cast, no `unknown`-to-assertion gymnastics, and no contract widened or narrowed to make a number move. (Explicit `any` stayed 0 throughout and no suppression entered. **Disclosed:** `0.33.33.38.4.8.5` kept one checked double assertion through `unknown` in `readRuntimeDiagnosticsResponse`, directly after complete section validation. The 2026-09-08 audit found that validation complete, with 38 of 38 leaf violations refused, and ruled its removal unauthorised cleanup. One unsound predicate, `isUserRecord`, was corrected by `0.33.33.38.4.4.7`.)
 - [x] **Each child publishes contract vocabulary; adoption is `0.33.33.39` through `.44`.** A child may adopt its own contracts in shared framework files it already owns. No child converts a module controller. **(Superseded by this rollup's later rules.** `0.33.33.38.1` proved that declaring an existing consumed member cannot be separated from adopting it; that is `0.33.33.38.2`'s ordering rule, and the `.38.1` finding recorded after `0.33.33.38.5`. The two-lane amendment then placed `0.33.33.38.3` DOM work inside the page controllers. So children adopted in controllers where the rule required it, for example `0.33.33.38.3.3`, `.38.3.9` and `.38.3.10`.)
 - [x] **Report measured effect separately from hypothesis.** Each child states the diagnostics it was predicted to address and the delta it actually produced. (Honoured: the children's records set the measured delta beside the prediction. Examples are `0.33.33.38.2.2.5.1`, "measured movement is 3, not 13", `0.33.33.38.2.6.7`, "eleven, not the twenty-four", `0.33.33.38.3.2`, "25, not the 17", and `0.33.33.38.5`'s refreshed sixteen-site inventory.)
@@ -2751,20 +2764,11 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.45.1 - Public API envelope and paging helpers
 
-**Model: High Effort** - one framework home for helpers copied across five public API route files and five service files, with each caller's contract preserved exactly.
-
-- [ ] **Envelopes.** `publicApiData` and `publicApiList` are byte-identical in all five route files. They take one framework home and keep truthful generics, so each caller's data and pagination types pass through unchanged.
-- [ ] **Paging.** `paged` is byte-identical in all five service files, and `clampInteger` serves only `paged`. The two `clampInteger` spellings differ only on `null` and `undefined`, where both reach the fallback. Parsing, defaults, bounds and response ordering are unchanged.
-- [ ] **The workspace alias, only where the implementation is the same.** Lists, Notes and Time Tracking each guard non-objects, spread the record, and then read `workspace_id`; that matching implementation is shared.
-  - Tasks reads through `Reflect.get` before spreading, and has a different admitted-input contract.
-  - The framework Clients/Projects alias reads before spreading and recurses into `projects`.
-
-  Both of those stay local and unchanged, with no mode flag or adapter.
-- [ ] **Owners keep their policy.** Authorization, Notes' exposure policy and each module's response shaping stay where they are. No field filtering, no new validation, and no behaviour change.
-- [ ] **Evidence.**
-  - Before-and-after comparisons of each helper against its committed baseline body, including getter-backed records for the alias read order.
-  - The public API regressions.
-  - A compiler check that each caller's declared result contract still holds.
+**Complete: one framework home, `src/core/public-api-responses.js`, adopted by all ten files that copied it.** See the archive entry.
+- The envelopes and the pager each replace five byte-identical copies.
+- The workspace alias replaces the three that were the same implementation: Lists, Notes and Time Tracking.
+- Tasks' `Reflect.get` alias and the framework Clients/Projects alias stay local and unchanged.
+- Every caller's contract still binds, and the documented responses are unchanged.
 
 #### 0.33.33.45.2 - Common record-indexer orchestration
 
