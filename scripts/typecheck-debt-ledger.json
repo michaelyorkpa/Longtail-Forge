@@ -427,6 +427,7 @@
         "tests/e2e/view-action-button-native-type.spec.mjs",
         "tests/e2e/view-floating-menu-pointer-target.spec.mjs",
         "tests/e2e/view-renderer-sparse-surface.spec.mjs",
+        "tests/e2e/view-search-options-dom.spec.mjs",
         "tests/e2e/view-shell-cold-load.spec.mjs",
         "tests/e2e/workbench-action-strip.spec.mjs",
         "tests/e2e/workbench-cache-readers.spec.mjs",
@@ -1598,7 +1599,7 @@
     }
   },
   "totals": {
-    "files": 1570,
+    "files": 1571,
     "errors": 0,
     "explicitAny": 0
   },

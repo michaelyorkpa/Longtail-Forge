@@ -34,6 +34,7 @@ assert.match(viewSearchOptionsSource, /function setFieldOptions/, "Search option
 assert.match(viewSearchOptionsSource, /function setSelectOptions/, "Search options should hydrate descriptor select options through a shared helper");
 assert.match(viewSearchOptionsSource, /function mountSearchOptions/, "Search options should hydrate descriptor search suggestions through a shared popover helper");
 assert.match(viewSearchOptionsSource, /namespace\.viewSearchOptions = Object\.freeze\(\{[\s\S]*mountSearchOptions,[\s\S]*setFieldOptions,/, "Search options should publish its capability contract");
+assert.doesNotMatch(viewSearchOptionsSource, /@type \{unknown\}/, "Search options must type its popup and controls by narrowing, never by a cast through unknown (0.33.33.48.1)");
 assert.match(renderer, /function tableColumnRenderer/, "Renderer should route table display hooks through framework-owned formatters");
 assert.match(renderer, /function renderItemRow/, "Renderer should render rich item rows");
 assert.match(renderer, /function evaluateVisibleWhen/, "Renderer should evaluate row-action visibility predicates");
