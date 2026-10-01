@@ -1,0 +1,246 @@
+diff --git a/docs/database.md b/docs/database.md
+index 4e9aa491..77344f68 100644
+--- a/docs/database.md
++++ b/docs/database.md
+@@ -30,6 +30,8 @@ As of version 0.33.29.1, migration 088 adds `note_library_collections.security_p
+ 
+ As of version 0.33.29.2, migration 089 adds the durable catalog-transition action, monotonically increasing claim version, job and actor references, start time, and safe failure code. Notes repository operations condition ordinary catalog updates on the observed transition state/version, apply note and revision encryption/decryption in bounded adapter transactions, and finalize policy only when the same claim still owns the catalog. These columns contain no passwords, note bodies, encryption keys, secure payloads, or raw errors. The job row owns retry scheduling; the catalog row owns the fail-closed product state and rejects stale workers.
+ 
++In the reviewed adoption of the generated `adoption-sample` module (D3), migration 093 installs its one declared permission, `adoption_sample.view`, and grants it by default only to `super_admin` and `workspace_admin`. The consolidated baseline seeds the same rows, and the pre-adoption baseline checksum stays accepted so existing databases upgrade.
++
+ As of version 0.33.31.11, migration 092 adds `public_demo_budget_usage`, keyed by `(workspace_id, user_id)`, with a nonnegative consumed-unit count and update timestamp plus a workspace/time index. The framework budget service changes this table only for exact marked public-demo visitors, serializes account and workspace limit checks with adapter transactions, releases reservations after denied or failed requests, and leaves successful reservations durable across an application restart. The external hourly database-and-Files baseline replacement clears the transient rows; normal installations keep the table empty.
+ 
+ As of version 0.33.17.7.9, migration 074 changes Project Administrator from client scope to project scope. Each legacy client-scoped Project Administrator assignment is expanded to the existing projects in that same workspace/client with its permission overrides and timestamps preserved, the superseded client row is removed, and the canonical role metadata is updated to require project scope. A legacy client with no projects produces no replacement assignment because there is no project resource to authorize.
+diff --git a/docs/public-api.md b/docs/public-api.md
+index c7acd736..4d1b0e0a 100644
+--- a/docs/public-api.md
++++ b/docs/public-api.md
+@@ -88,6 +88,7 @@ Current visible scopes:
+ | `tasks:read` | Tasks | Read | `GET /api/v1/tasks`, `GET /api/v1/tasks/:taskId` |
+ | `tasks:write` | Tasks | Write | Task create, update, complete, reopen, archive, and restore routes |
+ | `time_entries:read` | Time Tracking | Read | `GET /api/v1/time-entries` |
++| `adoption_sample:read` | Adoption Sample | Read | `GET /api/v1/adoption-sample`, `GET /api/v1/adoption-sample/:id` |
+ | `time_entries:write` | Time Tracking | Write | `POST /api/v1/time-entries` |
+ 
+ Deferred scope gaps for the 0.33.5.3.x repair line:
+@@ -163,6 +164,13 @@ Authorization: Bearer ltf_live_...
+ 
+ The Notes public API is read-only in this release. It returns permission-shaped non-secure notes using the API key creator's workspace context. Secure notes are not exposed through the public API, and note writes, revisions, collection management, and linked-record mutations remain browser/internal workflows.
+ 
++### Adoption Sample
++
++- `GET /api/v1/adoption-sample` requires `adoption_sample:read`
++- `GET /api/v1/adoption-sample/:id` requires `adoption_sample:read`
++
++The Adoption Sample public API is the generated read-only module scaffold. It returns the workspace's records through the shared public envelope and pager, and the scaffold returns none until module-owned storage exists.
++
+ ### Lists
+ 
+ - `GET /api/v1/lists` requires `lists:read`
+diff --git a/scripts/api-key-scope-audit-regression.mjs b/scripts/api-key-scope-audit-regression.mjs
+index bf4c9870..d3957692 100644
+--- a/scripts/api-key-scope-audit-regression.mjs
++++ b/scripts/api-key-scope-audit-regression.mjs
+@@ -6,6 +6,7 @@ import path from "node:path";
+ import { fixtureString } from "./test-support/session-fixtures.mjs";
+ 
+ const EXPECTED_VISIBLE_SCOPES = [
++  "adoption_sample:read",
+   "clients:read",
+   "clients:write",
+   "lists:read",
+diff --git a/scripts/baseline-adoption-regression.mjs b/scripts/baseline-adoption-regression.mjs
+index bf87e84b..8498d70f 100644
+--- a/scripts/baseline-adoption-regression.mjs
++++ b/scripts/baseline-adoption-regression.mjs
+@@ -384,6 +384,11 @@ ORDER BY version;
+       module_id: "core",
+       name: "public_demo_budget_usage",
+     },
++    {
++      version: "093",
++      module_id: "core",
++      name: "adoption_sample_permissions",
++    },
+   ]);
+ }
+ 
+diff --git a/scripts/fresh-database-regression.mjs b/scripts/fresh-database-regression.mjs
+index 31b46606..99111887 100644
+--- a/scripts/fresh-database-regression.mjs
++++ b/scripts/fresh-database-regression.mjs
+@@ -177,6 +177,11 @@ ORDER BY version;
+       module_id: "core",
+       name: "public_demo_budget_usage",
+     },
++    {
++      version: "093",
++      module_id: "core",
++      name: "adoption_sample_permissions",
++    },
+   ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
+ }
+ 
+diff --git a/scripts/migration-compatibility-regression.mjs b/scripts/migration-compatibility-regression.mjs
+index dcc68bab..63346a82 100644
+--- a/scripts/migration-compatibility-regression.mjs
++++ b/scripts/migration-compatibility-regression.mjs
+@@ -118,6 +118,7 @@ ORDER BY version;
+     "090",
+     "091",
+     "092",
++    "093",
+   ], "fresh database should record the consolidated baseline and active core migrations");
+ 
+   const projectAdminRole = requireRow(await db.get(`
+diff --git a/scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs b/scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs
+index 4348e753..8b476af1 100644
+--- a/scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs
++++ b/scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs
+@@ -75,13 +75,13 @@ SELECT version, module_id, name, checksum
+ FROM schema_migrations
+ ORDER BY applied_at, version;
+ `);
+-  assert.equal(migrations.length, 29, "fresh startup should preserve the complete migration identity");
++  assert.equal(migrations.length, 30, "fresh startup should preserve the complete migration identity");
+   assert.deepEqual(migrations.at(-1), {
+-    checksum: "09b489ddd7f69d334b5f1ca13f27ea76413db1ff33a5c6971ff41bd5e2a18b5d",
++    checksum: "95fd7fa503135eb6886fc8d99a088f48f94c634b2d625fb19b2dbdd0f3a82891",
+     module_id: "core",
+-    name: "public_demo_budget_usage",
+-    version: "092",
+-  }, "migration 092 should be the latest checksum-tracked migration");
++    name: "adoption_sample_permissions",
++    version: "093",
++  }, "migration 093 should be the latest checksum-tracked migration");
+ 
+   const pragmaRows = {
+     busyTimeout: await querySql("PRAGMA busy_timeout;"),
+diff --git a/scripts/regressions/database/migration-schema-workflow.regression.mjs b/scripts/regressions/database/migration-schema-workflow.regression.mjs
+index 270902e5..04ea8aff 100644
+--- a/scripts/regressions/database/migration-schema-workflow.regression.mjs
++++ b/scripts/regressions/database/migration-schema-workflow.regression.mjs
+@@ -30,8 +30,8 @@ const tempRoots = [];
+ try {
+ 
+   const liveMigrations = await listMigrationFiles();
+-  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089", "090", "091", "092"]);
+-  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "093_add_widget_status.sql");
++  assert.deepEqual(liveMigrations.map((migration) => migration.version), ["065", "066", "067", "068", "069", "070", "071", "072", "073", "074", "075", "076", "077", "078", "079", "080", "081", "082", "083", "084", "085", "086", "087", "088", "089", "090", "091", "092", "093"]);
++  assert.equal(planMigrationCreation("Add Widget Status", liveMigrations).fileName, "094_add_widget_status.sql");
+ 
+   await assertMigrationCreation();
+   await assertDuplicateVersionsFail();
+diff --git a/scripts/regressions/framework/bundled-module-registry.regression.mjs b/scripts/regressions/framework/bundled-module-registry.regression.mjs
+index 3d0189a7..0e863085 100644
+--- a/scripts/regressions/framework/bundled-module-registry.regression.mjs
++++ b/scripts/regressions/framework/bundled-module-registry.regression.mjs
+@@ -23,7 +23,7 @@ const { readText: read } = createProjectTextReader();
+ 
+ const scriptPath = fileURLToPath(import.meta.url);
+ const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
+-const EXPECTED_INVENTORY_SHA256 = "1c50a1ef61673e9b462ad41a6c4cd9f15f515d73ef88a8261a6161b3e4d85c63";
++const EXPECTED_INVENTORY_SHA256 = "6909aec3a0b193b32eaff18be33c5eabbf0f37a1e41a7b20af8cb7fc9dda3ac1";
+ const fixture = await createDisposableDatabaseFixture("bundled-module-registry-regression");
+ const { listModuleEntries, listModules } = await import("../../../src/core/modules/registry.js");
+ const { createModuleEntry, validateAndOrderBundledModuleCatalog } = await import("../../../src/core/modules/module-entry.js");
+@@ -39,6 +39,7 @@ check("generated catalog is complete and deterministically ordered", () => {
+   const entries = listModuleEntries();
+   const ids = entries.map((entry) => entry.moduleEntry.manifest.id);
+   assert.deepEqual(ids, [
++    "adoption-sample",
+     "client-projects",
+     "developer-example",
+     "lists",
+@@ -220,6 +221,7 @@ check("module entry import is side-effect free and explicit app activation resto
+   // members off, so it is proven a record rather than indexed through unknown.
+   const after = requireJsonRecord(result.after, "bundled module registry probe after-state");
+   assert.deepEqual(after.search, [
++    "adoption-sample.records",
+     "client-projects.clients",
+     "client-projects.projects",
+     "framework.help-articles",
+diff --git a/scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs b/scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs
+index 77fa3022..46bf18ae 100644
+--- a/scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs
++++ b/scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs
+@@ -189,7 +189,7 @@ const demoManifestProbe = spawnSync(process.execPath, [
+   },
+ });
+ assert.equal(demoManifestProbe.status, 0, demoManifestProbe.stderr || demoManifestProbe.stdout);
+-assert.equal(demoManifestProbe.stdout.trim(), "8");
++assert.equal(demoManifestProbe.stdout.trim(), "9");
+ 
+ const outboundJobProbe = spawnSync(process.execPath, [
+   "--input-type=module",
+diff --git a/src/db/migrations.js b/src/db/migrations.js
+index 86cddf26..c5ef63cc 100644
+--- a/src/db/migrations.js
++++ b/src/db/migrations.js
+@@ -37,6 +37,8 @@ const LEGACY_SQLITE_HARDENING_BASELINE_CHECKSUMS = new Set([
+ const LEGACY_ROLE_SEED_BASELINE_CHECKSUMS = new Set([
+   "1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c",
+   "67ec76af2c94f84eff8b5c90191e652ec4a449177317547da95eb0c159ca5d2c",
++  // The baseline before the reviewed adoption-sample seed rows (D3): existing databases still upgrade.
++  "cab17a7c90860092d81a01aed039fb5533a0cb0776cfb25e9f8c0bd728fa7011",
+ ]);
+ /** @type {ForeignKeyRepair[]} */
+ const WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS = [
+diff --git a/src/db/migrations/093_adoption_sample_permissions.sql b/src/db/migrations/093_adoption_sample_permissions.sql
+new file mode 100644
+index 00000000..fea73ff8
+--- /dev/null
++++ b/src/db/migrations/093_adoption_sample_permissions.sql
+@@ -0,0 +1,12 @@
++-- Migration 093: adoption_sample_permissions
++-- Forward-only: do not edit this file after it has been applied.
++-- Reviewed adoption of the generated adoption-sample module (D3, 2026-10-01): install its one declared
++-- view permission and grant it by default only to super_admin and workspace_admin, as its manifest
++-- declares. No write, export or administration permission; no other grant, role or assignment changes.
++INSERT OR IGNORE INTO permissions (permission_id, permission_name, description)
++VALUES ('adoption_sample.view', 'View Adoption Sample', 'Read workspace records.');
++
++INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
++SELECT role_id, 'adoption_sample.view'
++FROM roles
++WHERE role_id IN ('super_admin', 'workspace_admin');
+diff --git a/src/db/schema/current.sql b/src/db/schema/current.sql
+index 8e6d021d..fe7a38cc 100644
+--- a/src/db/schema/current.sql
++++ b/src/db/schema/current.sql
+@@ -1340,6 +1340,7 @@ VALUES
+ 
+ INSERT OR IGNORE INTO permissions (permission_id, permission_name, description)
+ VALUES
++  ('adoption_sample.view', 'View Adoption Sample', 'Read workspace records.'),
+   ('audit_logs.view', 'View Audit Logs', 'View workspace audit logs.'),
+   ('billing.manage', 'Manage Billing Details', 'Change billable status, rates, billing periods, and rounding.'),
+   ('clients.manage', 'Manage Clients', 'Create, update, archive, and view clients.'),
+@@ -1544,6 +1545,7 @@ VALUES
+   ('project_user', 'tasks.view'),
+   ('project_user', 'time_entries.create'),
+   ('project_user', 'time_entries.edit_own'),
++  ('super_admin', 'adoption_sample.view'),
+   ('super_admin', 'audit_logs.view'),
+   ('super_admin', 'billing.manage'),
+   ('super_admin', 'clients.manage'),
+@@ -1613,6 +1615,7 @@ VALUES
+   ('super_admin', 'time_entries.edit_own'),
+   ('super_admin', 'users.manage'),
+   ('super_admin', 'workspace_settings.manage'),
++  ('workspace_admin', 'adoption_sample.view'),
+   ('workspace_admin', 'audit_logs.view'),
+   ('workspace_admin', 'billing.manage'),
+   ('workspace_admin', 'clients.manage'),
+diff --git a/src/middleware/support-view-request-gate.js b/src/middleware/support-view-request-gate.js
+index 7ab3f6fd..6c2642eb 100644
+--- a/src/middleware/support-view-request-gate.js
++++ b/src/middleware/support-view-request-gate.js
+@@ -43,6 +43,7 @@ const SUPPORT_VIEW_SENSITIVE_READ_ROUTES = Object.freeze([
+   route("notes.catalog-settings", "/api/notes/settings/catalogs"),
+   route("notes.secure-health", "/api/notes/secure/health"),
+   route("notes.catalog-security-preflight", "/api/notes/collections/:collectionId/security/preflight"),
++  route("adoption-sample.records", "/api/adoption-sample"),
+ ]);
+ 
+ const SUPPORT_VIEW_READ_ROUTES = Object.freeze([

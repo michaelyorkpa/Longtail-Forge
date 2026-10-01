@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "checkpoint": "0.33.33.46.1",
+  "ruling": "Operator D3, 2026-10-01: the generator's emitted files require no repair. After the documented, explicitly reviewed repository-adoption changes, the generated module passes the full normal validation contract.",
+  "use": "Evidence only. The patch is never applied to the shipping application, and the generator never applies it.",
+  "baseline": {
+    "preGenerationCommit": "2d3867767bc8355f10613be4ba371ba96a15a353",
+    "nightly": "d65a82a2ef73502979f6f1602d88cb104c108920",
+    "scaffoldHead": "5da692048b6056e8d40e49a219db4622d9351847",
+    "historyCommits": 2462,
+    "environment": "A full-history shared clone outside the OS temp tree, run through its own scripts and configuration."
+  },
+  "generation": {
+    "command": "npm run module:create -- adoption-sample",
+    "files": {
+      "docs/modules/adoption-sample.md": "9fbb5a6773307729dcdd31de397e6b2838a09bcbfa079dfd9453f31691d16e7b",
+      "public/js/adoption-sample.js": "36f1c42dead0adfc1b093e200368fa0a2836522e4ee31f531211c3f7bfacc24b",
+      "src/modules/adoption-sample/contracts.d.ts": "ac8b94b8bb5a6be6325573784a75a13c84a08f7d01b3d135cd6a3325ee2057a7",
+      "src/modules/adoption-sample/module.js": "4d63a3b9383b0829eba26caae1cbea66217ce6acf887095b1a7a00a22921d735",
+      "src/modules/adoption-sample/public-api.routes.js": "802eb602119e85735a53adb77597e277b0794fd87faea3f7589e08fa65a91575",
+      "src/modules/adoption-sample/records.repo.js": "f4d8cdc18691725c0079a6093879750c4dbe03152aff7d5930fecb7359831e92",
+      "src/modules/adoption-sample/records.service.js": "d41bf87842d3c21b6764d0b3cc91702dee4d090ce9da4b3bd27b811f976836d0",
+      "src/modules/adoption-sample/routes.js": "196c54c6e480238b93fca1dfa06f3368b1eab33c2f6b843c655145a288093ea6",
+      "src/modules/adoption-sample/search-indexer.js": "ed3ece4d50fa5812bf8badda3370b1c3ca82f142f5158c0cf20d1c1c6555e809",
+      "tests/unit/adoption-sample-records.test.mjs": "7f46511a630b69b375a3c33671f528ef63e40301494e5764ab4e3413c94c5935",
+      "views/protected/adoption-sample.html": "807275075fdad94d126eae08f3ec1e8593b734099782357fe25155826c978034"
+    },
+    "derived": [
+      "scripts/typecheck-debt-ledger.json",
+      "src/core/modules/bundled-module-catalog.generated.js"
+    ],
+    "unchangedThroughAcceptance": true
+  },
+  "adoption": {
+    "patch": "adoption-sample.patch",
+    "patchSha256": "da0377ec1941271da4f37ee8aafb9f30d66d6a1a04cd6f06c98ba298dea6109a",
+    "authoredFiles": {
+      "testInventories": [
+        "scripts/api-key-scope-audit-regression.mjs",
+        "scripts/baseline-adoption-regression.mjs",
+        "scripts/fresh-database-regression.mjs",
+        "scripts/migration-compatibility-regression.mjs",
+        "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs",
+        "scripts/regressions/database/migration-schema-workflow.regression.mjs",
+        "scripts/regressions/framework/bundled-module-registry.regression.mjs",
+        "scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs"
+      ],
+      "documentation": [
+        "docs/database.md",
+        "docs/public-api.md"
+      ],
+      "runtimeFramework": [
+        "src/db/migrations.js",
+        "src/middleware/support-view-request-gate.js"
+      ],
+      "migrationSchema": [
+        "src/db/migrations/093_adoption_sample_permissions.sql",
+        "src/db/schema/current.sql"
+      ]
+    },
+    "derived": {
+      "src/db/schema/current.generated.sql": "Refreshed by db:schema:refresh, and unchanged: migration 093 is data-only."
+    },
+    "reviewedInventorySha256": "6909aec3a0b193b32eaff18be33c5eabbf0f37a1e41a7b20af8cb7fc9dda3ac1",
+    "categories": {
+      "A": "API scope inventory: adoption_sample:read added to EXPECTED_VISIBLE_SCOPES, and documented in docs/public-api.md. Deferred-scope and endpoint-scope checks are unchanged.",
+      "B": "Bundled module inventory. The before/after normalized difference was reviewed: the eight existing modules are identical and one module is added. The module IDs, activated search indexers and inventory hash were updated.",
+      "C": "Public-demo inventory: the module count goes from 8 to 9. No capability is enabled.",
+      "D": "Support View: /api/adoption-sample is classified sensitive (excluded). No wildcard; undeclared-route and mutation denial are unchanged.",
+      "E": "Default grants: migration 093 and the current.sql seed install only adoption_sample.view, for super_admin and workspace_admin. The pre-adoption baseline checksum stays accepted so that existing databases upgrade. The five regressions pinning the live migration inventory, and docs/database.md, record the new migration."
+    }
+  },
+  "acceptance": {
+    "verifySlice": {
+      "range": "2d3867767bc8355f10613be4ba371ba96a15a353...HEAD",
+      "changedFiles": 27,
+      "mode": "full-check",
+      "closeout": "every hard gate passed, including dependency cycles",
+      "typecheck": "1,585 files, 0 diagnostics, 0 explicit any, exact ledger match",
+      "unitFiles": 350,
+      "unitTests": 5687,
+      "regressions": "348/348",
+      "regressionBuckets": { "staticSource": 121, "defaultDatabase": 6, "isolatedFileStorage": 28, "isolatedDatabase": 193 },
+      "permissionHarness": "discovered through the regression buckets",
+      "wallSeconds": 228.3
+    },
+    "bootProof": "The scaffold suite's boot and registration proof, retargeted to adoption-sample by name only: passed.",
+    "grantConvergence": {
+      "upgradedEqualsFresh": true,
+      "upgradeAdded": { "permissions": ["adoption_sample.view"], "grants": ["super_admin:adoption_sample.view", "workspace_admin:adoption_sample.view"] },
+      "removed": 0,
+      "rolesAndAssignmentsUnchanged": true,
+      "withoutLegacyBaselineChecksum": "Measured in the adoption preparation: the adopted code refused an existing database with 'Applied 0.33.5.18.6.5.4 fresh-start database baseline checksum does not match the current schema file.', and left the database bytes unchanged."
+    },
+    "compilerOwners": {
+      "public/js/adoption-sample.js": "browser",
+      "src/modules/adoption-sample/module.js": "server-tests",
+      "src/modules/adoption-sample/public-api.routes.js": "server-tests",
+      "src/modules/adoption-sample/records.repo.js": "server-tests",
+      "src/modules/adoption-sample/records.service.js": "server-tests",
+      "src/modules/adoption-sample/routes.js": "server-tests",
+      "src/modules/adoption-sample/search-indexer.js": "server-tests",
+      "tests/unit/adoption-sample-records.test.mjs": "server-tests"
+    },
+    "timingsSeconds": {
+      "moduleCreate": 0.835,
+      "catalogGenerate": 0.826,
+      "ledgerWrite": 8.373,
+      "applyAdoption": 0.072,
+      "schemaRefresh": 1.086,
+      "verifySlice": 228.309,
+      "generationToGreenMechanical": 242
+    }
+  }
+}

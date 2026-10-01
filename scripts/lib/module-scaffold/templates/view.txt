@@ -10,6 +10,7 @@
 <body data-page-title="__TITLE__">
   <main><h1>__TITLE__</h1><div data-__ID__-records role="status">Loading records...</div></main>
   <script src="js/navigation.js"></script>
+  <script src="js/shared/icons.js"></script>
   <script src="js/shared/api-client.js"></script>
   <script src="js/__ID__.js"></script>
   <script src="js/footer.js"></script>

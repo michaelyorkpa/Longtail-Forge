@@ -1,5 +1,49 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.46.1 - Scaffold template corrections and reviewed adoption
+
+**Model: Medium Effort** - Two template defects and the existing disposable fixture, without adoption or security-policy changes.
+
+- [x] **Base and ownership.** Fresh branch `agent/0.33.33-codex-module-scaffold-46-1` from refreshed nightly `d65a82a2ef73502979f6f1602d88cb104c108920`. Planning `e5d90f18`, implementation `c00a38d9`. Generator mapping/templates, directly owning scaffold tests and roadmap/archive only; canonical ledger regeneration is byte-unchanged. No middleware, framework, regression owner, migration, schema, other-worktree or stash changes. New commits only.
+- [x] **Help correction.** Removed the undeclared `help/modules/<id>/overview.md` output, `help.txt` and its mapping: 11 generated files. The existing declared inline Help article remains unchanged. Generated guidance explains the separately reviewed manifest contentPath, help/toc.md link and Help-layout inventory needed for first-party Markdown Help; a file alone is not reachable.
+- [x] **View correction.** Added `js/shared/icons.js` immediately after navigation.js, retaining all other script order, controller behavior, module shape, permissions, scope and default grants.
+- [x] **Focused defect proof.** Four scaffold tests pass (27.49 seconds). The existing fixture runs its copied `help-markdown-source-layout-regression.mjs` and `regressions/views/current-static-contracts.regression.mjs` successfully against generated output. Restoring only the former orphan Markdown yields exit 1 with "every Help Markdown article should be declared and reachable"; exact removal/absence is asserted and Help passes again. Removing only icons yields exit 1 with "sample-records.html must load the shared icon helper"; byte-copy restoration is asserted and the view owner passes again. Timeouts, signals and spawn errors are rejected as evidence. The first fixture attempt ran view checks before catalog generation and failed the registry consistency check; moving the existing catalog step earlier corrected that harness ordering without changing generated module output.
+- [x] **Retained scaffold proof.** Exactly one generated Vitest test collected/passed through the normal config and explicit selection, with actual server/tests compiler membership alongside server sources; browser membership and scripts compilation retained. Positive/negative regression-manifest checks, real boot, permission/navigation/API-scope/search registration, collision/path guards, generated-file byte preservation and fixture cleanup all remain. No nested full Vitest or verify:slice run. Raw and escaped reference search found no stale active 12-file/help-template references in scripts/tests.
+- [x] **D3 Option 1 guidance.** Emitted files need no repair, but full adoption requires reviewed changes outside those files: API scope inventory and docs/public-api.md; module IDs, normalized manifest and activated search inventories; public-demo inventory/count without weakened capabilities; explicit Support View route classification; reviewed default-grant migration, consolidated current.sql seed changes and current.generated.sql refresh. The generator does not perform adoption. A GET route is not automatically Support-View safe, and manifest defaults do not prove migration convergence. D1 Vitest and reviewed regression-admission guidance remains.
+- [x] **Branch-local accounting.** 1,577 files (890 server/tests, 86 browser, 601 scripts), all programs zero to zero; zero explicit-any nodes and 31 clean declaration probes. Generated output is checked independently against the unchanged configs. The final clean committed-tree gate uses the full named base above; actual routing and outcomes accompany the PR.
+- [x] **Integration.** Claude merged `5da69204` unchanged onto `nightly` `d65a82a2` (`2d386776`).
+  - **The merge.** It applied cleanly; the branch is based on that nightly.
+  - **The ledger.** Regenerated from the combined tree, and byte-identical: 1,577 files, 0 diagnostics.
+  - **The review.** Both template fixes and their focused positive and negative fixture proofs were reviewed. Codex's branch history was not rewritten.
+- [x] **Reviewed repository adoption, by the integrator** (operator ruling D3, Option 1). It was applied only in a disposable acceptance tree, to a generated `adoption-sample` module; the name avoids the suite's own `sample-records`. Retained as `tests/fixtures/module-adoption/adoption-sample.patch` with its exact baseline, `adoption-sample.json`, under ownership recorded before the path was added. It was never applied to the shipping application, and the generator does not apply it.
+  - **Fourteen authored files:**
+    - eight test inventories;
+    - two documentation files;
+    - two runtime/framework files: the Support View gate, and the legacy baseline checksum in `src/db/migrations.js`;
+    - two migration/schema files: migration 093 and the reviewed `current.sql` seed.
+  - **A.** `adoption_sample:read` in the reviewed scope inventory and in `docs/public-api.md`.
+  - **B.** The normalized manifest difference was reviewed first: the eight existing modules are identical, and one module is added. Only then were the inventory hash `6909aec3...`, the module IDs and the activated search indexers updated.
+  - **C.** Module count 8 to 9, with no capability enabled.
+  - **D.** `/api/adoption-sample` is classified sensitive and excluded under Support View. No wildcard; undeclared-route and mutation denial are unchanged.
+  - **E.** Only `adoption_sample.view`, for `super_admin` and `workspace_admin`, through migration 093 and the `current.sql` seed.
+    - The pre-adoption baseline checksum is kept accepted. Without it, the adopted code refuses an existing database, and leaves its bytes unchanged.
+    - The five regressions that pin the live migration inventory, and `docs/database.md`, record the migration.
+    - `db:schema:refresh` left `current.generated.sql` unchanged, because the migration is data-only.
+- [x] **Adopted-module full-gate acceptance.** It ran on a full-history shared clone of the merge commit, outside the OS temp tree, through the clone's own scripts.
+  - **Generation.** 11 files, then the derived catalog and ledger only. The inventory equals the reviewed hash, and the adoption patch applied cleanly.
+  - **`verify:slice`:** range `2d386776...HEAD`, 27 paths, full gate. All of it passed:
+    - every closeout hard gate, including dependency cycles;
+    - typecheck: 1,585 files, 0 diagnostics, an exact ledger match;
+    - 350 unit files, 5,687 tests;
+    - lint;
+    - all 348 regressions (121, 6, 28 and 193), with the permission harness included.
+  - **The boot and registration proof,** retargeted to the adopted module by name only, passed.
+  - **Grant convergence.** A database upgraded from the pre-adoption candidate equals a fresh one: one permission and two grants added, with nothing removed, and roles and assignments unchanged.
+  - **Compiler ownership.** The controller is browser-owned; the six runtime files and the test are server-tests-owned.
+  - **Generated files.** Byte-identical throughout.
+  - **Timings:** generation 0.8s, catalog 0.8s, ledger 8.4s, adoption 0.1s, schema refresh 1.1s, and `verify:slice` 228s. Generation to green took 242s as a mechanical replay.
+  - **Earlier runs, recorded for what they were.** Earlier attempts in a history-less copy, or under the OS temp tree, failed for environmental reasons. A raw unadopted run failed as diagnosed. None counts as acceptance.
+
 ## Version 0.33.33.46 - Strict-clean module scaffold
 
 **Model: High Effort** - Establish a minimal generated module against the delivered contracts, with executable disposable proof.
@@ -18,6 +62,7 @@
   - **The overlap.** The measured changed-path intersection was five paths: `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, `package.json`, `scripts/package-script-contracts.json` and the ledger.
   - **How each resolved.** `package.json` and the contract file merged cleanly, each gaining exactly the authorized `module:create` entry beside nightly's `audit:cycles` scripts. The roadmap files were reconciled by hand. The ledger was regenerated from the combined tree, never taken from either side: 1,577 files, 0 diagnostics in every program, and no explicit `any`.
   - **The cycle gate.** It matches on the combined tree. The generator, its library and its suite add no cycle.
+- [ ] **Correction recorded at the `0.33.33.46.1` integration (2026-10-01).** The acceptance below was incomplete. Closeout, typechecking, a generated unit test and the boot proof did not establish a full regression pass with the generated module present, and `0.33.33.47.2`'s measurement then found seven failing regressions. It is not successful under the original criterion. The operator's D3 ruling amended that criterion, and the `0.33.33.46.1` entry records the evidence that satisfies the amendment.
 - [x] **Combined-tree acceptance, by the integrator.** It ran on a disposable copy of the combined tree `f68b476a`. The copy was its own repository, and its tree was proved identical. Every command ran the copy's own scripts and configuration. Only derived catalog and ledger generation was used; no output was repaired, and no gate was exempted or raised.
   - **`npm run module:create -- sample-records`:** twelve files.
   - **`modules:registry:generate`:** the catalog imports the new module, giving 9 modules.
