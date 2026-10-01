@@ -234,4 +234,95 @@ assert.throws(() => createConfig({ LONGTAIL_RELEASE_COMMIT: "main" }), /40 hexad
 assert.throws(() => createConfig({ LONGTAIL_RELEASE_ARTIFACT_SHA256: "latest" }), /64 hexadecimal characters/);
 assert.throws(() => createConfig({ LONGTAIL_RELEASE_BRANCH: "feature/bad" }), /Source branch/);
 
+// `0.33.33.48.3`: exactly two test-running checkouts read full history, because unit tests load
+// committed baselines through `git show <sha>:<path>`. Both stay at their exact SHA, and every
+// other checkout keeps its depth, so the repair can neither widen nor regress unnoticed.
+const nightlyRevision = "${{ needs.classify_changes.outputs.revision }}";
+const promotionHead = "${{ github.event.pull_request.head.sha }}";
+assert.deepEqual(checkoutInventory(nightly), {
+  classify_changes: [{ ref: "${{ github.sha }}", depth: "0" }, { ref: "nightly", depth: "1" }],
+  "integration-gate": [{ ref: nightlyRevision, depth: "0" }],
+  "browser-gate": [{ ref: nightlyRevision, depth: "1" }],
+  "publish-proof": [{ ref: nightlyRevision, depth: "1" }],
+}, "only the nightly full gate reads full history, at the exact classify-selected revision");
+assert.deepEqual(checkoutInventory(promotion), {
+  "promotion-source": [{ ref: promotionHead, depth: "1" }],
+  "release-gate": [{ ref: promotionHead, depth: "0" }],
+  "browser-gate": [{ ref: promotionHead, depth: "1" }],
+  "artifact-source": [{ ref: promotionHead, depth: "1" }],
+  "artifact-smoke": [{ ref: promotionHead, depth: "1" }],
+  "backup-recovery": [{ ref: promotionHead, depth: "1" }],
+  "container-recovery": [{ ref: promotionHead, depth: "1" }],
+  "dependency-review": [{ ref: null, depth: "1" }],
+}, "only the promotion fallback release gate reads full history, at the exact pull-request head SHA");
+for (const [source, job] of /** @type {const} */ ([[nightly, "integration-gate"], [promotion, "release-gate"]])) {
+  assert.match(
+    jobSource(source, job),
+    /# Full history: unit tests read committed baselines through `git show <sha>:<path>`\.\n\s+# The checkout is still the exact [^\n]+\n\s+fetch-depth: 0\n/,
+    `${job} must say why it reads full history`,
+  );
+}
+// The reader itself must see each way the repair could drift: a moving branch in place of the
+// exact SHA, a second checkout widened to full history, and the repaired depth reverted.
+for (const [label, drifted] of [
+  ["a moving branch ref", nightly.replace(`ref: ${nightlyRevision}\n          # Full history`, "ref: nightly\n          # Full history")],
+  ["a widened checkout", promotion.replace(/(browser-gate:[\s\S]*?fetch-depth: )1/, "$10")],
+  ["a reverted depth", nightly.replace(/(# The checkout is still the exact classify-selected revision\.\n\s+fetch-depth: )0/, "$11")],
+]) {
+  assert.notEqual(drifted, label === "a widened checkout" ? promotion : nightly, `the ${label} probe must change the workflow text`);
+  assert.notDeepEqual(
+    checkoutInventory(drifted),
+    checkoutInventory(label === "a widened checkout" ? promotion : nightly),
+    `the checkout inventory must see ${label}`,
+  );
+}
+
 console.log("GitHub release operations regression passed.");
+
+/**
+ * The source of one job: from its `  <id>:` line under `jobs:` up to the next job.
+ * @param {string} source
+ * @param {string} jobId
+ * @returns {string}
+ */
+function jobSource(source, jobId) {
+  const start = source.indexOf(`\n  ${jobId}:\n`);
+  assert.notEqual(start, -1, `workflow must declare job ${jobId}`);
+  const next = source.slice(start + 1).search(/\n  [A-Za-z0-9_-]+:\n/);
+  return next === -1 ? source.slice(start + 1) : source.slice(start + 1, start + 1 + next + 1);
+}
+
+/**
+ * Every `actions/checkout` step's `ref` and `fetch-depth`, grouped by job id in workflow order.
+ * A step ends at the next step or job, and comment lines inside `with:` are skipped.
+ * @param {string} source
+ * @returns {Record<string, { ref: string | null, depth: string | null }[]>}
+ */
+function checkoutInventory(source) {
+  const jobsAt = source.indexOf("\njobs:\n");
+  assert.notEqual(jobsAt, -1, "workflow must declare jobs");
+  /** @type {Record<string, { ref: string | null, depth: string | null }[]>} */
+  const inventory = {};
+  /** @type {string | null} */
+  let job = null;
+  const lines = source.slice(jobsAt + "\njobs:\n".length).split("\n");
+  for (const [index, line] of lines.entries()) {
+    const jobMatch = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/);
+    if (jobMatch) {
+      job = jobMatch[1];
+      continue;
+    }
+    if (job === null || !/^\s+(?:-\s+)?uses: actions\/checkout@/.test(line)) continue;
+    /** @type {{ ref: string | null, depth: string | null }} */
+    const entry = { ref: null, depth: null };
+    for (const following of lines.slice(index + 1)) {
+      if (/^\s+-\s/.test(following) || /^ {2}[A-Za-z0-9_-]+:\s*$/.test(following)) break;
+      const ref = following.match(/^\s+ref: (.+)$/);
+      if (ref) entry.ref = ref[1].trim();
+      const depth = following.match(/^\s+fetch-depth: (.+)$/);
+      if (depth) entry.depth = depth[1].trim();
+    }
+    (inventory[job] ??= []).push(entry);
+  }
+  return inventory;
+}
