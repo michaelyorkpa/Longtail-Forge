@@ -1,5 +1,50 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.47.1 - Dependency-cycle measurement and its no-growth ratchet
+
+**Model: High Effort** - a new lasting gate over the import graph: the baseline had to be honest, and the ratchet had to refuse growth without freezing legitimate change.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.47.1-dependency-cycles` from `nightly` `4d2874e2`; planning `00387875`, implementation `e16a8432`. The planning commit also recorded, before Codex's edit, the `0.33.33.46` path for the `module:create` contract pin.
+- [x] **The tool.** `scripts/lib/dependency-cycles.mjs`, with the CLI `scripts/audit-dependency-cycles.mjs`.
+  - **The parser.** It parses with `espree`, which ESLint already runs over this repository. `scripts/lib/regression-source-measure.mjs` recorded the reasons: `typescript@7` exposes no JavaScript parser, and a regular expression cannot tell an import from import-shaped text in a string.
+  - **The universe.** The first-party universe the typecheck governance owns: 1,574 files.
+  - **The edges.** Static edges (`import`, `export ... from`) and dynamic `import()` edges are kept apart, and only relative specifiers name first-party files. Edges are recorded in source order.
+  - **Blind spots.** Computed `import()` sites, which no resolver can follow, are counted per file. Runtime has none, and no relative `require` or unresolved specifier exists anywhere.
+  - **Cycles.** Strongly connected components are found by an iterative Tarjan; a self-import counts.
+- [x] **The honest baseline.** `scripts/baselines/dependency-cycle-baseline.json`:
+  - **Runtime:** one cycle of 88 files through static imports, and 93 with dynamic imports.
+  - **Tooling and browser ES modules:** no cycles.
+  - **Computed imports:** 8 tooling and browser files have one each.
+- [x] **The closing edges, named.** For each cycle, the report removes each internal edge in turn and names those that leave the smallest largest cycle behind.
+  - **The catalog cycle closes at `src/core/modules/modules.service.js -> src/core/modules/registry.js`, or `registry.js -> bundled-module-catalog.generated.js`.** The catalog is imported only by the registry, and the registry, within the cycle, only by `modules.service.js`. Every other single edge leaves at least 76 files.
+  - **Opened at either edge, three cycles remain** that exist independently of the catalog:
+    - Lists, Notes and Tasks: 23 files, 26 with dynamic imports;
+    - Clients/Projects with Time Tracking: 8 files;
+    - `audit.service.js` with `permissions.service.js`: 2 files.
+- [x] **The ratchet.** `npm run audit:cycles:check` is a hard closeout gate, after parameter binding. It runs on every `verify:slice` and in every CI development gate, regardless of change routing.
+  - **Growth is refused:** a new cycle, a file joining a cycle, recorded cycles merging, or a file gaining a computed import.
+  - **Shrinking must be recorded,** so a file that left a cycle cannot quietly rejoin it.
+  - **`npm run audit:cycles:update-baseline`** refuses growth too. A renamed cycle member is declared with `--renamed=old=new`, which requires the old path to be gone and the new one present.
+  - **Pins.** Three package scripts and their exact pins in `scripts/package-script-contracts.json`. The closeout conductor's gate list and hard flags.
+- [x] **Proof.**
+  - **Unit:** 10 cases covering:
+    - every import form, with strings and JSDoc ignored;
+    - classic scripts, and resolution;
+    - cycles, self-imports, and kept-apart dynamic edges;
+    - closing edges on a catalog-shaped graph;
+    - every comparison outcome: new cycle, joining, merging, shrinking, splitting, vanishing, computed growth, and declared and undeclared renames;
+    - rename validation, and baseline validation.
+  - **Live:** 12 of 12 checks through the real npm commands:
+    - a new tooling cycle, a file joining the catalog cycle (88 to 89) and a new computed import were each refused, by the check and by the update, with the baseline left byte-identical;
+    - removing the closing edge failed the check as shrinking, and the update recorded it;
+    - a real rename of a cycle member, with its four importers updated, was refused undeclared and accepted with `--renamed`.
+
+    All 11 touched files were restored byte-exact, and the probe files were removed.
+- [x] **Out of scope, as ruled:** removing the cycle.
+- [x] **Recorded for an operator decision.** Under "no cycle gaining a file", the first committed new module, Support Tickets in `0.34`, will be refused: a standard module reaches the catalog through the framework hubs. This is recorded as a carried finding, with the two options.
+- [x] **Accounting.** The ledger adds three strict-clean files: 1,574 files, 0 diagnostics in every program, and no explicit `any`.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `4d2874e2`, and `checkpoint:validate` run on the final tree. The hand-written gate list in `docs/regression-suite.md` is recorded as a `0.33.33.48` obligation.
+
 ## Version 0.33.33.48.1 - The view-search-options casts
 
 **Model: High Effort** - three unchecked casts through `unknown` in a script injected into every rendered page; the disposition had to hold in a real browser and under the shared fake DOM.

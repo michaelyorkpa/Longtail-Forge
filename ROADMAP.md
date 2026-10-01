@@ -149,6 +149,8 @@ The throwaway module is generated into a disposable fixture outside the tracked 
 
 Any further path needs a recorded assignment first.
 
+**Amended 2026-10-01, by Claude under the delegated path-ownership authority, before the edit.** Codex also owns the single `"module:create": "node scripts/create-module.mjs"` entry in `scripts/package-script-contracts.json`. That file pins every `package.json` script's exact command (`release.validation-single-ownership`), so it is the mandatory counterpart of the `package.json` entry Codex already owns. No other entry in that file changes, and no other path is added.
+
 **Remaining release obligations, their owner, and what each genuinely waits on:**
 
 | Obligation | Owner | Genuine prerequisite or unresolved decision |
@@ -166,6 +168,14 @@ Any further path needs a recorded assignment first.
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
+- **The first new module will be refused by the dependency-cycle ratchet** - measured by `0.33.33.47.1`.
+  - **Why.** The bundled catalog imports every `module.js`. Module code reaches back to the catalog through framework hubs: `core/permissions.js`, `core/audit.js`, `core/modules/module-access.js` and `middleware/require-api-key.js` all lead through `modules.service.js -> registry.js`. A standard module therefore joins the catalog cycle, and "no cycle gaining a file" refuses it.
+  - **What is affected.** Nothing in `0.33.33` commits a new module, and `0.33.33.46`'s throwaway module lives only in a fixture. The first committed one, Support Tickets in `0.34`, will be refused.
+  - **The choice, needing an operator decision before then:**
+    - break the cycle at its closing edge, `modules.service.js -> registry.js`;
+    - or approve a narrowly recorded allowance for the files of a newly catalogued module.
+
+  Owner: Claude.
 - **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. **Discharged by `0.33.33.48.1`, which corrected all three and kept none**, with real-browser, fixture and compiler proof. A source pin keeps casts through `unknown` out of that file. Carried no longer.
 - **Eight browser `// @ts-check` pragmas are load-bearing** — recorded by `0.33.33.44.47`. Under TypeScript 7.0.2 a `@typedef` JSDoc at byte 0, directly before an IIFE statement, is declared twice and reports TS2300; the pragma keeps it off byte 0. They check nothing, since `checkJs` is program-wide. Removing one fails the typecheck at once, so this cannot regress silently. Discharged by a compiler that no longer double-declares, or by an authorized comment-layout change; not by deleting them.
 - **`FileEditorRow`'s member cannot be declared required** — recorded by `0.33.33.43.9`, **still live**: `normalizeFileEditorRow` may return a caller's own object without passing it through `fileRow`, so the row cannot promise what only one of its two producers guarantees. `0.33.33.43.16` and `.43.18` both confirmed it and left it standing. Owner: Claude, with `files.js`; it does **not** block that file's zero, which is already reached.
@@ -2817,10 +2827,26 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **No dependency-cycle measurement tool exists in the current tree**, and nothing in `0.33.33.33` adds one, so this checkpoint still owns building it. Every number it proposes is a hypothesis until that tool produces a baseline.
 
-- [ ] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet.
+- [x] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet. (`0.33.33.47.1`: the espree-based tool records one runtime cycle of 88 files, closed by `modules.service.js -> registry.js`. `audit:cycles:check` is a hard closeout gate that refuses growth.)
 - [ ] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count.
 - [ ] Target zero framework-file edits for standard module capabilities and strict-clean new module output, but label timing/locality expectations as hypotheses until measured.
 - [ ] Do not turn raw file or line counts into quality gates detached from dependency or behavior ownership.
+
+**Drawn as two children on 2026-10-01**, split by dependency, not by measurement step. `.47.1` needs nothing from the scaffold. `.47.2`'s measurements include scaffold-to-green time, so it cannot start until `0.33.33.46` integrates.
+
+#### 0.33.33.47.1 - Dependency-cycle measurement and its no-growth ratchet
+
+**Complete: the tool, the honest baseline, and the ratchet as a hard closeout gate.** See the archive entry.
+- **The baseline.** One runtime cycle of 88 files through the bundled-module catalog, or 93 with dynamic imports; tooling and browser ES modules have none.
+- **Where it closes.** At `src/core/modules/modules.service.js -> src/core/modules/registry.js`, or `registry.js -> bundled-module-catalog.generated.js`.
+- **What `npm run audit:cycles:check` enforces.** It refuses growth and asks for any shrinking to be recorded.
+
+#### 0.33.33.47.2 - Locality and scaffold measurements
+
+**Model: Medium Effort** - measurements recorded as hypotheses, not gates; starts after `0.33.33.46` integrates.
+
+- [ ] Record median files touched for module-local changes, cross-module or framework edits for a standard capability, scaffold-to-green time, and ceremony-file count, each against the delivered scaffold.
+- [ ] Target zero framework-file edits for standard module capabilities, and strict-clean new module output. Timing and locality expectations stay labelled as hypotheses until measured.
 
 ### 0.33.33.48 - Lean Core branch closeout
 
@@ -2840,6 +2866,7 @@ Second, the previous wording said to "delete the browser ledger section at zero"
     - The shared public API envelope and pager, and the record-indexer helper, are what new modules use.
   - **`docs/architecture.md`:** the same statement about concern-composition consumers.
   - **`docs/module-contract.md`:** the examples still declaring the four defaulted fields are valid, but no longer needed.
+- [ ] **Document the dependency-cycle gate in `docs/regression-suite.md`.** `0.33.33.47.1` added `audit:cycles:check` as a hard closeout gate, and `audit:cycles`/`audit:cycles:update-baseline` with it. The closeout paragraph's gate list and the audit command table still describe the earlier set. Deferred here, because the checkpoint gate reserves durable documentation for this closeout.
 - [ ] **Record `0.33.33.25.11` in `docs/regression-suite.md` and correct the `0.33.33.25.6` paragraph**, which still says every `verify:slice` outcome "focused, full-check, and empty" runs the ledger; an empty selection is now refused. Deferred here because the checkpoint gate reserves durable documentation for this closeout.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
 - [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of `0.33.33.25.5`, unchanged at `0.33.33.32.28.1`, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.
