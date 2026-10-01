@@ -2747,6 +2747,49 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Keep route/service behavior explicit and do not create a route DSL, new manifest fields, empty concern files, or plugin hooks.
 - [ ] Compose the 587-line Time Tracking manifest only where the current 500-line/75-line thresholds prove cohesive concern owners.
 
+**Measured against `nightly` `aeeae78c` and drawn as three children, approved by operator ruling on 2026-10-01.** Each child measures within its implementation and adopts its helper across all of that helper's consumers. There are no measure-only or proof-pair checkpoints. The `nullableText` repository duplicates and other cleanup found by the measurement stay out of all three.
+
+#### 0.33.33.45.1 - Public API envelope and paging helpers
+
+**Model: High Effort** - one framework home for helpers copied across five public API route files and five service files, with each caller's contract preserved exactly.
+
+- [ ] **Envelopes.** `publicApiData` and `publicApiList` are byte-identical in all five route files. They take one framework home and keep truthful generics, so each caller's data and pagination types pass through unchanged.
+- [ ] **Paging.** `paged` is byte-identical in all five service files, and `clampInteger` serves only `paged`. The two `clampInteger` spellings differ only on `null` and `undefined`, where both reach the fallback. Parsing, defaults, bounds and response ordering are unchanged.
+- [ ] **The workspace alias, only where the implementation is the same.** Lists, Notes and Time Tracking each guard non-objects, spread the record, and then read `workspace_id`; that matching implementation is shared.
+  - Tasks reads through `Reflect.get` before spreading, and has a different admitted-input contract.
+  - The framework Clients/Projects alias reads before spreading and recurses into `projects`.
+
+  Both of those stay local and unchanged, with no mode flag or adapter.
+- [ ] **Owners keep their policy.** Authorization, Notes' exposure policy and each module's response shaping stay where they are. No field filtering, no new validation, and no behaviour change.
+- [ ] **Evidence.**
+  - Before-and-after comparisons of each helper against its committed baseline body, including getter-backed records for the alias read order.
+  - The public API regressions.
+  - A compiler check that each caller's declared result contract still holds.
+
+#### 0.33.33.45.2 - Common record-indexer orchestration
+
+**Model: High Effort** - the orchestration is extracted; each module keeps its own reader, document builder and eligibility policy.
+
+- [ ] **One orchestration helper for the six record indexers**: Lists, Tasks, Notes, Time Tracking, Clients and Projects.
+  - **Bulk path:** read all records and convert each one in sequence.
+  - **Single-record path:** read one record, answer `null` when it is missing or ineligible, and otherwise convert it.
+- [ ] **Module policy stays explicit.** Lists keeps its deleted-record handling. Notes keeps its consumer-access and visibility decisions, and keeps omitting null documents. Bulk and single results keep their shapes.
+- [ ] **Execution order is unchanged.** Awaits stay sequential, with no `Promise.all`. Ordering and failure propagation are preserved, and no catch-and-continue is added.
+- [ ] **The helper stays small.** It imports no module policy and is not a configurable indexing framework. Its callback boundary is the smallest that all six consumers support.
+- [ ] **Proof** covers both paths, including missing and ineligible records and a builder failure. A manifest inventory is not a substitute.
+
+#### 0.33.33.45.3 - Manifest defaults and cohesive Time Tracking composition
+
+**Model: High Effort** - framework defaults for four values that all eight manifests declare identically, and a Time Tracking composition only where the thresholds prove it.
+
+- [ ] **Default only four fields:** `publicViews: []`, `seedHooks: []`, `repairHooks: []` and `migrationsDir: null`.
+  - Each constructed manifest gets fresh default arrays.
+  - A supplied value is kept, and the validator still refuses invalid explicit values.
+  - Omission and defaulting behaviour is defined clearly, and malformed input is never silently sanitized.
+- [ ] **`browserAssetsDir` and `protectedViewsDir` stay explicit in each module.** Neither is inferred from the framework helper's `import.meta.url`, and no repository-layout convention is introduced.
+- [ ] **Compose the 587-line Time Tracking manifest only along genuinely cohesive concerns** that meet the 500-line and 75-line thresholds. Module identity, routes, permissions, dependency order and app/worker activation are unchanged.
+- [ ] **Proof.** The normalised module inventory stays equivalent. Wherever composition moves a function reference, activation and registration behaviour is proved directly.
+
 ### 0.33.33.46 - Add the strict-clean module scaffold
 
 **Model: High Effort** - The generator defines the default architecture inherited by Support Tickets and future modules.
