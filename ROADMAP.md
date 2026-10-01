@@ -2952,6 +2952,48 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the concrete failures recorded across the `0.33.33.32` children.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
 
+**Drawn as a tooling child and the closeout, on 2026-10-01.** The split follows the checkpoint validator: only a commit tagged exactly `0.33.33.48` may touch durable documentation, `CHANGELOG.md`, `DECISIONS.md` or the package version.
+- **`.48.2` takes the first three criteria above.** That is the ledger and the debt inventories it carried, in tooling and regressions only.
+- **The closeout itself, tagged `0.33.33.48`, takes everything else.**
+
+#### 0.33.33.48.2 - Retire the temporary typecheck ledger and its debt inventories
+
+**Model: High Effort** - the lasting typecheck gate changes form: every guarantee the ledger carried must survive explicitly, and the regression migration is large and mechanical.
+
+**Scope.** Tooling and regressions only, under the operator's direction to proceed with `0.33.33.48` under its existing prerequisites. Durable documentation of the new gate belongs to the closeout.
+
+- [ ] **The gate.** Without a ledger, `npm run typecheck` enforces all of these:
+  - zero diagnostics in each of the three programs, and zero explicit `any`, each refused with its exact location;
+  - the program universe: every first-party JavaScript file is owned by exactly one program;
+  - owned-means-checked: each program's compiler lists every file it owns;
+  - the suppression policy;
+  - the first-party declaration probe.
+
+  The write mode, the shrink-only validator, the reclassification machinery and the checkpoint stamp are removed. An unknown option, such as the retired `--write`, is refused.
+- [ ] **Delete `scripts/typecheck-debt-ledger.json`,** together with the `typecheck:ledger:write` script and its contract pin. A pin proves nothing reads the ledger again.
+- [ ] **Ownership without the ledger.**
+  - **The rule.** A static ownership rule, exported by the governance script, names the program that owns a file.
+  - **The probe.** It replaces the ledger-backed probe, and the probe's importers migrate one-for-one to ownership pins.
+  - **Diagnostics.** They are not re-pinned per file, because the gate enforces zero for every owned file.
+- [ ] **Migrate the governance regression's ledger reads one-for-one,** wherever a meaningful replacement exists:
+  - **per-file diagnostic pins** become ownership pins. Unlike the ledger reads they replace, these fail when a file leaves its program;
+  - **explicit-any pins** read the live source policy;
+  - **group filters** assert program ownership;
+  - **the shrink-only mutation proofs** become zero-gate mutation proofs.
+
+  The absolute gate supersedes the retirement-at-zero assertions.
+- [ ] **Retire the browser-diagnostic classification,** together with its fixture pins. It was the family, owner and root-optionality debt inventory that drove the browser program to zero.
+  - **What stays.** `declaredNamespaceMembers` stays with the declaration-coverage inventory, which remains a live namespace contract.
+  - **The retired assertions** are credited under the coverage policy, each with its disposition.
+- [ ] **Coverage records.** Historical credited retirements that name the ledger as an owner path are re-pointed to its successors, the zero gate and the governance regression. This is recorded as a reviewed policy edit.
+- [ ] **Proof: live mutation probes through the real `npm run typecheck`,** in a disposable full-history clone outside the OS temp tree. Each of these is refused, and the unchanged tree passes:
+  - a diagnostic introduced in each program;
+  - an explicit `any`;
+  - an unowned first-party file;
+  - an owned file its compiler does not check;
+  - a forbidden suppression;
+  - the retired `--write`.
+
 #### 0.33.33.48.1 - The `view-search-options` casts
 
 **Complete: all three casts corrected, none kept.** See the archive entry.
