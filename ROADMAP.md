@@ -163,17 +163,16 @@ Any further path needs a recorded assignment first.
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
 | `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Both complete.** `0.33.33.44` closed at `0.33.33.44.47`. `0.33.33.38` closed when the operator's 2026-10-01 ruling settled its last criterion; it is recorded in the parent and carried in the `0.33.33.45.1` bookkeeping. |
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
-| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is released**, with its path ownership recorded in the file-ownership section above, under the operator's 2026-10-01 ruling. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is released**, with its path ownership recorded in the file-ownership section above, under the operator's 2026-10-01 ruling. Its first READY head was held at review, and Codex corrects it under the operator's 2026-10-01 D1 amendment. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. `.46` integrates once its corrected head passes the complete scaffold acceptance on the combined tree. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
-- **The first new module will be refused by the dependency-cycle ratchet** - measured by `0.33.33.47.1`.
-  - **Why.** The bundled catalog imports every `module.js`. Module code reaches back to the catalog through framework hubs: `core/permissions.js`, `core/audit.js`, `core/modules/module-access.js` and `middleware/require-api-key.js` all lead through `modules.service.js -> registry.js`. A standard module therefore joins the catalog cycle, and "no cycle gaining a file" refuses it.
-  - **What is affected.** Nothing in `0.33.33` commits a new module, and `0.33.33.46`'s throwaway module lives only in a fixture. The first committed one, Support Tickets in `0.34`, will be refused.
-  - **The choice, needing an operator decision before then:**
-    - break the cycle at its closing edge, `modules.service.js -> registry.js`;
-    - or approve a narrowly recorded allowance for the files of a newly catalogued module.
+- **The runtime module-catalog cycle is retained, not repaired.** Measured by `0.33.33.47.1`, and kept by `0.33.33.47.3`.
+  - **What remains.** The raw runtime dependency measurement still shows one cycle of 88 files, or 93 with dynamic imports, through `registry.js -> bundled-module-catalog.generated.js`. A registered module's runtime code still sits in it.
+  - **How the ratchet treats it.** Under the operator's 2026-10-01 D2 ruling, `0.33.33.47.3` excludes that one edge from the enforcement measurement only. The ratchet governs the remaining components: 23, 8 and 2 files static, and 26, 9 and 6 with dynamic imports.
+  - **The tooling-policy defect is closed.** `.47.1`'s note understated the effect. The old rule refused ordinary additions to existing modules, not only the first new module, and it could not see a new import inside the 88-file component. `.47.3` proved the correction through the real CLI.
+  - **What was not done.** Breaking the cycle in code with a composition root was not taken, and is not scheduled.
 
   Owner: Claude.
 - **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. **Discharged by `0.33.33.48.1`, which corrected all three and kept none**, with real-browser, fixture and compiler proof. A source pin keeps casts through `unknown` out of that file. Carried no longer.
@@ -2814,12 +2813,23 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Model: High Effort** - The generator defines the default architecture inherited by Support Tickets and future modules.
 
-- [ ] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and regression-area home.
+- [ ] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and a generated Vitest unit-test home (amended 2026-10-01; see below).
 - [ ] **The scaffold inherits whatever `0.33.33.45` actually extracts, not what it proposed.** Build the generator against the measured post-`.45` module shape.
 - [ ] Emit no empty-array padding, speculative concern composition, route DSL, framework edits, or Support Tickets feature behavior.
 - [ ] **Generated output must enter all three permanent-zero programs clean.** A scaffold that produces a diagnostic in the server, scripts, or browser program is not done, and its browser controller must already be IIFE-isolated to the `0.33.33.33` standard.
 - [ ] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
 - [ ] Require untouched scaffold output to pass the normal validation contract without a transpile step.
+
+**Amended by the operator on 2026-10-01 (D1).** The "regression-area home" requirement is replaced. This is an explicit amendment to the acceptance criterion, not a claim that a Vitest file is a registered regression area.
+- **The new requirement:**
+  - a generated, collected, strict-clean Vitest unit-test home at `tests/unit/<id>-records.test.mjs`, keeping the three existing behavioral assertions;
+  - generated guidance explaining the separate reviewed process for adding a discovered regression.
+- **What does not change.** Canonical regression areas, discovery conventions, manifest ceilings and routing do not change to admit scaffold output. No existing discovered regression is retired or moved under this authorization.
+- **Future discovered tests.** They may use an appropriate existing canonical area. A genuinely new area needs separate registration and review, and the guidance distinguishes the two cases.
+
+**Held at review on 2026-10-01.** The first READY head, `d0c67e07` (PR #861), generated `scripts/regressions/<id>/records.regression.mjs` with `area: "<id>"`. Discovery refuses that file for three reasons: the area is not canonical, the directory does not match the area, and it exceeds the shrink-only active ceiling. The fixture missed this because it ran the file directly with Node.
+- **What happens next.** Codex corrects the scaffold under D1, in its recorded paths only.
+- **What integration waits for.** It also waits for `0.33.33.47.3`. Before integrating, it repeats the complete scaffold acceptance on the corrected combined tree, because passing `.47.3` alone does not certify `.46`.
 
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
@@ -2827,12 +2837,14 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **No dependency-cycle measurement tool exists in the current tree**, and nothing in `0.33.33.33` adds one, so this checkpoint still owns building it. Every number it proposes is a hypothesis until that tool produces a baseline.
 
-- [x] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet. (`0.33.33.47.1`: the espree-based tool records one runtime cycle of 88 files, closed by `modules.service.js -> registry.js`. `audit:cycles:check` is a hard closeout gate that refuses growth.)
+- [x] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet. (`0.33.33.47.1`: the espree-based tool records one runtime cycle of 88 files, closed by `modules.service.js -> registry.js`. `audit:cycles:check` is a hard closeout gate that refuses growth. `0.33.33.47.3` corrected its measurement basis: the enforcement measurement leaves out only the one authorized composition edge, and the raw measurement stays reported.)
 - [ ] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count.
 - [ ] Target zero framework-file edits for standard module capabilities and strict-clean new module output, but label timing/locality expectations as hypotheses until measured.
 - [ ] Do not turn raw file or line counts into quality gates detached from dependency or behavior ownership.
 
 **Drawn as two children on 2026-10-01**, split by dependency, not by measurement step. `.47.1` needs nothing from the scaffold. `.47.2`'s measurements include scaffold-to-green time, so it cannot start until `0.33.33.46` integrates.
+
+**A third child was drawn the same day.** `.47.3` corrects `.47.1`'s measurement basis under the operator's D2 ruling. It runs while Codex corrects `.46`, and before `.46` integrates.
 
 #### 0.33.33.47.1 - Dependency-cycle measurement and its no-growth ratchet
 
@@ -2847,6 +2859,13 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 - [ ] Record median files touched for module-local changes, cross-module or framework edits for a standard capability, scaffold-to-green time, and ceremony-file count, each against the delivered scaffold.
 - [ ] Target zero framework-file edits for standard module capabilities, and strict-clean new module output. Timing and locality expectations stay labelled as hypotheses until measured.
+
+#### 0.33.33.47.3 - The cycle ratchet's single composition-edge exception
+
+**Complete: the single authorized exception, the two measurements, the one reviewed baseline migration, and the real-CLI proof.** See the archive entry.
+- **The raw runtime dependency measurement.** Reported, not enforced: one cycle of 88 files, or 93 with dynamic imports. It is retained, not removed.
+- **The enforcement measurement with the named exception.** The exception is the static edge `registry.js -> bundled-module-catalog.generated.js`. Without it, the cycles are 23, 8 and 2 files, or 26, 9 and 6 with dynamic imports.
+- **The scope.** A no-growth policy over cyclic components. It does not prove that every undesirable import inside an already permitted component is detected.
 
 ### 0.33.33.48 - Lean Core branch closeout
 
@@ -2866,10 +2885,21 @@ Second, the previous wording said to "delete the browser ledger section at zero"
     - The shared public API envelope and pager, and the record-indexer helper, are what new modules use.
   - **`docs/architecture.md`:** the same statement about concern-composition consumers.
   - **`docs/module-contract.md`:** the examples still declaring the four defaulted fields are valid, but no longer needed.
-- [ ] **Document the dependency-cycle gate in `docs/regression-suite.md`.** `0.33.33.47.1` added `audit:cycles:check` as a hard closeout gate, and `audit:cycles`/`audit:cycles:update-baseline` with it. The closeout paragraph's gate list and the audit command table still describe the earlier set. Deferred here, because the checkpoint gate reserves durable documentation for this closeout.
+- [ ] **Document the dependency-cycle gate in `docs/regression-suite.md`.** Deferred here, because the checkpoint gate reserves durable documentation for this closeout.
+  - **What `0.33.33.47.1` added.** `audit:cycles:check` as a hard closeout gate, with `audit:cycles` and `audit:cycles:update-baseline` beside it. The closeout paragraph's gate list and the audit command table still describe the earlier set.
+  - **What `0.33.33.47.3` adds, to be documented with it:**
+    - the gate's two measurements: the raw runtime dependency measurement, and the enforcement measurement with the single named exception;
+    - the exception's authority and its independent pin;
+    - the gate's scope: a no-growth policy over cyclic components, not proof that every undesirable import inside an already permitted component is detected.
 - [ ] **Record `0.33.33.25.11` in `docs/regression-suite.md` and correct the `0.33.33.25.6` paragraph**, which still says every `verify:slice` outcome "focused, full-check, and empty" runs the ledger; an empty selection is now refused. Deferred here because the checkpoint gate reserves durable documentation for this closeout.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
-- [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of `0.33.33.25.5`, unchanged at `0.33.33.32.28.1`, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.
+- [ ] Record the regression entry-point disposition against the 250-300 review target: 347 as of `0.33.33.25.5`, unchanged at `0.33.33.32.28.1`, with the static reduction concentrated in contract-module re-parenting.
+- [ ] **Explain the real reviewed process for adding discovered tests**, per the operator's 2026-10-01 ruling:
+  - using an appropriate existing canonical area where one fits;
+  - when necessary, a new area's separate registration and review;
+  - `maximumActiveScripts` and other ceiling changes as reviewed policy edits.
+
+  Do not claim that ordinary regeneration automatically authorizes increases the tools reject.
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
 - [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the concrete failures recorded across the `0.33.33.32` children.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
