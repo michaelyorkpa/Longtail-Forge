@@ -149,6 +149,8 @@ The throwaway module is generated into a disposable fixture outside the tracked 
 
 Any further path needs a recorded assignment first.
 
+**Amended 2026-10-01, by Claude under the delegated path-ownership authority, before the edit.** Codex also owns the single `"module:create": "node scripts/create-module.mjs"` entry in `scripts/package-script-contracts.json`. That file pins every `package.json` script's exact command (`release.validation-single-ownership`), so it is the mandatory counterpart of the `package.json` entry Codex already owns. No other entry in that file changes, and no other path is added.
+
 **Remaining release obligations, their owner, and what each genuinely waits on:**
 
 | Obligation | Owner | Genuine prerequisite or unresolved decision |
@@ -2821,6 +2823,40 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count.
 - [ ] Target zero framework-file edits for standard module capabilities and strict-clean new module output, but label timing/locality expectations as hypotheses until measured.
 - [ ] Do not turn raw file or line counts into quality gates detached from dependency or behavior ownership.
+
+**Drawn as two children on 2026-10-01**, split by dependency, not by measurement step. `.47.1` needs nothing from the scaffold. `.47.2`'s measurements include scaffold-to-green time, so it cannot start until `0.33.33.46` integrates.
+
+#### 0.33.33.47.1 - Dependency-cycle measurement and its no-growth ratchet
+
+**Model: High Effort** - a new lasting gate over the runtime import graph: the baseline must be honest, and the ratchet must refuse growth without freezing legitimate change.
+
+**The baseline, measured read-only against `nightly` `4d2874e2` before anything was built:**
+
+| Graph | Files | Internal edges | Cyclic components |
+|---|---:|---:|---|
+| Runtime (`server.js`, `worker.js`, `src/**`), static imports | 308 | 1,219 | **1, of 88 files** |
+| Runtime, with dynamic `import()` included | 308 | 1,219 | 1, of 93 files |
+| Tooling (`scripts/**`, `tests/**` and the root configs) | 1,178 | 1,578 | 0 |
+| Browser ES modules | 85 | 0 | 0 |
+
+The one component runs through the generated bundled-module catalog: catalog, to modules, to their services, to framework core, to the registry, and back to the catalog. That is the cycle that refuses a direct import of any `module.js` before the catalog.
+
+- [ ] **A maintained measurement tool.** It parses with `espree`, following `scripts/lib/regression-source-measure.mjs`'s recorded precedent: `typescript@7` exposes no JavaScript parser, and a regular expression cannot tell an import from import-shaped text in a string. It resolves first-party relative specifiers, keeps static and dynamic edges apart, and reports each strongly connected component with its members.
+- [ ] **The honest baseline, recorded before it is enforced.** It lists every component with its members, and names the edges that close the catalog cycle.
+- [ ] **A no-growth ratchet.**
+  - No new cyclic component may appear.
+  - No component may gain a member.
+  - A component may shrink or disappear.
+
+  The baseline is refreshed only by an explicit write that refuses growth, as the typecheck ledger does. Removing the cycle is not this child's work; the baseline records it.
+- [ ] **No count theater.** The gate is about cycle membership, not raw file or line counts.
+
+#### 0.33.33.47.2 - Locality and scaffold measurements
+
+**Model: Medium Effort** - measurements recorded as hypotheses, not gates; starts after `0.33.33.46` integrates.
+
+- [ ] Record median files touched for module-local changes, cross-module or framework edits for a standard capability, scaffold-to-green time, and ceremony-file count, each against the delivered scaffold.
+- [ ] Target zero framework-file edits for standard module capabilities, and strict-clean new module output. Timing and locality expectations stay labelled as hypotheses until measured.
 
 ### 0.33.33.48 - Lean Core branch closeout
 
