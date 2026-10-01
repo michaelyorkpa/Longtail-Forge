@@ -12,7 +12,7 @@ import { runMutationCampaign } from "../../scripts/test-support/mutation-runner.
 //
 // **Dispositioned, not listed.** Widening `metadataText`'s `fallback` to `unknown` is not a case
 // here: it makes the *return* unknown and lights up this function's readers, so the compiler owns
-// it and the ledger is where it lands. Listing it would credit the suite for a compiler catch.
+// it and the strict typecheck is where it lands. Listing it would credit the suite for a compiler catch.
 //
 // **An equivalent, and the finding behind it.** Replacing `scanStatusLabel`'s last line,
 // `return scanStatus ? formatToken(scanStatus) : "";`, with a bare `return formatToken(scanStatus);`

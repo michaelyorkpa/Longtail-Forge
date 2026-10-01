@@ -3,14 +3,14 @@ export const regressionMeta = Object.freeze({
   area: "framework",
   tier: "release-gate",
   tags: ["contracts", "framework", "release", "typecheck"],
-  description: "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
+  description: "Proves every first-party JavaScript file belongs to one full-strict program, every owned file is checked, and the typecheck gate holds all three programs at absolute zero.",
   runMode: "static",
 });
 
 import assert from "node:assert/strict";
 import { collectBrowserPublicationInventory, contestedSurfaces } from "../../test-support/browser-publication-inventory.mjs";
 import { createNamespaceResolver } from "../../test-support/browser-namespace-resolver.mjs";
-import { classifyBrowserDiagnostics, declaredNamespaceMembers } from "../../test-support/browser-diagnostic-classification.mjs";
+import { declaredNamespaceMembers } from "../../test-support/browser-namespace-declarations.mjs";
 import { collectDeclarationCoverage } from "../../test-support/browser-declaration-coverage.mjs";
 import { extractClassMethodBlock, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import { createRequire } from "node:module";
@@ -21,24 +21,19 @@ import {
   PROGRAMS,
   collectSourcePolicy,
   countExplicitAnyAnnotations,
+  enforceZero,
   firstPartyJavaScriptFiles,
   isFirstPartyDirectoryName,
   uncheckedOwnedFiles,
-  validateShrinkOnly,
+  zeroGateErrors,
 } from "../../typecheck-governance.mjs";
-import { compareDottedVersions } from "../../lib/roadmap-cursor.mjs";
-import { strictCleanOwnerProgram, strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { owningProgram, programConfig } from "../../test-support/typecheck-ownership.mjs";
 
-/** @typedef {{ code: number, count: number }} DiagnosticCount */
-/** @typedef {{ config: string, environment: string, files: string[], errorCount: number, diagnostics: Record<string, DiagnosticCount[]> }} ProgramState */
-/** @typedef {{ schemaVersion: number, checkpoint: string, programs: Record<string, ProgramState>, totals: { files: number, errors: number, explicitAny: number }, explicitAnyByFile: Record<string, number>, expectedErrorDirectives: string[], declarationProbe: { config: string, firstPartyFiles: number, errors: number } }} GovernanceLedger */
 /** @typedef {{ compilerOptions: Record<string, unknown>, include: string[], exclude: string[] }} TypeScriptConfig */
 
 // The published session members that make a literal session-shaped.
 const SESSION_LITERAL_MEMBERS = ["active_workspace_id", "home_workspace_id", "session_mode", "user_id", "username", "workspace_id"];
 
-/** @type {GovernanceLedger} */
-const ledger = JSON.parse(fs.readFileSync("scripts/typecheck-debt-ledger.json", "utf8"));
 /** @type {TypeScriptConfig} */
 const serverConfig = JSON.parse(fs.readFileSync("tsconfig.json", "utf8"));
 /** @type {TypeScriptConfig} */
@@ -51,7 +46,6 @@ const governanceSource = fs.readFileSync("scripts/typecheck-governance.mjs", "ut
 const liveFiles = firstPartyJavaScriptFiles();
 const declarationFiles = fs.readdirSync("src/types").filter((name) => name.endsWith(".d.ts")).map((name) => `src/types/${name}`).sort();
 const sourcePolicy = collectSourcePolicy([...liveFiles, ...declarationFiles].sort());
-const ledgerFiles = Object.values(ledger.programs).flatMap((program) => program.files).sort();
 const firstPartyTypeSource = declarationFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 const firstPartySource = liveFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
 const jobContractsSource = fs.readFileSync("src/types/job-contracts.d.ts", "utf8");
@@ -61,21 +55,28 @@ const usersModuleSource = fs.readFileSync("src/modules/users/module.js", "utf8")
 const developerExampleRouteSource = fs.readFileSync("src/modules/developer-example/routes.js", "utf8");
 const developerExamplePublicApiRouteSource = fs.readFileSync("src/modules/developer-example/public-api.routes.js", "utf8");
 
-assert.equal(ledger.schemaVersion, 1);
-assert.ok(
-  compareDottedVersions(ledger.checkpoint, "0.33.33.25.9") >= 0,
-  `ledger checkpoint stamp ${ledger.checkpoint} must stay at or beyond 0.33.33.25.9, the checkpoint that made the stamp write-derived; exact stamp pins are prohibited`,
-);
+// `0.33.33.48.2` retired the debt ledger: every program has been at zero since `0.33.33.44`, so the
+// gate enforces zero directly. These replace the ledger's own header assertions one for one.
+assert.equal(fs.existsSync("scripts/typecheck-debt-ledger.json"), false, "the debt ledger is retired; the gate enforces zero directly");
+assert.ok(PROGRAMS.every((program) => fs.existsSync(program.config)), "every strict program compiles with a config that exists");
 assert.deepEqual(PROGRAMS.map((program) => program.id), ["server-tests", "browser", "scripts"]);
-assert.deepEqual(Object.keys(ledger.programs), ["server-tests", "browser", "scripts"]);
-assert.deepEqual(ledgerFiles, liveFiles);
-assert.equal(new Set(ledgerFiles).size, liveFiles.length);
-assert.equal(ledger.totals.files, liveFiles.length);
-assert.equal(ledger.totals.errors, Object.values(ledger.programs).reduce((total, program) => total + program.errorCount, 0));
-assert.equal(ledger.totals.explicitAny, Object.values(ledger.explicitAnyByFile).reduce((total, count) => total + count, 0));
-assert.deepEqual(ledger.explicitAnyByFile, sourcePolicy.explicitAnyByFile);
-assert.deepEqual(ledger.expectedErrorDirectives, sourcePolicy.expectedErrorDirectives);
-assert.deepEqual(ledger.expectedErrorDirectives, [
+assert.deepEqual(liveFiles.filter((filePath) => owningProgram(filePath) === null), [], "every first-party JavaScript file is owned by exactly one strict program");
+assert.equal(
+  PROGRAMS.reduce((total, program) => total + liveFiles.filter((filePath) => owningProgram(filePath) === program.id).length, 0),
+  liveFiles.length,
+  "the three programs' owned files partition the first-party universe",
+);
+assert.ok(liveFiles.length > 1500, "the universe is the whole estate, not an emptied file list");
+assert.deepEqual(sourcePolicy.explicitAnyByFile, {}, "the live source policy finds no explicit any anywhere");
+assert.deepEqual(zeroGateErrors(cleanState()), [], "a state at zero passes the gate");
+assert.match(governanceSource, /enforceZero\(state\);/, "every typecheck run enforces zero");
+assert.match(governanceSource, /Unknown typecheck option/, "the retired write mode, like any other option, is refused");
+assert.deepEqual(
+  sourcePolicy.expectedErrorDirectives.filter((entry) => !entry.startsWith("tests/typecheck/")),
+  [],
+  "expected-error directives appear only in the negative compile fixtures",
+);
+assert.deepEqual(sourcePolicy.expectedErrorDirectives, [
   "tests/typecheck/browser-database-boundary.fixture.mjs:3",
   "tests/typecheck/client-project-contracts.fixture.mjs:27",
   "tests/typecheck/client-project-contracts.fixture.mjs:30",
@@ -112,7 +113,7 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/time-tracking-server-contracts.fixture.mjs:29",
   "tests/typecheck/time-tracking-server-contracts.fixture.mjs:32",
 ].sort());
-assert.deepEqual(ledger.declarationProbe, { config: "tsconfig.declarations.json", firstPartyFiles: 31, errors: 0 });
+assert.match(governanceSource, /First-party declaration probe failed/, "the gate refuses any first-party declaration that fails on its own");
 
 for (const config of [serverConfig, browserConfig, scriptsConfig]) {
   assert.equal(config.compilerOptions.allowJs, true);
@@ -134,7 +135,7 @@ assert.equal(declarationConfig.compilerOptions.strict, true);
 assert.deepEqual(declarationConfig.include, ["src/types/**/*.d.ts"]);
 // `0.33.33.44.47`: an `exclude` entry is how a first-party file could be owned yet never read by
 // its compiler, so each program's exclusions are pinned. The governance run separately refuses any
-// owned file its compiler did not list, on both the verify and the ledger-write paths.
+// owned file its compiler did not list, on every run.
 assert.deepEqual(serverConfig.exclude, ["node_modules", "archive", "data", "logs", "images", "public", "styles", "views", "tests/typecheck/browser-database-boundary.fixture.mjs"]);
 assert.deepEqual(browserConfig.exclude, ["node_modules"]);
 assert.deepEqual(scriptsConfig.exclude, ["node_modules", "archive", "data", "logs"]);
@@ -147,7 +148,7 @@ assert.deepEqual(PROGRAMS.map((program) => [program.id, program.config, program.
   ["scripts", "tsconfig.scripts.json", ["scripts/", "eslint.config.js", "playwright.config.js", "vitest.config.mjs"]],
 ]);
 assert.equal(
-  strictCleanOwnerProgram("tests/typecheck/browser-database-boundary.fixture.mjs"),
+  owningProgram("tests/typecheck/browser-database-boundary.fixture.mjs"),
   "browser",
   "the browser boundary fixture belongs to the only program that compiles it",
 );
@@ -160,8 +161,8 @@ assert.match(
 );
 assert.match(
   governanceSource,
-  /async function main\(\) \{\s*const state = collectGovernanceState\(\);[\s\S]*if \(process\.argv\.includes\("--write"\)\) writeLedger\(state\);\s*else verifyLedger\(state\);/,
-  "the verify and ledger-write paths must both run on a freshly collected, ownership-checked state",
+  /async function main\(\) \{[\s\S]*const state = collectGovernanceState\(\);\s*printSummary\(state\);\s*enforceZero\(state\);/,
+  "every run enforces zero on a freshly collected, ownership-checked state",
 );
 assert.doesNotMatch(firstPartySource, /\bValidatedService\b/, "blanket-widened service exports must stay retired");
 assert.doesNotMatch(
@@ -169,8 +170,8 @@ assert.doesNotMatch(
   /\[\s*K\s+in\s+keyof[^\]]+\][\s\S]{0,500}infer\s+Args[\s\S]{0,500}\[\s*I\s+in\s+keyof\s+Args\s*\]\s*:\s*unknown/,
   "mapped service contracts must not rewrite every method argument to unknown",
 );
-assert.match(governanceSource, /process\.argv\.includes\("--write"\)/);
-assert.match(governanceSource, /else verifyLedger\(state\)/);
+assert.match(governanceSource, /const unknown = process\.argv\.slice\(2\);/);
+assert.match(governanceSource, /const errors = zeroGateErrors\(state\);/);
 
 for (const strictCleanPath of [
   "eslint.config.js",
@@ -179,8 +180,8 @@ for (const strictCleanPath of [
   "scripts/typecheck-governance.mjs",
   "scripts/regressions/framework/full-strict-governance.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean`);
-  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must not introduce explicit any`);
+  assert.equal(owningProgram(strictCleanPath), "scripts", `${strictCleanPath} must stay strict-clean`);
+  assert.equal(sourcePolicy.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must not introduce explicit any`);
 }
 for (const strictCleanPath of [
   "src/core/linked-context/link-target-shape.js",
@@ -200,25 +201,25 @@ for (const strictCleanPath of [
   "src/modules/tasks/link-target.provider.js",
   "src/modules/users/link-target.provider.js",
 ]) {
-  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean`);
-  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must not introduce explicit any`);
+  assert.equal(owningProgram(strictCleanPath), "server-tests", `${strictCleanPath} must stay strict-clean`);
+  assert.equal(sourcePolicy.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must not introduce explicit any`);
 }
-const notesOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+const notesOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests")
   .filter((filePath) => filePath.startsWith("src/modules/notes/"));
 assert.deepEqual(notesOwnerDiagnostics, [], `Notes server owners must stay strict-clean after checkpoint 0.33.33.17.3`);
-const notesOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+const notesOwnerExplicitAny = Object.keys(sourcePolicy.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/notes/"));
 assert.deepEqual(notesOwnerExplicitAny, [], `Notes server owners must stay free of explicit any after checkpoint 0.33.33.17.3`);
-const listsOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+const listsOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests")
   .filter((filePath) => filePath.startsWith("src/modules/lists/"));
 assert.deepEqual(listsOwnerDiagnostics, [], `Lists server owners must stay strict-clean after checkpoint 0.33.33.18.4`);
-const listsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+const listsOwnerExplicitAny = Object.keys(sourcePolicy.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/lists/"));
 assert.deepEqual(listsOwnerExplicitAny, [], `Lists server owners must stay free of explicit any after checkpoint 0.33.33.18.4`);
-const tasksOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics)
+const tasksOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests")
   .filter((filePath) => filePath.startsWith("src/modules/tasks/"));
 assert.deepEqual(tasksOwnerDiagnostics, [], `Tasks server owners must stay strict-clean after checkpoint 0.33.33.21.3`);
-const tasksOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile)
+const tasksOwnerExplicitAny = Object.keys(sourcePolicy.explicitAnyByFile)
   .filter((filePath) => filePath.startsWith("src/modules/tasks/"));
 assert.deepEqual(tasksOwnerExplicitAny, [], `Tasks server owners must stay free of explicit any after checkpoint 0.33.33.21.3`);
 /** @param {string} filePath */
@@ -227,9 +228,9 @@ const clientProjectsOwnerPaths = (filePath) => (
   filePath === "src/types/client-project-contracts.d.ts" ||
   filePath === "tests/typecheck/client-project-contracts.fixture.mjs"
 );
-const clientProjectsOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(clientProjectsOwnerPaths);
+const clientProjectsOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests").filter(clientProjectsOwnerPaths);
 assert.deepEqual(clientProjectsOwnerDiagnostics, [], "Clients/Projects server owners must stay strict-clean after checkpoint 0.33.33.25.1");
-const clientProjectsOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(clientProjectsOwnerPaths);
+const clientProjectsOwnerExplicitAny = Object.keys(sourcePolicy.explicitAnyByFile).filter(clientProjectsOwnerPaths);
 assert.deepEqual(clientProjectsOwnerExplicitAny, [], "Clients/Projects server owners must stay free of explicit any after checkpoint 0.33.33.25.1");
 /** @param {string} filePath */
 const timeTrackingOwnerPaths = (filePath) => (
@@ -237,9 +238,9 @@ const timeTrackingOwnerPaths = (filePath) => (
   filePath === "src/types/time-tracking-contracts.d.ts" ||
   filePath.startsWith("tests/typecheck/time-tracking-")
 );
-const timeTrackingOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(timeTrackingOwnerPaths);
+const timeTrackingOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests").filter(timeTrackingOwnerPaths);
 assert.deepEqual(timeTrackingOwnerDiagnostics, [], "Time Tracking server owners must stay strict-clean after checkpoint 0.33.33.25.2");
-const timeTrackingOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(timeTrackingOwnerPaths);
+const timeTrackingOwnerExplicitAny = Object.keys(sourcePolicy.explicitAnyByFile).filter(timeTrackingOwnerPaths);
 assert.deepEqual(timeTrackingOwnerExplicitAny, [], "Time Tracking server owners must stay free of explicit any after checkpoint 0.33.33.25.2");
 for (const strictCleanPath of [
   "worker.js",
@@ -255,8 +256,8 @@ for (const strictCleanPath of [
   "src/types/job-contracts.d.ts",
   "tests/typecheck/job-payload-contracts.fixture.mjs",
 ]) {
-  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.25.3`);
-  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.25.3`);
+  assert.equal(zeroHolder(strictCleanPath), strictCleanPath.endsWith(".d.ts") ? "declaration-probe" : "server-tests", `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.25.3`);
+  assert.equal(sourcePolicy.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.25.3`);
 }
 assert.doesNotMatch(frameworkJobsSeam, /\bany\b/, "the framework Jobs seam must not restore generic any payloads");
 assert.match(jobContractsSource, /export interface JobPayloadRegistry/);
@@ -283,50 +284,50 @@ const smallOwnerPaths = (filePath) => (
   filePath.startsWith("src/routes/tags") ||
   filePath.startsWith("src/modules/developer-example/")
 );
-const smallOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(smallOwnerPaths);
+const smallOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests").filter(smallOwnerPaths);
 assert.deepEqual(smallOwnerDiagnostics, [], "Search, Notifications, Users, Tags, and developer-example owners must stay strict-clean after checkpoint 0.33.33.25.4");
-const smallOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(smallOwnerPaths);
+const smallOwnerExplicitAny = Object.keys(sourcePolicy.explicitAnyByFile).filter(smallOwnerPaths);
 assert.deepEqual(smallOwnerExplicitAny, [], "Search, Notifications, Users, Tags, and developer-example owners must stay free of explicit any after checkpoint 0.33.33.25.4");
 assert.match(usersModuleSource, /function moduleDisabledNotificationBody\(\{ event \}\)/, "Users event summaries should use the named resolver-context projection");
 assert.match(developerExampleRouteSource, /workspaceAsyncRoute\(async \(request, response\)/, "the example browser route should use the workspace request contract");
 assert.match(developerExamplePublicApiRouteSource, /apiKeyAsyncRoute\(async \(request, response\)/, "the example public route should use the API-key request contract");
-const remainingServerDiagnosticPaths = Object.keys(ledger.programs["server-tests"].diagnostics);
-assert.deepEqual(
-  remainingServerDiagnosticPaths,
-  [],
-  "the server/test program closed at checkpoint 0.33.33.26.2 and must stay at zero strict diagnostics",
+// `0.33.33.48.2`: the three programs retired at zero, server/test at `0.33.33.26.2`, scripts at
+// `0.33.33.32.28.1` and browser at `0.33.33.44.47`, and the ledger that recorded their sections is
+// retired with them. **Retirement means permanently required to remain at zero. It never means no
+// longer checked.** The gate now refuses any diagnostic any program reports, and every program still
+// owns, and its compiler still reads, its whole estate.
+for (const program of PROGRAMS) {
+  const owned = cleanState().programs[program.id];
+  const ownedFile = owned.files[0];
+  if (!ownedFile) throw new Error(`The zero-gate proof requires at least one ${program.id} file.`);
+  owned.diagnostics.push({ filePath: ownedFile, code: 7006, line: 1, column: 1, message: "synthetic" });
+}
+const serverRegained = cleanState();
+serverRegained.programs["server-tests"].diagnostics.push({ filePath: "server.js", code: 7006, line: 1, column: 1, message: "synthetic" });
+assert.match(
+  zeroGateErrors(serverRegained).join("\n"),
+  /^server-tests: server\.js\(1,1\): TS7006/m,
+  "the closed server/test program must refuse any diagnostic, naming its location",
 );
-assert.equal(
-  ledger.programs["server-tests"].errorCount,
-  0,
-  "the server/test program's ledger section is retired at zero and may never regain debt",
+const scriptsRegained = cleanState();
+scriptsRegained.programs.scripts.diagnostics.push({ filePath: "scripts/typecheck-governance.mjs", code: 2322, line: 2, column: 3, message: "synthetic" });
+assert.match(
+  zeroGateErrors(scriptsRegained).join("\n"),
+  /^scripts: scripts\/typecheck-governance\.mjs\(2,3\): TS2322/m,
+  "the retired scripts program must refuse any diagnostic, naming its location",
 );
-// 0.33.33.32.28.1 retires the scripts program's debt at zero, exactly as the
-// server/test program was retired at 0.33.33.26.2: the ledger section stays,
-// its diagnostics map is empty, its error count is zero, and it may never
-// regain debt.
-//
-// **Retirement means permanently required to remain at zero. It never means
-// no longer checked.** `tsconfig.scripts.json` carries unqualified `strict`,
-// `checkJs`, and `noImplicitAny` and excludes nothing under `scripts/`, so the
-// program still compiles on every canonical `npm run typecheck`; the ledger
-// generator refuses a universe in which any first-party file is unowned. The
-// two assertions below hold both halves of that: the debt is zero, and the
-// program still carries every script on disk.
-assert.equal(
-  ledger.programs.scripts.errorCount,
-  0,
-  "the scripts program's ledger section is retired at zero and may never regain debt",
+const browserRegained = cleanState();
+browserRegained.programs.browser.diagnostics.push({ filePath: "$global", code: 2318, line: 0, column: 0, message: "synthetic" });
+assert.match(
+  zeroGateErrors(browserRegained).join("\n"),
+  /^browser: \(global\): TS2318/m,
+  "the retired browser program must refuse a global diagnostic too",
 );
-assert.deepEqual(
-  Object.keys(ledger.programs.scripts.diagnostics),
-  [],
-  "the retired scripts program carries no per-file debt",
-);
+assert.deepEqual(zeroGateErrors(cleanState()), [], "the unchanged state passes");
 const scriptsOnDisk = discoveredScriptPaths();
 assert.ok(
   scriptsOnDisk.length > 500,
-  "the retired scripts program still compiles the whole scripts estate, not an emptied file list",
+  "the scripts program still owns the whole scripts estate, not an emptied file list",
 );
 // The program also owns the three root configuration files `tsconfig.scripts.json`
 // names, of which one is an `.mjs` this discovery sees.
@@ -335,53 +336,45 @@ assert.deepEqual(
   ["vitest.config.mjs"],
   "the scripts program's file list is the scripts estate plus the root configuration it is defined to cover",
 );
-// Retirement is a floor for the whole program, so the per-checkpoint pins above
-// are now implied by it rather than the other way round. The pins stay because
-// they name which checkpoint closed which owner, which the floor cannot say.
-//
-// 0.33.33.44.47 retires the browser program, the last of the three, on the same
-// model. Its section and owned-file inventory stay, its diagnostics map is
-// empty, its error count is zero, and it may never regain debt. It is still
-// checked: the governance run refuses any owned file its compiler did not list.
-assert.equal(
-  ledger.programs.browser.errorCount,
-  0,
-  "the browser program's ledger section is retired at zero and may never regain debt",
-);
 assert.deepEqual(
-  Object.keys(ledger.programs.browser.diagnostics),
-  [],
-  "the retired browser program carries no per-file debt",
+  liveFiles.filter((filePath) => (filePath.startsWith("src/") || filePath.startsWith("tests/")) && owningProgram(filePath) !== "server-tests"),
+  ["tests/typecheck/browser-database-boundary.fixture.mjs"],
+  "the server/test program owns every server and test file except the browser boundary fixture",
 );
 const browserEstate = liveFiles.filter((filePath) => filePath.startsWith("public/js/"));
 assert.ok(
   browserEstate.length > 80,
-  "the retired browser program still compiles the whole browser estate, not an emptied file list",
+  "the browser program still owns the whole browser estate, not an emptied file list",
 );
 assert.deepEqual(
-  ledger.programs.browser.files,
+  liveFiles.filter((filePath) => owningProgram(filePath) === "browser"),
   [...browserEstate, "tests/typecheck/browser-database-boundary.fixture.mjs"],
   "the browser program's file list is every first-party script under public/js plus the boundary fixture only it compiles",
 );
-assert.equal(
-  ledger.totals.errors,
-  0,
-  "with all three programs retired at zero, the combined universe carries no strict diagnostics",
+assert.match(
+  governanceSource,
+  /const \{ diagnostics, compiledFiles \} = runCompiler\(definition\.config, \{ listFiles: true \}\);/,
+  "each program keeps every diagnostic its compiler reports, whichever file it names",
 );
-const scriptInfrastructureDebt = Object.keys(ledger.programs.scripts.diagnostics)
+assert.match(
+  governanceSource,
+  /for \(const \[filePath, count\] of Object\.entries\(state\.explicitAnyByFile\)\)/,
+  "with all three programs retired at zero, any explicit any in any file is refused",
+);
+const scriptInfrastructureDebt = liveFiles.filter((filePath) => owningProgram(filePath) !== "scripts")
   .filter((filePath) => filePath.startsWith("scripts/lib/") || filePath.startsWith("scripts/test-support/"));
 assert.deepEqual(
   scriptInfrastructureDebt,
   [],
   "shared script libraries and test support closed at checkpoint 0.33.33.27 and must stay strict-clean",
 );
-const releaseOwnerDebt = Object.keys(ledger.programs.scripts.diagnostics)
+const releaseOwnerDebt = liveFiles.filter((filePath) => owningProgram(filePath) !== "scripts")
   .filter((filePath) => filePath.startsWith("scripts/regressions/release/") || filePath.startsWith("scripts/regressions/docs/"));
 assert.deepEqual(releaseOwnerDebt, [], "release and docs regression owners closed at checkpoint 0.33.33.29 and must stay strict-clean");
-const viewOwnerDebt = Object.keys(ledger.programs.scripts.diagnostics)
+const viewOwnerDebt = liveFiles.filter((filePath) => owningProgram(filePath) !== "scripts")
   .filter((filePath) => filePath.startsWith("scripts/regressions/views/") || filePath.startsWith("scripts/regression-contracts/views/"));
 assert.deepEqual(viewOwnerDebt, [], "view-surface contract owners closed at checkpoint 0.33.33.30.1 and must stay strict-clean");
-const frameworkContractDebt = Object.keys(ledger.programs.scripts.diagnostics)
+const frameworkContractDebt = liveFiles.filter((filePath) => owningProgram(filePath) !== "scripts")
   .filter((filePath) => filePath.startsWith("scripts/regression-contracts/framework/"));
 assert.deepEqual(frameworkContractDebt, [], "framework contract modules closed at checkpoint 0.33.33.30.2 and must stay strict-clean");
 for (const httpSecurityOwner of [
@@ -389,8 +382,8 @@ for (const httpSecurityOwner of [
   "operational-security-basics", "production-configuration-hardening", "public-legal-surfaces",
   "security-event-logging", "tls-cookie-posture", "trusted-proxy-request-context",
 ].map((owner) => `scripts/regressions/framework/${owner}.regression.mjs`).concat("scripts/test-support/http-fixture-contracts.mjs")) {
-  assert.equal(ledger.programs.scripts.diagnostics[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
-  assert.equal(ledger.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
+  assert.equal(owningProgram(httpSecurityOwner), "scripts", `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
+  assert.equal(sourcePolicy.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
 }
 // The database seam, adapter, and parameter-binding owners closed at
 // 0.33.33.31.1, together with the shared row-assertion module they resolve
@@ -427,8 +420,8 @@ for (const databaseSeamOwner of [
   "scripts/startup-maintenance-compatibility-regression.mjs",
   "scripts/test-support/database-row-assertions.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[databaseSeamOwner], undefined, `${databaseSeamOwner} must stay strict-clean after checkpoint 0.33.33.31.1`);
-  assert.equal(ledger.explicitAnyByFile[databaseSeamOwner], undefined, `${databaseSeamOwner} must stay free of explicit any after checkpoint 0.33.33.31.1`);
+  assert.equal(owningProgram(databaseSeamOwner), "scripts", `${databaseSeamOwner} must stay strict-clean after checkpoint 0.33.33.31.1`);
+  assert.equal(sourcePolicy.explicitAnyByFile[databaseSeamOwner], undefined, `${databaseSeamOwner} must stay free of explicit any after checkpoint 0.33.33.31.1`);
 }
 // The workspace lifecycle, purge, cleanup-isolation, and role-seed convergence
 // owners closed at 0.33.33.31.2. Each holds a destructive or convergence
@@ -439,8 +432,8 @@ for (const workspaceLifecycleOwner of [
   "scripts/regressions/database/workspace-deletion-lifecycle.regression.mjs",
   "scripts/regressions/database/workspace-final-purge.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[workspaceLifecycleOwner], undefined, `${workspaceLifecycleOwner} must stay strict-clean after checkpoint 0.33.33.31.2`);
-  assert.equal(ledger.explicitAnyByFile[workspaceLifecycleOwner], undefined, `${workspaceLifecycleOwner} must stay free of explicit any after checkpoint 0.33.33.31.2`);
+  assert.equal(owningProgram(workspaceLifecycleOwner), "scripts", `${workspaceLifecycleOwner} must stay strict-clean after checkpoint 0.33.33.31.2`);
+  assert.equal(sourcePolicy.explicitAnyByFile[workspaceLifecycleOwner], undefined, `${workspaceLifecycleOwner} must stay free of explicit any after checkpoint 0.33.33.31.2`);
 }
 // The demo host, public-demo candidate, development-seed, and startup
 // maintenance owners closed at 0.33.33.31.3. Each proves a seeded estate or a
@@ -451,8 +444,8 @@ for (const seededEstateOwner of [
   "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs",
   "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[seededEstateOwner], undefined, `${seededEstateOwner} must stay strict-clean after checkpoint 0.33.33.31.3`);
-  assert.equal(ledger.explicitAnyByFile[seededEstateOwner], undefined, `${seededEstateOwner} must stay free of explicit any after checkpoint 0.33.33.31.3`);
+  assert.equal(owningProgram(seededEstateOwner), "scripts", `${seededEstateOwner} must stay strict-clean after checkpoint 0.33.33.31.3`);
+  assert.equal(sourcePolicy.explicitAnyByFile[seededEstateOwner], undefined, `${seededEstateOwner} must stay free of explicit any after checkpoint 0.33.33.31.3`);
 }
 // The Files upload ingress owners closed at 0.33.33.31.4. The shared
 // response-payload narrowing they cross the unknown body boundary through is
@@ -463,8 +456,8 @@ for (const filesIngressOwner of [
   "scripts/file-multipart-upload-route-regression.mjs",
   "scripts/file-upload-compatibility-error-hardening-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[filesIngressOwner], undefined, `${filesIngressOwner} must stay strict-clean after checkpoint 0.33.33.31.4`);
-  assert.equal(ledger.explicitAnyByFile[filesIngressOwner], undefined, `${filesIngressOwner} must stay free of explicit any after checkpoint 0.33.33.31.4`);
+  assert.equal(owningProgram(filesIngressOwner), "scripts", `${filesIngressOwner} must stay strict-clean after checkpoint 0.33.33.31.4`);
+  assert.equal(sourcePolicy.explicitAnyByFile[filesIngressOwner], undefined, `${filesIngressOwner} must stay free of explicit any after checkpoint 0.33.33.31.4`);
 }
 // The Files egress owners closed at 0.33.33.31.5: preview availability,
 // preview content, and streamed validation with download metadata.
@@ -473,8 +466,8 @@ for (const filesEgressOwner of [
   "scripts/files-preview-availability-route-regression.mjs",
   "scripts/files-preview-content-route-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[filesEgressOwner], undefined, `${filesEgressOwner} must stay strict-clean after checkpoint 0.33.33.31.5`);
-  assert.equal(ledger.explicitAnyByFile[filesEgressOwner], undefined, `${filesEgressOwner} must stay free of explicit any after checkpoint 0.33.33.31.5`);
+  assert.equal(owningProgram(filesEgressOwner), "scripts", `${filesEgressOwner} must stay strict-clean after checkpoint 0.33.33.31.5`);
+  assert.equal(sourcePolicy.explicitAnyByFile[filesEgressOwner], undefined, `${filesEgressOwner} must stay free of explicit any after checkpoint 0.33.33.31.5`);
 }
 // The Files attachment target and context read owners closed at
 // 0.33.33.31.6, including the two parameter-binding conversion owners that
@@ -486,8 +479,8 @@ for (const attachmentReadOwner of [
   "scripts/files-browse-attachment-reads-conversion-regression.mjs",
   "scripts/files-context-targets-conversion-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[attachmentReadOwner], undefined, `${attachmentReadOwner} must stay strict-clean after checkpoint 0.33.33.31.6`);
-  assert.equal(ledger.explicitAnyByFile[attachmentReadOwner], undefined, `${attachmentReadOwner} must stay free of explicit any after checkpoint 0.33.33.31.6`);
+  assert.equal(owningProgram(attachmentReadOwner), "scripts", `${attachmentReadOwner} must stay strict-clean after checkpoint 0.33.33.31.6`);
+  assert.equal(sourcePolicy.explicitAnyByFile[attachmentReadOwner], undefined, `${attachmentReadOwner} must stay free of explicit any after checkpoint 0.33.33.31.6`);
 }
 // The storage provider, S3, and quota owners closed at 0.33.33.31.7. The
 // shared package-manifest narrowing they cross the filesystem JSON boundary
@@ -503,8 +496,8 @@ for (const storageProviderOwner of [
   "scripts/file-storage-streaming-contract-regression.mjs",
   "scripts/workspace-storage-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[storageProviderOwner], undefined, `${storageProviderOwner} must stay strict-clean after checkpoint 0.33.33.31.7`);
-  assert.equal(ledger.explicitAnyByFile[storageProviderOwner], undefined, `${storageProviderOwner} must stay free of explicit any after checkpoint 0.33.33.31.7`);
+  assert.equal(owningProgram(storageProviderOwner), "scripts", `${storageProviderOwner} must stay strict-clean after checkpoint 0.33.33.31.7`);
+  assert.equal(sourcePolicy.explicitAnyByFile[storageProviderOwner], undefined, `${storageProviderOwner} must stay free of explicit any after checkpoint 0.33.33.31.7`);
 }
 // The scanner adapter and worker owners closed at 0.33.33.31.8. Each parses
 // output that crosses back from a separate process, so the pin keeps those
@@ -518,8 +511,8 @@ for (const scannerWorkerOwner of [
   "scripts/separate-worker-end-to-end-regression.mjs",
   "scripts/worker-runner-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[scannerWorkerOwner], undefined, `${scannerWorkerOwner} must stay strict-clean after checkpoint 0.33.33.31.8`);
-  assert.equal(ledger.explicitAnyByFile[scannerWorkerOwner], undefined, `${scannerWorkerOwner} must stay free of explicit any after checkpoint 0.33.33.31.8`);
+  assert.equal(owningProgram(scannerWorkerOwner), "scripts", `${scannerWorkerOwner} must stay strict-clean after checkpoint 0.33.33.31.8`);
+  assert.equal(sourcePolicy.explicitAnyByFile[scannerWorkerOwner], undefined, `${scannerWorkerOwner} must stay free of explicit any after checkpoint 0.33.33.31.8`);
 }
 // The job claiming, idempotency, outbox schema, and retention owners closed
 // at 0.33.33.31.9. Each holds a concurrency or bounded-window proof, so the
@@ -530,8 +523,8 @@ for (const jobDurabilityOwner of [
   "scripts/job-outbox-schema-regression.mjs",
   "scripts/job-retention-pruning-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[jobDurabilityOwner], undefined, `${jobDurabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.9`);
-  assert.equal(ledger.explicitAnyByFile[jobDurabilityOwner], undefined, `${jobDurabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.9`);
+  assert.equal(owningProgram(jobDurabilityOwner), "scripts", `${jobDurabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.9`);
+  assert.equal(sourcePolicy.explicitAnyByFile[jobDurabilityOwner], undefined, `${jobDurabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.9`);
 }
 // The job observability and background work owners closed at 0.33.33.31.10.
 // These are the readouts that leak job payloads if typed loosely, so the pin
@@ -543,8 +536,8 @@ for (const jobObservabilityOwner of [
   "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs",
   "scripts/search-index-jobs-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[jobObservabilityOwner], undefined, `${jobObservabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.10`);
-  assert.equal(ledger.explicitAnyByFile[jobObservabilityOwner], undefined, `${jobObservabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.10`);
+  assert.equal(owningProgram(jobObservabilityOwner), "scripts", `${jobObservabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.10`);
+  assert.equal(sourcePolicy.explicitAnyByFile[jobObservabilityOwner], undefined, `${jobObservabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.10`);
 }
 
 // The Files settings, descriptor host, and folded Files contract owners closed
@@ -571,8 +564,8 @@ for (const filesClosingOwner of [
   "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
   "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[filesClosingOwner], undefined, `${filesClosingOwner} must stay strict-clean after checkpoint 0.33.33.31.11`);
-  assert.equal(ledger.explicitAnyByFile[filesClosingOwner], undefined, `${filesClosingOwner} must stay free of explicit any after checkpoint 0.33.33.31.11`);
+  assert.equal(owningProgram(filesClosingOwner), "scripts", `${filesClosingOwner} must stay strict-clean after checkpoint 0.33.33.31.11`);
+  assert.equal(sourcePolicy.explicitAnyByFile[filesClosingOwner], undefined, `${filesClosingOwner} must stay free of explicit any after checkpoint 0.33.33.31.11`);
 }
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
@@ -587,8 +580,8 @@ for (const authorizationModelOwner of [
   "scripts/regressions/permissions/permission-resource-types.regression.mjs",
   "scripts/regressions/permissions/workspace-membership-billable.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[authorizationModelOwner], undefined, `${authorizationModelOwner} must stay strict-clean after the 0.33.33.30.7 cohort`);
-  assert.equal(ledger.explicitAnyByFile[authorizationModelOwner], undefined, `${authorizationModelOwner} must stay free of explicit any after the 0.33.33.30.7 cohort`);
+  assert.equal(owningProgram(authorizationModelOwner), "scripts", `${authorizationModelOwner} must stay strict-clean after the 0.33.33.30.7 cohort`);
+  assert.equal(sourcePolicy.explicitAnyByFile[authorizationModelOwner], undefined, `${authorizationModelOwner} must stay free of explicit any after the 0.33.33.30.7 cohort`);
 }
 for (const sessionOwner of [
   "scripts/regressions/framework/remembered-sessions.regression.mjs",
@@ -597,8 +590,8 @@ for (const sessionOwner of [
   "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
   "scripts/regressions/framework/support-view-session-contract.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[sessionOwner], undefined, `${sessionOwner} must stay strict-clean after checkpoint 0.33.33.30.6`);
-  assert.equal(ledger.explicitAnyByFile[sessionOwner], undefined, `${sessionOwner} must stay free of explicit any after checkpoint 0.33.33.30.6`);
+  assert.equal(owningProgram(sessionOwner), "scripts", `${sessionOwner} must stay strict-clean after checkpoint 0.33.33.30.6`);
+  assert.equal(sourcePolicy.explicitAnyByFile[sessionOwner], undefined, `${sessionOwner} must stay free of explicit any after checkpoint 0.33.33.30.6`);
 }
 for (const publicDemoOwner of [
   "scripts/regressions/framework/public-demo-account-catalog.regression.mjs",
@@ -611,15 +604,15 @@ for (const publicDemoOwner of [
   "scripts/regressions/permissions/public-demo-role-journey.regression.mjs",
   "scripts/regressions/permissions/sanitized-demo-role-journey.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[publicDemoOwner], undefined, `${publicDemoOwner} must stay strict-clean after checkpoint 0.33.33.30.5`);
-  assert.equal(ledger.explicitAnyByFile[publicDemoOwner], undefined, `${publicDemoOwner} must stay free of explicit any after checkpoint 0.33.33.30.5`);
+  assert.equal(owningProgram(publicDemoOwner), "scripts", `${publicDemoOwner} must stay strict-clean after checkpoint 0.33.33.30.5`);
+  assert.equal(sourcePolicy.explicitAnyByFile[publicDemoOwner], undefined, `${publicDemoOwner} must stay free of explicit any after checkpoint 0.33.33.30.5`);
 }
 for (const credentialOwner of [
   "account-export-recovery", "authentication-throttle", "password-hashing-modernization",
   "password-reset-hardening", "private-calendar-feed-authentication",
 ].map((owner) => `scripts/regressions/framework/${owner}.regression.mjs`)) {
-  assert.equal(ledger.programs.scripts.diagnostics[credentialOwner], undefined, `${credentialOwner} must stay strict-clean after checkpoint 0.33.33.30.4`);
-  assert.equal(ledger.explicitAnyByFile[credentialOwner], undefined, `${credentialOwner} must stay free of explicit any after checkpoint 0.33.33.30.4`);
+  assert.equal(owningProgram(credentialOwner), "scripts", `${credentialOwner} must stay strict-clean after checkpoint 0.33.33.30.4`);
+  assert.equal(sourcePolicy.explicitAnyByFile[credentialOwner], undefined, `${credentialOwner} must stay free of explicit any after checkpoint 0.33.33.30.4`);
 }
 for (const contributionOwnerPath of [
   "scripts/regressions/framework/app-shell-bootstrap-boundary.regression.mjs",
@@ -636,8 +629,8 @@ for (const contributionOwnerPath of [
   "scripts/regressions/framework/user-landing-preferences.regression.mjs",
   "scripts/regressions/framework/workbench-focus-policy.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[contributionOwnerPath], undefined, `${contributionOwnerPath} must stay strict-clean after checkpoint 0.33.33.30.2`);
-  assert.equal(ledger.explicitAnyByFile[contributionOwnerPath], undefined, `${contributionOwnerPath} must stay free of explicit any after checkpoint 0.33.33.30.2`);
+  assert.equal(owningProgram(contributionOwnerPath), "scripts", `${contributionOwnerPath} must stay strict-clean after checkpoint 0.33.33.30.2`);
+  assert.equal(sourcePolicy.explicitAnyByFile[contributionOwnerPath], undefined, `${contributionOwnerPath} must stay free of explicit any after checkpoint 0.33.33.30.2`);
 }
 for (const consolidatedStaticOwnerPath of [
   "scripts/framework-view-static-consolidation.mjs",
@@ -645,15 +638,15 @@ for (const consolidatedStaticOwnerPath of [
   "scripts/regression-contracts/workflow-module-static-owner.mjs",
   "scripts/workflow-module-static-consolidation.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[consolidatedStaticOwnerPath], undefined, `${consolidatedStaticOwnerPath} must stay strict-clean after checkpoint 0.33.33.29`);
+  assert.equal(owningProgram(consolidatedStaticOwnerPath), "scripts", `${consolidatedStaticOwnerPath} must stay strict-clean after checkpoint 0.33.33.29`);
 }
-assert.equal(ledger.programs.scripts.diagnostics["scripts/development-data.mjs"], undefined, "scripts/development-data.mjs must stay strict-clean after checkpoint 0.33.33.28.6.1");
-assert.equal(ledger.programs.scripts.diagnostics["scripts/seed-scale.mjs"], undefined, "scripts/seed-scale.mjs must stay strict-clean after checkpoint 0.33.33.28.6.2");
+assert.equal(owningProgram("scripts/development-data.mjs"), "scripts", "scripts/development-data.mjs must stay strict-clean after checkpoint 0.33.33.28.6.1");
+assert.equal(owningProgram("scripts/seed-scale.mjs"), "scripts", "scripts/seed-scale.mjs must stay strict-clean after checkpoint 0.33.33.28.6.2");
 for (const deployProxyOwnerPath of [
   "scripts/reference-caddy-security-smoke.mjs",
   "scripts/release/deploy-via-ssh.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[deployProxyOwnerPath], undefined, `${deployProxyOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.5.2`);
+  assert.equal(owningProgram(deployProxyOwnerPath), "scripts", `${deployProxyOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.5.2`);
 }
 for (const artifactContainerOwnerPath of [
   "scripts/build-container-image.mjs",
@@ -662,14 +655,14 @@ for (const artifactContainerOwnerPath of [
   "scripts/release/published-container-image.mjs",
   "scripts/runtime-artifact-smoke.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[artifactContainerOwnerPath], undefined, `${artifactContainerOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.5.1`);
+  assert.equal(owningProgram(artifactContainerOwnerPath), "scripts", `${artifactContainerOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.5.1`);
 }
 for (const demoLifecycleOwnerPath of [
   "scripts/cleanup-development-workspaces.mjs",
   "scripts/demo-data-host.mjs",
   "scripts/sanitized-demo-role-journey.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[demoLifecycleOwnerPath], undefined, `${demoLifecycleOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.4`);
+  assert.equal(owningProgram(demoLifecycleOwnerPath), "scripts", `${demoLifecycleOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.4`);
 }
 for (const measurementOwnerPath of [
   "scripts/adapter-microbenchmark.mjs",
@@ -678,7 +671,7 @@ for (const measurementOwnerPath of [
   "scripts/public-demo-perimeter-load-smoke.mjs",
   "scripts/sqlite-small-office-performance.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[measurementOwnerPath], undefined, `${measurementOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.3`);
+  assert.equal(owningProgram(measurementOwnerPath), "scripts", `${measurementOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.3`);
 }
 for (const releaseCeremonyOwnerPath of [
   "scripts/bump-version.mjs",
@@ -692,7 +685,7 @@ for (const releaseCeremonyOwnerPath of [
   "scripts/release/validate-release-revision.mjs",
   "scripts/suggest-docs-for-changes.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[releaseCeremonyOwnerPath], undefined, `${releaseCeremonyOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.2`);
+  assert.equal(owningProgram(releaseCeremonyOwnerPath), "scripts", `${releaseCeremonyOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.2`);
 }
 for (const backupMaintenanceOwnerPath of [
   "scripts/backup.mjs",
@@ -704,7 +697,7 @@ for (const backupMaintenanceOwnerPath of [
   "scripts/workspace-backup-drill.mjs",
   "scripts/workspace-purge.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[backupMaintenanceOwnerPath], undefined, `${backupMaintenanceOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.1`);
+  assert.equal(owningProgram(backupMaintenanceOwnerPath), "scripts", `${backupMaintenanceOwnerPath} must stay strict-clean after checkpoint 0.33.33.28.1`);
 }
 for (const runnerOwnerPath of [
   "scripts/agent-brief.mjs",
@@ -718,7 +711,7 @@ for (const runnerOwnerPath of [
   "scripts/run-slice-verification.mjs",
   "scripts/run-timed-stage.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[runnerOwnerPath], undefined, `${runnerOwnerPath} must stay strict-clean after checkpoint 0.33.33.27`);
+  assert.equal(owningProgram(runnerOwnerPath), "scripts", `${runnerOwnerPath} must stay strict-clean after checkpoint 0.33.33.27`);
 }
 for (const rootRuntimeOwnerPath of [
   "src/config.js",
@@ -732,7 +725,7 @@ for (const rootRuntimeOwnerPath of [
   "src/utils/normalizers.js",
   "src/utils/workspaces.js",
 ]) {
-  assert.equal(ledger.explicitAnyByFile[rootRuntimeOwnerPath], undefined, `${rootRuntimeOwnerPath} must stay free of explicit any after checkpoint 0.33.33.25.5`);
+  assert.equal(sourcePolicy.explicitAnyByFile[rootRuntimeOwnerPath], undefined, `${rootRuntimeOwnerPath} must stay free of explicit any after checkpoint 0.33.33.25.5`);
 }
 for (const strictCleanPath of [
   "src/modules/tasks/task-block-recovery-engine.js",
@@ -749,8 +742,8 @@ for (const strictCleanPath of [
   "src/modules/tasks/task-recurrence.service.js",
   "src/types/task-recurrence-contracts.d.ts",
 ]) {
-  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.19`);
-  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.19`);
+  assert.equal(zeroHolder(strictCleanPath), strictCleanPath.endsWith(".d.ts") ? "declaration-probe" : "server-tests", `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.19`);
+  assert.equal(sourcePolicy.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.19`);
 }
 for (const strictCleanPath of [
   "src/modules/tasks/private-calendar-feed.provider.js",
@@ -773,24 +766,24 @@ for (const strictCleanPath of [
   "src/types/files-storage-accounting-contracts.d.ts",
   "tests/unit/files-storage-accounting.service.test.mjs",
 ]) {
-  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.21.2`);
-  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.21.2`);
+  assert.equal(zeroHolder(strictCleanPath), strictCleanPath.endsWith(".d.ts") ? "declaration-probe" : "server-tests", `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.21.2`);
+  assert.equal(sourcePolicy.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.21.2`);
 }
 for (const strictCleanPath of [
   "src/services/files-scanner-job.service.js",
   "src/types/files-scanner-job-contracts.d.ts",
   "tests/unit/files-scanner-job.service.test.mjs",
 ]) {
-  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.23`);
-  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.23`);
+  assert.equal(zeroHolder(strictCleanPath), strictCleanPath.endsWith(".d.ts") ? "declaration-probe" : "server-tests", `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.23`);
+  assert.equal(sourcePolicy.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.23`);
 }
 for (const strictCleanPath of [
   "src/services/files-preview.service.js",
   "src/types/files-preview-contracts.d.ts",
   "tests/unit/files-preview.service.test.mjs",
 ]) {
-  assert.equal(ledger.programs["server-tests"].diagnostics[strictCleanPath], undefined, `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.24`);
-  assert.equal(ledger.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.24`);
+  assert.equal(zeroHolder(strictCleanPath), strictCleanPath.endsWith(".d.ts") ? "declaration-probe" : "server-tests", `${strictCleanPath} must stay strict-clean after checkpoint 0.33.33.24`);
+  assert.equal(sourcePolicy.explicitAnyByFile[strictCleanPath], undefined, `${strictCleanPath} must stay free of explicit any after checkpoint 0.33.33.24`);
 }
 /** @param {string} filePath */
 const filesServerOwnerPaths = (filePath) => (
@@ -802,11 +795,11 @@ const filesServerOwnerPaths = (filePath) => (
   filePath === "tests/contracts/files-contracts.test.mjs" ||
   filePath.startsWith("tests/unit/files-")
 );
-const filesServerOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter(filesServerOwnerPaths);
+const filesServerOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests").filter(filesServerOwnerPaths);
 assert.deepEqual(filesServerOwnerDiagnostics, [], "Files server owners must stay strict-clean after checkpoint 0.33.33.24");
-const filesServerOwnerExplicitAny = Object.keys(ledger.explicitAnyByFile).filter(filesServerOwnerPaths);
+const filesServerOwnerExplicitAny = Object.keys(sourcePolicy.explicitAnyByFile).filter(filesServerOwnerPaths);
 assert.deepEqual(filesServerOwnerExplicitAny, [], "Files server owners must stay free of explicit any after checkpoint 0.33.33.24");
-const frameworkOwnerDiagnostics = Object.keys(ledger.programs["server-tests"].diagnostics).filter((filePath) => (
+const frameworkOwnerDiagnostics = liveFiles.filter((filePath) => owningProgram(filePath) !== "server-tests").filter((filePath) => (
   filePath.startsWith("src/core/") ||
   filePath.startsWith("src/services/") ||
   filePath.startsWith("src/repositories/")
@@ -821,41 +814,44 @@ for (const retiredPath of [
   "scripts/typecheck-honesty-inventory.json",
   "scripts/regressions/framework/typecheck-seams.regression.mjs",
   "scripts/regressions/framework/typecheck-honesty-inventory.regression.mjs",
-]) assert.equal(fs.existsSync(retiredPath), false, `${retiredPath} must stay retired behind ledger authority`);
+  "scripts/typecheck-debt-ledger.json",
+  "scripts/test-support/typecheck-ledger.mjs",
+  "scripts/test-support/browser-diagnostic-classification.mjs",
+]) assert.equal(fs.existsSync(retiredPath), false, `${retiredPath} must stay retired behind the zero gate`);
 
-assert.match(governanceSource, /count > prior/);
-assert.match(governanceSource, /new file has/);
-assert.match(governanceSource, /new file introduces explicit any/);
+assert.match(governanceSource, /function zeroGateErrors\(state\)/);
+assert.match(governanceSource, /Full-strict zero is permanent/);
+assert.match(governanceSource, /explicit any annotation\(s\)/);
 assert.match(governanceSource, /forbidden checker suppression/);
-assert.match(governanceSource, /Full-strict diagnostics exactly match/);
+assert.match(governanceSource, /Full-strict zero holds in every program/);
 assert.match(governanceSource, /tsconfig\.declarations\.json/);
-assert.doesNotThrow(() => validateShrinkOnly(cloneLedger(), cloneLedger()));
-const increasedDiagnostic = cloneLedger();
+assert.doesNotThrow(() => enforceZero(cleanState()));
+const increasedDiagnostic = cleanState();
 const seededDiagnosticPath = increasedDiagnostic.programs["server-tests"].files[0];
-if (!seededDiagnosticPath) throw new Error("The shrink-only mutation proof requires at least one server/test program file.");
-increasedDiagnostic.programs["server-tests"].diagnostics[seededDiagnosticPath] = [{ code: 7006, count: 1 }];
-assert.throws(() => validateShrinkOnly(ledger, increasedDiagnostic), /7006 increased 0 -> 1/, "the closed server/test program must reject any regained diagnostic");
-// The retired browser program refuses regained debt through the same ledger-write validator, on a
-// file it already owns and on a new one.
-const regainedBrowserDiagnostic = cloneLedger();
+if (!seededDiagnosticPath) throw new Error("The zero-gate mutation proof requires at least one server/test program file.");
+increasedDiagnostic.programs["server-tests"].diagnostics.push({ filePath: seededDiagnosticPath, code: 7006, line: 1, column: 1, message: "synthetic" });
+assert.throws(() => enforceZero(increasedDiagnostic), /server-tests: .+\(1,1\): TS7006/, "the closed server/test program must reject any regained diagnostic");
+// The retired browser program refuses a diagnostic through the same gate, on a file it already
+// owns and on a new one.
+const regainedBrowserDiagnostic = cleanState();
 const seededBrowserPath = regainedBrowserDiagnostic.programs.browser.files[0];
-if (!seededBrowserPath) throw new Error("The shrink-only mutation proof requires at least one browser program file.");
-regainedBrowserDiagnostic.programs.browser.diagnostics[seededBrowserPath] = [{ code: 2339, count: 1 }];
-assert.throws(() => validateShrinkOnly(ledger, regainedBrowserDiagnostic), /browser: .+: 2339 increased 0 -> 1/, "the retired browser program must reject any regained diagnostic");
-const newDirtyBrowserFile = cloneLedger();
+if (!seededBrowserPath) throw new Error("The zero-gate mutation proof requires at least one browser program file.");
+regainedBrowserDiagnostic.programs.browser.diagnostics.push({ filePath: seededBrowserPath, code: 2339, line: 4, column: 5, message: "synthetic" });
+assert.throws(() => enforceZero(regainedBrowserDiagnostic), /browser: .+\(4,5\): TS2339/, "the retired browser program must reject any regained diagnostic");
+const newDirtyBrowserFile = cleanState();
 newDirtyBrowserFile.programs.browser.files.push("public/js/synthetic-new.js");
-newDirtyBrowserFile.programs.browser.diagnostics["public/js/synthetic-new.js"] = [{ code: 7006, count: 1 }];
-assert.throws(() => validateShrinkOnly(ledger, newDirtyBrowserFile), /public\/js\/synthetic-new\.js: new file has 1 strict diagnostic/, "a new browser file may not arrive with debt");
-const increasedAny = cloneLedger();
-increasedAny.explicitAnyByFile["server.js"] = (increasedAny.explicitAnyByFile["server.js"] || 0) + 1;
-assert.throws(() => validateShrinkOnly(ledger, increasedAny), /explicit any increased/);
-const newDirtyFile = cloneLedger();
+newDirtyBrowserFile.programs.browser.diagnostics.push({ filePath: "public/js/synthetic-new.js", code: 7006, line: 1, column: 1, message: "synthetic" });
+assert.throws(() => enforceZero(newDirtyBrowserFile), /public\/js\/synthetic-new\.js\(1,1\): TS7006/, "a new browser file may not arrive with a diagnostic");
+const increasedAny = cleanState();
+increasedAny.explicitAnyByFile["server.js"] = 1;
+assert.throws(() => enforceZero(increasedAny), /server\.js: 1 explicit any annotation/);
+const newDirtyFile = cleanState();
 newDirtyFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
-newDirtyFile.programs.scripts.diagnostics["scripts/synthetic-new.mjs"] = [{ code: 7006, count: 1 }];
-assert.throws(() => validateShrinkOnly(ledger, newDirtyFile), /new file has 1 strict diagnostic/);
-const newCleanFile = cloneLedger();
+newDirtyFile.programs.scripts.diagnostics.push({ filePath: "scripts/synthetic-new.mjs", code: 7006, line: 1, column: 1, message: "synthetic" });
+assert.throws(() => enforceZero(newDirtyFile), /scripts\/synthetic-new\.mjs\(1,1\): TS7006/);
+const newCleanFile = cleanState();
 newCleanFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
-assert.doesNotThrow(() => validateShrinkOnly(ledger, newCleanFile));
+assert.doesNotThrow(() => enforceZero(newCleanFile));
 assert.equal(isFirstPartyDirectoryName(".repository-signature-types-fixture"), false);
 for (const taskQueryOwner of [
   "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",
@@ -868,7 +864,7 @@ for (const taskQueryOwner of [
   "scripts/tasks-server-side-list-paging-regression.mjs",
   "scripts/tasks-view-selector-query-contract-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[taskQueryOwner], undefined, `${taskQueryOwner} must stay strict-clean after checkpoint 0.33.33.32.1`);
+  assert.equal(owningProgram(taskQueryOwner), "scripts", `${taskQueryOwner} must stay strict-clean after checkpoint 0.33.33.32.1`);
 }
 for (const taskWorkflowOwner of [
   "scripts/task-bulk-due-tags-regression.mjs",
@@ -880,7 +876,7 @@ for (const taskWorkflowOwner of [
   "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
   "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[taskWorkflowOwner], undefined, `${taskWorkflowOwner} must stay strict-clean after checkpoint 0.33.33.32.2`);
+  assert.equal(owningProgram(taskWorkflowOwner), "scripts", `${taskWorkflowOwner} must stay strict-clean after checkpoint 0.33.33.32.2`);
 }
 for (const recurrenceReminderOwner of [
   "scripts/async-recurrence-response-closeout-regression.mjs",
@@ -893,7 +889,7 @@ for (const recurrenceReminderOwner of [
   "scripts/task-reminder-notification-delivery-regression.mjs",
   "scripts/task-reminder-scheduling-horizon-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[recurrenceReminderOwner], undefined, `${recurrenceReminderOwner} must stay strict-clean after checkpoint 0.33.33.32.3`);
+  assert.equal(owningProgram(recurrenceReminderOwner), "scripts", `${recurrenceReminderOwner} must stay strict-clean after checkpoint 0.33.33.32.3`);
 }
 for (const calendarFeedOwner of [
   "scripts/regressions/tasks/private-calendar-feed-scope.regression.mjs",
@@ -901,7 +897,7 @@ for (const calendarFeedOwner of [
   "scripts/regressions/tasks/task-calendar-window.regression.mjs",
   "scripts/regressions/tasks/task-estimate-minutes.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[calendarFeedOwner], undefined, `${calendarFeedOwner} must stay strict-clean after checkpoint 0.33.33.32.4`);
+  assert.equal(owningProgram(calendarFeedOwner), "scripts", `${calendarFeedOwner} must stay strict-clean after checkpoint 0.33.33.32.4`);
 }
 for (const readBudgetOwner of [
   "scripts/dashboard-workbench-regression.mjs",
@@ -910,7 +906,7 @@ for (const readBudgetOwner of [
   "scripts/regressions/time-tracking/dashboard-effort-summary-budgets.regression.mjs",
   "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[readBudgetOwner], undefined, `${readBudgetOwner} must stay strict-clean after checkpoint 0.33.33.32.5`);
+  assert.equal(owningProgram(readBudgetOwner), "scripts", `${readBudgetOwner} must stay strict-clean after checkpoint 0.33.33.32.5`);
 }
 for (const notificationOwner of [
   "scripts/notes-notification-follow-regression.mjs",
@@ -918,13 +914,13 @@ for (const notificationOwner of [
   "scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
   "scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[notificationOwner], undefined, `${notificationOwner} must stay strict-clean after checkpoint 0.33.33.32.6`);
+  assert.equal(owningProgram(notificationOwner), "scripts", `${notificationOwner} must stay strict-clean after checkpoint 0.33.33.32.6`);
 }
 for (const timeEntryWriteOwner of [
   "scripts/time-entries-repository-conversion-regression.mjs",
   "scripts/workspace-storage-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[timeEntryWriteOwner], undefined, `${timeEntryWriteOwner} must stay strict-clean after checkpoint 0.33.33.32.7`);
+  assert.equal(owningProgram(timeEntryWriteOwner), "scripts", `${timeEntryWriteOwner} must stay strict-clean after checkpoint 0.33.33.32.7`);
 }
 for (const timerBillingOwner of [
   "scripts/active-timers-repository-conversion-regression.mjs",
@@ -936,7 +932,7 @@ for (const timerBillingOwner of [
   "scripts/timer-resume-metadata-regression.mjs",
   "scripts/timer-timestamp-integrity-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[timerBillingOwner], undefined, `${timerBillingOwner} must stay strict-clean after checkpoint 0.33.33.32.7.1`);
+  assert.equal(owningProgram(timerBillingOwner), "scripts", `${timerBillingOwner} must stay strict-clean after checkpoint 0.33.33.32.7.1`);
 }
 for (const publicApiScopeOwner of [
   "scripts/notes-lists-tags-api-scope-regression.mjs",
@@ -944,7 +940,7 @@ for (const publicApiScopeOwner of [
   "scripts/public-api-client-project-write-regression.mjs",
   "scripts/regressions/time-tracking/public-api-duration-persistence.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[publicApiScopeOwner], undefined, `${publicApiScopeOwner} must stay strict-clean after checkpoint 0.33.33.32.8`);
+  assert.equal(owningProgram(publicApiScopeOwner), "scripts", `${publicApiScopeOwner} must stay strict-clean after checkpoint 0.33.33.32.8`);
 }
 for (const workResumeOwner of [
   "scripts/regressions/workbench/workbench-client-fanout.regression.mjs",
@@ -956,7 +952,7 @@ for (const workResumeOwner of [
   "scripts/work-resume-state-service-regression.mjs",
   "scripts/workbench-service-dehardcode-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[workResumeOwner], undefined, `${workResumeOwner} must stay strict-clean after checkpoint 0.33.33.32.9`);
+  assert.equal(owningProgram(workResumeOwner), "scripts", `${workResumeOwner} must stay strict-clean after checkpoint 0.33.33.32.9`);
 }
 // The four resume producer builders re-opened an event the producer registry
 // already types. They are reconciled with the published context, so the local
@@ -983,7 +979,7 @@ for (const focusOwner of [
   "scripts/work-focus-modes-regression.mjs",
   "scripts/workbench-task-focus-related-context-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[focusOwner], undefined, `${focusOwner} must stay strict-clean after checkpoint 0.33.33.32.10`);
+  assert.equal(owningProgram(focusOwner), "scripts", `${focusOwner} must stay strict-clean after checkpoint 0.33.33.32.10`);
 }
 // The task-source fixture defaulted its whole parameter, which left `projectId`
 // and `title` off the inferred type and produced fifteen excess-property
@@ -1016,7 +1012,7 @@ for (const notesOwner of [
   "scripts/notes-server-side-list-paging-regression.mjs",
   "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[notesOwner], undefined, `${notesOwner} must stay strict-clean after checkpoint 0.33.33.32.11`);
+  assert.equal(owningProgram(notesOwner), "scripts", `${notesOwner} must stay strict-clean after checkpoint 0.33.33.32.11`);
 }
 // Two manifest contracts had been silently dropped by collapsing a second
 // assertion into the version check's message position. Both are restored and
@@ -1038,7 +1034,7 @@ for (const secureCatalogOwner of [
   "scripts/regressions/notes/secure-catalog-effective-security.regression.mjs",
   "scripts/regressions/notes/secure-catalog-transitions.regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[secureCatalogOwner], undefined, `${secureCatalogOwner} must stay strict-clean after checkpoint 0.33.33.32.12`);
+  assert.equal(owningProgram(secureCatalogOwner), "scripts", `${secureCatalogOwner} must stay strict-clean after checkpoint 0.33.33.32.12`);
 }
 for (const notesEditorOwner of [
   "scripts/notes-external-markdown-links-preference-regression.mjs",
@@ -1047,7 +1043,7 @@ for (const notesEditorOwner of [
   "scripts/notes-preview-editor-regression.mjs",
   "scripts/notes-ui-workflow-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[notesEditorOwner], undefined, `${notesEditorOwner} must stay strict-clean after checkpoint 0.33.33.32.13`);
+  assert.equal(owningProgram(notesEditorOwner), "scripts", `${notesEditorOwner} must stay strict-clean after checkpoint 0.33.33.32.13`);
 }
 for (const notesContextOwner of [
   "scripts/notes-collections-regression.mjs",
@@ -1057,7 +1053,7 @@ for (const notesContextOwner of [
   "scripts/notes-search-help-regression.mjs",
   "scripts/notes-task-context-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[notesContextOwner], undefined, `${notesContextOwner} must stay strict-clean after checkpoint 0.33.33.32.14`);
+  assert.equal(owningProgram(notesContextOwner), "scripts", `${notesContextOwner} must stay strict-clean after checkpoint 0.33.33.32.14`);
 }
 // A third assertion had been silently dropped by collapsing it into an
 // `assert.equal` message slot: note_library_collections lost its column check
@@ -1073,7 +1069,7 @@ for (const listsOwner of [
   "scripts/lists-records-items-repository-conversion-regression.mjs",
   "scripts/lists-service-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[listsOwner], undefined, `${listsOwner} must stay strict-clean after checkpoint 0.33.33.32.15`);
+  assert.equal(owningProgram(listsOwner), "scripts", `${listsOwner} must stay strict-clean after checkpoint 0.33.33.32.15`);
 }
 // The fourth and last collapsed assertion is restored: lists-foundation lost
 // its enabled-by-default contract to an `assert.equal` message slot.
@@ -1090,7 +1086,7 @@ for (const listsSurfaceOwner of [
   "scripts/lists-query-suggestions-regression.mjs",
   "scripts/lists-ui-workflow-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[listsSurfaceOwner], undefined, `${listsSurfaceOwner} must stay strict-clean after checkpoint 0.33.33.32.16`);
+  assert.equal(owningProgram(listsSurfaceOwner), "scripts", `${listsSurfaceOwner} must stay strict-clean after checkpoint 0.33.33.32.16`);
 }
 // The Lists API owner reads every response body through the shared payload
 // helper rather than off a parsed `any`, and the two link assertions prove
@@ -1115,7 +1111,7 @@ for (const tagOwner of [
   "scripts/tag-service-regression.mjs",
   "scripts/tags-repository-conversion-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[tagOwner], undefined, `${tagOwner} must stay strict-clean after checkpoint 0.33.33.32.17`);
+  assert.equal(owningProgram(tagOwner), "scripts", `${tagOwner} must stay strict-clean after checkpoint 0.33.33.32.17`);
 }
 // The tag owners answer to the session, record, and propagation shapes Tags
 // and the propagation registry already publish, rather than to five local
@@ -1145,7 +1141,7 @@ for (const searchOwner of [
   "scripts/search-contract-regression.mjs",
   "scripts/search-shell-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[searchOwner], undefined, `${searchOwner} must stay strict-clean after checkpoint 0.33.33.32.18`);
+  assert.equal(owningProgram(searchOwner), "scripts", `${searchOwner} must stay strict-clean after checkpoint 0.33.33.32.18`);
 }
 // The Search API owner reads every response body through the shared payload
 // helper, and the canonical description proves each indexed record type was
@@ -1169,7 +1165,7 @@ for (const searchIndexOwner of [
   "scripts/search-rebuild-regression.mjs",
   "scripts/search-workflow-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[searchIndexOwner], undefined, `${searchIndexOwner} must stay strict-clean after checkpoint 0.33.33.32.19`);
+  assert.equal(owningProgram(searchIndexOwner), "scripts", `${searchIndexOwner} must stay strict-clean after checkpoint 0.33.33.32.19`);
 }
 // 0.33.33.32.19 corrected two search producers 0.33.33.32.18 measured as
 // narrower than what they publish. The record-indexer reference is now a
@@ -1200,7 +1196,7 @@ for (const helpOwner of [
   "scripts/help-search-regression.mjs",
   "scripts/help-workflow-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[helpOwner], undefined, `${helpOwner} must stay strict-clean after checkpoint 0.33.33.32.20`);
+  assert.equal(owningProgram(helpOwner), "scripts", `${helpOwner} must stay strict-clean after checkpoint 0.33.33.32.20`);
 }
 // The recursive Help navigation walk answers to the published navigation node
 // rather than to inference, in both owners that carry it.
@@ -1222,7 +1218,7 @@ for (const clientProjectsOwner of [
   "scripts/clients-projects-related-regions-regression.mjs",
   "scripts/clients-projects-strict-closeout-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[clientProjectsOwner], undefined, `${clientProjectsOwner} must stay strict-clean after checkpoint 0.33.33.32.21`);
+  assert.equal(owningProgram(clientProjectsOwner), "scripts", `${clientProjectsOwner} must stay strict-clean after checkpoint 0.33.33.32.21`);
 }
 // The read-anatomy owners prove the framework-owned table anatomy is present
 // before asserting on it, rather than weakening the assertions that make this
@@ -1244,7 +1240,7 @@ for (const hierarchyOwner of [
   "scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
   "scripts/project-default-assignee-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[hierarchyOwner], undefined, `${hierarchyOwner} must stay strict-clean after checkpoint 0.33.33.32.22`);
+  assert.equal(owningProgram(hierarchyOwner), "scripts", `${hierarchyOwner} must stay strict-clean after checkpoint 0.33.33.32.22`);
 }
 // No published session contract declares a bare `ip` member; every one names
 // `ip_address`. Fixtures that set `ip` therefore set a field nothing reads and
@@ -1299,7 +1295,7 @@ for (const pickerOwner of [
   "scripts/linked-context-task-label-sort-regression.mjs",
   "scripts/linked-context-unavailable-fallback-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[pickerOwner], undefined, `${pickerOwner} must stay strict-clean after checkpoint 0.33.33.32.23`);
+  assert.equal(owningProgram(pickerOwner), "scripts", `${pickerOwner} must stay strict-clean after checkpoint 0.33.33.32.23`);
 }
 // The five database-backed picker owners answer to one shared session contract
 // rather than five local session shapes.
@@ -1328,7 +1324,7 @@ for (const viewOwner of [
   "scripts/view-renderer-actions-regression.mjs",
   "scripts/view-shared-capabilities-regression.mjs",
 ]) {
-  assert.equal(ledger.programs.scripts.diagnostics[viewOwner], undefined, `${viewOwner} must stay strict-clean after checkpoint 0.33.33.32.24`);
+  assert.equal(owningProgram(viewOwner), "scripts", `${viewOwner} must stay strict-clean after checkpoint 0.33.33.32.24`);
 }
 // The module-actions owner reads browser source through the shared project text
 // reader rather than nineteen private readFileSync calls.
@@ -1382,8 +1378,8 @@ for (const contractModule of [
   "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
 ]) {
   assert.equal(
-    ledger.programs.scripts.diagnostics[contractModule],
-    undefined,
+    owningProgram(contractModule),
+    "scripts",
     `${contractModule} must stay strict-clean after checkpoint 0.33.33.32.25`,
   );
 }
@@ -1414,8 +1410,8 @@ for (const contractModule of [
   "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
 ]) {
   assert.equal(
-    ledger.programs.scripts.diagnostics[contractModule],
-    undefined,
+    owningProgram(contractModule),
+    "scripts",
     `${contractModule} must stay strict-clean after checkpoint 0.33.33.32.26`,
   );
 }
@@ -1470,8 +1466,8 @@ for (const legacyOwner of [
   "scripts/version-literal-guardrail-regression.mjs",
 ]) {
   assert.equal(
-    ledger.programs.scripts.diagnostics[legacyOwner],
-    undefined,
+    owningProgram(legacyOwner),
+    "scripts",
     `${legacyOwner} must stay strict-clean after checkpoint 0.33.33.32.27`,
   );
 }
@@ -1532,9 +1528,9 @@ assert.ok(
 // scanning. The other two were real and were replaced with truthful contracts.
 // This pins the result: the repository carries no explicit `any`.
 assert.equal(
-  ledger.totals.explicitAny,
+  Object.values(sourcePolicy.explicitAnyByFile).reduce((total, count) => total + count, 0),
   0,
-  `the repository should carry no explicit any; the ledger records ${JSON.stringify(ledger.explicitAnyByFile)}`,
+  `the repository should carry no explicit any; the live source policy finds ${JSON.stringify(sourcePolicy.explicitAnyByFile)}`,
 );
 // The detector must stay literal-aware, and that is proven by driving it
 // rather than by reading its source: a zero inventory is only trustworthy if
@@ -1647,49 +1643,48 @@ assert.equal(
   false,
   "scripts/lib/regression-change-routing.mjs must not reintroduce the round-trip clone that widened its unknown inputs",
 );
-// 0.33.33.32.28.3.1 narrowed the generated policy, ledger, and audit reads.
-// Every one of these owners parses a file this repository itself writes, and
-// must keep crossing that boundary through a shared narrowing - or, where the
-// estate already publishes a probe for the artefact, through the probe.
+// 0.33.33.32.28.3.1 narrowed the generated policy and audit reads. Every one of
+// these owners parses a file this repository itself writes, and must keep
+// crossing that boundary through a shared narrowing. (The migration-runner
+// contract and the ledger probe left this list at 0.33.33.48.2: with the ledger
+// retired, neither parses a generated artefact any more.)
 for (const generatedOwner of [
-  "scripts/regression-contracts/database/migration-runner-checked-boundary.contract.mjs",
   "scripts/regressions/framework/asset-cache-version.regression.mjs",
   "scripts/regressions/release/files-regression-isolation-audit.regression.mjs",
   "scripts/regressions/release/public-demo-compose-reset.regression.mjs",
   "scripts/regressions/release/regression-baseline-bypass-audit.regression.mjs",
   "scripts/regressions/release/regression-discovery-runner.regression.mjs",
   "scripts/regressions/release/regression-routing-commands.regression.mjs",
-  "scripts/test-support/typecheck-ledger.mjs",
 ]) {
   const source = fs.readFileSync(generatedOwner, "utf8");
   assert.ok(
-    ["requireJsonRecord", "strictCleanOwnerState", "strictCleanOwnerProgram"].some((narrowing) => source.includes(narrowing)),
-    `${generatedOwner} parses a generated artefact and must narrow it through a shared assertion helper or read it through the shared probe`,
+    ["requireJsonRecord"].some((narrowing) => source.includes(narrowing)),
+    `${generatedOwner} parses a generated artefact and must narrow it through a shared assertion helper`,
   );
 }
-// The strict-ledger probe is now what several owners read the ledger through
-// rather than parsing it themselves, so its own behaviour is proven here
-// rather than assumed. A probe nothing checks is the same hazard as a
-// detector nothing checks.
-assert.deepEqual(
-  strictCleanOwnerState("src/db/migrations.js"),
-  { owned: true, diagnostics: 0 },
-  "the strict-ledger probe should report a checked, strict-clean file as owned with no diagnostics",
-);
-assert.deepEqual(
-  strictCleanOwnerState("src/db/this-file-does-not-exist.js"),
-  { owned: false, diagnostics: 0 },
-  "the strict-ledger probe should report an unknown path as unowned rather than throwing",
-);
+// The ownership probe replaced the ledger probe at 0.33.33.48.2, and several
+// owners pin ownership through it, so its own behaviour is proven here rather
+// than assumed. A probe nothing checks is the same hazard as a detector
+// nothing checks.
 assert.equal(
-  strictCleanOwnerProgram("src/db/migrations.js"),
+  owningProgram("src/db/migrations.js"),
   "server-tests",
-  "the strict-ledger probe should name the program that owns a file",
+  "the ownership probe should name the program that owns a checked file",
 );
 assert.equal(
-  strictCleanOwnerProgram("src/db/this-file-does-not-exist.js"),
+  owningProgram("src/db/this-file-does-not-exist.js"),
   null,
-  "the strict-ledger probe should answer null for a path no program owns",
+  "the ownership probe should answer null for an unknown path rather than throwing",
+);
+assert.equal(
+  programConfig("server-tests"),
+  "tsconfig.json",
+  "the ownership probe should name the config a program compiles with",
+);
+assert.equal(
+  owningProgram("src/types/browser-contracts.d.ts"),
+  null,
+  "the ownership probe should answer null for a declaration, which is not an owned JavaScript file",
 );
 // 0.33.33.32.28.3.3 narrowed the in-test synthetic and computed sources: a
 // staging script's stdout, a fixture the owner wrote moments earlier, a
@@ -1705,8 +1700,6 @@ for (const syntheticOwner of [
   "scripts/lib/sanitized-demo-role-fixtures.mjs",
   "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
   "scripts/regression-contracts/framework/identifier-authority.contract.mjs",
-  "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs",
-  "scripts/regression-contracts/framework/password-startup-checked-core.contract.mjs",
   "scripts/regressions/framework/module-import-boundaries.regression.mjs",
   "scripts/regressions/framework/public-legal-surfaces.regression.mjs",
   "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
@@ -1724,23 +1717,20 @@ for (const syntheticOwner of [
       "requireJsonRecord",
       "requirePackageManifest",
       "requirePackageLock",
-      "strictCleanOwnerProgram",
-      "strictCleanOwnerConfig",
       "@type {unknown}",
     ].some((narrowing) => source.includes(narrowing)),
     `${syntheticOwner} parses a synthetic or computed source and must narrow it rather than read a member off JSON.parse`,
   );
 }
-// Three owners re-asked by hand what the shared strict-ledger probe already
-// answers. The probe answers all three questions now, so nothing needs to
-// reach past it into the generated ledger.
-const rawLedgerRead = `programs[${"\""}server-tests${"\""}]`;
+// 0.33.33.48.2 retired the debt ledger. No script may read it again: ownership
+// comes from the program definitions, and the gate enforces zero directly.
+const retiredLedgerPath = `typecheck-debt-${"ledger"}.json`;
 const ledgerGovernanceOwner = "scripts/regressions/framework/full-strict-governance.regression.mjs";
-for (const ledgerOwner of discoveredScriptPaths().filter((path) => path !== ledgerGovernanceOwner)) {
+for (const scriptOwner of discoveredScriptPaths().filter((path) => path !== ledgerGovernanceOwner)) {
   assert.equal(
-    fs.readFileSync(ledgerOwner, "utf8").includes(rawLedgerRead),
+    fs.readFileSync(scriptOwner, "utf8").includes(retiredLedgerPath),
     false,
-    `${ledgerOwner} must read the strict ledger through the shared probe rather than indexing its programs directly`,
+    `${scriptOwner} must not read the retired debt ledger`,
   );
 }
 // 0.33.33.32.28.4.1 replaced sixteen local function-region extractors with the
@@ -2836,45 +2826,22 @@ for (const publishedSurface of [
     `public/js/navigation.js must keep publishing ${publishedSurface}; scoping the script must not withdraw a surface other pages read`,
   );
 }
-// `0.33.33.33.6` introduced governed diagnostic reclassification: scoping a controller
-// changes which declaration an identifier resolves to, so a file can report the same debt
-// under different codes while its total falls. The door is deliberately narrow, and these
-// fixtures are what keep it narrow, because the records themselves are struck once spent
-// and the mechanism would otherwise sit untested.
-/** @param {Record<string, {diagnostics: Record<string, {code: number, count: number}[]>, files: string[]}>} programs */
-function governanceStateFixture(programs) {
-  return /** @type {Parameters<typeof validateShrinkOnly>[0]} */ ({
-    programs,
-    explicitAnyByFile: {},
-    totals: { files: 0, errors: 0, explicitAny: 0 },
-  });
-}
-const reclassificationBefore = governanceStateFixture({
-  browser: { files: ["public/js/a.js"], diagnostics: { "public/js/a.js": [{ code: 2339, count: 10 }] } },
-});
-const reclassificationAfter = governanceStateFixture({
-  browser: { files: ["public/js/a.js"], diagnostics: { "public/js/a.js": [{ code: 2339, count: 4 }, { code: 2322, count: 2 }] } },
-});
-// With no record, a code that rises fails even though the file's total fell 10 -> 6.
+// `0.33.33.33.6` introduced governed diagnostic reclassification, a narrow door for debt that
+// moved between codes while a file's total fell. `0.33.33.48.2` retired it with the ledger: at a
+// permanent zero there is no debt to move, so a diagnostic under any code is simply refused.
+const reclassifiedCode = cleanState();
+reclassifiedCode.programs.browser.diagnostics.push({ filePath: "public/js/a.js", code: 2322, line: 3, column: 4, message: "synthetic" });
 assert.throws(
-  () => validateShrinkOnly(reclassificationBefore, reclassificationAfter),
-  /2322 increased 0 -> 2/,
-  "an unrecorded code may not rise, however much the rest of the file improved",
+  () => enforceZero(reclassifiedCode),
+  /browser: public\/js\/a\.js\(3,4\): TS2322/,
+  "a diagnostic may not reappear under any code, however it is described",
 );
-// An unrelated file gaining debt fails regardless of any reclassification elsewhere.
-const unrelatedGrowth = governanceStateFixture({
-  browser: {
-    files: ["public/js/a.js", "public/js/b.js"],
-    diagnostics: {
-      "public/js/a.js": [{ code: 2339, count: 4 }],
-      "public/js/b.js": [{ code: 7006, count: 1 }],
-    },
-  },
-});
+const unrelatedGrowth = cleanState();
+unrelatedGrowth.programs.browser.diagnostics.push({ filePath: "public/js/b.js", code: 7006, line: 1, column: 1, message: "synthetic" });
 assert.throws(
-  () => validateShrinkOnly(reclassificationBefore, unrelatedGrowth),
-  /public\/js\/b\.js: 7006 increased 0 -> 1/,
-  "a new diagnostic in a file nothing scoped is new debt, not a reclassification",
+  () => enforceZero(unrelatedGrowth),
+  /public\/js\/b\.js\(1,1\): TS7006/,
+  "a new diagnostic in any file is refused",
 );
 
 // The shared-global inventory that `0.33.33.33` closes against.
@@ -3023,8 +2990,10 @@ for (const [moduleEntry, record] of NATIVE_MODULE_ENTRIES) {
   // file with a top-level await that TypeScript does not treat as a module necessarily
   // produces TS1375 ("await expressions are only allowed at the top level of a file when
   // that file is a module"). Every entry here is required to have that await, so the
-  // absence of TS1375 in the generated ledger proves the compiler classifies it as a
-  // module. The export marker is asserted alongside it as the direct statement of intent.
+  // absence of TS1375 from a program at zero proves the compiler classifies it as a
+  // module. Since 0.33.33.48.2 the gate refuses every diagnostic in a file the browser program
+  // owns, TS1375 included, so the proof is that the browser program owns the entry. The export
+  // marker is asserted alongside it as the direct statement of intent.
   assert.match(
     maskedEntry,
     /^\s*export\s*\{\s*\}\s*;/m,
@@ -3032,10 +3001,9 @@ for (const [moduleEntry, record] of NATIVE_MODULE_ENTRIES) {
       + " so TypeScript models it with module scope too; without one its declarations join the"
       + " classic shared scope in the type system only",
   );
-  const moduleEntryDiagnostics = ledger.programs.browser.diagnostics[moduleEntry] || [];
-  const notAModuleDiagnostic = moduleEntryDiagnostics.find((entry) => entry.code === 1375);
-  assert.ok(
-    !notAModuleDiagnostic,
+  assert.equal(
+    owningProgram(moduleEntry),
+    "browser",
     `${moduleEntry} still reports TS1375, which is the compiler stating it does not treat this`
       + " file as a module. Runtime module delivery and TypeScript module scope must agree.",
   );
@@ -3114,46 +3082,23 @@ assert.ok(
   `the shared-scope backlog may only shrink: ${leakingBrowserScripts.length} classic scripts leak against a recorded ${SHARED_SCOPE_BACKLOG.size}`,
 );
 
-// `0.33.33.38.2.4.2` made the estate's semantic numbers a repository command. These prove the
-// properties that make them trustworthy, and each one exists because its absence already
-// produced a wrong number that nothing caught.
-//
-// The classifier runs against a small fixture tree rather than the estate, so the assertions
-// are about *behaviour* and stay readable; the reconciliation against the real estate is
-// asserted by the command itself, which throws if the families do not cover every governed
-// diagnostic or the owner budgets do not sum to their families.
+// `0.33.33.38.2.4.2` made the estate's semantic numbers a repository command, through a
+// classifier of the browser program's diagnostics. `0.33.33.48.2` retired it with the debt it
+// measured: at a permanent, enforced zero there is nothing left to classify. What stays is what
+// the gate itself still depends on.
 {
   const governanceSourceText = fs.readFileSync("scripts/typecheck-governance.mjs", "utf8");
 
-  // ARCHITECTURE - one compiler run, classified in the same process. The invariant of this
-  // child is that the diagnostics and the tree cannot be mismatched, and the way that is
-  // guaranteed is that there is nothing to mismatch: the classifier is handed the run that
-  // just happened. A second spawn, or a snapshot path argument, would reopen the defect.
+  // ARCHITECTURE - one compiler run per program, through one spawn site, so what the gate
+  // refuses is exactly what that run reported.
   assert.equal(
     (governanceSourceText.match(/spawnSync\(/g) || []).length,
     1,
     "typecheck governance must run the compiler through exactly one spawn site",
   );
-  assert.match(
-    governanceSourceText,
-    /locatedDiagnostics\.set\(definition\.id, located\)/,
-    "the compiler run must keep its own located diagnostics for classification",
-  );
-  assert.match(
-    governanceSourceText,
-    /classifyBrowserDiagnostics\(\{ diagnostics, root: rootDir \}\)/,
-    "classification must consume this process's diagnostics and this tree, not a snapshot",
-  );
-  const classificationSourceText = fs.readFileSync("scripts/test-support/browser-diagnostic-classification.mjs", "utf8");
-  assert.doesNotMatch(
-    classificationSourceText,
-    /spawnSync|require\("typescript\/unstable\/sync"\)\.API\b.*tsc/,
-    "the classifier must not start a compiler run of its own",
-  );
 
-  // FIDELITY - the widened diagnostic keeps everything classification needs. Before this
-  // child the parse threw away line, column and message and kept only file and code, which
-  // is exactly why the ledger could enforce monotonicity while knowing nothing about meaning.
+  // FIDELITY - the parsed diagnostic keeps file, line, column, code and message, because the
+  // gate's refusals name the exact location that broke zero.
   const fidelityLine = "public/js/shared/icons.js(12,34): error TS2339: Property 'render' does not exist on type '{}'.";
   const fidelityMatch = fidelityLine.match(/^(.*?)\((\d+),(\d+)\): error TS(\d+): (.*)$/);
   assert.ok(fidelityMatch, "the governance diagnostic pattern must match a located diagnostic");
@@ -3173,10 +3118,14 @@ assert.ok(
       message: "Property 'render' does not exist on type '{}'.",
     },
   );
+  assert.match(
+    governanceSourceText,
+    /const located = line\.match\(\/\^\(\.\*\?\)\\\(\(\\d\+\),\(\\d\+\)\\\): error TS\(\\d\+\): \(\.\*\)\$\/\);/,
+    "the gate must parse diagnostics with the pattern proven above",
+  );
 
-  // LIVE DECLARATION - the defect this replaces was a frozen set holding one member while the
-  // declaration held thirty. `declaredNamespaceMembers` reads the declaration it is given, and
-  // the classifier reads the declaration in the tree it is classifying.
+  // LIVE DECLARATION - declared members come from the declaration text itself, never a carried
+  // list. The declaration-coverage inventory still reads them through this parser.
   assert.deepEqual(
     [...declaredNamespaceMembers([
       "export interface LongtailForgeBrowserNamespace {",
@@ -3188,254 +3137,6 @@ assert.ok(
     ["alpha", "beta", "key"].filter((name) => name !== "key"),
     "declared members come from the declaration text itself",
   );
-  assert.doesNotMatch(
-    classificationSourceText,
-    /rootsites\.json|nsmap\.json|const DECLARED_MEMBERS/,
-    "the declared-member set must be derived from the tree, never carried in the classifier",
-  );
-
-  const classifierFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ltf-classify-fixtures-"));
-  fs.mkdirSync(path.join(classifierFixtureRoot, "sources"));
-  fs.mkdirSync(path.join(classifierFixtureRoot, "types"));
-  fs.writeFileSync(path.join(classifierFixtureRoot, "sources", "page.js"), [
-    "(function attachClassifierFixture(global) {",
-    "  const namespace = global.LongtailForge || {};",
-    "  const decoy = { icons: {} };",
-    "  const key = \"icons\";",
-    "  function readsThroughAlias() {",
-    "    return namespace.icons.render();",
-    "  }",
-    "  function readsDecoy() {",
-    "    return decoy.icons.render();",
-    "  }",
-    "  function readsComputed() {",
-    "    return namespace[key].render();",
-    "  }",
-    "  function shadows() {",
-    "    const namespace = { icons: {} };",
-    "    return namespace.icons.render();",
-    "  }",
-    "  function readsThroughAccessor() {",
-    "    const surfaceA = namespaceIcons();",
-    "    return surfaceA.render();",
-    "  }",
-    "  function readsThroughDecoyAccessor() {",
-    "    const surfaceB = decoyIcons();",
-    "    return surfaceB.render();",
-    "  }",
-    "  function readsThroughAccessorTakingAnArgument() {",
-    "    const surfaceC = iconsFor();",
-    "    return surfaceC.render();",
-    "  }",
-    "  function readsThroughSequencedAccessor() {",
-    "    const surfaceD = sequencedIcons();",
-    "    return surfaceD.render();",
-    "  }",
-    "  function readsThroughRedeclaredAccessor() {",
-    "    const surfaceE = redeclaredIcons();",
-    "    return surfaceE.render();",
-    "  }",
-    "  function readsThroughReassignedAlias() {",
-    "    let surfaceF = namespaceIcons();",
-    "    surfaceF = decoy.icons;",
-    "    return surfaceF.render();",
-    "  }",
-    "  function readsThroughFallbackAccessor() {",
-    "    const surfaceG = fallbackIcons();",
-    "    return surfaceG.render();",
-    "  }",
-    "  function readsThroughArgumentedCall() {",
-    "    const surfaceH = namespaceIcons(key);",
-    "    return surfaceH.render();",
-    "  }",
-    "  function namespaceIcons() {",
-    "    return namespace.icons || null;",
-    "  }",
-    "  function decoyIcons() {",
-    "    return decoy.icons || null;",
-    "  }",
-    "  function iconsFor(key = \"a\") {",
-    "    return namespace.icons;",
-    "  }",
-    "  function sequencedIcons() {",
-    "    const unused = 1;",
-    "    void unused;",
-    "    return namespace.icons;",
-    "  }",
-    "  function fallbackIcons() {",
-    "    return namespace.icons || decoy.icons;",
-    "  }",
-    "  function redeclaredIcons() {",
-    "    return namespace.icons;",
-    "  }",
-    "  const redeclaredIcons = null;",
-    "  namespace.icons = { render() {} };",
-    "  global.LongtailForge = namespace;",
-    "  return [readsThroughAlias, readsDecoy, readsComputed, shadows, readsThroughAccessor, readsThroughFallbackAccessor, readsThroughArgumentedCall,",
-    "    readsThroughDecoyAccessor, readsThroughAccessorTakingAnArgument, readsThroughSequencedAccessor,",
-    "    readsThroughRedeclaredAccessor, readsThroughReassignedAlias, redeclaredIcons];",
-    "})(window);",
-  ].join("\n"));
-  fs.writeFileSync(path.join(classifierFixtureRoot, "types", "contracts.d.ts"), [
-    "export interface BrowserIconsFixture { render(): void; }",
-    "export interface LongtailForgeBrowserNamespace {",
-    "  icons?: BrowserIconsFixture;",
-    "}",
-    "",
-  ].join("\n"));
-  fs.writeFileSync(path.join(classifierFixtureRoot, "tsconfig.json"), JSON.stringify({
-    compilerOptions: {
-      target: "es2023",
-      module: "esnext",
-      moduleResolution: "bundler",
-      allowJs: true,
-      checkJs: false,
-      noEmit: true,
-      lib: ["DOM", "DOM.Iterable", "ES2023"],
-      types: [],
-    },
-    include: ["sources/**/*.js"],
-  }));
-
-  /** @param {string} declarationFile @param {{line: number, column: number, code: number, message: string}[]} rows */
-  const classifyFixture = (declarationFile, rows) => classifyBrowserDiagnostics({
-    diagnostics: rows.map((row) => ({ filePath: "sources/page.js", ...row })),
-    root: classifierFixtureRoot,
-    configFile: "tsconfig.json",
-    scanDirectory: "sources",
-    declarationFile,
-  });
-
-  const aliasRead = { line: 6, column: 12, code: 18046, message: "'namespace.icons' is of type 'unknown'." };
-  const decoyRead = { line: 9, column: 12, code: 18046, message: "'decoy.icons' is of type 'unknown'." };
-  const computedRead = { line: 12, column: 12, code: 18046, message: "'namespace[key]' is of type 'unknown'." };
-  const shadowedRead = { line: 16, column: 12, code: 18046, message: "'namespace.icons' is of type 'unknown'." };
-  // The accessor forms. Line 20 is the supported one; the rest are the refusals.
-  const accessorRead = { line: 20, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-  const decoyAccessorRead = { line: 24, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-  const argumentAccessorRead = { line: 28, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-  const sequencedAccessorRead = { line: 32, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-  const redeclaredAccessorRead = { line: 36, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-  const reassignedAliasRead = { line: 41, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-  const fallbackAccessorRead = { line: 45, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-  const argumentedCallRead = { line: 49, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
-
-  // NAMESPACE IDENTITY - through the resolver, not the spelling. `namespace.icons` is the
-  // surface, `decoy.icons` is not, and the inner `namespace` is a local that shadows the alias.
-  const declaredRun = classifyFixture("types/contracts.d.ts", [aliasRead, decoyRead, computedRead, shadowedRead]);
-  const familyAt = (/** @type {typeof declaredRun} */ run, /** @type {number} */ line) =>
-    run.diagnostics.find((entry) => entry.line === line)?.family;
-  assert.equal(familyAt(declaredRun, 6), "unknown", "a declared member that is still unshaped is a genuine trust boundary");
-  assert.equal(familyAt(declaredRun, 9), "unknown", "an unrelated receiver is not a namespace read");
-  assert.equal(familyAt(declaredRun, 16), "unknown", "a shadowed local is not the namespace");
-  assert.equal(
-    declaredRun.diagnostics.find((entry) => entry.line === 9)?.member,
-    null,
-    "an unrelated receiver resolves to no member",
-  );
-
-  // UNSUPPORTED - a computed key stays unresolved rather than being guessed into the family.
-  assert.equal(
-    declaredRun.diagnostics.find((entry) => entry.line === 12)?.member,
-    null,
-    "a computed member name must remain unresolved rather than guessed",
-  );
-
-  // LIVE DECLARATION, behaviourally. The same diagnostic on the same tree changes family when
-  // the declaration stops naming the member: undeclared, the read is an index-signature
-  // symptom and namespace work; declared, it is a genuine `unknown`. A frozen set cannot see
-  // that difference, which is precisely the defect that went unnoticed.
-  fs.writeFileSync(path.join(classifierFixtureRoot, "types", "empty.d.ts"), [
-    "export interface LongtailForgeBrowserNamespace {",
-    "}",
-    "",
-  ].join("\n"));
-  const undeclaredRun = classifyFixture("types/empty.d.ts", [aliasRead]);
-  assert.equal(
-    familyAt(undeclaredRun, 6),
-    "namespace",
-    "an undeclared member read is namespace work, not a trust boundary",
-  );
-  assert.notEqual(
-    familyAt(undeclaredRun, 6),
-    familyAt(declaredRun, 6),
-    "classification must follow the live declaration; a frozen set would answer identically for both",
-  );
-
-  // NAMESPACE ACCESSOR ALIASES - `0.33.33.38.2.2.6.6.2`. A `const` bound to a zero-argument call
-  // of a zero-parameter function whose whole body returns a namespace member names that member.
-  // Reading it as page-local state filed seven `notifications.js` diagnostics under
-  // `0.33.33.44`'s state budget, which is an ownership claim rather than a presentation detail.
-  const accessorRun = classifyFixture("types/empty.d.ts", [
-    accessorRead,
-    decoyAccessorRead,
-    argumentAccessorRead,
-    sequencedAccessorRead,
-    redeclaredAccessorRead,
-    reassignedAliasRead,
-    fallbackAccessorRead,
-    argumentedCallRead,
-  ]);
-  // **Asserted on the family, not on `member`.** The reported member for a `TS2339` comes from the
-  // receiver's own expression, which an alias never is, so it is `null` on every row here -
-  // including the supported one. Asserting `member === null` for the refusals would have passed
-  // whatever the rule did, which is the vacuous shape this estate keeps finding.
-  assert.equal(familyAt(accessorRun, 20), "namespace", "an undeclared member read through an accessor alias is namespace work");
-
-  // THE REFUSALS, each one a shape the rule deliberately does not follow.
-  /** @type {readonly {line: number, reason: string}[]} */
-  const refusals = [
-    { line: 24, reason: "an accessor returning an unrelated object is not the namespace" },
-    { line: 28, reason: "a function that takes a parameter is not a plain accessor" },
-    { line: 32, reason: "a body of more than one statement is sequencing, not a shape" },
-    { line: 36, reason: "a name declared twice is shadowed somewhere and must be refused" },
-    { line: 41, reason: "a reassigned alias is flow, and flow is still refused" },
-    { line: 45, reason: "a real alternative is not a literal default and must not be peeled away" },
-    { line: 49, reason: "a call that passes an argument is not the zero-argument shape" },
-  ];
-  for (const refusal of refusals) {
-    assert.equal(familyAt(accessorRun, refusal.line), "state", refusal.reason);
-  }
-
-  // ACCOUNTING and OWNERSHIP - one family each, one owner for the three owned families, and
-  // totals that reconcile. Zero owners and two owners are both failures.
-  const accounted = classifyFixture("types/contracts.d.ts", [
-    aliasRead,
-    { line: 6, column: 12, code: 7006, message: "Parameter 'value' implicitly has an 'any' type." },
-    { line: 9, column: 12, code: 7034, message: "Variable 'rows' implicitly has type 'any[]'." },
-    { line: 9, column: 20, code: 2571, message: "Object is of type 'unknown'." },
-  ]);
-  assert.equal(accounted.diagnostics.length, 4, "every diagnostic is accounted for exactly once");
-  const ownedFamilies = new Set(["params", "state", "assorted"]);
-  for (const entry of accounted.diagnostics) {
-    assert.ok(entry.family, "every diagnostic has a family");
-    if (ownedFamilies.has(entry.family)) {
-      assert.ok(entry.owner, `${entry.family} diagnostics must name exactly one owner`);
-    } else {
-      assert.equal(entry.owner, null, "families the post-0.33.33.38 owners do not hold must name no owner");
-    }
-  }
-  const ownerSum = Object.values(accounted.owners).reduce((total, bucket) => total + bucket.total, 0);
-  const ownedCount = accounted.diagnostics.filter((entry) => ownedFamilies.has(entry.family)).length;
-  assert.equal(ownerSum, ownedCount, "owner budgets must hold every owned-family diagnostic and no other");
-  assert.equal(
-    Object.values(accounted.families).reduce((total, count) => total + count, 0),
-    accounted.total,
-    "canonical families must cover the whole diagnostic set",
-  );
-
-  // DETERMINISM - an unchanged tree serialises identically. A classifier whose answers depend
-  // on iteration order cannot be a durable number.
-  const repeated = classifyFixture("types/contracts.d.ts", [aliasRead, decoyRead, computedRead, shadowedRead]);
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(repeated.diagnostics)),
-    JSON.parse(JSON.stringify(declaredRun.diagnostics)),
-    "classifying an unchanged tree twice must serialise identically",
-  );
-  assert.deepEqual(repeated.families, declaredRun.families);
-  assert.deepEqual(repeated.owners, declaredRun.owners);
-
-  fs.rmSync(classifierFixtureRoot, { recursive: true, force: true });
 }
 
 // `0.33.33.38.2.4.1` gave the estate one namespace resolver, and these fixtures are what
@@ -4332,12 +4033,11 @@ assert.deepEqual(
     + ` never checked against the declaration it claims to implement: ${declarationCoverage.assertedPublications.join(" | ")}`,
 );
 
-// DISPOSITION - member-level diagnostic attribution stays durable *reporting*, and no
-// governance rule depends on it.
+// DISPOSITION - declaration coverage never depended on diagnostics, which is why it outlives the
+// diagnostic classifier `0.33.33.48.2` retired.
 //
-// `0.33.33.38.2.4.2` already produces a member name per classified diagnostic deterministically
-// and at no extra cost, so it is kept rather than thrown away. But **declaration coverage must
-// hold even if the browser program reaches zero diagnostics**: every invariant above is derived
+// **Declaration coverage must hold with the browser program at zero diagnostics**, which it now
+// permanently is: every invariant above is derived
 // from the AST publication inventory and the declaration text, and none of them consults a
 // diagnostic. The two modules share a declaration *parser* and nothing else, which is asserted
 // here so a later edit cannot quietly make governance depend on the measuring instrument.
@@ -4773,7 +4473,7 @@ assert.deepEqual(
     + ` alone: ${rendererWithoutBuilder.join(", ")}`,
 );
 
-console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
+console.log(`Full-strict governance passed: ${liveFiles.length} owned files, zero enforced by the typecheck gate, ${Object.keys(sourcePolicy.explicitAnyByFile).length} files with explicit any, declarations clean.`);
 console.log(`Shared-global inventory: ${browserScriptFiles.length - leakingBrowserScripts.length - NATIVE_MODULE_ENTRIES.size}/${browserScriptFiles.length - NATIVE_MODULE_ENTRIES.size} classic browser scripts out of the shared lexical environment, ${leakingBrowserScripts.length} in the 0.33.33.33 backlog, ${NATIVE_MODULE_ENTRIES.size} native ES-module entry exempt, ${publicationInventory.surfaces.size} published surfaces (AST-resolved, alias-aware) with ${MULTI_WRITER_SURFACES.size} recorded multi-writer records.`);
 
 /**
@@ -4834,15 +4534,47 @@ function literalEnd(lines, from) {
 /**
  * Every first-party script the scripts program checks.
  *
- * Read from the ledger's own file list so the sweep cannot drift from the
+ * Read from the program ownership rule so the sweep cannot drift from the
  * program it governs, and so a new script is covered the moment it exists.
  * @returns {string[]}
  */
 function discoveredScriptPaths() {
-  return ledger.programs.scripts.files.filter((filePath) => filePath.endsWith(".mjs"));
+  return liveFiles.filter((filePath) => owningProgram(filePath) === "scripts" && filePath.endsWith(".mjs"));
 }
 
-/** @returns {GovernanceLedger} */
-function cloneLedger() {
-  return JSON.parse(JSON.stringify(ledger));
+/**
+ * What holds one first-party file at zero: its owning strict program for JavaScript, or the
+ * first-party declaration probe for a declaration under `src/types`, which compiles every one with
+ * library checking on. The retired ledger never recorded declarations, so a pin that once read a
+ * declaration's ledger entry was always vacuous; this names the check that actually holds it.
+ * @param {string} filePath
+ * @returns {string | null}
+ */
+function zeroHolder(filePath) {
+  return declarationFiles.includes(filePath) ? "declaration-probe" : owningProgram(filePath);
+}
+
+/**
+ * A governance state at zero, built from the live program ownership rather than a ledger, for
+ * the zero-gate mutation proofs. Each call builds a fresh state the caller may mutate.
+ * @returns {import("../../typecheck-governance.mjs").GovernanceState}
+ */
+function cleanState() {
+  /** @type {import("../../typecheck-governance.mjs").GovernanceState["programs"]} */
+  const programs = {};
+  for (const definition of PROGRAMS) {
+    programs[definition.id] = {
+      config: definition.config,
+      environment: definition.environment,
+      files: liveFiles.filter((filePath) => owningProgram(filePath) === definition.id),
+      diagnostics: [],
+    };
+  }
+  return {
+    programs,
+    totals: { files: liveFiles.length, errors: 0, explicitAny: 0 },
+    explicitAnyByFile: {},
+    expectedErrorDirectives: [...sourcePolicy.expectedErrorDirectives],
+    declarationProbe: { config: "tsconfig.declarations.json", firstPartyFiles: declarationFiles.length, errors: 0 },
+  };
 }

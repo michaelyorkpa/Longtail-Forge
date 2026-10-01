@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 // Run alone: each break temporarily edits a source file read by the lifted suites.
-// Type-only annotations are verified by the strict ledger, not counted as runtime breaks.
+// Type-only annotations are verified by the strict typecheck, not counted as runtime breaks.
 // The real fallback descriptor is executed. No fixture-built copy stands in for its producer.
 // Initial fixture corrections: compare arrays across VM realms by value; use the existing
 // control-error wording; replace children to prepend a decoy (the fake lacks prepend).

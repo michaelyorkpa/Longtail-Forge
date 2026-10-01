@@ -36,7 +36,6 @@
     "check:fast": "npm run typecheck && npm run test:unit && npm run lint",
     "checkpoint:validate": "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly",
     "typecheck": "node scripts/typecheck-governance.mjs",
-    "typecheck:ledger:write": "node scripts/typecheck-governance.mjs --write",
     "test:unit": "vitest run",
     "test:watch": "vitest",
     "test:contracts": "vitest run tests/contracts/files-contracts.test.mjs tests/contracts/lists-contracts.test.mjs tests/contracts/normalizers-timezones.test.mjs tests/contracts/notes-contracts.test.mjs tests/contracts/tasks-contracts.test.mjs tests/contracts/time-tracking-contracts.test.mjs",

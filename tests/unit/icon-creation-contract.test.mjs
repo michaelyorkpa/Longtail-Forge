@@ -216,7 +216,7 @@ describe("The real icon writer, through the view factory", () => {
 describe("The creation contract, as the compiler sees it", () => {
   /**
    * A type-level probe rather than a behavioural one. This file is checked by the same
-   * shrink-only ledger as production, so if the creation bag stops accepting what the view bag
+   * strict typecheck gate as production, so if the creation bag stops accepting what the view bag
    * forwards - or if the narrow parent is widened along with it - these declarations stop
    * compiling and the checkpoint cannot be recorded.
    */

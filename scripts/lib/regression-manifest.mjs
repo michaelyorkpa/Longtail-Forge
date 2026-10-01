@@ -10,8 +10,10 @@ const MANIFEST_GENERATOR = "node scripts/generate-regression-manifest.mjs";
 const POLICY_SOURCE = "scripts/regression-coverage-exceptions.json";
 const CONTRACT_MODULE_ROOT = "scripts/regression-contracts";
 // Assertion retirements that delete deadweight from a still-active owner rather
-// than moving it. Historical planning pins are the only recorded kind today.
-const RETIRED_ASSERTION_TYPES = new Set(["historical-planning-pin"]);
+// than moving it: a historical planning pin, or a proof of target code the
+// repository no longer contains. A dead target names the deleted paths, which
+// must stay absent, exactly as a retired script's `dead-target` requires.
+const RETIRED_ASSERTION_TYPES = new Set(["historical-planning-pin", "dead-target"]);
 /** @typedef {{ modulePath: string, retainedOwner: string }} ContractMovement */
 /** @typedef {{ area: string, description: string, id: string, legacy?: boolean, path: string, runMode: string, tags: readonly string[], tier: string }} RegressionOwner */
 /** @typedef {{ assertionCount: number, path: string }} ContractAssertionModule */
@@ -20,7 +22,7 @@ const RETIRED_ASSERTION_TYPES = new Set(["historical-planning-pin"]);
 /** @typedef {{ creditedAssertionReduction: number, ownerPaths: readonly string[], sourceAssertionCount: number }} RetirementAssertionInventory */
 /** @typedef {{ [key: string]: unknown, area: string, assertionInventory?: RetirementAssertionInventory, floorCredit: boolean, id: string, integrationCoverageOwners?: readonly string[], retainedCoverageOwners: readonly string[], retirementType: string, script: string, tags?: readonly string[], tier: string, vitestOwner: string }} RetiredScript */
 /** @typedef {{ [key: string]: unknown, assertionCount: number, movedTo: string, movementType: string, retainedIntegrationOwner: string, sourceInventory?: string, sourceRegression: string, verificationPerformed?: readonly string[] }} AssertionMovement */
-/** @typedef {{ [key: string]: unknown, assertionCount: number, assertionDisposition: string, rationale: string, retainedCoverageOwners: readonly string[], retiredEvidence: readonly string[], retiredInVersion: string, retirementType: string, sourcePaths: readonly string[], sourceRegression: string, verificationPerformed: readonly string[] }} RetiredAssertionRecord */
+/** @typedef {{ [key: string]: unknown, assertionCount: number, assertionDisposition: string, deadTargets?: readonly string[], rationale: string, retainedCoverageOwners: readonly string[], retiredEvidence: readonly string[], retiredInVersion: string, retirementType: string, sourcePaths: readonly string[], sourceRegression: string, verificationPerformed: readonly string[] }} RetiredAssertionRecord */
 /** @typedef {{ maximumScripts: number, rationale: string, snapshotPath: string }} LegacyMetadataException */
 /** @typedef {{ assertionMovements: readonly AssertionMovement[], coverageFamilies: readonly CoverageFamilyPolicy[], legacyMetadataException: LegacyMetadataException, maximumActiveScripts: number, minimumAreaScripts: Record<string, number>, minimumAssertionCount: number, minimumReleaseGateScripts: number, protectedAreas: readonly string[], requiredReleaseGateIds: readonly string[], retiredAssertions: readonly RetiredAssertionRecord[], retiredScripts: readonly RetiredScript[], schemaVersion: number }} CoveragePolicy */
 /** @typedef {{ entries: readonly RegressionOwner[], policy: CoveragePolicy, readSource?: SourceReader }} CoverageComputationOptions */
@@ -793,7 +795,9 @@ function validateRetirementEntry({ activeIds, activePaths, errors, packageScript
  * so the record credits only the assertion floor and never an area, tier,
  * family, or bucket floor. The record is self-proving: every named source
  * file must still exist and must no longer contain the retired evidence, so a
- * reinstated pin fails this check instead of silently keeping its credit.
+ * reinstated pin fails this check instead of silently keeping its credit. A
+ * `dead-target` record also names the deleted target paths, and restoring any
+ * of them fails it the same way.
  * @param {{ activeIds: ReadonlySet<string>, activePaths: ReadonlySet<string>, errors: string[], readSource: SourceReader, record: RetiredAssertionRecord }} options
  */
 function validateRetiredAssertionRecord({ activeIds, activePaths, errors, readSource, record }) {
@@ -809,6 +813,21 @@ function validateRetiredAssertionRecord({ activeIds, activePaths, errors, readSo
   }
   if (!RETIRED_ASSERTION_TYPES.has(record.retirementType)) {
     errors.push(`${label} retirementType should be one of ${[...RETIRED_ASSERTION_TYPES].join(", ")}`);
+  }
+  if (record.retirementType === "dead-target") {
+    if (!Array.isArray(record.deadTargets) || record.deadTargets.length === 0) {
+      errors.push(`${label} dead-target retired assertions should name the deadTargets they proved`);
+    } else {
+      for (const target of record.deadTargets) {
+        if (typeof target !== "string" || !target.trim()) {
+          errors.push(`${label} dead target should be a repository path`);
+        } else if (existsSync(target)) {
+          errors.push(`${label} dead target ${target} still exists`);
+        }
+      }
+    }
+  } else if (record.deadTargets !== undefined) {
+    errors.push(`${label} only dead-target retired assertions name deadTargets`);
   }
   if (!Number.isInteger(record.assertionCount) || record.assertionCount < 1) {
     errors.push(`${label} retired assertions should include a positive assertionCount`);

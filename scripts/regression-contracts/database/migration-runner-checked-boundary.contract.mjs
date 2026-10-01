@@ -9,20 +9,20 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { strictCleanOwnerProgram, strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 
 const migrationSource = await fs.readFile("src/db/migrations.js", "utf8");
 
-// The shared probe answers both questions this owner used to also ask by
-// hand of the raw ledger: whether a checked program owns the file, and
-// whether it carries any strict diagnostic there.
-assert.deepEqual(
-  strictCleanOwnerState("src/db/migrations.js"),
-  { owned: true, diagnostics: 0 },
-  "the migration runner must stay owned by a checked program and strict-clean",
+// The ownership probe answers which strict program owns the file. Since
+// 0.33.33.48.2 there is no ledger to ask about diagnostics: the typecheck
+// gate holds every owned file at zero.
+assert.notEqual(
+  owningProgram("src/db/migrations.js"),
+  null,
+  "the migration runner must stay owned by a strict program, which the typecheck gate holds at zero",
 );
 assert.equal(
-  strictCleanOwnerProgram("src/db/migrations.js"),
+  owningProgram("src/db/migrations.js"),
   "server-tests",
   "the migration runner is server source and must stay in the server/test program",
 );

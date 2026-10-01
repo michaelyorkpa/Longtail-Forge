@@ -9,13 +9,13 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { strictCleanOwnerProgram, strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 
 const markdownPath = "src/core/markdown/markdown.service.js";
 const markdownSource = await fs.readFile(markdownPath, "utf8");
 
-assert.deepEqual(strictCleanOwnerState(markdownPath), { owned: true, diagnostics: 0 }, "the Markdown service must stay strict-clean in its checked program");
-assert.equal(strictCleanOwnerProgram(markdownPath), "server-tests", "the Markdown service must stay in the strict server/tests program");
+assert.notEqual(owningProgram(markdownPath), null, "the Markdown service must stay owned by a strict program, which the typecheck gate holds at zero");
+assert.equal(owningProgram(markdownPath), "server-tests", "the Markdown service must stay in the strict server/tests program");
 assert.doesNotMatch(markdownSource, /@ts-(?:ignore|expect-error)|@(?:type|param|returns?)\s*\{any\}|as unknown as/, "the Markdown service must not suppress or guess across its checked boundary");
 
 for (const contract of [

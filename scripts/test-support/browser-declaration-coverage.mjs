@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { collectBrowserPublicationInventory } from "./browser-publication-inventory.mjs";
 import { NAMESPACE } from "./browser-namespace-resolver.mjs";
-import { declaredNamespaceMembers } from "./browser-diagnostic-classification.mjs";
+import { declaredNamespaceMembers } from "./browser-namespace-declarations.mjs";
 
 /**
  * How runtime publication and the browser declaration relate, derived from the tree.
