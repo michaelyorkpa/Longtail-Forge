@@ -46,6 +46,7 @@
     "licensing:gates": "node scripts/check-licensing-gates.mjs",
     "lint": "eslint . --cache --cache-strategy content --cache-location .eslintcache",
     "maintenance:rehearse": "node scripts/release/rehearse-maintenance-boundary.mjs",
+    "module:create": "node scripts/create-module.mjs",
     "modules:registry:check": "node scripts/generate-bundled-module-catalog.mjs --check",
     "modules:registry:generate": "node scripts/generate-bundled-module-catalog.mjs",
     "proxy:smoke:multi": "node scripts/reference-caddy-security-smoke.mjs --topology multi-proxy",

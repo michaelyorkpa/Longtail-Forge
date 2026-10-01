@@ -1,0 +1,15 @@
+import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
+import { indexSearchReference } from "../../core/search/record-indexer.js";
+import { recordsRepository } from "./records.repo.js";
+
+/** @param {import("../../types/framework-contracts.js").SearchReference} reference */
+export function indexRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: recordsRepository.readAll,
+    readOne: recordsRepository.readOne,
+    toDocument: async record => ({ ...record, summary: "", body: record.title }),
+  });
+}
+export function registerSearch() {
+  return registerSearchIndexer("__ID__.records", indexRecord);
+}

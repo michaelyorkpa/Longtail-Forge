@@ -1,0 +1,16 @@
+import { AppError } from "../../core/errors.js";
+import { pagePublicApiItems, withWorkspaceFallback } from "../../core/public-api-responses.js";
+import { recordsRepository } from "./records.repo.js";
+
+/** @param {{workspace_id: string}} context @param {{limit?: unknown, offset?: unknown}} [query] */
+async function list(context, query = {}) {
+  const records = await recordsRepository.readAll(context.workspace_id);
+  return pagePublicApiItems(records.map(record => withWorkspaceFallback(record, context)), query);
+}
+/** @param {{workspace_id: string}} context @param {string} id */
+async function read(context, id) {
+  const record = await recordsRepository.readOne(context.workspace_id, id);
+  if (!record) throw new AppError("Record not found.", 404);
+  return withWorkspaceFallback(record, context);
+}
+export const recordsService = { list, read };

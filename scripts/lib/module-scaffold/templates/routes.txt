@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { workspaceAsyncRoute } from "../../core/http.js";
+import { permissionsService } from "../../core/permissions.js";
+import { recordsService } from "./records.service.js";
+
+export const browserRoutes = Router();
+browserRoutes.get("/__ID__", workspaceAsyncRoute(async (request, response) => {
+  await permissionsService.assertCan(request.session, "__KEY__.view", { workspace_id: request.session.workspace_id, operation: "read" });
+  const result = await recordsService.list(request.session, request.query);
+  response.json({ records: result.data, pagination: result.pagination });
+}));

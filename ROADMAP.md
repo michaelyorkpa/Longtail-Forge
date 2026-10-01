@@ -2811,7 +2811,7 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 ### 0.33.33.46 - Add the strict-clean module scaffold
 
-**Model: High Effort** - The generator defines the default architecture inherited by Support Tickets and future modules.
+**Model: High Effort** - The generator defines the default architecture inherited by future modules.
 
 - [ ] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and a generated Vitest unit-test home (amended 2026-10-01; see below).
 - [ ] **The scaffold inherits whatever `0.33.33.45` actually extracts, not what it proposed.** Build the generator against the measured post-`.45` module shape.
@@ -2819,6 +2819,7 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] **Generated output must enter all three permanent-zero programs clean.** A scaffold that produces a diagnostic in the server, scripts, or browser program is not done, and its browser controller must already be IIFE-isolated to the `0.33.33.33` standard.
 - [ ] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
 - [ ] Require untouched scaffold output to pass the normal validation contract without a transpile step.
+- [ ] D1 correction implemented and focused proof complete; combined-tree cycle and full scaffold acceptance remain pending with Claude. The generated initial test is a collected Vitest unit, not a discovered regression; see the archive for positive/negative admission evidence. The 2026-10-01 amendment (coordination commit `00387875`) authorizes the exact matching `module:create` entry in `scripts/package-script-contracts.json`; that entry resolves the initial final-gate hold. See the archive for the twelve-file scaffold, real catalog/boot/permission/search proof, three-program fixture compilation and cleanup evidence. Base `cce9619f0eee4377fc4ef7f7342ab167457a1660`; planning `1f248e43`, implementation `94276fd8`. No Support Tickets behavior, shared runtime change or dependency change. Claude owns integration.
 
 **Amended by the operator on 2026-10-01 (D1).** The "regression-area home" requirement is replaced. This is an explicit amendment to the acceptance criterion, not a claim that a Vitest file is a registered regression area.
 - **The new requirement:**

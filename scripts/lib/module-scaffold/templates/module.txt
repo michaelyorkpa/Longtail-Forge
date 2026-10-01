@@ -1,0 +1,48 @@
+import { createModuleEntry } from "../../core/modules/module-entry.js";
+import { appVersion } from "../../core/version.js";
+import { browserRoutes } from "./routes.js";
+import { publicRoutes } from "./public-api.routes.js";
+import { registerSearch } from "./search-indexer.js";
+
+/** @type {import("../../types/framework-contracts.js").ModuleManifest} */
+const manifest = {
+  id: "__ID__",
+  name: "__TITLE__",
+  displayName: "__TITLE__",
+  description: "Read-only __TITLE__ module scaffold. Storage and workflow remain module-owned.",
+  category: "work",
+  version: appVersion,
+  enabledByDefault: true,
+  canDisable: true,
+  historicalReadAccess: false,
+  terminology: { default: {
+    label: "__TITLE__", singular: "Record", plural: "Records",
+    navigationLabel: "__TITLE__", createButton: "Create Record", emptyState: "No records yet.",
+  } },
+  browserApiRoutes: [browserRoutes],
+  publicApiRoutes: [publicRoutes],
+  browserAssetsDir: new URL("../../../public/js/", import.meta.url),
+  protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
+  navigation: [{ label: "__TITLE__", href: "__ID__.html", requiredPermissions: ["__KEY__.view"] }],
+  protectedViews: [{ id: "__ID__", path: "/__ID__.html", moduleId: "__ID__", file: "__ID__.html", requiredPermissions: ["__KEY__.view"], allowDisabledRead: false }],
+  browserAssets: [{ id: "__ID__.controller", moduleId: "__ID__", path: "/js/__ID__.js", type: "script", views: ["__ID__"], requiredPermissions: ["__KEY__.view"] }],
+  requiredPermissions: ["__KEY__.view"],
+  permissions: [{ id: "__KEY__.view", moduleId: "__ID__", label: "View __TITLE__", description: "Read workspace records.", resource: "__KEY__", operation: "read" }],
+  defaultRolePermissions: [
+    { roleId: "super_admin", permissions: ["__KEY__.view"] },
+    { roleId: "workspace_admin", permissions: ["__KEY__.view"] },
+  ],
+  resourceDefinitions: [{ key: "__KEY__", moduleId: "__ID__", label: "__TITLE__", operations: ["read"], requiredPermissions: ["__KEY__.view"] }],
+  apiScopes: [{ id: "__KEY__:read", moduleId: "__ID__", label: "Read __TITLE__", description: "Read workspace records through the public API.", access: "read", publicDemoCapability: "api_keys" }],
+  publicApiEndpoints: [
+    { method: "GET", path: "/api/v1/__ID__", scope: "__KEY__:read", publicDemoCapability: "api_keys" },
+    { method: "GET", path: "/api/v1/__ID__/:id", scope: "__KEY__:read", publicDemoCapability: "api_keys" },
+  ],
+  searchableTypes: [{ recordType: "__KEY__", moduleId: "__ID__", label: "__TITLE__", description: "Workspace records.", idField: "id", titleField: "title", summaryField: "summary", bodyFields: ["body"], workspaceField: "workspace_id", requiredReadPermission: "__KEY__.view", indexer: "__ID__.records", requiredModules: ["__ID__"] }],
+  help: {
+    sections: [{ id: "__ID__.overview", moduleId: "__ID__", title: "__TITLE__", description: "Read-only scaffold.", audience: "developer", requiredModules: ["__ID__"], requiredPermissions: ["__KEY__.view"] }],
+    articles: [{ id: "__ID__.getting-started", slug: "__ID__-getting-started", sectionId: "__ID__.overview", moduleId: "__ID__", title: "__TITLE__", summary: "A read-only starting point.", body: "This module has no records until its owning repository is implemented. No create or edit workflow is provided.", audience: "developer", requiredModules: ["__ID__"], requiredPermissions: ["__KEY__.view"] }],
+  },
+};
+
+export const moduleEntry = createModuleEntry({ manifest, activateApp: registerSearch, activateWorker: registerSearch });
