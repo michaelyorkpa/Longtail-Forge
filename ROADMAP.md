@@ -2958,6 +2958,40 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the concrete failures recorded across the `0.33.33.32` children.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
 
+**Expanded at the closeout's start, 2026-10-01, under the operator's instructions of the same day.** A search of every `0.33.33` archive entry found deferred obligations the list above does not name. Each is now a criterion here.
+- [ ] **The permanent typecheck gate,** in `docs/regression-suite.md`, with its full-history requirement for running the development and unit suite:
+  - absolute zero, the program universe, owned-means-checked, the suppression policy and the declaration probe;
+  - the retired ledger and write mode;
+  - the `strict-typecheck` stage;
+  - the `dead-target` retired-assertion kind.
+
+  The stale ledger statements there are corrected. Runtime installation and the candidate artifact gain no history requirement.
+- [ ] **`ModuleViewContribution`** (deferred by `0.33.33.30.2.1`): protected and public view descriptors share one contract, in `docs/module-contract.md`.
+- [ ] **`LongtailForge.checkedDom`** (deferred by `0.33.33.38.3.9`) and **`LongtailForge.view.partsOf`** (deferred by `0.33.33.38.3.11`), in `docs/view-building-contract.md`, with a pointer for module authors.
+- [ ] **`npm run module:create` usage** (deferred by `0.33.33.46`), in `docs/module-development.md`, beside the adoption guidance.
+- [ ] **The precise Files preview ownership correction,** checked against the live implementation.
+  - **Removed by `0.33.33.34`:** `shared/file-preview.js` writing into `LongtailForge.filesDialog`.
+  - **Remains:** the one-line `filesDialog.openFilePreview` forwarder that `public/js/files.js` republishes.
+
+  The correction covers `docs/module-contract.md`, `docs/view-building-contract.md` and `docs/files-strict-guardrail-inventory.md`.
+- [ ] **The `0.33.33.39` parent acceptance,** criterion by criterion, with named evidence.
+- [ ] **The branch-level criteria,** each one individually: accepted with named evidence, superseded with its replacement, or genuinely unresolved with an owner and consequence.
+- [ ] **The four archive-only findings,** each checked against the live code and carried forward with an owner and a consequence:
+  - the `0.33.33.41.7` recurring-task completion status;
+  - the `BrowserTaskRecord.assignee_ids` contract;
+  - detached-trigger focus return;
+  - the Notes task-link prefill lifecycle.
+- [ ] **The version and series collision.** The release version equals the series label used throughout the record, so the version guard gets narrow, anchored path-and-context rules. There is no blanket exemption, no rewritten history and no disabled guard. A negative case proves that an unauthorized runtime literal still fails.
+- [ ] **Measurements on one counting basis,** applied to the branch baseline `375ecb52` and to the final tree.
+  - **Covered:** compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line and module-locality.
+  - **The expected `scripts/` line reduction was not achieved,** and the record says so.
+
+**Ownership amendment, recorded before the edit.** Claude edits `scripts/lib/module-scaffold/templates/docs.txt`, a `0.33.33.46` Codex path, once for this closeout:
+- it adds a pointer to the durable adoption guidance;
+- it drops the retired ledger from "Catalog or ledger regeneration".
+
+Codex is on standby with no `0.33.33` assignment, and no other scaffold path changes.
+
 **Drawn as a tooling child and the closeout, on 2026-10-01.** The split follows the checkpoint validator: only a commit tagged exactly `0.33.33.48` may touch durable documentation, `CHANGELOG.md`, `DECISIONS.md` or the package version.
 - **`.48.2` takes the first three criteria above.** That is the ledger and the debt inventories it carried, in tooling and regressions only.
 - **The closeout itself, tagged `0.33.33.48`, takes everything else.**
