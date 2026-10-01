@@ -1,4 +1,5 @@
 // `0.33.33.47.1`: the dependency-cycle measurement and its no-growth ratchet.
+// `0.33.33.47.3`: its single composition-edge exception, raw and enforcement measurements apart.
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -6,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { it } from "vitest";
 import {
+  AUTHORIZED_CYCLE_EXCEPTIONS,
   closingEdges,
   collectImportGraph,
   compareDependencyCycles,
@@ -15,12 +17,31 @@ import {
   parseSource,
   readDependencyCycleBaseline,
   readImports,
-  serializeDependencyCycles,
+  serializeDependencyCycleBaseline,
+  validateCycleExceptions,
+  withoutExceptions,
 } from "../../scripts/lib/dependency-cycles.mjs";
 
+/** @typedef {import("../../scripts/lib/dependency-cycles.mjs").CycleException} CycleException */
+/** @typedef {import("../../scripts/lib/dependency-cycles.mjs").DependencyCycleBaseline} DependencyCycleBaseline */
 /** @typedef {import("../../scripts/lib/dependency-cycles.mjs").DependencyCycleState} DependencyCycleState */
 /** @typedef {import("../../scripts/lib/dependency-cycles.mjs").ImportGraph} ImportGraph */
 /** @typedef {import("../../scripts/lib/dependency-cycles.mjs").ImportEdge} ImportEdge */
+
+const REGISTRY = "src/core/modules/registry.js";
+const CATALOG = "src/core/modules/bundled-module-catalog.generated.js";
+
+/**
+ * The operator's authorization, written out here independently of the library's constant. The
+ * library may only ever agree with it.
+ * @type {CycleException}
+ */
+const AUTHORIZED = {
+  from: REGISTRY,
+  to: CATALOG,
+  kind: "static",
+  reason: "The framework's module-catalog composition link otherwise combines ordinary registered module dependencies into one large component and prevents the intended module-growth workflow.",
+};
 
 /**
  * A graph from an adjacency list, every edge static unless its target is prefixed `dynamic:`.
@@ -43,7 +64,34 @@ function graphOf(links) {
  * @returns {DependencyCycleState}
  */
 function state(components, computed = {}, withDynamic = components) {
-  return { schemaVersion: 1, static: components, staticAndDynamic: withDynamic, computedDynamicImports: computed };
+  return { static: components, staticAndDynamic: withDynamic, computedDynamicImports: computed };
+}
+
+/**
+ * The catalog's real shape, with the real registry and catalog paths. Two modules reach the
+ * permission hub, the hub reaches the registry, and the registry imports the catalog. One module
+ * also has an inner loop of its own, which the exception must leave enforced.
+ * @param {Record<string, string[]>} [changes]
+ * @returns {ImportGraph}
+ */
+function catalogGraph(changes = {}) {
+  return graphOf({
+    [CATALOG]: ["m1/module.js", "m2/module.js"],
+    "m1/module.js": ["m1/routes.js"],
+    "m1/routes.js": ["core/permissions.js"],
+    "m2/module.js": ["m2/routes.js"],
+    "m2/routes.js": ["core/permissions.js", "m2/helper.js"],
+    "m2/helper.js": ["m2/routes.js"],
+    "core/permissions.js": ["core/modules.service.js"],
+    "core/modules.service.js": [REGISTRY],
+    [REGISTRY]: [CATALOG],
+    ...changes,
+  });
+}
+
+/** @param {ImportGraph} graph */
+function enforced(graph) {
+  return measureDependencyCycles(withoutExceptions(graph, AUTHORIZED_CYCLE_EXCEPTIONS));
 }
 
 it("reads every import form, and nothing that only looks like one", () => {
@@ -170,11 +218,81 @@ it("refuses a new computed import, which the measurement cannot see through", ()
   assert.match(compareDependencyCycles(baseline, state([], {})).shrink[0], /computed import\(\) in a\.js fell 1 -> 0/);
 });
 
+it("authorizes exactly one exception: the static composition edge into the generated catalog", () => {
+  assert.deepEqual(AUTHORIZED_CYCLE_EXCEPTIONS.map((exception) => ({ ...exception })), [AUTHORIZED]);
+  assert.ok(Object.isFrozen(AUTHORIZED_CYCLE_EXCEPTIONS), "the list cannot be extended at run time");
+  assert.ok(AUTHORIZED_CYCLE_EXCEPTIONS.every((exception) => Object.isFrozen(exception)), "nor can an entry be widened");
+});
+
+it("leaves out exactly the excepted edge, and nothing that only resembles it", () => {
+  const graph = catalogGraph({ [REGISTRY]: [CATALOG, `dynamic:${CATALOG}`, "core/modules.service.js"] });
+  const filtered = withoutExceptions(graph, AUTHORIZED_CYCLE_EXCEPTIONS);
+  assert.deepEqual(filtered.edges.get(REGISTRY), [{ target: CATALOG, kind: "dynamic" }, { target: "core/modules.service.js", kind: "static" }],
+    "a dynamic import of the catalog and the registry's other edges stay");
+  assert.deepEqual(filtered.edges.get(CATALOG), graph.edges.get(CATALOG), "the catalog's imports of modules stay");
+  assert.deepEqual(filtered.files, graph.files, "no file is left out");
+  for (const [file, edges] of graph.edges) {
+    if (file !== REGISTRY) assert.deepEqual(filtered.edges.get(file), edges, `${file} keeps every edge`);
+  }
+  assert.deepEqual(graph.edges.get(REGISTRY)?.[0], { target: CATALOG, kind: "static" }, "the raw graph is not modified");
+});
+
+it("lets ordinary module growth pass the enforcement measurement, and refuses a framework tangle the raw rule missed", () => {
+  const graph = catalogGraph();
+  assert.deepEqual(measureDependencyCycles(graph).static.map((component) => component.length), [9], "raw: the catalog makes one component");
+  const baseline = enforced(graph);
+  assert.deepEqual(baseline.static, [["m2/helper.js", "m2/routes.js"]], "enforcement: only the module's own inner loop remains");
+
+  const newModule = catalogGraph({ [CATALOG]: ["m1/module.js", "m2/module.js", "m3/module.js"], "m3/module.js": ["core/permissions.js"] });
+  assert.match(compareDependencyCycles(measureDependencyCycles(graph), measureDependencyCycles(newModule)).growth[0], /files joining a cycle: m3\/module\.js/,
+    "the raw rule refused a new module");
+  assert.deepEqual(compareDependencyCycles(baseline, enforced(newModule)), { growth: [], shrink: [] }, "the enforcement measurement admits it");
+
+  const newRouteFile = catalogGraph({ "m1/module.js": ["m1/routes.js", "m1/extra.routes.js"], "m1/extra.routes.js": ["core/permissions.js"] });
+  assert.deepEqual(compareDependencyCycles(baseline, enforced(newRouteFile)), { growth: [], shrink: [] }, "an ordinary new route file passes");
+
+  const tangle = catalogGraph({ "core/permissions.js": ["core/modules.service.js", "m2/routes.js"] });
+  assert.deepEqual(compareDependencyCycles(measureDependencyCycles(graph), measureDependencyCycles(tangle)).growth, [],
+    "the raw rule could not see a new import inside its one component");
+  assert.match(compareDependencyCycles(baseline, enforced(tangle)).growth[0], /files joining a cycle: core\/permissions\.js/,
+    "the enforcement measurement refuses it");
+});
+
+it("refuses a duplicate, additional, altered, missing or stale exception", () => {
+  const graph = catalogGraph();
+  assert.deepEqual(validateCycleExceptions([AUTHORIZED], graph), []);
+  assert.match(validateCycleExceptions([AUTHORIZED, AUTHORIZED], graph).join("\n"), /duplicate exception/);
+  const another = { from: "core/modules.service.js", to: REGISTRY, kind: /** @type {const} */ ("static"), reason: AUTHORIZED.reason };
+  assert.match(validateCycleExceptions([AUTHORIZED, another], graph).join("\n"), /unauthorized exception: core\/modules\.service\.js/,
+    "a baseline cannot exempt another edge, even a real one");
+  const reworded = validateCycleExceptions([{ ...AUTHORIZED, reason: "Because." }], graph).join("\n");
+  assert.match(reworded, /unauthorized exception/);
+  assert.match(reworded, /missing exception/);
+  assert.match(validateCycleExceptions([{ ...AUTHORIZED, kind: "dynamic" }], graph).join("\n"), /unauthorized exception[\s\S]*stale exception/);
+  assert.match(validateCycleExceptions([], graph).join("\n"), /missing exception: the authorized src\/core\/modules\/registry\.js/);
+  assert.match(validateCycleExceptions([AUTHORIZED], catalogGraph({ [REGISTRY]: [] })).join("\n"), /stale exception: .* names an edge that no longer exists/);
+  assert.match(validateCycleExceptions([AUTHORIZED], catalogGraph({ [REGISTRY]: [`dynamic:${CATALOG}`] })).join("\n"), /stale exception/,
+    "a dynamic import of the catalog does not keep a static exception alive");
+});
+
 it("round-trips a baseline, and refuses one that is not a baseline", () => {
-  const recorded = state([["a.js", "b.js"]], { "c.js": 1 }, [["a.js", "b.js", "c.js"]]);
-  assert.deepEqual(readDependencyCycleBaseline(serializeDependencyCycles(recorded)), recorded);
-  assert.throws(() => readDependencyCycleBaseline(JSON.stringify({ schemaVersion: 2 })), /schema version 1/);
-  assert.throws(() => readDependencyCycleBaseline(JSON.stringify({ schemaVersion: 1, static: [] })), /must record/);
-  assert.throws(() => readDependencyCycleBaseline(JSON.stringify({ schemaVersion: 1, static: [[1]], staticAndDynamic: [], computedDynamicImports: {} })), /must be a path/);
-  assert.throws(() => readDependencyCycleBaseline(JSON.stringify({ schemaVersion: 1, static: [], staticAndDynamic: [], computedDynamicImports: { "a.js": 0 } })), /positive count/);
+  /** @type {DependencyCycleBaseline} */
+  const recorded = { schemaVersion: 2, exceptions: [AUTHORIZED], enforcement: state([["a.js", "b.js"]], { "c.js": 1 }, [["a.js", "b.js", "c.js"]]) };
+  assert.deepEqual(readDependencyCycleBaseline(serializeDependencyCycleBaseline(recorded)), recorded);
+  /** @param {Record<string, unknown>} changes */
+  const withChanges = (changes) => JSON.stringify({ ...recorded, ...changes });
+  assert.throws(() => readDependencyCycleBaseline(JSON.stringify({ schemaVersion: 1, ...state([]) })), /schema version 2/, "the old schema is not read");
+  assert.throws(() => readDependencyCycleBaseline(JSON.stringify({ schemaVersion: 2, exceptions: [] })), /must record exactly enforcement, exceptions, schemaVersion/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ raw: state([]) })), /must record exactly/, "an unknown key is refused, not ignored");
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ exceptions: {} })), /exceptions must be a list/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ exceptions: [{ ...AUTHORIZED, extra: true }] })), /Exception 1 must record exactly/);
+  const { reason, ...withoutReason } = AUTHORIZED;
+  assert.ok(reason.length > 0);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ exceptions: [withoutReason] })), /Exception 1 must record exactly/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ exceptions: [{ ...AUTHORIZED, reason: " " }] })), /reason must be a non-empty string/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ exceptions: [{ ...AUTHORIZED, to: 7 }] })), /to must be a non-empty path/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ exceptions: [{ ...AUTHORIZED, kind: "both" }] })), /kind must be static or dynamic/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ enforcement: { static: [] } })), /must record exactly/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ enforcement: { ...state([]), static: [[1]] } })), /must be a path/);
+  assert.throws(() => readDependencyCycleBaseline(withChanges({ enforcement: state([], { "a.js": 0 }) })), /positive count/);
 });
