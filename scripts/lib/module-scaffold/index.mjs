@@ -18,7 +18,7 @@ export function scaffoldFiles(moduleId) {
     "search": `${moduleRoot}/search-indexer.js`, "controller": `public/js/${moduleId}.js`,
     "view": `views/protected/${moduleId}.html`, "docs": `docs/modules/${moduleId}.md`,
     "help": `help/modules/${moduleId}/overview.md`,
-    "regression": `scripts/regressions/${moduleId}/records.regression.mjs`,
+    "test": `tests/unit/${moduleId}-records.test.mjs`,
   };
   return { tokens, paths };
 }

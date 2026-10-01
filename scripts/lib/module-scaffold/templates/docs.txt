@@ -4,4 +4,8 @@ Generated starting point, not a finished workflow. The repository deliberately r
 
 `module.js` is the sole contribution entry. Keep it together until a measured concern justifies splitting it. The service owns canonical paging and shaping; browser code only renders returned records. Browser reads require `__KEY__.view`; public API reads require `__KEY__:read`. Search activation registers `__ID__.records` through the shared reference indexer.
 
-Implement storage and permission-aware record reads before adding a workflow. Add migrations through the normal migration tool if storage requires them. Build the catalog with `npm run modules:registry:generate`, regenerate the normal regression inventories when adopting the generated regression, and run `npm run verify:slice`. Runtime JavaScript needs no transpilation. Keep the browser controller as an IIFE and compile it under the browser program.
+Implement storage and permission-aware record reads before adding a workflow. Add migrations through the normal migration tool if storage requires them. Build the catalog with `npm run modules:registry:generate`, check it with `npm run modules:registry:check`, and run `npm run verify:slice`. Runtime JavaScript needs no transpilation. Keep the browser controller as an IIFE and compile it under the browser program.
+
+The scaffold's initial test home is `tests/unit/__ID__-records.test.mjs`. Run it through the normal Vitest config with `npx vitest run tests/unit/__ID__-records.test.mjs`. It checks the empty starting-point data and pagination.
+
+Adding a discovered regression is a separate reviewed step: choose an appropriate existing canonical area and follow the applicable regression metadata and manifest policy. Registering a new area requires a separate policy decision; generating a directory or refreshing inventories does not register an area or raise its coverage ceiling.

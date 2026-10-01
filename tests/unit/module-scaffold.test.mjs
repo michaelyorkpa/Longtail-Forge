@@ -75,12 +75,39 @@ it("generates untouched strict-clean output, builds the real catalog, boots and 
     const catalogScript = path.join(repository, "scripts/generate-bundled-module-catalog.mjs");
     run(root, [catalogScript], { LTF_MODULE_REGISTRY_ROOT: root });
     run(root, [catalogScript, "--check"], { LTF_MODULE_REGISTRY_ROOT: root });
-    for (const [config, owned] of [["tsconfig.json", paths.module], ["tsconfig.public.json", paths.controller], ["tsconfig.scripts.json", paths.regression]]) {
+    assert.ok(Object.values(paths).every(file => !file.endsWith(".regression.mjs")));
+    for (const { config, owned } of [{ config: "tsconfig.json", owned: [paths.module, paths.test] }, { config: "tsconfig.public.json", owned: [paths.controller] }, { config: "tsconfig.scripts.json", owned: [] }]) {
       const compilerFiles = run(root, [path.join(repository, "node_modules/typescript/bin/tsc"), "-p", config, "--pretty", "false", "--listFiles"]);
-      assert.ok(compilerFiles.replaceAll("\\", "/").includes(path.join(root, owned).replaceAll("\\", "/")), `${owned} must actually enter ${config}`);
+      for (const file of owned) assert.ok(compilerFiles.replaceAll("\\", "/").split(/\r?\n/).includes(path.join(root, file).replaceAll("\\", "/")), `${file} must actually enter ${config}`);
     }
     run(root, [path.join(repository, "node_modules/eslint/bin/eslint.js"), ...Object.values(paths).filter(file => /\.m?js$/.test(file))]);
-    run(root, [paths.regression]);
+    run(root, ["node_modules/vitest/vitest.mjs", "run", paths.test, "--reporter=json", "--outputFile=scaffold-test-results.json"]);
+    const testReport = JSON.parse(await fs.readFile(path.join(root, "scaffold-test-results.json"), "utf8"));
+    assert.equal(testReport.success, true);
+    assert.equal(testReport.numTotalTests, 1, "The selected generated test must be collected, without recursively running this suite");
+    assert.equal(testReport.numPassedTests, 1);
+    assert.equal(testReport.testResults.length, 1);
+    assert.equal(path.resolve(testReport.testResults[0].name), path.join(root, paths.test));
+    const manifestPaths = ["scripts/regression-coverage-manifest.json", "scripts/regression-coverage-exceptions.json"];
+    const manifestBefore = await Promise.all(manifestPaths.map(file => fs.readFile(path.join(root, file))));
+    assert.match(run(root, ["scripts/generate-regression-manifest.mjs", "--check"]), /Regression coverage manifest is current/);
+    const rejectedDirectory = path.join(root, "scripts/regressions/sample-records");
+    await assert.rejects(fs.stat(rejectedDirectory), { code: "ENOENT" });
+    await fs.mkdir(rejectedDirectory);
+    try {
+      await fs.writeFile(path.join(rejectedDirectory, "records.regression.mjs"), rejectedRegression);
+      const rejected = spawnSync(process.execPath, ["scripts/generate-regression-manifest.mjs", "--check"], { cwd: root, encoding: "utf8", timeout: 120000 });
+      assert.equal(rejected.error, undefined);
+      assert.equal(rejected.signal, null);
+      assert.equal(rejected.status, 1);
+      assert.match(rejected.stderr, /scripts\/regressions\/sample-records\/records\.regression\.mjs regressionMeta\.area must be one of:/);
+    } finally {
+      await fs.unlink(path.join(rejectedDirectory, "records.regression.mjs"));
+      await fs.rmdir(rejectedDirectory);
+    }
+    await assert.rejects(fs.stat(rejectedDirectory), { code: "ENOENT" });
+    assert.match(run(root, ["scripts/generate-regression-manifest.mjs", "--check"]), /Regression coverage manifest is current/);
+    for (const [index, file] of manifestPaths.entries()) assert.deepEqual(await fs.readFile(path.join(root, file)), manifestBefore[index]);
     await assert.rejects(createModule(root, "sample-records"), /Module directory already exists/);
     await fs.writeFile(path.join(root, "proof.mjs"), bootProof);
     const output = run(root, ["proof.mjs"], {
@@ -165,3 +192,6 @@ try {
   await closeSqlite();
 }
 `;
+
+// Exact former output: retained only as the disposable negative admission fixture.
+const rejectedRegression = "import assert from \"node:assert/strict\";\nimport { recordsService } from \"../../../src/modules/sample-records/records.service.js\";\n\nexport const regressionMeta = Object.freeze({\n  id: \"sample-records.records\", area: \"sample-records\", tier: \"release-gate\", tags: [\"module\", \"records\"],\n  description: \"Checks the generated read-only repository and public paging seam.\", runMode: \"static\",\n});\n\nconst result = await recordsService.list({ workspace_id: \"scaffold-proof\" });\nassert.deepEqual(result.data, []);\nassert.equal(result.pagination.total, 0);\nassert.equal(result.pagination.has_more, false);\nconsole.log(\"Sample Records scaffold read contract passed.\");\n";
