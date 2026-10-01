@@ -1,4 +1,5 @@
 import { createRecordId } from "../../core/identifiers.js";
+import { pagePublicApiItems, withWorkspaceFallback } from "../../core/public-api-responses.js";
 import { AppError } from "../../core/errors.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { auditService } from "../../core/audit.js";
@@ -29,7 +30,7 @@ async function listTimeEntries(context, query) {
   const entries = workspaceSupportsBillable(settings.workspaceType)
     ? storedEntries
     : storedEntries.map((entry) => ({ ...entry, billable: "no" }));
-  return paged(entries.map((entry) => withWorkspaceAlias(entry, context)), query);
+  return pagePublicApiItems(entries.map((entry) => withWorkspaceFallback(entry, context)), query);
 }
 
 /** @param {PublicApiContext} context @param {unknown} rawPayload */
@@ -89,7 +90,7 @@ async function createTimeEntry(context, rawPayload) {
     },
   });
 
-  return withWorkspaceAlias(entry, context);
+  return withWorkspaceFallback(entry, context);
 }
 
 /** @param {PublicApiTimeEntryCreatePayload} payload */
@@ -113,45 +114,6 @@ function normalizePublicApiDuration(payload) {
     durationHours: (durationSeconds / 3600).toFixed(4),
     durationSeconds,
   };
-}
-
-/** @template {Record<string, unknown>} RecordType @param {RecordType} record @param {PublicApiContext} context */
-function withWorkspaceAlias(record, context) {
-  if (!record || typeof record !== "object") {
-    return record;
-  }
-
-  return {
-    ...record,
-    workspace_id: record.workspace_id || context.workspace_id,
-  };
-}
-
-/** @template Item @param {Item[]} items @param {PublicApiQuery} query */
-function paged(items, query) {
-  const limit = clampInteger(query.limit, 1, 100, 50);
-  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
-
-  return {
-    data: items.slice(offset, offset + limit),
-    pagination: {
-      limit,
-      offset,
-      total: items.length,
-      has_more: offset + limit < items.length,
-    },
-  };
-}
-
-/** @param {unknown} value @param {number} min @param {number} max @param {number} fallback */
-function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-
-  return Math.min(Math.max(parsed, min), max);
 }
 
 export const timeTrackingPublicApiService = {

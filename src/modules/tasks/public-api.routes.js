@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireApiKey } from "../../middleware/require-api-key.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";
 import { AppError } from "../../core/errors.js";
+import { publicApiData, publicApiList } from "../../core/public-api-responses.js";
 import { tasksPublicApiService } from "./public-api.service.js";
 
 /** @typedef {import("../../types/http-contracts.d.ts").ApiSession} ApiSession */
@@ -56,25 +57,6 @@ function readApiSession(request) {
     throw new AppError("API key middleware did not provide a Tasks API session.", 401);
   }
   return request.apiSession;
-}
-
-/** @param {unknown} data @param {ApiSession} context */
-function publicApiData(data, context) {
-  return {
-    apiVersion: "v1",
-    workspace_id: context.workspace_id,
-    data,
-  };
-}
-
-/** @param {{ data: unknown[], pagination: Record<string, unknown> }} result @param {ApiSession} context */
-function publicApiList(result, context) {
-  return {
-    apiVersion: "v1",
-    workspace_id: context.workspace_id,
-    data: result.data,
-    pagination: result.pagination,
-  };
 }
 
 export { tasksPublicApiRoutes };

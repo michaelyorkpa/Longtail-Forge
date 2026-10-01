@@ -1,4 +1,5 @@
 import { tasksService } from "./tasks.service.js";
+import { pagePublicApiItems } from "../../core/public-api-responses.js";
 
 /** @typedef {import("../../types/http-contracts.d.ts").ApiSession} ApiSession */
 /** @typedef {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} TaskRecord */
@@ -9,7 +10,7 @@ import { tasksService } from "./tasks.service.js";
 /** @param {ApiSession} context @param {PublicTaskQuery} query */
 async function listTasks(context, query = {}) {
   const result = await tasksService.listAll(asTaskServerSession(context));
-  return paged(result.tasks.map((task) => withWorkspaceAlias(task, context)), query);
+  return pagePublicApiItems(result.tasks.map((task) => withWorkspaceAlias(task, context)), query);
 }
 
 /** @param {ApiSession} context @param {string} taskId */
@@ -74,22 +75,6 @@ function asTaskServerSession(context) {
   return /** @type {TaskServerSession} */ (context);
 }
 
-/** @template Item @param {Item[]} items @param {PublicTaskQuery} query */
-function paged(items, query) {
-  const limit = clampInteger(query.limit, 1, 100, 50);
-  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
-
-  return {
-    data: items.slice(offset, offset + limit),
-    pagination: {
-      limit,
-      offset,
-      total: items.length,
-      has_more: offset + limit < items.length,
-    },
-  };
-}
-
 /** @param {PublicRecurrenceJob | null | undefined} recurrenceJob */
 function publicRecurrenceJob(recurrenceJob = {}) {
   const job = recurrenceJob || {};
@@ -97,17 +82,6 @@ function publicRecurrenceJob(recurrenceJob = {}) {
     failed: job.failed === true,
     queued: job.queued === true,
   };
-}
-
-/** @param {unknown} value @param {number} min @param {number} max @param {number} fallback */
-function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-
-  return Math.min(Math.max(parsed, min), max);
 }
 
 export const tasksPublicApiService = {
