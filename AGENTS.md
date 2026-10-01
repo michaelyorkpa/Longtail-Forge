@@ -404,6 +404,33 @@ For browser route changes, verify `/api/app-info` reports the expected app versi
 
 For every release-version change, restart the app and verify `/api/app-info` after the version guardrail and normal release checks. The full versioning contract and ceremony checklist live in `docs/versioning.md`.
 
+### Scripted multi-site edits
+
+A scripted, regex-driven or otherwise mechanical edit across many sites is verified one transformation at a time. A patch script that reports success is no evidence that it did the right thing.
+
+1. **Check each transformation before starting the next.** Read the diff of every touched file in context. Then run the cheapest check that parses what changed: the owning script, a scoped typecheck, or lint. Do not stack several rewrites and rely on the final `npm run verify:slice` to find a structural mistake.
+2. **Make each replacement prove its own scope.**
+   - Assert how many times each replacement applied.
+   - Prefer literal multi-line anchors to greedy regular expressions.
+   - Pass `String.replace` replacements as functions, so `$` patterns cannot expand.
+3. **Prove any check the edit writes.** When an edit writes an assertion, a guard or a regression, reintroduce the defect it claims to catch and confirm it fails, then confirm it passes again. A guard that cannot fail reads as protection while providing none, and nothing downstream can detect it.
+4. **Escape sequences do not survive nested writers.** Each layer (shell, string literal, patch script) consumes one level of backslash.
+   - Prefer a plain `includes` to a regular expression when a literal is enough.
+   - Prefer the Edit tool when replacement text carries quotes, backticks or regular-expression metacharacters.
+   - Scan written output for control characters other than tab and newline.
+5. **Check line endings per file.** Compare each changed file against the line endings of its own `HEAD` blob, not against `git status` or an aggregate total.
+
+These are the failures behind the rule, each recorded in `ROADMAP-ARCHIVE.md`:
+- **`0.33.33.32.6` and `0.33.33.32.8`.** Blanket rewrites pointed one suite's assertions at a payload declared in a different function, because two flows bound the same response name. The compiler caught both.
+- **`0.33.33.32.7`, recorded in the operator's instruction of 2026-08-22.**
+  - A `const X = await [^;]+;` pattern stopped at a `;` inside a SQL template literal, and inserted an assertion into the query.
+  - A shell-escaped expression produced an unterminated string literal in the governance owner.
+- **`0.33.33.32.7.1`.** An appended helper went unused and failed lint.
+- **`0.33.33.32.24`.** A guard's `\b` was consumed by the script that wrote it, leaving a literal backspace byte. The guard parsed, passed and matched nothing. It was caught only by reintroducing the defect.
+- **`0.33.33.32.28.3.3`.** A replacement ending `}$` before a backtick made `String.replace` insert everything before the match. The file went from 96 lines to 161 and still typechecked and passed. Reading the diff found it.
+- **`0.33.33.32.28.4.1`.** A removal helper left two orphan JSDoc comments, one of them attached to an unrelated function.
+- **`0.33.33.38.2.4.3`.** A fixture's regular expression held a literal backspace byte, so it passed on a tree that violated it.
+
 ## Documentation Rules
 
 - Use `docs/docs-ownership.json` and `npm run docs:suggest` to identify likely documentation owners during implementation and closeout. `npm run docs:check` is the warning-only release gate; it does not replace review judgment.

@@ -76,7 +76,7 @@ const location = (overrides = {}) => ({
 });
 
 const diagnostics = (overrides = {}) => ({
-  app: { name: "Longtail Forge", version: "0.33.33" },
+  app: { name: "Longtail Forge", version: "1.2.3" },
   data: { directoryLocation: location({ display: "./data", relativeTo: "app-root" }) },
   database: {
     fileLocation: location(),

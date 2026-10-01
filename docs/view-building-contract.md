@@ -16,6 +16,21 @@ As of 0.33.32.22, `LongtailForge.view.normalizeSurfaceDescriptor(value)` is the 
 
 `LongtailForge.view.createSlideOutSidebarController(elements, options)` is the shared imperative lifecycle adapter for an existing trigger, backdrop, close control, and drawer. It exposes `open()`, `close()`, `toggle()`, `sync()`, and `isOpen`; the framework owns synchronized ARIA state, body-scroll lock, Escape/backdrop/close behavior, Tab containment, initial drawer focus, and focus return. Descriptor-rendered `slide-out-sidebar` surfaces and framework-owned imperative surfaces such as the phone Workbench Inspector use this same controller instead of duplicating drawer lifecycle code.
 
+### Checked DOM and built-element parts
+
+As of 0.33.33.38.3.9, `LongtailForge.checkedDom` is the shared checked-DOM contract. It is published by `public/js/shared/checked-dom.js`, which the static view service injects into every page's `<head>`. It has two steps, because a page captures a control and depends on it at different times:
+
+- **`find(root, selector, constructor)`** runs where a page captures a control. It answers the first matching element when it is an instance of `constructor`, and `null` otherwise, whether nothing matched or a node of another subtype did.
+- **`require(value, owner, name)`** runs where the page first depends on that control. It refuses `null` with a `TypeError` naming the owner and the control.
+
+A page that captures early and uses late keeps both its capture lifetime and its failure timing. Absent and the wrong subtype are one answer. Neither step casts, repairs or re-queries. Pages whose debt was already zero keep their file-local helpers (the 2026-09-25 ruling); new code uses `checkedDom`.
+
+As of 0.33.33.38.3.11, `LongtailForge.view.partsOf(element, kind)` answers the parts of an element this factory built as `kind`, and `null` otherwise. Two kinds are recorded: `bulkActionToolbar` and `linkedContextPicker`.
+
+- **The record.** A builder registers an element only after assigning its `viewParts`. The record is a weak map holding the very object `viewParts` holds, so a removed element is not kept alive.
+- **The `null` cases.** `partsOf` answers `null` for an element some other code built, one built as a different kind, or a non-object. It never answers whatever a `viewParts` property happens to hold.
+- **No caching.** A page that finds a framework element by searching the document still searches on every use, because nothing caches what it found.
+
 ## First Primitives
 
 The first framework-owned primitives are:
@@ -398,6 +413,13 @@ Files browse rows now include an explicit icon-only Preview action for rows that
 `LongtailForge.filesDialog.openFilePreview()` builds a dedicated shared-helper modal. It first reads the attachment-scoped preview descriptor, then loads the route-backed content URL only when the descriptor remains previewable. Image previews render from the authenticated Files content route, text previews render with `textContent` in a scroll-safe code region, and Markdown previews render the server-sanitized HTML returned by the shared Markdown service. The browser does not add another Markdown parser.
 
 As of 0.33.5.21.9.3, the preview modal implementation is centralized in `public/js/shared/file-preview.js` and exposed as `LongtailForge.filePreview.openFilePreview()` while preserving the existing `LongtailForge.filesDialog.openFilePreview()` compatibility entry. Files browse, File Context, and shared attachment-panel consumers all call this one route-backed modal implementation.
+
+As of 0.33.33.34, `file-preview.js` no longer writes into `LongtailForge.filesDialog`.
+
+- **The owner.** `LongtailForge.filePreview` owns the modal, the `files.preview` action opener and the shared record-unwrapping helpers.
+- **The compatibility entry.** `LongtailForge.filesDialog.openFilePreview()` survives only as a one-line forwarder that `public/js/files.js` republishes. It therefore exists only where the Files page script runs.
+- **Other surfaces** reach the preview through `LongtailForge.filePreview`, loaded by the module-action dependency table.
+
 
 The Preview modal includes an icon-only Download action when the file remains downloadable and a Close action that returns focus through the shared modal stack. Loading, download-only, too-large, unavailable, permission, and image-load failure states stay inside the modal. The File Context modal may also expose the same icon-only Preview action and the in-review-only `Mark Reviewed` action to the left of Close/Save; Preview opens the same standalone Preview modal flow as the Files list, and `Mark Reviewed` calls the existing Files restore route instead of editing scanner/quarantine metadata directly. The Files page still has no persistent preview pane, inline Browse Summary, selected-file detail, inline Metadata panel, selected-row state, or Inspector integration.
 

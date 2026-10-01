@@ -1,10 +1,102 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.32. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through the 0.33.33 branch closeout, `0.33.33.48`. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.48, the 0.33.33 branch (Lean Core, Full Strict TypeScript, and Verification Simplification) is closed. The block below is the current contract. The dated paragraphs after it record how each part was reached, and any of them that disagrees with this block is history.
+
+**The full-strict typecheck gate (`0.33.33.48.2`).** `npm run typecheck` holds every program at zero directly; there is no recorded debt to compare against. It refuses any diagnostic that any of the three programs reports, and any explicit `any` in any first-party file, naming the exact location. The three programs are server/test (`tsconfig.json`), browser (`tsconfig.public.json`) and scripts (`tsconfig.scripts.json`). The same run proves four things:
+- **The program universe.** Every first-party JavaScript file belongs to exactly one program: everything under `public/`, `scripts/`, `src/` and `tests/`, plus the five root files.
+- **Owned means checked.** Each program's compiler, run with `--listFiles`, reads every file the program owns.
+- **The suppression policy.** There is no `@ts-ignore` or `@ts-nocheck`, and `@ts-expect-error` appears only in the negative compile fixtures under `tests/typecheck/`.
+- **The declaration probe.** `tsconfig.declarations.json` compiles every first-party declaration on its own.
+
+The temporary debt ledger is deleted, with its `typecheck:ledger:write` mode, its shrink-only validator, its reclassification machinery and the browser-diagnostic classifier, and the gate refuses any option, including the retired `--write`. Regressions pin which program owns a file through `scripts/test-support/typecheck-ownership.mjs`, which fails if the file leaves its program; they do not re-pin per-file diagnostics, because the gate holds every owned file at zero. `verify:slice` runs the gate exactly once in every plan that runs: the `strict-typecheck` stage, which folds into the full typecheck, unit and lint stage when that stage runs.
+
+**Running the development and unit suite needs full git history (`0.33.33.48.3`).** Twenty-six unit tests read forty committed baselines through `git show <sha>:<path>`, and every one of those commits is reachable from `nightly`. A one-commit checkout fails 23 of those files outright; three more skip their base-pin case when the repository is shallow. That is why these three gates check out with `fetch-depth: 0`, each still at its exact SHA:
+- the pull-request Development gate;
+- the Nightly full gate;
+- the promotion fallback release gate.
+
+Every other checkout keeps depth 1, and `release.github-release-operations` pins the complete per-job checkout inventory of the Nightly and promotion workflows. Runtime installation and the release artifact need no git history.
+
+**Changed-path verification (`0.33.33.25.11`).** Routing escalates per path: any changed path no route claims escalates the whole plan to the full gate, and is named under "Unrouted paths". With `LTF_REGRESSION_BASE_SHA` set, the change set is the committed range, plus tracked working-tree edits, plus untracked files, and `verify:slice` prints which change set it inspected. An empty selection runs nothing, exits `2` and never reports a pass. `test:regressions:changed` keeps its "runs nothing and says so" behavior for iteration.
+
+**Coverage accounting.** The effective assertion floor, 19,940 at this closeout, is reviewed accounting: active, Vitest-owner, direct-owner and credited-retirement assertions. It is not an application coverage percentage or a quality score. Floors only rise, through the explicit `--ratchet-floors` mode, and ceilings only fall.
+
+Retired-assertion records take one of two kinds, and each record is self-proving:
+- **`historical-planning-pin`.** The retired evidence must stay out of its source.
+- **`dead-target` (since `0.33.33.48.2`).** The record must also name the deleted target paths, which must stay absent.
+
+Restoring either the evidence or a target fails the record, and `release.regression-manifest-generation` proves each refusal. A `dead-target` credit stays tied to genuinely removed implementation; renaming or relocating live behavior is not retirement.
+
+**The dependency-cycle gate (`0.33.33.47.1`, `0.33.33.47.3`).** `npm run audit:cycles:check` is a hard closeout gate. Beside it, `audit:cycles` reports and `audit:cycles:update-baseline` records a reviewed baseline. Every run prints two measurements, kept apart:
+- **The raw runtime dependency measurement.** Every first-party edge is included. It is reported, never enforced.
+- **The enforcement measurement.** It is the same graph without exactly one static edge: `src/core/modules/registry.js` to `src/core/modules/bundled-module-catalog.generated.js`.
+
+That exception's authority is the frozen `AUTHORIZED_CYCLE_EXCEPTIONS` in `scripts/lib/dependency-cycles.mjs`, and `tests/unit/dependency-cycles.test.mjs` pins it independently. The schema-2 baseline must record exactly that list. A duplicate, extra, altered, stale, missing or malformed exception is refused, and no force or reset path exists. The gate is a no-growth policy over cyclic components. It does not prove that every undesirable import inside an already permitted component is detected. Its parser, `espree`, is a declared development dependency.
+
+**Admitting a new test** is a reviewed process, described under "Adding a Regression" below.
+
+### 0.33.33 final measurements
+
+Each row applies one counting basis to the branch baseline `375ecb52` and to the final tree. Rows marked descriptive are hypotheses and evidence, not enforced contracts.
+
+| Measurement | Baseline `375ecb52` | Final | Basis |
+|---|---|---|---|
+| First-party JavaScript files | 985 | 1,577 | The gate's file walker, applied to both trees |
+| Files a strict program checks | 150, through file pragmas | 1,577, all owned and checked | The baseline audit, and `npm run typecheck` |
+| Full-strict diagnostics | 9,734 server/test, 11,134 browser, 11,625 scripts-only | 0 in each program; 0 explicit `any` | The baseline audit's probes, and `npm run typecheck` |
+| Discovered regressions | 464: 238 static, 192 isolated-database, 28 isolated-files, 6 serial-database | 348: 121, 193, 28 and 6 | Each tree's own discovery |
+| Estimated Node processes per full run | 464, with no entry in-process | 342, with 6 static entries in-process | Discovered entries minus the in-process entries in `regression-static-isolation-audit.json` |
+| Effective assertion floor | Not measured: the inventory began at `0.33.33.3`. First recorded figure: 18,658 at `0.33.33.11` | 19,940 | Reviewed effective accounting, not a coverage percentage |
+| Static history readers | 54 | 7 | The `0.33.33.11` reader pattern, applied to both trees |
+| Planning-document pins | 59 historical-content pinners and 100 readers when defined at `0.33.33.25.8` | 7 and 24 | `scripts/planning-document-pin-baseline.json` |
+| Regression-owner source lines | 114,660 physical, 103,175 structural | 114,147 physical, 96,055 structural | Today's `regression-source-measure.mjs`, over each tree's discovered entries |
+| `scripts/**/*.mjs` lines | 566 files: 139,744 physical, 126,062 structural | 598 files: 161,643 physical, 130,805 structural | The same measure, over every tracked file |
+| `scripts/` directory lines | 595 files, 152,785 | 638 files, 187,207 | Newline count over every tracked file |
+| Runtime dependency cycles | No tool; it was built at `0.33.33.47.1` | Raw: 1 static cycle of 88 files (93 with dynamic imports). Enforced: 3 cycles of 33 files (41) | `npm run audit:cycles` |
+| Module locality (descriptive) | Not measured | 133 of 561 changes module-local (24%, median 6 files) in the 0.33.33 window, against 32 of 539 (6%, median 14.5) elsewhere | `0.33.33.47.2`, over first-parent `nightly` history |
+
+**The expected `scripts/` reduction was not achieved.** The branch expected net line reduction to land primarily in `scripts/`. Instead:
+- **The directory grew 22.5%,** from 152,785 to 187,207 lines.
+- **Its JavaScript grew 15.7% physically but only 3.8% structurally.** 17,156 of the 21,899 added `.mjs` lines are comment or blank, largely the JSDoc that full strict requires.
+- **The coverage-policy JSON more than doubled,** from 11,170 to 23,494 lines.
+
+The discovered regression owners themselves shrank: 0.4% physically and 6.9% structurally, across 116 fewer entry points. No protection was deleted to manufacture the expected figure.
+
+**Numeric targets not met, and why.** The review targets were roughly 250 to 300 discovered entry points and Node processes. The final tree has 348 entry points and an estimated 342 processes. Further reduction would mean merging isolated-database or other child-process-isolated owners: the 193 isolated-database, 28 isolated-files and 6 serial-database entries are 227 of the 348. The branch contract forbids that without measured runtime evidence. The remaining static owners were consolidated wherever behavior survived. The target is therefore rejected for safety and recorded, not closed.
+
+### Which owner holds each protection
+
+The branch contract listed the protections that consolidation had to preserve. This is where each one lives now, with the protections the branch added.
+
+| Protection | Owners |
+|---|---|
+| Attested-baseline fail-closed proof | `database.verified-regression-baseline-fast-path` |
+| Canonical-workspace fingerprinting | The regression runner (`scripts/run-regressions.mjs`, through `scripts/test-support/canonical-workspace-inventory.mjs`) and `database.workspace-cleanup-isolation` |
+| Backup, restore and purge | `database.backup-restore-foundation`, `database.backup-archive-portability`, `database.workspace-backup-package`, `database.workspace-final-purge` |
+| Migration chain | `database.migration-schema-workflow`, `legacy.migration.compatibility`, `legacy.database.migration.locking` |
+| Parameter-binding audit | `npm run audit:params:check` in closeout, and `legacy.parameter.binding.layer` |
+| Module-import audit | `framework.module-import-boundaries` |
+| Permission, session and authentication | The discovered 409-check permission harness `permissions.http-authorization-matrix`, with `framework.session-revocation`, `framework.remembered-sessions` and `framework.authentication-throttle` |
+| Support View | `framework.support-view-request-enforcement`, `framework.support-view-session-contract` |
+| Files quota, scanner and streaming | `legacy.file.storage.quota.enforcement`, `legacy.file.scan.job.handoff`, `legacy.file.clamscan.adapter`, `legacy.file.storage.streaming.contract` |
+| Playwright accessibility, console and overflow | `tests/e2e/` through `npm run test:e2e`, run by the pull-request "Browser smoke and accessibility" job and the Nightly browser gate |
+| The four closeout regenerators | `npm run closeout -- --fix`, proven by `release.closeout-conductor`, `release.regression-manifest-generation`, `framework.bundled-module-registry` and `database.migration-schema-workflow` |
+| Exact-SHA Nightly and promotion proof | `release.nightly-proof-reuse`, `release.github-release-operations` (including the pinned checkout inventory), `release.maintenance-release-rehearsal` |
+| CodeQL | `.github/workflows/codeql.yml`, its action pinned by `release.github-release-operations` |
+| Dependency review | The pull-request and promotion "Dependency review" jobs, and `release.dependency-baseline` |
+| Full-strict TypeScript | `npm run typecheck`, and `framework.full-strict-governance` |
+| Changed-path verification | `release.developer-verification-throughput`, `tests/unit/slice-verification-plan.test.mjs`, `tests/unit/verification-coverage-contracts.test.mjs` |
+| Checkpoint trailers | `npm run checkpoint:validate` and the pull-request Development gate, exercised by `release.developer-verification-throughput` |
+| Coverage floors and retirements | `release.regression-manifest-generation`, and `npm run regressions:manifest:check` in closeout |
+| Dependency cycles | `npm run audit:cycles:check` in closeout, and `tests/unit/dependency-cycles.test.mjs` |
+| History readers and the roadmap cursor | `release.historical-evidence-retirement`, `release.roadmap-cursor-floor` |
+| Version literals | `npm run version:guard` |
 
 As of 0.33.33.32, the scripts program is closed at zero strict diagnostics and its ledger section is retired. The `0.33.33.32` rollup and its eleven corrective children took the program from **3,150 diagnostics across 202 diagnostic-bearing files to 0 across 0**, measured against the tree at `48ce14df`; combined strict debt falls from 14,284 to 11,134, all of it now the browser program, and explicit `any` falls from 7 to 0. `tsconfig.scripts.json` already carried unqualified `strict`, `checkJs`, and `noImplicitAny` and excludes nothing under `scripts/`, so this closure is proof rather than enablement: all 588 `.mjs` files under `scripts/`, plus the three root configuration files the program is defined to cover, compile under those flags with no `@ts-ignore`, `@ts-nocheck`, `@ts-expect-error`, file pragma, or exclusion anywhere in the program — the only occurrences of those strings in `scripts/` are inside the detector that forbids them.
 
-Retirement follows the pattern `server-tests` established at `0.33.33.26.2`: the ledger section stays, its diagnostics map is empty, its error count is zero, and `framework.full-strict-governance` asserts it may never regain debt. **Retirement means the program is permanently required to remain at zero; it never means the program is no longer checked.** Three assertions hold both halves — zero debt, no per-file debt, and a file list that is still the whole scripts estate rather than an emptied one — and each was proved by seeding a ledger that satisfies the earlier integrity checks and watching its own assertion fail. The ledger itself retires when all three programs reach zero at `0.33.33.41`.
+Retirement follows the pattern `server-tests` established at `0.33.33.26.2`: the ledger section stays, its diagnostics map is empty, its error count is zero, and `framework.full-strict-governance` asserts it may never regain debt. **Retirement means the program is permanently required to remain at zero; it never means the program is no longer checked.** Three assertions hold both halves — zero debt, no per-file debt, and a file list that is still the whole scripts estate rather than an emptied one — and each was proved by seeding a ledger that satisfies the earlier integrity checks and watching its own assertion fail. The ledger itself retires when all three programs reach zero at `0.33.33.41`. (Corrected at the closeout: the ledger retired at `0.33.33.48.2`, behind the absolute zero gate described at the top of this document.)
 
 Two audits close with the program. **Unchecked dynamic boundaries reach 0**: the four boundary children narrowed every `JSON.parse` in the estate through a published narrowing or published it open as `unknown` with each read proven, and a per-parse-line guard keeps it that way. **The source-slicing consolidation closes at five**: seventy-three owners cut function regions through `extractFunctionBlock`, `extractFunctionBody`, and `extractFunctionSpan`, and the five remaining local readers — all Workbench contract modules returning a body without its braces — are named in governance, which also asserts that no script anywhere else may define a function-region extractor.
 
@@ -147,7 +239,7 @@ Docs updated: docs/regression-suite.md.
 
 No docs change needed: durable module and framework-service documentation remains deferred to the version-wide branch closeout because this checkpoint adds an internal shape boundary with proven byte-identical behavior and changes no supported configuration, route, permission, startup, or deployment contract.
 
-As of 0.33.33.25.9, the compiler-ledger checkpoint stamp is write-derived and can no longer silently go stale. `typecheck:ledger:write` records the first open numbered checkpoint heading in the live roadmap (falling back to the active version cursor once every numbered checkpoint archives), verification compares against the stored stamp so the recorded value always means "checkpoint active at the last reviewed ledger write", and the migration write moved the stamp from the frozen `0.33.33.18.1` literal to `0.33.33.25.9` as a one-line ledger diff. `framework.full-strict-governance` replaced its exact stamp pin with a monotonic `compareDottedVersions` floor at `0.33.33.25.9`, following the cursor-floor doctrine that prohibits exact pins; every shrink-only, suppression-ban, and zone assertion is byte-for-byte unchanged. Combined strict debt remains 20,587 with explicit `any` at 7, and effective regression assertions remain 18,961 across 347 scripts.
+As of 0.33.33.25.9, the compiler-ledger checkpoint stamp is write-derived and can no longer silently go stale. `typecheck:ledger:write` records the first open numbered checkpoint heading in the live roadmap (falling back to the active version cursor once every numbered checkpoint archives), verification compares against the stored stamp so the recorded value always means "checkpoint active at the last reviewed ledger write", and the migration write moved the stamp from the frozen `0.33.33.18.1` literal to `0.33.33.25.9` as a one-line ledger diff. `framework.full-strict-governance` replaced its exact stamp pin with a monotonic `compareDottedVersions` floor at `0.33.33.25.9`, following the cursor-floor doctrine that prohibits exact pins; every shrink-only, suppression-ban, and zone assertion is byte-for-byte unchanged. Combined strict debt remains 20,587 with explicit `any` at 7, and effective regression assertions remain 18,961 across 347 scripts. (Superseded at `0.33.33.48.2`: the ledger, its stamp and `typecheck:ledger:write` are deleted.)
 
 Docs updated: docs/regression-suite.md.
 
@@ -165,7 +257,7 @@ Docs updated: docs/regression-suite.md.
 
 No docs change needed: durable branch-workflow documentation landed separately under the 0.33.33.1 policy trailer, and this checkpoint otherwise changes verification tooling only, with no supported configuration, route, permission, startup, or deployment contract affected.
 
-As of 0.33.33.25.6, slice verification enforces the shrink-only strict typecheck ledger unconditionally. The verification plan schedules a dedicated `strict-ledger` stage that runs `npm run typecheck` whenever focused routing excludes the full typecheck/unit/lint stage, so every `npm run verify:slice` outcome — focused, full-check, and empty — runs the ledger gate exactly once; the measured standalone stage cost is about five seconds. The `runCommand` execution seam is now typed by the status contract the executor actually consumes, which removed the three stub-assignability diagnostics and shrank combined strict debt from 20,590 to 20,587 with explicit `any` unchanged at 7. The routing owner proves that focused plans schedule the gate, that seeded per-file ledger regressions and seeded new files with diagnostics fail `validateShrinkOnly`, and that a failing strict-ledger stage fails the focused run; the forbidden-suppression throw remains owned by `framework.full-strict-governance`. The `verify:slice` package-script string is unchanged, regression/browser/packaging routing is unchanged, and effective regression assertions advance to 18,953 across 347 scripts.
+As of 0.33.33.25.6, slice verification enforces the shrink-only strict typecheck ledger unconditionally. The verification plan schedules a dedicated `strict-ledger` stage that runs `npm run typecheck` whenever focused routing excludes the full typecheck/unit/lint stage, so every `npm run verify:slice` outcome — focused, full-check, and empty — runs the ledger gate exactly once; the measured standalone stage cost is about five seconds. (Corrected at the closeout: since `0.33.33.25.11` an empty selection is refused and runs nothing, so focused and full-check outcomes are the ones that run the gate. Since `0.33.33.48.2` the stage is `strict-typecheck`, and the gate enforces absolute zero rather than a shrink-only ledger.) The `runCommand` execution seam is now typed by the status contract the executor actually consumes, which removed the three stub-assignability diagnostics and shrank combined strict debt from 20,590 to 20,587 with explicit `any` unchanged at 7. The routing owner proves that focused plans schedule the gate, that seeded per-file ledger regressions and seeded new files with diagnostics fail `validateShrinkOnly`, and that a failing strict-ledger stage fails the focused run; the forbidden-suppression throw remains owned by `framework.full-strict-governance`. The `verify:slice` package-script string is unchanged, regression/browser/packaging routing is unchanged, and effective regression assertions advance to 18,953 across 347 scripts.
 
 Docs updated: docs/regression-suite.md.
 
@@ -512,9 +604,9 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Legacy regression ceiling | 209 |
 | Active regression assertions | 19101 |
 | Vitest owner assertions | 101 |
-| Direct owner assertions | 74 |
+| Direct owner assertions | 77 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 19937 |
+| Effective assertion floor | 19940 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -598,7 +690,7 @@ The suite gives every non-static bucket a per-script fixture through `scripts/te
 
 ### Closeout maintenance conductor
 
-`npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `regressions:inventory:check`, `modules:registry:check`, `db:schema:check`, `audit:params:check`, `docs:check`, and `licensing:gates` in that order. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
+`npm run closeout` invokes `version:guard`, `regressions:manifest:check`, `regressions:inventory:check`, `modules:registry:check`, `db:schema:check`, `audit:params:check`, `audit:cycles:check`, `docs:check`, and `licensing:gates` in that order. `audit:cycles:check` joined the hard gates at `0.33.33.47.1`. It deliberately continues after failures so one run surfaces the entire maintenance backlog, then reports every gate as pass, warn, or fail with its hard or warning-only policy. Any failed hard gate produces a nonzero conductor exit; documentation and licensing results remain warning-only. The individual package scripts remain the source contracts and may still be run directly.
 
 `npm run closeout -- --fix` first runs only `regressions:manifest`, `regressions:inventory:write`, `modules:registry:generate`, and `db:schema:refresh`, stopping if deterministic regeneration fails, then performs normal validation. This mode does not ratchet policy floors and never edits exceptions, roadmap, changelog, decisions, or arbitrary documentation. `npm run closeout -- --fail-fast` stops validation after the first hard failure; without that option the complete report remains the default. The options may be combined.
 
@@ -820,6 +912,14 @@ Operator guidance:
 - Promotion, manual release, and explicit security/data-integrity instructions retain their named additional gates.
 
 ## Adding a Regression
+
+A new proof normally belongs in a Vitest file under `tests/unit/`. `check:fast` runs it, and it needs no policy change. Adding a *discovered* regression is a separate reviewed step, because the discovery and coverage tools refuse one without review:
+
+- **Use an existing canonical area where one fits.** `regressionMeta.area` must be one of the canonical areas listed below. A file under `scripts/regressions/<dir>/` must declare `area` equal to `<dir>`.
+- **A new area is its own decision.** Registering one is a separate, reviewed policy decision. Creating a directory or refreshing inventories does not register an area.
+- **The active ceiling only shrinks.** `maximumActiveScripts` in `scripts/regression-coverage-exceptions.json` refuses any increase. A new discovered regression therefore needs either a credited retirement elsewhere, or a reviewed policy edit that raises the ceiling. The same holds for any other ceiling. Ordinary regeneration never authorizes an increase the tools reject.
+
+With that decided:
 
 1. Create `scripts/regressions/<area>/<name>.regression.mjs`.
 2. Export `regressionMeta` as the first declaration using the JSON-compatible literal shape above.

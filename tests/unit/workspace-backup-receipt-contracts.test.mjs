@@ -55,7 +55,7 @@ function shippedReader() {
 }
 
 const receipt = (overrides = {}) => ({
-  appVersion: "0.33.33",
+  appVersion: "1.2.3",
   archiveSha256: "a".repeat(64),
   createdAt: "2026-09-03T00:00:00.000Z",
   createdByName: "Workspace administrator",
