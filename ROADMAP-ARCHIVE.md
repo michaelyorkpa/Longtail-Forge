@@ -1,5 +1,39 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.48.1 - The view-search-options casts
+
+**Model: High Effort** - three unchecked casts through `unknown` in a script injected into every rendered page; the disposition had to hold in a real browser and under the shared fake DOM.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.48.1-view-search-options-casts` from `nightly` `cce9619f`; planning `baa580f2`, implementation `c20e797f`. This is the bounded disposition the operator required before `0.33.33.48` acceptance. It does not reopen `0.33.33.38`, and it is not part of `0.33.33.45`.
+- [x] **All three corrected, none kept.**
+  - **The popup.** It is the `HTMLDivElement` that `document.createElement("div")` returns, typed as such. That removes two casts: the one claiming the popup was the structural `OptionsPopup`, and the one claiming it back as a `Node` to append it. `OptionsPopup` is gone, and the four popup helpers take an `HTMLElement`.
+  - **The Enter path** narrows its match with `instanceof HTMLElement`. Only this module fills the popup, and its options are the buttons it builds.
+  - **The `if (!popup.style)` fallback** is removed. It never ran:
+    - a real element always has `style`;
+    - under every fake DOM, positioning returns first, because `FakeElement` has no `getBoundingClientRect`.
+  - **The detached-control cleanup** narrows with `instanceof Node`, instead of claiming the structural `FieldControl` is a node. The narrowing comes after the existing check that `contains` exists, so the fake-DOM path is unchanged.
+- [x] **Unchanged: the published contract and the control type.** `BrowserViewSearchOptions` keeps `control: unknown`. `FieldControl` stays structural, because the shared fake DOM still drives it.
+- [x] **Behaviour, stated.** Nothing changes for any control first-party code produces. The one difference applies to controls nothing creates: a non-`Node` `EventTarget`, or a node from another realm, now skips cleanup instead of reaching `document.body.contains`. For the first, that call would have thrown inside a timer; for the second, it would have reported the control as detached.
+- [x] **Real-browser proof.** `tests/e2e/view-search-options-dom.spec.mjs` drives the published surface on real Chromium nodes, at both viewports, covering:
+  - render, role and positioning;
+  - Enter through the real `click()`, and Escape;
+  - cleanup with attached and detached controls.
+
+  **It passed 4 of 4 on the unchanged module first, then 4 of 4 after**, against the same expectations, with no page errors.
+- [x] **Fixture proof.** These shared fake-DOM suites pass: view shared capabilities, Clients/Projects framework anatomy, and view renderer actions, plus nine renderer and tag-surface unit suites (103 tests).
+- [x] **Mutations.**
+  - **Caught by the spec:** both narrowings inverted, positioning dropped, and the popup never appended.
+  - **Refused by the compiler,** which shows each narrowing is load-bearing:
+    - removing the `Node` narrowing gives TS2740;
+    - restoring the `style` fallback gives TS2322;
+    - removing the Enter narrowing gives TS2339.
+
+  The module was restored byte-exact.
+- [x] **The pin.** `view-shared-capabilities` now refuses any `@type {unknown}` in the file. It was shown to fail on a reintroduced cast. The assertion floor rises by one, to 19,916.
+- [x] **One recovered intermittent, disclosed.** The existing `notes-tag-surface` spec once timed out on desktop at its sidebar step. That is before any search-options interaction: the slideout trigger was focused but the list had not opened. It did not reproduce in 8 runs on the changed module or 8 on the baseline. Its root cause is unestablished.
+- [x] **Accounting.** The ledger adds the new spec: 1,571 files, 0 diagnostics in every program, and no explicit `any`.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `cce9619f`, and `checkpoint:validate` run on the final tree. Docs updated: `docs/regression-suite.md`, the generated inventory only.
+
 ## Version 0.33.33.45.3 - Manifest defaults and cohesive Time Tracking composition
 
 **Model: High Effort** - framework defaults for four values that all eight manifests declare identically, and a Time Tracking composition only where the thresholds prove it.
