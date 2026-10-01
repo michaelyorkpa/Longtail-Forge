@@ -1,5 +1,60 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.47.3 - The cycle ratchet's single composition-edge exception
+
+**Model: High Effort** - a lasting gate's measurement basis changed; the one exception had to be exact, independently pinned, and impossible to widen by editing the baseline.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.47.3-cycle-composition-exception` from `nightly` `2c28674c`; planning `21c1e684`, implementation `f65bc622`.
+  - **Authority.** The operator's D2 ruling of 2026-10-01. Tooling only.
+  - **Unchanged.** Runtime imports, registry validation, module activation and startup order.
+  - **Not taken.** Option A (breaking the cycle in code) and option C (deferring the scaffold).
+- [x] **The defect it corrects.** `0.33.33.47.1` measured through the composition edge `registry.js -> bundled-module-catalog.generated.js`, so every registered module's dependencies were one 88-file component. Its carried finding understated the effect, which reached further than the first new module (an untouched scaffold module took the cycle from 88 to 91):
+  - **Existing modules.** The rule refused ordinary additions to existing modules. A new Tasks route file using `core/permissions.js` took the cycle from 88 to 89.
+  - **A blind spot.** It could not see a new import between files already inside the component. A framework hub importing Tasks routes reported no growth.
+- [x] **Two measurements, labelled apart.** The report, `--check` and `--update-baseline` print both.
+  - **The raw runtime dependency measurement:** the full first-party graph. It is reported and never enforced, so ordinary growth of its catalog-connected component is not an equality failure.
+  - **The enforcement measurement with the named exception:** the same graph without exactly that one static edge. The catalog file, its imports of modules, module directories, other registry edges and dynamic imports all stay.
+- [x] **The authority.** `AUTHORIZED_CYCLE_EXCEPTIONS` in `scripts/lib/dependency-cycles.mjs` is a frozen list of one exact source, target, kind and reason, pinned independently in the unit tests.
+  - **The baseline's shape.** The schema-2 baseline records exactly `exceptions` and `enforcement`, and unknown keys are refused.
+  - **What is refused.** A duplicate, additional, altered, malformed, missing or stale exception. Stale includes an exception whose edge no longer exists, and a dynamic import of the catalog does not keep it alive.
+  - **No silent discard.** Both commands refuse such a baseline and write nothing, so neither silently discards an invalid exception or authorizes another.
+- [x] **Preserved,** over the remaining components: the static and static-plus-dynamic checks, computed-import accounting, rename handling and shrink-only behavior.
+- [x] **The one reviewed baseline migration,** from schema 1 (raw) to schema 2. It was written once by an uncommitted script, which first asserted three things:
+  - the raw measurement still equals the recorded schema-1 baseline;
+  - the authorized exception is valid against the tree;
+  - every enforcement component lies inside a recorded raw component.
+
+  **What it recorded.** The sizes matched those expected.
+  - **Static cycles:** 23 files (Lists, Notes and Tasks), 8 (Clients/Projects with Time Tracking), and 2 (`audit.service.js` with `permissions.service.js`).
+  - **With dynamic imports:** 26, 9 and 6. The third adds `modules.service.js`, `workspaces.repo.js`, `security-events.js` and `private-feeds.service.js`.
+  - **Computed imports:** the 8 sites are unchanged.
+
+  The missing-baseline bootstrap was removed, so no force or reset path remains.
+- [x] **Proof.**
+  - **Unit:** 14 cases, 4 of them new:
+    - the independent pin;
+    - exactly-one-edge filtering: a dynamic import of the catalog, the catalog's imports and the registry's other edges all stay;
+    - on a catalog-shaped graph with the real paths, module growth admitted and a framework tangle refused, where the raw rule refused the one and missed the other;
+    - every exception refusal.
+  - **The real CLI, in disposable trees.** Each tree was extracted from `f65bc622`, with only the parser packages copied in. All 16 probes behaved as required:
+    - **The scaffold.** An untouched module from the `#861` scaffold at `f198985a`, overlaid read-only and catalogued by the normal generator, passes check and update with the baseline byte-identical. The raw measurement grows to 91 and 96.
+    - **A new route file.** A new Tasks route file using the permissions boundary passes; the raw measurement grows to 89.
+    - **The hub-to-Tasks import** is refused by both commands. It forms a 46-file component that merges two recorded cycles (49 with dynamic imports).
+    - **Growth** is refused by both commands: a new cycle, a file joining the audit/permissions component, a merge of two remaining components, and a new computed import.
+    - **Bad exceptions** are refused by both commands: an extra exception naming a real edge, a stale one (its import removed, or made dynamic), a duplicate, and a malformed one.
+    - **A missing baseline** is refused by both, and nothing recreates it.
+    - **Renames.** An undeclared rename is refused, and a declared one is recorded.
+    - **Shrinking.** A disappearing cycle must be recorded, and then matches.
+
+    Every refused update left the baseline byte-identical. The trees were removed, and the checkout was untouched.
+- [x] **Scope, stated.** The gate remains a no-growth policy over cyclic components. It does not prove that every undesirable import inside an already permitted component is detected. No architecture-lint project was started.
+- [x] **Bookkeeping.**
+  - **Findings.** `.47.1`'s carried finding is closed as a tooling-policy defect, and the retained runtime cycle is now its own carried finding.
+  - **`.48`.** Its obligations record how the gate's two measurements, the exception and its scope are to be documented.
+  - **`.46`.** This checkpoint does not certify it. The complete scaffold acceptance repeats on the corrected combined tree at its integration.
+- [x] **Accounting.** No file added or removed: 1,574 files, 0 diagnostics in every program, and no explicit `any`.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `2c28674c`, and `checkpoint:validate`, both on the final tree. No docs change needed: durable cycle-gate documentation is a recorded `0.33.33.48` obligation.
+
 ## Version 0.33.33.47.1 - Dependency-cycle measurement and its no-growth ratchet
 
 **Model: High Effort** - a new lasting gate over the import graph: the baseline had to be honest, and the ratchet had to refuse growth without freezing legitimate change.

@@ -163,19 +163,16 @@ Any further path needs a recorded assignment first.
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
 | `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Both complete.** `0.33.33.44` closed at `0.33.33.44.47`. `0.33.33.38` closed when the operator's 2026-10-01 ruling settled its last criterion; it is recorded in the parent and carried in the `0.33.33.45.1` bookkeeping. |
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
-| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is released**, with its path ownership recorded in the file-ownership section above, under the operator's 2026-10-01 ruling. Its first READY head was held at review, and Codex corrects it under the operator's 2026-10-01 D1 amendment. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. `.47.3` corrects the cycle ratchet under the operator's D2 ruling, and runs while Codex corrects `.46`. `.46` integrates only once both are ready. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is released**, with its path ownership recorded in the file-ownership section above, under the operator's 2026-10-01 ruling. Its first READY head was held at review, and Codex corrects it under the operator's 2026-10-01 D1 amendment. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. `.46` integrates once its corrected head passes the complete scaffold acceptance on the combined tree. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
-- **The first new module will be refused by the dependency-cycle ratchet** - measured by `0.33.33.47.1`. **This understated the effect; `0.33.33.47.3` corrects it under the operator's 2026-10-01 D2 ruling.**
-  - **Why.** The bundled catalog imports every `module.js`. Module code reaches back to the catalog through framework hubs: `core/permissions.js`, `core/audit.js`, `core/modules/module-access.js` and `middleware/require-api-key.js` all lead through `modules.service.js -> registry.js`. A standard module therefore joins the catalog cycle, and "no cycle gaining a file" refuses it.
-  - **What is affected.** Not only the first new module, as first recorded.
-    - **Existing modules.** The old rule also refuses ordinary additions to existing modules. A new Tasks route file that uses `core/permissions.js` was measured taking the cycle from 88 to 89 files.
-    - **A blind spot.** The rule is blind to a new import between two files already inside the 88-file component. A framework hub importing Tasks routes directly reported no growth.
-    - **The scaffold.** An untouched module from the `0.33.33.46` scaffold was measured taking the cycle from 88 to 91.
-  - **The decision.** The operator approved one exception on 2026-10-01, for the existing static edge `registry.js -> bundled-module-catalog.generated.js`. It is excluded from the enforcement measurement only, and the raw measurement stays reported. Breaking the cycle at runtime (option A) and deferring the scaffold (option C) were not taken.
-  - **What stays open.** This tooling-policy defect closes when `.47.3`'s correction is proved. The runtime cycle itself is retained, not repaired, and stays documented separately.
+- **The runtime module-catalog cycle is retained, not repaired.** Measured by `0.33.33.47.1`, and kept by `0.33.33.47.3`.
+  - **What remains.** The raw runtime dependency measurement still shows one cycle of 88 files, or 93 with dynamic imports, through `registry.js -> bundled-module-catalog.generated.js`. A registered module's runtime code still sits in it.
+  - **How the ratchet treats it.** Under the operator's 2026-10-01 D2 ruling, `0.33.33.47.3` excludes that one edge from the enforcement measurement only. The ratchet governs the remaining components: 23, 8 and 2 files static, and 26, 9 and 6 with dynamic imports.
+  - **The tooling-policy defect is closed.** `.47.1`'s note understated the effect. The old rule refused ordinary additions to existing modules, not only the first new module, and it could not see a new import inside the 88-file component. `.47.3` proved the correction through the real CLI.
+  - **What was not done.** Breaking the cycle in code with a composition root was not taken, and is not scheduled.
 
   Owner: Claude.
 - **Three unchecked casts through `unknown` in `shared/view-search-options.js`** - found by the 2026-09-30 acceptance record. **Discharged by `0.33.33.48.1`, which corrected all three and kept none**, with real-browser, fixture and compiler proof. A source pin keeps casts through `unknown` out of that file. Carried no longer.
@@ -2840,7 +2837,7 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **No dependency-cycle measurement tool exists in the current tree**, and nothing in `0.33.33.33` adds one, so this checkpoint still owns building it. Every number it proposes is a hypothesis until that tool produces a baseline.
 
-- [x] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet. (`0.33.33.47.1`: the espree-based tool records one runtime cycle of 88 files, closed by `modules.service.js -> registry.js`. `audit:cycles:check` is a hard closeout gate that refuses growth.)
+- [x] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet. (`0.33.33.47.1`: the espree-based tool records one runtime cycle of 88 files, closed by `modules.service.js -> registry.js`. `audit:cycles:check` is a hard closeout gate that refuses growth. `0.33.33.47.3` corrected its measurement basis: the enforcement measurement leaves out only the one authorized composition edge, and the raw measurement stays reported.)
 - [ ] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count.
 - [ ] Target zero framework-file edits for standard module capabilities and strict-clean new module output, but label timing/locality expectations as hypotheses until measured.
 - [ ] Do not turn raw file or line counts into quality gates detached from dependency or behavior ownership.
@@ -2865,41 +2862,10 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.47.3 - The cycle ratchet's single composition-edge exception
 
-**Model: High Effort** - a lasting gate's measurement basis changes; the one exception must be exact, independently pinned, and impossible to widen by editing the baseline.
-
-**Authorized by the operator on 2026-10-01 (D2).** Tooling only, for exactly the existing **static** edge:
-- **Source:** `src/core/modules/registry.js`
-- **Target:** `src/core/modules/bundled-module-catalog.generated.js`
-- **Reason:** the framework's module-catalog composition link otherwise combines ordinary registered module dependencies into one large component, and prevents the intended module-growth workflow.
-
-Runtime imports, registry validation, module activation and startup order stay unchanged. Option A (breaking the cycle in code) and option C (deferring the scaffold) are not taken, and the registry is not redesigned.
-
-- [ ] **Two measurements, labelled distinctly.**
-  - **The raw runtime dependency measurement:** the full first-party import graph, including the authorized edge. It stays reported.
-  - **The enforcement measurement with the named exception:** the same graph with that one edge excluded, and nothing else.
-  - **Not excluded:** the generated catalog file, its imports of individual modules, whole module directories, other registry edges, and dynamic imports merely because their paths look similar.
-  - **No new equality failure.** Ordinary growth of the raw catalog-connected component does not fail. The filtered graph governs the policy.
-  - **No overclaim.** Nothing says the runtime cycle was removed.
-- [ ] **Exact policy.**
-  - **What is recorded.** The exception's source, target, edge kind and reason go into the baseline's policy representation.
-  - **What is refused.** Duplicate, additional, malformed, missing or stale exceptions. A stale exception includes one whose edge no longer exists. Neither `--check` nor `--update-baseline` may silently discard an invalid exception or authorize another.
-  - **An independent pin.** The tests pin the authorization independently, so a baseline edited to exempt another edge fails rather than becoming its own authority.
-- [ ] **Preserved, over the remaining cyclic components:** the static and static-plus-dynamic checks, computed-import accounting, rename handling, and the shrink-only behavior.
-- [ ] **The one reviewed baseline migration.**
-  - **What it records.** The actual members and counts. The expected sizes are 23, 8 and 2 static, and 26, 9 and 6 with dynamic imports; they are to be remeasured, not targeted.
-  - **What it leaves behind.** No general force or reset path that permits future growth or additional exceptions.
-- [ ] **Proof through the real CLI, in disposable trees,** with the graph unit tests as complementary proof:
-  - an untouched module from the actual `#861` scaffold passes. It is used read-only in a disposable overlay, with its exact head recorded;
-  - an ordinary new module or route file that uses the framework permissions boundary passes;
-  - the framework-hub-to-Tasks import is refused as filtered-cycle growth;
-  - new cycles, genuine joining or merging, and computed-import growth stay refused;
-  - extra and stale exceptions are refused;
-  - `--check` and `--update-baseline` both refuse unauthorized growth, and a refused update leaves the baseline byte-identical.
-- [ ] **The gate's scope, stated accurately.** It is a no-growth policy over cyclic components. It does not prove that every undesirable import inside an already permitted component is detected. This is not a repository-wide architecture-lint project.
-- [ ] **Bookkeeping.**
-  - **The understatement.** `.47.1`'s carried finding understated the effect: the old rule refused ordinary additions to existing modules, not only the first new module. This is recorded.
-  - **The defect closes once proved.** The tooling-policy defect closes once the correction is proved.
-  - **The runtime cycle.** The retained runtime cycle stays documented separately, because it was not repaired.
+**Complete: the single authorized exception, the two measurements, the one reviewed baseline migration, and the real-CLI proof.** See the archive entry.
+- **The raw runtime dependency measurement.** Reported, not enforced: one cycle of 88 files, or 93 with dynamic imports. It is retained, not removed.
+- **The enforcement measurement with the named exception.** The exception is the static edge `registry.js -> bundled-module-catalog.generated.js`. Without it, the cycles are 23, 8 and 2 files, or 26, 9 and 6 with dynamic imports.
+- **The scope.** A no-growth policy over cyclic components. It does not prove that every undesirable import inside an already permitted component is detected.
 
 ### 0.33.33.48 - Lean Core branch closeout
 
