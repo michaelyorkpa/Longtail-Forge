@@ -53,6 +53,7 @@
         "src/core/permissions.js",
         "src/core/permissions/framework-permission-catalog.js",
         "src/core/private-feeds/private-feed-providers.js",
+        "src/core/public-api-responses.js",
         "src/core/public-demo-budget-catalog.js",
         "src/core/public-demo-budgets.js",
         "src/core/public-demo-capabilities.js",
@@ -720,6 +721,7 @@
         "tests/unit/overlay-host-writer-contracts.test.mjs",
         "tests/unit/page-controller-status.test.mjs",
         "tests/unit/protocol-relative-url-guard.test.mjs",
+        "tests/unit/public-api-response-helpers.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
         "tests/unit/public-demo-ingress-carry-through.test.mjs",
@@ -1590,7 +1592,7 @@
     }
   },
   "totals": {
-    "files": 1562,
+    "files": 1564,
     "errors": 0,
     "explicitAny": 0
   },

@@ -2,6 +2,7 @@ import { clientsService } from "../modules/client-projects/clients.service.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
+import { pagePublicApiItems } from "../core/public-api-responses.js";
 import { AppError } from "../utils/app-error.js";
 
 /** @typedef {import("../types/http-contracts.js").ApiSession} PublicApiContext */
@@ -12,7 +13,7 @@ import { AppError } from "../utils/app-error.js";
 async function listClients(context, query) {
   await assertBusinessWorkspace(context);
   const { clients } = await clientsService.listClients(context, query);
-  return paged(clients.map((client) => withWorkspaceAlias(client, context)), query);
+  return pagePublicApiItems(clients.map((client) => withWorkspaceAlias(client, context)), query);
 }
 
 /** @param {PublicApiContext} context @param {string} clientId */
@@ -72,7 +73,7 @@ async function assertBusinessWorkspace(context) {
 /** @param {PublicApiContext} context @param {PublicApiQuery} query */
 async function listProjects(context, query) {
   const { projects } = await clientsService.listProjects(context, query);
-  return paged(projects.map((project) => withWorkspaceAlias(project, context)), query);
+  return pagePublicApiItems(projects.map((project) => withWorkspaceAlias(project, context)), query);
 }
 
 /** @param {PublicApiContext} context @param {string} projectId */
@@ -138,33 +139,6 @@ function withWorkspaceAlias(record, context) {
       ? source.projects.map((project) => withWorkspaceAlias(project, context))
       : source.projects,
   });
-}
-
-/** @template Item @param {Item[]} items @param {PublicApiQuery} query */
-function paged(items, query) {
-  const limit = clampInteger(query.limit, 1, 100, 50);
-  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
-
-  return {
-    data: items.slice(offset, offset + limit),
-    pagination: {
-      limit,
-      offset,
-      total: items.length,
-      has_more: offset + limit < items.length,
-    },
-  };
-}
-
-/** @param {unknown} value @param {number} min @param {number} max @param {number} fallback */
-function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-
-  return Math.min(Math.max(parsed, min), max);
 }
 
 export const publicApiService = {

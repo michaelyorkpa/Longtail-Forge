@@ -1,0 +1,50 @@
+{
+  "base": "aeeae78ca762337fdc5a732878e693e2e0e255e0",
+  "helpers": {
+    "src/routes/public-api.routes.js": {
+      "publicApiData": "function publicApiData(data, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data,\n  };\n}",
+      "publicApiList": "function publicApiList(result, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data: result.data,\n    pagination: result.pagination,\n  };\n}"
+    },
+    "src/modules/lists/public-api.routes.js": {
+      "publicApiData": "function publicApiData(data, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data,\n  };\n}",
+      "publicApiList": "function publicApiList(result, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data: result.data,\n    pagination: result.pagination,\n  };\n}"
+    },
+    "src/modules/notes/public-api.routes.js": {
+      "publicApiData": "function publicApiData(data, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data,\n  };\n}",
+      "publicApiList": "function publicApiList(result, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data: result.data,\n    pagination: result.pagination,\n  };\n}"
+    },
+    "src/modules/tasks/public-api.routes.js": {
+      "publicApiData": "function publicApiData(data, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data,\n  };\n}",
+      "publicApiList": "function publicApiList(result, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data: result.data,\n    pagination: result.pagination,\n  };\n}"
+    },
+    "src/modules/time-tracking/public-api.routes.js": {
+      "publicApiData": "function publicApiData(data, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data,\n  };\n}",
+      "publicApiList": "function publicApiList(result, context) {\n  return {\n    apiVersion: \"v1\",\n    workspace_id: context.workspace_id,\n    data: result.data,\n    pagination: result.pagination,\n  };\n}"
+    },
+    "src/services/public-api.service.js": {
+      "withWorkspaceAlias": "function withWorkspaceAlias(record, context) {\n  if (!record || typeof record !== \"object\") {\n    return /** @type {RecordValue extends object ? RecordValue & { workspace_id: unknown, projects?: unknown } : RecordValue} */ (record);\n  }\n\n  const source = /** @type {Record<string, unknown>} */ (record);\n  const workspaceId = source.workspace_id || context.workspace_id;\n\n  return /** @type {RecordValue extends object ? RecordValue & { workspace_id: unknown, projects?: unknown } : RecordValue} */ ({\n    ...source,\n    workspace_id: workspaceId,\n    projects: Array.isArray(source.projects)\n      ? source.projects.map((project) => withWorkspaceAlias(project, context))\n      : source.projects,\n  });\n}",
+      "paged": "function paged(items, query) {\n  const limit = clampInteger(query.limit, 1, 100, 50);\n  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);\n\n  return {\n    data: items.slice(offset, offset + limit),\n    pagination: {\n      limit,\n      offset,\n      total: items.length,\n      has_more: offset + limit < items.length,\n    },\n  };\n}",
+      "clampInteger": "function clampInteger(value, min, max, fallback) {\n  const parsed = Number.parseInt(String(value ?? \"\"), 10);\n\n  if (!Number.isFinite(parsed)) {\n    return fallback;\n  }\n\n  return Math.min(Math.max(parsed, min), max);\n}"
+    },
+    "src/modules/lists/public-api.service.js": {
+      "withWorkspaceAlias": "function withWorkspaceAlias(record, context) {\n  if (!record || typeof record !== \"object\") {\n    return record;\n  }\n\n  return {\n    ...record,\n    workspace_id: record.workspace_id || context.workspace_id,\n  };\n}",
+      "paged": "function paged(items, query) {\n  const limit = clampInteger(query.limit, 1, 100, 50);\n  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);\n\n  return {\n    data: items.slice(offset, offset + limit),\n    pagination: {\n      limit,\n      offset,\n      total: items.length,\n      has_more: offset + limit < items.length,\n    },\n  };\n}",
+      "clampInteger": "function clampInteger(value, min, max, fallback) {\n  const parsed = Number.parseInt(String(value), 10);\n\n  if (!Number.isFinite(parsed)) {\n    return fallback;\n  }\n\n  return Math.min(Math.max(parsed, min), max);\n}"
+    },
+    "src/modules/notes/public-api.service.js": {
+      "withWorkspaceAlias": "function withWorkspaceAlias(record, context) {\n  if (!record || typeof record !== \"object\") {\n    return record;\n  }\n\n  return {\n    ...record,\n    workspace_id: record.workspace_id || context.workspace_id,\n  };\n}",
+      "paged": "function paged(items, query) {\n  const limit = clampInteger(query.limit, 1, 100, 50);\n  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);\n\n  return {\n    data: items.slice(offset, offset + limit),\n    pagination: {\n      limit,\n      offset,\n      total: items.length,\n      has_more: offset + limit < items.length,\n    },\n  };\n}",
+      "clampInteger": "function clampInteger(value, min, max, fallback) {\n  const parsed = Number.parseInt(String(value), 10);\n\n  if (!Number.isFinite(parsed)) {\n    return fallback;\n  }\n\n  return Math.min(Math.max(parsed, min), max);\n}"
+    },
+    "src/modules/tasks/public-api.service.js": {
+      "withWorkspaceAlias": "function withWorkspaceAlias(record, context) {\n  const workspaceId = Reflect.get(record, \"workspace_id\") || context.workspace_id;\n\n  return {\n    ...record,\n    workspace_id: workspaceId,\n  };\n}",
+      "paged": "function paged(items, query) {\n  const limit = clampInteger(query.limit, 1, 100, 50);\n  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);\n\n  return {\n    data: items.slice(offset, offset + limit),\n    pagination: {\n      limit,\n      offset,\n      total: items.length,\n      has_more: offset + limit < items.length,\n    },\n  };\n}",
+      "clampInteger": "function clampInteger(value, min, max, fallback) {\n  const parsed = Number.parseInt(String(value ?? \"\"), 10);\n\n  if (!Number.isFinite(parsed)) {\n    return fallback;\n  }\n\n  return Math.min(Math.max(parsed, min), max);\n}"
+    },
+    "src/modules/time-tracking/public-api.service.js": {
+      "withWorkspaceAlias": "function withWorkspaceAlias(record, context) {\n  if (!record || typeof record !== \"object\") {\n    return record;\n  }\n\n  return {\n    ...record,\n    workspace_id: record.workspace_id || context.workspace_id,\n  };\n}",
+      "paged": "function paged(items, query) {\n  const limit = clampInteger(query.limit, 1, 100, 50);\n  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);\n\n  return {\n    data: items.slice(offset, offset + limit),\n    pagination: {\n      limit,\n      offset,\n      total: items.length,\n      has_more: offset + limit < items.length,\n    },\n  };\n}",
+      "clampInteger": "function clampInteger(value, min, max, fallback) {\n  const parsed = Number.parseInt(String(value ?? \"\"), 10);\n\n  if (!Number.isFinite(parsed)) {\n    return fallback;\n  }\n\n  return Math.min(Math.max(parsed, min), max);\n}"
+    }
+  }
+}

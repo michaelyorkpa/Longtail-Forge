@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireApiKey } from "../../middleware/require-api-key.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";
+import { publicApiData, publicApiList } from "../../core/public-api-responses.js";
 import { timeTrackingPublicApiService } from "./public-api.service.js";
 
 const timeTrackingPublicApiRoutes = Router();
@@ -19,25 +20,6 @@ timeTrackingPublicApiRoutes.post("/api/v1/time-entries", requireApiKey("time_ent
 /** @param {Express.Request} request @returns {import("../../types/time-tracking-contracts.d.ts").PublicApiContext} */
 function readPublicApiContext(request) {
   return /** @type {import("../../types/time-tracking-contracts.d.ts").PublicApiContext} */ (request.apiSession);
-}
-
-/** @param {unknown} data @param {import("../../types/time-tracking-contracts.d.ts").PublicApiContext} context */
-function publicApiData(data, context) {
-  return {
-    apiVersion: "v1",
-    workspace_id: context.workspace_id,
-    data,
-  };
-}
-
-/** @param {import("../../types/time-tracking-contracts.d.ts").PublicApiPage<unknown>} result @param {import("../../types/time-tracking-contracts.d.ts").PublicApiContext} context */
-function publicApiList(result, context) {
-  return {
-    apiVersion: "v1",
-    workspace_id: context.workspace_id,
-    data: result.data,
-    pagination: result.pagination,
-  };
 }
 
 export { timeTrackingPublicApiRoutes };
