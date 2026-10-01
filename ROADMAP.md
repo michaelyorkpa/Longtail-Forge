@@ -2810,16 +2810,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 ### 0.33.33.46 - Add the strict-clean module scaffold
 
-**Model: High Effort** - The generator defines the default architecture inherited by Support Tickets and future modules.
+**Model: High Effort** - The generator defines the default architecture inherited by future modules.
 
-**Codex implementation plan (2026-10-01).** Base `cce9619f0eee4377fc4ef7f7342ab167457a1660`, branch `agent/0.33.33-codex-module-scaffold-46`. Own only the generator/library, one npm script entry, scaffold tests, branch ledger and this handoff. Generate a minimal read-only empty repository/service seam with no fabricated records or workflow, one manifest entry, typed routes/search, protected view and IIFE controller, Help/docs and a regression-area home. Consume the shipped `.45` helpers and defaults; no runtime/framework changes. Validate IDs and refuse collisions before writing. A disposable root outside the tree receives a copied runtime and generated output; build/check its real catalog, compile all three repository configs, boot the real app, assert navigation/permissions/search/API behavior and clean up. Unit proof owns this fixture, so no new regression or coverage-file changes are planned. All current programs must stay zero. Commit plan, implementation and archive; then range-explicit verification and checkpoint validation before a draft PR.
-
-- [ ] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and regression-area home.
-- [ ] **The scaffold inherits whatever `0.33.33.45` actually extracts, not what it proposed.** Build the generator against the measured post-`.45` module shape.
-- [ ] Emit no empty-array padding, speculative concern composition, route DSL, framework edits, or Support Tickets feature behavior.
-- [ ] **Generated output must enter all three permanent-zero programs clean.** A scaffold that produces a diagnostic in the server, scripts, or browser program is not done, and its browser controller must already be IIFE-isolated to the `0.33.33.33` standard.
-- [ ] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
-- [ ] Require untouched scaffold output to pass the normal validation contract without a transpile step.
+- [ ] Implementation and focused proof complete; final gate held on an additional path assignment. `scripts/package-script-contracts.json` needs the exact `module:create` entry, and the coordination section requires its assignment before editing. See the archive for the twelve-file scaffold, real catalog/boot/permission/search proof, three-program fixture compilation and cleanup evidence. Base `cce9619f0eee4377fc4ef7f7342ab167457a1660`; planning `1f248e43`, implementation `94276fd8`. No Support Tickets behavior, shared runtime change or dependency change. Claude owns integration.
 
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
