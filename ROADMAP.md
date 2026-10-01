@@ -151,6 +151,11 @@ Any further path needs a recorded assignment first.
 
 **Amended 2026-10-01, by Claude under the delegated path-ownership authority, before the edit.** Codex also owns the single `"module:create": "node scripts/create-module.mjs"` entry in `scripts/package-script-contracts.json`. That file pins every `package.json` script's exact command (`release.validation-single-ownership`), so it is the mandatory counterpart of the `package.json` entry Codex already owns. No other entry in that file changes, and no other path is added.
 
+**`0.33.33.46.1` acceptance evidence, recorded 2026-10-01 before the path was added, under the operator's D3 ruling.** Claude owns the evidence-only path `tests/fixtures/module-adoption/`.
+- **What it holds.** The reviewed repository-adoption patch for a generated `adoption-sample` module, and that patch's exact baseline.
+- **What it is for.** It is evidence for the adopted-module full-gate acceptance, and is never applied to the shipping application.
+- **Why that module name.** The sample is `adoption-sample`, not `sample-records`, because the scaffold's own suite generates `sample-records` in its fixture. An adopted module of that name would collide with it.
+
 **Remaining release obligations, their owner, and what each genuinely waits on:**
 
 | Obligation | Owner | Genuine prerequisite or unresolved decision |
