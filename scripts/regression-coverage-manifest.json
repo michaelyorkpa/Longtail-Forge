@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19085,
+    "activeAssertionCount": 19086,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19921,
+    "effectiveAssertionCount": 19922,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -5332,11 +5332,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 510,
+      "assertionCount": 511,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program, every owned file is checked, and the typecheck gate holds all three programs at absolute zero.",
-      "entryPointAssertionCount": 510,
+      "entryPointAssertionCount": 511,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

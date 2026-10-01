@@ -297,10 +297,17 @@ assert.match(developerExamplePublicApiRouteSource, /apiKeyAsyncRoute\(async \(re
 // longer checked.** The gate now refuses any diagnostic any program reports, and every program still
 // owns, and its compiler still reads, its whole estate.
 for (const program of PROGRAMS) {
-  const owned = cleanState().programs[program.id];
+  const regained = cleanState();
+  const owned = regained.programs[program.id];
   const ownedFile = owned.files[0];
   if (!ownedFile) throw new Error(`The zero-gate proof requires at least one ${program.id} file.`);
   owned.diagnostics.push({ filePath: ownedFile, code: 7006, line: 1, column: 1, message: "synthetic" });
+  assert.throws(
+    () => enforceZero(regained),
+    (/** @type {unknown} */ error) => error instanceof Error
+      && error.message.split("\n").includes(`${program.id}: ${ownedFile}(1,1): TS7006: synthetic`),
+    `${program.id} must refuse a diagnostic in a file it owns, naming its location`,
+  );
 }
 const serverRegained = cleanState();
 serverRegained.programs["server-tests"].diagnostics.push({ filePath: "server.js", code: 7006, line: 1, column: 1, message: "synthetic" });
