@@ -17,7 +17,6 @@ export function scaffoldFiles(moduleId) {
     "routes": `${moduleRoot}/routes.js`, "public-api": `${moduleRoot}/public-api.routes.js`,
     "search": `${moduleRoot}/search-indexer.js`, "controller": `public/js/${moduleId}.js`,
     "view": `views/protected/${moduleId}.html`, "docs": `docs/modules/${moduleId}.md`,
-    "help": `help/modules/${moduleId}/overview.md`,
     "test": `tests/unit/${moduleId}-records.test.mjs`,
   };
   return { tokens, paths };
