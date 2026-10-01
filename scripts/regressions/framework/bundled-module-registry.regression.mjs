@@ -18,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
-import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 const { readText: read } = createProjectTextReader();
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -55,7 +55,7 @@ check("every bundled manifest is a checked ModuleManifest declaration", () => {
   for (const { directoryName } of listModuleEntries()) {
     const modulePath = `src/modules/${directoryName}/module.js`;
     const source = read(modulePath);
-    assert.deepEqual(strictCleanOwnerState(modulePath), { owned: true, diagnostics: 0 }, `${modulePath} must remain strict-clean in the checked program`);
+    assert.equal(owningProgram(modulePath), "server-tests", `${modulePath} must remain strict-clean in the checked program`);
     assert.match(
       source,
       /\/\*\* @type \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.ModuleManifest\} \*\//,

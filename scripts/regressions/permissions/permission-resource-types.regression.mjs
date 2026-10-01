@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 
 const [contractSource, resourceSource, permissionsServiceSource, auditRouteSource, searchRouteSource, searchIndexRouteSource] = await Promise.all([
   fs.readFile("src/types/http-contracts.d.ts", "utf8"),
@@ -29,10 +29,10 @@ assert.match(permissionResourceContract, /^  workspace_id: string;$/m);
 assert.doesNotMatch(permissionResourceContract, /workspace_id\?:|workspace_id: string \| null/);
 assert.doesNotMatch(permissionResourceContract, /\[key: string\]/);
 assert.doesNotMatch(activeApiKeyContract, /\[key: string\]/);
-assert.deepEqual(strictCleanOwnerState("src/core/permission-resource.js"), { owned: true, diagnostics: 0 });
+assert.equal(owningProgram("src/core/permission-resource.js"), "server-tests");
 assert.match(resourceSource, /function createWorkspacePermissionResource[\s\S]*?workspace_id: workspaceId/);
 assert.match(resourceSource, /function createScopedPermissionResource[\s\S]*?client_id:[\s\S]*?project_id:[\s\S]*?workspace_id: workspaceId/);
-assert.deepEqual(strictCleanOwnerState("src/services/permissions.service.js"), { owned: true, diagnostics: 0 });
+assert.equal(owningProgram("src/services/permissions.service.js"), "server-tests");
 assert.match(permissionsServiceSource, /@typedef \{import\("\.\.\/types\/http-contracts\.js"\)\.PermissionResource\} PermissionResource/);
 assert.match(permissionsServiceSource, /@param \{PermissionResource\} resource[\s\S]*?async function can/);
 assert.match(permissionsServiceSource, /const workspaceSession = \/\*\* @type \{WorkspaceRequestSession\} \*\//);

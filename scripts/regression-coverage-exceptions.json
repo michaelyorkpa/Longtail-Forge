@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 348,
-  "minimumAssertionCount": 19916,
+  "minimumAssertionCount": 19922,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -4106,7 +4106,7 @@
         "sourceAssertionCount": 13,
         "creditedAssertionReduction": 13,
         "ownerPaths": [
-          "scripts/typecheck-debt-ledger.json",
+          "scripts/typecheck-governance.mjs",
           "scripts/regressions/framework/full-strict-governance.regression.mjs"
         ]
       },
@@ -4787,7 +4787,6 @@
         "creditedAssertionReduction": 266,
         "ownerPaths": [
           "scripts/typecheck-governance.mjs",
-          "scripts/typecheck-debt-ledger.json",
           "scripts/regressions/framework/full-strict-governance.regression.mjs"
         ]
       },
@@ -4821,7 +4820,7 @@
         "sourceAssertionCount": 24,
         "creditedAssertionReduction": 24,
         "ownerPaths": [
-          "scripts/typecheck-debt-ledger.json",
+          "scripts/typecheck-governance.mjs",
           "scripts/regressions/framework/full-strict-governance.regression.mjs"
         ]
       },
@@ -4839,6 +4838,37 @@
     }
   ],
   "retiredAssertions": [
+    {
+      "sourceRegression": "framework.full-strict-governance",
+      "retiredInVersion": "0.33.33.48.2",
+      "retirementType": "dead-target",
+      "assertionCount": 22,
+      "rationale": "Twenty-two assertions proved the browser-diagnostic classifier, which sorted the browser program's strict diagnostics into families and checkpoint owner budgets so that debt could be scheduled. The browser program reached zero at 0.33.33.44.47, and 0.33.33.48.2 replaced the debt ledger with an absolute zero gate, so no diagnostic is left to classify and the classifier is deleted. Three assertions pinned its wiring into the governance run: the located-diagnostic hand-off, the classify call, and the classifier's refusal to spawn a compiler of its own. Nineteen exercised its fixtures: namespace identity, unresolved computed keys, the live-declaration family change, accessor-alias acceptance and its seven refusals, family and owner accounting, determinism, and the carried member-set refusal.",
+      "assertionDisposition": "No live behaviour lost coverage, because the target was measurement tooling and no longer exists. The zero gate in scripts/typecheck-governance.mjs refuses every diagnostic any program reports, naming its location. framework.full-strict-governance proves that refusal for each program, the single compiler spawn site, and the located-diagnostic parse, which is now also pinned against the gate's own pattern. It also proves the live declaredNamespaceMembers parser, which moved to scripts/test-support/browser-namespace-declarations.mjs for the declaration-coverage inventory, and it keeps the preservation fixtures of the shared namespace resolver the classifier called. release.developer-verification-throughput proves that every verify:slice plan runs the strict typecheck exactly once and that a failing gate fails the run.",
+      "retiredEvidence": [
+        "classifyBrowserDiagnostics(",
+        "classifierFixtureRoot",
+        "locatedDiagnostics",
+        "familyAt("
+      ],
+      "deadTargets": [
+        "scripts/test-support/browser-diagnostic-classification.mjs"
+      ],
+      "sourcePaths": [
+        "scripts/regressions/framework/full-strict-governance.regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "framework.full-strict-governance",
+        "release.developer-verification-throughput"
+      ],
+      "verificationPerformed": [
+        "npm run typecheck",
+        "node scripts/regressions/framework/full-strict-governance.regression.mjs",
+        "node scripts/regressions/release/developer-verification-throughput.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
     {
       "sourceRegression": "legacy.active.timers.repository.conversion",
       "retiredInVersion": "0.33.33.32.7.1",

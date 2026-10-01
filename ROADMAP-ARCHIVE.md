@@ -1,5 +1,62 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.48.2 - Retire the temporary typecheck ledger and its debt inventories
+
+**Model: High Effort** - the lasting typecheck gate changed form, so every guarantee the ledger carried had to survive explicitly, and the regression migration was large and mechanical.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.48.2-ledger-retirement` from `nightly` `0d78a613`; planning `04dbbf19`, implementation `940bc50a` and `a39f2bfb`.
+  - **Authority.** The operator's direction to proceed with `0.33.33.48` under its existing prerequisites. Tooling and regressions only; durable documentation of the gate belongs to the closeout.
+  - **Unchanged.** Every runtime file, every program's configuration and root set, and the full-strict compiler options.
+- [x] **The gate.** `npm run typecheck` no longer compares against recorded debt. Every program has been at zero since `0.33.33.44.47`, so it enforces zero directly. One run proves:
+  - **zero:** any diagnostic any program reports, and any explicit `any` in any file, is refused, naming its exact location. This includes a diagnostic in a file another program owns, or in a declaration a program reads;
+  - **the program universe:** every first-party JavaScript file is owned by exactly one program;
+  - **owned means checked:** each program's compiler, run with `--listFiles`, reads every file that program owns;
+  - **the suppression policy:** no `@ts-ignore` or `@ts-nocheck`, and `@ts-expect-error` only in the negative compile fixtures under `tests/typecheck/`;
+  - **the declaration probe:** every first-party declaration compiles clean on its own.
+
+  **Removed:** the write mode, the shrink-only validator, the reclassification machinery and the checkpoint stamp. **Refused:** any option, including the retired `--write`. The script fell from 616 lines to 397.
+- [x] **Deleted.** `scripts/typecheck-debt-ledger.json` (1,647 lines), the `typecheck:ledger:write` script with its contract pin, and the ledger-backed probe `scripts/test-support/typecheck-ledger.mjs`. The governance owner pins that all three stay deleted, and that no script reads the ledger again.
+- [x] **Ownership without the ledger.**
+  - **The rule.** `owningProgramId` in the gate names the owning program from the program definitions alone. It answers null for a path outside the first-party universe, or one no single program owns.
+  - **The probe.** `scripts/test-support/typecheck-ownership.mjs` replaces the ledger-backed probe.
+  - **The migration.** Its twelve importers migrated one-for-one. Each "owned with zero diagnostics" pin became an ownership pin, which fails if a file leaves its program; the ledger read it replaced could not. Diagnostics are not re-pinned per file, because the gate holds every owned file at zero.
+- [x] **The governance regression migrated one-for-one,** through a guarded script whose every replacement asserted its exact count:
+  - **62 per-file diagnostic pins** (56 scripts, 6 server/test) became ownership pins;
+  - **25 explicit-any pins** and **7 explicit-any key lists** read the live source policy;
+  - **12 group filters** assert program ownership;
+  - **the shrink-only and reclassification mutation proofs** became zero-gate proofs, through the gate's own `zeroGateErrors` and `enforceZero`;
+  - **the retirement-at-zero assertions** became refusal proofs. `enforceZero` refuses a diagnostic seeded in a file each program owns, and each program's location format is pinned, a global diagnostic included. The absolute gate supersedes them.
+
+  **A finding the migration surfaced.** Five mixed-list pins, at `0.33.33.25.3`, `.19`, `.21.2`, `.23` and `.24`, asserted "no ledger diagnostics" for `.d.ts` files. That was vacuously true, because the ledger never recorded declarations. Ownership exposed it: no program owns a declaration. Each pin now names what actually holds a declaration at zero, the declaration probe.
+- [x] **The browser-diagnostic classification is retired,** with its fixtures. It sorted the browser program's diagnostics into families and owner budgets so that debt could be scheduled. At a permanent zero there is nothing left to classify.
+  - **What stays.** `declaredNamespaceMembers` moved to `scripts/test-support/browser-namespace-declarations.mjs`, for the declaration-coverage inventory, a live namespace contract. The shared namespace resolver keeps its own preservation fixtures.
+  - **Also kept.** The single-spawn-site pin and the located-diagnostic parse. The parse is now also pinned against the gate's own pattern.
+- [x] **`verify:slice`.** The `strict-ledger` stage is now `strict-typecheck`. Every plan that runs still schedules it exactly once, and a failing gate still fails the run.
+- [x] **Coverage, a reviewed policy edit.**
+  - **The new kind.** Retired-assertion records could credit only historical planning pins. They gain `dead-target`, the vocabulary retired scripts already use "only when the protected target truly no longer exists". The record must name its deleted targets, and it fails if any of them returns, or if a record of another kind names targets. `release.regression-manifest-generation` proves all three refusals, and a mutation of each validator branch was caught.
+  - **The credit.** The classifier's 22 assertions are credited as one `dead-target` record: 3 wiring pins and 19 fixture pins. Its evidence is self-proving against the governance owner.
+  - **Re-pointed.** Three historical credited retirements, `database.repository-checked-passes`, `framework.typecheck-seams` and `framework.typecheck-honesty-inventory`, named the ledger as an owner path. They now name the gate.
+  - **The floor.** Effective coverage rose from 19,916 to 19,922: 2 new gate proofs (the parse pin and the per-program refusal) and 4 policy proofs. The floors were ratcheted up to match.
+- [x] **Proof: live mutation probes through the real `npm run typecheck`,** in a disposable full-history clone of `940bc50a` at `C:\Users\micha\ltfc`, outside the OS temp tree, with the checkout's `node_modules` junctioned in. All 12 runs behaved as required:
+  - **refused, each naming its location or reason:**
+    - a type error in `server.js`, in `public/js/navigation.js` and in `scripts/lib/dependency-cycles.mjs`, one in each program;
+    - an explicit `any` that compiles clean;
+    - an unowned `public/probe/ltf-probe.js`;
+    - a scripts file excluded from `tsconfig.scripts.json`;
+    - `@ts-ignore`;
+    - `@ts-expect-error` outside the fixtures;
+    - a broken first-party declaration;
+    - `--write`;
+  - **passed:** the unchanged tree, before and after.
+
+  Each mutation was restored and the tree proved clean. The clone was removed after its junction, and the checkout was untouched.
+- [x] **Review.** One migrated block seeded a diagnostic for each program and asserted nothing. `a39f2bfb` makes it assert the refusal, naming each location, and removing the seeded diagnostic is caught. Every other synthetic state in the owner is followed by an assertion.
+- [x] **Accounting.** 1,577 files (890 server/test, 86 browser, 601 scripts), 0 diagnostics, no explicit `any`, and 31 clean declarations. Two JavaScript files were added and two deleted, so the universe is unchanged.
+- [x] **Bookkeeping.**
+  - **Historical text.** The `.46.1` adoption baseline fixture and two historical routing replays still name the ledger path, as recorded history. None of them reads a file.
+  - **Carried to `.48`.** The scaffold's `docs.txt` template still says "Catalog or ledger regeneration". That sentence is corrected with the adoption-guide pointer, after the ownership amendment.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `0d78a613`, and `checkpoint:validate`, both on the final tree. Docs updated: the generated regression inventory in `docs/regression-suite.md`. Durable gate documentation is a recorded `0.33.33.48` obligation.
+
 ## Version 0.33.33.47.2 - Locality and scaffold measurements
 
 **Model: Medium Effort** - measurements recorded as hypotheses, not gates.

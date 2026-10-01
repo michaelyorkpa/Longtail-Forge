@@ -14,7 +14,7 @@ import { spawnSync } from "node:child_process";
 import { createChangedRegressionPlan } from "../../lib/changed-regression-runner.mjs";
 import { isApplicationVersionOnlyChange, suggestRegressionsForPaths } from "../../lib/regression-change-routing.mjs";
 import { createSliceVerificationPlan, executeSliceVerificationPlan, formatSliceVerificationSummary } from "../../lib/slice-verification-plan.mjs";
-import { validateShrinkOnly } from "../../typecheck-governance.mjs";
+import { enforceZero } from "../../typecheck-governance.mjs";
 import {
   CLOSEOUT_CHECKPOINT,
   TRAILER_NAMES,
@@ -49,13 +49,13 @@ for (const path of [
 const focused = createChangedRegressionPlan(["src/modules/tasks/tasks.service.js"]);
 const focusedSlice = createSliceVerificationPlan(focused);
 assert.equal(focusedSlice.stages.find(({ id }) => id === "fast-checks").included, false);
-assert.equal(focusedSlice.stages.find((item) => item.id === "strict-ledger").included, true, "focused routing must never skip the strict-ledger typecheck gate");
-assert.equal(focusedSlice.stages.find((item) => item.id === "strict-ledger").command, "npm run typecheck");
+assert.equal(focusedSlice.stages.find((item) => item.id === "strict-typecheck").included, true, "focused routing must never skip the strict typecheck gate");
+assert.equal(focusedSlice.stages.find((item) => item.id === "strict-typecheck").command, "npm run typecheck");
 assert.equal(focusedSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions:tasks");
 assert.equal(focusedSlice.permissionHarnessIncluded, false);
 const fullSlice = createSliceVerificationPlan(createChangedRegressionPlan(["src/db/schema/current.sql"]));
 assert.equal(fullSlice.stages.find(({ id }) => id === "fast-checks").included, true);
-assert.equal(fullSlice.stages.find((item) => item.id === "strict-ledger").included, false, "the full typecheck/unit/lint stage already runs the ledger gate once");
+assert.equal(fullSlice.stages.find((item) => item.id === "strict-typecheck").included, false, "the full typecheck/unit/lint stage already runs the strict typecheck gate once");
 assert.equal(fullSlice.stages.find(({ id }) => id === "regressions-1").command, "npm run test:regressions");
 assert.equal(fullSlice.permissionHarnessIncluded, true, "the discovered harness should run once inside every full registry");
 assert.equal(fullSlice.commands.filter((command) => command === "npm run test:regressions").length, 1);
@@ -65,43 +65,40 @@ assert.equal(permissionSlice.permissionHarnessIncluded, true);
 assert.deepEqual(permissionSlice.commands.filter((command) => /permission/.test(command)), [], "permission routing should reach the harness through the one full registry command");
 for (const narrowPaths of [["CHANGELOG.md"], ["src/modules/tasks/tasks.service.js"], ["src/db/schema/current.sql"]]) {
   const routedSlice = createSliceVerificationPlan(createChangedRegressionPlan(narrowPaths));
-  const ledgerCommands = routedSlice.commands.filter((command) => command === "npm run typecheck" || command === "npm run check:fast");
-  assert.equal(ledgerCommands.length, 1, `every routing outcome must schedule the strict ledger exactly once (${narrowPaths.join(", ")})`);
+  const typecheckCommands = routedSlice.commands.filter((command) => command === "npm run typecheck" || command === "npm run check:fast");
+  assert.equal(typecheckCommands.length, 1, `every routing outcome must schedule the strict typecheck exactly once (${narrowPaths.join(", ")})`);
 }
 // `0.33.33.25.11`: an empty selection is refused rather than run, so it schedules nothing - not even
-// the ledger - and never reports a pass.
+// the strict typecheck - and never reports a pass.
 const emptySlice = createSliceVerificationPlan(createChangedRegressionPlan([]));
 assert.equal(emptySlice.refused, true, "an empty selection is refused");
 assert.deepEqual(emptySlice.commands, [], "and schedules nothing");
-// The synthetic ledger is written here and read back three times. It is bound
-// as an object and cloned rather than round-tripped through JSON.parse, which
-// would answer `any` for a value this owner then mutates member by member.
+// The strict typecheck gate refuses any diagnostic, including one a new file arrives with. These
+// drive the gate itself with synthetic states, built as objects and cloned so this owner can
+// mutate them member by member without widening anything to `any`.
 /** @type {import("../../typecheck-governance.mjs").GovernanceState} */
-const syntheticLedger = {
-  schemaVersion: 1,
-  checkpoint: "0.33.33.18.1",
-  programs: { scripts: { config: "tsconfig.scripts.json", environment: "node", files: ["scripts/synthetic-owner.mjs"], errorCount: 1, diagnostics: { "scripts/synthetic-owner.mjs": [{ code: 7006, count: 1 }] } } },
-  totals: { files: 1, errors: 1, explicitAny: 0 },
+const syntheticZero = {
+  programs: { scripts: { config: "tsconfig.scripts.json", environment: "node", files: ["scripts/synthetic-owner.mjs"], diagnostics: [] } },
+  totals: { files: 1, errors: 0, explicitAny: 0 },
   explicitAnyByFile: {},
   expectedErrorDirectives: [],
   declarationProbe: { config: "tsconfig.declarations.json", firstPartyFiles: 0, errors: 0 },
 };
-const baselineLedgerState = structuredClone(syntheticLedger);
-const seededIncrease = structuredClone(syntheticLedger);
-seededIncrease.programs.scripts.diagnostics["scripts/synthetic-owner.mjs"][0].count = 2;
-assert.throws(() => validateShrinkOnly(baselineLedgerState, seededIncrease), /increased 1 -> 2/, "a seeded per-file ledger regression must fail the strict gate");
-const seededNewFile = structuredClone(syntheticLedger);
+const seededIncrease = structuredClone(syntheticZero);
+seededIncrease.programs.scripts.diagnostics.push({ filePath: "scripts/synthetic-owner.mjs", code: 7006, line: 1, column: 1, message: "synthetic" });
+assert.throws(() => enforceZero(seededIncrease), /scripts\/synthetic-owner\.mjs\(1,1\): TS7006/, "a seeded per-file diagnostic must fail the strict gate");
+const seededNewFile = structuredClone(syntheticZero);
 seededNewFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
-seededNewFile.programs.scripts.diagnostics["scripts/synthetic-new.mjs"] = [{ code: 2322, count: 1 }];
-assert.throws(() => validateShrinkOnly(baselineLedgerState, seededNewFile), /new file has 1 strict diagnostic/, "a seeded new file with diagnostics must fail the strict gate");
-const seededLedgerRun = executeSliceVerificationPlan(focusedSlice, {
+seededNewFile.programs.scripts.diagnostics.push({ filePath: "scripts/synthetic-new.mjs", code: 2322, line: 1, column: 1, message: "synthetic" });
+assert.throws(() => enforceZero(seededNewFile), /scripts\/synthetic-new\.mjs\(1,1\): TS2322/, "a seeded new file with diagnostics must fail the strict gate");
+const seededTypecheckRun = executeSliceVerificationPlan(focusedSlice, {
   contextSeconds: 0,
   runCommand: (/** @type {string} */ command) => ({ status: command === "npm run typecheck" ? 1 : 0 }),
 });
-assert.equal(seededLedgerRun.status, 1, "a failing strict-ledger gate must fail the focused slice run");
+assert.equal(seededTypecheckRun.status, 1, "a failing strict typecheck gate must fail the focused slice run");
 const executed = executeSliceVerificationPlan(focusedSlice, { contextSeconds: 0.25, runCommand: () => ({ status: 0 }) });
 const summary = formatSliceVerificationSummary(focusedSlice, executed);
-for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Strict-ledger typecheck", "Regression buckets", "Browser checks", "Packaging"]) {
+for (const label of ["Context/setup", "Closeout gates", "Typecheck/unit/lint", "Strict typecheck", "Regression buckets", "Browser checks", "Packaging"]) {
   assert.match(summary, new RegExp(label.replace("/", "\\/")), `${label} timing/status must stay visible`);
 }
 assert.match(summary, /\[SKIPPED\]/);

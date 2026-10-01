@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 // Run alone: the lifted suites read the temporarily changed Notes source.
 // The actual state initializer is executed, so its three initializer breaks are observable.
-// Type annotations are governed by the strict ledger, never counted as runtime mutations.
+// Type annotations are governed by the strict typecheck, never counted as runtime mutations.
 // Fixture limitation: fake HTMLElement and Element share one stand-in. The constructor-only
 // breaks are caught by narrow source-fact pins, backed by the rendered SVG case.
 // The first unit setup used replaceWith, which the fake does not implement; source inspection

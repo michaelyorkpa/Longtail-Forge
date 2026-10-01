@@ -16,7 +16,7 @@ import { runMutationCampaign } from "../../scripts/test-support/mutation-runner.
 // already maps both nullish values to a fresh empty object), and restoring a call site to
 // `option.value?.clientId` (which is the very equivalence the helper is named for). The second is
 // still not free - it reintroduces the diagnostic this checkpoint closed - but that is the
-// compiler's finding to report, not this suite's, and the typecheck ledger is where it lands.
+// compiler's finding to report, not this suite's, and the strict typecheck is where it lands.
 
 /** @type {[string, string, string][]} name, find, replace */
 const cases = [

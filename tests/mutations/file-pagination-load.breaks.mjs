@@ -13,7 +13,7 @@ import { runMutationCampaign } from "../../scripts/test-support/mutation-runner.
 //
 // **Dispositioned, not listed.** Re-narrowing the corrected members back to `string` is not a case:
 // it reintroduces the `TS2345` that surfaced the defect in the first place, so the compiler owns it
-// and the ledger is where it lands. Listing it would credit the suite for a compiler catch.
+// and the strict typecheck is where it lands. Listing it would credit the suite for a compiler catch.
 
 /** @type {[string, string, string][]} name, find, replace */
 const cases = [

@@ -362,6 +362,32 @@ assert.match(
   /still references retired evidence import assert from/,
   "a retired-assertion record must fail once its source reinstates the evidence it claims to have removed",
 );
+// A dead-target record also proves its target is gone. Restoring the target, omitting the
+// targets, or naming targets on a record of another kind each fail instead of keeping credit.
+const deadTargetIndex = policy.retiredAssertions.findIndex((/** @type {RetiredAssertionRecord} */ record) => record.retirementType === "dead-target");
+const planningPinIndex = policy.retiredAssertions.findIndex((/** @type {RetiredAssertionRecord} */ record) => record.retirementType === "historical-planning-pin");
+assert.ok(deadTargetIndex >= 0 && planningPinIndex >= 0, "the policy must carry both retired-assertion kinds these proofs exercise");
+const restoredTargetPolicy = clone(policy);
+restoredTargetPolicy.retiredAssertions[deadTargetIndex].deadTargets = ["scripts/typecheck-governance.mjs"];
+assert.match(
+  errorsFor(REGRESSION_ENTRIES, restoredTargetPolicy),
+  /dead target scripts\/typecheck-governance\.mjs still exists/,
+  "a dead-target record must fail once its target exists again",
+);
+const unnamedTargetPolicy = clone(policy);
+delete unnamedTargetPolicy.retiredAssertions[deadTargetIndex].deadTargets;
+assert.match(
+  errorsFor(REGRESSION_ENTRIES, unnamedTargetPolicy),
+  /dead-target retired assertions should name the deadTargets they proved/,
+  "a dead-target record must name the targets it claims are gone",
+);
+const misplacedTargetPolicy = clone(policy);
+misplacedTargetPolicy.retiredAssertions[planningPinIndex].deadTargets = ["scripts/missing-target.mjs"];
+assert.match(
+  errorsFor(REGRESSION_ENTRIES, misplacedTargetPolicy),
+  /only dead-target retired assertions name deadTargets/,
+  "a record of another kind must not borrow dead-target evidence",
+);
 const malformedRetiredAssertionPolicy = clone(policy);
 malformedRetiredAssertionPolicy.retiredAssertions.push({
   sourceRegression: "scripts/missing-source-regression.mjs",
@@ -377,7 +403,7 @@ for (const phrase of [
   "retiredInVersion",
   "rationale",
   "assertionDisposition",
-  "retirementType should be one of historical-planning-pin",
+  "retirementType should be one of historical-planning-pin, dead-target",
   "positive assertionCount",
   "should name an active source regression",
   "retained coverage owner release.missing-owner should be active",

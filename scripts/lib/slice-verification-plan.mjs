@@ -32,7 +32,7 @@ function createSliceVerificationPlan(changedRegressionPlan) {
     throw new TypeError("A changed-regression plan is required.");
   }
 
-  // An empty selection is refused rather than run (`0.33.33.25.11`). Closeout and the ledger alone
+  // An empty selection is refused rather than run (`0.33.33.25.11`). Closeout and the strict typecheck alone
   // used to report `Status: passed`, which a committed checkpoint without a base reached every time.
   if (changedRegressionPlan.mode === "empty") {
     const refusedStages = Object.freeze([
@@ -64,7 +64,7 @@ function createSliceVerificationPlan(changedRegressionPlan) {
     stage("context", "Context/setup", null, true, "changed paths and routing plan collected"),
     stage("closeout", "Closeout gates", CLOSEOUT_COMMAND, true),
     stage("fast-checks", "Typecheck/unit/lint", FAST_CHECK_COMMAND, fullCheckIncluded, "not required by focused routing"),
-    stage("strict-ledger", "Strict-ledger typecheck", TYPECHECK_COMMAND, !fullCheckIncluded, "covered by the full typecheck/unit/lint stage"),
+    stage("strict-typecheck", "Strict typecheck", TYPECHECK_COMMAND, !fullCheckIncluded, "covered by the full typecheck/unit/lint stage"),
     ...regressionCommands.map((command, index) => stage(`regressions-${index + 1}`, "Regression buckets", command, true)),
     ...(regressionCommands.length === 0 ? [stage("regressions", "Regression buckets", null, false, "no changed files selected")] : []),
     stage("browser", "Browser checks", null, false, "separate rendered gate"),

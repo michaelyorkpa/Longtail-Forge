@@ -11,7 +11,7 @@ import { runMutationCampaign } from "../../scripts/test-support/mutation-runner.
 //
 // **Dispositioned, not listed.** Typing `dataKey` or `datasetKey` as `unknown` is not a test case:
 // a computed key in a `Record<string, unknown>` fails to compile, so the compiler owns that one and
-// the ledger is where it would show up. Listing it here would credit the suite for a catch the
+// the strict typecheck is where it would show up. Listing it here would credit the suite for a catch the
 // compiler made.
 
 /** @type {[string, string, string][]} name, find, replace */

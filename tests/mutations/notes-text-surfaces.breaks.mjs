@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 // Run alone: each child lifts the temporarily mutated Notes source.
 // The real shared view builder executes; no fixture-generated option/label answer is asserted.
-// Type-only declarations have no runtime mutation credit; the strict ledger measures them.
+// Type-only declarations have no runtime mutation credit; the strict typecheck measures them.
 // The first optional-page-status mutant used an invalid optional-chain assignment.
 // node --check rejected it with no coverage credit; re-aimed as a valid early no-op guard.
 // No inert mutation has been withdrawn. The required-control timing test records actual

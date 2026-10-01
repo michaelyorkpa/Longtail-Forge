@@ -10,7 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import vm from "node:vm";
-import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 
 const [
   adapterSource,
@@ -24,15 +24,15 @@ const [
   fs.readFile("src/services/static.service.js", "utf8"),
 ]);
 
-assert.deepEqual(strictCleanOwnerState("src/services/app-shell.service.js"), { owned: true, diagnostics: 0 }, "the producing service must stay strict-clean in its checked program");
+assert.equal(owningProgram("src/services/app-shell.service.js"), "server-tests", "the producing service must stay strict-clean in its checked program");
 assert.match(
   serviceSource,
   /@returns \{Promise<AppShellBootstrap>\}[\s\S]*async function bootstrap/,
   "the producing service must stay typed against the shared envelope",
 );
-assert.deepEqual(
-  strictCleanOwnerState("public/js/navigation.js"),
-  { owned: true, diagnostics: 0 },
+assert.equal(
+  owningProgram("public/js/navigation.js"),
+  "browser",
   "the navigation runtime is whole-file checked by the browser program and must stay strict-clean there",
 );
 assert.match(

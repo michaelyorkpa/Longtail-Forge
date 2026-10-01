@@ -12,14 +12,14 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 
 const contractSource = await fs.readFile("src/types/database-contracts.d.ts", "utf8");
 const dialectSource = await fs.readFile("src/db/adapters/sqlite-dialect-seams.js", "utf8");
 const bindingSource = await fs.readFile("src/db/parameter-bindings.js", "utf8");
 
-assert.deepEqual(strictCleanOwnerState("src/db/adapters/sqlite-dialect-seams.js"), { owned: true, diagnostics: 0 });
-assert.deepEqual(strictCleanOwnerState("src/db/parameter-bindings.js"), { owned: true, diagnostics: 0 });
+assert.equal(owningProgram("src/db/adapters/sqlite-dialect-seams.js"), "server-tests");
+assert.equal(owningProgram("src/db/parameter-bindings.js"), "server-tests");
 assert.match(dialectSource, /@param \{DatabaseInsertConflictUpdateOptions\} options/);
 assert.match(dialectSource, /@param \{DatabaseRowIdOptions\} \[options\]/);
 assert.match(bindingSource, /@returns \{Map<string, NamedBindingEntry>\}/);

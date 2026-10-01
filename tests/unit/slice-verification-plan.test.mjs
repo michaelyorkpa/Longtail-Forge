@@ -40,8 +40,8 @@ describe("slice verification planning", () => {
     expect(plan.commands).not.toContain("npm run typecheck");
   });
 
-  it("enforces the strict ledger exactly once in every plan that runs", () => {
-    // `0.33.33.25.11`: an empty selection runs nothing at all, so it schedules no ledger either.
+  it("enforces the strict typecheck exactly once in every plan that runs", () => {
+    // `0.33.33.25.11`: an empty selection runs nothing at all, so it schedules no typecheck either.
     expect(planFor([]).commands).toEqual([]);
     for (const paths of [
       ["CHANGELOG.md"],
@@ -49,15 +49,15 @@ describe("slice verification planning", () => {
       ["src/core/shared-context.js"],
     ]) {
       const plan = planFor(paths);
-      const ledgerCommands = plan.commands.filter((command) => (
+      const typecheckCommands = plan.commands.filter((command) => (
         command === "npm run typecheck" || command === "npm run check:fast"
       ));
 
-      expect(ledgerCommands).toHaveLength(1);
+      expect(typecheckCommands).toHaveLength(1);
     }
   });
 
-  it("fails a focused slice when the unconditional strict-ledger gate fails", () => {
+  it("fails a focused slice when the unconditional strict typecheck gate fails", () => {
     const plan = planFor(["src/modules/tasks/tasks.service.js"]);
     /** @type {string[]} */
     const invocations = [];
@@ -114,7 +114,7 @@ describe("slice verification planning", () => {
   });
 
   it("refuses an empty change set rather than reporting a pass", () => {
-    // `0.33.33.25.11`: closeout and the ledger alone used to report `Status: passed`, which a
+    // `0.33.33.25.11`: closeout and the strict typecheck alone used to report `Status: passed`, which a
     // committed checkpoint without a base reached every time. Nothing runs and the run fails.
     const plan = planFor([]);
     /** @type {string[]} */

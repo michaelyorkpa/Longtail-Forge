@@ -175,7 +175,7 @@ describe("What the field grid's metadata is worth", () => {
 
 describe("The field-grid contract, as the compiler sees it", () => {
   /**
-   * A type-level probe. This file is checked by the same shrink-only ledger as production, so a
+   * A type-level probe. This file is checked by the same strict typecheck gate as production, so a
    * regression in either correction stops the checkpoint being recordable rather than merely
    * failing a case.
    */
