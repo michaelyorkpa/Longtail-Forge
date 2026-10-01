@@ -395,6 +395,10 @@ const closeoutCheckpoint = validateCheckpointCommit({
     summary: "Roll up the Lean Core branch release identity and durable evidence",
   }),
   paths: ["AGENTS.md", "CHANGELOG.md", "DECISIONS.md", "ROADMAP-ARCHIVE.md", "ROADMAP.md", "docs/versioning.md", "package-lock.json", "package.json"],
+  // `0.33.33.48`: the closeout's own section moves to the archive when it closes the branch, so its
+  // declaration comes from a synthetic archive fixture, as the cases above use, rather than from
+  // whichever roadmap file happens to hold it today.
+  roadmapArchiveSource: `## Version ${CLOSEOUT_CHECKPOINT} - Synthetic branch closeout fixture`,
   roadmapSource,
 });
 assert.deepEqual(closeoutCheckpoint.errors, [], "branch closeout may own the deferred release and documentation ceremony");
