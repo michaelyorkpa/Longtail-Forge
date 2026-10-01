@@ -124,7 +124,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Claude | `0.33.33.43.58` | `clients-projects.js` — the **Clients/Projects** module family, **complete at zero** at `0.33.33.43.58`. Claude integrates Codex's `lists.js` lane | 0 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Codex | `0.33.33.38.5` | **Complete at the `0.33.33.38.5` integration.** The server lifecycle vocabulary is closed to its five values, and the write normalizer proves membership | server 0 |
-| Codex | `0.33.33.46` | **Complete at the `0.33.33.46` integration.** The strict-clean module scaffold, with the D1 Vitest test home. Untouched output passed the complete scaffold acceptance on the combined tree. | new paths only |
+| Codex | `0.33.33.46`, `.46.1` | **Complete at the `0.33.33.46.1` integration.** The strict-clean module scaffold, with the D1 Vitest test home and the `.46.1` template corrections. Under the operator's D3 amendment, the generated module passes the full gate after reviewed repository adoption. The `.46` acceptance alone was incomplete. | new paths only |
 | Claude | `0.33.33.44.47` | **Complete.** The final permanent browser-zero proof: the browser section is retired at zero, and every owned file must be one its compiler checked | browser 0 |
 | Claude | `0.33.33.44` final proof | **Complete at `0.33.33.44.47`.** `0.33.33.44.1` opened the family; its owner sum first reached zero at `0.33.33.44.46`, and the permanent proof closed the parent. Its six criteria are ticked against their evidence in its section | 0 |
 
@@ -168,11 +168,18 @@ Any further path needs a recorded assignment first.
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
 | `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Both complete.** `0.33.33.44` closed at `0.33.33.44.47`. `0.33.33.38` closed when the operator's 2026-10-01 ruling settled its last criterion; it is recorded in the parent and carried in the `0.33.33.45.1` bookkeeping. |
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
-| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is complete** at its integration. Its first READY head was held at review, and Codex corrected it under the operator's 2026-10-01 D1 amendment. Untouched output passed the complete scaffold acceptance on the combined tree. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. `.47.2` is next, then `0.33.33.48`. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is complete at the `.46.1` integration.** Its first READY head was held at review and corrected under D1. The `.46` acceptance did not run the regression suite, and `.47.2`'s measurement found seven failures with the generated module present. Under the operator's D3 amendment:
+  - `.46.1` (Codex) corrected the two template defects;
+  - the integrator's adopted-module acceptance passed the full gate, 348/348. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. `.47.2` is next, then `0.33.33.48`. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
+- **The zero-framework-edit goal is not met for two module-adoption steps.** Measured by the `0.33.33.46.1` adopted-module acceptance.
+  - **Support View.** A new module's protected GET routes must be classified in the framework gate, `src/middleware/support-view-request-gate.js`.
+  - **Default grants.** They need a framework migration, the reviewed `current.sql` seed, and the pre-adoption baseline checksum kept in `src/db/migrations.js` so existing databases upgrade.
+  - **The rest of the reviewed adoption.** Three inventories pinned in regressions, and five regressions that pin the live migration inventory.
+  - **Status.** These are deliberate review points under the operator's D3 ruling, not defects. **Declarative Support View and default-grant adoption is recorded as a separate architecture improvement for 0.34 planning.** It is not implemented here, and it is not a `.48` blocker. Owner: Claude, for 0.34 planning.
 - **The runtime module-catalog cycle is retained, not repaired.** Measured by `0.33.33.47.1`, and kept by `0.33.33.47.3`.
   - **What remains.** The raw runtime dependency measurement still shows one cycle of 88 files, or 93 with dynamic imports, through `registry.js -> bundled-module-catalog.generated.js`. A registered module's runtime code still sits in it.
   - **How the ratchet treats it.** Under the operator's 2026-10-01 D2 ruling, `0.33.33.47.3` excludes that one edge from the enforcement measurement only. The ratchet governs the remaining components: 23, 8 and 2 files static, and 26, 9 and 6 with dynamic imports.
@@ -2818,19 +2825,30 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Model: High Effort** - The generator defines the default architecture inherited by future modules.
 
-**Complete at the `0.33.33.46` integration.** See the archive entry.
-- **What it generates.** `npm run module:create -- <module-id>` emits the twelve-file skeleton in the post-`.45` shape, including a collected, strict-clean Vitest unit-test home.
-- **How it was accepted.** Untouched output passed the complete scaffold acceptance on a disposable copy of the combined tree:
-  - catalog, compiler-program membership, the generated test, ledger and typecheck;
-  - closeout, including the `0.33.33.47.3` cycle gate;
-  - the retained boot and registration proof.
+**Complete at the `0.33.33.46.1` integration.** See both archive entries.
+- **What it generates.** `npm run module:create -- <module-id>` emits the eleven-file skeleton in the post-`.45` shape. That includes a collected, strict-clean Vitest unit-test home and a declared inline Help article. The original twelve files became eleven when `.46.1` removed the orphan Help Markdown output.
+- **The `.46` acceptance was incomplete.** Its four parts were:
+  - closeout;
+  - typechecking;
+  - a generated unit test;
+  - the boot proof.
+
+  None of these established a full regression pass with the generated module present. It is not described as successful under its original criterion.
+- **What `.47.2`'s measurement found.** Seven discovered regressions fail with untouched output present:
+  - **Two template defects:** an orphan Help Markdown article, and a view that does not load the shared icon helper.
+  - **Five repository inventories or registries:** the API scope inventory, the bundled-module inventory, the public-demo module count, the Support View route classification, and the default-grant baseline.
 
 - [x] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and a generated Vitest unit-test home (amended 2026-10-01; see below).
 - [x] **The scaffold inherits whatever `0.33.33.45` actually extracts, not what it proposed.** Build the generator against the measured post-`.45` module shape.
 - [x] Emit no empty-array padding, speculative concern composition, route DSL, framework edits, or Support Tickets feature behavior.
 - [x] **Generated output must enter all three permanent-zero programs clean.** A scaffold that produces a diagnostic in the server, scripts, or browser program is not done, and its browser controller must already be IIFE-isolated to the `0.33.33.33` standard.
 - [x] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
-- [x] Require untouched scaffold output to pass the normal validation contract without a transpile step.
+- [x] **(Amended by D3.)** The generator's emitted files require no repair. After the documented, explicitly reviewed repository-adoption changes, the generated module passes the full normal validation contract. Satisfied at the `0.33.33.46.1` integration.
+
+**Amended by the operator on 2026-10-01 (D3, Option 1).** The original criterion is replaced: "Require untouched scaffold output to pass the normal validation contract without a transpile step."
+- **Three things stay separate:** generator and template correctness (`.46.1`, Codex), reviewed repository adoption, and the final full-gate acceptance.
+- **Not taken:** Option 2, the security/framework redesign, is not taken during this closeout. Option 3, removing the scaffold's scopes, routes or default grants, is not taken either.
+- **The zero-framework-edit goal is not met** for Support View classification and default-grant installation. That outcome is recorded as a carried finding, and those files are not redefined as module-local.
 
 **Amended by the operator on 2026-10-01 (D1).** The "regression-area home" requirement is replaced. This is an explicit amendment to the acceptance criterion, not a claim that a Vitest file is a registered regression area.
 - **The new requirement:**
@@ -2845,7 +2863,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Model: Medium Effort** - Two specified template corrections with focused fixture proofs.
 
-- [ ] Template correction and focused proof complete; final committed-tree verification and protected integration pending. See the archive for both positive/negative checks, 11-file inline-Help output and D3 Option 1. Full adopted-module acceptance remains Claude-owned; the unadopted fixture does not establish it. Base `d65a82a2ef73502979f6f1602d88cb104c108920`; planning `e5d90f18`, implementation `c00a38d9`.
+**Complete at the `0.33.33.46.1` integration.** See the archive entry.
+- **What it corrected.** Codex fixed the two template defects. Help stays inline and declared, which takes the output to 11 files, and the shared icon helper loads after navigation. The generated guidance names the reviewed adoption categories.
+- **The acceptance.** The integrator's adopted-module acceptance passed the full gate on the combined tree, 348/348, after exactly the reviewed adoption in `tests/fixtures/module-adoption/`.
 
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
@@ -2912,6 +2932,19 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] **Record `0.33.33.25.11` in `docs/regression-suite.md` and correct the `0.33.33.25.6` paragraph**, which still says every `verify:slice` outcome "focused, full-check, and empty" runs the ledger; an empty selection is now refused. Deferred here because the checkpoint gate reserves durable documentation for this closeout.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
 - [ ] Record the regression entry-point disposition against the 250-300 review target: 347 as of `0.33.33.25.5`, unchanged at `0.33.33.32.28.1`, with the static reduction concentrated in contract-module re-parenting.
+- [ ] **Publish the durable module-adoption guidance** (D3, operator ruling 2026-10-01). It covers:
+  - the reviewed repository-adoption categories:
+    - the API scope inventory and `docs/public-api.md`;
+    - the bundled-module inventory and its reviewed hash;
+    - the public-demo inventory;
+    - the Support View classification, conservative for unimplemented reads;
+    - default grants, through a forward migration and the reviewed `current.sql` seed;
+  - the companions the `0.33.33.46.1` acceptance found, which the generated guidance does not yet name:
+    - the pre-adoption baseline checksum in `src/db/migrations.js`;
+    - the five regressions that pin the live migration inventory;
+    - `docs/database.md`;
+  - that `db:schema:refresh` writes only `current.generated.sql`;
+  - the evidence model: a reviewable adoption diff with its baseline, and a full-gate acceptance in a full-history clone outside the OS temp tree.
 - [ ] **Explain the real reviewed process for adding discovered tests**, per the operator's 2026-10-01 ruling:
   - using an appropriate existing canonical area where one fits;
   - when necessary, a new area's separate registration and review;
