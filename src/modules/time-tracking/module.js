@@ -7,6 +7,9 @@ import { registerTimeTrackingSearchIndexers } from "./search-indexers.js";
 import { timeTrackingSettingsService } from "./time-tracking-settings.service.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
 import { appVersion } from "../../core/version.js";
+import { timeTrackingPermissions } from "./module.permissions.js";
+import { timeTrackingEvents } from "./module.events.js";
+import { timeTrackingIntegrations } from "./module.integrations.js";
 
 function activateTimeTrackingAppRuntime() {
   registerTimeTrackingSearchIndexers();
@@ -42,10 +45,7 @@ const timeTrackingModule = {
   browserApiRoutes: [timeEntriesRoutes, timeTrackingDashboardRoutes, timeTrackingReportingRoutes],
   publicApiRoutes: [timeTrackingPublicApiRoutes],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     { label: "Time Keeping", href: "time-tracker.html", parent: "projects.html" },
     { label: "Time Entries", href: "time-entries.html", parent: "time-tracker.html" },
@@ -77,7 +77,6 @@ const timeTrackingModule = {
       allowDisabledRead: true,
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "stop-watch-script",
@@ -244,126 +243,15 @@ const timeTrackingModule = {
       browserAssetIds: ["time-tracking-reporting-script"],
     },
   ],
-  publicApiEndpoints: [
-    { method: "GET", path: "/api/v1/time-entries", scope: "time_entries:read", publicDemoCapability: "api_keys" },
-    { method: "POST", path: "/api/v1/time-entries", scope: "time_entries:write", publicDemoCapability: "api_keys" },
-  ],
-  requiredPermissions: [
-    "time_entries.create",
-    "time_entries.edit_own",
-    "time_entries.edit_all",
-  ],
-  permissions: [
-    {
-      id: "time_entries.create",
-      moduleId: "time-tracking",
-      label: "Create Time Entries",
-      description: "Create stopwatch and manual time entries.",
-      resource: "time_entries",
-      operation: "create",
-    },
-    {
-      id: "time_entries.edit_own",
-      moduleId: "time-tracking",
-      label: "Edit Own Time Entries",
-      description: "Edit or delete only the actor's own time entries in scope.",
-      resource: "time_entries",
-      operation: "update",
-    },
-    {
-      id: "time_entries.edit_all",
-      moduleId: "time-tracking",
-      label: "Edit All Time Entries",
-      description: "Edit or delete time entries in scope.",
-      resource: "time_entries",
-      operation: "update",
-    },
-  ],
-  defaultRolePermissions: [
-    { roleId: "super_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
-    { roleId: "workspace_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
-    { roleId: "client_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
-    { roleId: "project_admin", permissions: ["time_entries.create", "time_entries.edit_all"] },
-    { roleId: "client_user", permissions: ["time_entries.create", "time_entries.edit_own"] },
-    { roleId: "project_user", permissions: ["time_entries.create", "time_entries.edit_own"] },
-    { roleId: "client_external_user", permissions: ["time_entries.create", "time_entries.edit_own"] },
-  ],
-  resourceDefinitions: [
-    {
-      key: "time_entries",
-      moduleId: "time-tracking",
-      label: "Time Entries",
-      operations: ["read", "create", "update", "delete", "manage"],
-      requiredPermissions: ["time_entries.edit_all"],
-    },
-  ],
-  auditRecordTypes: [
-    {
-      recordType: "time_entry",
-      moduleId: "time-tracking",
-      label: "Time Entry",
-      description: "Tracked time records and time entry lifecycle audit history.",
-    },
-  ],
-  taggableTypes: [
-    {
-      targetType: "time_entry",
-      moduleId: "time-tracking",
-      label: "Time Entry",
-      description: "Tracked time records that can receive workspace tags.",
-      tableName: "time_entries",
-      idField: "entry_id",
-      labelField: "description",
-      workspaceField: "workspace_id",
-      clientField: "client_id",
-      projectField: "project_id",
-      requiredReadPermission: "reporting.view",
-      requiredTagPermission: "tags.assign",
-      requiredModules: ["time-tracking"],
-    },
-  ],
-  attachableTypes: [
-    {
-      targetType: "time_entry",
-      moduleId: "time-tracking",
-      label: "Time Entry",
-      description: "Tracked time records that can receive framework-managed file attachments.",
-      tableName: "time_entries",
-      idField: "entry_id",
-      labelField: "description",
-      workspaceField: "workspace_id",
-      clientField: "client_id",
-      projectField: "project_id",
-      requiredReadPermission: "reporting.view",
-      requiredAttachPermission: "files.upload",
-      requiredRemovePermission: "files.delete",
-      allowedFileCategories: ["document", "image", "pdf", "spreadsheet", "other"],
-      allowedVisibilityValues: ["private", "workspace", "client"],
-      lifecycleEvents: ["file.attachment.created", "file.attachment.context_updated", "file.attachment.removed"],
-      requiredModules: ["time-tracking"],
-    },
-  ],
-  searchableTypes: [
-    {
-      recordType: "time_entry",
-      moduleId: "time-tracking",
-      label: "Time Entry",
-      description: "Tracked time records searchable by description, project/client context, user, task link, dates, and tags.",
-      idField: "entry_id",
-      titleField: "search_title",
-      summaryField: "description",
-      bodyFields: ["body"],
-      workspaceField: "workspace_id",
-      clientField: "client_id",
-      projectField: "project_id",
-      requiredReadPermission: "reporting.view",
-      indexer: "time-tracking.time-entries",
-      requiredModules: ["time-tracking"],
-      tagsTextField: "tags_text",
-      recordStatusField: "search_status",
-      sourceLabel: "Time Entry",
-    },
-  ],
+  publicApiEndpoints: timeTrackingIntegrations.publicApiEndpoints,
+  requiredPermissions: timeTrackingPermissions.requiredPermissions,
+  permissions: timeTrackingPermissions.permissions,
+  defaultRolePermissions: timeTrackingPermissions.defaultRolePermissions,
+  resourceDefinitions: timeTrackingPermissions.resourceDefinitions,
+  auditRecordTypes: timeTrackingPermissions.auditRecordTypes,
+  taggableTypes: timeTrackingIntegrations.taggableTypes,
+  attachableTypes: timeTrackingIntegrations.attachableTypes,
+  searchableTypes: timeTrackingIntegrations.searchableTypes,
   help: {
     sections: [
       {
@@ -473,99 +361,12 @@ const timeTrackingModule = {
       visibleWhen: { settingId: "billingRoundingEnabled", equals: true },
     },
   ],
-  apiScopes: [
-    {
-      id: "time_entries:read",
-      publicDemoCapability: "api_keys",
-      moduleId: "time-tracking",
-      label: "Read Time Entries",
-      description: "Read time entries through the public API.",
-      access: "read",
-    },
-    {
-      id: "time_entries:write",
-      publicDemoCapability: "api_keys",
-      moduleId: "time-tracking",
-      label: "Write Time Entries",
-      description: "Create time entries through the public API.",
-      access: "write",
-    },
-  ],
-  eventTypes: [
-    {
-      event: "timer.started",
-      moduleId: "time-tracking",
-      label: "Timer Started",
-      description: "Emitted when an active work timer starts or resumes.",
-      recordType: "active_work_timer",
-    },
-    {
-      event: "timer.paused",
-      moduleId: "time-tracking",
-      label: "Timer Paused",
-      description: "Emitted when an active work timer is paused.",
-      recordType: "active_work_timer",
-    },
-    {
-      event: "timer.finalized",
-      moduleId: "time-tracking",
-      label: "Timer Finalized",
-      description: "Emitted when an active work timer is saved as a time entry.",
-      recordType: "active_work_timer",
-    },
-    {
-      event: "timer.discarded",
-      moduleId: "time-tracking",
-      label: "Timer Discarded",
-      description: "Emitted when an active work timer is removed without saving time.",
-      recordType: "active_work_timer",
-    },
-    {
-      event: "timer.still_running",
-      moduleId: "time-tracking",
-      label: "Timer Still Running",
-      description: "Reserved notification event for future long-running timer checks.",
-      recordType: "active_work_timer",
-    },
-  ],
-  eventSummaries: [
-    {
-      event: "timer.still_running",
-      moduleId: "time-tracking",
-      notification: {
-        title: "Timer Still Running",
-        body: "A timer is still running.",
-        url: "workbench.html",
-        recipientHints: ["actor"],
-      },
-    },
-  ],
-  notificationEvents: [
-    {
-      id: "timer.still_running",
-      moduleId: "time-tracking",
-      label: "Timer Still Running",
-      description: "Notifies a user when a timer appears to still be running.",
-      defaultEnabled: true,
-      defaultPriority: "high",
-      recipientMode: "actor",
-    },
-  ],
-  timerSources: [
-    {
-      sourceType: "manual",
-      moduleId: "time-tracking",
-      label: "Manual Timer",
-      listRoute: "/api/active-timers/all",
-      startRoute: "/api/active-timers/:timerSlot",
-      pauseRoute: "/api/active-timers/:timerSlot/pause",
-      finalizeRoute: "/api/active-timers/:timerSlot/finalize",
-      removeRoute: "/api/active-timers/:timerSlot",
-      requiredPermissions: ["time_entries.create"],
-      requiredModules: ["time-tracking"],
-    },
-  ],
-  workItemSources: [],
+  apiScopes: timeTrackingIntegrations.apiScopes,
+  eventTypes: timeTrackingEvents.eventTypes,
+  eventSummaries: timeTrackingEvents.eventSummaries,
+  notificationEvents: timeTrackingEvents.notificationEvents,
+  timerSources: timeTrackingIntegrations.timerSources,
+  workItemSources: timeTrackingIntegrations.workItemSources,
   frameworkDependencies: [
     "api-key-auth",
     "audit-service",

@@ -22,6 +22,8 @@ const reportingHost = readText("public/js/reporting.js");
 const reportingHtml = readText("views/protected/reporting.html");
 const stylesheet = readText("public/css/longtail-forge.css");
 const timeTrackingModule = readText("src/modules/time-tracking/module.js");
+const timeTrackingIntegrations = readText("src/modules/time-tracking/module.integrations.js");
+const timeTrackingPermissions = readText("src/modules/time-tracking/module.permissions.js");
 const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const moduleContract = readText("docs/module-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
@@ -35,14 +37,19 @@ assert.match(manifestContract, /listFrameworkPermissionIds\(\)/, "Manifest valid
 assert.match(modulesService, /listPermissionEntries\(\)[\s\S]*listFrameworkPermissionEntries\(\)[\s\S]*listModulePermissionEntries\(\)/);
 assert.match(modulesService, /ensurePermissionContracts\([\s\S]*listPermissionEntries\(\),[\s\S]*listRolePermissionDefaults\(\)/);
 
-const timeTrackingPermissionSection = between(timeTrackingModule, "requiredPermissions: [", "resourceDefinitions: [");
+// `0.33.33.45.3` moved the endpoint and permission declarations into concern files. This is the
+// same text the slice always read, in manifest order: module.js up to where it assigns the public
+// API endpoints, then the moved endpoint block, then the moved permission blocks.
+const timeTrackingPermissionSection = between(timeTrackingModule, "requiredPermissions: [", "  publicApiEndpoints: timeTrackingIntegrations.publicApiEndpoints,")
+  + between(timeTrackingIntegrations, "publicApiEndpoints: [", "taggableTypes: [")
+  + between(timeTrackingPermissions, "requiredPermissions: [", "resourceDefinitions: [");
 assert.doesNotMatch(
   timeTrackingPermissionSection,
   /id: "reporting\.view"|moduleId: "time-tracking"[\s\S]*key: "reporting"/,
   "Time Tracking must not own the framework Reporting permission or resource",
 );
 assert.doesNotMatch(
-  between(timeTrackingModule, "resourceDefinitions: [", "auditRecordTypes: ["),
+  between(timeTrackingPermissions, "resourceDefinitions: [", "auditRecordTypes: ["),
   /key: "reporting"/,
   "Time Tracking resource definitions must not retain framework Reporting ownership",
 );

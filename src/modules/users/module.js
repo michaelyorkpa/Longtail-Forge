@@ -35,10 +35,7 @@ const usersModule = {
   browserApiRoutes: [usersRoutes],
   publicApiRoutes: [],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     { label: "User Admin", href: "user-admin.html", parent: "settings.html" },
     {
@@ -66,7 +63,6 @@ const usersModule = {
       requiredWorkspaceCapabilities: ["team_members", "permissions", "family_permissions"],
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "role-assignments-script",

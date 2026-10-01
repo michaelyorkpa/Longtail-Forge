@@ -73,11 +73,8 @@ const tasksModule = {
   browserApiRoutes: [tasksRoutes],
   publicApiRoutes: [tasksPublicApiRoutes],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: null,
   hooks: tasksEvents.hooks,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     { label: "Tasks", href: "tasks.html", parent: "projects.html", counts: ["overdue", "dueSoon"] },
     { label: "Calendar", href: "calendar.html", parent: "tasks.html", requiredPermissions: ["tasks.view"] },
@@ -102,7 +99,6 @@ const tasksModule = {
       allowDisabledRead: true,
     },
   ],
-  publicViews: [],
   viewSurfaces: [
     {
       id: "tasks.workspace",

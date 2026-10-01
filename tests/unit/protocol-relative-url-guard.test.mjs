@@ -59,6 +59,8 @@ function producedUrlShapes() {
     "src/modules/tasks/task-recurrence.service.js",
     "src/modules/tasks/task-timers.service.js",
     "src/modules/time-tracking/module.js",
+    // `0.33.33.45.3` moved the event summaries, and their `url:` writer, into this concern.
+    "src/modules/time-tracking/module.events.js",
     "src/modules/users/module.js",
     "src/modules/developer-example/module.js",
   ];

@@ -185,7 +185,10 @@
         "src/modules/time-tracking/active-timers.repo.js",
         "src/modules/time-tracking/active-timers.service.js",
         "src/modules/time-tracking/index.js",
+        "src/modules/time-tracking/module.events.js",
+        "src/modules/time-tracking/module.integrations.js",
         "src/modules/time-tracking/module.js",
+        "src/modules/time-tracking/module.permissions.js",
         "src/modules/time-tracking/public-api.routes.js",
         "src/modules/time-tracking/public-api.service.js",
         "src/modules/time-tracking/report-runners.js",
@@ -664,6 +667,7 @@
         "tests/unit/modal-dialog-behaviour.test.mjs",
         "tests/unit/module-action-keys-contracts.test.mjs",
         "tests/unit/module-actions-registry.test.mjs",
+        "tests/unit/module-entry-defaults.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
         "tests/unit/module-settings-snapshot.test.mjs",
         "tests/unit/mutation-runner-contracts.test.mjs",
@@ -1594,7 +1598,7 @@
     }
   },
   "totals": {
-    "files": 1566,
+    "files": 1570,
     "errors": 0,
     "explicitAny": 0
   },

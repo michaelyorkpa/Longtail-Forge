@@ -22,7 +22,32 @@ const modulesDirectory = fileURLToPath(new URL("../../modules/", import.meta.url
  * @returns {Readonly<import("../../types/framework-contracts.js").ModuleEntry>}
  */
 function createModuleEntry(definition) {
-  return Object.freeze({ ...definition });
+  return Object.freeze({ ...definition, manifest: withManifestDefaults(definition.manifest) });
+}
+
+/**
+ * Supply the four manifest fields every bundled module declared identically, so a module may
+ * omit them. `0.33.33.45.3` measured all eight first-party manifests declaring exactly these
+ * values, and nothing else they share is defaulted.
+ *
+ * A default is used only when the manifest has no own property of that name. A supplied value is
+ * kept as given - valid or invalid, `undefined` included - so the manifest validator judges it
+ * exactly as before; nothing is sanitized here. Each constructed manifest gets fresh arrays, so no
+ * two modules share one.
+ *
+ * `browserAssetsDir` and `protectedViewsDir` are deliberately not defaulted. Each module names its
+ * own directories, and inferring them from this file's location would invent a repository-layout
+ * convention.
+ * @param {import("../../types/framework-contracts.js").ModuleManifest} manifest
+ * @returns {import("../../types/framework-contracts.js").ModuleManifest}
+ */
+function withManifestDefaults(manifest) {
+  const defaulted = { ...manifest };
+  if (!Object.hasOwn(defaulted, "publicViews")) defaulted.publicViews = [];
+  if (!Object.hasOwn(defaulted, "seedHooks")) defaulted.seedHooks = [];
+  if (!Object.hasOwn(defaulted, "repairHooks")) defaulted.repairHooks = [];
+  if (!Object.hasOwn(defaulted, "migrationsDir")) defaulted.migrationsDir = null;
+  return defaulted;
 }
 
 /**
