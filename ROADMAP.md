@@ -2855,6 +2855,24 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the concrete failures recorded across the `0.33.33.32` children.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
 
+#### 0.33.33.48.1 - The `view-search-options` casts
+
+**Model: High Effort** - three unchecked casts through `unknown` in a script injected into every rendered page; the disposition must hold in a real browser and under the shared fake DOM.
+
+**The bounded disposition the operator required before `0.33.33.48` acceptance** for the carried finding. The `0.33.33.38` retrospective acceptance does not cover these casts, and neither does `0.33.33.38.4.8.5`'s audited assertion.
+
+- [ ] **Correct all three rather than document them.**
+  - **The popup.** It is the `HTMLDivElement` that `document.createElement("div")` returns. Typing it so removes the cast that claimed it was an `OptionsPopup`, and the one that claimed it back as a `Node`.
+    - The Enter path narrows its match with `instanceof HTMLElement`. In this module's popup, that match can only be the module's own option button.
+    - The `if (!popup.style)` fallback is removed. It never runs: browsers always provide `style`, and under the fakes positioning returns before reaching it.
+  - **The control.** The detached-control cleanup narrows with `instanceof Node` instead of claiming the structural `FieldControl` is one. The narrowing comes after the existing check that `contains` exists, so the fake-DOM path is unchanged.
+- [ ] **The published contract and `FieldControl` are unchanged.** `BrowserViewSearchOptions` keeps `control: unknown`, and the module's structural control type stays, because the fake DOM still drives it. This child changes only the three casts and what they force.
+- [ ] **Behaviour.** Nothing changes for any control first-party code produces. The only difference is for controls no first-party code creates, and it is stated rather than hidden: a non-`Node` `EventTarget`, or a node from another realm, now skips cleanup instead of reaching `document.body.contains`.
+- [ ] **Proof.**
+  - A real-browser spec drives the published surface on Chromium nodes: render and positioning, Enter through the real `click()`, Escape, and cleanup with attached and detached controls. It passed on the unchanged module first, and is the before/after evidence.
+  - The shared fake-DOM suites still pass.
+  - A source pin keeps casts through `unknown` out of the file.
+
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
