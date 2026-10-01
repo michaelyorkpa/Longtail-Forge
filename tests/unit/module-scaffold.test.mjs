@@ -14,6 +14,14 @@ function run(cwd, args, env = {}) {
   assert.equal(result.status, 0, `${args.join(" ")}\n${result.stdout}\n${result.stderr}\n${result.error || ""}`);
   return result.stdout;
 }
+/** @param {string} root @param {string} script @param {RegExp} reason */
+function assertFixtureFailure(root, script, reason) {
+  const result = spawnSync(process.execPath, [script], { cwd: root, encoding: "utf8", timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
+  assert.equal(result.error, undefined);
+  assert.equal(result.signal, null);
+  assert.equal(result.status, 1);
+  assert.match(result.stdout + result.stderr, reason);
+}
 /** @param {string} root */
 async function cleanup(root) {
   assert.ok(path.dirname(root) === path.resolve(os.tmpdir()) && path.basename(root).startsWith("ltf-scaffold-"));
@@ -60,7 +68,7 @@ it("generates untouched strict-clean output, builds the real catalog, boots and 
     for (const name of await fs.readdir(repository)) if (name.endsWith(".md")) await fs.copyFile(path.join(repository, name), path.join(root, name));
     await fs.symlink(path.join(repository, "node_modules"), path.join(root, "node_modules"), process.platform === "win32" ? "junction" : "dir");
     const generated = run(repository, ["scripts/create-module.mjs", "sample-records", "--root", root]);
-    assert.match(generated, /Created sample-records \(12 files\)/);
+    assert.match(generated, /Created sample-records \(11 files\)/);
     const { paths } = scaffoldFiles("sample-records");
     const before = await Promise.all(Object.values(paths).map(async file => [file, await fs.readFile(path.join(root, file), "utf8")]));
     const manifest = await fs.readFile(path.join(root, paths.module), "utf8");
@@ -72,9 +80,38 @@ it("generates untouched strict-clean output, builds the real catalog, boots and 
     assert.match(controller, /\}\)\(\);\s*$/);
     assert.ok(paths.controller.endsWith(".js"));
     assert.ok(!Object.values(paths).some(file => /module\.[^.]+\.js$/.test(file)));
+    assert.equal(Object.keys(paths).length, 11);
+    assert.ok(Object.values(paths).every(file => !file.startsWith("help/")));
+    assert.match(manifest, /body: "This module has no records/);
+    const orphanDirectory = path.join(root, "help/modules/sample-records");
+    await assert.rejects(fs.stat(orphanDirectory), { code: "ENOENT" });
     const catalogScript = path.join(repository, "scripts/generate-bundled-module-catalog.mjs");
     run(root, [catalogScript], { LTF_MODULE_REGISTRY_ROOT: root });
     run(root, [catalogScript, "--check"], { LTF_MODULE_REGISTRY_ROOT: root });
+    const helpCheck = "scripts/help-markdown-source-layout-regression.mjs";
+    const viewCheck = "scripts/regressions/views/current-static-contracts.regression.mjs";
+    run(root, [helpCheck]);
+    run(root, [viewCheck]);
+    await fs.mkdir(orphanDirectory);
+    try {
+      await fs.writeFile(path.join(orphanDirectory, "overview.md"), orphanHelp);
+      assertFixtureFailure(root, helpCheck, /every Help Markdown article should be declared and reachable/);
+    } finally {
+      await fs.unlink(path.join(orphanDirectory, "overview.md"));
+      await fs.rmdir(orphanDirectory);
+    }
+    await assert.rejects(fs.stat(orphanDirectory), { code: "ENOENT" });
+    run(root, [helpCheck]);
+    const viewPath = path.join(root, paths.view);
+    const viewBytes = await fs.readFile(viewPath);
+    const viewText = viewBytes.toString("utf8");
+    assert.match(viewText, /navigation\.js"><\/script>\n  <script src="js\/shared\/icons\.js"><\/script>/);
+    try {
+      await fs.writeFile(viewPath, viewText.replace('  <script src="js/shared/icons.js"></script>\n', ""));
+      assertFixtureFailure(root, viewCheck, /sample-records\.html must load the shared icon helper/);
+    } finally { await fs.writeFile(viewPath, viewBytes); }
+    assert.deepEqual(await fs.readFile(viewPath), viewBytes, "Restore the icons mutation byte for byte");
+    run(root, [viewCheck]);
     assert.ok(Object.values(paths).every(file => !file.endsWith(".regression.mjs")));
     for (const { config, owned } of [{ config: "tsconfig.json", owned: [paths.module, paths.test] }, { config: "tsconfig.public.json", owned: [paths.controller] }, { config: "tsconfig.scripts.json", owned: [] }]) {
       const compilerFiles = run(root, [path.join(repository, "node_modules/typescript/bin/tsc"), "-p", config, "--pretty", "false", "--listFiles"]);
@@ -195,3 +232,6 @@ try {
 
 // Exact former output: retained only as the disposable negative admission fixture.
 const rejectedRegression = "import assert from \"node:assert/strict\";\nimport { recordsService } from \"../../../src/modules/sample-records/records.service.js\";\n\nexport const regressionMeta = Object.freeze({\n  id: \"sample-records.records\", area: \"sample-records\", tier: \"release-gate\", tags: [\"module\", \"records\"],\n  description: \"Checks the generated read-only repository and public paging seam.\", runMode: \"static\",\n});\n\nconst result = await recordsService.list({ workspace_id: \"scaffold-proof\" });\nassert.deepEqual(result.data, []);\nassert.equal(result.pagination.total, 0);\nassert.equal(result.pagination.has_more, false);\nconsole.log(\"Sample Records scaffold read contract passed.\");\n";
+
+// Former orphan output, used only in the disposable negative Help-layout proof.
+const orphanHelp = "# Sample Records\n\nThis is a read-only starting point. It has no records until its owning repository is implemented. No create or edit workflow is provided. Access requires the module's view permission; API access uses its read scope.\n";

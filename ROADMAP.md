@@ -2836,6 +2836,12 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Held at review, then corrected.** The first READY head, `d0c67e07`, generated a discovered regression that discovery refuses. Codex corrected the scaffold under D1 at `f198985a`.
 
+#### 0.33.33.46.1 - Correct scaffold templates and state reviewed adoption
+
+**Model: Medium Effort** - Two specified template corrections with focused fixture proofs.
+
+- [ ] Template correction and focused proof complete; final committed-tree verification and protected integration pending. See the archive for both positive/negative checks, 11-file inline-Help output and D3 Option 1. Full adopted-module acceptance remains Claude-owned; the unadopted fixture does not establish it. Base `d65a82a2ef73502979f6f1602d88cb104c108920`; planning `e5d90f18`, implementation `c00a38d9`.
+
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
 **Model: High Effort** - New architecture metrics become lasting gates and must distinguish useful signals from count theater.
