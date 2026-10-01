@@ -171,7 +171,7 @@ Any further path needs a recorded assignment first.
 | `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is complete** at the `.45.3` integration, through its three approved children. **`.46` (Codex) is complete at the `.46.1` integration.** Its first READY head was held at review and corrected under D1. The `.46` acceptance did not run the regression suite, and `.47.2`'s measurement found seven failures with the generated module present. Under the operator's D3 amendment:
   - `.46.1` (Codex) corrected the two template defects;
   - the integrator's adopted-module acceptance passed the full gate, 348/348. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. **`.47.3` is complete:** the cycle ratchet's single composition-edge exception, under the operator's D2 ruling. **`.47.2` is complete:** the locality and scaffold measurements, recorded as hypotheses. `0.33.33.48` is next. |
-| `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. **`.48.2` is complete:** the ledger machinery is retired behind an absolute zero gate that keeps the file-universe and owned-means-checked guarantees. The closeout, tagged `0.33.33.48`, completes the durable documentation, the planned final gates and the artifact identity proof. |
+| `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. **`.48.2` is complete:** the ledger machinery is retired behind an absolute zero gate that keeps the file-universe and owned-means-checked guarantees. **`.48.3` gives the Nightly full gate and the promotion fallback full history** at their exact SHAs, so the history-pinned unit tests can run there. The closeout, tagged `0.33.33.48`, completes the durable documentation, the planned final gates and the artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
 
@@ -2956,6 +2956,13 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 **Drawn as a tooling child and the closeout, on 2026-10-01.** The split follows the checkpoint validator: only a commit tagged exactly `0.33.33.48` may touch durable documentation, `CHANGELOG.md`, `DECISIONS.md` or the package version.
 - **`.48.2` takes the first three criteria above.** That is the ledger and the debt inventories it carried, in tooling and regressions only.
 - **The closeout itself, tagged `0.33.33.48`, takes everything else.**
+
+#### 0.33.33.48.3 - Give the Nightly and promotion test gates the history their tests read
+
+**Complete at merge: the two test gates read full history at their exact SHAs.** See the archive entry.
+- **Changed:** `fetch-depth: 0` in `nightly.yml` `integration-gate` and in `promotion.yml` `release-gate` only. Every other checkout, ref and policy is unchanged, and the full checkout inventory is pinned.
+- **Evidence before merge:** in fresh clones from GitHub, all 40 historical inputs resolve from durable `nightly`, and the integration gate's sequence passes.
+- **Pending at merge:** the push-triggered Nightly run for the merged SHA. The `0.33.33.48` closeout records it, with any downstream failure it exposes reported separately.
 
 #### 0.33.33.48.2 - Retire the temporary typecheck ledger and its debt inventories
 

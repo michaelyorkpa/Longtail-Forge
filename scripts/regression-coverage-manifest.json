@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19086,
+    "activeAssertionCount": 19093,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19922,
+    "effectiveAssertionCount": 19929,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -6542,11 +6542,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 60,
+      "assertionCount": 67,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
-      "entryPointAssertionCount": 60,
+      "entryPointAssertionCount": 67,
       "id": "release.github-release-operations",
       "legacy": false,
       "path": "scripts/regressions/release/github-release-operations.regression.mjs",
