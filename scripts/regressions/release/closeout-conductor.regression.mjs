@@ -41,12 +41,13 @@ const expectedScripts = [
   "modules:registry:check",
   "db:schema:check",
   "audit:params:check",
+  "audit:cycles:check",
   "docs:check",
   "licensing:gates",
 ];
 
 assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.script), expectedScripts);
-assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.hard), [true, true, true, true, true, true, false, false]);
+assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.hard), [true, true, true, true, true, true, true, false, false]);
 for (const script of expectedScripts) {
   assert.ok(requireScripts(packageJson)[script], `${script} should remain independently runnable`);
 }

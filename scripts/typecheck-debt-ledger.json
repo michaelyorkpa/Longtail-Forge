@@ -602,6 +602,7 @@
         "tests/unit/create-user-response-contracts.test.mjs",
         "tests/unit/dashboard-entry-bridge.test.mjs",
         "tests/unit/dashboard-panel-contracts.test.mjs",
+        "tests/unit/dependency-cycles.test.mjs",
         "tests/unit/developer-example-contracts.test.mjs",
         "tests/unit/fallback-object-acquisition-contracts.test.mjs",
         "tests/unit/file-attachment-list-contracts.test.mjs",
@@ -1005,6 +1006,7 @@
         "scripts/api-key-scope-audit-regression.mjs",
         "scripts/app-shell-navigation-regression.mjs",
         "scripts/async-recurrence-response-closeout-regression.mjs",
+        "scripts/audit-dependency-cycles.mjs",
         "scripts/audit-extensibility-regression.mjs",
         "scripts/audit-parameter-bindings.mjs",
         "scripts/background-work-jobs-regression.mjs",
@@ -1109,6 +1111,7 @@
         "scripts/lib/changed-regression-runner.mjs",
         "scripts/lib/closeout-gates.mjs",
         "scripts/lib/demo-data-operation.mjs",
+        "scripts/lib/dependency-cycles.mjs",
         "scripts/lib/development-data-safety.mjs",
         "scripts/lib/docs-change-routing.mjs",
         "scripts/lib/github-change-classification.mjs",
@@ -1599,7 +1602,7 @@
     }
   },
   "totals": {
-    "files": 1571,
+    "files": 1574,
     "errors": 0,
     "explicitAny": 0
   },

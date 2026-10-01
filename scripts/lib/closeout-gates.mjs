@@ -17,6 +17,7 @@ const CLOSEOUT_GATES = Object.freeze([
   gate("module-registry", "Bundled module catalog", "modules:registry:check", true),
   gate("database-schema", "Database schema", "db:schema:check", true),
   gate("parameter-binding", "Parameter binding", "audit:params:check", true),
+  gate("dependency-cycles", "Dependency cycles", "audit:cycles:check", true),
   gate("documentation", "Documentation ownership", "docs:check", false),
   gate("licensing", "Licensing readiness", "licensing:gates", false),
 ]);
