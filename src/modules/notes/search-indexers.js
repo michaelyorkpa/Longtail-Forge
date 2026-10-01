@@ -1,4 +1,5 @@
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
+import { indexSearchReference } from "../../core/search/record-indexer.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { notesRepository } from "./notes.repo.js";
 import { canExposeNoteToConsumer } from "./consumer-policy.js";
@@ -15,27 +16,12 @@ function registerNotesSearchIndexers() {
 }
 
 /** @param {SearchReference} reference */
-async function indexNoteRecord({ workspaceId, recordId }) {
-  if (!recordId) {
-    const notes = await notesRepository.list(workspaceId, { includeDeleted: false });
-    const documents = [];
-
-    for (const note of notes) {
-      const document = await noteToSearchDocument(note);
-      if (document) {
-        documents.push(document);
-      }
-    }
-
-    return { documents };
-  }
-
-  const note = await notesRepository.readById(workspaceId, recordId);
-  if (!note) {
-    return null;
-  }
-
-  return noteToSearchDocument(note);
+async function indexNoteRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: (workspaceId) => notesRepository.list(workspaceId, { includeDeleted: false }),
+    readOne: (workspaceId, recordId) => notesRepository.readById(workspaceId, recordId),
+    toDocument: noteToSearchDocument,
+  });
 }
 
 /** @param {NoteSearchSource} note */

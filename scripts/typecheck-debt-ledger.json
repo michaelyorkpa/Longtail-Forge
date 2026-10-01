@@ -70,6 +70,7 @@
         "src/core/search/adapters/registry.js",
         "src/core/search/adapters/sqlite-search-adapter.js",
         "src/core/search/indexer-registry.js",
+        "src/core/search/record-indexer.js",
         "src/core/search/tag-text.js",
         "src/core/security.js",
         "src/core/settings/framework-settings-registry.js",
@@ -730,6 +731,7 @@
         "tests/unit/quiet-tail-surface-contracts.test.mjs",
         "tests/unit/readiness-root-access-contracts.test.mjs",
         "tests/unit/ready-dialog-adapter-contracts.test.mjs",
+        "tests/unit/record-indexer-orchestration.test.mjs",
         "tests/unit/regression-source-measure.test.mjs",
         "tests/unit/remaining-page-control-narrowing.test.mjs",
         "tests/unit/reporting-filter-contracts.test.mjs",
@@ -1592,7 +1594,7 @@
     }
   },
   "totals": {
-    "files": 1564,
+    "files": 1566,
     "errors": 0,
     "explicitAny": 0
   },

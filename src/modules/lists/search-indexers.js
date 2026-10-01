@@ -1,4 +1,5 @@
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
+import { indexSearchReference } from "../../core/search/record-indexer.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { listsRepository } from "./lists.repo.js";
 
@@ -13,25 +14,26 @@ function registerListsSearchIndexers() {
 }
 
 /** @param {SearchReference} reference */
-async function indexListRecord({ workspaceId, recordId }) {
-  if (!recordId) {
-    const lists = await listsRepository.list(workspaceId, { includeDeleted: false });
-    const documents = [];
+async function indexListRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: (workspaceId) => listsRepository.list(workspaceId, { includeDeleted: false }),
+    readOne: readIndexableList,
+    toDocument: listToSearchDocument,
+  });
+}
 
-    for (const list of lists) {
-      documents.push(await listToSearchDocument(list));
-    }
-
-    return { documents };
-  }
-
+/**
+ * Lists indexes only a live list: a deleted one answers no record, and so has no document.
+ * @param {string} workspaceId @param {string} recordId
+ */
+async function readIndexableList(workspaceId, recordId) {
   const list = await listsRepository.readById(workspaceId, recordId);
 
   if (!list || list.status === "deleted") {
     return null;
   }
 
-  return listToSearchDocument(list);
+  return list;
 }
 
 /** @param {ListsRecord} list @returns {Promise<ListsSearchDocument>} */
