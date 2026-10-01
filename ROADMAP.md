@@ -2957,6 +2957,33 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - **`.48.2` takes the first three criteria above.** That is the ledger and the debt inventories it carried, in tooling and regressions only.
 - **The closeout itself, tagged `0.33.33.48`, takes everything else.**
 
+#### 0.33.33.48.3 - Give the Nightly and promotion test gates the history their tests read
+
+**Model: High Effort** - a CI checkout-policy change on two protected jobs. The exact-SHA, proof-reuse and artifact contracts must not move.
+
+**Authority.** The operator's 2026-10-01 ruling, Option A: change `fetch-depth` from 1 to 0 only in `nightly.yml` `jobs.integration-gate` and `promotion.yml` `jobs.release-gate`.
+- It repairs the history requirement of tests that have already shipped.
+- It does not revoke D3's restriction on checkout changes for the adoption experiment.
+- It does not adopt the fixture migration (Option B), and does not record it as mandatory future work.
+
+- [ ] **The defect.** Since 2026-09-25 (run 36135711754, `0.33.33.43.41`), the Nightly full gate has failed at `check:fast` on every push that changed code.
+  - **The cause.** 23 unit test files load committed baselines through `git show <sha>:<path>`, but the job checked out a single commit.
+  - **Why the PR gate never saw it.** It checks out full history.
+  - **What was lost.** The nightly regressions, audit, artifact and exact-SHA proof never ran for those commits, and promotion's fallback release gate would fail the same way.
+- [ ] **The change.** Exactly two `fetch-depth` values become `0`, each with a short comment naming the historical-baseline dependency.
+  - **The exact-SHA `ref:` expressions are unchanged:** Nightly's classify-selected revision, and promotion's pull-request head SHA.
+  - **Also unchanged:** pinned action versions, permissions, credentials, triggers, job conditions, proof-reuse rules, artifact identity, and every other checkout.
+- [ ] **Workflow contracts.** Both repaired checkouts are pinned together with their exact-SHA refs, and every other checkout is pinned to its existing depth. The change can then neither widen nor regress unnoticed.
+- [ ] **Clean-clone evidence,** in fresh clones from GitHub, not the local repository.
+  - Every historical input the tests read resolves under the proposed policy.
+  - The integration gate's own sequence passes.
+  - Any input reachable only from a temporary branch is named.
+
+  The promotion fallback's requirement is shown by its contract and by the equivalent clean checkout, never by a proof-reuse run.
+- [ ] **Post-merge proof.** The new push-triggered Nightly run for the merged SHA is checked job by job. A downstream failure the repair exposes is reported separately and does not count as restored.
+
+The durable documentation of the full-history requirement for the development and unit suite belongs to the `0.33.33.48` closeout. Runtime installation and the candidate artifact gain no history requirement.
+
 #### 0.33.33.48.2 - Retire the temporary typecheck ledger and its debt inventories
 
 **Complete: the ledger is retired behind an absolute zero gate.** See the archive entry.
