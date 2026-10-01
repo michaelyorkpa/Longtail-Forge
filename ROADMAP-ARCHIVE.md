@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.45.2 - Common record-indexer orchestration
+
+**Model: High Effort** - the orchestration is extracted; each module keeps its own reader, document builder and eligibility policy.
+
+- [x] **Baseline and scope.** Branch `agent/0.33.33.45.2-record-indexer` from `nightly` `422ba202`; implementation `9bcfa104`. Six consumers: Lists, Tasks, Notes, Time Tracking, Clients and Projects. No unrelated cleanup.
+- [x] **The helper.** `indexSearchReference(reference, { readAll, readOne, toDocument })`:
+  - **Bulk path:** read every record, build each in order and one at a time, and leave out any record whose builder answered no document.
+  - **Single path:** answer `null` for a missing record, and otherwise its document.
+
+  It imports nothing, has no `Promise.all` and catches nothing. That boundary is the smallest all six consumers support.
+- [x] **Module policy, kept explicit.**
+  - **Lists.** Its deleted-record rule moves into a named reader, `readIndexableList`, which keeps the same condition and reads `status` once.
+  - **Notes.** Its consumer-access and visibility decisions stay inside its builder.
+  - **Every module.**
+    - Each one's own bulk and single readers keep their arguments: Lists and Notes still pass `{ includeDeleted: false }`.
+    - Repository calls keep their receiver.
+    - Builders are passed by name.
+- [x] **Why leaving out a documentless record is inert outside Notes.** Every other builder has exactly one `return`, an object literal, and the suite pins that.
+- [x] **The modules keep their function kind.** Each module indexer stays an `async function` that returns the helper's promise. The one difference is scheduling: Lists' single path, and each wrapper's returned promise, take extra microtask turns. Nothing awaited elsewhere observes that, and the logged order of reads and builds is unchanged.
+- [x] **Types.** The generic ties a module's readers to its builder: wiring Clients to the Projects builder fails with TS2322 on both readers. The probe was restored byte-exact.
+- [x] **Evidence.** `tests/unit/record-indexer-orchestration.test.mjs` runs each committed baseline body and the new wiring against the same logging stubs, for every indexer, and compares:
+  - the paths: bulk (with an `undefined` and an empty `recordId`, and with no records) and single;
+  - the cases: missing (`null` and `undefined`), deleted, and documentless records;
+  - failures: a builder failure mid-bulk and on a single record, and a reader failure on both paths, each compared by error identity;
+  - what is observed: reference reads, repository receivers and arguments, sequential build order, and document identity.
+- [x] **Mutations.** 10 of 10 behaviour breaks were caught: parallel builds, catch-and-continue, keeping documentless records, the `recordId` test, build order, the missing-record check, reference read order, Lists' deleted rule, Lists' bulk filter, and Tasks' receiver. One equivalent mutation, `return await` on the single path, survives as it should. All files were restored byte-exact.
+- [x] **End to end.** Ten search and indexer regressions pass on the new tree: search contract, rebuild and lifecycle; the Notes search, secure and catalog suites; Lists service; and the Tasks checklist and relationship suites.
+- [x] **Accounting.** The ledger adds two strict-clean files: 1,566 files, 0 diagnostics in every program, and no explicit `any`.
+- [x] **Disposition.** `verify:slice`, with its range explicit from `422ba202`, and `checkpoint:validate` run on the final tree. No docs change: the documented indexer files and registry contract are unchanged.
+
 ## Version 0.33.33.45.1 - Public API envelope and paging helpers
 
 **Model: High Effort** - one framework home for helpers copied across five public API route files and five service files, with each caller's contract preserved exactly.

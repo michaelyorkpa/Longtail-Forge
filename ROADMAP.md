@@ -143,7 +143,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Task Focus extraction | Codex | **Complete: not to be revived.** Extracted behind typed host contracts at `0.33.33.42.46` (checklist) and `0.33.33.42.47` (presentation and panel composition), and recorded in the `0.33.33.42` parent's closure record. The 2026-09-24 measurement this row used to carry is historical. |
 | `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Both complete.** `0.33.33.44` closed at `0.33.33.44.47`. `0.33.33.38` closed when the operator's 2026-10-01 ruling settled its last criterion; it is recorded in the parent and carried in the `0.33.33.45.1` bookkeeping. |
 | `0.33.33.40` / `0.33.33.41` parent acceptance | Claude | **Complete, recorded 2026-09-30.** Notes reached zero at `0.33.33.40.32` (owned) and `.40.33` (raw), and Tasks at `0.33.33.41.26` and `.41.27`. Every criterion is ticked against archived evidence or the tree, and the never-drawn `0.33.33.40.2` is recorded as absorbed. |
-| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is drawn as three children**, approved 2026-10-01; **`.45.1` is complete.** `.45.2` (indexer orchestration) and `.45.3` (manifest defaults and Time Tracking composition) follow. `.46` (Codex) starts once `.45.3` integrates: Claude then records its path ownership and releases it without a further sequencing ruling. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
+| `0.33.33.45`–`.47` | Claude, Codex, Claude | **`.45` is drawn as three children**, approved 2026-10-01; **`.45.1` and `.45.2` are complete.** `.45.3` (manifest defaults and Time Tracking composition) follows. `.46` (Codex) starts once `.45.3` integrates: Claude then records its path ownership and releases it without a further sequencing ruling. `.47` (Claude) measures and enforces dependency locality against the delivered architecture and scaffold. |
 | `0.33.33.48` | Claude | Release closeout, only once its real prerequisites are satisfied. It retires the ledger machinery while preserving the file-universe guarantee, and completes the planned final gates and artifact identity proof. |
 
 **Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
@@ -2772,15 +2772,9 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 #### 0.33.33.45.2 - Common record-indexer orchestration
 
-**Model: High Effort** - the orchestration is extracted; each module keeps its own reader, document builder and eligibility policy.
-
-- [ ] **One orchestration helper for the six record indexers**: Lists, Tasks, Notes, Time Tracking, Clients and Projects.
-  - **Bulk path:** read all records and convert each one in sequence.
-  - **Single-record path:** read one record, answer `null` when it is missing or ineligible, and otherwise convert it.
-- [ ] **Module policy stays explicit.** Lists keeps its deleted-record handling. Notes keeps its consumer-access and visibility decisions, and keeps omitting null documents. Bulk and single results keep their shapes.
-- [ ] **Execution order is unchanged.** Awaits stay sequential, with no `Promise.all`. Ordering and failure propagation are preserved, and no catch-and-continue is added.
-- [ ] **The helper stays small.** It imports no module policy and is not a configurable indexing framework. Its callback boundary is the smallest that all six consumers support.
-- [ ] **Proof** covers both paths, including missing and ineligible records and a builder failure. A manifest inventory is not a substitute.
+**Complete: one orchestration helper, `src/core/search/record-indexer.js`, used by all six record indexers.** See the archive entry.
+- Each module keeps its own reader, eligibility rule and document builder. Lists' deleted-record rule now lives in its named reader.
+- Builds stay sequential, and failures propagate unchanged.
 
 #### 0.33.33.45.3 - Manifest defaults and cohesive Time Tracking composition
 
