@@ -24,6 +24,34 @@
     {
       "path": "scripts/regression-coverage-manifest.json",
       "pattern": "^\\s*\\\"movedInVersion\\\":\\s*\\\"[0-9]+(?:\\.[0-9]+)+\\\",?\\s*$"
+    },
+    {
+      "path": "scripts/release/checkpoint-commits.mjs",
+      "pattern": "^const CHECKPOINT_SERIES = \"[0-9]+(?:\\.[0-9]+)+\";$"
+    },
+    {
+      "path": "scripts/regression-coverage-exceptions.json",
+      "pattern": "^\\s*\"rationale\": \"(?:[^\"\\\\]|\\\\.)*(?:live cursor is [0-9]+(?:\\.[0-9]+)+|[0-9]+(?:\\.[0-9]+)+ cursor)(?:[^\"\\\\]|\\\\.)*\",?$"
+    },
+    {
+      "path": "scripts/regression-coverage-manifest.json",
+      "pattern": "^\\s*\"rationale\": \"(?:[^\"\\\\]|\\\\.)*(?:live cursor is [0-9]+(?:\\.[0-9]+)+|[0-9]+(?:\\.[0-9]+)+ cursor)(?:[^\"\\\\]|\\\\.)*\",?$"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "pattern": "^- Archived the complete TypeScript Seam Expansion branch, advanced the active roadmap cursor to `[0-9]+(?:\\.[0-9]+)+`, and aligned release metadata and running identity for this release\\.$"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "pattern": "^- Recorded a GO decision for technical readiness for the planned August 31 public-demo window\\. The operator curtain remains the independent publication control, and `[0-9]+(?:\\.[0-9]+)+` analytics, privacy, feedback, newsletter, and interest-capture work remains disabled and unimplemented\\.$"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "pattern": "^  review-path decision to `[0-9]+(?:\\.[0-9]+)+` before any first-party public analytics,$"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "pattern": "^  public-hosting review scope is now an explicit `[0-9]+(?:\\.[0-9]+)+` decision gate\\.$"
     }
   ],
   "historicalLabelFiles": [

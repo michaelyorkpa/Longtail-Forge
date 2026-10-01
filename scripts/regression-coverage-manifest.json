@@ -87,7 +87,7 @@
   "assertionInventory": {
     "activeAssertionCount": 19101,
     "creditedAssertionReduction": 496,
-    "directOwnerAssertionCount": 74,
+    "directOwnerAssertionCount": 77,
     "directOwners": [
       {
         "path": "scripts/typecheck-governance.mjs",
@@ -95,14 +95,14 @@
       },
       {
         "path": "scripts/version-literal-guardrail-regression.mjs",
-        "assertionCount": 20
+        "assertionCount": 23
       },
       {
         "path": "tests/e2e/settings-admin-navigation.spec.mjs",
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19937,
+    "effectiveAssertionCount": 19940,
     "retiredAssertionCredit": 165,
     "vitest": [
       {

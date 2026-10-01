@@ -1,3 +1,43 @@
+## Version 0.33.33 - 2026-10-01
+
+- **Closed the Lean Core, Full Strict TypeScript, and Verification Simplification branch,** from `0.33.33.1` through `0.33.33.48.3`. Every numbered checkpoint was verified and merged through its own protected pull request into `nightly`.
+- **Checkpoint ceremony.** Internal checkpoints carry validated `LTF-Checkpoint`, `LTF-Summary` and `LTF-Docs` trailers. Version, changelog, decisions and durable documentation are deferred to the branch closeout, and each checkpoint stages its roadmap-archive handoff in the same pull request.
+- **One verification command.** `npm run verify:slice` is the single canonical local gate:
+  - it runs closeout once and routes every changed path;
+  - it escalates any unrouted path to the full gate, and refuses an empty selection;
+  - it runs the strict typecheck exactly once.
+- **A leaner regression estate.**
+  - Discovered regressions fell from 464 to 348, and estimated Node processes per full run from 464 to 342. Static history readers fell from 54 to 7.
+  - Coverage floors are exact, reviewed ratchets, and historical paperwork gates moved to archived evidence.
+  - The static estate shares one source reader, one `escapeRegExp` and one fake-DOM harness.
+  - The 409-check permission harness is discovered and floor-counted, and in-process static execution is audit-gated.
+- **Full strict TypeScript.** All 1,577 first-party JavaScript files are owned by three full-strict programs (server/test, browser and scripts), with zero diagnostics and zero explicit `any`. The branch baseline carried 32,493 full-strict diagnostics. `npm run typecheck` now enforces zero directly: the temporary debt ledger is retired, and every owned file must be one its compiler reads.
+- **Browser.** Every classic browser script runs in its own IIFE, outside the shared lexical environment. The namespace publication inventory is AST-backed and alias-aware. Shared browser contracts include `LongtailForge.checkedDom` and `LongtailForge.view.partsOf`.
+- **Module development.**
+  - **Shared helpers:** public API envelopes and paging (`src/core/public-api-responses.js`), record-indexer orchestration (`src/core/search/record-indexer.js`), and framework manifest defaults.
+  - **Time Tracking** composes its permissions, events and integrations.
+  - **`npm run module:create`** generates a strict-clean module starting point. Adopting a generated module is a documented, reviewed step.
+- **Dependency locality.** `npm run audit:cycles:check` is a hard no-growth gate over cyclic components, with one authorized composition-edge exception.
+- **CI.** The Nightly full gate and the promotion fallback release gate read full history at their exact SHAs, so the history-pinned unit tests run there. This restores the exact-SHA Nightly proof, which had been red since 2026-09-25.
+- **Dependencies.**
+  - `espree` is a declared development dependency.
+  - The development-only `brace-expansion` 5.0.12 clears the high audit finding.
+  - The moderate `ip-address` and `markdown-it` findings are recorded, not upgraded. The shipped Markdown parser runs with `linkify: false`.
+- **Workbench corrections,** made under explicit operator authorization while the code was typed:
+  - a related action needs a nonempty action ID before dependencies load;
+  - a supplied card `listRoute` must be a string;
+  - a corrupt cached card registry recovers from bootstrap instead of failing;
+  - a malformed timer start keeps the accumulated time without a running increment.
+- **Lists.** Two regressions introduced and fixed within the branch never reached a release: the Lists page refusing every real list, and other pages being unable to open the Lists dialog.
+- **Measured honestly.** The `scripts/` directory grew from 152,785 to 187,207 lines. Most of the growth is JSDoc for full strict and coverage-policy data. The expected reduction was not achieved. The discovered regression owners shrank 6.9% structurally.
+- **Docs updated:**
+  - `AGENTS.md`;
+  - `docs/architecture.md`, `docs/e2e-testing.md`, `docs/files-strict-guardrail-inventory.md`;
+  - `docs/module-contract.md`, `docs/module-development.md`;
+  - `docs/regression-suite.md`, `docs/view-building-contract.md`;
+  - `DECISIONS.md`.
+- **No docs change needed** for user-facing Help, runtime configuration, deployment topology or database migrations. The branch changed none of them.
+
 ## Version 0.33.32.45 - 2026-08-12
 
 - Completed the independent review matrix across all 46 preceding 0.33.32 slices: the configured program is clean at 150 checked files, descriptor and restricted-role paths retain executable proof, permissions and backup portability remain green, and no runtime TypeScript import or checker suppression was introduced.

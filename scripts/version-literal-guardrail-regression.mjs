@@ -91,6 +91,43 @@ assert.deepEqual(
   "the live roadmap should not silently treat a current-version planning label as historical",
 );
 
+// `0.33.33.48`: that release's version equals the series label its record uses throughout.
+// Narrow path-and-context rules keep the few structured and historical lines that must name it:
+// - the checkpoint validator's series constant;
+// - the coverage rationales that record the live roadmap cursor;
+// - four historical changelog lines.
+// No rule exempts a literal anywhere else, and each admits only the shape it names.
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "src/core/example.js", source: `export const releaseVersion = "${appVersion}";` },
+  ], appVersion, allowlist).map(({ path }) => path),
+  ["src/core/example.js"],
+  "an unauthorized runtime version literal must still fail",
+);
+for (const [label, entry] of /** @type {const} */ ([
+  ["the series constant outside the checkpoint validator", { path: "scripts/release/other-release-tool.mjs", source: `const CHECKPOINT_SERIES = "${appVersion}";` }],
+  ["the checkpoint validator outside its series constant", { path: "scripts/release/checkpoint-commits.mjs", source: `const RELEASE = "${appVersion}";` }],
+  ["a coverage rationale that does not record the cursor", { path: "scripts/regression-coverage-exceptions.json", source: `      "rationale": "The ${appVersion} release pinned a literal.",` }],
+  ["the cursor phrase in another coverage field", { path: "scripts/regression-coverage-exceptions.json", source: `      "assertionDisposition": "The live cursor is ${appVersion}, so nothing re-enters.",` }],
+  ["a changelog body line outside the four historical lines", { path: "CHANGELOG.md", source: `- Shipped ${appVersion} with a new feature.` }],
+])) {
+  assert.deepEqual(
+    scanEntriesForCurrentVersion([entry], appVersion, allowlist).map(({ path }) => path),
+    [entry.path],
+    `${label} must still fail`,
+  );
+}
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "scripts/release/checkpoint-commits.mjs", source: `const CHECKPOINT_SERIES = "${appVersion}";` },
+    { path: "scripts/regression-coverage-exceptions.json", source: `      "rationale": "The live cursor is ${appVersion}, so an archived section can never re-enter.",` },
+    { path: "scripts/regression-coverage-manifest.json", source: `      "rationale": "A cursor floor that a live ${appVersion} cursor can never fail.",` },
+    { path: "CHANGELOG.md", source: `  public-hosting review scope is now an explicit \`${appVersion}\` decision gate.` },
+  ], appVersion, allowlist),
+  [],
+  "each anchored rule must admit exactly the line shape it names",
+);
+
 const scanFixture = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-version-scan-"));
 try {
   await fs.mkdir(path.join(scanFixture, "archive"), { recursive: true });
