@@ -2812,7 +2812,7 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Model: High Effort** - The generator defines the default architecture inherited by future modules.
 
-- [ ] Implementation and focused proof complete; final gate held on an additional path assignment. `scripts/package-script-contracts.json` needs the exact `module:create` entry, and the coordination section requires its assignment before editing. See the archive for the twelve-file scaffold, real catalog/boot/permission/search proof, three-program fixture compilation and cleanup evidence. Base `cce9619f0eee4377fc4ef7f7342ab167457a1660`; planning `1f248e43`, implementation `94276fd8`. No Support Tickets behavior, shared runtime change or dependency change. Claude owns integration.
+- [ ] Implementation and focused proof complete, awaiting final verification and protected integration. The 2026-10-01 amendment (coordination commit `00387875`) authorizes the exact matching `module:create` entry in `scripts/package-script-contracts.json`; that entry resolves the initial final-gate hold. See the archive for the twelve-file scaffold, real catalog/boot/permission/search proof, three-program fixture compilation and cleanup evidence. Base `cce9619f0eee4377fc4ef7f7342ab167457a1660`; planning `1f248e43`, implementation `94276fd8`. No Support Tickets behavior, shared runtime change or dependency change. Claude owns integration.
 
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
