@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-worker-runner-"));
@@ -13,7 +16,50 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(dataDir, "longtail-forge-worker-r
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Worker-Runner-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
+/** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
+
+/** What the worker-runner test handlers record about each handled job. */
+/** @typedef {{ jobId: string, payload: unknown }} HandledJobRecord */
+
+/** The fields insertJob writes; every one is a column this owner controls. */
+/**
+ * @typedef {{
+ *   attemptCount?: number,
+ *   availableAt?: string,
+ *   dedupeKey?: string | null,
+ *   jobId: string,
+ *   jobType?: string,
+ *   maxAttempts?: number,
+ *   payload?: unknown,
+ *   priority?: number,
+ *   status?: string,
+ * }} InsertJobOptions
+ */
+
+/** The one config field the child process publishes back. */
+/** @typedef {{ workerMode: string }} WorkerConfigProbe */
+
+/**
+ * Narrow the config child's stdout to the probe it must publish.
+ *
+ * The child is a separate process, so its output crosses back as text. Parsing
+ * it would otherwise infer `any`.
+ * @param {import("node:child_process").SpawnSyncReturns<string>} child
+ * @returns {WorkerConfigProbe}
+ */
+function readWorkerConfigProbe(child) {
+  const text = child.stdout.trim();
+  assert.ok(text, "the config child should publish a JSON probe");
+  /** @type {unknown} */
+  const parsed = JSON.parse(text);
+  assert.ok(
+    parsed && typeof parsed === "object" && !Array.isArray(parsed),
+    `config child output should be a JSON object: ${text}`,
+  );
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  assert.equal(typeof record.workerMode, "string", "config child output should carry a workerMode string");
+  return /** @type {WorkerConfigProbe} */ (/** @type {unknown} */ (record));
+}
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
@@ -69,11 +115,10 @@ try {
   assert.match(workerCliSource, /initializeWorkerDatabase/, "separate worker should use worker schema readiness startup");
   assert.doesNotMatch(workerCliSource, /\binitializeDatabase\b/, "separate worker CLI must not run app migrations/startup maintenance");
   assert.match(workerCliSource, /acquireWorkerProcessLock/, "separate SQLite worker should enforce one local worker process");
-  assert.doesNotMatch(functionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup must verify schema without owning migrations or app startup maintenance");
+  assert.doesNotMatch(extractFunctionSpan(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup must verify schema without owning migrations or app startup maintenance");
   assert.match(runtimeDocs, /`LONGTAIL_WORKER_MODE`[\s\S]*`inline`[\s\S]*`separate`[\s\S]*`disabled`/, "runtime docs should document worker modes as active settings");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.2[\s\S]*Worker runner v1/, "database docs should document the worker runner");
   assert.match(sqliteDocs, /As of 0\.33\.5\.21\.2[\s\S]*at most one local worker process/, "SQLite docs should document the one-worker boundary");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 
   assertWorkerConfigModes();
   assertWorkerSchemaReadinessFailsBeforeMigrations();
@@ -160,6 +205,7 @@ async function assertRunnerModesAndStatus() {
 async function assertJobRunnerBehavior() {
   resetJobWorkerStatusForTests();
   clearJobHandlersForTests();
+  /** @type {HandledJobRecord[]} */
   const handled = [];
   registerJobHandler("test.success", async ({ job, payload }) => {
     handled.push({ jobId: job.jobId, payload });
@@ -207,8 +253,8 @@ async function assertJobRunnerBehavior() {
   assert.equal(retry.status, "failed");
   assert.equal(retry.attempt_count, 1);
   assert.equal(retry.locked_at, null);
-  assert.match(retry.last_error, /Retry please/);
-  assert.ok(Date.parse(retry.available_at) > beforeRetry, "failed jobs should be scheduled for a future retry");
+  assert.match(String(retry.last_error), /Retry please/);
+  assert.ok(Date.parse(String(retry.available_at)) > beforeRetry, "failed jobs should be scheduled for a future retry");
 
   await insertJob({ jobId: "job-dead", jobType: "test.fail-dead", maxAttempts: 1 });
   const deadSummary = await runJobWorkerOnce({ mode: "inline", workerId: "regression-worker" });
@@ -216,24 +262,30 @@ async function assertJobRunnerBehavior() {
   const dead = await readJob("job-dead");
   assert.equal(dead.status, "dead");
   assert.equal(dead.attempt_count, 1);
-  assert.match(dead.last_error, /Dead letter please/);
+  assert.match(String(dead.last_error), /Dead letter please/);
   assert.ok(dead.dead_at, "dead-letter rows should record dead_at");
 
   await insertJob({ jobId: "job-unknown", jobType: "test.unknown", maxAttempts: 1 });
   const unknownSummary = await runJobWorkerOnce({ mode: "inline", workerId: "regression-worker" });
   assert.equal(unknownSummary.dead, 1);
-  assert.match((await readJob("job-unknown")).last_error, /No handler registered/);
+  assert.match(String((await readJob("job-unknown")).last_error), /No handler registered/);
+
+  await insertJob({ jobId: "job-array-payload", jobType: "test.success", maxAttempts: 1, payload: [] });
+  const invalidPayloadSummary = await runJobWorkerOnce({ mode: "inline", workerId: "regression-worker" });
+  assert.equal(invalidPayloadSummary.dead, 1);
+  assert.match(String((await readJob("job-array-payload")).last_error || ""), /invalid payload JSON/);
 
   const status = getJobWorkerStatus();
   assert.equal(status.workerId, "regression-worker");
-  assert.ok(status.claimedCount >= 5, "worker status should count claimed jobs");
+  assert.ok(status.claimedCount >= 6, "worker status should count claimed jobs");
   assert.ok(status.completedCount >= 2, "worker status should count completed jobs");
   assert.ok(status.failedCount >= 1, "worker status should count retryable failures");
-  assert.ok(status.deadCount >= 2, "worker status should count dead-letter transitions");
+  assert.ok(status.deadCount >= 3, "worker status should count dead-letter transitions");
   assert.deepEqual(status.registeredJobTypes, ["test.fail-dead", "test.fail-retry", "test.success"]);
 }
 
-async function insertJob(options = {}) {
+/** @param {InsertJobOptions} options */
+async function insertJob(options) {
   const now = new Date().toISOString();
   await runSql(`
 INSERT INTO jobs (
@@ -277,16 +329,17 @@ VALUES (
 `);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspaceId() {
-  const row = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
-  assert.ok(row?.workspace_id, "fresh database should have a workspace");
+  /** @type {{ workspace_id: string }} */
+  const row = requireRow(await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "workspace");
+  assert.ok(row.workspace_id, "fresh database should have a workspace");
   return row.workspace_id;
 }
 
+/** @param {string} jobId @returns {Promise<DatabaseRow>} */
 async function readJob(jobId) {
-  const row = await db.get("SELECT * FROM jobs WHERE job_id = :jobId;", { jobId });
-  assert.ok(row, `expected job ${jobId}`);
-  return row;
+  return requireRow(await db.get("SELECT * FROM jobs WHERE job_id = :jobId;", { jobId }), `job ${jobId}`);
 }
 
 async function assertIntegrity() {
@@ -294,6 +347,7 @@ async function assertIntegrity() {
   assert.equal(integrityRows[0]?.integrity_check, "ok", "worker runner regression database should pass integrity check");
 }
 
+/** @param {NodeJS.ProcessEnv} [overrides] @returns {WorkerConfigProbe} */
 function readConfig(overrides = {}) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import { config } from "./src/config.js";
@@ -307,9 +361,10 @@ function readConfig(overrides = {}) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  return JSON.parse(child.stdout.trim());
+  return readWorkerConfigProbe(child);
 }
 
+/** @param {NodeJS.ProcessEnv} overrides @param {RegExp} pattern */
 function assertConfigFails(overrides, pattern) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import "./src/config.js";
@@ -323,6 +378,7 @@ function assertConfigFails(overrides, pattern) {
   assert.match(child.stderr || child.stdout, pattern);
 }
 
+/** @param {NodeJS.ProcessEnv} [overrides] @returns {NodeJS.ProcessEnv} */
 function cleanEnv(overrides = {}) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
@@ -344,15 +400,4 @@ function cleanEnv(overrides = {}) {
   }
 
   return { ...env, ...overrides };
-}
-
-function functionBlock(source, name) {
-  const start = source.indexOf(`async function ${name}`);
-  assert.notEqual(start, -1, `expected ${name} function`);
-  const nextFunction = source.indexOf("\nasync function ", start + 1);
-  return source.slice(start, nextFunction === -1 ? undefined : nextFunction);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

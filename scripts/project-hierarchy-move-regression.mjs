@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const clientsProjects = readText("public/js/clients-projects.js");
 const clientProjectsService = readText("src/modules/client-projects/clients.service.js");
@@ -12,7 +14,7 @@ assert.match(
 );
 assert.match(
   clientsProjects,
-  /const confirmed = await window\.LongtailForge\.modal\.confirm\(\{[\s\S]*confirmLabel: "Move"/,
+  /const confirmed = await requireModalDialogs\(\)\.confirm\(\{[\s\S]*confirmLabel: "Move"/,
   "Project hierarchy edits must continue to ask for move confirmation",
 );
 assert.match(
@@ -47,7 +49,8 @@ assert.match(
 );
 assert.match(
   clientsProjects,
-  /function selectedProjectClientFilterValue\(\)[\s\S]*activeClientProjectsReadSurface\?\.querySelector\?\.\('\[name="clientId"\]'\)[\s\S]*value !== "All" && value !== "__workspace_projects__"/,
+  // `0.33.33.43.53` reads the same descriptor filter through the checked lookup for its `select`.
+  /function selectedProjectClientFilterValue\(\)[\s\S]*requireCheckedDom\(\)\.find\(activeClientProjectsReadSurface, '\[name="clientId"\]', HTMLSelectElement\)[\s\S]*value !== "All" && value !== "__workspace_projects__"/,
   "Project defaults should read the active descriptor Client filter instead of legacy page filter state",
 );
 assert.doesNotMatch(
@@ -67,7 +70,3 @@ assert.match(
 );
 
 console.log("Project hierarchy move regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

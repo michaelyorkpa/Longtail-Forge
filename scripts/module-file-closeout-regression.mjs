@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { FILE_LIFECYCLE_EVENTS } from "../src/core/files/file-lifecycle.js";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText: read } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("module-file-closeout-regression", { reuseExisting: true });
 const { modulesService } = await import("../src/core/modules/modules.service.js");
@@ -13,10 +15,7 @@ const root = path.resolve(__dirname, "..");
 const modules = modulesService.listModules();
 let checks = 0;
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
-
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -119,6 +118,7 @@ check("framework-owned surfaces respect disabled-module filtering boundaries", (
   assert.ok(filesService.includes("resolveAttachableType(session.workspace_id"), "Files service should resolve active attachable targets for workspace sessions");
 });
 
+/** @param {string} directory @param {string} extension @returns {string[]} */
 function listFiles(directory, extension) {
   const entries = fs.readdirSync(directory, { withFileTypes: true });
   return entries.flatMap((entry) => {
@@ -134,6 +134,7 @@ function listFiles(directory, extension) {
   });
 }
 
+/** @param {string} filePath @returns {string} */
 function relative(filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
 }

@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const viewConversionCloseoutVersion = "0.33.5.18.15";
 
@@ -52,11 +55,3 @@ assert.match(strictInventory, /task list remains the primary main-panel view/, "
 assert.match(strictInventory, /future Quick Action Center/i, "Tasks strict inventory should document future QAC caller guidance");
 
 console.log("Tasks conversion closeout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

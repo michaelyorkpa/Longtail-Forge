@@ -1,1308 +1,1721 @@
 // Multi-timer setup: each timer card owns its own state, while this module coordinates counts.
-const timerGrid =
-  document.querySelector("[data-timer-grid]") || createTimerGrid();
-const timerCountSelect = document.querySelector("[data-timer-count]");
-const timerTemplate = (
-  document.getElementById("stopwatch") || createTimeTrackerRoot(1)
-).cloneNode(true);
-
-let clients = [];
-let tagOptions = [];
-let taskOptions = [];
-let timers = [];
-
-const timerPersistence = {
-  loaded: false,
-};
-
-function workspaceUsesBillableFlag() {
-  return window.LongtailForge?.workspaceContext?.workspaceType === "business";
-}
-
-function billableValue(input) {
-  return workspaceUsesBillableFlag() && input.checked ? "yes" : "no";
-}
-
-function setTimerCount(timerCount) {
-  const nextTimerCount = clampTimerCount(timerCount);
-
-  if (nextTimerCount > timers.length) {
-    appendTimers(nextTimerCount);
-  } else if (nextTimerCount < timers.length) {
-    removeTimers(nextTimerCount);
+(function attachStopWatchPage() {
+  /**
+   * The control the markup already carries, at the subtype this page needs - or nothing.
+   *
+   * **This page builds what it cannot find, so the answer is a fallback trigger rather than a
+   * refusal.** Every acquisition here reads `existing(...) || create(...)`, and the comment in
+   * `StopwatchTimer`'s constructor states the intent: existing markup is preferred, missing
+   * controls are created for resilience. Checking the subtype extends that intent rather than
+   * narrowing it - an element of the wrong kind is exactly the case resilience is for, and
+   * before this it would have been kept and then read as though it were a select.
+   * @template {Element} T
+   * @param {ParentNode} root
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function existingStopwatchControl(root, selector, constructor) {
+    const element = root.querySelector(selector);
+    return element instanceof constructor ? element : null;
   }
 
-  timerGrid.style.setProperty("--timer-count", nextTimerCount);
-
-  if (timerCountSelect) {
-    timerCountSelect.value = String(nextTimerCount);
-  }
-}
-
-async function handleTimerCountChange() {
-  const nextCount = Number(timerCountSelect.value);
-
-  if (nextCount === timers.length) {
-    return;
-  }
-
-  if (nextCount < timers.length) {
-    const removedTimers = timers.slice(nextCount);
-    const shouldDiscard = !hasDiscardableTimers(nextCount)
-      || await confirmTimerRemoval(removedTimers);
-
-    if (!shouldDiscard) {
-      timerCountSelect.value = String(timers.length);
-      return;
-    }
-  }
-
-  setTimerCount(nextCount);
-}
-
-function appendTimers(nextTimerCount) {
-  for (
-    let timerNumber = timers.length + 1;
-    timerNumber <= nextTimerCount;
-    timerNumber += 1
-  ) {
-    const root = getTimerRootForNumber(timerNumber);
-    prepareTimerRoot(root, timerNumber);
-    timerGrid.appendChild(root);
-
-    const timer = new StopwatchTimer(root, timerNumber);
-    timer.setClients(clients);
-    timer.setTaskOptions(taskOptions);
-    timers.push(timer);
-  }
-}
-
-function removeTimers(nextTimerCount) {
-  const removedTimers = timers.splice(nextTimerCount);
-
-  removedTimers.forEach((timer) => {
-    timer.discardPersistedState();
-    timer.dispose();
-    timer.root.remove();
-  });
-}
-
-function getTimerRootForNumber(timerNumber) {
-  if (timerNumber === 1) {
-    const existingRoot = timerGrid.querySelector("#stopwatch");
-
-    if (existingRoot) {
-      return existingRoot;
-    }
-  }
-
-  return timerTemplate.cloneNode(true);
-}
-
-function clampTimerCount(timerCount) {
-  if ([1, 2, 3, 4].includes(timerCount)) {
-    return timerCount;
-  }
-
-  return 1;
-}
-
-function hasDiscardableTimers(nextCount) {
-  return timers.slice(nextCount).some((timer) => timer.hasElapsedTime());
-}
-
-function confirmTimerRemoval(removedTimers) {
-  const timerLabels = removedTimers
-    .filter((timer) => timer.hasElapsedTime())
-    .map((timer) => `Timer ${timer.timerNumber}`);
-  const detail =
-    timerLabels.length === 1
-      ? `${timerLabels[0]} has unsaved time.`
-      : `${timerLabels.join(", ")} have unsaved time.`;
-
-  return window.LongtailForge.modal.confirm({
-    title: "Remove timers?",
-    message: `${detail} Removing timers will discard that time.`,
-    confirmLabel: "Remove",
-    cancelLabel: "Cancel",
-    danger: true,
-  });
-}
-
-async function pauseOtherTimers(activeTimer) {
-  // Only one timer should actively run at a time.
-  await Promise.all(timers.map((timer) => {
-    if (timer !== activeTimer) {
-      return timer.pause();
-    }
-    return Promise.resolve();
-  }));
-}
-
-async function loadClientProjectData() {
-  try {
-    const data = await window.LongtailForge.api.getJson("/api/client-projects?view=options", {
-      cache: "no-store",
-    });
-    clients = normalizeClientProjectOptions(data);
-    timers.forEach((timer) => timer.setClients(clients));
-  } catch (error) {
-    timers.forEach((timer) => timer.disableClientData());
-    console.error(error);
-  }
-}
-
-async function loadActiveTimers(options = {}) {
-  try {
-    const data = await window.LongtailForge.api.getJson("/api/active-timers", {
-      cache: "no-store",
-    });
-    const activeTimers = Array.isArray(data.timers) ? data.timers : [];
-    const maxTimerSlot = activeTimers.reduce((maxSlot, timer) => {
-      const timerSlot = Number.parseInt(timer.timer_slot, 10);
-      return Number.isFinite(timerSlot) ? Math.max(maxSlot, timerSlot) : maxSlot;
-    }, 1);
-
-    setTimerCount(clampTimerCount(maxTimerSlot));
-
-    if (options.resetExisting === true) {
-      timers.forEach((timer) => timer.clearLocalStateForReload());
+  /**
+   * One boolean option a caller supplied, or nothing.
+   *
+   * **These methods are registered directly as listeners**, so a click or change hands them the
+   * `Event` itself where an options record is expected. An `Event` carries none of these members,
+   * so it has always taken exactly the path an empty object takes - this reads the member rather
+   * than assuming the shape, which keeps that true instead of leaving it to coincidence. The
+   * registration is deliberately unchanged: rewiring it would alter what each listener receives,
+   * and this checkpoint is typing the page rather than redesigning its event wiring.
+   * @param {unknown} options
+   * @param {string} name
+   * @returns {boolean | undefined}
+   */
+  function optionFlag(options, name) {
+    if (typeof options !== "object" || options === null || !Object.hasOwn(options, name)) {
+      return undefined;
     }
 
-    activeTimers.forEach((timerData) => {
-      const timerSlot = Number.parseInt(timerData.timer_slot, 10);
-      const timer = timers[timerSlot - 1];
+    const value = /** @type {Record<string, unknown>} */ (options)[name];
+    return typeof value === "boolean" ? value : undefined;
+  }
 
-      if (timer) {
-        timer.restoreFromPersistedTimer(timerData);
+  /**
+   * One member of a persisted timer row, as text.
+   *
+   * The rows come off `/api/active-timers`, so they are `unknown` members rather than a declared
+   * record. Own members only, and a falsy member answers "" so the `||` fallbacks each caller
+   * already wrote keep choosing exactly what they chose before.
+   * @param {unknown} source
+   * @param {...string} names
+   * @returns {string}
+   */
+  function readTimerText(source, ...names) {
+    if (typeof source !== "object" || source === null) {
+      return "";
+    }
+
+    for (const name of names) {
+      const value = Object.hasOwn(source, name)
+        ? /** @type {Record<string, unknown>} */ (source)[name]
+        : undefined;
+      if (value) {
+        return String(value);
       }
-    });
-  } catch (error) {
-    console.error(error);
-  } finally {
-    timerPersistence.loaded = true;
-  }
-}
-
-async function loadTaskOptions() {
-  if (!workspaceHasTasks()) {
-    taskOptions = [];
-    timers.forEach((timer) => timer.setTaskOptions(taskOptions));
-    return;
-  }
-
-  try {
-    const data = await window.LongtailForge.api.getJson("/api/tasks?status=active&limit=200", {
-      cache: "no-store",
-    });
-    taskOptions = normalizeTaskOptions(data);
-  } catch {
-    taskOptions = [];
-  }
-
-  timers.forEach((timer) => timer.setTaskOptions(taskOptions));
-}
-
-async function initializeTimeTracker() {
-  await window.LongtailForge.workspaceContextReady;
-  setTimerCount(1);
-  await loadTagOptions();
-  await loadClientProjectData();
-  await loadTaskOptions();
-  await loadActiveTimers();
-}
-
-class StopwatchTimer {
-  constructor(root, timerNumber) {
-    // Existing markup is preferred, but missing controls are created for resilience.
-    this.root = root;
-    this.timerNumber = timerNumber;
-    this.clientSelect =
-      root.querySelector("[data-stopwatch-client]") ||
-      createSelect(root, "Client", "client", "Select a client");
-    this.clientControl = this.clientSelect.closest("[data-client-workspace-control]") ||
-      this.clientSelect.closest("label");
-    this.projectSelect =
-      root.querySelector("[data-stopwatch-project]") ||
-      createSelect(root, "Project", "project", "Select a project");
-    this.descriptionInput =
-      root.querySelector("[data-stopwatch-description]") ||
-      createDescriptionInput(root);
-    const taskLinkControl = ensureTaskLinkControl(root);
-    this.taskSelect = taskLinkControl.select;
-    this.linkTaskButton = taskLinkControl.button;
-    decorateTaskLinkButton(this.linkTaskButton);
-    this.tagsContainer =
-      root.querySelector("[data-stopwatch-tags]") ||
-      createTagsContainer(root);
-    this.display =
-      root.querySelector("[data-stopwatch-display]") || createDisplay(root);
-    this.startButton =
-      root.querySelector("[data-stopwatch-start]") ||
-      createButton(root, "Start", "start");
-    this.pauseButton =
-      root.querySelector("[data-stopwatch-pause]") ||
-      createButton(root, "Pause", "pause");
-    this.stopButton =
-      root.querySelector("[data-stopwatch-stop]") ||
-      createButton(root, "Save & End", "stop");
-    this.stopButton.textContent = "Save & End";
-    this.resetButton =
-      root.querySelector("[data-stopwatch-reset]") ||
-      createButton(root, "Discard", "reset", { danger: true });
-    this.resetButton.textContent = "Discard";
-    this.resetButton.classList.add("danger-button");
-    decorateStopwatchControls({
-      pauseButton: this.pauseButton,
-      resetButton: this.resetButton,
-      startButton: this.startButton,
-      stopButton: this.stopButton,
-    });
-    this.clearOnResetInput =
-      root.querySelector("[data-stopwatch-clear-on-reset]") ||
-      createClearOnResetInput(root);
-    this.billableInput =
-      root.querySelector("[data-stopwatch-billable]") ||
-      createBillableInput(root);
-    this.billableControl = this.billableInput.closest("[data-stopwatch-billable-control]") ||
-      this.billableInput.closest("label");
-    this.billableControl.hidden = !workspaceUsesBillableFlag();
-    if (!workspaceUsesBillableFlag()) {
-      this.billableInput.checked = false;
     }
-    this.statusMessage =
-      root.querySelector("[data-stopwatch-status]") ||
-      createStatusMessage(root);
-    this.activeIndicator =
-      root.querySelector("[data-stopwatch-active-indicator]") ||
-      createActiveIndicator(root);
 
-    this.elapsedMilliseconds = 0;
-    this.startedAt = 0;
-    this.activeStartTime = null;
-    this.timerId = null;
-    this.clients = [];
-    this.taskOptions = [];
-    this.isSaving = false;
-    this.confirmedClientId = this.clientSelect.value;
-    this.confirmedProjectId = this.projectSelect.value;
-    this.persistedActiveTimerId = "";
-    this.isRestoring = false;
-    this.tagPicker = { readTagIds: () => [], setSelected: () => {} };
-
-    this.startTimeTracker = this.startTimeTracker.bind(this);
-    this.pause = this.pause.bind(this);
-    this.stopTimeTracker = this.stopTimeTracker.bind(this);
-    this.resetTimeTracker = this.resetTimeTracker.bind(this);
-    this.handleClientChange = this.handleClientChange.bind(this);
-    this.handleProjectChange = this.handleProjectChange.bind(this);
-    this.persistEditedTimer = this.persistEditedTimer.bind(this);
-    this.linkRunningTimerToTask = this.linkRunningTimerToTask.bind(this);
-    this.handleTaskSelectionChange = this.handleTaskSelectionChange.bind(this);
-
-    this.startButton.addEventListener("click", this.startTimeTracker);
-    this.pauseButton.addEventListener("click", this.pause);
-    this.stopButton.addEventListener("click", this.stopTimeTracker);
-    this.resetButton.addEventListener("click", this.resetTimeTracker);
-    this.clientSelect.addEventListener("change", this.handleClientChange);
-    this.projectSelect.addEventListener("change", this.handleProjectChange);
-    this.descriptionInput.addEventListener("change", this.persistEditedTimer);
-    this.billableInput.addEventListener("change", this.persistEditedTimer);
-    this.taskSelect.addEventListener("change", this.handleTaskSelectionChange);
-    this.linkTaskButton.addEventListener("click", this.linkRunningTimerToTask);
-
-    this.updateDisplay();
-    this.updateButtons();
-    this.mountTagPicker();
+    return "";
   }
 
-  dispose() {
-    // Removed timer cards drop their listeners before leaving the DOM.
-    window.clearInterval(this.timerId);
-    this.startButton.removeEventListener("click", this.startTimeTracker);
-    this.pauseButton.removeEventListener("click", this.pause);
-    this.stopButton.removeEventListener("click", this.stopTimeTracker);
-    this.resetButton.removeEventListener("click", this.resetTimeTracker);
-    this.clientSelect.removeEventListener("change", this.handleClientChange);
-    this.projectSelect.removeEventListener("change", this.handleProjectChange);
-    this.descriptionInput.removeEventListener("change", this.persistEditedTimer);
-    this.billableInput.removeEventListener("change", this.persistEditedTimer);
-    this.taskSelect.removeEventListener("change", this.handleTaskSelectionChange);
-    this.linkTaskButton.removeEventListener("click", this.linkRunningTimerToTask);
+  /**
+   * The identifier a persisted timer acknowledged, when the acknowledgment carries one.
+   *
+   * `putJson` answers `unknown` and what comes back is a write receipt, not a row this page
+   * renders; only the id it keeps is read, and everything else travels on untouched.
+   * @param {unknown} result
+   * @returns {string}
+   */
+  function startedTimerId(result) {
+    if (typeof result !== "object" || result === null || !Object.hasOwn(result, "timer")) {
+      return "";
+    }
+
+    return readTimerText(/** @type {Record<string, unknown>} */ (result).timer, "active_timer_id");
   }
 
-  setClients(clients) {
-    this.clients = clients;
-    this.populateClientOptions();
+  /**
+   * The task rows a task-options response carries, before any of them is read.
+   * @param {unknown} data
+   * @returns {unknown[]}
+   */
+  function taskOptionRows(data) {
+    if (typeof data !== "object" || data === null || !Object.hasOwn(data, "options")) {
+      return [];
+    }
+
+    const options = /** @type {Record<string, unknown>} */ (data).options;
+    if (typeof options !== "object" || options === null || !Object.hasOwn(options, "tasks")) {
+      return [];
+    }
+
+    const tasks = /** @type {Record<string, unknown>} */ (options).tasks;
+    return Array.isArray(tasks) ? tasks : [];
   }
 
-  setTaskOptions(options) {
-    this.taskOptions = Array.isArray(options) ? options : [];
-    this.populateTaskOptions();
+  /**
+   * The wrapper a control sits in, preferring its own marker and falling back to the label around
+   * it. `closest` answers an `Element`, and only an `HTMLElement` carries the `hidden` this page
+   * writes - so the narrowing is where the answer is read rather than asserted over it. A control
+   * in neither wrapper answers nothing, which is the state the callers already tolerated.
+   * @param {Element} control
+   * @param {string} selector
+   * @param {string} fallbackSelector
+   * @returns {HTMLElement | null}
+   */
+  function closestStopwatchElement(control, selector, fallbackSelector) {
+    const wrapper = control.closest(selector) || control.closest(fallbackSelector);
+    return wrapper instanceof HTMLElement ? wrapper : null;
   }
 
-  disableClientData() {
-    this.clientSelect.innerHTML = "";
-    this.clientSelect.appendChild(createOption("", "Client data unavailable"));
-    this.clientSelect.disabled = true;
-    this.projectSelect.disabled = true;
-    this.updateButtons();
+  const timerGrid =
+    existingStopwatchControl(document, "[data-timer-grid]", HTMLElement) || createTimerGrid();
+  const timerCountSelect = existingStopwatchControl(document, "[data-timer-count]", HTMLSelectElement);
+
+  /**
+   * The count control, at the reads that already dereferenced it.
+   *
+   * Unlike every timer control, this one is **not** built when missing - the page has no fallback
+   * for it - so the reads that assumed it stay assuming it, and say so by name if it is ever gone.
+   * The debug snapshot below keeps its own `? :` guard, because a console helper reporting nothing
+   * is a real answer there.
+   * @returns {HTMLSelectElement}
+   */
+  function requireTimerCountSelect() {
+    if (!timerCountSelect) {
+      throw new TypeError("The time tracker requires its timer count control.");
+    }
+
+    return timerCountSelect;
+  }
+  const timerTemplate = /** @type {HTMLElement} */ ((
+    document.getElementById("stopwatch") || createTimeTrackerRoot(1)
+  ).cloneNode(true));
+
+  /**
+   * The clients and projects this page offers come from the **shared** normalizer, not a local
+   * one: `normalizeClientProjectOptions` delegates to `LongtailForge.clientProjectOptions`, the
+   * same producer the timer dialog reads. So the published contracts are used rather than a
+   * hand-rolled shape - which is also where `billable` lives, the member the timer's own default
+   * reads off whichever of the two is selected.
+   * @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} StopwatchClientOption
+   * @typedef {import("../../src/types/browser-contracts.js").NormalizedProjectOption} StopwatchProjectOption
+   */
+
+  /**
+   * One task this page can start a timer against.
+   *
+   * **Not the timer dialog's shape, deliberately.** That one carries `client_id` and filters by
+   * project when the list is painted; this one requires a project up front and never reads a
+   * client off the task, so the two normalizers diverge for their two consumers. Only the
+   * active-timer readers are pinned identical across the pair.
+   * @typedef {object} StopwatchTaskOption
+   * @property {string} id
+   * @property {string} label
+   * @property {string} optionLabel
+   * @property {string} project_id
+   * @property {string} status
+   */
+
+  /** @type {StopwatchClientOption[]} */
+  let clients = [];
+  /** @type {unknown[]} */
+  let tagOptions = [];
+  /** @type {StopwatchTaskOption[]} */
+  let taskOptions = [];
+  /** @type {StopwatchTimer[]} */
+  let timers = [];
+
+  /** @type {{ loaded: boolean }} */
+  const timerPersistence = {
+    loaded: false,
+  };
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root this page awaits its workspace-context readiness through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** A missing
+   * root failed at this property read before and still fails here, in the same expression and so
+   * inside the same `try` region. A present root that publishes no `workspaceContextReady` never
+   * failed - `await undefined` is a real state this page has always tolerated, and it still
+   * continues one microtask later exactly as it did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("The Time Tracker stopwatch requires the LongtailForge namespace.");
+    }
+
+    return namespace;
   }
 
-  async startTimeTracker() {
-    if (this.timerId) {
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("The Time Tracker stopwatch requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
+  /**
+   * The page controller registry this page cannot run without.
+   *
+   * Acquired at the point of use rather than stored at module scope, so a missing surface still
+   * fails at exactly the moment it failed before `0.33.33.38.2.6.2` made the read checked. Every
+   * page that loads this script loads `shared/page-controller.js` ahead of it.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    const controller = window.LongtailForge?.pageController;
+    if (!controller) {
+      throw new Error("The Time Tracker stopwatch requires LongtailForge.pageController.");
+    }
+    return controller;
+  }
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("The stop watch requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("The stop watch requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
+  function workspaceUsesBillableFlag() {
+    return window.LongtailForge?.workspaceContext?.workspaceType === "business";
+  }
+
+  /** @param {HTMLInputElement} input @returns {"no" | "yes"} */
+  function billableValue(input) {
+    return workspaceUsesBillableFlag() && input.checked ? "yes" : "no";
+  }
+
+  /** @param {number} timerCount @returns {void} */
+  function setTimerCount(timerCount) {
+    const nextTimerCount = clampTimerCount(timerCount);
+
+    if (nextTimerCount > timers.length) {
+      appendTimers(nextTimerCount);
+    } else if (nextTimerCount < timers.length) {
+      removeTimers(nextTimerCount);
+    }
+
+    timerGrid.style.setProperty("--timer-count", String(nextTimerCount));
+
+    if (timerCountSelect) {
+      timerCountSelect.value = String(nextTimerCount);
+    }
+  }
+
+  async function handleTimerCountChange() {
+    const nextCount = Number(requireTimerCountSelect().value);
+
+    if (nextCount === timers.length) {
       return;
     }
 
-    await pauseOtherTimers(this);
+    if (nextCount < timers.length) {
+      const removedTimers = timers.slice(nextCount);
+      const shouldDiscard = !hasDiscardableTimers(nextCount)
+        || await confirmTimerRemoval(removedTimers);
 
-    // A fresh run gets a new start timestamp; paused runs continue from elapsed time.
-    if (this.elapsedMilliseconds === 0 || !this.activeStartTime) {
-      this.elapsedMilliseconds = 0;
-      this.activeStartTime = new Date();
+      if (!shouldDiscard) {
+        requireTimerCountSelect().value = String(timers.length);
+        return;
+      }
     }
 
-    this.setStatus("");
-    this.startedAt = Date.now() - this.elapsedMilliseconds;
-    this.timerId = window.setInterval(() => this.updateElapsedTime(), 100);
-    this.updateElapsedTime();
-    this.updateButtons();
-    await this.persistActiveTimer("running");
+    setTimerCount(nextCount);
   }
 
-  async stopTimeTracker() {
-    if (
-      (!this.timerId && this.elapsedMilliseconds === 0) ||
-      !this.activeStartTime
+  /** @param {number} nextTimerCount @returns {void} */
+  function appendTimers(nextTimerCount) {
+    for (
+      let timerNumber = timers.length + 1;
+      timerNumber <= nextTimerCount;
+      timerNumber += 1
     ) {
-      return;
-    }
+      const root = getTimerRootForNumber(timerNumber);
+      prepareTimerRoot(root, timerNumber);
+      timerGrid.appendChild(root);
 
-    if (this.timerId) {
-      // Pause first so the saved duration is stable while the request is in flight.
-      await this.pause({ persist: false });
-    }
-
-    this.updateButtons();
-    await this.saveTimeEntry();
-  }
-
-  async pause(options = {}) {
-    if (!this.timerId) {
-      return;
-    }
-
-    const shouldPersist = options.persist !== false;
-
-    window.clearInterval(this.timerId);
-    this.timerId = null;
-    this.updateElapsedTime();
-    this.updateButtons();
-
-    if (shouldPersist) {
-      await this.persistActiveTimer("paused");
+      const timer = new StopwatchTimer(root, timerNumber);
+      timer.setClients(clients);
+      timer.setTaskOptions(taskOptions);
+      timers.push(timer);
     }
   }
 
-  handleTaskSelectionChange() {
-    this.updateButtons();
-  }
+  /** @param {number} nextTimerCount @returns {void} */
+  function removeTimers(nextTimerCount) {
+    const removedTimers = timers.splice(nextTimerCount);
 
-  async linkRunningTimerToTask() {
-    const task = this.taskOptions.find((option) => option.id === this.taskSelect.value);
-
-    if (!task || !this.timerId || !this.persistedActiveTimerId || this.isSaving) {
-      return;
-    }
-
-    this.isSaving = true;
-    this.updateButtons();
-    this.setStatus("Linking timer to task...");
-
-    try {
-      const result = await window.LongtailForge.api.postJson(
-        `/api/tasks/${encodeURIComponent(task.id)}/timer/link`,
-        { timer_slot: String(this.timerNumber) },
-      );
-
-      window.clearInterval(this.timerId);
-      this.timerId = null;
-      this.persistedActiveTimerId = "";
-      await loadActiveTimers({ resetExisting: true });
-      window.dispatchEvent?.(new window.CustomEvent("longtailforge:timers-changed", {
-        detail: {
-          result,
-          source: "time-tracker-task-link",
-        },
-      }));
-      await window.LongtailForge.modal.alert({
-        title: "Task timer linked",
-        message: `The timer is still running and is now linked to ${task.label || "the selected task"}.`,
-      });
-    } catch (error) {
-      this.setStatus(error.message || "Timer could not be linked to the task.");
-      console.error(error);
-    } finally {
-      this.isSaving = false;
-      this.updateButtons();
-    }
-  }
-
-  async resetTimeTracker() {
-    if (!await this.confirmTimerReset("Discarding the timer")) {
-      return;
-    }
-
-    await this.resetTimeTrackerWithoutConfirmation({ compactAfterRemoval: true });
-  }
-
-  async resetTimeTrackerWithoutConfirmation(options = {}) {
-    const shouldPersist = options.persist !== false;
-    const shouldClearInfo = options.ignoreClearPreference || this.clearOnResetInput.checked;
-    const shouldClearElapsed = options.forceClearElapsed !== false;
-    const shouldCompactAfterRemoval = options.compactAfterRemoval === true;
-
-    window.clearInterval(this.timerId);
-    this.timerId = null;
-    if (shouldPersist) {
-      await this.discardPersistedState();
-    }
-    if (shouldClearElapsed) {
-      this.elapsedMilliseconds = 0;
-    }
-    if (shouldClearInfo) {
-      this.clientSelect.value = "";
-      this.populateProjectOptions([]);
-      this.descriptionInput.value = "";
-      this.tagPicker?.setSelected?.([]);
-      this.billableInput.checked = workspaceUsesBillableFlag();
-      this.confirmedClientId = "";
-      this.confirmedProjectId = "";
-      this.selectWorkspaceScopeClientIfNeeded();
-      await this.handleClientChange({ shouldReset: false });
-    }
-    this.activeStartTime = null;
-    this.persistedActiveTimerId = "";
-    this.updateDisplay();
-    this.updateButtons();
-
-    if (shouldCompactAfterRemoval) {
-      await loadActiveTimers();
-    }
-  }
-
-  async saveTimeEntry() {
-    const selectedClient = this.getSelectedClient();
-    const selectedProject = this.getSelectedProject(selectedClient);
-
-    if (!this.activeStartTime) {
-      this.setStatus("Start the timer before saving time.");
-      return;
-    }
-
-    if (!selectedProject) {
-      this.setStatus("Select a project before saving time.");
-      return;
-    }
-
-    this.isSaving = true;
-    this.updateButtons();
-    this.setStatus("Saving time entry...");
-
-    // The API stores ISO timestamps plus calculated seconds/hours for reporting.
-    const durationSeconds = Math.round(this.elapsedMilliseconds / 1000);
-    const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - durationSeconds * 1000);
-    const entry = {
-      client_id: selectedClient?.isWorkspaceScope ? "" : selectedClient.id,
-      client_name: selectedClient?.isWorkspaceScope ? "" : selectedClient.name,
-      project_id: selectedProject.id,
-      project_name: selectedProject.name,
-      description: this.descriptionInput.value.trim(),
-      start_time: startTime.toISOString(),
-      end_time: endTime.toISOString(),
-      duration_seconds: durationSeconds,
-      duration_hours: (durationSeconds / 3600).toFixed(4),
-      billable: billableValue(this.billableInput),
-      invoice_status: "unbilled",
-      tagIds: this.readTagIds(),
-    };
-
-    let saved = false;
-
-    try {
-      if (this.persistedActiveTimerId) {
-        await window.LongtailForge.api.postJson(
-          `/api/active-timers/${encodeURIComponent(this.timerNumber)}/finalize`,
-          entry,
-        );
-      } else {
-        await window.LongtailForge.api.postJson("/api/time-entries", entry);
-      }
-      this.setStatus("Saved.", "saved");
-      saved = true;
-    } catch (error) {
-      this.setStatus(
-        "Time entry was not saved. Start the local server and try again.",
-      );
-      console.error(error);
-    } finally {
-      this.isSaving = false;
-      if (saved) {
-        await this.resetTimeTrackerWithoutConfirmation({ compactAfterRemoval: true, persist: false });
-      }
-      this.updateButtons();
-    }
-  }
-
-  populateClientOptions() {
-    const previousClientId = this.clientSelect.value;
-    this.clientSelect.innerHTML = "";
-    this.clientSelect.appendChild(createOption("", "Select a client"));
-
-    this.clients.forEach((client) => {
-      this.clientSelect.appendChild(createOption(client.id, clientOptionLabel(client)));
+    removedTimers.forEach((timer) => {
+      timer.discardPersistedState();
+      timer.dispose();
+      timer.root.remove();
     });
-
-    this.clientSelect.value = this.clients.some(
-      (client) => client.id === previousClientId,
-    )
-      ? previousClientId
-      : "";
-    this.selectWorkspaceScopeClientIfNeeded();
-    this.clientSelect.disabled = this.clients.length === 0;
-    this.handleClientChange({ shouldReset: false });
-    this.updateButtons();
   }
 
-  selectWorkspaceScopeClientIfNeeded() {
-    if (workspaceShowsClientTools()) {
-      return;
+  /** @param {number} timerNumber @returns {HTMLElement} */
+  function getTimerRootForNumber(timerNumber) {
+    if (timerNumber === 1) {
+      const existingRoot = existingStopwatchControl(timerGrid, "#stopwatch", HTMLElement);
+
+      if (existingRoot) {
+        return existingRoot;
+      }
     }
 
-    const workspaceClient = this.clients.find((client) => client.isWorkspaceScope);
-
-    if (workspaceClient) {
-      this.clientSelect.value = workspaceClient.id;
-    }
+    return /** @type {HTMLElement} */ (timerTemplate.cloneNode(true));
   }
 
-  async handleClientChange(options = {}) {
-    const shouldReset = options.shouldReset !== false;
-
-    if (shouldReset && !await this.confirmTimerReset("Changing the client")) {
-      // Restore the last confirmed values when the user cancels a destructive change.
-      this.clientSelect.value = this.confirmedClientId;
-      const restoredClient = this.getSelectedClient();
-      this.populateProjectOptions(
-        restoredClient ? restoredClient.projects : [],
-        this.confirmedProjectId,
-      );
-      this.updateButtons();
-      return;
+  /** @param {unknown} timerCount @returns {number} */
+  function clampTimerCount(timerCount) {
+    if (typeof timerCount === "number" && [1, 2, 3, 4].includes(timerCount)) {
+      return timerCount;
     }
 
-    const selectedClient = this.clients.find(
-      (client) => client.id === this.clientSelect.value,
-    );
-
-    this.populateProjectOptions(selectedClient ? selectedClient.projects : []);
-
-    if (shouldReset) {
-      await this.resetTimeTrackerWithoutConfirmation();
-    }
-
-    this.confirmedClientId = this.clientSelect.value;
-    this.confirmedProjectId = this.projectSelect.value;
+    return 1;
   }
 
-  async handleProjectChange() {
-    if (!await this.confirmTimerReset("Changing the project")) {
-      this.projectSelect.value = this.confirmedProjectId;
-      this.updateButtons();
-      return;
-    }
-
-    await this.resetTimeTrackerWithoutConfirmation();
-    this.updateBillableDefault();
-    this.confirmedClientId = this.clientSelect.value;
-    this.confirmedProjectId = this.projectSelect.value;
+  /** @param {number} nextCount @returns {boolean} */
+  function hasDiscardableTimers(nextCount) {
+    return timers.slice(nextCount).some((timer) => timer.hasElapsedTime());
   }
 
-  async confirmTimerReset(actionLabel) {
-    if (!this.hasElapsedTime()) {
-      return true;
-    }
+  /** @param {StopwatchTimer[]} removedTimers @returns {Promise<boolean>} */
+  function confirmTimerRemoval(removedTimers) {
+    const timerLabels = removedTimers
+      .filter((timer) => timer.hasElapsedTime())
+      .map((timer) => `Timer ${timer.timerNumber}`);
+    const detail =
+      timerLabels.length === 1
+        ? `${timerLabels[0]} has unsaved time.`
+        : `${timerLabels.join(", ")} have unsaved time.`;
 
-    const shouldContinue = await window.LongtailForge.modal.confirm({
-      title: "Discard timer?",
-      message: `${actionLabel} will stop and discard this timer's elapsed time. Continue?`,
-      confirmLabel: "Discard",
+    return requireModalDialogs().confirm({
+      title: "Remove timers?",
+      message: `${detail} Removing timers will discard that time.`,
+      confirmLabel: "Remove",
       cancelLabel: "Cancel",
       danger: true,
     });
-
-    if (!shouldContinue) {
-      this.setStatus("Timer change canceled.");
-    }
-
-    return shouldContinue;
   }
 
-  populateProjectOptions(projects, previousProjectId = this.projectSelect.value) {
-    this.projectSelect.innerHTML = "";
-    this.projectSelect.appendChild(createOption("", "Select a project"));
-
-    projects.forEach((project) => {
-      this.projectSelect.appendChild(createOption(project.id, projectOptionLabel(project)));
-    });
-
-    this.projectSelect.value = projects.some(
-      (project) => project.id === previousProjectId,
-    )
-      ? previousProjectId
-      : "";
-    this.projectSelect.disabled = projects.length === 0;
-    this.updateBillableDefault();
-    this.populateTaskOptions();
-  }
-
-  populateTaskOptions(taskId = this.taskSelect.value) {
-    const projectId = this.projectSelect.value;
-    const candidates = this.taskOptions.filter((task) => task.project_id === projectId);
-    const placeholder = this.timerId
-      ? (candidates.length > 0 ? "Select a task" : "No active tasks for this project")
-      : "Start timer to link a task";
-
-    this.taskSelect.replaceChildren(createOption("", placeholder));
-    candidates.forEach((task) => {
-      this.taskSelect.appendChild(createOption(task.id, task.optionLabel || task.label));
-    });
-    this.taskSelect.value = candidates.some((task) => task.id === taskId) ? taskId : "";
-    this.taskSelect.disabled = !this.timerId || !this.persistedActiveTimerId || candidates.length === 0 || this.isSaving;
-  }
-
-  getSelectedClient() {
-    return this.clients.find((client) => client.id === this.clientSelect.value);
-  }
-
-  getSelectedProject(client) {
-    if (!client || !Array.isArray(client.projects)) {
-      return null;
-    }
-
-    return client.projects.find(
-      (project) => project.id === this.projectSelect.value,
-    );
-  }
-
-  updateElapsedTime() {
-    this.elapsedMilliseconds = Date.now() - this.startedAt;
-    this.updateDisplay();
-  }
-
-  updateDisplay() {
-    this.display.textContent = formatTime(this.elapsedMilliseconds);
-  }
-
-  updateButtons() {
-    const hasRequiredDetails = Boolean(
-      this.clientSelect.value && this.projectSelect.value,
-    );
-    const hasElapsedTime =
-      this.elapsedMilliseconds > 0 || Boolean(this.timerId);
-    const hasSaveableTime = hasElapsedTime && Boolean(this.activeStartTime);
-
-    this.startButton.disabled =
-      Boolean(this.timerId) || this.isSaving || !hasRequiredDetails;
-    this.pauseButton.disabled = !this.timerId || this.isSaving;
-    this.stopButton.disabled = !hasSaveableTime || this.isSaving;
-    this.resetButton.disabled = !hasElapsedTime || this.isSaving;
-    this.populateTaskOptions();
-    this.linkTaskButton.disabled = (
-      !this.timerId ||
-      !this.persistedActiveTimerId ||
-      !this.taskSelect.value ||
-      this.isSaving
-    );
-    this.updateTimerStateLabel();
-  }
-
-  updateTimerStateLabel() {
-    const isActive = Boolean(this.timerId);
-    const isPaused = !isActive && Boolean(this.activeStartTime);
-    const state = isActive ? "active" : isPaused ? "paused" : "unused";
-
-    this.activeIndicator.hidden = false;
-    this.activeIndicator.textContent = isActive ? "Active" : isPaused ? "Paused" : "Unused";
-    this.activeIndicator.dataset.timerState = state;
-  }
-
-  hasElapsedTime() {
-    return this.elapsedMilliseconds > 0 || Boolean(this.timerId);
-  }
-
-  isRunning() {
-    return Boolean(this.timerId);
-  }
-
-  setStatus(message, type = "") {
-    this.statusMessage.textContent = message;
-    this.statusMessage.classList.toggle("is-saved", type === "saved");
-  }
-
-  updateBillableDefault() {
-    if (!workspaceUsesBillableFlag()) {
-      this.billableInput.checked = false;
-      return;
-    }
-
-    const selectedClient = this.getSelectedClient();
-    const selectedProject = this.getSelectedProject(selectedClient);
-    const billableSource = selectedProject || selectedClient;
-
-    this.billableInput.checked = billableSource?.billable !== "no";
-  }
-
-  mountTagPicker(selectedTagIds = []) {
-    if (!this.tagsContainer || !window.LongtailForge?.tags?.mountPicker) {
-      if (this.tagsContainer) {
-        this.tagsContainer.hidden = true;
+  /** @param {StopwatchTimer} activeTimer @returns {Promise<void>} */
+  async function pauseOtherTimers(activeTimer) {
+    // Only one timer should actively run at a time.
+    await Promise.all(timers.map((timer) => {
+      if (timer !== activeTimer) {
+        return timer.pause();
       }
-      return;
-    }
-
-    this.tagsContainer.hidden = false;
-    window.LongtailForge.tags.mountPicker(this.tagsContainer, {
-      tags: tagOptions,
-      selectedTagIds,
-    }).then((picker) => {
-      this.tagPicker = picker || this.tagPicker;
-    });
+      return Promise.resolve();
+    }));
   }
 
-  readTagIds() {
-    return this.tagPicker?.readTagIds?.() || [];
-  }
-
-  restoreFromPersistedTimer(timerData) {
-    this.isRestoring = true;
-    this.persistedActiveTimerId = timerData.active_timer_id || "";
-    this.clientSelect.value = timerData.client_id || this.findClientIdForProject(timerData.project_id) || "";
-
-    const selectedClient = this.getSelectedClient();
-    this.populateProjectOptions(selectedClient ? selectedClient.projects : [], timerData.project_id);
-    this.projectSelect.value = timerData.project_id || "";
-    this.descriptionInput.value = timerData.description || "";
-    this.billableInput.checked = workspaceUsesBillableFlag() && timerData.billable !== "no";
-    this.confirmedClientId = this.clientSelect.value;
-    this.confirmedProjectId = this.projectSelect.value;
-
-    const accumulatedMilliseconds =
-      (Number(timerData.accumulated_elapsed_seconds) || 0) * 1000;
-
-    if (timerData.timer_status === "running") {
-      const lastActiveStartTime = new Date(timerData.last_active_start_time || Date.now());
-      const runningMilliseconds = Number.isFinite(lastActiveStartTime.getTime())
-        ? Date.now() - lastActiveStartTime.getTime()
-        : 0;
-
-      this.elapsedMilliseconds = Math.max(0, accumulatedMilliseconds + runningMilliseconds);
-      this.startedAt = Date.now() - this.elapsedMilliseconds;
-      this.activeStartTime = lastActiveStartTime;
-      this.timerId = window.setInterval(() => this.updateElapsedTime(), 100);
-    } else {
-      this.elapsedMilliseconds = accumulatedMilliseconds;
-      this.startedAt = Date.now() - this.elapsedMilliseconds;
-      this.activeStartTime = timerData.last_active_start_time
-        ? new Date(timerData.last_active_start_time)
-        : new Date(Date.now() - this.elapsedMilliseconds);
-    }
-
-    this.updateDisplay();
-    this.updateButtons();
-    this.setStatus("Restored unsaved timer.");
-    this.isRestoring = false;
-  }
-
-  clearLocalStateForReload() {
-    window.clearInterval(this.timerId);
-    this.timerId = null;
-    this.elapsedMilliseconds = 0;
-    this.startedAt = 0;
-    this.activeStartTime = null;
-    this.persistedActiveTimerId = "";
-    this.clientSelect.value = "";
-    this.populateProjectOptions([]);
-    this.descriptionInput.value = "";
-    this.billableInput.checked = workspaceUsesBillableFlag();
-    this.tagPicker?.setSelected?.([]);
-    this.confirmedClientId = "";
-    this.confirmedProjectId = "";
-    this.selectWorkspaceScopeClientIfNeeded();
-    const selectedClient = this.getSelectedClient();
-    this.populateProjectOptions(selectedClient ? selectedClient.projects : []);
-    this.setStatus("");
-    this.updateDisplay();
-    this.updateButtons();
-  }
-
-  findClientIdForProject(projectId) {
-    const projectKey = String(projectId || "").trim();
-    const matchingClient = this.clients.find((client) => (
-      Array.isArray(client.projects) &&
-      client.projects.some((project) => String(project.id || "").trim() === projectKey)
-    ));
-
-    return matchingClient?.id || "";
-  }
-
-  async persistEditedTimer() {
-    if (this.isRestoring || !this.hasElapsedTime()) {
-      return;
-    }
-
-    await this.persistActiveTimer(this.timerId ? "running" : "paused");
-  }
-
-  async persistActiveTimer(timerStatus) {
-    const selectedClient = this.getSelectedClient();
-    const selectedProject = this.getSelectedProject(selectedClient);
-
-    if (!selectedProject || this.isSaving) {
-      return;
-    }
-
-    const now = new Date();
-    const elapsedSeconds = Math.max(0, Math.round(this.elapsedMilliseconds / 1000));
-    const payload = {
-      active_timer_id: this.persistedActiveTimerId,
-      timer_slot: String(this.timerNumber),
-      client_id: selectedClient?.isWorkspaceScope ? "" : selectedClient?.id || "",
-      client_name: selectedClient?.isWorkspaceScope ? "" : selectedClient?.name || "",
-      project_id: selectedProject.id,
-      project_name: selectedProject.name,
-      description: this.descriptionInput.value.trim(),
-      billable: billableValue(this.billableInput),
-      accumulated_elapsed_seconds: elapsedSeconds,
-      last_active_start_time: timerStatus === "running" ? now.toISOString() : null,
-      timer_status: timerStatus,
-    };
-
+  async function loadClientProjectData() {
     try {
-      const result = await window.LongtailForge.api.putJson(
-        `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
-        payload,
-      );
-      this.persistedActiveTimerId = result?.timer?.active_timer_id || this.persistedActiveTimerId;
-      timerPersistence.loaded = true;
-      this.updateButtons();
+      const data = await requireApi().getJson("/api/client-projects?view=options", {
+        cache: "no-store",
+      });
+      clients = normalizeClientProjectOptions(data);
+      timers.forEach((timer) => timer.setClients(clients));
     } catch (error) {
-      this.setStatus("Timer is running locally, but persistence failed.");
+      timers.forEach((timer) => timer.disableClientData());
       console.error(error);
     }
   }
 
-  async discardPersistedState() {
-    if (!this.persistedActiveTimerId && !timerPersistence.loaded) {
-      return;
-    }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserActiveTimerSlotRecord} BrowserActiveTimerSlotRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserActiveTimerList} BrowserActiveTimerList */
 
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isActiveTimerRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One active timer, vouched for only as far as its slot.
+   *
+   * The response carries a much richer row; this promises the one member both list consumers
+   * rely on, and the record travels onward with everything else it arrived with.
+   * @param {unknown} value
+   * @returns {value is BrowserActiveTimerSlotRecord}
+   */
+  function isActiveTimerSlotRecord(value) {
+    return isActiveTimerRecord(value) && typeof value.timer_slot === "string" && value.timer_slot !== "";
+  }
+
+  /**
+   * The active manual timers, or `null` when the list cannot be vouched for.
+   *
+   * **An unreadable list is not an empty one, and the difference is a write hazard.** Slot
+   * occupancy is decided from this response: read as empty, the page concludes that every manual
+   * slot is free. So a missing or non-array `timers`, or one element without a usable slot,
+   * refuses the whole response rather than being filtered - this is state restoration, not a
+   * candidate picker, and a dropped timer is a slot the page would then believe is free.
+   *
+   * `{ timers: [] }` is a real answer and is accepted.
+   * @param {unknown} body
+   * @returns {BrowserActiveTimerList | null}
+   */
+  function readActiveTimerList(body) {
+    if (!isActiveTimerRecord(body) || !Array.isArray(body.timers)) {
+      return null;
+    }
+    // Filtered and length-checked rather than rebuilt: the elements pass through by reference,
+    // so the richer payload later code still reads is not truncated by narrowing its type.
+    const timers = body.timers.filter(isActiveTimerSlotRecord);
+    return timers.length === body.timers.length ? { timers } : null;
+  }
+
+  /** @param {unknown} [options] @returns {Promise<void>} */
+  async function loadActiveTimers(options = {}) {
     try {
-      await window.LongtailForge.api.deleteJson(
-        `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
-      );
+      const list = readActiveTimerList(await requireApi().getJson("/api/active-timers", {
+        cache: "no-store",
+      }));
+      if (!list) {
+        throw new Error("Active timers could not be read.");
+      }
+      const activeTimers = list.timers;
+      const maxTimerSlot = activeTimers.reduce((maxSlot, timer) => {
+        const timerSlot = Number.parseInt(timer.timer_slot, 10);
+        return Number.isFinite(timerSlot) ? Math.max(maxSlot, timerSlot) : maxSlot;
+      }, 1);
+
+      setTimerCount(clampTimerCount(maxTimerSlot));
+
+      if (optionFlag(options, "resetExisting") === true) {
+        timers.forEach((timer) => timer.clearLocalStateForReload());
+      }
+
+      activeTimers.forEach((timerData) => {
+        const timerSlot = Number.parseInt(timerData.timer_slot, 10);
+        const timer = timers[timerSlot - 1];
+
+        if (timer) {
+          timer.restoreFromPersistedTimer(timerData);
+        }
+      });
     } catch (error) {
       console.error(error);
     } finally {
+      timerPersistence.loaded = true;
+    }
+  }
+
+  async function loadTaskOptions() {
+    if (!workspaceHasTasks()) {
+      taskOptions = [];
+      timers.forEach((timer) => timer.setTaskOptions(taskOptions));
+      return;
+    }
+
+    try {
+      const data = await requireApi().getJson("/api/tasks?status=active&limit=200", {
+        cache: "no-store",
+      });
+      taskOptions = normalizeTaskOptions(data);
+    } catch {
+      taskOptions = [];
+    }
+
+    timers.forEach((timer) => timer.setTaskOptions(taskOptions));
+  }
+
+  async function initializeTimeTracker() {
+    await requireNamespace().workspaceContextReady;
+    setTimerCount(1);
+    await loadTagOptions();
+    await loadClientProjectData();
+    await loadTaskOptions();
+    await loadActiveTimers();
+  }
+
+  class StopwatchTimer {
+    /** @param {HTMLElement} root @param {number} timerNumber */
+    constructor(root, timerNumber) {
+      // Existing markup is preferred, but missing controls are created for resilience.
+      this.root = root;
+      this.timerNumber = timerNumber;
+      this.clientSelect =
+        existingStopwatchControl(root, "[data-stopwatch-client]", HTMLSelectElement) ||
+        createSelect(root, "Client", "client", "Select a client");
+      this.clientControl = closestStopwatchElement(this.clientSelect, "[data-client-workspace-control]", "label");
+      this.projectSelect =
+        existingStopwatchControl(root, "[data-stopwatch-project]", HTMLSelectElement) ||
+        createSelect(root, "Project", "project", "Select a project");
+      this.descriptionInput =
+        existingStopwatchControl(root, "[data-stopwatch-description]", HTMLInputElement) ||
+        createDescriptionInput(root);
+      const taskLinkControl = ensureTaskLinkControl(root);
+      this.taskSelect = taskLinkControl.select;
+      this.linkTaskButton = taskLinkControl.button;
+      decorateTaskLinkButton(this.linkTaskButton);
+      this.tagsContainer =
+        existingStopwatchControl(root, "[data-stopwatch-tags]", HTMLElement) ||
+        createTagsContainer(root);
+      this.display =
+        existingStopwatchControl(root, "[data-stopwatch-display]", HTMLElement) || createDisplay(root);
+      this.startButton =
+        existingStopwatchControl(root, "[data-stopwatch-start]", HTMLButtonElement) ||
+        createButton(root, "Start", "start");
+      this.pauseButton =
+        existingStopwatchControl(root, "[data-stopwatch-pause]", HTMLButtonElement) ||
+        createButton(root, "Pause", "pause");
+      this.stopButton =
+        existingStopwatchControl(root, "[data-stopwatch-stop]", HTMLButtonElement) ||
+        createButton(root, "Save & End", "stop");
+      this.stopButton.textContent = "Save & End";
+      this.resetButton =
+        existingStopwatchControl(root, "[data-stopwatch-reset]", HTMLButtonElement) ||
+        createButton(root, "Discard", "reset", { danger: true });
+      this.resetButton.textContent = "Discard";
+      this.resetButton.classList.add("danger-button");
+      decorateStopwatchControls({
+        pauseButton: this.pauseButton,
+        resetButton: this.resetButton,
+        startButton: this.startButton,
+        stopButton: this.stopButton,
+      });
+      this.clearOnResetInput =
+        existingStopwatchControl(root, "[data-stopwatch-clear-on-reset]", HTMLInputElement) ||
+        createClearOnResetInput(root);
+      this.billableInput =
+        existingStopwatchControl(root, "[data-stopwatch-billable]", HTMLInputElement) ||
+        createBillableInput(root);
+      this.billableControl = closestStopwatchElement(this.billableInput, "[data-stopwatch-billable-control]", "label");
+      if (this.billableControl) {
+        this.billableControl.hidden = !workspaceUsesBillableFlag();
+      }
+      if (!workspaceUsesBillableFlag()) {
+        this.billableInput.checked = false;
+      }
+      this.statusMessage =
+        existingStopwatchControl(root, "[data-stopwatch-status]", HTMLElement) ||
+        createStatusMessage(root);
+      this.activeIndicator =
+        existingStopwatchControl(root, "[data-stopwatch-active-indicator]", HTMLElement) ||
+        createActiveIndicator(root);
+
+      this.elapsedMilliseconds = 0;
+      this.startedAt = 0;
+      /** @type {Date | null} */
+      this.activeStartTime = null;
+      /** @type {number | null} */
+      this.timerId = null;
+      /** @type {StopwatchClientOption[]} */
+      this.clients = [];
+      /** @type {StopwatchTaskOption[]} */
+      this.taskOptions = [];
+      this.isSaving = false;
+      this.confirmedClientId = this.clientSelect.value;
+      this.confirmedProjectId = this.projectSelect.value;
       this.persistedActiveTimerId = "";
+      this.isRestoring = false;
+      /**
+       * Whatever can answer and set this timer's tags: the mounted picker once it resolves, and
+       * this stub until then. Typed as the two methods this class calls.
+       * @type {{readTagIds: () => string[], setSelected: (tagIds?: unknown) => void}}
+       */
+      this.tagPicker = { readTagIds: () => [], setSelected: () => {} };
+
+      this.startTimeTracker = this.startTimeTracker.bind(this);
+      this.pause = this.pause.bind(this);
+      this.stopTimeTracker = this.stopTimeTracker.bind(this);
+      this.resetTimeTracker = this.resetTimeTracker.bind(this);
+      this.handleClientChange = this.handleClientChange.bind(this);
+      this.handleProjectChange = this.handleProjectChange.bind(this);
+      this.persistEditedTimer = this.persistEditedTimer.bind(this);
+      this.linkRunningTimerToTask = this.linkRunningTimerToTask.bind(this);
+      this.handleTaskSelectionChange = this.handleTaskSelectionChange.bind(this);
+
+      this.startButton.addEventListener("click", this.startTimeTracker);
+      this.pauseButton.addEventListener("click", this.pause);
+      this.stopButton.addEventListener("click", this.stopTimeTracker);
+      this.resetButton.addEventListener("click", this.resetTimeTracker);
+      this.clientSelect.addEventListener("change", this.handleClientChange);
+      this.projectSelect.addEventListener("change", this.handleProjectChange);
+      this.descriptionInput.addEventListener("change", this.persistEditedTimer);
+      this.billableInput.addEventListener("change", this.persistEditedTimer);
+      this.taskSelect.addEventListener("change", this.handleTaskSelectionChange);
+      this.linkTaskButton.addEventListener("click", this.linkRunningTimerToTask);
+
+      this.updateDisplay();
+      this.updateButtons();
+      this.mountTagPicker();
+    }
+
+    dispose() {
+      // Removed timer cards drop their listeners before leaving the DOM.
+      window.clearInterval(this.timerId ?? undefined);
+      this.startButton.removeEventListener("click", this.startTimeTracker);
+      this.pauseButton.removeEventListener("click", this.pause);
+      this.stopButton.removeEventListener("click", this.stopTimeTracker);
+      this.resetButton.removeEventListener("click", this.resetTimeTracker);
+      this.clientSelect.removeEventListener("change", this.handleClientChange);
+      this.projectSelect.removeEventListener("change", this.handleProjectChange);
+      this.descriptionInput.removeEventListener("change", this.persistEditedTimer);
+      this.billableInput.removeEventListener("change", this.persistEditedTimer);
+      this.taskSelect.removeEventListener("change", this.handleTaskSelectionChange);
+      this.linkTaskButton.removeEventListener("click", this.linkRunningTimerToTask);
+    }
+
+    /** @param {StopwatchClientOption[]} clients @returns {void} */
+    setClients(clients) {
+      this.clients = clients;
+      this.populateClientOptions();
+    }
+
+    /** @param {StopwatchTaskOption[]} options @returns {void} */
+    setTaskOptions(options) {
+      this.taskOptions = Array.isArray(options) ? options : [];
+      this.populateTaskOptions();
+    }
+
+    disableClientData() {
+      this.clientSelect.innerHTML = "";
+      this.clientSelect.appendChild(createOption("", "Client data unavailable"));
+      this.clientSelect.disabled = true;
+      this.projectSelect.disabled = true;
+      this.updateButtons();
+    }
+
+    async startTimeTracker() {
+      if (this.timerId) {
+        return;
+      }
+
+      await pauseOtherTimers(this);
+
+      // A fresh run gets a new start timestamp; paused runs continue from elapsed time.
+      if (this.elapsedMilliseconds === 0 || !this.activeStartTime) {
+        this.elapsedMilliseconds = 0;
+        this.activeStartTime = new Date();
+      }
+
+      this.setStatus("");
+      this.startedAt = Date.now() - this.elapsedMilliseconds;
+      this.timerId = window.setInterval(() => this.updateElapsedTime(), 100);
+      this.updateElapsedTime();
+      this.updateButtons();
+      await this.persistActiveTimer("running");
+    }
+
+    async stopTimeTracker() {
+      if (
+        (!this.timerId && this.elapsedMilliseconds === 0) ||
+        !this.activeStartTime
+      ) {
+        return;
+      }
+
+      if (this.timerId) {
+        // Pause first so the saved duration is stable while the request is in flight.
+        await this.pause({ persist: false });
+      }
+
+      this.updateButtons();
+      await this.saveTimeEntry();
+    }
+
+    /** @param {unknown} [options] a listener supplies the event itself; see `optionFlag` */
+    async pause(options = {}) {
+      if (!this.timerId) {
+        return;
+      }
+
+      const shouldPersist = optionFlag(options, "persist") !== false;
+
+      window.clearInterval(this.timerId ?? undefined);
+      this.timerId = null;
+      this.updateElapsedTime();
+      this.updateButtons();
+
+      if (shouldPersist) {
+        await this.persistActiveTimer("paused");
+      }
+    }
+
+    handleTaskSelectionChange() {
+      this.updateButtons();
+    }
+
+    async linkRunningTimerToTask() {
+      const task = this.taskOptions.find((option) => option.id === this.taskSelect.value);
+
+      if (!task || !this.timerId || !this.persistedActiveTimerId || this.isSaving) {
+        return;
+      }
+
+      this.isSaving = true;
+      this.updateButtons();
+      this.setStatus("Linking timer to task...");
+
+      try {
+        const result = await requireApi().postJson(
+          `/api/tasks/${encodeURIComponent(task.id)}/timer/link`,
+          { timer_slot: String(this.timerNumber) },
+        );
+
+        window.clearInterval(this.timerId ?? undefined);
+        this.timerId = null;
+        this.persistedActiveTimerId = "";
+        await loadActiveTimers({ resetExisting: true });
+        window.dispatchEvent?.(new window.CustomEvent("longtailforge:timers-changed", {
+          detail: {
+            result,
+            source: "time-tracker-task-link",
+          },
+        }));
+        await requireModalDialogs().alert({
+          title: "Task timer linked",
+          message: `The timer is still running and is now linked to ${task.label || "the selected task"}.`,
+        });
+      } catch (error) {
+        this.setStatus(requireErrors().caughtMessage(error, "Timer could not be linked to the task."));
+        console.error(error);
+      } finally {
+        this.isSaving = false;
+        this.updateButtons();
+      }
+    }
+
+    async resetTimeTracker() {
+      if (!await this.confirmTimerReset("Discarding the timer")) {
+        return;
+      }
+
+      await this.resetTimeTrackerWithoutConfirmation({ compactAfterRemoval: true });
+    }
+
+    /** @param {unknown} [options] a listener supplies the event itself; see `optionFlag` */
+    async resetTimeTrackerWithoutConfirmation(options = {}) {
+      const shouldPersist = optionFlag(options, "persist") !== false;
+      const shouldClearInfo = optionFlag(options, "ignoreClearPreference") || this.clearOnResetInput.checked;
+      const shouldClearElapsed = optionFlag(options, "forceClearElapsed") !== false;
+      const shouldCompactAfterRemoval = optionFlag(options, "compactAfterRemoval") === true;
+
+      window.clearInterval(this.timerId ?? undefined);
+      this.timerId = null;
+      if (shouldPersist) {
+        await this.discardPersistedState();
+      }
+      if (shouldClearElapsed) {
+        this.elapsedMilliseconds = 0;
+      }
+      if (shouldClearInfo) {
+        this.clientSelect.value = "";
+        this.populateProjectOptions([]);
+        this.descriptionInput.value = "";
+        this.tagPicker?.setSelected?.([]);
+        this.billableInput.checked = workspaceUsesBillableFlag();
+        this.confirmedClientId = "";
+        this.confirmedProjectId = "";
+        this.selectWorkspaceScopeClientIfNeeded();
+        await this.handleClientChange({ shouldReset: false });
+      }
+      this.activeStartTime = null;
+      this.persistedActiveTimerId = "";
+      this.updateDisplay();
+      this.updateButtons();
+
+      if (shouldCompactAfterRemoval) {
+        await loadActiveTimers();
+      }
+    }
+
+    async saveTimeEntry() {
+      const selectedClient = this.getSelectedClient();
+      const selectedProject = this.getSelectedProject(selectedClient);
+
+      if (!this.activeStartTime) {
+        this.setStatus("Start the timer before saving time.");
+        return;
+      }
+
+      if (!selectedProject) {
+        this.setStatus("Select a project before saving time.");
+        return;
+      }
+
+      this.isSaving = true;
+      this.updateButtons();
+      this.setStatus("Saving time entry...");
+
+      // The API stores ISO timestamps plus calculated seconds/hours for reporting.
+      const durationSeconds = Math.round(this.elapsedMilliseconds / 1000);
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - durationSeconds * 1000);
+      const entry = {
+        client_id: selectedClient && !selectedClient.isWorkspaceScope ? selectedClient.id : "",
+        client_name: selectedClient && !selectedClient.isWorkspaceScope ? selectedClient.name : "",
+        project_id: selectedProject.id,
+        project_name: selectedProject.name,
+        description: this.descriptionInput.value.trim(),
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        duration_seconds: durationSeconds,
+        duration_hours: (durationSeconds / 3600).toFixed(4),
+        billable: billableValue(this.billableInput),
+        invoice_status: "unbilled",
+        tagIds: this.readTagIds(),
+      };
+
+      let saved = false;
+
+      try {
+        if (this.persistedActiveTimerId) {
+          await requireApi().postJson(
+            `/api/active-timers/${encodeURIComponent(this.timerNumber)}/finalize`,
+            entry,
+          );
+        } else {
+          await requireApi().postJson("/api/time-entries", entry);
+        }
+        this.setStatus("Saved.", "saved");
+        saved = true;
+      } catch (error) {
+        this.setStatus(
+          "Time entry was not saved. Start the local server and try again.",
+        );
+        console.error(error);
+      } finally {
+        this.isSaving = false;
+        if (saved) {
+          await this.resetTimeTrackerWithoutConfirmation({ compactAfterRemoval: true, persist: false });
+        }
+        this.updateButtons();
+      }
+    }
+
+    populateClientOptions() {
+      const previousClientId = this.clientSelect.value;
+      this.clientSelect.innerHTML = "";
+      this.clientSelect.appendChild(createOption("", "Select a client"));
+
+      this.clients.forEach((client) => {
+        this.clientSelect.appendChild(createOption(client.id, clientOptionLabel(client)));
+      });
+
+      this.clientSelect.value = this.clients.some(
+        (client) => client.id === previousClientId,
+      )
+        ? previousClientId
+        : "";
+      this.selectWorkspaceScopeClientIfNeeded();
+      this.clientSelect.disabled = this.clients.length === 0;
+      this.handleClientChange({ shouldReset: false });
+      this.updateButtons();
+    }
+
+    selectWorkspaceScopeClientIfNeeded() {
+      if (workspaceShowsClientTools()) {
+        return;
+      }
+
+      const workspaceClient = this.clients.find((client) => client.isWorkspaceScope);
+
+      if (workspaceClient) {
+        this.clientSelect.value = workspaceClient.id;
+      }
+    }
+
+    /** @param {unknown} [options] a listener supplies the event itself; see `optionFlag` */
+    async handleClientChange(options = {}) {
+      const shouldReset = optionFlag(options, "shouldReset") !== false;
+
+      if (shouldReset && !await this.confirmTimerReset("Changing the client")) {
+        // Restore the last confirmed values when the user cancels a destructive change.
+        this.clientSelect.value = this.confirmedClientId;
+        const restoredClient = this.getSelectedClient();
+        this.populateProjectOptions(
+          restoredClient ? restoredClient.projects : [],
+          this.confirmedProjectId,
+        );
+        this.updateButtons();
+        return;
+      }
+
+      const selectedClient = this.clients.find(
+        (client) => client.id === this.clientSelect.value,
+      );
+
+      this.populateProjectOptions(selectedClient ? selectedClient.projects : []);
+
+      if (shouldReset) {
+        await this.resetTimeTrackerWithoutConfirmation();
+      }
+
+      this.confirmedClientId = this.clientSelect.value;
+      this.confirmedProjectId = this.projectSelect.value;
+    }
+
+    async handleProjectChange() {
+      if (!await this.confirmTimerReset("Changing the project")) {
+        this.projectSelect.value = this.confirmedProjectId;
+        this.updateButtons();
+        return;
+      }
+
+      await this.resetTimeTrackerWithoutConfirmation();
+      this.updateBillableDefault();
+      this.confirmedClientId = this.clientSelect.value;
+      this.confirmedProjectId = this.projectSelect.value;
+    }
+
+    /** @param {string} actionLabel @returns {Promise<boolean>} */
+    async confirmTimerReset(actionLabel) {
+      if (!this.hasElapsedTime()) {
+        return true;
+      }
+
+      const shouldContinue = await requireModalDialogs().confirm({
+        title: "Discard timer?",
+        message: `${actionLabel} will stop and discard this timer's elapsed time. Continue?`,
+        confirmLabel: "Discard",
+        cancelLabel: "Cancel",
+        danger: true,
+      });
+
+      if (!shouldContinue) {
+        this.setStatus("Timer change canceled.");
+      }
+
+      return shouldContinue;
+    }
+
+    /** @param {StopwatchProjectOption[]} projects @param {string} [previousProjectId] @returns {void} */
+    populateProjectOptions(projects, previousProjectId = this.projectSelect.value) {
+      this.projectSelect.innerHTML = "";
+      this.projectSelect.appendChild(createOption("", "Select a project"));
+
+      projects.forEach((project) => {
+        this.projectSelect.appendChild(createOption(project.id, projectOptionLabel(project)));
+      });
+
+      this.projectSelect.value = projects.some(
+        (project) => project.id === previousProjectId,
+      )
+        ? previousProjectId
+        : "";
+      this.projectSelect.disabled = projects.length === 0;
+      this.updateBillableDefault();
+      this.populateTaskOptions();
+    }
+
+    /** @param {string} [taskId] @returns {void} */
+    populateTaskOptions(taskId = this.taskSelect.value) {
+      const projectId = this.projectSelect.value;
+      const candidates = this.taskOptions.filter((task) => task.project_id === projectId);
+      const placeholder = this.timerId
+        ? (candidates.length > 0 ? "Select a task" : "No active tasks for this project")
+        : "Start timer to link a task";
+
+      this.taskSelect.replaceChildren(createOption("", placeholder));
+      candidates.forEach((task) => {
+        this.taskSelect.appendChild(createOption(task.id, task.optionLabel || task.label));
+      });
+      this.taskSelect.value = candidates.some((task) => task.id === taskId) ? taskId : "";
+      this.taskSelect.disabled = !this.timerId || !this.persistedActiveTimerId || candidates.length === 0 || this.isSaving;
+    }
+
+    getSelectedClient() {
+      return this.clients.find((client) => client.id === this.clientSelect.value);
+    }
+
+    /** @param {StopwatchClientOption | undefined} client @returns {StopwatchProjectOption | undefined} */
+    getSelectedProject(client) {
+      if (!client || !Array.isArray(client.projects)) {
+        return undefined;
+      }
+
+      return client.projects.find(
+        (project) => project.id === this.projectSelect.value,
+      );
+    }
+
+    updateElapsedTime() {
+      this.elapsedMilliseconds = Date.now() - this.startedAt;
+      this.updateDisplay();
+    }
+
+    updateDisplay() {
+      this.display.textContent = formatTime(this.elapsedMilliseconds);
+    }
+
+    updateButtons() {
+      const hasRequiredDetails = Boolean(
+        this.clientSelect.value && this.projectSelect.value,
+      );
+      const hasElapsedTime =
+        this.elapsedMilliseconds > 0 || Boolean(this.timerId);
+      const hasSaveableTime = hasElapsedTime && Boolean(this.activeStartTime);
+
+      this.startButton.disabled =
+        Boolean(this.timerId) || this.isSaving || !hasRequiredDetails;
+      this.pauseButton.disabled = !this.timerId || this.isSaving;
+      this.stopButton.disabled = !hasSaveableTime || this.isSaving;
+      this.resetButton.disabled = !hasElapsedTime || this.isSaving;
+      this.populateTaskOptions();
+      this.linkTaskButton.disabled = (
+        !this.timerId ||
+        !this.persistedActiveTimerId ||
+        !this.taskSelect.value ||
+        this.isSaving
+      );
+      this.updateTimerStateLabel();
+    }
+
+    updateTimerStateLabel() {
+      const isActive = Boolean(this.timerId);
+      const isPaused = !isActive && Boolean(this.activeStartTime);
+      const state = isActive ? "active" : isPaused ? "paused" : "unused";
+
+      this.activeIndicator.hidden = false;
+      this.activeIndicator.textContent = isActive ? "Active" : isPaused ? "Paused" : "Unused";
+      this.activeIndicator.dataset.timerState = state;
+    }
+
+    hasElapsedTime() {
+      return this.elapsedMilliseconds > 0 || Boolean(this.timerId);
+    }
+
+    isRunning() {
+      return Boolean(this.timerId);
+    }
+
+    /** @param {string} message @param {string} [type] @returns {void} */
+    setStatus(message, type = "") {
+      this.statusMessage.textContent = message;
+      this.statusMessage.classList.toggle("is-saved", type === "saved");
+    }
+
+    updateBillableDefault() {
+      if (!workspaceUsesBillableFlag()) {
+        this.billableInput.checked = false;
+        return;
+      }
+
+      const selectedClient = this.getSelectedClient();
+      const selectedProject = this.getSelectedProject(selectedClient);
+      const billableSource = selectedProject || selectedClient;
+
+      this.billableInput.checked = billableSource?.billable !== "no";
+    }
+
+    /** @param {string[]} [selectedTagIds] @returns {void} */
+    mountTagPicker(selectedTagIds = []) {
+      if (!this.tagsContainer || !window.LongtailForge?.tags?.mountPicker) {
+        if (this.tagsContainer) {
+          this.tagsContainer.hidden = true;
+        }
+        return;
+      }
+
+      this.tagsContainer.hidden = false;
+      window.LongtailForge.tags.mountPicker(this.tagsContainer, {
+        tags: tagOptions,
+        selectedTagIds,
+      }).then((picker) => {
+        this.tagPicker = picker || this.tagPicker;
+      });
+    }
+
+    readTagIds() {
+      return this.tagPicker?.readTagIds?.() || [];
+    }
+
+    /** @param {unknown} timerData @returns {void} */
+    restoreFromPersistedTimer(timerData) {
+      this.isRestoring = true;
+      const projectId = readTimerText(timerData, "project_id");
+
+      this.persistedActiveTimerId = readTimerText(timerData, "active_timer_id");
+      this.clientSelect.value = readTimerText(timerData, "client_id") || this.findClientIdForProject(projectId);
+
+      const selectedClient = this.getSelectedClient();
+      this.populateProjectOptions(selectedClient ? selectedClient.projects : [], projectId);
+      this.projectSelect.value = projectId;
+      this.descriptionInput.value = readTimerText(timerData, "description");
+      this.billableInput.checked = workspaceUsesBillableFlag() && readTimerText(timerData, "billable") !== "no";
+      this.confirmedClientId = this.clientSelect.value;
+      this.confirmedProjectId = this.projectSelect.value;
+
+      const accumulatedMilliseconds =
+        (Number(readTimerText(timerData, "accumulated_elapsed_seconds")) || 0) * 1000;
+
+      if (readTimerText(timerData, "timer_status") === "running") {
+        const lastActiveStartTime = new Date(readTimerText(timerData, "last_active_start_time") || Date.now());
+        const runningMilliseconds = Number.isFinite(lastActiveStartTime.getTime())
+          ? Date.now() - lastActiveStartTime.getTime()
+          : 0;
+
+        this.elapsedMilliseconds = Math.max(0, accumulatedMilliseconds + runningMilliseconds);
+        this.startedAt = Date.now() - this.elapsedMilliseconds;
+        this.activeStartTime = lastActiveStartTime;
+        this.timerId = window.setInterval(() => this.updateElapsedTime(), 100);
+      } else {
+        this.elapsedMilliseconds = accumulatedMilliseconds;
+        this.startedAt = Date.now() - this.elapsedMilliseconds;
+        this.activeStartTime = readTimerText(timerData, "last_active_start_time")
+          ? new Date(readTimerText(timerData, "last_active_start_time"))
+          : new Date(Date.now() - this.elapsedMilliseconds);
+      }
+
+      this.updateDisplay();
+      this.updateButtons();
+      this.setStatus("Restored unsaved timer.");
+      this.isRestoring = false;
+    }
+
+    clearLocalStateForReload() {
+      window.clearInterval(this.timerId ?? undefined);
+      this.timerId = null;
+      this.elapsedMilliseconds = 0;
+      this.startedAt = 0;
+      this.activeStartTime = null;
+      this.persistedActiveTimerId = "";
+      this.clientSelect.value = "";
+      this.populateProjectOptions([]);
+      this.descriptionInput.value = "";
+      this.billableInput.checked = workspaceUsesBillableFlag();
+      this.tagPicker?.setSelected?.([]);
+      this.confirmedClientId = "";
+      this.confirmedProjectId = "";
+      this.selectWorkspaceScopeClientIfNeeded();
+      const selectedClient = this.getSelectedClient();
+      this.populateProjectOptions(selectedClient ? selectedClient.projects : []);
+      this.setStatus("");
+      this.updateDisplay();
+      this.updateButtons();
+    }
+
+    /** @param {string} projectId @returns {string} */
+    findClientIdForProject(projectId) {
+      const projectKey = String(projectId || "").trim();
+      const matchingClient = this.clients.find((client) => (
+        Array.isArray(client.projects) &&
+        client.projects.some((project) => String(project.id || "").trim() === projectKey)
+      ));
+
+      return matchingClient?.id || "";
+    }
+
+    async persistEditedTimer() {
+      if (this.isRestoring || !this.hasElapsedTime()) {
+        return;
+      }
+
+      await this.persistActiveTimer(this.timerId ? "running" : "paused");
+    }
+
+    /** @param {string} timerStatus @returns {Promise<void>} */
+    async persistActiveTimer(timerStatus) {
+      const selectedClient = this.getSelectedClient();
+      const selectedProject = this.getSelectedProject(selectedClient);
+
+      if (!selectedProject || this.isSaving) {
+        return;
+      }
+
+      const now = new Date();
+      const elapsedSeconds = Math.max(0, Math.round(this.elapsedMilliseconds / 1000));
+      const payload = {
+        active_timer_id: this.persistedActiveTimerId,
+        timer_slot: String(this.timerNumber),
+        client_id: selectedClient?.isWorkspaceScope ? "" : selectedClient?.id || "",
+        client_name: selectedClient?.isWorkspaceScope ? "" : selectedClient?.name || "",
+        project_id: selectedProject.id,
+        project_name: selectedProject.name,
+        description: this.descriptionInput.value.trim(),
+        billable: billableValue(this.billableInput),
+        accumulated_elapsed_seconds: elapsedSeconds,
+        last_active_start_time: timerStatus === "running" ? now.toISOString() : null,
+        timer_status: timerStatus,
+      };
+
+      try {
+        const result = await requireApi().putJson(
+          `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
+          payload,
+        );
+        this.persistedActiveTimerId = startedTimerId(result) || this.persistedActiveTimerId;
+        timerPersistence.loaded = true;
+        this.updateButtons();
+      } catch (error) {
+        this.setStatus("Timer is running locally, but persistence failed.");
+        console.error(error);
+      }
+    }
+
+    async discardPersistedState() {
+      if (!this.persistedActiveTimerId && !timerPersistence.loaded) {
+        return;
+      }
+
+      try {
+        await requireApi().deleteJson(
+          `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
+        );
+      } catch (error) {
+        console.error(error);
+      } finally {
+        this.persistedActiveTimerId = "";
+      }
     }
   }
-}
 
-initializeTimeTracker();
+  initializeTimeTracker();
 
-if (timerCountSelect) {
-  timerCountSelect.addEventListener("input", handleTimerCountChange);
-  timerCountSelect.addEventListener("change", handleTimerCountChange);
-}
+  if (timerCountSelect) {
+    requireTimerCountSelect().addEventListener("input", handleTimerCountChange);
+    requireTimerCountSelect().addEventListener("change", handleTimerCountChange);
+  }
 
-window.timeTrackerDebug = {
-  snapshot: () => ({
-    // Handy manual check from the browser console after changing timer rendering.
-    selectedTimerCount: timerCountSelect ? timerCountSelect.value : "",
-    timerInstances: timers.length,
-    renderedTimerCards: timerGrid.querySelectorAll(".timer-card").length,
-    runningTimers: timers
-      .filter((timer) => timer.isRunning())
-      .map((timer) => timer.timerNumber),
-  }),
-  runTimerCountSanityCheck: async () => {
-    const originalCount = timers.length;
-    const originalTimers = [...timers];
-    const runningTimers = originalTimers.filter((timer) => timer.isRunning());
-    const increasedCount = Math.min(4, originalCount + 1);
-    const canExerciseAdd = increasedCount > originalCount;
+  /**
+   * A console-only snapshot, published through a locally declared view of `window`.
+   *
+   * `browser-contracts.d.ts` augments `Window` with `LongtailForge` alone, and adding a member
+   * there for a debug hook would be a shared-contract change this page checkpoint has no business
+   * making. The member is optional on this local view, so the assignment declares what already
+   * happens at runtime without asserting anything about `Window` itself.
+   * @type {Window & { timeTrackerDebug?: Record<string, unknown> }}
+   */
+  const debugWindow = window;
 
-    if (canExerciseAdd) {
-      setTimerCount(increasedCount);
+  debugWindow.timeTrackerDebug = {
+    snapshot: () => ({
+      // Handy manual check from the browser console after changing timer rendering.
+      selectedTimerCount: timerCountSelect ? timerCountSelect.value : "",
+      timerInstances: timers.length,
+      renderedTimerCards: timerGrid.querySelectorAll(".timer-card").length,
+      runningTimers: timers
+        .filter((timer) => timer.isRunning())
+        .map((timer) => timer.timerNumber),
+    }),
+    runTimerCountSanityCheck: async () => {
+      const originalCount = timers.length;
+      const originalTimers = [...timers];
+      const runningTimers = originalTimers.filter((timer) => timer.isRunning());
+      const increasedCount = Math.min(4, originalCount + 1);
+      const canExerciseAdd = increasedCount > originalCount;
+
+      if (canExerciseAdd) {
+        setTimerCount(increasedCount);
+      }
+
+      const identitiesPreserved = originalTimers.every(
+        (timer, index) => timers[index] === timer,
+      );
+      const runningTimersStayedRunning = runningTimers.every((timer) =>
+        timer.isRunning(),
+      );
+
+      if (canExerciseAdd) {
+        setTimerCount(originalCount);
+      }
+
+      return {
+        identitiesPreserved,
+        runningTimersStayedRunning,
+        removedTimersDisposedCleanly:
+          !canExerciseAdd || timers.length === originalCount,
+        note: canExerciseAdd
+          ? "Temporarily added and removed one empty timer."
+          : "Already at the maximum timer count, so add/remove was skipped.",
+      };
+    },
+  };
+
+  /** @param {HTMLElement} root @param {number} timerNumber @returns {void} */
+  function prepareTimerRoot(root, timerNumber) {
+    root.dataset.stopwatch = "";
+    root.classList.add("timer-card");
+    root.setAttribute("aria-label", `Timer ${timerNumber}`);
+    root.id = timerNumber === 1 ? "stopwatch" : `stopwatch-${timerNumber}`;
+
+    const title = root.querySelector("[data-stopwatch-title]");
+
+    if (title) {
+      title.textContent = `Timer ${timerNumber}`;
     }
+  }
 
-    const identitiesPreserved = originalTimers.every(
-      (timer, index) => timers[index] === timer,
-    );
-    const runningTimersStayedRunning = runningTimers.every((timer) =>
-      timer.isRunning(),
-    );
+  function createTimerGrid() {
+    const grid = document.createElement("div");
+    grid.className = "timer-grid";
+    grid.dataset.timerGrid = "";
+    document.body.appendChild(grid);
+    return grid;
+  }
 
-    if (canExerciseAdd) {
-      setTimerCount(originalCount);
-    }
+  /** @param {number} timerNumber @returns {HTMLElement} */
+  function createTimeTrackerRoot(timerNumber) {
+    const element = document.createElement("section");
+    element.className = "timer-card";
+    element.dataset.stopwatch = "";
+    element.setAttribute("aria-label", `Timer ${timerNumber}`);
 
-    return {
-      identitiesPreserved,
-      runningTimersStayedRunning,
-      removedTimersDisposedCleanly:
-        !canExerciseAdd || timers.length === originalCount,
-      note: canExerciseAdd
-        ? "Temporarily added and removed one empty timer."
-        : "Already at the maximum timer count, so add/remove was skipped.",
-    };
-  },
-};
-
-function prepareTimerRoot(root, timerNumber) {
-  root.dataset.stopwatch = "";
-  root.classList.add("timer-card");
-  root.setAttribute("aria-label", `Timer ${timerNumber}`);
-  root.id = timerNumber === 1 ? "stopwatch" : `stopwatch-${timerNumber}`;
-
-  const title = root.querySelector("[data-stopwatch-title]");
-
-  if (title) {
+    const title = document.createElement("h2");
+    title.dataset.stopwatchTitle = "";
     title.textContent = `Timer ${timerNumber}`;
-  }
-}
+    element.appendChild(title);
 
-function createTimerGrid() {
-  const grid = document.createElement("div");
-  grid.className = "timer-grid";
-  grid.dataset.timerGrid = "";
-  document.body.appendChild(grid);
-  return grid;
-}
+    createSelect(element, "Client", "client", "Select a client");
+    createSelect(element, "Project", "project", "Select a project").disabled =
+      true;
+    createDescriptionInput(element);
+    createTagsContainer(element);
+    createDisplay(element);
+    createButton(element, "Start", "start");
+    createButton(element, "Pause", "pause");
+    createButton(element, "Save & End", "stop");
+    createButton(element, "Discard", "reset", { danger: true });
+    createClearOnResetInput(element);
+    createBillableInput(element);
+    createStatusMessage(element);
 
-function createTimeTrackerRoot(timerNumber) {
-  const element = document.createElement("section");
-  element.className = "timer-card";
-  element.dataset.stopwatch = "";
-  element.setAttribute("aria-label", `Timer ${timerNumber}`);
-
-  const title = document.createElement("h2");
-  title.dataset.stopwatchTitle = "";
-  title.textContent = `Timer ${timerNumber}`;
-  element.appendChild(title);
-
-  createSelect(element, "Client", "client", "Select a client");
-  createSelect(element, "Project", "project", "Select a project").disabled =
-    true;
-  createDescriptionInput(element);
-  createTagsContainer(element);
-  createDisplay(element);
-  createButton(element, "Start", "start");
-  createButton(element, "Pause", "pause");
-  createButton(element, "Save & End", "stop");
-  createButton(element, "Discard", "reset", { danger: true });
-  createClearOnResetInput(element);
-  createBillableInput(element);
-  createStatusMessage(element);
-
-  return element;
-}
-
-function createSelect(parent, labelText, fieldName, placeholder) {
-  const details = getDetailsContainer(parent);
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  if (fieldName === "client") {
-    label.dataset.clientWorkspaceControl = "";
+    return element;
   }
 
-  select.dataset[`stopwatch${capitalize(fieldName)}`] = "";
-  select.appendChild(createOption("", placeholder));
+  /**
+   * @param {HTMLElement} parent
+   * @param {string} labelText
+   * @param {string} fieldName
+   * @param {string} placeholder
+   * @returns {HTMLSelectElement}
+   */
+  function createSelect(parent, labelText, fieldName, placeholder) {
+    const details = getDetailsContainer(parent);
+    const label = document.createElement("label");
+    const select = document.createElement("select");
 
-  label.textContent = labelText;
-  label.appendChild(select);
-  details.appendChild(label);
+    if (fieldName === "client") {
+      label.dataset.clientWorkspaceControl = "";
+    }
 
-  return select;
-}
+    select.dataset[`stopwatch${capitalize(fieldName)}`] = "";
+    select.appendChild(createOption("", placeholder));
 
-function createDescriptionInput(parent) {
-  const details = getDetailsContainer(parent);
-  const label = document.createElement("label");
-  const input = document.createElement("input");
+    label.textContent = labelText;
+    label.appendChild(select);
+    details.appendChild(label);
 
-  input.type = "text";
-  input.placeholder = "What are you working on?";
-  input.dataset.stopwatchDescription = "";
-
-  label.textContent = "Description";
-  label.appendChild(input);
-  details.appendChild(label);
-
-  return input;
-}
-
-function ensureTaskLinkControl(parent) {
-  const existingSelect = parent.querySelector("[data-stopwatch-task]");
-  const existingButton = parent.querySelector("[data-stopwatch-link-task]");
-
-  if (existingSelect && existingButton) {
-    return { button: existingButton, select: existingSelect };
+    return select;
   }
 
-  const details = getDetailsContainer(parent);
-  const wrapper = document.createElement("div");
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-  const button = document.createElement("button");
+  /** @param {HTMLElement} parent @returns {HTMLInputElement} */
+  function createDescriptionInput(parent) {
+    const details = getDetailsContainer(parent);
+    const label = document.createElement("label");
+    const input = document.createElement("input");
 
-  wrapper.className = "timer-task-link-control";
-  label.textContent = "Link running timer to task";
-  select.dataset.stopwatchTask = "";
-  select.disabled = true;
-  select.appendChild(createOption("", "Start timer to link a task"));
-  button.type = "button";
-  button.dataset.stopwatchLinkTask = "";
-  button.disabled = true;
-  button.textContent = "Link Task";
-  label.appendChild(select);
-  wrapper.append(label, button);
-  details.appendChild(wrapper);
+    input.type = "text";
+    input.placeholder = "What are you working on?";
+    input.dataset.stopwatchDescription = "";
 
-  return { button, select };
-}
+    label.textContent = "Description";
+    label.appendChild(input);
+    details.appendChild(label);
 
-function createTagsContainer(parent) {
-  const details = getDetailsContainer(parent);
-  const element = document.createElement("div");
-  element.dataset.stopwatchTags = "";
-  details.appendChild(element);
-  return element;
-}
-
-function getDetailsContainer(parent) {
-  let details = parent.querySelector("[data-stopwatch-details]");
-
-  if (!details) {
-    details = document.createElement("div");
-    details.dataset.stopwatchDetails = "";
-    parent.appendChild(details);
+    return input;
   }
 
-  return details;
-}
+  /** @param {HTMLElement} parent @returns {{ button: HTMLButtonElement, select: HTMLSelectElement }} */
+  function ensureTaskLinkControl(parent) {
+    const existingSelect = existingStopwatchControl(parent, "[data-stopwatch-task]", HTMLSelectElement);
+    const existingButton = existingStopwatchControl(parent, "[data-stopwatch-link-task]", HTMLButtonElement);
 
-function createStatusMessage(parent) {
-  const element = document.createElement("p");
-  element.dataset.stopwatchStatus = "";
-  element.setAttribute("role", "status");
-  element.setAttribute("aria-live", "polite");
-  parent.appendChild(element);
-  return element;
-}
+    if (existingSelect && existingButton) {
+      return { button: existingButton, select: existingSelect };
+    }
 
-function createClearOnResetInput(parent) {
-  const label = document.createElement("label");
-  label.className = "reset-option";
+    const details = getDetailsContainer(parent);
+    const wrapper = document.createElement("div");
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+    const button = document.createElement("button");
 
-  const input = document.createElement("input");
-  input.type = "checkbox";
-  input.dataset.stopwatchClearOnReset = "";
+    wrapper.className = "timer-task-link-control";
+    label.textContent = "Link running timer to task";
+    select.dataset.stopwatchTask = "";
+    select.disabled = true;
+    select.appendChild(createOption("", "Start timer to link a task"));
+    button.type = "button";
+    button.dataset.stopwatchLinkTask = "";
+    button.disabled = true;
+    button.textContent = "Link Task";
+    label.appendChild(select);
+    wrapper.append(label, button);
+    details.appendChild(wrapper);
 
-  label.append(
-    input,
-    document.createTextNode(" Clear Info when Stopped/Discarded"),
-  );
-  parent.appendChild(label);
-
-  return input;
-}
-
-function createBillableInput(parent) {
-  const label = document.createElement("label");
-  label.className = "reset-option";
-  label.dataset.stopwatchBillableControl = "";
-
-  const input = document.createElement("input");
-  input.type = "checkbox";
-  input.checked = workspaceUsesBillableFlag();
-  input.dataset.stopwatchBillable = "";
-
-  label.append(
-    input,
-    document.createTextNode(" Billable?"),
-  );
-  parent.appendChild(label);
-
-  return input;
-}
-
-function createDisplay(parent) {
-  const element = document.createElement("output");
-  element.dataset.stopwatchDisplay = "";
-  element.setAttribute("aria-live", "polite");
-
-  parent.appendChild(element);
-  return element;
-}
-
-function createActiveIndicator(parent) {
-  const title = parent.querySelector("[data-stopwatch-title]");
-  const element = document.createElement("p");
-
-  element.className = "timer-active-indicator";
-  element.dataset.stopwatchActiveIndicator = "";
-  element.hidden = true;
-  element.textContent = "Active";
-
-  if (title) {
-    parent.insertBefore(element, title);
-  } else {
-    parent.prepend(element);
+    return { button, select };
   }
 
-  return element;
-}
-
-function createButton(parent, label, action, options = {}) {
-  let controls = parent.querySelector("[data-stopwatch-controls]");
-
-  if (!controls) {
-    controls = document.createElement("div");
-    controls.dataset.stopwatchControls = "";
-    parent.appendChild(controls);
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
+  function createTagsContainer(parent) {
+    const details = getDetailsContainer(parent);
+    const element = document.createElement("div");
+    element.dataset.stopwatchTags = "";
+    details.appendChild(element);
+    return element;
   }
 
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = label;
-  button.dataset[`stopwatch${capitalize(action)}`] = "";
-  button.classList.toggle("danger-button", Boolean(options.danger));
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
+  function getDetailsContainer(parent) {
+    let details = existingStopwatchControl(parent, "[data-stopwatch-details]", HTMLElement);
 
-  controls.appendChild(button);
-  return button;
-}
+    if (!details) {
+      details = document.createElement("div");
+      details.dataset.stopwatchDetails = "";
+      parent.appendChild(details);
+    }
 
-function decorateStopwatchControls({ pauseButton, resetButton, startButton, stopButton }) {
-  const icons = window.LongtailForge?.icons;
-
-  if (!icons?.decorateButton) {
-    return;
+    return details;
   }
 
-  icons.decorateButton(startButton, { icon: "start", label: "Start timer", text: "Start", iconOnly: false });
-  icons.decorateButton(pauseButton, { icon: "pause", label: "Pause timer", text: "Pause", iconOnly: false });
-  icons.decorateButton(stopButton, { icon: "save", label: "Save and end timer", text: "Save & End", iconOnly: false });
-  icons.decorateButton(resetButton, { icon: "delete", label: "Discard timer", text: "Discard", iconOnly: false, variant: "danger" });
-}
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
+  function createStatusMessage(parent) {
+    const element = document.createElement("p");
+    element.dataset.stopwatchStatus = "";
+    element.setAttribute("role", "status");
+    element.setAttribute("aria-live", "polite");
+    parent.appendChild(element);
+    return element;
+  }
 
-function decorateTaskLinkButton(button) {
-  window.LongtailForge?.icons?.decorateButton?.(button, {
-    icon: "link",
-    iconOnly: false,
-    label: "Link running timer to task",
-    text: "Link Task",
+  /** @param {HTMLElement} parent @returns {HTMLInputElement} */
+  function createClearOnResetInput(parent) {
+    const label = document.createElement("label");
+    label.className = "reset-option";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset.stopwatchClearOnReset = "";
+
+    label.append(
+      input,
+      document.createTextNode(" Clear Info when Stopped/Discarded"),
+    );
+    parent.appendChild(label);
+
+    return input;
+  }
+
+  /** @param {HTMLElement} parent @returns {HTMLInputElement} */
+  function createBillableInput(parent) {
+    const label = document.createElement("label");
+    label.className = "reset-option";
+    label.dataset.stopwatchBillableControl = "";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = workspaceUsesBillableFlag();
+    input.dataset.stopwatchBillable = "";
+
+    label.append(
+      input,
+      document.createTextNode(" Billable?"),
+    );
+    parent.appendChild(label);
+
+    return input;
+  }
+
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
+  function createDisplay(parent) {
+    const element = document.createElement("output");
+    element.dataset.stopwatchDisplay = "";
+    element.setAttribute("aria-live", "polite");
+
+    parent.appendChild(element);
+    return element;
+  }
+
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
+  function createActiveIndicator(parent) {
+    const title = parent.querySelector("[data-stopwatch-title]");
+    const element = document.createElement("p");
+
+    element.className = "timer-active-indicator";
+    element.dataset.stopwatchActiveIndicator = "";
+    element.hidden = true;
+    element.textContent = "Active";
+
+    if (title) {
+      parent.insertBefore(element, title);
+    } else {
+      parent.prepend(element);
+    }
+
+    return element;
+  }
+
+  /**
+   * @param {HTMLElement} parent
+   * @param {string} label
+   * @param {string} action
+   * @param {{ danger?: boolean }} [options]
+   * @returns {HTMLButtonElement}
+   */
+  function createButton(parent, label, action, options = {}) {
+    let controls = existingStopwatchControl(parent, "[data-stopwatch-controls]", HTMLElement);
+
+    if (!controls) {
+      controls = document.createElement("div");
+      controls.dataset.stopwatchControls = "";
+      parent.appendChild(controls);
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.dataset[`stopwatch${capitalize(action)}`] = "";
+    button.classList.toggle("danger-button", Boolean(options.danger));
+
+    controls.appendChild(button);
+    return button;
+  }
+
+  /**
+   * @param {{ pauseButton: HTMLButtonElement, resetButton: HTMLButtonElement,
+   *   startButton: HTMLButtonElement, stopButton: HTMLButtonElement }} controls
+   * @returns {void}
+   */
+  function decorateStopwatchControls({ pauseButton, resetButton, startButton, stopButton }) {
+    const icons = window.LongtailForge?.icons;
+
+    if (!icons?.decorateButton) {
+      return;
+    }
+
+    icons.decorateButton(startButton, { icon: "start", label: "Start timer", text: "Start", iconOnly: false });
+    icons.decorateButton(pauseButton, { icon: "pause", label: "Pause timer", text: "Pause", iconOnly: false });
+    icons.decorateButton(stopButton, { icon: "save", label: "Save and end timer", text: "Save & End", iconOnly: false });
+    icons.decorateButton(resetButton, { icon: "delete", label: "Discard timer", text: "Discard", iconOnly: false, variant: "danger" });
+  }
+
+  /** @param {HTMLButtonElement} button @returns {void} */
+  function decorateTaskLinkButton(button) {
+    window.LongtailForge?.icons?.decorateButton?.(button, {
+      icon: "link",
+      iconOnly: false,
+      label: "Link running timer to task",
+      text: "Link Task",
+    });
+  }
+
+  // Every page that loads this controller also loads `js/shared/client-project-options.js`,
+  // so this reads a dependency the page guarantees rather than probing for one.
+  function requireClientProjectOptions() {
+    const clientProjectOptions = window.LongtailForge?.clientProjectOptions;
+
+    if (!clientProjectOptions) {
+      throw new Error("Time Tracker requires the client and project option helper.");
+    }
+
+    return clientProjectOptions;
+  }
+
+  /** @param {unknown} data @returns {StopwatchClientOption[]} */
+  function normalizeClientProjectOptions(data) {
+    return requireClientProjectOptions().normalizeClients(data);
+  }
+
+  /** @param {StopwatchClientOption} client @returns {string} */
+  function clientOptionLabel(client) {
+    return requireClientProjectOptions().optionLabel(client);
+  }
+
+  /** @param {StopwatchProjectOption} project @returns {string} */
+  function projectOptionLabel(project) {
+    return requireClientProjectOptions().optionLabel(project);
+  }
+
+  function workspaceShowsClientTools() {
+    const context = window.LongtailForge?.workspaceContext;
+    const tools = context?.workspaceCapabilities?.availableTools || [];
+
+    return Array.isArray(tools) && tools.includes("clients_projects");
+  }
+
+  function workspaceHasTasks() {
+    const enabledModules = window.LongtailForge?.workspaceContext?.enabledModules || [];
+    return !Array.isArray(enabledModules) || enabledModules.length === 0 || enabledModules.includes("tasks");
+  }
+
+  /** @param {unknown} data @returns {StopwatchTaskOption[]} */
+  function normalizeTaskOptions(data) {
+    return taskOptionRows(data)
+      .filter((task) => (
+        readTimerText(task, "id", "task_id")
+        && readTimerText(task, "project_id")
+        && readTimerText(task, "status") !== "complete"
+        && readTimerText(task, "status") !== "archived"
+      ))
+      .map((task) => ({
+        id: readTimerText(task, "id", "task_id"),
+        label: readTimerText(task, "label", "title") || "Untitled Task",
+        optionLabel: readTimerText(task, "optionLabel", "displayName", "label") || "Untitled Task",
+        project_id: readTimerText(task, "project_id"),
+        status: readTimerText(task, "status") || "open",
+      }));
+  }
+
+  async function loadTagOptions() {
+    tagOptions = window.LongtailForge?.tags?.loadTags
+      ? await window.LongtailForge.tags.loadTags({ status: "active" })
+      : [];
+    timers.forEach((timer) => timer.mountTagPicker(timer.readTagIds()));
+  }
+
+  /** @param {string} value @param {string} label @returns {HTMLOptionElement} */
+  function createOption(value, label) {
+    return requirePageController().createOption(value, label);
+  }
+
+  /** @param {number} milliseconds @returns {string} */
+  function formatTime(milliseconds) {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+
+  /** @param {number} value @returns {string} */
+  function pad(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  /** @param {string} value @returns {string} */
+  function capitalize(value) {
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  requirePageController().register("time-tracker", {
+    snapshot: () => ({
+      clientCount: clients.length,
+      persistedTimersLoaded: timerPersistence.loaded,
+      runningTimers: timers.filter((timer) => timer.isRunning).length,
+      timerCount: timers.length,
+    }),
+    runSmoke: () => {
+      const checks = [
+        { name: "timer grid exists", ok: Boolean(timerGrid) },
+        { name: "timer count select exists", ok: Boolean(timerCountSelect) },
+        { name: "at least one timer exists", ok: timers.length >= 1 },
+        { name: "timer count is within supported range", ok: timers.length >= 1 && timers.length <= 4 },
+      ];
+
+      return {
+        ok: checks.every((check) => check.ok),
+        pageId: "time-tracker",
+        checks,
+      };
+    },
   });
-}
-
-function normalizeClientProjectOptions(data) {
-  return window.LongtailForge.clientProjectOptions.normalizeClients(data);
-}
-
-function clientOptionLabel(client) {
-  return window.LongtailForge.clientProjectOptions.optionLabel(client);
-}
-
-function projectOptionLabel(project) {
-  return window.LongtailForge.clientProjectOptions.optionLabel(project);
-}
-
-function workspaceShowsClientTools() {
-  const context = window.LongtailForge?.workspaceContext || {};
-  const tools = context.workspaceCapabilities?.availableTools || [];
-
-  return Array.isArray(tools) && tools.includes("clients_projects");
-}
-
-function workspaceHasTasks() {
-  const enabledModules = window.LongtailForge?.workspaceContext?.enabledModules || [];
-  return !Array.isArray(enabledModules) || enabledModules.length === 0 || enabledModules.includes("tasks");
-}
-
-function normalizeTaskOptions(data) {
-  return Array.isArray(data?.options?.tasks)
-    ? data.options.tasks
-        .filter((task) => task?.id && task?.project_id && task?.status !== "complete" && task?.status !== "archived")
-        .map((task) => ({
-          id: task.id || task.task_id,
-          label: task.label || task.title || "Untitled Task",
-          optionLabel: task.optionLabel || task.displayName || task.label || "Untitled Task",
-          project_id: task.project_id || "",
-          status: task.status || "open",
-        }))
-    : [];
-}
-
-async function loadTagOptions() {
-  tagOptions = window.LongtailForge?.tags?.loadTags
-    ? await window.LongtailForge.tags.loadTags({ status: "active" })
-    : [];
-  timers.forEach((timer) => timer.mountTagPicker(timer.readTagIds()));
-}
-
-function createOption(value, label) {
-  return window.LongtailForge.pageController.createOption(value, label);
-}
-
-function formatTime(milliseconds) {
-  const totalSeconds = Math.floor(milliseconds / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-}
-
-function pad(value) {
-  return String(value).padStart(2, "0");
-}
-
-function capitalize(value) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-window.LongtailForge.pageController.register("time-tracker", {
-  snapshot: () => ({
-    clientCount: clients.length,
-    persistedTimersLoaded: timerPersistence.loaded,
-    runningTimers: timers.filter((timer) => timer.isRunning).length,
-    timerCount: timers.length,
-  }),
-  runSmoke: () => {
-    const checks = [
-      { name: "timer grid exists", ok: Boolean(timerGrid) },
-      { name: "timer count select exists", ok: Boolean(timerCountSelect) },
-      { name: "at least one timer exists", ok: timers.length >= 1 },
-      { name: "timer count is within supported range", ok: timers.length >= 1 && timers.length <= 4 },
-    ];
-
-    return {
-      ok: checks.every((check) => check.ok),
-      pageId: "time-tracker",
-      checks,
-    };
-  },
-});
+})();

@@ -1,291 +1,629 @@
-// Clients & Projects is the main editor for client, project, and billing metadata.
-const view = window.LongtailForge?.view;
-const pageMode = document.body.dataset.clientProjectPage || "combined";
-const isClientsPage = pageMode === "clients";
-const isProjectsPage = pageMode === "projects";
+(function attachClientsProjectsPage() {
+  // Clients & Projects is the main editor for client, project, and billing metadata.
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+  const pageMode = document.body.dataset.clientProjectPage || "combined";
+  const isClientsPage = pageMode === "clients";
+  const isProjectsPage = pageMode === "projects";
 
-let clientProjectData = {
-  capabilities: {
-    canCreateTopLevelClient: false,
-    canCreateWorkspaceProject: false,
-    canManageWorkspaceProjects: false,
-  },
-  clients: [],
-};
-let workspaceSettings = {
-  defaultBillingRate: "",
-  billingPeriod: { type: "calendarMonth", startDay: 1 },
-  billingRounding: { enabled: false, increment: "nearestQuarterHour" },
-  workspaceType: "business",
-};
-let activeClientProjectsReadDescriptor = null;
-let activeClientProjectsReadSurface = null;
-let clientProjectsViewBehaviorsRegistered = false;
-let openClientId = "";
-let openBillingClientId = "";
-let openClientBillingSettingsId = "";
-let openedAddClientFromQuery = false;
-let openedClientDetailFromQuery = false;
-let openedAddProjectFromQuery = false;
-let openedProjectDetailFromQuery = false;
-let tagOptions = [];
-const clientStatuses = ["Active", "Inactive"];
-const projectStatuses = ["Active", "Inactive", "Completed"];
-const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
-const taskDefaultPriorities = ["low", "normal", "high", "urgent"];
-const taskDefaultAssigneeModes = ["creator", "project_admin", "unassigned"];
-const defaultProjectTaskSortOrder = ["due_date", "priority", "status"];
-const projectTaskSortLabels = {
-  due_date: "Due Date",
-  priority: "Priority",
-  status: "Status",
-};
-const projectTaskAssigneeModeLabels = {
-  creator: "Task Creator",
-  project_admin: "Project Admin",
-  unassigned: "Unassigned",
-};
-const billingContactFields = [
-  ["name", "Name"],
-  ["email", "Email"],
-  ["alternate_name", "Alternate Name"],
-  ["alternate_email", "Alternate Email"],
-  ["phone_number", "Phone Number"],
-  ["alternate_phone_number", "Alternate Phone Number"],
-  ["street_address_1", "Street Address 1"],
-  ["street_address_2", "Street Address 2"],
-  ["city", "City"],
-  ["state", "State"],
-  ["zip_code", "Zip Code"],
-];
-
-initializeClientProjectsPage();
-
-async function initializeClientProjectsPage() {
-  try {
-    await window.LongtailForge?.workspaceContextReady;
-  } catch {
-    // Action APIs can still lazy-load dialog data if descriptor delivery is unavailable.
-  }
-
-  registerClientProjectsViewBehaviors();
-  await loadPageData({ applyQueryActions: false });
-  activeClientProjectsReadSurface = renderClientProjectsReadSurface();
-  applyClientProjectQueryActions();
-}
-
-function registerClientProjectsViewBehaviors() {
-  if (clientProjectsViewBehaviorsRegistered || typeof view?.registerBehavior !== "function") {
-    return;
-  }
-
-  clientProjectsViewBehaviorsRegistered = true;
-  registerClientProjectsModuleActionBehavior("client-projects.clients.create", "clients.add");
-  view.registerBehavior("client-projects.clients.create-child", (context = {}) => {
-    const params = clientProjectActionParams(context);
-    return openClientProjectModuleAction("clients.add", {
-      ...params,
-      lockParentClient: true,
-      parentClientId: params.recordId,
-    });
-  });
-  registerClientProjectsModuleActionBehavior("client-projects.clients.edit", "clients.edit");
-  registerClientProjectsModuleActionBehavior("client-projects.projects.create", "projects.add");
-  registerClientProjectsModuleActionBehavior("client-projects.projects.edit", "projects.edit");
-  view.registerBehavior("client-projects.clients.tags", hydrateTagFilterOptions);
-  view.registerBehavior("client-projects.projects.tags", hydrateTagFilterOptions);
-  view.registerBehavior("client-projects.projects.clients", hydrateProjectClientFilterOptions);
-  view.registerBehavior("client-projects.clients.bulk", mountClientBulkToolbar);
-  view.registerBehavior("client-projects.projects.bulk", mountProjectBulkToolbar);
-}
-
-function registerClientProjectsModuleActionBehavior(behaviorId, actionId) {
-  view.registerBehavior(behaviorId, (context = {}) => openClientProjectModuleAction(
-    actionId,
-    clientProjectActionParams(context),
-  ));
-}
-
-function clientProjectActionParams(context = {}) {
-  const record = context.record && typeof context.record === "object" ? context.record : {};
-
-  return {
-    ...record,
-    recordId: record.id || record.recordId || "",
+  /**
+   * Everything the page holds about clients and their projects.
+   *
+   * **`0.33.33.43.32` measured the obstacle and `0.33.33.43.33` discharged it.** The two branches
+   * of `clients` were never one shape, and the decision taken was that they should not become one:
+   * a real client and the workspace-projects grouping are **different records that share an array**.
+   * `NormalizedClientEntry` is their union, discriminated by `isWorkspaceScope`, and each side is
+   * derived from the literal that builds it rather than restated.
+   *
+   * Derived rather than declared for the same reason: this slot only ever holds what
+   * `normalizeData` produced.
+   * @type {ReturnType<typeof normalizeData>}
+   */
+  let clientProjectData = {
+    capabilities: {
+      canCreateTopLevelClient: false,
+      canCreateWorkspaceProject: false,
+      canManageWorkspaceProjects: false,
+    },
+    clients: [],
   };
-}
-
-function openClientProjectModuleAction(actionId, params = {}, options = {}) {
-  const moduleActions = window.LongtailForge?.moduleActions;
-  if (typeof moduleActions?.open === "function") {
-    return moduleActions.open(actionId, params, {
-      refresh: refreshClientProjectData,
-      setStatus,
-      ...options,
-    });
-  }
-
-  return openClientProjectActionFallback(actionId, params, options.hostContext || null);
-}
-
-function openClientProjectActionFallback(actionId, params = {}, hostContext = null) {
-  if (actionId === "clients.add") {
-    return openAddClientAction(params, hostContext);
-  }
-  if (actionId === "clients.edit") {
-    return openEditClientAction(params, hostContext);
-  }
-  if (actionId === "projects.add") {
-    return openAddProjectAction(params, hostContext);
-  }
-  if (actionId === "projects.edit") {
-    return openEditProjectAction(params, hostContext);
-  }
-  return Promise.reject(new Error(`Client/Project action '${actionId}' is not registered.`));
-}
-
-function handleClientProjectActionError(error) {
-  setStatus(error?.message || "Client/Project action could not be opened.", { isError: true });
-  console.error(error);
-}
-
-function renderClientProjectsReadSurface() {
-  if ((!isClientsPage && !isProjectsPage) || typeof view?.renderSurface !== "function") {
-    return null;
-  }
-
-  const host = document.querySelector("[data-client-projects-host]") || document.querySelector("main");
-  if (!host) {
-    return null;
-  }
-
-  activeClientProjectsReadDescriptor = clientProjectsViewSurfaceDescriptor();
-  if (!activeClientProjectsReadDescriptor) {
-    return null;
-  }
-
-  return view.renderSurface(activeClientProjectsReadDescriptor, host);
-}
-
-function clientProjectsViewSurfaceDescriptor() {
-  const surfaceId = isClientsPage
-    ? "client-projects.clients"
-    : isProjectsPage
-      ? "client-projects.projects"
-      : "";
-  if (!surfaceId) {
-    return null;
-  }
-
-  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-  const surface = surfaces.find((candidate) => candidate.id === surfaceId && candidate.moduleId === "client-projects") || null;
-  const filteredSurface = isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
-  return withoutUnavailableTopLevelActions(
-    withoutUnsupportedBillingFields(withoutUnsupportedClientFields(filteredSurface)),
-  );
-}
-
-function withoutUnavailableTopLevelActions(surface) {
-  if (!surface) {
-    return surface;
-  }
-
-  const actionAvailable = surface.id === "client-projects.clients"
-    ? canCreateTopLevelClient()
-    : surface.id === "client-projects.projects"
-      ? canCreateAnyProject()
-      : true;
-  if (actionAvailable) {
-    return surface;
-  }
-
-  const pageHeader = surface.pageHeader ? { ...surface.pageHeader } : surface.pageHeader;
-  if (pageHeader) {
-    delete pageHeader.primaryAction;
-  }
-
-  return {
-    ...surface,
-    pageHeader,
+  /**
+   * The workspace settings the page holds, as `normalizeSettings` answers them. `workspaceType` is
+   * whatever the settings body held once it passed the vocabulary test (`0.33.33.43.57`).
+   * @type {ReturnType<typeof normalizeSettings>}
+   */
+  let workspaceSettings = {
+    defaultBillingRate: "",
+    billingPeriod: { type: "calendarMonth", startDay: 1 },
+    billingRounding: { enabled: false, increment: "nearestQuarterHour" },
+    workspaceType: "business",
   };
-}
+  let activeClientProjectsReadDescriptor = null;
+  /**
+   * The rendered read surface, as its one writer answers it: the framework's surface element, or
+   * `null` before it renders and on a page without one (`0.33.33.43.53`).
+   * @type {ReturnType<typeof renderClientProjectsReadSurface>}
+   */
+  let activeClientProjectsReadSurface = null;
+  let clientProjectsViewBehaviorsRegistered = false;
+  /**
+   * Which rows the page reopens after a write.
+   *
+   * **`unknown` rather than `string`, because that is what they hold.** Each is assigned straight
+   * from a write's view state or its action - `viewState.openClientId || action.client_id || ""` -
+   * and those identifiers come from normalised wire records, which vouch for no member's type.
+   * Nothing reads them as text: both consumers compare with `===`, and the snapshot passes them
+   * through. Declaring `string` would have been a claim the assignment does not make.
+   * @type {unknown}
+   */
+  let openClientId = "";
+  /** @type {unknown} */
+  let openBillingClientId = "";
+  /** @type {unknown} */
+  let openClientBillingSettingsId = "";
+  let openedAddClientFromQuery = false;
+  let openedClientDetailFromQuery = false;
+  let openedAddProjectFromQuery = false;
+  let openedProjectDetailFromQuery = false;
+  /**
+   * The workspace tags offered by the tag pickers.
+   *
+   * Derived from the loader that fills it rather than restated, so the two cannot drift; the empty
+   * initialiser would otherwise infer `never[]` and refuse the assignment.
+   * @type {Awaited<ReturnType<typeof loadTagOptions>>}
+   */
+  let tagOptions = [];
+  /**
+   * What this page keeps for elements it built, read back later by finding the element again.
+   *
+   * These were properties on the elements themselves - `tagPicker`, `billingPeriodEditor` and
+   * `billingRoundingEditor` - which no element type declares, because they are this page's state
+   * rather than DOM (`0.33.33.43.46`). Nothing outside this file ever read or wrote them. One map
+   * per kind, each written and read at exactly the points the property was. Declared above the
+   * bootstrap call so no path can reach them uninitialised.
+   *
+   * Each is typed as what its one reader calls, as the Add Client picker stub is, rather than as
+   * the whole editor. The editors' own types are inferred from the factories that write these
+   * maps, and naming them here makes each depend on the other: the compiler checks every call
+   * before a factory's `return` for an assertion signature, which needs the map's type first.
+   * @type {WeakMap<Element, {readTagIds: () => string[]}>}
+   */
+  const tagPickersByField = new WeakMap();
+  /** @type {WeakMap<Element, {getValue: () => ReturnType<typeof normalizeBillingPeriod> | null}>} */
+  const billingPeriodEditorsByField = new WeakMap();
+  /** @type {WeakMap<Element, {getValue: () => ReturnType<typeof normalizeBillingRounding> | null}>} */
+  const billingRoundingEditorsByField = new WeakMap();
+  const clientStatuses = ["Active", "Inactive"];
+  const projectStatuses = ["Active", "Inactive", "Completed"];
+  const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
+  const taskDefaultPriorities = ["low", "normal", "high", "urgent"];
+  const taskDefaultAssigneeModes = ["creator", "project_admin", "unassigned"];
+  const defaultProjectTaskSortOrder = ["due_date", "priority", "status"];
+  /**
+   * Display labels for the sort fields and assignee modes the editors offer.
+   *
+   * Declared as open string maps rather than closed records because **every reader indexes them
+   * with a value whose static type is `string`**: the normaliser answers its vocabulary through
+   * `vocabularyHas`, which narrows to `string` and no further. Each of the three reads supplies a
+   * key these maps hold, so the `||` fallbacks beside two of them are defensive rather than
+   * reachable through any path today; nothing depends on the key set being closed.
+   * @type {Record<string, string>}
+   */
+  const projectTaskSortLabels = {
+    due_date: "Due Date",
+    priority: "Priority",
+    status: "Status",
+  };
+  /** @type {Record<string, string>} */
+  const projectTaskAssigneeModeLabels = {
+    creator: "Task Creator",
+    project_admin: "Project Admin",
+    unassigned: "Unassigned",
+  };
+  const billingContactFields = [
+    ["name", "Name"],
+    ["email", "Email"],
+    ["alternate_name", "Alternate Name"],
+    ["alternate_email", "Alternate Email"],
+    ["phone_number", "Phone Number"],
+    ["alternate_phone_number", "Alternate Phone Number"],
+    ["street_address_1", "Street Address 1"],
+    ["street_address_2", "Street Address 2"],
+    ["city", "City"],
+    ["state", "State"],
+    ["zip_code", "Zip Code"],
+  ];
 
-function withoutUnsupportedClientFields(surface) {
-  const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
-  if (!surface || workspaceType === "business" || surface.id !== "client-projects.projects") {
-    return surface;
+  initializeClientProjectsPage();
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root this page awaits its workspace-context readiness through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** A missing
+   * root failed at this property read before and still fails here, in the same expression and so
+   * inside the same `try` region. A present root that publishes no `workspaceContextReady` never
+   * failed - `await undefined` is a real state this page has always tolerated, and it still
+   * continues one microtask later exactly as it did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Clients and Projects requires the LongtailForge namespace.");
+    }
+
+    return namespace;
   }
 
-  const indexPanel = surface.indexPanel ? { ...surface.indexPanel } : surface.indexPanel;
-  if (indexPanel?.itemSubtitleField === "clientName") {
-    delete indexPanel.itemSubtitleField;
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Clients and Projects requires LongtailForge.errors.");
+    }
+    return errors;
   }
 
-  return {
-    ...surface,
-    filters: (surface.filters || []).filter((filter) => filter.id !== "project-client-filter" && filter.field !== "clientId"),
-    indexPanel,
-    table: surface.table ? {
-      ...surface.table,
-      columns: (surface.table.columns || []).filter((column) => column.id !== "project-client" && column.field !== "clientName"),
-    } : surface.table,
-    dataSource: surface.dataSource ? {
-      ...surface.dataSource,
-      fieldBindings: Object.fromEntries(Object.entries(surface.dataSource.fieldBindings || {}).filter(
-        ([field]) => !["clientId", "clientName"].includes(field),
+  /**
+   * The page controller registry this page cannot run without.
+   *
+   * Acquired at the point of use rather than stored at module scope, so a missing surface still
+   * fails at exactly the moment it failed before `0.33.33.38.2.6.2` made the read checked. Every
+   * page that loads this script loads `shared/page-controller.js` ahead of it.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    const controller = window.LongtailForge?.pageController;
+    if (!controller) {
+      throw new Error("Clients and Projects requires LongtailForge.pageController.");
+    }
+    return controller;
+  }
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Clients/Projects requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Clients/Projects requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCheckedDom} BrowserCheckedDom */
+
+  /**
+   * The shared checked-DOM contract this file narrows its looked-up controls through.
+   *
+   * Acquired per call, like the page's other required surfaces. The static service injects
+   * `shared/checked-dom.js` at the opening `<head>` of every rendered page, ahead of any page
+   * script - including the pages that load this file lazily for one of its dialogs.
+   * @returns {BrowserCheckedDom}
+   */
+  function requireCheckedDom() {
+    const checkedDom = window.LongtailForge?.checkedDom;
+    if (!checkedDom) {
+      throw new Error("Clients/Projects requires LongtailForge.checkedDom.");
+    }
+    return checkedDom;
+  }
+
+  async function initializeClientProjectsPage() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // Action APIs can still lazy-load dialog data if descriptor delivery is unavailable.
+    }
+
+    registerClientProjectsViewBehaviors();
+    await loadPageData({ applyQueryActions: false });
+    activeClientProjectsReadSurface = renderClientProjectsReadSurface();
+    applyClientProjectQueryActions();
+  }
+
+  function registerClientProjectsViewBehaviors() {
+    const view = requireView();
+    if (clientProjectsViewBehaviorsRegistered || typeof view?.registerBehavior !== "function") {
+      return;
+    }
+
+    clientProjectsViewBehaviorsRegistered = true;
+    registerClientProjectsModuleActionBehavior("client-projects.clients.create", "clients.add");
+    requireDescriptorRenderers().registerBehavior("client-projects.clients.create-child", (context = {}) => {
+      const params = clientProjectActionParams(context);
+      return openClientProjectModuleAction("clients.add", {
+        ...params,
+        lockParentClient: true,
+        parentClientId: params.recordId,
+      });
+    });
+    registerClientProjectsModuleActionBehavior("client-projects.clients.edit", "clients.edit");
+    registerClientProjectsModuleActionBehavior("client-projects.projects.create", "projects.add");
+    registerClientProjectsModuleActionBehavior("client-projects.projects.edit", "projects.edit");
+    requireDescriptorRenderers().registerBehavior("client-projects.clients.tags", hydrateTagFilterOptions);
+    requireDescriptorRenderers().registerBehavior("client-projects.projects.tags", hydrateTagFilterOptions);
+    requireDescriptorRenderers().registerBehavior("client-projects.projects.clients", hydrateProjectClientFilterOptions);
+    requireDescriptorRenderers().registerBehavior("client-projects.clients.bulk", mountClientBulkToolbar);
+    requireDescriptorRenderers().registerBehavior("client-projects.projects.bulk", mountProjectBulkToolbar);
+  }
+
+  /**
+   * Route one descriptor behaviour to the module action it opens.
+   * @param {string} behaviorId @param {string} actionId
+   */
+  function registerClientProjectsModuleActionBehavior(behaviorId, actionId) {
+    requireDescriptorRenderers().registerBehavior(behaviorId, (context = {}) => openClientProjectModuleAction(
+      actionId,
+      clientProjectActionParams(context),
+    ));
+  }
+
+  /**
+   * The parameters a descriptor behaviour hands its module action: the row's record, plus the
+   * identifier that decides which record's editor opens.
+   *
+   * **`id` wins over `recordId`.** A record carrying both opens by `id`; `recordId` is only the
+   * fallback, and neither present opens nothing in particular. The members are read with
+   * `Reflect.get` because `typeof ... === "object"` narrows the record to `object`, which names no
+   * member - the read is the same one, on the same non-null object, with the same receiver.
+   * `registerBehavior` publishes its context as `unknown`, so this names the one member it reads.
+   * @param {{ record?: unknown }} [context]
+   */
+  function clientProjectActionParams(context = {}) {
+    const record = context.record && typeof context.record === "object" ? context.record : {};
+
+    return {
+      ...record,
+      recordId: Reflect.get(record, "id") || Reflect.get(record, "recordId") || "",
+    };
+  }
+
+  /**
+   * Open one Clients/Projects module action, through the shared registry when it is loaded and
+   * through this page's own openers when it is not.
+   * @param {string} actionId
+   * @param {Record<string, unknown>} [params]
+   * @param {{ hostContext?: ClientProjectHostContext } & Record<string, unknown>} [options]
+   */
+  function openClientProjectModuleAction(actionId, params = {}, options = {}) {
+    const moduleActions = window.LongtailForge?.moduleActions;
+    if (typeof moduleActions?.open === "function") {
+      return moduleActions.open(actionId, params, {
+        refresh: refreshClientProjectData,
+        setStatus,
+        ...options,
+      });
+    }
+
+    return openClientProjectActionFallback(actionId, params, options.hostContext || null);
+  }
+
+  /**
+   * This page's own openers, used when the shared registry is not loaded. An action it does not
+   * own is refused rather than quietly opening nothing.
+   * @param {string} actionId
+   * @param {Record<string, unknown>} [params]
+   * @param {ClientProjectHostContext} [hostContext]
+   */
+  function openClientProjectActionFallback(actionId, params = {}, hostContext = null) {
+    if (actionId === "clients.add") {
+      return openAddClientAction(params, hostContext);
+    }
+    if (actionId === "clients.edit") {
+      return openEditClientAction(params, hostContext);
+    }
+    if (actionId === "projects.add") {
+      return openAddProjectAction(params, hostContext);
+    }
+    if (actionId === "projects.edit") {
+      return openEditProjectAction(params, hostContext);
+    }
+    return Promise.reject(new Error(`Client/Project action '${actionId}' is not registered.`));
+  }
+
+  /**
+   * Report an action that could not be opened.
+   *
+   * The message is read exactly as `error?.message` read it: a thrown value is not only ever an
+   * `Error`, so `error` is `unknown`, and `Reflect.get(Object(error), "message", error)` answers the
+   * same for every value - `undefined` for a nullish one without reading anything (the explicit
+   * nullish test is what makes that true: boxing `null` would still walk `Object.prototype`), a thrown string's
+   * own lookup rather than the string itself, and the original value as a getter's receiver. **A
+   * thrown string therefore still falls back to the generic message**, as it always did.
+   * @param {unknown} error
+   */
+  function handleClientProjectActionError(error) {
+    const message = error == null ? undefined : Reflect.get(Object(error), "message", error);
+    setStatus(message || "Client/Project action could not be opened.", { isError: true });
+    console.error(error);
+  }
+
+  function renderClientProjectsReadSurface() {
+    const view = requireView();
+    if ((!isClientsPage && !isProjectsPage) || typeof view?.renderSurface !== "function") {
+      return null;
+    }
+
+    const host = document.querySelector("[data-client-projects-host]") || document.querySelector("main");
+    if (!host) {
+      return null;
+    }
+
+    activeClientProjectsReadDescriptor = clientProjectsViewSurfaceDescriptor();
+    if (!activeClientProjectsReadDescriptor) {
+      return null;
+    }
+
+    return requireDescriptorRenderers().renderSurface(activeClientProjectsReadDescriptor, host);
+  }
+
+  function clientProjectsViewSurfaceDescriptor() {
+    const surfaceId = isClientsPage
+      ? "client-projects.clients"
+      : isProjectsPage
+        ? "client-projects.projects"
+        : "";
+    if (!surfaceId) {
+      return null;
+    }
+
+    const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
+    const surface = surfaces.find(
+      /** @returns {candidate is Record<string, unknown>} */
+      (candidate) => isResponseRecord(candidate)
+        && candidate.id === surfaceId
+        && candidate.moduleId === "client-projects",
+    ) || null;
+    const filteredSurface = isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
+    return withoutUnavailableTopLevelActions(
+      withoutUnsupportedBillingFields(withoutUnsupportedClientFields(filteredSurface)),
+    );
+  }
+
+  /**
+   * One list from a contributed view descriptor, as `(value || [])` supplied it to `.filter`/`.map`.
+   *
+   * **The descriptor is opaque below its root.** `viewSurfaces` reaches this page as `unknown[]` -
+   * the stored workspace context checks only the container - and the surface's own predicate
+   * vouches only for the root record, its `id` and its `moduleId`. The manifest validator does
+   * promise every nested list is an array, but a stored copy has not been through it again. So each
+   * nested read is checked where it happens, rather than the whole surface being declared a full
+   * descriptor it was never proved to be.
+   *
+   * **A malformed list still fails, as it did before; it is not quietly treated as absent.** An
+   * absent or falsy list is `[]`, an array is itself, and anything else throws - where the original
+   * `.filter` would have thrown for want of a method. The one input that behaves differently is a
+   * non-array object carrying its own `filter` or `map`, which no manifest produces. The throw is
+   * unobservable to a user: the pipeline runs inside an un-awaited page initialisation, so it
+   * reaches the shared `browser-recovery` boundary, which shows fixed copy.
+   * @param {unknown} value
+   * @returns {unknown[]}
+   */
+  function descriptorList(value) {
+    const list = value || [];
+    if (!Array.isArray(list)) {
+      throw new TypeError("A Clients/Projects view descriptor list is not an array.");
+    }
+    return list;
+  }
+
+  /**
+   * One member of a contributed descriptor entry, read exactly as `entry[key]` read it: the same
+   * `[[Get]]`, with the entry itself as the receiver, and a throw for a nullish entry where the
+   * original member access threw.
+   * @param {unknown} entry @param {string} key
+   * @returns {unknown}
+   */
+  function descriptorField(entry, key) {
+    if (entry == null) {
+      throw new TypeError("A Clients/Projects view descriptor entry cannot be read.");
+    }
+    return Reflect.get(Object(entry), key, entry);
+  }
+
+  /**
+   * Remove the create action a user cannot take from the delivered descriptor.
+   *
+   * **Presentation only.** Hiding the page's primary action does not replace the server's own
+   * permission checks, which still refuse the create. Returns the same surface, by identity, when
+   * the action is available.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
+  function withoutUnavailableTopLevelActions(surface) {
+    if (!surface) {
+      return surface;
+    }
+
+    const actionAvailable = surface.id === "client-projects.clients"
+      ? canCreateTopLevelClient()
+      : surface.id === "client-projects.projects"
+        ? canCreateAnyProject()
+        : true;
+    if (actionAvailable) {
+      return surface;
+    }
+
+    /** @type {unknown} */
+    const pageHeader = surface.pageHeader ? { ...surface.pageHeader } : surface.pageHeader;
+    if (isResponseRecord(pageHeader)) {
+      delete pageHeader.primaryAction;
+    }
+
+    return {
+      ...surface,
+      pageHeader,
+    };
+  }
+
+  /**
+   * Remove the client field, column, filter and bindings from the Projects surface in a workspace
+   * that has no clients. Returns the same surface, by identity, everywhere else.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
+  function withoutUnsupportedClientFields(surface) {
+    const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
+    if (!surface || workspaceType === "business" || surface.id !== "client-projects.projects") {
+      return surface;
+    }
+
+    /** @type {unknown} */
+    const indexPanel = surface.indexPanel ? { ...surface.indexPanel } : surface.indexPanel;
+    if (isResponseRecord(indexPanel) && indexPanel.itemSubtitleField === "clientName") {
+      delete indexPanel.itemSubtitleField;
+    }
+
+    return {
+      ...surface,
+      filters: descriptorList(surface.filters).filter((filter) => (
+        descriptorField(filter, "id") !== "project-client-filter" && descriptorField(filter, "field") !== "clientId"
       )),
-    } : surface.dataSource,
-  };
-}
-
-function withoutUnsupportedBillingFields(surface) {
-  const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
-  if (!surface || workspaceType === "business") {
-    return surface;
+      indexPanel,
+      table: surface.table ? {
+        ...surface.table,
+        columns: descriptorList(descriptorField(surface.table, "columns")).filter((column) => (
+          descriptorField(column, "id") !== "project-client" && descriptorField(column, "field") !== "clientName"
+        )),
+      } : surface.table,
+      dataSource: surface.dataSource ? {
+        ...surface.dataSource,
+        fieldBindings: Object.fromEntries(Object.entries(descriptorField(surface.dataSource, "fieldBindings") || {}).filter(
+          ([field]) => !["clientId", "clientName"].includes(field),
+        )),
+      } : surface.dataSource,
+    };
   }
 
-  return {
-    ...surface,
-    indexPanel: surface.indexPanel ? {
-      ...surface.indexPanel,
-      itemMetaFields: (surface.indexPanel.itemMetaFields || []).filter((field) => field !== "billingDisplay"),
-    } : surface.indexPanel,
-    table: surface.table ? {
-      ...surface.table,
-      columns: (surface.table.columns || []).filter((column) => !["client-billable", "project-billable"].includes(column.id)),
-    } : surface.table,
-  };
-}
+  /**
+   * Remove the billing meta field and billable columns in a workspace that is not a business.
+   * Returns the same surface, by identity, for a business.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
+  function withoutUnsupportedBillingFields(surface) {
+    const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
+    if (!surface || workspaceType === "business") {
+      return surface;
+    }
 
-function withInitialProjectClientFilter(surface) {
-  const clientId = new URLSearchParams(window.location.search).get("client") || "";
-  const contextWorkspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
-  if (!surface || !clientId || contextWorkspaceType !== "business") {
-    return surface;
+    return {
+      ...surface,
+      indexPanel: surface.indexPanel ? {
+        ...surface.indexPanel,
+        itemMetaFields: descriptorList(descriptorField(surface.indexPanel, "itemMetaFields"))
+          .filter((field) => field !== "billingDisplay"),
+      } : surface.indexPanel,
+      table: surface.table ? {
+        ...surface.table,
+        columns: descriptorList(descriptorField(surface.table, "columns"))
+          .filter((column) => !vocabularyHas(["client-billable", "project-billable"], descriptorField(column, "id"))),
+      } : surface.table,
+    };
   }
 
-  return {
-    ...surface,
-    filters: (surface.filters || []).map((filter) => (
-      filter.field === "clientId" ? { ...filter, default: clientId } : filter
-    )),
-  };
-}
+  /**
+   * Default the Projects surface's client filter from `?client=`, in a business workspace only.
+   *
+   * Runs on the Projects page path alone, before the three filters above. A filter whose `field`
+   * is `clientId` gains the default; the manifest promises every filter is a plain object, which is
+   * what the spread copies - a non-object filter matching that field, which no manifest produces,
+   * is left as it is.
+   * @param {Record<string, unknown> | null} surface
+   * @returns {Record<string, unknown> | null}
+   */
+  function withInitialProjectClientFilter(surface) {
+    const clientId = new URLSearchParams(window.location.search).get("client") || "";
+    const contextWorkspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
+    if (!surface || !clientId || contextWorkspaceType !== "business") {
+      return surface;
+    }
 
-async function hydrateTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
-  if (!tagOptions.length) {
-    await loadClientProjectDialogData();
+    return {
+      ...surface,
+      filters: descriptorList(surface.filters).map((filter) => (
+        descriptorField(filter, "field") === "clientId" && isResponseRecord(filter) ? { ...filter, default: clientId } : filter
+      )),
+    };
   }
 
-  const options = tagOptions.map((tag) => ({
-    value: tag.tag_id,
-    label: tag.name || tag.slug || "Tag",
-    keywords: [tag.slug, tag.description].filter(Boolean),
-    color: tag.color,
-  }));
+  /**
+   * The option callbacks the descriptor renderer hands an options-source behaviour.
+   *
+   * `registerBehavior` publishes its handler as `unknown`, so there is no framework context type to
+   * derive from. `flushMounts` passes both as functions, and the `{}` default passes neither, so both
+   * are declared optional and stay the capabilities they are: `mountSearchOptions` is checked for
+   * being callable, and `setOptions` is called optionally (`0.33.33.43.54`).
+   * @typedef {{
+   *   mountSearchOptions?: (options: unknown[], config?: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void,
+   *   setOptions?: (options: unknown[], config?: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void,
+   * }} ClientProjectOptionSourceContext
+   */
 
-  if (typeof mountSearchOptions === "function") {
-    mountSearchOptions(options, {
+  /** @param {ClientProjectOptionSourceContext} [context] */
+  async function hydrateTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
+    if (!tagOptions.length) {
+      await loadClientProjectDialogData();
+    }
+
+    const options = tagOptions.map((tag) => ({
+      value: tag.tag_id,
+      label: tag.name || tag.slug || "Tag",
+      keywords: [tag.slug, tag.description].filter(Boolean),
+      color: tag.color,
+    }));
+
+    if (typeof mountSearchOptions === "function") {
+      mountSearchOptions(options, {
+        submitMode: "option-or-input",
+        minChars: 1,
+        maxResults: 10,
+        emptyMessage: "No matching tags.",
+      });
+      return undefined;
+    }
+
+    setOptions?.(options, {
       submitMode: "option-or-input",
       minChars: 1,
       maxResults: 10,
@@ -294,2828 +632,3835 @@ async function hydrateTagFilterOptions({ mountSearchOptions, setOptions } = {}) 
     return undefined;
   }
 
-  setOptions?.(options, {
-    submitMode: "option-or-input",
-    minChars: 1,
-    maxResults: 10,
-    emptyMessage: "No matching tags.",
-  });
-  return undefined;
-}
+  /** @param {ClientProjectOptionSourceContext} [context] */
+  async function hydrateProjectClientFilterOptions({ setOptions } = {}) {
+    if (!clientProjectData.clients.length) {
+      await loadClientProjectDialogData();
+    }
 
-async function hydrateProjectClientFilterOptions({ setOptions } = {}) {
-  if (!clientProjectData.clients.length) {
-    await loadClientProjectDialogData();
-  }
-
-  if (!clientsEnabledForWorkspace()) {
-    setOptions?.([{ value: "All", label: "All projects", selected: true }]);
-    return;
-  }
-
-  setOptions?.([
-    { value: "All", label: "All clients", selected: true },
-    { value: "__workspace_projects__", label: workspaceProjectsLabel() },
-    ...sortClientTree(getActiveRealClients()).map((client) => ({
-      value: client.id,
-      label: `${treeIndent(getClientDepth(client))}${client.name}`,
-    })),
-  ]);
-}
-
-function mountClientBulkToolbar(context = {}) {
-  void mountClientBulkToolbarAsync(context).catch(handleClientProjectActionError);
-}
-
-async function mountClientBulkToolbarAsync({ container } = {}) {
-  if (!container) {
-    return;
-  }
-
-  await ensureClientProjectBulkData();
-  if (!container.isConnected) {
-    return;
-  }
-  if (!clientsEnabledForWorkspace()) {
-    container.replaceChildren();
-    return;
-  }
-
-  container.replaceChildren(createClientBulkToolbar());
-  bindDescriptorBulkSelection(container, "client");
-  updateClientTableBulkState();
-}
-
-function mountProjectBulkToolbar(context = {}) {
-  void mountProjectBulkToolbarAsync(context).catch(handleClientProjectActionError);
-}
-
-async function mountProjectBulkToolbarAsync({ container } = {}) {
-  if (!container) {
-    return;
-  }
-
-  await ensureClientProjectBulkData();
-  if (!container.isConnected) {
-    return;
-  }
-  container.replaceChildren(createProjectBulkToolbar());
-  bindDescriptorBulkSelection(container, "project");
-  updateProjectTableBulkState();
-}
-
-async function ensureClientProjectBulkData() {
-  if (clientProjectData.clients.length === 0) {
-    await loadClientProjectDialogData();
-  }
-}
-
-function bindDescriptorBulkSelection(container, recordType) {
-  const surface = container.closest("[data-view-surface-id]");
-  const flag = `clientProjects${recordType === "project" ? "Project" : "Client"}BulkSelectionBound`;
-
-  if (!surface || surface.dataset[flag]) {
-    return;
-  }
-
-  surface.dataset[flag] = "true";
-  surface.addEventListener("change", (event) => {
-    if (!event.target.matches(`[data-view-row-select][data-view-row-select-type="${recordType}"]`)) {
+    if (!clientsEnabledForWorkspace()) {
+      setOptions?.([{ value: "All", label: "All projects", selected: true }]);
       return;
     }
 
-    if (recordType === "project") {
-      updateProjectTableBulkState();
-    } else {
-      updateClientTableBulkState();
-    }
-  });
-}
-
-function requireView() {
-  if (!view) {
-    throw new Error("Client/Project dialogs require LongtailForge.view.");
+    setOptions?.([
+      { value: "All", label: "All clients", selected: true },
+      { value: "__workspace_projects__", label: workspaceProjectsLabel() },
+      ...sortClientTree(getActiveRealClients()).map((client) => ({
+        value: client.id,
+        label: `${treeIndent(getClientDepth(client))}${client.name}`,
+      })),
+    ]);
   }
-  return view;
-}
 
-function createModalAction(label, options = {}) {
-  const button = requireView().createActionButton({
-    label,
-    type: options.type || "button",
-    role: options.role || "",
-  });
-  button.classList.add("surface-modal-footer-action");
-  return button;
-}
+  function mountClientBulkToolbar(context = {}) {
+    void mountClientBulkToolbarAsync(context).catch(handleClientProjectActionError);
+  }
 
-function createModalCommitGroup(children = [], className = "") {
-  return requireView().createElement("div", {
-    className: ["surface-modal-footer-group", "surface-modal-footer-commit", className],
-    attrs: { "data-modal-footer-group": "commit" },
-    children,
-  });
-}
+  /**
+   * One bulk toolbar, mounted into the container the descriptor renderer hands it.
+   *
+   * `registerBehavior` publishes its handler as `unknown`, so there is no framework context type to
+   * derive from; this names the single member the page reads, and it is already tested for absence.
+   * @param {{ container?: Element | null }} [context]
+   */
+  async function mountClientBulkToolbarAsync({ container } = {}) {
+    if (!container) {
+      return;
+    }
 
-function decorateModalFooterButtons(container) {
-  container.querySelectorAll("button").forEach((button) => {
+    await ensureClientProjectBulkData();
+    if (!container.isConnected) {
+      return;
+    }
+    if (!clientsEnabledForWorkspace()) {
+      container.replaceChildren();
+      return;
+    }
+
+    container.replaceChildren(createClientBulkToolbar());
+    bindDescriptorBulkSelection(container, "client");
+    updateClientTableBulkState();
+  }
+
+  function mountProjectBulkToolbar(context = {}) {
+    void mountProjectBulkToolbarAsync(context).catch(handleClientProjectActionError);
+  }
+
+  /**
+   * One bulk toolbar, mounted into the container the descriptor renderer hands it.
+   *
+   * `registerBehavior` publishes its handler as `unknown`, so there is no framework context type to
+   * derive from; this names the single member the page reads, and it is already tested for absence.
+   * @param {{ container?: Element | null }} [context]
+   */
+  async function mountProjectBulkToolbarAsync({ container } = {}) {
+    if (!container) {
+      return;
+    }
+
+    await ensureClientProjectBulkData();
+    if (!container.isConnected) {
+      return;
+    }
+    container.replaceChildren(createProjectBulkToolbar());
+    bindDescriptorBulkSelection(container, "project");
+    updateProjectTableBulkState();
+  }
+
+  async function ensureClientProjectBulkData() {
+    if (clientProjectData.clients.length === 0) {
+      await loadClientProjectDialogData();
+    }
+  }
+
+  /**
+   * Keep the toolbar's selected count in step with the surface's row checkboxes.
+   *
+   * Declared from its two callers, the bulk-toolbar mounts, which pass their region `Element`
+   * (`0.33.33.43.54`). That exposed two reads, each narrowed where its producer already decides:
+   * - only the view renderer writes `data-view-surface-id`, on the `<section>` it creates, so the
+   *   nearest surface is that `HTMLElement` or nothing;
+   * - nothing dispatches a synthetic `change`, so every change reaching the surface comes from a
+   *   control inside it, and its target is that `Element`.
+   * @param {Element} container
+   * @param {string} recordType
+   */
+  function bindDescriptorBulkSelection(container, recordType) {
+    const surface = container.closest("[data-view-surface-id]");
+    const flag = `clientProjects${recordType === "project" ? "Project" : "Client"}BulkSelectionBound`;
+
+    if (!(surface instanceof HTMLElement) || surface.dataset[flag]) {
+      return;
+    }
+
+    surface.dataset[flag] = "true";
+    surface.addEventListener("change", (event) => {
+      if (!(event.target instanceof Element)
+        || !event.target.matches(`[data-view-row-select][data-view-row-select-type="${recordType}"]`)) {
+        return;
+      }
+
+      if (recordType === "project") {
+        updateProjectTableBulkState();
+      } else {
+        updateClientTableBulkState();
+      }
+    });
+  }
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Client/Project surfaces uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Client/Project surfaces requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+
+  /**
+   * The control a field rendered. `viewParts.control` is null only on the radio path, where a
+   * descriptor carrying no options renders a legend and no inputs; every caller here builds a
+   * field that has one.
+   * @param {BrowserViewFieldElement} field
+   * @returns {BrowserViewFieldControl}
+   */
+  function fieldControl(field) {
+    const control = field.viewParts.control;
+    if (!control) {
+      throw new Error("Client/Project fields require a rendered control.");
+    }
+    return control;
+  }
+
+  /**
+   * The select a `select` field rendered.
+   *
+   * `fieldControl` answers the published control union, which does not carry `options`. The view
+   * builder maps a `select` field to a `select` control unconditionally, so the throw below is not
+   * reachable from this page's own fields; it is there so the narrowing is checked rather than
+   * asserted, and it fails the same way `fieldControl` does. Before this, a non-select would have
+   * thrown too - natively, one line later, spreading `undefined` options.
+   * @param {BrowserViewFieldElement} field
+   * @returns {HTMLSelectElement}
+   */
+  function fieldSelect(field) {
+    const control = fieldControl(field);
+    if (!(control instanceof HTMLSelectElement)) {
+      throw new Error("Client/Project select fields require a rendered select.");
+    }
+    return control;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Client/Project surfaces require LongtailForge.view.");
+    }
+    return factory;
+  }
+
+  /**
+   * One modal footer action, built by the shared view.
+   * @param {BrowserViewActionButtonOptions["label"]} label
+   * @param {Pick<BrowserViewActionButtonOptions, "type" | "role">} [options]
+   */
+  function createModalAction(label, options = {}) {
+    const button = requireView().createActionButton({
+      label,
+      type: options.type || "button",
+      role: options.role || "",
+    });
     button.classList.add("surface-modal-footer-action");
-    if (button.dataset.surfaceActionRole) {
-      return;
-    }
-
-    const label = button.textContent.trim().toLowerCase();
-    if (label.startsWith("save") || label.startsWith("add")) {
-      button.dataset.surfaceActionRole = "primary";
-    } else if (label.startsWith("archive") || label.startsWith("delete")) {
-      button.dataset.surfaceActionRole = "destructive";
-    } else {
-      button.dataset.surfaceActionRole = "secondary";
-    }
-  });
-}
-
-function showDialog(dialog, focusTarget = null) {
-  document.body.appendChild(dialog);
-
-  if (typeof view?.showModal === "function") {
-    view.showModal(dialog);
-  } else if (typeof dialog.showModal === "function") {
-    dialog.showModal();
-  } else {
-    dialog.setAttribute("open", "");
+    return button;
   }
 
-  focusTarget?.focus?.();
-}
+  /** @param {HTMLButtonElement[]} [children] The footer's commit buttons. */
+  function createModalCommitGroup(children = [], className = "") {
+    return requireView().createElement("div", {
+      className: ["surface-modal-footer-group", "surface-modal-footer-commit", className],
+      attrs: { "data-modal-footer-group": "commit" },
+      children,
+    });
+  }
 
-async function loadPageData(options = {}) {
-  setStatus("Loading clients and projects...");
+  /** @param {HTMLDivElement} container The commit group `createModalCommitGroup` built. */
+  function decorateModalFooterButtons(container) {
+    container.querySelectorAll("button").forEach((button) => {
+      button.classList.add("surface-modal-footer-action");
+      if (button.dataset.surfaceActionRole) {
+        return;
+      }
 
-  try {
+      const label = button.textContent.trim().toLowerCase();
+      if (label.startsWith("save") || label.startsWith("add")) {
+        button.dataset.surfaceActionRole = "primary";
+      } else if (label.startsWith("archive") || label.startsWith("delete")) {
+        button.dataset.surfaceActionRole = "destructive";
+      } else {
+        button.dataset.surfaceActionRole = "secondary";
+      }
+    });
+  }
+
+  /**
+   * Every caller passes a `createModal` or `createModalForm` result, which the view contract
+   * declares an `HTMLDialogElement` (`0.33.33.43.46`). All three branches stay: the shared stack
+   * first, the element's own `showModal`, and the `open` attribute where neither exists.
+   * @param {HTMLDialogElement} dialog
+   * @param {HTMLElement | null} [focusTarget]
+   */
+  function showDialog(dialog, focusTarget = null) {
+    const view = requireView();
+    document.body.appendChild(dialog);
+
+    if (typeof view?.showModal === "function") {
+      view.showModal(dialog);
+    } else if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+
+    focusTarget?.focus?.();
+  }
+
+  /** @param {{ applyQueryActions?: boolean }} [options] */
+  async function loadPageData(options = {}) {
+    setStatus("Loading clients and projects...");
+
+    try {
+      const [settingsData, clientsData, loadedTags] = await Promise.all([
+        requireApi().getJson("/api/settings", { cache: "no-store" }),
+        requireApi().getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
+        loadTagOptions(),
+      ]);
+
+      workspaceSettings = normalizeSettings(settingsData);
+      clientProjectData = normalizeData(clientsData);
+      tagOptions = loadedTags;
+      if (options.applyQueryActions !== false) {
+        applyClientProjectQueryActions();
+      }
+      setStatus("");
+    } catch (error) {
+      setStatus("Client and project data could not be loaded.");
+      console.error(error);
+    }
+  }
+
+  async function loadClientProjectDialogData() {
+    await requireNamespace().workspaceContextReady;
+
     const [settingsData, clientsData, loadedTags] = await Promise.all([
-      window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-      window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
+      requireApi().getJson("/api/settings", { cache: "no-store" }),
+      requireApi().getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
       loadTagOptions(),
     ]);
 
     workspaceSettings = normalizeSettings(settingsData);
     clientProjectData = normalizeData(clientsData);
     tagOptions = loadedTags;
-    if (options.applyQueryActions !== false) {
-      applyClientProjectQueryActions();
+  }
+
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
+  async function openAddProjectAction(params = {}, hostContext = null) {
+    await loadClientProjectDialogData();
+    const requestedClientId = params.clientId || params.defaultClientId || params.parentClientId || "";
+    const client = resolveProjectCreateTarget(requestedClientId);
+
+    if (!client) {
+      throw new Error("You do not have permission to add a project in an available scope.");
     }
-    setStatus("");
-  } catch (error) {
-    setStatus("Client and project data could not be loaded.");
-    console.error(error);
-  }
-}
 
-async function loadClientProjectDialogData() {
-  await window.LongtailForge.workspaceContextReady;
-
-  const [settingsData, clientsData, loadedTags] = await Promise.all([
-    window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-    window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
-    loadTagOptions(),
-  ]);
-
-  workspaceSettings = normalizeSettings(settingsData);
-  clientProjectData = normalizeData(clientsData);
-  tagOptions = loadedTags;
-}
-
-async function openAddProjectAction(params = {}, hostContext = null) {
-  await loadClientProjectDialogData();
-  const requestedClientId = params.clientId || params.defaultClientId || params.parentClientId || "";
-  const client = resolveProjectCreateTarget(requestedClientId);
-
-  if (!client) {
-    throw new Error("You do not have permission to add a project in an available scope.");
+    return openAddProjectDialog(client, {
+      hostContext,
+      parentProjectId: params.parentProjectId || params.parent_project_id || "",
+    });
   }
 
-  return openAddProjectDialog(client, {
-    hostContext,
-    parentProjectId: params.parentProjectId || params.parent_project_id || "",
-  });
-}
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
+  async function openEditProjectAction(params = {}, hostContext = null) {
+    await loadClientProjectDialogData();
+    const projectId = params.projectId || params.recordId || params.id || "";
+    const match = getAllProjects().find(({ project }) => project.id === projectId);
 
-async function openEditProjectAction(params = {}, hostContext = null) {
-  await loadClientProjectDialogData();
-  const projectId = params.projectId || params.recordId || params.id || "";
-  const match = getAllProjects().find(({ project }) => project.id === projectId);
+    if (!match) {
+      throw new Error("Project could not be found.");
+    }
+    if (!match.project.canManage) {
+      throw new Error("You do not have permission to edit that project.");
+    }
 
-  if (!match) {
-    throw new Error("Project could not be found.");
-  }
-  if (!match.project.canManage) {
-    throw new Error("You do not have permission to edit that project.");
-  }
-
-  return openProjectDetailDialog(match.client, match.project, { hostContext });
-}
-
-async function openAddClientAction(params = {}, hostContext = null) {
-  await loadClientProjectDialogData();
-
-  if (!clientsEnabledForWorkspace()) {
-    throw new Error("Client actions are only available in Business workspaces.");
+    return openProjectDetailDialog(match.client, match.project, { hostContext });
   }
 
-  const parentClientId = params.parentClientId || params.defaultClientId || "";
-  if (!parentClientId && !canCreateTopLevelClient()) {
-    throw new Error("Choose Add Child Client from a client you administer.");
-  }
-  if (parentClientId && !canCreateChildClient(parentClientId)) {
-    throw new Error("You do not have permission to add a child under that client.");
-  }
-  const lockParentClient = params.lockParentClient === true || !canCreateTopLevelClient();
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
+  async function openAddClientAction(params = {}, hostContext = null) {
+    await loadClientProjectDialogData();
 
-  return openAddClientDialog({
-    defaultParentClientId: parentClientId,
-    hostContext,
-    lockParentClient,
-  });
-}
+    if (!clientsEnabledForWorkspace()) {
+      throw new Error("Client actions are only available in Business workspaces.");
+    }
 
-async function openEditClientAction(params = {}, hostContext = null) {
-  await loadClientProjectDialogData();
+    const parentClientId = params.parentClientId || params.defaultClientId || "";
+    if (!parentClientId && !canCreateTopLevelClient()) {
+      throw new Error("Choose Add Child Client from a client you administer.");
+    }
+    if (parentClientId && !canCreateChildClient(parentClientId)) {
+      throw new Error("You do not have permission to add a child under that client.");
+    }
+    const lockParentClient = params.lockParentClient === true || !canCreateTopLevelClient();
 
-  if (!clientsEnabledForWorkspace()) {
-    throw new Error("Client actions are only available in Business workspaces.");
-  }
-
-  const clientId = params.clientId || params.recordId || params.id || "";
-  const client = getRealClients().find((item) => item.id === clientId);
-
-  if (!client) {
-    throw new Error("Client could not be found.");
-  }
-  if (!client.canManage) {
-    throw new Error("You do not have permission to edit that client.");
+    return openAddClientDialog({
+      defaultParentClientId: parentClientId,
+      hostContext,
+      lockParentClient,
+    });
   }
 
-  return openClientDetailDialog(client, { hostContext });
-}
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
+  async function openEditClientAction(params = {}, hostContext = null) {
+    await loadClientProjectDialogData();
 
-function createProjectBulkToolbar() {
-  const controls = createProjectBulkControls();
-  const toolbar = requireView().createBulkActionToolbar({
-    label: "Bulk Changes",
-    selectedCount: getSelectedProjectIds().length,
-    className: "inline-bulk-controls",
-    bodyClassName: "inline-bulk-control-grid",
-    attrs: { "data-client-projects-bulk-toolbar": "project" },
-    body: controls,
-  });
+    if (!clientsEnabledForWorkspace()) {
+      throw new Error("Client actions are only available in Business workspaces.");
+    }
 
-  syncClientProjectsBulkToolbar("project", toolbar);
-  return toolbar;
-}
+    const clientId = params.clientId || params.recordId || params.id || "";
+    const client = getRealClients().find((item) => item.id === clientId);
 
-function createProjectBulkControls() {
-  const controls = [];
-  const bulkStatusSelect = createBulkStatusSelect();
-  const bulkClientSelect = createBulkClientSelect();
-  const bulkBillableSelect = createBulkBillableSelect();
+    if (!client) {
+      throw new Error("Client could not be found.");
+    }
+    if (!client.canManage) {
+      throw new Error("You do not have permission to edit that client.");
+    }
 
-  bulkStatusSelect.label.classList.add("inline-bulk-field");
-  bulkStatusSelect.select.disabled = true;
-  bulkStatusSelect.select.addEventListener("change", async () => {
-    if (!bulkStatusSelect.select.value) {
+    return openClientDetailDialog(client, { hostContext });
+  }
+
+  function createProjectBulkToolbar() {
+    const controls = createProjectBulkControls();
+    const toolbar = requireView().createBulkActionToolbar({
+      label: "Bulk Changes",
+      selectedCount: getSelectedProjectIds().length,
+      className: "inline-bulk-controls",
+      bodyClassName: "inline-bulk-control-grid",
+      attrs: { "data-client-projects-bulk-toolbar": "project" },
+      body: controls,
+    });
+
+    syncClientProjectsBulkToolbar("project", toolbar);
+    return toolbar;
+  }
+
+  function createProjectBulkControls() {
+    const controls = [];
+    const bulkStatusSelect = createBulkStatusSelect();
+    const bulkClientSelect = createBulkClientSelect();
+    const bulkBillableSelect = createBulkBillableSelect();
+
+    bulkStatusSelect.label.classList.add("inline-bulk-field");
+    bulkStatusSelect.select.disabled = true;
+    bulkStatusSelect.select.addEventListener("change", async () => {
+      if (!bulkStatusSelect.select.value) {
+        return;
+      }
+
+      await applyProjectTableBulkUpdate({
+        status: bulkStatusSelect.select.value,
+        clientId: "",
+        shouldChangeClient: false,
+        billable: "",
+      });
+      bulkStatusSelect.select.value = "";
+    });
+    controls.push(bulkStatusSelect.label);
+
+    if (bulkClientSelect) {
+      bulkClientSelect.label.classList.add("inline-bulk-field");
+      bulkClientSelect.select.disabled = true;
+      bulkClientSelect.select.addEventListener("change", async () => {
+        if (bulkClientSelect.select.selectedIndex === 0) {
+          return;
+        }
+
+        await applyProjectTableBulkUpdate({
+          status: "",
+          clientId: bulkClientSelect.select.value,
+          shouldChangeClient: true,
+          billable: "",
+        });
+        bulkClientSelect.select.value = "";
+      });
+      controls.push(bulkClientSelect.label);
+    }
+
+    if (bulkBillableSelect) {
+      bulkBillableSelect.label.classList.add("inline-bulk-field");
+      bulkBillableSelect.select.disabled = true;
+      bulkBillableSelect.select.addEventListener("change", async () => {
+        if (!bulkBillableSelect.select.value) {
+          return;
+        }
+
+        await applyProjectTableBulkUpdate({
+          status: "",
+          clientId: "",
+          shouldChangeClient: false,
+          billable: bulkBillableSelect.select.value,
+        });
+        bulkBillableSelect.select.value = "";
+      });
+      controls.push(bulkBillableSelect.label);
+    }
+
+    return controls;
+  }
+
+  /**
+   * The table toolbar's bulk change, applied to whatever the table currently has selected.
+   *
+   * Derived from the change it forwards, minus the selection it supplies itself, so the two cannot
+   * disagree about what a change carries.
+   * @param {Omit<Parameters<typeof applyBulkProjectUpdate>[0], "selectedProjectIds">} change
+   */
+  async function applyProjectTableBulkUpdate({ status, clientId, shouldChangeClient, billable }) {
+    await applyBulkProjectUpdate({
+      selectedProjectIds: getSelectedProjectIds(),
+      status,
+      clientId,
+      shouldChangeClient,
+      billable,
+    });
+  }
+
+  function getSelectedProjectIds() {
+    return uniqueSelectionIds([
+      ...querySelectionInputs('[data-view-row-select][data-view-row-select-type="project"]:checked')
+        .map((checkbox) => checkbox.dataset.viewRowSelectId || checkbox.value),
+    ]);
+  }
+
+  function updateProjectTableBulkState() {
+    syncClientProjectsBulkToolbar("project");
+  }
+
+  /**
+   * The Edit Project dialog, hosting the project editor in its modal layout.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord & { tagIds?: unknown }} project
+   * @param {{ hostContext?: ClientProjectHostContext }} [options]
+   */
+  function openProjectDetailDialog(client, project, options = {}) {
+    const closeActions = createModalCommitGroup([], "detail-modal-actions");
+    const closeButton = createModalAction("Close", { role: "secondary" });
+    let completed = false;
+    const projectEditor = createProjectEditor(client, project, {
+      actionTarget: closeActions,
+      hostContext: options.hostContext,
+      modalLayout: true,
+      onSaved: () => {
+        completed = true;
+        dialog.close("complete");
+      },
+    });
+    decorateModalFooterButtons(closeActions);
+    const dialog = requireView().createModal({
+      title: `Edit Project: ${project.name}`,
+      size: "wide",
+      className: "project-edit-dialog",
+      body: [projectEditor],
+      footer: [closeActions],
+    });
+
+    closeButton.addEventListener("click", () => {
+      options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
+      dialog.close("cancel");
+    });
+    closeActions.appendChild(closeButton);
+    dialog.addEventListener("close", () => {
+      if (!completed && dialog.returnValue !== "cancel") {
+        options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
+      }
+      dialog.remove();
+    }, { once: true });
+
+    showDialog(dialog);
+
+    return new Promise((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+    });
+  }
+
+  function createClientBulkToolbar() {
+    const toolbar = requireView().createBulkActionToolbar({
+      label: "Bulk Changes",
+      selectedCount: getSelectedClientIds().length,
+      className: "inline-bulk-controls",
+      bodyClassName: "inline-bulk-control-grid",
+      attrs: { "data-client-projects-bulk-toolbar": "client" },
+      body: createClientBulkControls(),
+    });
+
+    syncClientProjectsBulkToolbar("client", toolbar);
+    return toolbar;
+  }
+
+  function createClientBulkControls() {
+    const controls = [];
+    const statusField = createClientBulkStatusSelect();
+    const billableField = createClientBulkBillableSelect();
+
+    statusField.label.classList.add("inline-bulk-field");
+    statusField.select.disabled = true;
+    statusField.select.addEventListener("change", async () => {
+      if (!statusField.select.value) {
+        return;
+      }
+
+      await applyBulkClientUpdate({
+        selectedClientIds: getSelectedClientIds(),
+        status: statusField.select.value,
+        billable: "",
+      });
+      statusField.select.value = "";
+    });
+    controls.push(statusField.label);
+
+    billableField.label.classList.add("inline-bulk-field");
+    billableField.select.disabled = true;
+    billableField.select.addEventListener("change", async () => {
+      if (!billableField.select.value) {
+        return;
+      }
+
+      await applyBulkClientUpdate({
+        selectedClientIds: getSelectedClientIds(),
+        status: "",
+        billable: billableField.select.value,
+      });
+      billableField.select.value = "";
+    });
+    controls.push(billableField.label);
+
+    return controls;
+  }
+
+  function createClientBulkStatusSelect() {
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    label.textContent = "Bulk Status";
+    select.append(
+      createOption("", "No status change"),
+      createOption("Active", "Active"),
+      createOption("Inactive", "Inactive"),
+    );
+    label.appendChild(select);
+    return { label, select };
+  }
+
+  function createClientBulkBillableSelect() {
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    label.textContent = "Bulk Billable";
+    select.append(
+      createOption("", "No billing change"),
+      createOption("yes", "Billable"),
+      createOption("no", "Non-billable"),
+    );
+    label.appendChild(select);
+    return { label, select };
+  }
+
+  /**
+   * A row's tag chips. `tags` is whatever the record carries: the body renders it only once it is
+   * an array, which is also what the tag list accepts.
+   * @param {HTMLSpanElement} container @param {unknown} tags
+   */
+  function appendTagChips(container, tags) {
+    if (!container) {
       return;
     }
 
-    await applyProjectTableBulkUpdate({
-      status: bulkStatusSelect.select.value,
-      clientId: "",
-      shouldChangeClient: false,
-      billable: "",
-    });
-    bulkStatusSelect.select.value = "";
-  });
-  controls.push(bulkStatusSelect.label);
+    const tagSurface = requireNamespace().tags;
 
-  if (bulkClientSelect) {
-    bulkClientSelect.label.classList.add("inline-bulk-field");
-    bulkClientSelect.select.disabled = true;
-    bulkClientSelect.select.addEventListener("change", async () => {
-      if (bulkClientSelect.select.selectedIndex === 0) {
+    if (!tagSurface?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "tag-chip-list";
+    tagSurface.renderTagList(list, tags);
+    container.appendChild(list);
+  }
+
+  async function loadTagOptions() {
+    return window.LongtailForge?.tags?.loadTags
+      ? window.LongtailForge.tags.loadTags({ status: "active" })
+      : [];
+  }
+
+  /**
+   * A tag picker field, with its selected tags as the tag picker accepts them.
+   * @param {string} label @param {unknown[]} [tags]
+   */
+  function createTagPickerField(label, tags = [], targetKind = "record") {
+    const element = document.createElement("div");
+    element.dataset[`${targetKind}Tags`] = "";
+    // The stub answers until the picker mounts, and stays when mounting answers nothing. Only
+    // this function writes this element's entry, so the stub is what the property held here.
+    /** @type {{readTagIds: () => string[]}} */
+    const pendingPicker = { readTagIds: () => [] };
+    tagPickersByField.set(element, pendingPicker);
+    const picker = mountTagPicker(element, tags, label);
+
+    if (picker) {
+      picker.then((mountedPicker) => {
+        tagPickersByField.set(element, mountedPicker || pendingPicker);
+        const legend = element.querySelector("legend");
+        if (legend) {
+          legend.textContent = label;
+        }
+      });
+    } else {
+      element.hidden = true;
+    }
+
+    return {
+      element,
+      readTagIds: () => tagPickersByField.get(element)?.readTagIds?.() || [],
+    };
+  }
+
+  /** @param {HTMLDivElement} container @param {unknown[]} [tags] */
+  function mountTagPicker(container, tags = [], label = "Tags") {
+    if (!container) {
+      return null;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.mountPicker) {
+      container.hidden = true;
+      return null;
+    }
+
+    container.hidden = false;
+    return tagSurface.mountPicker(container, {
+      tags: tagOptions,
+      label,
+      selectedTags: tags,
+    });
+  }
+
+  function getSelectedClientIds() {
+    return uniqueSelectionIds([
+      ...querySelectionInputs('[data-view-row-select][data-view-row-select-type="client"]:checked')
+        .map((checkbox) => checkbox.dataset.viewRowSelectId || checkbox.value),
+    ]);
+  }
+
+  function updateClientTableBulkState() {
+    syncClientProjectsBulkToolbar("client");
+  }
+
+  /**
+   * The distinct, non-empty identifiers among the ones a selection read off its checkboxes.
+   *
+   * Each is text by the time it is compared: an absent or empty id is dropped rather than kept as
+   * `"undefined"` or `""`, and surrounding space does not make two ids distinct.
+   * @param {readonly unknown[]} ids
+   */
+  function uniqueSelectionIds(ids) {
+    return [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
+  }
+
+  /**
+   * Every checked selection control matching one selector, across the read surface and the page.
+   *
+   * The surface is searched first and the document second, with a `Set` keeping a control that
+   * both contain from being counted twice.
+   * @param {string} selector
+   */
+  function querySelectionInputs(selector) {
+    // The surface is `null` or the element the framework asserted it rendered, so this keeps what
+    // `Boolean` kept.
+    const roots = [activeClientProjectsReadSurface, document].filter((root) => root !== null);
+    // The callers select the framework's row checkboxes, which `renderRowSelection` creates as
+    // `<input type="checkbox">`; they read `dataset` and `value` off what this returns (`0.33.33.43.55`).
+    /** @type {HTMLInputElement[]} */
+    const inputs = [];
+    const seen = new Set();
+
+    roots.forEach((rootElement) => {
+      rootElement.querySelectorAll(selector).forEach((input) => {
+        if (seen.has(input)) {
+          return;
+        }
+        seen.add(input);
+        if (input instanceof HTMLInputElement) {
+          inputs.push(input);
+        }
+      });
+    });
+
+    return inputs;
+  }
+
+  /**
+   * @param {string} recordType
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewBulkActionToolbarElement | null} [toolbar]
+   */
+  function syncClientProjectsBulkToolbar(recordType, toolbar = null) {
+    const selectedCount = recordType === "project" ? getSelectedProjectIds().length : getSelectedClientIds().length;
+    const toolbars = toolbar ? [toolbar] : [...document.querySelectorAll(`[data-client-projects-bulk-toolbar="${recordType}"]`)];
+
+    toolbars.forEach((bulkToolbar) => {
+      // The framework builds this toolbar as a `<details>`. `open` exists on nothing else, so a
+      // match of another kind is skipped rather than given an inert property.
+      if (selectedCount > 0 && bulkToolbar instanceof HTMLDetailsElement) {
+        bulkToolbar.open = true;
+      }
+
+      // The framework's own record of the toolbar it built, then - exactly as before, when the
+      // toolbar is not one it built - the count found by searching inside it (`0.33.33.38.3.11`).
+      const count = requireView().partsOf(bulkToolbar, "bulkActionToolbar")?.count
+        || requireCheckedDom().find(bulkToolbar, "[data-view-bulk-selection-count]", HTMLElement);
+      if (count) {
+        count.textContent = `${selectedCount} selected`;
+        count.hidden = selectedCount === 0;
+      }
+
+      // A matched node that is not a select has no `disabled` to set. Writing one only gave it an
+      // inert property and changed nothing, so skipping it is the same no-op without that property.
+      bulkToolbar.querySelectorAll(".view-bulk-action-toolbar-body select").forEach((select) => {
+        if (select instanceof HTMLSelectElement) {
+          select.disabled = selectedCount === 0;
+        }
+      });
+    });
+  }
+
+  /**
+   * The Edit Client dialog.
+   *
+   * A real client only: its one caller finds it through `getRealClients()` and refuses it unless
+   * `canManage`, and the billing settings editor it hosts writes that record's own members back.
+   * @param {NormalizedClientRecord} client
+   * @param {{ hostContext?: ClientProjectHostContext }} [options]
+   */
+  function openClientDetailDialog(client, options = {}) {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const editor = document.createElement("div");
+    const closeActions = createModalCommitGroup([], "detail-modal-actions");
+    const closeButton = createModalAction("Close", { role: "secondary" });
+    let completed = false;
+
+    details.className = "client-item";
+    details.open = true;
+    summary.textContent = `${client.name ?? ""}`;
+    editor.className = "client-editor";
+    editor.append(
+      createClientNameEditor(client, { showSaveButton: false }),
+      createBillingContactEditor(client, { showSaveButton: false }),
+      createClientBillingSettingsEditor(client, { showSaveButton: false }),
+      createRelatedProjectsRegion(client),
+    );
+    closeActions.classList.add("form-actions");
+    createClientPageActions(client, {
+      actionTarget: closeActions,
+      hostContext: options.hostContext,
+      saveRoot: editor,
+      onSaved: () => {
+        completed = true;
+        dialog.close("complete");
+      },
+    });
+    decorateModalFooterButtons(closeActions);
+    const dialog = requireView().createModal({
+      title: `Edit Client: ${client.name}`,
+      className: "client-detail-dialog detail-edit-dialog",
+      body: [details],
+      footer: [closeActions],
+    });
+
+    closeButton.addEventListener("click", () => {
+      options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
+      dialog.close("cancel");
+    });
+    closeActions.appendChild(closeButton);
+    details.append(summary, editor);
+    dialog.addEventListener("close", () => {
+      if (!completed && dialog.returnValue !== "cancel") {
+        options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
+      }
+      dialog.remove();
+    }, { once: true });
+
+    showDialog(dialog);
+
+    return new Promise((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+    });
+  }
+
+  /**
+   * Apply one bulk change to every selected client, one request each.
+   *
+   * `status` and `billable` are the value of the control that changed, or `""` for the one that did
+   * not - every caller passes a select's own `value` - so an empty one means "leave unchanged".
+   * @param {{ selectedClientIds: readonly string[], status: string, billable: string }} change
+   */
+  async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
+    if (selectedClientIds.length === 0) {
+      setStatus("Select at least one client.");
+      return;
+    }
+
+    if (!status && !billable) {
+      setStatus("Choose a bulk change before applying.");
+      return;
+    }
+
+    setStatus("Updating selected clients...");
+    try {
+      let updatedCount = 0;
+      let failedCount = 0;
+
+      for (const clientId of selectedClientIds) {
+        const client = getRealClients().find((item) => item.id === clientId);
+
+        if (!client) {
+          failedCount += 1;
+          continue;
+        }
+
+        const nextClient = {
+          ...client,
+          status: status || client.status,
+          billable: billable || client.billable,
+          action: {
+            action: "clients_bulk_updated",
+            client_id: client.id,
+            client_name: client.name,
+            details: `bulk_status=${status || "unchanged"};bulk_billable=${billable || "unchanged"}`,
+          },
+        };
+
+        try {
+          await requireApi().putJson(
+            `/api/clients/${encodeURIComponent(`${client.id}`)}`,
+            nextClient,
+          );
+          updatedCount += 1;
+        } catch (error) {
+          failedCount += 1;
+          console.error(error);
+        }
+      }
+
+      if (updatedCount > 0) {
+        await refreshClientProjectsAfterBulkUpdate();
+      }
+      setStatus(formatBulkResultMessage("client", updatedCount, failedCount));
+    } catch (error) {
+      setStatus("Selected clients were not updated.");
+      console.error(error);
+    }
+  }
+
+  /**
+   * The Add Project dialog, hosting the create form and reporting back to whoever opened it.
+   * @param {NormalizedClientEntry} client
+   * @param {{ hostContext?: ClientProjectHostContext, parentProjectId?: string }} [options]
+   */
+  function openAddProjectDialog(client, options = {}) {
+    const formId = `add-project-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const form = createAddProjectForm(client, {
+      hostContext: options.hostContext,
+      onSaved: () => dialog.close("complete"),
+      parentProjectId: options.parentProjectId || "",
+      showClientAssignment: true,
+    });
+    const closeButton = createModalAction("Cancel", { role: "secondary" });
+    // Optional, as the fallback already said. The form builder appends this button; when it is not
+    // there, or is not a button, the dialog builds its own rather than moving something else.
+    const submitButton = requireCheckedDom().find(form, "[data-add-project-button]", HTMLButtonElement)
+      || createAddProjectSubmitButton(client.id);
+    submitButton.remove();
+    submitButton.setAttribute("form", formId);
+    submitButton.classList.add("surface-modal-footer-action");
+    submitButton.dataset.surfaceActionRole = "primary";
+    const actions = createModalCommitGroup([submitButton, closeButton], "project-modal-actions");
+    const dialog = requireView().createModal({
+      title: "Add Project",
+      className: "project-form-dialog",
+      body: [form],
+      footer: [actions],
+    });
+
+    form.id = form.id || formId;
+    form.classList.add("project-modal-form");
+    closeButton.addEventListener("click", () => {
+      options.hostContext?.cancel?.({ actionId: "projects.add" });
+      dialog.close("cancel");
+    });
+    dialog.addEventListener("close", () => {
+      if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
+        options.hostContext?.cancel?.({ actionId: "projects.add" });
+      }
+      dialog.remove();
+    }, { once: true });
+
+    showDialog(dialog, form.querySelector("input, select, textarea, button"));
+
+    return new Promise((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+    });
+  }
+
+  /**
+   * The Add Client dialog, also used to add a child under a locked parent.
+   *
+   * `hostContext` defaulted to `null` and so inferred `null`, which made both `cancel` reads
+   * unreachable to the compiler - the same default-inference `0.33.33.43.34` resolved for the
+   * editor slots. It is declared as the optional host it always was.
+   * @param {{
+   *   defaultParentClientId?: string,
+   *   hostContext?: ClientProjectHostContext,
+   *   lockParentClient?: boolean,
+   * }} [options]
+   */
+  function openAddClientDialog({
+    defaultParentClientId = "",
+    hostContext = null,
+    lockParentClient = false,
+  } = {}) {
+    const modalView = requireView();
+    const nameField = modalView.createField({
+      field: "name",
+      label: "Client Name",
+      required: true,
+      type: "text",
+      width: "full",
+    });
+    const nameInput = fieldControl(nameField);
+    const parentField = modalView.createField({
+      field: "parentClientId",
+      label: "Parent Client",
+      type: "select",
+      width: "full",
+    });
+    const parentSelect = fieldSelect(parentField);
+    const tagContainer = modalView.createElement("div", {
+      className: "client-add-tags-field",
+      attrs: { "data-view-field-width": "full" },
+    });
+    const cancelButton = createModalAction("Cancel", { role: "secondary" });
+    const saveButton = createModalAction("Save", { role: "primary", type: "submit" });
+    /**
+     * Whatever can answer the dialog's tag ids: the mounted picker once it resolves, and this
+     * stub until then. Typed as the one method this site calls rather than as the controller, so
+     * the stub the page already relied on stays valid.
+     * @type {{readTagIds: () => string[]}}
+     */
+    let tagPicker = { readTagIds: () => [] };
+
+    populateParentClientSelect(parentSelect);
+    parentSelect.value = [...parentSelect.options].some((option) => option.value === defaultParentClientId)
+      ? defaultParentClientId
+      : "";
+    if (lockParentClient && parentSelect.value) {
+      parentSelect.disabled = true;
+    }
+    if (!lockParentClient) {
+      const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
+      if (mountedPicker) {
+        mountedPicker.then((picker) => {
+          tagPicker = picker || tagPicker;
+        });
+      }
+    }
+    const dialog = modalView.createModalForm({
+      title: lockParentClient ? "Add Child Client" : "Add Client",
+      className: "client-add-dialog",
+      formClassName: "client-modal-form",
+      fields: lockParentClient ? [nameField, parentField] : [nameField, parentField, tagContainer],
+      actions: [cancelButton, saveButton],
+    });
+    const form = dialog.viewParts.form;
+
+    cancelButton.addEventListener("click", () => {
+      hostContext?.cancel?.({ actionId: "clients.add" });
+      dialog.close("cancel");
+    });
+    dialog.addEventListener("close", () => {
+      if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
+        hostContext?.cancel?.({ actionId: "clients.add" });
+      }
+      dialog.remove();
+    }, { once: true });
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!nameInput.value.trim()) {
+        setStatus("Client name is required.");
         return;
       }
 
-      await applyProjectTableBulkUpdate({
-        status: "",
-        clientId: bulkClientSelect.select.value,
-        shouldChangeClient: true,
-        billable: "",
+      const client = {
+        name: nameInput.value.trim(),
+        parent_client_id: parentSelect.value || "",
+        billable: "yes",
+        billing_rate: workspaceSettings.defaultBillingRate,
+        billing_period: null,
+        billing_rounding: null,
+        billing_contact: createEmptyBillingContact(),
+        ...(!lockParentClient ? { tagIds: tagPicker?.readTagIds?.() || [] } : {}),
+        projects: [],
+      };
+      const saved = await createClientRecord(client, {
+        action: "client_created",
+        client_id: "",
+        client_name: client.name,
+        parent_client_id: client.parent_client_id || "",
+        project_id: "",
+        project_name: "",
+        details: "initial_project_created=false",
+      }, {
+        hostContext,
       });
-      bulkClientSelect.select.value = "";
-    });
-    controls.push(bulkClientSelect.label);
-  }
 
-  if (bulkBillableSelect) {
-    bulkBillableSelect.label.classList.add("inline-bulk-field");
-    bulkBillableSelect.select.disabled = true;
-    bulkBillableSelect.select.addEventListener("change", async () => {
-      if (!bulkBillableSelect.select.value) {
-        return;
+      if (saved) {
+        dialog.close("complete");
       }
-
-      await applyProjectTableBulkUpdate({
-        status: "",
-        clientId: "",
-        shouldChangeClient: false,
-        billable: bulkBillableSelect.select.value,
-      });
-      bulkBillableSelect.select.value = "";
     });
-    controls.push(bulkBillableSelect.label);
+
+    showDialog(dialog, nameInput);
+
+    return new Promise((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+    });
   }
 
-  return controls;
-}
+  function openAddClientActionFromQuery() {
+    if (!isClientsPage || openedAddClientFromQuery || !clientsEnabledForWorkspace()) {
+      return;
+    }
 
-async function applyProjectTableBulkUpdate({ status, clientId, shouldChangeClient, billable }) {
-  await applyBulkProjectUpdate({
-    selectedProjectIds: getSelectedProjectIds(),
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("addClient") !== "true") {
+      return;
+    }
+    if (!canCreateTopLevelClient()) {
+      return;
+    }
+
+    openedAddClientFromQuery = true;
+    void openClientProjectModuleAction("clients.add").catch(handleClientProjectActionError);
+  }
+
+  function openEditClientActionFromQuery() {
+    if (!isClientsPage || openedClientDetailFromQuery || !clientsEnabledForWorkspace()) {
+      return;
+    }
+
+    const clientId = new URLSearchParams(window.location.search).get("client") || "";
+    const client = getRealClients().find((item) => item.id === clientId);
+
+    if (!client) {
+      return;
+    }
+
+    openedClientDetailFromQuery = true;
+    void openClientProjectModuleAction("clients.edit", { clientId: client.id }).catch(handleClientProjectActionError);
+  }
+
+  function openAddProjectActionFromQuery() {
+    if (!isProjectsPage || openedAddProjectFromQuery) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("addProject") !== "true") {
+      return;
+    }
+
+    openedAddProjectFromQuery = true;
+    void openClientProjectModuleAction("projects.add").catch(handleClientProjectActionError);
+  }
+
+  function openEditProjectActionFromQuery() {
+    if (!isProjectsPage || openedProjectDetailFromQuery) {
+      return;
+    }
+
+    const projectId = new URLSearchParams(window.location.search).get("project") || "";
+    const match = getAllProjects().find(({ project }) => project.id === projectId);
+
+    if (!match) {
+      return;
+    }
+
+    openedProjectDetailFromQuery = true;
+    void openClientProjectModuleAction("projects.edit", { projectId: match.project.id }).catch(handleClientProjectActionError);
+  }
+
+  /**
+   * The label a project's owner shows: the workspace grouping's configured label, or the client's
+   * name. Its one caller passes the entry `getProjectTargetClient` answers, which is never null;
+   * the `!client` test predates that and is kept as it was.
+   * @param {NormalizedClientEntry} client
+   */
+  function getProjectClientLabel(client) {
+    if (!client) {
+      return "";
+    }
+
+    return client.isWorkspaceScope ? workspaceProjectsLabel() : client.name || "";
+  }
+
+  function createBulkStatusSelect() {
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    label.textContent = "Bulk Status";
+    select.append(
+      createOption("", "No status change"),
+      createOption("Active", "Active"),
+      createOption("Inactive", "Inactive"),
+      createOption("Completed", "Completed"),
+    );
+    label.appendChild(select);
+    return { label, select };
+  }
+
+  function createBulkClientSelect() {
+    if (!clientsEnabledForWorkspace()) {
+      return null;
+    }
+
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    label.textContent = "Bulk Client";
+    select.append(
+      createOption("", "No client change"),
+      createOption("__workspace__", "Workspace project"),
+    );
+    getActiveRealClients().forEach((client) => {
+      select.appendChild(createOption(client.id, client.name));
+    });
+    label.appendChild(select);
+    return { label, select };
+  }
+
+  function createBulkBillableSelect() {
+    if (!clientsEnabledForWorkspace()) {
+      return null;
+    }
+
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    label.textContent = "Bulk Billable";
+    select.append(
+      createOption("", "No billing change"),
+      createOption("yes", "Billable"),
+      createOption("no", "Non-billable"),
+    );
+    label.appendChild(select);
+    return { label, select };
+  }
+
+  /**
+   * Apply one bulk change to every selected project, one request each.
+   *
+   * As with clients, an empty value means "leave unchanged". `clientId` is only acted on when
+   * `shouldChangeClient` is true, because `""` is itself a real target - the workspace - and so
+   * cannot double as "no change"; the flag is what tells the two apart.
+   * @param {{
+   *   selectedProjectIds: readonly string[],
+   *   status: string,
+   *   clientId: string,
+   *   shouldChangeClient: boolean,
+   *   billable: string,
+   * }} change
+   */
+  async function applyBulkProjectUpdate({
+    selectedProjectIds,
     status,
     clientId,
     shouldChangeClient,
     billable,
-  });
-}
+  }) {
+    const canChangeClient = clientsEnabledForWorkspace() && shouldChangeClient;
+    const nextClientId = clientId === "__workspace__" ? "" : clientId || "";
+    const nextBillable = clientsEnabledForWorkspace() ? billable : "no";
 
-function getSelectedProjectIds() {
-  return uniqueSelectionIds([
-    ...querySelectionInputs('[data-view-row-select][data-view-row-select-type="project"]:checked')
-      .map((checkbox) => checkbox.dataset.viewRowSelectId || checkbox.value),
-  ]);
-}
-
-function updateProjectTableBulkState() {
-  syncClientProjectsBulkToolbar("project");
-}
-
-function openProjectDetailDialog(client, project, options = {}) {
-  const closeActions = createModalCommitGroup([], "detail-modal-actions");
-  const closeButton = createModalAction("Close", { role: "secondary" });
-  let completed = false;
-  const projectEditor = createProjectEditor(client, project, {
-    actionTarget: closeActions,
-    hostContext: options.hostContext,
-    modalLayout: true,
-    onSaved: () => {
-      completed = true;
-      dialog.close("complete");
-    },
-  });
-  decorateModalFooterButtons(closeActions);
-  const dialog = requireView().createModal({
-    title: `Edit Project: ${project.name}`,
-    size: "wide",
-    className: "project-edit-dialog",
-    body: [projectEditor],
-    footer: [closeActions],
-  });
-
-  closeButton.addEventListener("click", () => {
-    options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
-    dialog.close("cancel");
-  });
-  closeActions.appendChild(closeButton);
-  dialog.addEventListener("close", () => {
-    if (!completed && dialog.returnValue !== "cancel") {
-      options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
-    }
-    dialog.remove();
-  }, { once: true });
-
-  showDialog(dialog);
-
-  return new Promise((resolve) => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
-  });
-}
-
-function createClientBulkToolbar() {
-  const toolbar = requireView().createBulkActionToolbar({
-    label: "Bulk Changes",
-    selectedCount: getSelectedClientIds().length,
-    className: "inline-bulk-controls",
-    bodyClassName: "inline-bulk-control-grid",
-    attrs: { "data-client-projects-bulk-toolbar": "client" },
-    body: createClientBulkControls(),
-  });
-
-  syncClientProjectsBulkToolbar("client", toolbar);
-  return toolbar;
-}
-
-function createClientBulkControls() {
-  const controls = [];
-  const statusField = createClientBulkStatusSelect();
-  const billableField = createClientBulkBillableSelect();
-
-  statusField.label.classList.add("inline-bulk-field");
-  statusField.select.disabled = true;
-  statusField.select.addEventListener("change", async () => {
-    if (!statusField.select.value) {
+    if (selectedProjectIds.length === 0) {
+      setStatus("Select at least one project.");
       return;
     }
 
-    await applyBulkClientUpdate({
-      selectedClientIds: getSelectedClientIds(),
-      status: statusField.select.value,
-      billable: "",
-    });
-    statusField.select.value = "";
-  });
-  controls.push(statusField.label);
-
-  billableField.label.classList.add("inline-bulk-field");
-  billableField.select.disabled = true;
-  billableField.select.addEventListener("change", async () => {
-    if (!billableField.select.value) {
+    if (!status && !canChangeClient && !billable && clientsEnabledForWorkspace()) {
+      setStatus("Choose a bulk change before applying.");
       return;
     }
 
-    await applyBulkClientUpdate({
-      selectedClientIds: getSelectedClientIds(),
-      status: "",
-      billable: billableField.select.value,
-    });
-    billableField.select.value = "";
-  });
-  controls.push(billableField.label);
-
-  return controls;
-}
-
-function createClientBulkStatusSelect() {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Bulk Status";
-  select.append(
-    createOption("", "No status change"),
-    createOption("Active", "Active"),
-    createOption("Inactive", "Inactive"),
-  );
-  label.appendChild(select);
-  return { label, select };
-}
-
-function createClientBulkBillableSelect() {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Bulk Billable";
-  select.append(
-    createOption("", "No billing change"),
-    createOption("yes", "Billable"),
-    createOption("no", "Non-billable"),
-  );
-  label.appendChild(select);
-  return { label, select };
-}
-
-function appendTagChips(container, tags) {
-  if (!container || !window.LongtailForge.tags?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
-    return;
-  }
-
-  const list = document.createElement("div");
-  list.className = "tag-chip-list";
-  window.LongtailForge.tags.renderTagList(list, tags);
-  container.appendChild(list);
-}
-
-async function loadTagOptions() {
-  return window.LongtailForge?.tags?.loadTags
-    ? window.LongtailForge.tags.loadTags({ status: "active" })
-    : [];
-}
-
-function createTagPickerField(label, tags = [], targetKind = "record") {
-  const element = document.createElement("div");
-  element.dataset[`${targetKind}Tags`] = "";
-  element.tagPicker = { readTagIds: () => [] };
-  const picker = mountTagPicker(element, tags, label);
-
-  if (picker) {
-    picker.then((mountedPicker) => {
-      element.tagPicker = mountedPicker || element.tagPicker;
-      const legend = element.querySelector("legend");
-      if (legend) {
-        legend.textContent = label;
-      }
-    });
-  } else {
-    element.hidden = true;
-  }
-
-  return {
-    element,
-    readTagIds: () => element.tagPicker?.readTagIds?.() || [],
-  };
-}
-
-function mountTagPicker(container, tags = [], label = "Tags") {
-  if (!container || !window.LongtailForge.tags?.mountPicker) {
-    if (container) {
-      container.hidden = true;
-    }
-    return null;
-  }
-
-  container.hidden = false;
-  return window.LongtailForge.tags.mountPicker(container, {
-    tags: tagOptions,
-    label,
-    selectedTags: tags,
-  });
-}
-
-function getSelectedClientIds() {
-  return uniqueSelectionIds([
-    ...querySelectionInputs('[data-view-row-select][data-view-row-select-type="client"]:checked')
-      .map((checkbox) => checkbox.dataset.viewRowSelectId || checkbox.value),
-  ]);
-}
-
-function updateClientTableBulkState() {
-  syncClientProjectsBulkToolbar("client");
-}
-
-function uniqueSelectionIds(ids) {
-  return [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
-}
-
-function querySelectionInputs(selector) {
-  const roots = [activeClientProjectsReadSurface, document].filter(Boolean);
-  const inputs = [];
-  const seen = new Set();
-
-  roots.forEach((rootElement) => {
-    rootElement.querySelectorAll(selector).forEach((input) => {
-      if (seen.has(input)) {
-        return;
-      }
-      seen.add(input);
-      inputs.push(input);
-    });
-  });
-
-  return inputs;
-}
-
-function syncClientProjectsBulkToolbar(recordType, toolbar = null) {
-  const selectedCount = recordType === "project" ? getSelectedProjectIds().length : getSelectedClientIds().length;
-  const toolbars = toolbar ? [toolbar] : [...document.querySelectorAll(`[data-client-projects-bulk-toolbar="${recordType}"]`)];
-
-  toolbars.forEach((bulkToolbar) => {
-    if (selectedCount > 0) {
-      bulkToolbar.open = true;
-    }
-
-    const count = bulkToolbar.viewParts?.count || bulkToolbar.querySelector("[data-view-bulk-selection-count]");
-    if (count) {
-      count.textContent = `${selectedCount} selected`;
-      count.hidden = selectedCount === 0;
-    }
-
-    bulkToolbar.querySelectorAll(".view-bulk-action-toolbar-body select").forEach((select) => {
-      select.disabled = selectedCount === 0;
-    });
-  });
-}
-
-function openClientDetailDialog(client, options = {}) {
-  const details = document.createElement("details");
-  const summary = document.createElement("summary");
-  const editor = document.createElement("div");
-  const closeActions = createModalCommitGroup([], "detail-modal-actions");
-  const closeButton = createModalAction("Close", { role: "secondary" });
-  let completed = false;
-
-  details.className = "client-item";
-  details.open = true;
-  summary.textContent = client.name;
-  editor.className = "client-editor";
-  editor.append(
-    createClientNameEditor(client, { showSaveButton: false }),
-    createBillingContactEditor(client, { showSaveButton: false }),
-    createClientBillingSettingsEditor(client, { showSaveButton: false }),
-    createRelatedProjectsRegion(client),
-  );
-  closeActions.classList.add("form-actions");
-  createClientPageActions(client, {
-    actionTarget: closeActions,
-    hostContext: options.hostContext,
-    saveRoot: editor,
-    onSaved: () => {
-      completed = true;
-      dialog.close("complete");
-    },
-  });
-  decorateModalFooterButtons(closeActions);
-  const dialog = requireView().createModal({
-    title: `Edit Client: ${client.name}`,
-    className: "client-detail-dialog detail-edit-dialog",
-    body: [details],
-    footer: [closeActions],
-  });
-
-  closeButton.addEventListener("click", () => {
-    options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
-    dialog.close("cancel");
-  });
-  closeActions.appendChild(closeButton);
-  details.append(summary, editor);
-  dialog.addEventListener("close", () => {
-    if (!completed && dialog.returnValue !== "cancel") {
-      options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
-    }
-    dialog.remove();
-  }, { once: true });
-
-  showDialog(dialog);
-
-  return new Promise((resolve) => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
-  });
-}
-
-async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
-  if (selectedClientIds.length === 0) {
-    setStatus("Select at least one client.");
-    return;
-  }
-
-  if (!status && !billable) {
-    setStatus("Choose a bulk change before applying.");
-    return;
-  }
-
-  setStatus("Updating selected clients...");
-  try {
-    let updatedCount = 0;
-    let failedCount = 0;
-
-    for (const clientId of selectedClientIds) {
-      const client = getRealClients().find((item) => item.id === clientId);
-
-      if (!client) {
-        failedCount += 1;
-        continue;
-      }
-
-      const nextClient = {
-        ...client,
-        status: status || client.status,
-        billable: billable || client.billable,
-        action: {
-          action: "clients_bulk_updated",
-          client_id: client.id,
-          client_name: client.name,
-          details: `bulk_status=${status || "unchanged"};bulk_billable=${billable || "unchanged"}`,
-        },
-      };
-
-      try {
-        await window.LongtailForge.api.putJson(
-          `/api/clients/${encodeURIComponent(client.id)}`,
-          nextClient,
-        );
-        updatedCount += 1;
-      } catch (error) {
-        failedCount += 1;
-        console.error(error);
-      }
-    }
-
-    if (updatedCount > 0) {
-      await refreshClientProjectsAfterBulkUpdate();
-    }
-    setStatus(formatBulkResultMessage("client", updatedCount, failedCount));
-  } catch (error) {
-    setStatus("Selected clients were not updated.");
-    console.error(error);
-  }
-}
-
-function openAddProjectDialog(client, options = {}) {
-  const formId = `add-project-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const form = createAddProjectForm(client, {
-    hostContext: options.hostContext,
-    onSaved: () => dialog.close("complete"),
-    parentProjectId: options.parentProjectId || "",
-    showClientAssignment: true,
-  });
-  const closeButton = createModalAction("Cancel", { role: "secondary" });
-  const submitButton = form.querySelector("[data-add-project-button]") || createAddProjectSubmitButton(client.id);
-  submitButton.remove();
-  submitButton.setAttribute("form", formId);
-  submitButton.classList.add("surface-modal-footer-action");
-  submitButton.dataset.surfaceActionRole = "primary";
-  const actions = createModalCommitGroup([submitButton, closeButton], "project-modal-actions");
-  const dialog = requireView().createModal({
-    title: "Add Project",
-    className: "project-form-dialog",
-    body: [form],
-    footer: [actions],
-  });
-
-  form.id = form.id || formId;
-  form.classList.add("project-modal-form");
-  closeButton.addEventListener("click", () => {
-    options.hostContext?.cancel?.({ actionId: "projects.add" });
-    dialog.close("cancel");
-  });
-  dialog.addEventListener("close", () => {
-    if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
-      options.hostContext?.cancel?.({ actionId: "projects.add" });
-    }
-    dialog.remove();
-  }, { once: true });
-
-  showDialog(dialog, form.querySelector("input, select, textarea, button"));
-
-  return new Promise((resolve) => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
-  });
-}
-
-function openAddClientDialog({
-  defaultParentClientId = "",
-  hostContext = null,
-  lockParentClient = false,
-} = {}) {
-  const modalView = requireView();
-  const nameField = modalView.createField({
-    field: "name",
-    label: "Client Name",
-    required: true,
-    type: "text",
-    width: "full",
-  });
-  const nameInput = nameField.viewParts.control;
-  const parentField = modalView.createField({
-    field: "parentClientId",
-    label: "Parent Client",
-    type: "select",
-    width: "full",
-  });
-  const parentSelect = parentField.viewParts.control;
-  const tagContainer = modalView.createElement("div", {
-    className: "client-add-tags-field",
-    attrs: { "data-view-field-width": "full" },
-  });
-  const cancelButton = createModalAction("Cancel", { role: "secondary" });
-  const saveButton = createModalAction("Save", { role: "primary", type: "submit" });
-  let tagPicker = { readTagIds: () => [] };
-
-  populateParentClientSelect(parentSelect);
-  parentSelect.value = [...parentSelect.options].some((option) => option.value === defaultParentClientId)
-    ? defaultParentClientId
-    : "";
-  if (lockParentClient && parentSelect.value) {
-    parentSelect.disabled = true;
-  }
-  if (!lockParentClient) {
-    const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
-    if (mountedPicker) {
-      mountedPicker.then((picker) => {
-        tagPicker = picker || tagPicker;
-      });
-    }
-  }
-  const dialog = modalView.createModalForm({
-    title: lockParentClient ? "Add Child Client" : "Add Client",
-    className: "client-add-dialog",
-    formClassName: "client-modal-form",
-    fields: lockParentClient ? [nameField, parentField] : [nameField, parentField, tagContainer],
-    actions: [cancelButton, saveButton],
-  });
-  const form = dialog.viewParts.form;
-
-  cancelButton.addEventListener("click", () => {
-    hostContext?.cancel?.({ actionId: "clients.add" });
-    dialog.close("cancel");
-  });
-  dialog.addEventListener("close", () => {
-    if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
-      hostContext?.cancel?.({ actionId: "clients.add" });
-    }
-    dialog.remove();
-  }, { once: true });
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    if (!nameInput.value.trim()) {
-      setStatus("Client name is required.");
-      return;
-    }
-
-    const client = {
-      name: nameInput.value.trim(),
-      parent_client_id: parentSelect.value || "",
-      billable: "yes",
-      billing_rate: workspaceSettings.defaultBillingRate,
-      billing_period: null,
-      billing_rounding: null,
-      billing_contact: createEmptyBillingContact(),
-      ...(!lockParentClient ? { tagIds: tagPicker?.readTagIds?.() || [] } : {}),
-      projects: [],
-    };
-    const saved = await createClientRecord(client, {
-      action: "client_created",
-      client_id: "",
-      client_name: client.name,
-      parent_client_id: client.parent_client_id || "",
-      project_id: "",
-      project_name: "",
-      details: "initial_project_created=false",
-    }, {
-      hostContext,
-    });
-
-    if (saved) {
-      dialog.close("complete");
-    }
-  });
-
-  showDialog(dialog, nameInput);
-
-  return new Promise((resolve) => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
-  });
-}
-
-function openAddClientActionFromQuery() {
-  if (!isClientsPage || openedAddClientFromQuery || !clientsEnabledForWorkspace()) {
-    return;
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("addClient") !== "true") {
-    return;
-  }
-  if (!canCreateTopLevelClient()) {
-    return;
-  }
-
-  openedAddClientFromQuery = true;
-  void openClientProjectModuleAction("clients.add").catch(handleClientProjectActionError);
-}
-
-function openEditClientActionFromQuery() {
-  if (!isClientsPage || openedClientDetailFromQuery || !clientsEnabledForWorkspace()) {
-    return;
-  }
-
-  const clientId = new URLSearchParams(window.location.search).get("client") || "";
-  const client = getRealClients().find((item) => item.id === clientId);
-
-  if (!client) {
-    return;
-  }
-
-  openedClientDetailFromQuery = true;
-  void openClientProjectModuleAction("clients.edit", { clientId: client.id }).catch(handleClientProjectActionError);
-}
-
-function openAddProjectActionFromQuery() {
-  if (!isProjectsPage || openedAddProjectFromQuery) {
-    return;
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("addProject") !== "true") {
-    return;
-  }
-
-  openedAddProjectFromQuery = true;
-  void openClientProjectModuleAction("projects.add").catch(handleClientProjectActionError);
-}
-
-function openEditProjectActionFromQuery() {
-  if (!isProjectsPage || openedProjectDetailFromQuery) {
-    return;
-  }
-
-  const projectId = new URLSearchParams(window.location.search).get("project") || "";
-  const match = getAllProjects().find(({ project }) => project.id === projectId);
-
-  if (!match) {
-    return;
-  }
-
-  openedProjectDetailFromQuery = true;
-  void openClientProjectModuleAction("projects.edit", { projectId: match.project.id }).catch(handleClientProjectActionError);
-}
-
-function getProjectClientLabel(client) {
-  if (!client) {
-    return "";
-  }
-
-  return client.isWorkspaceScope ? workspaceProjectsLabel() : client.name || "";
-}
-
-function createBulkStatusSelect() {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Bulk Status";
-  select.append(
-    createOption("", "No status change"),
-    createOption("Active", "Active"),
-    createOption("Inactive", "Inactive"),
-    createOption("Completed", "Completed"),
-  );
-  label.appendChild(select);
-  return { label, select };
-}
-
-function createBulkClientSelect() {
-  if (!clientsEnabledForWorkspace()) {
-    return null;
-  }
-
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Bulk Client";
-  select.append(
-    createOption("", "No client change"),
-    createOption("__workspace__", "Workspace project"),
-  );
-  getActiveRealClients().forEach((client) => {
-    select.appendChild(createOption(client.id, client.name));
-  });
-  label.appendChild(select);
-  return { label, select };
-}
-
-function createBulkBillableSelect() {
-  if (!clientsEnabledForWorkspace()) {
-    return null;
-  }
-
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Bulk Billable";
-  select.append(
-    createOption("", "No billing change"),
-    createOption("yes", "Billable"),
-    createOption("no", "Non-billable"),
-  );
-  label.appendChild(select);
-  return { label, select };
-}
-
-async function applyBulkProjectUpdate({
-  selectedProjectIds,
-  status,
-  clientId,
-  shouldChangeClient,
-  billable,
-}) {
-  const canChangeClient = clientsEnabledForWorkspace() && shouldChangeClient;
-  const nextClientId = clientId === "__workspace__" ? "" : clientId || "";
-  const nextBillable = clientsEnabledForWorkspace() ? billable : "no";
-
-  if (selectedProjectIds.length === 0) {
-    setStatus("Select at least one project.");
-    return;
-  }
-
-  if (!status && !canChangeClient && !billable && clientsEnabledForWorkspace()) {
-    setStatus("Choose a bulk change before applying.");
-    return;
-  }
-
-  setStatus("Updating selected projects...");
-  try {
-    let updatedCount = 0;
-    let failedCount = 0;
-
-    for (const projectId of selectedProjectIds) {
-      const project = findProjectById(projectId);
-
-      if (!project) {
-        failedCount += 1;
-        continue;
-      }
-
-      const nextProject = {
-        ...project,
-        status: status || project.status,
-        client_id: canChangeClient ? nextClientId : project.client_id,
-        confirm_downstream_update: canChangeClient,
-        billable: nextBillable || project.billable,
-        action: {
-          action: "projects_bulk_updated",
-          project_id: project.id,
-          project_name: project.name,
+    setStatus("Updating selected projects...");
+    try {
+      let updatedCount = 0;
+      let failedCount = 0;
+
+      for (const projectId of selectedProjectIds) {
+        const project = findProjectById(projectId);
+
+        if (!project) {
+          failedCount += 1;
+          continue;
+        }
+
+        const nextProject = {
+          ...project,
+          status: status || project.status,
           client_id: canChangeClient ? nextClientId : project.client_id,
-          client_name: canChangeClient ? getProjectClientName(nextClientId) : getProjectClientName(project.client_id),
-          details: `bulk_status=${status || "unchanged"};bulk_client=${canChangeClient ? nextClientId || "workspace" : "unchanged"};bulk_billable=${nextBillable || "unchanged"}`,
-        },
-      };
+          confirm_downstream_update: canChangeClient,
+          billable: nextBillable || project.billable,
+          action: {
+            action: "projects_bulk_updated",
+            project_id: project.id,
+            project_name: project.name,
+            client_id: canChangeClient ? nextClientId : project.client_id,
+            client_name: canChangeClient ? getProjectClientName(nextClientId) : getProjectClientName(project.client_id),
+            details: `bulk_status=${status || "unchanged"};bulk_client=${canChangeClient ? nextClientId || "workspace" : "unchanged"};bulk_billable=${nextBillable || "unchanged"}`,
+          },
+        };
 
-      try {
-        await window.LongtailForge.api.putJson(
-          `/api/projects/${encodeURIComponent(project.id)}`,
-          nextProject,
-        );
-        updatedCount += 1;
-      } catch (error) {
-        failedCount += 1;
-        console.error(error);
+        try {
+          await requireApi().putJson(
+            `/api/projects/${encodeURIComponent(`${project.id}`)}`,
+            nextProject,
+          );
+          updatedCount += 1;
+        } catch (error) {
+          failedCount += 1;
+          console.error(error);
+        }
       }
-    }
 
+      if (updatedCount > 0) {
+        await refreshClientProjectsAfterBulkUpdate();
+      }
+      setStatus(formatBulkResultMessage("project", updatedCount, failedCount));
+    } catch (error) {
+      setStatus("Selected projects were not updated.");
+      console.error(error);
+    }
+  }
+
+  /**
+   * The status line after a bulk change: all updated, some failed, or none updated.
+   * @param {string} recordType @param {number} updatedCount @param {number} failedCount
+   */
+  function formatBulkResultMessage(recordType, updatedCount, failedCount) {
+    const plural = recordType === "client" ? "clients" : "projects";
+    if (updatedCount > 0 && failedCount > 0) {
+      return `Updated ${updatedCount} selected ${plural}; ${failedCount} could not be updated.`;
+    }
     if (updatedCount > 0) {
-      await refreshClientProjectsAfterBulkUpdate();
+      return `Updated selected ${plural}.`;
     }
-    setStatus(formatBulkResultMessage("project", updatedCount, failedCount));
-  } catch (error) {
-    setStatus("Selected projects were not updated.");
-    console.error(error);
-  }
-}
-
-function formatBulkResultMessage(recordType, updatedCount, failedCount) {
-  const plural = recordType === "client" ? "clients" : "projects";
-  if (updatedCount > 0 && failedCount > 0) {
-    return `Updated ${updatedCount} selected ${plural}; ${failedCount} could not be updated.`;
-  }
-  if (updatedCount > 0) {
-    return `Updated selected ${plural}.`;
-  }
-  return `Selected ${plural} were not updated.`;
-}
-
-async function refreshClientProjectsAfterBulkUpdate() {
-  await refreshClientProjectData();
-  await refreshActiveClientProjectsReadSurface();
-}
-
-function findProjectById(projectId) {
-  return getAllProjects().find(({ project }) => project.id === projectId)?.project || null;
-}
-
-function getAllProjects() {
-  return clientProjectData.clients.flatMap((client) => (
-    (client.projects || []).map((project) => ({ client, project }))
-  ));
-}
-
-function getRealClients() {
-  return clientProjectData.clients.filter((client) => !client.isWorkspaceScope);
-}
-
-function getActiveRealClients() {
-  return getRealClients().filter((client) => isActiveStatus(client.status));
-}
-
-function getClientDepth(client, visited = new Set()) {
-  if (!client?.parent_client_id || visited.has(client.id)) {
-    return 0;
+    return `Selected ${plural} were not updated.`;
   }
 
-  visited.add(client.id);
-  const parent = getRealClients().find((item) => item.id === client.parent_client_id);
-  return parent ? 1 + getClientDepth(parent, visited) : 0;
-}
-
-function getProjectDepth(project, client, visited = new Set()) {
-  if (!project?.parent_project_id || visited.has(project.id)) {
-    return 0;
+  async function refreshClientProjectsAfterBulkUpdate() {
+    await refreshClientProjectData();
+    await refreshActiveClientProjectsReadSurface();
   }
 
-  visited.add(project.id);
-  const parent = (client?.projects || []).find((item) => item.id === project.parent_project_id);
-  return parent ? 1 + getProjectDepth(parent, client, visited) : 0;
-}
+  /** @param {string} projectId One of the ids `uniqueSelectionIds` answers. */
+  function findProjectById(projectId) {
+    return getAllProjects().find(({ project }) => project.id === projectId)?.project || null;
+  }
 
-function treeIndent(depth) {
-  return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
-}
+  function getAllProjects() {
+    return clientProjectData.clients.flatMap((client) => (
+      (client.projects || []).map((project) => ({ client, project }))
+    ));
+  }
 
-function sortClientTree(clients) {
-  return [...clients].sort((left, right) =>
-    getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
-  );
-}
+  function getRealClients() {
+    return clientProjectData.clients.filter(isRealClient);
+  }
 
-function sortProjectsForClient(client) {
-  const projects = [...(client.projects || [])];
-  const projectsByParent = projects.reduce((groups, project) => {
-    const parentId = project.parent_project_id && projects.some((candidate) => candidate.id === project.parent_project_id)
-      ? project.parent_project_id
-      : "";
+  function getActiveRealClients() {
+    return getRealClients().filter((client) => isActiveStatus(client.status));
+  }
 
-    if (!groups.has(parentId)) {
-      groups.set(parentId, []);
+  /**
+   * How many real-client ancestors a client has. A missing parent ends the walk, and `visited`
+   * stops a cycle, so an orphaned or cyclic chain answers the depth reached before it broke.
+   * @param {NormalizedClientRecord} client
+   * @param {Set<unknown>} [visited]
+   * @returns {number}
+   */
+  function getClientDepth(client, visited = new Set()) {
+    if (!client?.parent_client_id || visited.has(client.id)) {
+      return 0;
     }
 
-    groups.get(parentId).push(project);
-    return groups;
-  }, new Map());
-  const sortedProjects = [];
-  const visited = new Set();
+    visited.add(client.id);
+    const parent = getRealClients().find((item) => item.id === client.parent_client_id);
+    return parent ? 1 + getClientDepth(parent, visited) : 0;
+  }
 
-  function appendBranch(parentId) {
-    const siblings = [...(projectsByParent.get(parentId) || [])].sort(compareProjectsByName);
+  /**
+   * How many ancestors a project has among its owner's projects, with the same orphan and cycle
+   * behaviour as `getClientDepth`.
+   * @param {NormalizedProjectRecord} project
+   * @param {NormalizedClientEntry} client The entry whose `projects` are searched.
+   * @param {Set<unknown>} [visited]
+   * @returns {number}
+   */
+  function getProjectDepth(project, client, visited = new Set()) {
+    if (!project?.parent_project_id || visited.has(project.id)) {
+      return 0;
+    }
 
-    siblings.forEach((project) => {
-      if (visited.has(project.id)) {
-        return;
+    visited.add(project.id);
+    const parent = (client?.projects || []).find((item) => item.id === project.parent_project_id);
+    return parent ? 1 + getProjectDepth(parent, client, visited) : 0;
+  }
+
+  /** @param {number} depth */
+  function treeIndent(depth) {
+    return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
+  }
+
+  /** @param {NormalizedClientRecord[]} clients */
+  function sortClientTree(clients) {
+    return [...clients].sort((left, right) =>
+      getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
+    );
+  }
+
+  /**
+   * An entry's projects in tree order: siblings by name under each parent, depth first. A project
+   * whose parent is not among them is a root, and one only reachable through a cycle is appended
+   * after the walk in its original order.
+   * @param {NormalizedClientEntry} client
+   */
+  function sortProjectsForClient(client) {
+    const projects = [...(client.projects || [])];
+    const projectsByParent = projects.reduce((groups, project) => {
+      const parentId = project.parent_project_id && projects.some((candidate) => candidate.id === project.parent_project_id)
+        ? project.parent_project_id
+        : "";
+
+      if (!groups.has(parentId)) {
+        groups.set(parentId, []);
       }
 
-      visited.add(project.id);
-      sortedProjects.push(project);
-      appendBranch(project.id);
+      groups.get(parentId).push(project);
+      return groups;
+    }, new Map());
+    /** @type {NormalizedProjectRecord[]} */
+    const sortedProjects = [];
+    const visited = new Set();
+
+    /** @param {unknown} parentId The branch's parent id; `""` for the roots. */
+    function appendBranch(parentId) {
+      const siblings = [...(projectsByParent.get(parentId) || [])].sort(compareProjectsByName);
+
+      siblings.forEach((project) => {
+        if (visited.has(project.id)) {
+          return;
+        }
+
+        visited.add(project.id);
+        sortedProjects.push(project);
+        appendBranch(project.id);
+      });
+    }
+
+    appendBranch("");
+
+    projects.forEach((project) => {
+      if (!visited.has(project.id)) {
+        sortedProjects.push(project);
+      }
+    });
+
+    return sortedProjects;
+  }
+
+  /** @param {NormalizedProjectRecord} left @param {NormalizedProjectRecord} right */
+  function compareProjectsByName(left, right) {
+    return String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" });
+  }
+
+  /**
+   * A client's ancestor names root first, joined by `/`, so a tree sorts under its parents.
+   *
+   * `lookupClient` is the same object as `currentClient` at the moment of the search, named so the
+   * callback does not capture the binding that is about to be reassigned (`0.33.33.43.48`). The
+   * parent id is still read inside the callback, once per candidate and not at all when there is
+   * none, exactly as before. The annotation on the alias is load-bearing: without it the compiler
+   * infers it from the loop's reassignment and reports a circular inference.
+   * @param {NormalizedClientRecord} client
+   */
+  function getClientTreeSortKey(client) {
+    const names = [];
+    /** @type {NormalizedClientRecord | undefined} */
+    let currentClient = client;
+    const visited = new Set();
+
+    while (currentClient && !visited.has(currentClient.id)) {
+      visited.add(currentClient.id);
+      names.unshift(currentClient.name || "");
+      /** @type {NormalizedClientRecord} */
+      const lookupClient = currentClient;
+      currentClient = getRealClients().find((item) => item.id === lookupClient.parent_client_id);
+    }
+
+    return names.join("/");
+  }
+
+  /**
+   * Every real client below one client, excluding that client itself.
+   *
+   * The ids are the records' own values, collected by identity, so the collections hold `unknown`
+   * (`0.33.33.43.58`).
+   * @param {unknown} clientId
+   */
+  function getClientDescendantIds(clientId) {
+    if (!clientId) {
+      return [];
+    }
+
+    /** @type {Set<unknown>} */
+    const descendants = new Set();
+    /** @type {unknown[]} */
+    const pending = [clientId];
+
+    while (pending.length > 0) {
+      const currentId = pending.pop();
+      getRealClients()
+        .filter((client) => client.parent_client_id === currentId)
+        .forEach((client) => {
+          if (!descendants.has(client.id)) {
+            descendants.add(client.id);
+            pending.push(client.id);
+          }
+        });
+    }
+
+    return [...descendants];
+  }
+
+  /**
+   * Every project below one project among its owner's projects, excluding that project itself.
+   * The ids are the records' own values, collected by identity (`0.33.33.43.58`).
+   * @param {unknown} projectId
+   * @param {NormalizedClientEntry} client
+   */
+  function getProjectDescendantIds(projectId, client) {
+    if (!projectId) {
+      return [];
+    }
+
+    /** @type {Set<unknown>} */
+    const descendants = new Set();
+    /** @type {unknown[]} */
+    const pending = [projectId];
+
+    while (pending.length > 0) {
+      const currentId = pending.pop();
+      (client?.projects || [])
+        .filter((project) => project.parent_project_id === currentId)
+        .forEach((project) => {
+          if (!descendants.has(project.id)) {
+            descendants.add(project.id);
+            pending.push(project.id);
+          }
+        });
+    }
+
+    return [...descendants];
+  }
+
+  /**
+   * The workspace grouping the list holds, or a stand-in built the same way when it holds none.
+   *
+   * **The stand-in is now built by the builder rather than restated beside it.** It used to be a
+   * second thirteen-line literal, and the two had drifted: the literal lacked `taskReminderPolicy`.
+   * `0.33.33.43.35` recorded that gap as latent and left it; `0.33.33.43.37` settled it because the
+   * stand-in reaches a typed consumer - `resolveProjectCreateTarget` hands it to the Add Project
+   * dialog - and a record missing a member of its own type cannot be passed as that type.
+   *
+   * Every member but one is the identical expression the literal used. The one addition is
+   * `taskReminderPolicy`, and **no reader touches it on a grouping**: every read in this file is on
+   * a real client, a project, or wire input. The capabilities are the only translation - the
+   * builder reads the wire's spelling, this page holds the normalised one - and each is passed as
+   * the boolean the literal computed, so the builder's `=== true` answers the same.
+   * @returns {WorkspaceProjectsGrouping}
+   */
+  function getWorkspaceProjectClient() {
+    return clientProjectData.clients.find(isWorkspaceGrouping) || buildWorkspaceProjectsGrouping([], {
+      can_create_workspace_project: clientProjectData.capabilities?.canCreateWorkspaceProject === true,
+      can_manage_workspace_projects: clientProjectData.capabilities?.canManageWorkspaceProjects === true,
     });
   }
 
-  appendBranch("");
+  /**
+   * The client editor's name, parent, status and tag row. Its one caller passes
+   * `showSaveButton: false`, so the save-button branch is not reached today.
+   * @param {NormalizedClientRecord} client
+   * @param {{ showSaveButton?: boolean }} [options]
+   */
+  function createClientNameEditor(client, options = {}) {
+    const showSaveButton = options.showSaveButton !== false;
+    const wrapper = document.createElement("div");
+    wrapper.className = "edit-row client-name-row";
 
-  projects.forEach((project) => {
-    if (!visited.has(project.id)) {
-      sortedProjects.push(project);
+    const label = document.createElement("label");
+    label.textContent = "Client Name";
+
+    const input = document.createElement("input");
+    const clientName = client.name;
+    input.value = clientName === null ? "" : `${clientName}`;
+    input.dataset.clientNameInput = `${client.id}`;
+    label.appendChild(input);
+
+    const statusLabel = document.createElement("label");
+    statusLabel.textContent = "Status";
+
+    const statusSelect = createClientStatusSelect(client.status);
+    statusSelect.dataset.clientStatusInput = `${client.id}`;
+    statusLabel.appendChild(statusSelect);
+    const tagPicker = createTagPickerField("Client Tags", client.tags, "client");
+
+    wrapper.append(label, createParentClientField(client), statusLabel, tagPicker.element);
+
+    if (showSaveButton) {
+      const saveButton = document.createElement("button");
+      saveButton.type = "button";
+      saveButton.textContent = "Save Client";
+      saveButton.dataset.saveClientButton = `${client.id}`;
+      saveButton.addEventListener("click", async () => {
+        await saveClientSettings(client, wrapper, {
+          action: "client_updated",
+          flashSelector: `[data-save-client-button="${client.id}"]`,
+        });
+      });
+      wrapper.appendChild(saveButton);
     }
-  });
 
-  return sortedProjects;
-}
-
-function compareProjectsByName(left, right) {
-  return String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" });
-}
-
-function getClientTreeSortKey(client) {
-  const names = [];
-  let currentClient = client;
-  const visited = new Set();
-
-  while (currentClient && !visited.has(currentClient.id)) {
-    visited.add(currentClient.id);
-    names.unshift(currentClient.name || "");
-    currentClient = getRealClients().find((item) => item.id === currentClient.parent_client_id);
+    return wrapper;
   }
 
-  return names.join("/");
-}
+  /** @param {NormalizedClientRecord} client */
+  function createParentClientField(client) {
+    const label = document.createElement("label");
+    const select = document.createElement("select");
 
-function getClientDescendantIds(clientId) {
-  if (!clientId) {
-    return [];
+    label.textContent = "Parent Client";
+    label.hidden = !clientsEnabledForWorkspace();
+    populateParentClientSelect(select, client.id);
+    select.dataset.clientParentInput = `${client.id}`;
+    select.dataset.clientParentField = "";
+    select.value = `${client.parent_client_id || ""}`;
+    label.appendChild(select);
+    return label;
   }
 
-  const descendants = new Set();
-  const pending = [clientId];
+  /**
+   * The parent-client choices, leaving out a client and its descendants when one is named.
+   * @param {HTMLSelectElement} select
+   * @param {unknown} [excludedClientId] A record's id as it holds it; tested, collected and compared.
+   */
+  function populateParentClientSelect(select, excludedClientId = "") {
+    if (!select) {
+      return;
+    }
 
-  while (pending.length > 0) {
-    const currentId = pending.pop();
-    getRealClients()
-      .filter((client) => client.parent_client_id === currentId)
+    const excludedIds = new Set(excludedClientId
+      ? [excludedClientId, ...getClientDescendantIds(excludedClientId)]
+      : []);
+    const currentValue = select.value || "";
+    select.replaceChildren(createOption("", "No parent client"));
+    sortClientTree(getRealClients())
+      .filter((client) => !excludedIds.has(client.id) && isActiveStatus(client.status))
       .forEach((client) => {
-        if (!descendants.has(client.id)) {
-          descendants.add(client.id);
-          pending.push(client.id);
-        }
+        select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
       });
+    select.value = [...select.options].some((option) => option.value === currentValue)
+      ? currentValue
+      : "";
   }
 
-  return [...descendants];
-}
+  /**
+   * The Edit Client dialog's save and navigation actions.
+   *
+   * A real client only: it saves through `saveClientSettings`, which writes that record back.
+   * `saveRoot` becomes that function's `container`, which is deliberately left undeclared there.
+   * @param {NormalizedClientRecord & { tagIds?: unknown }} client
+   * @param {{
+   *   actionTarget?: Element | null,
+   *   saveRoot?: Element | null,
+   *   hostContext?: ClientProjectHostContext,
+   *   onSaved?: (client: NormalizedClientRecord) => unknown,
+   * }} [options]
+   */
+  function createClientPageActions(client, options = {}) {
+    const wrapper = document.createElement("div");
+    const actionTarget = options.actionTarget || wrapper;
+    wrapper.className = "form-actions client-page-actions";
 
-function getProjectDescendantIds(projectId, client) {
-  if (!projectId) {
-    return [];
-  }
-
-  const descendants = new Set();
-  const pending = [projectId];
-
-  while (pending.length > 0) {
-    const currentId = pending.pop();
-    (client?.projects || [])
-      .filter((project) => project.parent_project_id === currentId)
-      .forEach((project) => {
-        if (!descendants.has(project.id)) {
-          descendants.add(project.id);
-          pending.push(project.id);
-        }
-      });
-  }
-
-  return [...descendants];
-}
-
-function getWorkspaceProjectClient() {
-  const simplifiedBilling = usesProjectRoundingOnly();
-
-  return clientProjectData.clients.find((client) => client.isWorkspaceScope) || {
-    id: "__workspace_projects__",
-    name: workspaceProjectsLabel(),
-    status: "Active",
-    billable: simplifiedBilling ? "no" : "yes",
-    billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
-    billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
-    billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
-    billing_contact: normalizeBillingContact({}),
-    canCreateProject: clientProjectData.capabilities?.canCreateWorkspaceProject === true,
-    canManageProjects: clientProjectData.capabilities?.canManageWorkspaceProjects === true,
-    isWorkspaceScope: true,
-    projects: [],
-  };
-}
-
-function createClientNameEditor(client, options = {}) {
-  const showSaveButton = options.showSaveButton !== false;
-  const wrapper = document.createElement("div");
-  wrapper.className = "edit-row client-name-row";
-
-  const label = document.createElement("label");
-  label.textContent = "Client Name";
-
-  const input = document.createElement("input");
-  input.value = client.name;
-  input.dataset.clientNameInput = client.id;
-  label.appendChild(input);
-
-  const statusLabel = document.createElement("label");
-  statusLabel.textContent = "Status";
-
-  const statusSelect = createClientStatusSelect(client.status);
-  statusSelect.dataset.clientStatusInput = client.id;
-  statusLabel.appendChild(statusSelect);
-  const tagPicker = createTagPickerField("Client Tags", client.tags, "client");
-
-  wrapper.append(label, createParentClientField(client), statusLabel, tagPicker.element);
-
-  if (showSaveButton) {
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.textContent = "Save Client";
-    saveButton.dataset.saveClientButton = client.id;
+    saveButton.dataset.saveClientSettingsButton = `${client.id}`;
     saveButton.addEventListener("click", async () => {
-      await saveClientSettings(client, wrapper, {
-        action: "client_updated",
-        flashSelector: `[data-save-client-button="${client.id}"]`,
-      });
-    });
-    wrapper.appendChild(saveButton);
-  }
-
-  return wrapper;
-}
-
-function createParentClientField(client) {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Parent Client";
-  label.hidden = !clientsEnabledForWorkspace();
-  populateParentClientSelect(select, client.id);
-  select.dataset.clientParentInput = client.id;
-  select.dataset.clientParentField = "";
-  select.value = client.parent_client_id || "";
-  label.appendChild(select);
-  return label;
-}
-
-function populateParentClientSelect(select, excludedClientId = "") {
-  if (!select) {
-    return;
-  }
-
-  const excludedIds = new Set(excludedClientId
-    ? [excludedClientId, ...getClientDescendantIds(excludedClientId)]
-    : []);
-  const currentValue = select.value || "";
-  select.replaceChildren(createOption("", "No parent client"));
-  sortClientTree(getRealClients())
-    .filter((client) => !excludedIds.has(client.id) && isActiveStatus(client.status))
-    .forEach((client) => {
-      select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
-    });
-  select.value = [...select.options].some((option) => option.value === currentValue)
-    ? currentValue
-    : "";
-}
-
-function createClientPageActions(client, options = {}) {
-  const wrapper = document.createElement("div");
-  const actionTarget = options.actionTarget || wrapper;
-  wrapper.className = "form-actions client-page-actions";
-
-  const saveButton = document.createElement("button");
-  saveButton.type = "button";
-  saveButton.textContent = "Save Client";
-  saveButton.dataset.saveClientSettingsButton = client.id;
-  saveButton.addEventListener("click", async () => {
-    const saved = await saveClientSettings(client, options.saveRoot || wrapper.closest(".client-editor"), {
-      action: "client_settings_updated",
-      openBillingClientId: client.id,
-      openClientBillingSettingsId: client.id,
-      flashSelector: `[data-save-client-settings-button="${client.id}"]`,
-      hostContext: options.hostContext,
-    });
-    if (saved) {
-      options.onSaved?.(client);
-    }
-  });
-
-  const editProjectsButton = document.createElement("button");
-  editProjectsButton.type = "button";
-  editProjectsButton.textContent = "Edit Projects";
-  editProjectsButton.addEventListener("click", () => {
-    window.location.href = `projects.html?client=${encodeURIComponent(client.id)}`;
-  });
-
-  actionTarget.append(saveButton, editProjectsButton);
-  return wrapper;
-}
-
-function createBillingContactEditor(client, options = {}) {
-  const showSaveButton = options.showSaveButton !== false;
-  const details = document.createElement("details");
-  details.className = "billing-details";
-  details.open = client.id === openBillingClientId;
-
-  const summary = document.createElement("summary");
-  summary.textContent = "Billing Contact";
-
-  const form = document.createElement("form");
-  form.className = "billing-editor";
-
-  const inputs = new Map();
-
-  billingContactFields.forEach(([fieldName, labelText]) => {
-    const label = document.createElement("label");
-    label.textContent = labelText;
-
-    const input = document.createElement("input");
-    input.value = client.billing_contact[fieldName];
-    input.dataset.billingContactField = fieldName;
-
-    if (fieldName.includes("email")) {
-      input.type = "email";
-    } else if (fieldName.includes("phone")) {
-      input.type = "tel";
-    }
-
-    label.appendChild(input);
-    inputs.set(fieldName, input);
-    form.appendChild(label);
-  });
-
-  if (showSaveButton) {
-    const saveButton = document.createElement("button");
-    saveButton.type = "submit";
-    saveButton.textContent = "Save Contact";
-    saveButton.dataset.saveBillingContactButton = client.id;
-    form.appendChild(saveButton);
-  }
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    if (!showSaveButton) {
-      await saveClientSettings(client, form.closest(".client-editor"), {
+      const saved = await saveClientSettings(client, options.saveRoot || wrapper.closest(".client-editor"), {
         action: "client_settings_updated",
         openBillingClientId: client.id,
         openClientBillingSettingsId: client.id,
         flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+        hostContext: options.hostContext,
       });
-      return;
+      if (saved) {
+        options.onSaved?.(client);
+      }
+    });
+
+    const editProjectsButton = document.createElement("button");
+    editProjectsButton.type = "button";
+    editProjectsButton.textContent = "Edit Projects";
+    editProjectsButton.addEventListener("click", () => {
+      window.location.href = `projects.html?client=${encodeURIComponent(`${client.id}`)}`;
+    });
+
+    actionTarget.append(saveButton, editProjectsButton);
+    return wrapper;
+  }
+
+  /**
+   * The client's billing-contact fields. Like the name editor, its one caller passes
+   * `showSaveButton: false`, so the form saves through the whole client editor.
+   *
+   * **The contact write states the conversion the input performed** (`0.33.33.43.55`, approved by the
+   * operator). `normalizeBillingContact` keeps each truthy value as it arrived, so the value is
+   * `unknown`; the template performs the same string conversion the `value` setter did, for every
+   * value the normaliser can hand it. It does not change the normaliser, the save or the trim.
+   * @param {NormalizedClientRecord} client
+   * @param {{ showSaveButton?: boolean }} [options]
+   */
+  function createBillingContactEditor(client, options = {}) {
+    const showSaveButton = options.showSaveButton !== false;
+    const details = document.createElement("details");
+    details.className = "billing-details";
+    details.open = client.id === openBillingClientId;
+
+    const summary = document.createElement("summary");
+    summary.textContent = "Billing Contact";
+
+    const form = document.createElement("form");
+    form.className = "billing-editor";
+
+    const inputs = new Map();
+
+    billingContactFields.forEach(([fieldName, labelText]) => {
+      const label = document.createElement("label");
+      label.textContent = labelText;
+
+      const input = document.createElement("input");
+      input.value = `${client.billing_contact[fieldName]}`;
+      input.dataset.billingContactField = fieldName;
+
+      if (fieldName.includes("email")) {
+        input.type = "email";
+      } else if (fieldName.includes("phone")) {
+        input.type = "tel";
+      }
+
+      label.appendChild(input);
+      inputs.set(fieldName, input);
+      form.appendChild(label);
+    });
+
+    if (showSaveButton) {
+      const saveButton = document.createElement("button");
+      saveButton.type = "submit";
+      saveButton.textContent = "Save Contact";
+      saveButton.dataset.saveBillingContactButton = `${client.id}`;
+      form.appendChild(saveButton);
     }
 
-    billingContactFields.forEach(([fieldName]) => {
-      client.billing_contact[fieldName] = inputs.get(fieldName).value.trim();
-    });
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
 
-    await saveClientRecord(withoutTagPayload(client), {
-      action: "client_billing_contact_updated",
-      client_id: client.id,
-      client_name: client.name,
-      details: "billing_contact_updated=true",
-    }, {
-      openClientId: client.id,
-      openBillingClientId: client.id,
-      flashSelector: `[data-save-billing-contact-button="${client.id}"]`,
-    });
-  });
+      if (!showSaveButton) {
+        await saveClientSettings(client, form.closest(".client-editor"), {
+          action: "client_settings_updated",
+          openBillingClientId: client.id,
+          openClientBillingSettingsId: client.id,
+          flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+        });
+        return;
+      }
 
-  details.append(summary, form);
-  return details;
-}
+      billingContactFields.forEach(([fieldName]) => {
+        client.billing_contact[fieldName] = inputs.get(fieldName).value.trim();
+      });
 
-function createAddProjectSubmitButton(clientId) {
-  const button = document.createElement("button");
-
-  button.type = "submit";
-  button.textContent = "Add Project";
-  button.dataset.addProjectButton = clientId;
-  return button;
-}
-
-function createClientProjectActionButton(label, icon, options = {}) {
-  if (window.LongtailForge.icons?.createIconButton) {
-    return window.LongtailForge.icons.createIconButton({
-      icon,
-      label,
-      title: label,
-      variant: options.danger ? "danger" : "",
-    });
-  }
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = label;
-  button.classList.toggle("danger-button", options.danger === true);
-  return button;
-}
-
-function createClientBillingSettingsEditor(client, options = {}) {
-  // Client billing values override app defaults but can still inherit period/rounding.
-  const showSaveButton = options.showSaveButton !== false;
-  const details = document.createElement("details");
-  details.className = "billing-details";
-  details.open = client.id === openClientBillingSettingsId;
-
-  const summary = document.createElement("summary");
-  summary.textContent = "Client Billing Settings";
-
-  const form = document.createElement("form");
-  form.className = "billing-editor billing-settings-editor";
-
-  const billingRateLabel = document.createElement("label");
-  billingRateLabel.textContent = "Billing Rate ($/hour)";
-
-  const billingRateInput = document.createElement("input");
-  billingRateInput.inputMode = "decimal";
-  billingRateInput.value = client.billing_rate;
-  billingRateInput.dataset.clientBillingRateInput = client.id;
-  billingRateLabel.appendChild(billingRateInput);
-
-  const billableLabel = createBillableCheckbox(client.billable);
-  const billableInput = billableLabel.querySelector("input");
-  billableInput.dataset.clientBillableInput = client.id;
-
-  const billingPeriodEditor = createBillingPeriodEditor({
-    legend: "Billing Period",
-    inheritLabel: `Use workspace billing period (${formatBillingPeriod(workspaceSettings.billingPeriod)})`,
-    value: client.billing_period,
-    inheritedPeriod: workspaceSettings.billingPeriod,
-  });
-
-  const billingRoundingEditor = createBillingRoundingEditor({
-    legend: "Rounding",
-    inheritLabel: `Use workspace rounding (${formatBillingRounding(workspaceSettings.billingRounding)})`,
-    value: client.billing_rounding,
-    inheritedRounding: workspaceSettings.billingRounding,
-  });
-  const reminderPolicyEditor = createTaskReminderPolicyEditor({
-    legend: "Task Reminder Defaults",
-    inheritLabel: "Use workspace task reminder defaults",
-    value: client.taskReminderPolicy,
-  });
-
-  let saveButton = null;
-
-  if (showSaveButton) {
-    saveButton = document.createElement("button");
-    saveButton.type = "submit";
-    saveButton.textContent = "Save Billing Settings";
-    saveButton.dataset.saveBillingSettingsButton = client.id;
-  }
-
-  const updateBillableState = () => {
-    const isBillable = billableInput.checked;
-    billingRateInput.disabled = !isBillable;
-    billingPeriodEditor.setDisabled(!isBillable);
-    billingRoundingEditor.setBillableMode(isBillable);
-  };
-
-  billableInput.addEventListener("change", updateBillableState);
-  updateBillableState();
-
-  form.append(
-    billableLabel,
-    billingRateLabel,
-    billingPeriodEditor.element,
-    billingRoundingEditor.element,
-    reminderPolicyEditor.element,
-  );
-
-  if (saveButton) {
-    form.appendChild(saveButton);
-  }
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    if (!showSaveButton) {
-      await saveClientSettings(client, form.closest(".client-editor"), {
-        action: "client_settings_updated",
+      await saveClientRecord(withoutTagPayload(client), {
+        action: "client_billing_contact_updated",
+        client_id: client.id,
+        client_name: client.name,
+        details: "billing_contact_updated=true",
+      }, {
+        openClientId: client.id,
         openBillingClientId: client.id,
-        openClientBillingSettingsId: client.id,
-        flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+        flashSelector: `[data-save-billing-contact-button="${client.id}"]`,
       });
-      return;
+    });
+
+    details.append(summary, form);
+    return details;
+  }
+
+  /**
+   * @param {unknown} clientId The target entry's id as the record holds it, written to the button's
+   *   `dataset` with the conversion that write always made (`0.33.33.43.58`).
+   */
+  function createAddProjectSubmitButton(clientId) {
+    const button = document.createElement("button");
+
+    button.type = "submit";
+    button.textContent = "Add Project";
+    button.dataset.addProjectButton = `${clientId}`;
+    return button;
+  }
+
+  /**
+   * One repeated row action, as an icon button when the icon factory is loaded.
+   *
+   * `danger` is tested two ways on the two paths - truthiness for the icon button, `=== true` for
+   * the fallback - which differ only for a truthy non-boolean. Every caller passes `true` or
+   * nothing, so the two agree; declared `boolean` so a new caller cannot make them diverge.
+   * @param {string} label @param {string} icon
+   * @param {{ danger?: boolean }} [options]
+   */
+  function createClientProjectActionButton(label, icon, options = {}) {
+    if (window.LongtailForge?.icons?.createIconButton) {
+      return window.LongtailForge.icons.createIconButton({
+        icon,
+        label,
+        title: label,
+        variant: options.danger ? "danger" : "",
+      });
     }
 
-    client.billing_rate = normalizeBillingRate(billingRateInput.value);
-    client.billing_period = billingPeriodEditor.getValue();
-    client.billable = normalizeBillableFlag(billableInput.checked);
-    client.billing_rounding = billingRoundingEditor.getValue();
-    client.taskReminderPolicy = reminderPolicyEditor.getValue();
-
-    await saveClientRecord(withoutTagPayload(client), {
-      action: "client_billing_settings_updated",
-      client_id: client.id,
-      client_name: client.name,
-      details: `billable=${client.billable};billing_rate=${client.billing_rate};billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))};rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))};round_hours=${getEffectiveClientBillingRounding(client).enabled ? "yes" : "no"}`,
-      taskReminderPolicy: client.taskReminderPolicy,
-    }, {
-      openClientId: client.id,
-      openClientBillingSettingsId: client.id,
-      flashSelector: `[data-save-billing-settings-button="${client.id}"]`,
-    });
-  });
-
-  details.append(summary, form);
-  return details;
-}
-
-async function saveClientSettings(client, container, options = {}) {
-  const nameInput = container?.querySelector("[data-client-name-input]");
-  const statusSelect = container?.querySelector("[data-client-status-input]");
-  const parentClientSelect = container?.querySelector("[data-client-parent-field]");
-  const tagPicker = container?.querySelector("[data-client-tags]")?.tagPicker;
-  const billingRateInput = container?.querySelector("[data-client-billing-rate-input]");
-  const billableInput = container?.querySelector("[data-client-billable-input]");
-
-  if (!nameInput?.value.trim()) {
-    setStatus("Client name is required.");
-    return false;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.classList.toggle("danger-button", options.danger === true);
+    return button;
   }
 
-  const oldClient = { ...client };
-  client.name = nameInput.value.trim();
-  client.status = statusSelect?.value || client.status;
-  client.parent_client_id = parentClientSelect?.value || "";
-  if (tagPicker) {
-    client.tagIds = tagPicker.readTagIds();
-  } else {
-    delete client.tagIds;
-  }
+  /**
+   * The client's own billing settings, which override the workspace defaults but can still inherit
+   * the period and rounding.
+   *
+   * Takes a real client rather than a client-list entry: it reads and **writes back** the record's
+   * billing members, and the workspace-projects grouping is neither editable as a client nor
+   * reachable here - `getRealClients()` has already filtered it out upstream.
+   * @param {NormalizedClientRecord} client
+   * @param {{ showSaveButton?: boolean }} [options]
+   */
+  function createClientBillingSettingsEditor(client, options = {}) {
+    // Client billing values override app defaults but can still inherit period/rounding.
+    const showSaveButton = options.showSaveButton !== false;
+    const details = document.createElement("details");
+    details.className = "billing-details";
+    details.open = client.id === openClientBillingSettingsId;
 
-  if ((oldClient.parent_client_id || "") !== (client.parent_client_id || "")) {
-    const confirmed = await window.LongtailForge.modal.confirm({
-      title: "Move client?",
-      message: "Move this client in the client hierarchy? Existing records keep their saved client and project names; future rollups follow the updated hierarchy.",
-      confirmLabel: "Move",
-      cancelLabel: "Cancel",
-      danger: false,
+    const summary = document.createElement("summary");
+    summary.textContent = "Client Billing Settings";
+
+    const form = document.createElement("form");
+    form.className = "billing-editor billing-settings-editor";
+
+    const billingRateLabel = document.createElement("label");
+    billingRateLabel.textContent = "Billing Rate ($/hour)";
+
+    const billingRateInput = document.createElement("input");
+    billingRateInput.inputMode = "decimal";
+    // `?? ""` makes explicit the conversion the assignment already performed: `value` is a
+    // `[LegacyNullToEmptyString] DOMString`, so a client with no rate was already showing an empty
+    // field. Measured in Chromium rather than assumed - and `??` rather than a cast because only
+    // `null` is special-cased there, while `undefined` would have written the text "undefined".
+    // `normalizeBillingRate` answers `text || null`, so it never produces that second case.
+    billingRateInput.value = client.billing_rate ?? "";
+    billingRateInput.dataset.clientBillingRateInput = `${client.id}`;
+    billingRateLabel.appendChild(billingRateInput);
+
+    const billableLabel = createBillableCheckbox(client.billable);
+    const billableInput = requireBillableInput(billableLabel);
+    billableInput.dataset.clientBillableInput = `${client.id}`;
+
+    const billingPeriodEditor = createBillingPeriodEditor({
+      legend: "Billing Period",
+      inheritLabel: `Use workspace billing period (${formatBillingPeriod(workspaceSettings.billingPeriod)})`,
+      value: client.billing_period,
+      inheritedPeriod: workspaceSettings.billingPeriod,
     });
 
-    if (!confirmed) {
-      client.parent_client_id = oldClient.parent_client_id || "";
+    const billingRoundingEditor = createBillingRoundingEditor({
+      legend: "Rounding",
+      inheritLabel: `Use workspace rounding (${formatBillingRounding(workspaceSettings.billingRounding)})`,
+      value: client.billing_rounding,
+      inheritedRounding: workspaceSettings.billingRounding,
+    });
+    const reminderPolicyEditor = createTaskReminderPolicyEditor({
+      legend: "Task Reminder Defaults",
+      inheritLabel: "Use workspace task reminder defaults",
+      value: client.taskReminderPolicy,
+    });
+
+    let saveButton = null;
+
+    if (showSaveButton) {
+      saveButton = document.createElement("button");
+      saveButton.type = "submit";
+      saveButton.textContent = "Save Billing Settings";
+      saveButton.dataset.saveBillingSettingsButton = `${client.id}`;
+    }
+
+    const updateBillableState = () => {
+      const isBillable = billableInput.checked;
+      billingRateInput.disabled = !isBillable;
+      billingPeriodEditor.setDisabled(!isBillable);
+      billingRoundingEditor.setBillableMode(isBillable);
+    };
+
+    billableInput.addEventListener("change", updateBillableState);
+    updateBillableState();
+
+    form.append(
+      billableLabel,
+      billingRateLabel,
+      billingPeriodEditor.element,
+      billingRoundingEditor.element,
+      reminderPolicyEditor.element,
+    );
+
+    if (saveButton) {
+      form.appendChild(saveButton);
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!showSaveButton) {
+        await saveClientSettings(client, form.closest(".client-editor"), {
+          action: "client_settings_updated",
+          openBillingClientId: client.id,
+          openClientBillingSettingsId: client.id,
+          flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+        });
+        return;
+      }
+
+      client.billing_rate = normalizeBillingRate(billingRateInput.value);
+      client.billing_period = billingPeriodEditor.getValue();
+      client.billable = normalizeBillableFlag(billableInput.checked);
+      client.billing_rounding = billingRoundingEditor.getValue();
+      client.taskReminderPolicy = reminderPolicyEditor.getValue();
+
+      await saveClientRecord(withoutTagPayload(client), {
+        action: "client_billing_settings_updated",
+        client_id: client.id,
+        client_name: client.name,
+        details: `billable=${client.billable};billing_rate=${client.billing_rate};billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))};rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))};round_hours=${getEffectiveClientBillingRounding(client).enabled ? "yes" : "no"}`,
+        taskReminderPolicy: client.taskReminderPolicy,
+      }, {
+        openClientId: client.id,
+        openClientBillingSettingsId: client.id,
+        flashSelector: `[data-save-billing-settings-button="${client.id}"]`,
+      });
+    });
+
+    details.append(summary, form);
+    return details;
+  }
+
+  /**
+   * Read one client editor back into its record and save it.
+   *
+   * Returns `false` without saving when the name is empty or a hierarchy move is declined, so its
+   * callers can keep the editor open; otherwise it answers what the write answered.
+   * `tagIds` is not part of the normalised record: this editor adds it for the save payload and
+   * deletes it again when the picker is absent, so the parameter says the record may carry one.
+   *
+   * **The controls are read through checked lookups** (`0.33.33.43.55`). Each data attribute is
+   * written by exactly one builder in this file, on the element type named here - the name, rate,
+   * billable and contact `input`s and the status and parent `select`s - so each lookup finds the
+   * element the bare lookup found. The tag picker and the two billing editors come from the page's
+   * own maps (`0.33.33.43.46`), which take the `Element` a search answers.
+   * @param {NormalizedClientRecord & { tagIds?: unknown }} client
+   * @param {Element | null} container The client editor, or `null` when a form sits outside one.
+   * @param {ClientProjectViewState & { action?: string }} [options]
+   */
+  async function saveClientSettings(client, container, options = {}) {
+    const nameInput = container ? requireCheckedDom().find(container, "[data-client-name-input]", HTMLInputElement) : null;
+    const statusSelect = container ? requireCheckedDom().find(container, "[data-client-status-input]", HTMLSelectElement) : null;
+    const parentClientSelect = container ? requireCheckedDom().find(container, "[data-client-parent-field]", HTMLSelectElement) : null;
+    const tagField = container?.querySelector("[data-client-tags]");
+    const tagPicker = tagField ? tagPickersByField.get(tagField) : undefined;
+    const billingRateInput = container
+      ? requireCheckedDom().find(container, "[data-client-billing-rate-input]", HTMLInputElement)
+      : null;
+    const billableInput = container ? requireCheckedDom().find(container, "[data-client-billable-input]", HTMLInputElement) : null;
+
+    if (!nameInput?.value.trim()) {
+      setStatus("Client name is required.");
       return false;
     }
-  }
 
-  container?.querySelectorAll("[data-billing-contact-field]").forEach((input) => {
-    client.billing_contact[input.dataset.billingContactField] = input.value.trim();
-  });
-
-  if (billingRateInput && billableInput) {
-    const billingPeriodEditor = container.querySelector("[data-billing-period-editor]")
-      ?.billingPeriodEditor;
-    const billingRoundingEditor = container.querySelector("[data-billing-rounding-editor]")
-      ?.billingRoundingEditor;
-
-    client.billing_rate = normalizeBillingRate(billingRateInput.value);
-    client.billable = normalizeBillableFlag(billableInput.checked);
-
-    if (billingPeriodEditor) {
-      client.billing_period = billingPeriodEditor.getValue();
+    const oldClient = { ...client };
+    client.name = nameInput.value.trim();
+    client.status = statusSelect?.value || client.status;
+    client.parent_client_id = parentClientSelect?.value || "";
+    if (tagPicker) {
+      client.tagIds = tagPicker.readTagIds();
+    } else {
+      delete client.tagIds;
     }
 
-    if (billingRoundingEditor) {
-      client.billing_rounding = billingRoundingEditor.getValue();
+    if ((oldClient.parent_client_id || "") !== (client.parent_client_id || "")) {
+      const confirmed = await requireModalDialogs().confirm({
+        title: "Move client?",
+        message: "Move this client in the client hierarchy? Existing records keep their saved client and project names; future rollups follow the updated hierarchy.",
+        confirmLabel: "Move",
+        cancelLabel: "Cancel",
+        danger: false,
+      });
+
+      if (!confirmed) {
+        client.parent_client_id = oldClient.parent_client_id || "";
+        return false;
+      }
     }
+
+    container?.querySelectorAll("[data-billing-contact-field]").forEach((input) => {
+      // Only the contact editor's inputs carry this attribute. The template key is the same property
+      // key the bare read produced, for a missing field too.
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+      client.billing_contact[`${input.dataset.billingContactField}`] = input.value.trim();
+    });
+
+    if (billingRateInput && billableInput) {
+      // Guarded indirectly: both controls above were read off `container`, so reaching here means
+      // it was there. Optional rather than asserted, which costs nothing and states the same thing.
+      const billingPeriodField = container?.querySelector("[data-billing-period-editor]");
+      const billingPeriodEditor = billingPeriodField ? billingPeriodEditorsByField.get(billingPeriodField) : undefined;
+      const billingRoundingField = container?.querySelector("[data-billing-rounding-editor]");
+      const billingRoundingEditor = billingRoundingField
+        ? billingRoundingEditorsByField.get(billingRoundingField)
+        : undefined;
+
+      client.billing_rate = normalizeBillingRate(billingRateInput.value);
+      client.billable = normalizeBillableFlag(billableInput.checked);
+
+      if (billingPeriodEditor) {
+        client.billing_period = billingPeriodEditor.getValue();
+      }
+
+      if (billingRoundingEditor) {
+        client.billing_rounding = billingRoundingEditor.getValue();
+      }
+    }
+
+    const action = options.action || "client_settings_updated";
+
+    return saveClientRecord(client, {
+      action,
+      client_id: client.id,
+      client_name: client.name,
+      details: [
+        `old_client_id=${oldClient.id}`,
+        `old_client_name=${oldClient.name}`,
+        `old_status=${oldClient.status}`,
+        `old_parent_client_id=${oldClient.parent_client_id || ""}`,
+        `new_parent_client_id=${client.parent_client_id || ""}`,
+        `new_status=${client.status}`,
+        "billing_contact_updated=true",
+        `billable=${client.billable}`,
+        `billing_rate=${client.billing_rate}`,
+        `billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))}`,
+        `rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))}`,
+        `round_hours=${getEffectiveClientBillingRounding(client).enabled ? "yes" : "no"}`,
+      ].join(";"),
+    }, {
+      openClientId: client.id,
+      openBillingClientId: options.openBillingClientId || "",
+      openClientBillingSettingsId: options.openClientBillingSettingsId || "",
+      flashSelector: options.flashSelector,
+      hostContext: options.hostContext || null,
+    });
   }
 
-  const action = options.action || "client_settings_updated";
+  /**
+   * The presentation switches the related-projects region reads. No caller passes any of them
+   * today: the Edit Client dialog renders the collapsible project table.
+   * @typedef {{ editorRows?: boolean, collapsible?: boolean, flat?: boolean }} RelatedProjectsRegionOptions
+   */
 
-  return saveClientRecord(client, {
-    action,
-    client_id: client.id,
-    client_name: client.name,
-    details: [
-      `old_client_id=${oldClient.id}`,
-      `old_client_name=${oldClient.name}`,
-      `old_status=${oldClient.status}`,
-      `old_parent_client_id=${oldClient.parent_client_id || ""}`,
-      `new_parent_client_id=${client.parent_client_id || ""}`,
-      `new_status=${client.status}`,
-      "billing_contact_updated=true",
-      `billable=${client.billable}`,
-      `billing_rate=${client.billing_rate}`,
-      `billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))}`,
-      `rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))}`,
-      `round_hours=${getEffectiveClientBillingRounding(client).enabled ? "yes" : "no"}`,
-    ].join(";"),
-  }, {
-    openClientId: client.id,
-    openBillingClientId: options.openBillingClientId || "",
-    openClientBillingSettingsId: options.openClientBillingSettingsId || "",
-    flashSelector: options.flashSelector,
-    hostContext: options.hostContext || null,
-  });
-}
+  /**
+   * A client's projects, as editor rows or a hierarchy table, collapsible unless told otherwise.
+   *
+   * The table list is called with the two arguments it declares. It was also handed `options`,
+   * which it never read; that dead argument was dropped at `0.33.33.43.48`.
+   * @param {NormalizedClientRecord} client
+   * @param {RelatedProjectsRegionOptions} [options]
+   */
+  function createRelatedProjectsRegion(client, options = {}) {
+    const relatedProjects = sortProjectsForClient(client);
+    const list = options.editorRows
+      ? createRelatedProjectEditorList(client, relatedProjects, options)
+      : createRelatedProjectTableList(client, relatedProjects);
 
-function createRelatedProjectsRegion(client, options = {}) {
-  const relatedProjects = sortProjectsForClient(client);
-  const list = options.editorRows
-    ? createRelatedProjectEditorList(client, relatedProjects, options)
-    : createRelatedProjectTableList(client, relatedProjects, options);
+    if (options.collapsible === false) {
+      return list;
+    }
 
-  if (options.collapsible === false) {
-    return list;
+    return requireView().createCollapsibleIndexPanel({
+      title: "Projects",
+      open: true,
+      className: "project-section client-projects-related-region",
+      ariaLabel: `Projects for ${client.name || "client"}`,
+      body: [list],
+    });
   }
 
-  return requireView().createCollapsibleIndexPanel({
-    title: "Projects",
-    open: true,
-    className: "project-section client-projects-related-region",
-    ariaLabel: `Projects for ${client.name || "client"}`,
-    body: [list],
-  });
-}
+  /**
+   * @param {NormalizedClientRecord} client
+   * @param {NormalizedProjectRecord[]} projects In the tree order `sortProjectsForClient` answers.
+   * @param {RelatedProjectsRegionOptions} [options]
+   */
+  function createRelatedProjectEditorList(client, projects, options = {}) {
+    const rows = projects.length
+      ? projects.map((project) => createProjectEditor(client, project))
+      : [createRelatedProjectsEmptyState()];
 
-function createRelatedProjectEditorList(client, projects, options = {}) {
-  const rows = projects.length
-    ? projects.map((project) => createProjectEditor(client, project))
-    : [createRelatedProjectsEmptyState()];
+    return requireView().createListShell({
+      className: [
+        "project-list",
+        options.flat ? "project-list-flat" : "",
+        "client-projects-related-list",
+      ].filter(Boolean).join(" "),
+      status: false,
+      attrs: { "data-client-projects-related-projects": client.id || "" },
+      children: rows,
+    });
+  }
 
-  return requireView().createListShell({
-    className: [
-      "project-list",
-      options.flat ? "project-list-flat" : "",
-      "client-projects-related-list",
-    ].filter(Boolean).join(" "),
-    status: false,
-    attrs: { "data-client-projects-related-projects": client.id || "" },
-    children: rows,
-  });
-}
+  /** @param {NormalizedClientRecord} client @param {NormalizedProjectRecord[]} projects */
+  function createRelatedProjectTableList(client, projects) {
+    return requireView().createListShell({
+      className: "client-projects-related-list",
+      status: false,
+      attrs: { "data-client-projects-related-projects": client.id || "" },
+      children: [createRelatedProjectsDataTable(client, projects)],
+    });
+  }
 
-function createRelatedProjectTableList(client, projects) {
-  return requireView().createListShell({
-    className: "client-projects-related-list",
-    status: false,
-    attrs: { "data-client-projects-related-projects": client.id || "" },
-    children: [createRelatedProjectsDataTable(client, projects)],
-  });
-}
-
-function createRelatedProjectsDataTable(client, projects) {
-  return requireView().createDataTable({
-    className: "client-projects-related-table-wrap",
-    tableClassName: "client-projects-related-table",
-    hierarchy: {
-      depthField: "depth",
-      parentField: "parentProjectId",
-    },
-    columns: [
-      {
-        key: "name",
-        label: "Project",
-        header: true,
-        render: (row) => createRelatedProjectNameCell(row),
+  /**
+   * The related projects as a hierarchy table. The view contract types its columns `unknown[]`, so
+   * each renderer names its row: `renderCell` hands back the very objects passed as `rows`.
+   * @param {NormalizedClientRecord} client
+   * @param {NormalizedProjectRecord[]} projects
+   */
+  function createRelatedProjectsDataTable(client, projects) {
+    return requireView().createDataTable({
+      className: "client-projects-related-table-wrap",
+      tableClassName: "client-projects-related-table",
+      hierarchy: {
+        depthField: "depth",
+        parentField: "parentProjectId",
       },
-      { key: "status", label: "Status" },
-      { key: "billingSummary", label: "Billing" },
-      { key: "taskDefaultsSummary", label: "Task Defaults" },
-      {
-        key: "actions",
-        label: "Actions",
-        align: "right",
-        render: (row) => createRelatedProjectActionStrip(row),
+      columns: [
+        {
+          key: "name",
+          label: "Project",
+          header: true,
+          render: (/** @type {ReturnType<typeof relatedProjectRow>} */ row) => createRelatedProjectNameCell(row),
+        },
+        { key: "status", label: "Status" },
+        { key: "billingSummary", label: "Billing" },
+        { key: "taskDefaultsSummary", label: "Task Defaults" },
+        {
+          key: "actions",
+          label: "Actions",
+          align: "right",
+          render: (/** @type {ReturnType<typeof relatedProjectRow>} */ row) => createRelatedProjectActionStrip(row),
+        },
+      ],
+      rows: projects.map((project) => relatedProjectRow(client, project)),
+      emptyMessage: "No projects yet.",
+    });
+  }
+
+  /** @param {ReturnType<typeof relatedProjectRow>} row */
+  function createRelatedProjectNameCell(row) {
+    const wrapper = document.createElement("span");
+    wrapper.className = "client-projects-related-name";
+    wrapper.textContent = `${row.name ?? ""}`;
+    appendTagChips(wrapper, row.project.tags);
+    return wrapper;
+  }
+
+  /**
+   * The Edit action for one related-project row.
+   * @param {ReturnType<typeof relatedProjectRow>} row
+   */
+  function createRelatedProjectActionStrip(row) {
+    return requireView().createDetailActionStrip({
+      ariaLabel: `Project actions for ${row.name}`,
+      className: "client-projects-related-actions",
+      actions: [
+        {
+          label: "Edit",
+          role: "utility",
+          action: "edit-project",
+          onClick: () => {
+            void openClientProjectModuleAction("projects.edit", { projectId: row.project.id })
+              .catch(handleClientProjectActionError);
+          },
+        },
+      ],
+    });
+  }
+
+  /** @param {NormalizedClientRecord} client @param {NormalizedProjectRecord} project */
+  function relatedProjectRow(client, project) {
+    return {
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      depth: getProjectDepth(project, client),
+      parentProjectId: project.parent_project_id || "",
+      billingSummary: formatProjectBillingSummary(client, project),
+      taskDefaultsSummary: formatProjectTaskDefaultsSummary(project),
+      project,
+    };
+  }
+
+  function createRelatedProjectsEmptyState() {
+    return requireView().createEmptyState({
+      title: "No projects yet.",
+      className: "client-projects-related-empty",
+    });
+  }
+
+  /**
+   * One project's billing, summarised: non-billable, or its rate, period and rounding.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord} project
+   */
+  function formatProjectBillingSummary(client, project) {
+    if (normalizeBillableFlag(project.billable) !== "yes") {
+      return "Non-billable";
+    }
+
+    const rate = project.billing_rate ? `$${project.billing_rate}/hour` : "Billable";
+    return [
+      rate,
+      formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project)),
+      formatBillingRounding(getEffectiveProjectBillingRounding(client, project)),
+    ].filter(Boolean).join(" / ");
+  }
+
+  /** @param {NormalizedProjectRecord} project */
+  function formatProjectTaskDefaultsSummary(project) {
+    const defaults = normalizeProjectTaskDefaults(project.taskDefaults);
+    return [
+      `Status ${formatToken(defaults.status)}`,
+      `Priority ${formatToken(defaults.priority)}`,
+      projectTaskAssigneeModeLabels[defaults.defaultAssigneeMode] || formatToken(defaults.defaultAssigneeMode),
+    ].filter(Boolean).join(" / ");
+  }
+
+  /**
+   * One project's editor, either inline under its client or inside a modal.
+   *
+   * `client` may be the workspace grouping as well as a real client - every read of it that
+   * differs between the two asks `isWorkspaceScope` first. `project` carries `tagIds` only while
+   * it is being saved: the editor adds it for the payload, as the client editor does.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord & { tagIds?: unknown }} project
+   * @param {{
+   *   modalLayout?: boolean,
+   *   hostContext?: ClientProjectHostContext,
+   *   onSaved?: (project: NormalizedProjectRecord) => unknown,
+   *   actionTarget?: Element | null,
+   * }} [options]
+   */
+  function createProjectEditor(client, project, options = {}) {
+    // Project settings sit closest to the work and override client/app defaults.
+    const usesModalLayout = options.modalLayout === true;
+    const details = usesModalLayout ? null : document.createElement("details");
+    const usesSimplifiedBilling = usesProjectRoundingOnly();
+
+    if (details) {
+      const summary = document.createElement("summary");
+      const summaryLabel = document.createElement("span");
+
+      details.className = "project-item";
+      details.dataset.projectId = `${project.id}`;
+      summaryLabel.textContent = `${project.name ?? ""}`;
+      summary.appendChild(summaryLabel);
+      details.appendChild(summary);
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.className = usesModalLayout ? "project-editor project-edit-form" : "project-editor";
+    wrapper.dataset.projectId = `${project.id}`;
+
+    const nameLabel = document.createElement("label");
+    nameLabel.className = "project-name-field";
+    nameLabel.textContent = "Project Name";
+
+    const nameInput = document.createElement("input");
+    const projectName = project.name;
+    nameInput.value = projectName === null ? "" : `${projectName}`;
+    nameLabel.appendChild(nameInput);
+
+    const statusLabel = document.createElement("label");
+    statusLabel.className = "project-status-field";
+    statusLabel.textContent = "Status";
+
+    const statusSelect = createStatusSelect(project.status);
+    statusLabel.appendChild(statusSelect);
+
+    const billingRateLabel = document.createElement("label");
+    billingRateLabel.textContent = "Billing Rate ($/hour)";
+
+    const billingRateInput = document.createElement("input");
+    billingRateInput.inputMode = "decimal";
+    // The same conversion `0.33.33.43.34` measured in Chromium for the client's rate: `null` is
+    // written as the empty string. `normalizeProjects` answers `null` or text, never `undefined`,
+    // which is the case `??` would have treated differently.
+    billingRateInput.value = project.billing_rate ?? "";
+    billingRateLabel.appendChild(billingRateInput);
+
+    const billableLabel = createBillableCheckbox(project.billable);
+    const billableInput = requireBillableInput(billableLabel);
+    const clientAssignmentLabel = createProjectClientAssignment(project);
+    const parentProjectLabel = createProjectParentAssignment(project, client);
+    const clientAssignmentSelect = clientAssignmentLabel?.querySelector("select") || null;
+    const parentProjectSelect = requireParentProjectSelect(parentProjectLabel);
+    const clientActions = createProjectClientShortcutActions(project);
+    const tagPicker = createTagPickerField("Project Tags", project.tags, "project");
+    tagPicker.element.classList.add("project-edit-tags-field");
+
+    clientAssignmentSelect?.addEventListener("change", () => {
+      populateParentProjectSelect(parentProjectSelect, {
+        excludedProjectId: project.id,
+        clientId: clientAssignmentSelect.value,
+      });
+    });
+
+    const billingDetails = document.createElement("details");
+    billingDetails.className = "project-billing-details";
+
+    const billingSummary = document.createElement("summary");
+    billingSummary.textContent = "Project Billing Settings";
+
+    const billingSettings = document.createElement("div");
+    billingSettings.className = "project-billing-settings";
+
+    const billingPeriodEditor = createBillingPeriodEditor({
+      legend: "Billing Period",
+      inheritLabel: getProjectBillingPeriodInheritLabel(client),
+      value: project.billing_period,
+      inheritedPeriod: getEffectiveClientBillingPeriod(client),
+    });
+
+    const billingRoundingEditor = createBillingRoundingEditor({
+      legend: "Rounding",
+      inheritLabel: getProjectRoundingInheritLabel(client, project),
+      value: project.billing_rounding,
+      inheritedRounding: project.client_id ? getEffectiveClientBillingRounding(client) : workspaceSettings.billingRounding,
+      showModeWhenUnbillable: true,
+    });
+    const reminderPolicyEditor = createTaskReminderPolicyEditor({
+      legend: "Task Reminder Defaults",
+      inheritLabel: project.client_id ? "Use client task reminder defaults" : "Use workspace task reminder defaults",
+      value: project.taskReminderPolicy,
+    });
+    const taskDefaultsEditor = createProjectTaskDefaultsEditor(project.taskDefaults, {
+      reminderPolicyEditor,
+      billingRoundingEditor,
+    });
+
+    if (!usesSimplifiedBilling) {
+      billingSettings.prepend(
+        billableLabel,
+        billingRateLabel,
+        billingPeriodEditor.element,
+      );
+    }
+
+    billingDetails.append(billingSummary, billingSettings);
+
+    const updateBillableState = () => {
+      const isBillable = usesSimplifiedBilling ? false : billableInput.checked;
+
+      billableInput.checked = !usesSimplifiedBilling && isBillable;
+      billingRateInput.disabled = !isBillable;
+      billingPeriodEditor.setDisabled(!isBillable);
+      billingRoundingEditor.setBillableMode(usesSimplifiedBilling ? false : isBillable);
+    };
+
+    billableInput.addEventListener("change", updateBillableState);
+    updateBillableState();
+
+    const actionGroup = document.createElement("div");
+    actionGroup.className = "project-actions";
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.textContent = "Save Project";
+    saveButton.dataset.saveProjectButton = `${project.id}`;
+    saveButton.addEventListener("click", async () => {
+      if (!nameInput.value.trim()) {
+        setStatus("Project name is required.");
+        return;
+      }
+
+      const oldProject = { ...project };
+      project.name = nameInput.value.trim();
+      project.client_id = clientAssignmentSelect?.value || "";
+      project.parent_project_id = parentProjectSelect.value;
+      project.status = statusSelect.value;
+      project.billable = usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked);
+      project.billing_rate = usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value);
+      project.billing_period = usesSimplifiedBilling ? null : billingPeriodEditor.getValue();
+      project.billing_rounding = billingRoundingEditor.getValue();
+      project.taskReminderPolicy = reminderPolicyEditor.getValue();
+      project.taskDefaults = taskDefaultsEditor.getValue();
+      project.tagIds = tagPicker.readTagIds();
+
+      if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
+        const confirmed = await requireModalDialogs().confirm({
+          title: "Move project?",
+          message: "Move this project in the client/project hierarchy? Existing time entries assigned to this project will be updated to the new client and project names.",
+          confirmLabel: "Move",
+          cancelLabel: "Cancel",
+        });
+
+        if (!confirmed) {
+          project.client_id = oldProject.client_id || "";
+          project.parent_project_id = oldProject.parent_project_id || "";
+          return;
+        }
+      }
+
+      const saved = await saveProjectRecord(project, {
+        action: "project_updated",
+        client_id: project.client_id,
+        client_name: getProjectClientName(project.client_id),
+        project_id: project.id,
+        project_name: project.name,
+        confirm_downstream_update: true,
+        taskDefaults: project.taskDefaults,
+        taskReminderPolicy: project.taskReminderPolicy,
+        details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_parent_project_id=${oldProject.parent_project_id || ""};new_parent_project_id=${project.parent_project_id || ""};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
+      }, {
+        openClientId: project.client_id || "__workspace_projects__",
+        flashSelector: `[data-save-project-button="${project.id}"]`,
+        hostContext: options.hostContext || null,
+      });
+      if (saved) {
+        options.onSaved?.(project);
+      }
+    });
+
+    const deleteButton = createClientProjectActionButton("Archive", "archive", { danger: true });
+    deleteButton.addEventListener("click", async () => {
+      const shouldDelete = await requireModalDialogs().confirm({
+        title: "Archive project?",
+        message: `Archive project "${project.name}"?`,
+        confirmLabel: "Archive",
+        cancelLabel: "Cancel",
+        danger: true,
+      });
+
+      if (!shouldDelete) {
+        return;
+      }
+
+      const archived = await archiveProjectRecord(project, {
+        action: "project_archived",
+        client_id: client.isWorkspaceScope ? "" : client.id,
+        client_name: client.isWorkspaceScope ? "" : client.name,
+        project_id: project.id,
+        project_name: project.name,
+        details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
+      }, {
+        openClientId: client.id,
+        hostContext: options.hostContext || null,
+      });
+      if (archived) {
+        options.onSaved?.(project);
+      }
+    });
+
+    if (options.actionTarget) {
+      options.actionTarget.append(saveButton, deleteButton);
+    } else {
+      actionGroup.append(saveButton, deleteButton);
+    }
+    if (!clientAssignmentLabel) {
+      wrapper.classList.add("project-editor-no-client");
+    }
+    const identityFields = usesModalLayout
+      ? [statusLabel, clientAssignmentLabel, parentProjectLabel]
+      : [clientAssignmentLabel, parentProjectLabel, statusLabel];
+    wrapper.append(
+      nameLabel,
+      // Only a created label or `null` reaches this array, so this keeps what `Boolean` kept.
+      ...identityFields.filter((label) => label !== null),
+      clientActions,
+      taskDefaultsEditor.element,
+      tagPicker.element,
+      ...(!usesSimplifiedBilling ? [billingDetails] : []),
+      ...(options.actionTarget ? [] : [actionGroup]),
+    );
+
+    if (details) {
+      details.appendChild(wrapper);
+      return details;
+    }
+
+    return wrapper;
+  }
+
+  /**
+   * The project's task defaults, optionally hosting the reminder-policy and rounding editors that
+   * belong to the same module group.
+   *
+   * Both hosted editors default to `null`, which inferred `never` for them and made every
+   * `?.element` read unreachable; each now derives the builder that produces it.
+   * @param {Parameters<typeof normalizeProjectTaskDefaults>[0]} [defaults]
+   * @param {{
+   *   reminderPolicyEditor?: ReturnType<typeof createTaskReminderPolicyEditor> | null,
+   *   billingRoundingEditor?: ReturnType<typeof createBillingRoundingEditor> | null,
+   * }} [editors]
+   */
+  function createProjectTaskDefaultsEditor(defaults = {}, { reminderPolicyEditor = null, billingRoundingEditor = null } = {}) {
+    const normalized = normalizeProjectTaskDefaults(defaults);
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const moduleGroup = document.createElement("fieldset");
+    const moduleLegend = document.createElement("legend");
+    const grid = document.createElement("div");
+    const statusLabel = document.createElement("label");
+    const statusSelect = document.createElement("select");
+    const priorityLabel = document.createElement("label");
+    const prioritySelect = document.createElement("select");
+    const assigneeLabel = document.createElement("label");
+    const assigneeSelect = document.createElement("select");
+    const sortFieldset = document.createElement("fieldset");
+    const sortLegend = document.createElement("legend");
+    const sortList = document.createElement("div");
+
+    details.className = "project-defaults-details";
+    summary.textContent = "Project Defaults";
+    moduleGroup.className = "project-module-defaults-group";
+    moduleLegend.textContent = "Task module";
+    grid.className = "project-defaults-grid";
+    statusLabel.textContent = "Default Status";
+    priorityLabel.textContent = "Default Priority";
+    assigneeLabel.textContent = "Default Assignee";
+    sortFieldset.className = "project-default-sort-group";
+    sortLegend.textContent = "Sort order";
+    sortList.className = "project-default-sort-list";
+
+    taskDefaultStatuses.forEach((status) => {
+      statusSelect.appendChild(createOption(status, formatToken(status)));
+    });
+    taskDefaultPriorities.forEach((priority) => {
+      prioritySelect.appendChild(createOption(priority, formatToken(priority)));
+    });
+    taskDefaultAssigneeModes.forEach((mode) => {
+      assigneeSelect.appendChild(createOption(mode, projectTaskAssigneeModeLabels[mode]));
+    });
+    statusSelect.value = normalized.status;
+    prioritySelect.value = normalized.priority;
+    assigneeSelect.value = normalized.defaultAssigneeMode;
+
+    /** @param {readonly string[]} order */
+    const renderSortRows = (order) => {
+      sortList.replaceChildren(...order.map((item, index) => {
+        const row = document.createElement("div");
+        const name = document.createElement("span");
+        const upButton = createClientProjectActionButton("Move up", "up");
+        const downButton = createClientProjectActionButton("Move down", "down");
+
+        row.className = "project-default-sort-row";
+        row.dataset.sortItem = item;
+        name.textContent = projectTaskSortLabels[item] || item;
+        upButton.disabled = index === 0;
+        downButton.disabled = index === order.length - 1;
+        upButton.addEventListener("click", () => {
+          const nextOrder = [...readSortOrder()];
+          [nextOrder[index - 1], nextOrder[index]] = [nextOrder[index], nextOrder[index - 1]];
+          renderSortRows(nextOrder);
+        });
+        downButton.addEventListener("click", () => {
+          const nextOrder = [...readSortOrder()];
+          [nextOrder[index], nextOrder[index + 1]] = [nextOrder[index + 1], nextOrder[index]];
+          renderSortRows(nextOrder);
+        });
+        row.append(name, upButton, downButton);
+        return row;
+      }));
+    };
+
+    // Each matched row is one `renderSortRows` built, so each is required: a row that is not an
+    // HTML element is reported by name rather than dropped from the order it contributes to.
+    const readSortOrder = () => {
+      const checkedDom = requireCheckedDom();
+      return normalizeProjectTaskSortOrder(
+        [...sortList.querySelectorAll("[data-sort-item]")].map((row) => checkedDom.require(
+          row instanceof HTMLElement ? row : null,
+          "Clients/Projects",
+          "task default sort rows",
+        ).dataset.sortItem),
+      );
+    };
+
+    statusLabel.appendChild(statusSelect);
+    priorityLabel.appendChild(prioritySelect);
+    assigneeLabel.appendChild(assigneeSelect);
+    renderSortRows(normalized.sortOrder);
+    sortFieldset.append(sortLegend, sortList);
+    grid.append(statusLabel, priorityLabel, assigneeLabel, sortFieldset);
+    moduleGroup.append(moduleLegend, grid);
+    if (reminderPolicyEditor?.element) {
+      moduleGroup.appendChild(reminderPolicyEditor.element);
+    }
+    if (billingRoundingEditor?.element) {
+      moduleGroup.appendChild(billingRoundingEditor.element);
+    }
+    details.append(summary, moduleGroup);
+
+    return {
+      element: details,
+      getValue: () => ({
+        status: statusSelect.value,
+        priority: prioritySelect.value,
+        defaultAssigneeMode: assigneeSelect.value,
+        sortOrder: readSortOrder(),
+      }),
+    };
+  }
+
+  /** @param {NormalizedProjectRecord} project */
+  function createProjectClientAssignment(project) {
+    if (!clientsEnabledForWorkspace()) {
+      return null;
+    }
+
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    label.className = "project-client-field";
+    label.textContent = "Client";
+    if (canManageProjectClientScope("")) {
+      select.appendChild(createOption("", "Workspace project"));
+    }
+    sortClientTree(getRealClients()).filter((client) => (
+      isActiveStatus(client.status) &&
+      (client.id === project.client_id || client.canManageProjects)
+    )).forEach((client) => {
+      select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
+    });
+    if (![...select.options].some((option) => option.value === (project.client_id || ""))) {
+      select.appendChild(createOption(project.client_id || "", getProjectClientName(project.client_id) || "Current client"));
+    }
+    select.value = `${project.client_id || ""}`;
+    select.disabled = select.options.length <= 1;
+    label.appendChild(select);
+    return label;
+  }
+
+  /**
+   * The select `createProjectParentAssignment` built into `label`, through the shared checked-DOM
+   * contract.
+   *
+   * **Required, and the check sits where the page already depended on it.** The project editor
+   * reads its `value` unguarded on save and the add-project form reads it unguarded on submit. The
+   * builder appends its select unconditionally, so neither lookup has a state in which it finds
+   * nothing; the error names the markup contract rather than moving a failure that could happen.
+   * @param {HTMLLabelElement} label
+   * @returns {HTMLSelectElement}
+   */
+  function requireParentProjectSelect(label) {
+    const checkedDom = requireCheckedDom();
+    return checkedDom.require(
+      checkedDom.find(label, "select", HTMLSelectElement),
+      "Clients/Projects",
+      "parent project select",
+    );
+  }
+
+  /**
+   * The parent-project picker for one project. The Add Project form passes a stub carrying only
+   * the three members read here, so the parameter names exactly those. The stub's `client_id` is the
+   * target entry's own id, which the record does not narrow, so that member is `unknown`
+   * (`0.33.33.43.58`).
+   * @param {Pick<NormalizedProjectRecord, "id" | "parent_project_id"> & { client_id: unknown }} project
+   * @param {NormalizedClientEntry} client
+   */
+  function createProjectParentAssignment(project, client) {
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    label.className = "project-parent-field";
+    label.textContent = "Parent Project";
+    populateParentProjectSelect(select, {
+      excludedProjectId: project.id,
+      clientId: project.client_id || (client.isWorkspaceScope ? "" : client.id),
+    });
+    select.value = `${project.parent_project_id || ""}`;
+    label.appendChild(select);
+    return label;
+  }
+
+  /**
+   * @param {HTMLSelectElement | null} select A `querySelector("select")` answer from the Add Project
+   *   form, so it may be absent; the early return is what handles that.
+   * @param {{ excludedProjectId?: unknown, clientId?: unknown }} [options] Record ids as they are
+   *   held; tested, collected and compared (`0.33.33.43.58`).
+   */
+  function populateParentProjectSelect(select, { excludedProjectId = "", clientId = "" } = {}) {
+    if (!select) {
+      return;
+    }
+
+    const targetClient = getProjectTargetClient(clientId);
+    const excludedIds = excludedProjectId
+      ? new Set([excludedProjectId, ...getProjectDescendantIds(excludedProjectId, targetClient)])
+      : new Set();
+    const currentValue = select.value || "";
+    select.replaceChildren(createOption("", "No parent project"));
+    sortProjectsForClient(targetClient)
+      .filter((project) => !excludedIds.has(project.id) && isActiveStatus(project.status))
+      .forEach((project) => {
+        select.appendChild(createOption(project.id, `${treeIndent(getProjectDepth(project, targetClient))}${project.name}`));
+      });
+    select.value = [...select.options].some((option) => option.value === currentValue)
+      ? currentValue
+      : "";
+  }
+
+  /** @param {NormalizedClientEntry} client */
+  function createAddProjectClientAssignment(client) {
+    if (!clientsEnabledForWorkspace()) {
+      return null;
+    }
+
+    const wrapper = document.createElement("div");
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+
+    wrapper.className = "project-add-client-field";
+    label.textContent = "Client";
+    const refreshOptions = (selectedClientId = select.value || getDefaultProjectClientId(client)) => {
+      select.replaceChildren();
+      if (canCreateProjectForClient("")) {
+        select.appendChild(createOption("", workspaceProjectsLabel()));
+      }
+      sortClientTree(getRealClients()).filter((realClient) => (
+        isActiveStatus(realClient.status) && realClient.canCreateProject
+      )).forEach((realClient) => {
+        select.appendChild(createOption(realClient.id, `${treeIndent(getClientDepth(realClient))}${realClient.name}`));
+      });
+      select.value = `${[...select.options].some((option) => option.value === selectedClientId)
+        ? selectedClientId
+        : select.options[0]?.value || ""}`;
+      select.disabled = select.options.length <= 1;
+    };
+    refreshOptions(getDefaultProjectClientId(client));
+    label.appendChild(select);
+    wrapper.appendChild(label);
+
+    const addClientButton = createAddClientShortcutButton({
+      onCreated: (clientId) => {
+        refreshOptions(clientId);
+        select.dispatchEvent(new window.Event("change", { bubbles: true }));
       },
-    ],
-    rows: projects.map((project) => relatedProjectRow(client, project)),
-    emptyMessage: "No projects yet.",
-  });
-}
+    });
+    if (addClientButton) {
+      wrapper.appendChild(addClientButton);
+    }
 
-function createRelatedProjectNameCell(row) {
-  const wrapper = document.createElement("span");
-  wrapper.className = "client-projects-related-name";
-  wrapper.textContent = row.name;
-  appendTagChips(wrapper, row.project.tags);
-  return wrapper;
-}
+    return { element: wrapper, select };
+  }
 
-function createRelatedProjectActionStrip(row) {
-  return requireView().createDetailActionStrip({
-    ariaLabel: `Project actions for ${row.name}`,
-    className: "client-projects-related-actions",
-    actions: [
+  /** @param {NormalizedProjectRecord} project */
+  function createProjectClientShortcutActions(project) {
+    return createProjectClientContextRegion(project);
+  }
+
+  /** @param {NormalizedProjectRecord} project */
+  function createProjectClientContextRegion(project) {
+    if (!clientsEnabledForWorkspace()) {
+      return requireView().createElement("div", {
+        className: "client-projects-related-context",
+        hidden: true,
+      });
+    }
+
+    const rows = createProjectClientContextRows(project);
+    return requireView().createListShell({
+      className: "client-projects-related-context",
+      status: false,
+      attrs: {
+        "aria-label": `Project context for ${project.name || "project"}`,
+        "data-client-projects-related-context": project.id || "",
+      },
+      children: [
+        requireView().createDataTable({
+          className: "client-projects-related-context-table-wrap",
+          tableClassName: "client-projects-related-context-table",
+          columns: [
+            { key: "type", label: "Context", header: true },
+            { key: "label", label: "Record" },
+            {
+              key: "actions",
+              label: "Actions",
+              align: "right",
+              render: (/** @type {ReturnType<typeof createProjectClientContextRows>[number]} */ row) => createProjectContextActionStrip(row),
+            },
+          ],
+          rows,
+          emptyMessage: "No related context.",
+        }),
+      ],
+    });
+  }
+
+  /**
+   * The context rows for one project: its client, then its parent project.
+   *
+   * The client row's actions drop the absent ones with a `!== null` filter rather than
+   * `.filter(Boolean)` (`0.33.33.43.49`). Every element is an action object or `null`, so it removes
+   * exactly what `Boolean` removed, and it narrows the element type for the action strip.
+   * @param {NormalizedProjectRecord} project
+   */
+  function createProjectClientContextRows(project) {
+    const targetClient = getProjectTargetClient(project.client_id);
+    const addClientAction = canCreateTopLevelClient()
+      ? {
+          label: "Add Client",
+          role: "secondary",
+          action: "add-client",
+          onClick: () => {
+            void openClientProjectModuleAction("clients.add")
+              .catch(handleClientProjectActionError);
+          },
+        }
+      : targetClient && !targetClient.isWorkspaceScope && canCreateChildClient(targetClient.id)
+        ? {
+            label: "Add Child Client",
+            role: "secondary",
+            action: "add-child-client",
+            onClick: () => {
+              void openClientProjectModuleAction("clients.add", {
+                lockParentClient: true,
+                parentClientId: targetClient.id,
+              }).catch(handleClientProjectActionError);
+            },
+          }
+        : null;
+    const rows = [
       {
+        type: "Client",
+        label: getProjectClientLabel(targetClient),
+        actions: [
+          // `isRealClient` is added for narrowing and changes no outcome: the grouping carries no
+          // `canManage`, so this read answered `undefined` - falsy - in exactly the case the guard
+          // now answers `false`. A workspace project's `client_id` is `""`, so it short-circuits
+          // before either test as it always did.
+          project.client_id && isRealClient(targetClient) && targetClient.canManage ? {
+            label: "Edit",
+            role: "utility",
+            action: "edit-client",
+            onClick: () => {
+              void openClientProjectModuleAction("clients.edit", { clientId: project.client_id })
+                .catch(handleClientProjectActionError);
+            },
+          } : null,
+          addClientAction,
+        ].filter((action) => action !== null),
+      },
+    ];
+    const parentProject = project.parent_project_id
+      ? targetClient.projects.find((candidate) => candidate.id === project.parent_project_id)
+      : null;
+
+    rows.push({
+      type: "Parent Project",
+      label: parentProject?.name || "No parent project",
+      actions: parentProject?.canManage ? [{
         label: "Edit",
         role: "utility",
         action: "edit-project",
         onClick: () => {
-          void openClientProjectModuleAction("projects.edit", { projectId: row.project.id })
+          void openClientProjectModuleAction("projects.edit", { projectId: parentProject.id })
             .catch(handleClientProjectActionError);
         },
-      },
-    ],
-  });
-}
-
-function relatedProjectRow(client, project) {
-  return {
-    id: project.id,
-    name: project.name,
-    status: project.status,
-    depth: getProjectDepth(project, client),
-    parentProjectId: project.parent_project_id || "",
-    billingSummary: formatProjectBillingSummary(client, project),
-    taskDefaultsSummary: formatProjectTaskDefaultsSummary(project),
-    project,
-  };
-}
-
-function createRelatedProjectsEmptyState() {
-  return requireView().createEmptyState({
-    title: "No projects yet.",
-    className: "client-projects-related-empty",
-  });
-}
-
-function formatProjectBillingSummary(client, project) {
-  if (normalizeBillableFlag(project.billable) !== "yes") {
-    return "Non-billable";
-  }
-
-  const rate = project.billing_rate ? `$${project.billing_rate}/hour` : "Billable";
-  return [
-    rate,
-    formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project)),
-    formatBillingRounding(getEffectiveProjectBillingRounding(client, project)),
-  ].filter(Boolean).join(" / ");
-}
-
-function formatProjectTaskDefaultsSummary(project) {
-  const defaults = normalizeProjectTaskDefaults(project.taskDefaults);
-  return [
-    `Status ${formatToken(defaults.status)}`,
-    `Priority ${formatToken(defaults.priority)}`,
-    projectTaskAssigneeModeLabels[defaults.defaultAssigneeMode] || formatToken(defaults.defaultAssigneeMode),
-  ].filter(Boolean).join(" / ");
-}
-
-function createProjectEditor(client, project, options = {}) {
-  // Project settings sit closest to the work and override client/app defaults.
-  const usesModalLayout = options.modalLayout === true;
-  const details = usesModalLayout ? null : document.createElement("details");
-  const usesSimplifiedBilling = usesProjectRoundingOnly();
-
-  if (details) {
-    const summary = document.createElement("summary");
-    const summaryLabel = document.createElement("span");
-
-    details.className = "project-item";
-    details.dataset.projectId = project.id;
-    summaryLabel.textContent = project.name;
-    summary.appendChild(summaryLabel);
-    details.appendChild(summary);
-  }
-
-  const wrapper = document.createElement("div");
-  wrapper.className = usesModalLayout ? "project-editor project-edit-form" : "project-editor";
-  wrapper.dataset.projectId = project.id;
-
-  const nameLabel = document.createElement("label");
-  nameLabel.className = "project-name-field";
-  nameLabel.textContent = "Project Name";
-
-  const nameInput = document.createElement("input");
-  nameInput.value = project.name;
-  nameLabel.appendChild(nameInput);
-
-  const statusLabel = document.createElement("label");
-  statusLabel.className = "project-status-field";
-  statusLabel.textContent = "Status";
-
-  const statusSelect = createStatusSelect(project.status);
-  statusLabel.appendChild(statusSelect);
-
-  const billingRateLabel = document.createElement("label");
-  billingRateLabel.textContent = "Billing Rate ($/hour)";
-
-  const billingRateInput = document.createElement("input");
-  billingRateInput.inputMode = "decimal";
-  billingRateInput.value = project.billing_rate;
-  billingRateLabel.appendChild(billingRateInput);
-
-  const billableLabel = createBillableCheckbox(project.billable);
-  const billableInput = billableLabel.querySelector("input");
-  const clientAssignmentLabel = createProjectClientAssignment(project);
-  const parentProjectLabel = createProjectParentAssignment(project, client);
-  const clientAssignmentSelect = clientAssignmentLabel?.querySelector("select") || null;
-  const parentProjectSelect = parentProjectLabel.querySelector("select");
-  const clientActions = createProjectClientShortcutActions(project);
-  const tagPicker = createTagPickerField("Project Tags", project.tags, "project");
-  tagPicker.element.classList.add("project-edit-tags-field");
-
-  clientAssignmentSelect?.addEventListener("change", () => {
-    populateParentProjectSelect(parentProjectSelect, {
-      excludedProjectId: project.id,
-      clientId: clientAssignmentSelect.value,
+      }] : [],
     });
-  });
 
-  const billingDetails = document.createElement("details");
-  billingDetails.className = "project-billing-details";
-
-  const billingSummary = document.createElement("summary");
-  billingSummary.textContent = "Project Billing Settings";
-
-  const billingSettings = document.createElement("div");
-  billingSettings.className = "project-billing-settings";
-
-  const billingPeriodEditor = createBillingPeriodEditor({
-    legend: "Billing Period",
-    inheritLabel: getProjectBillingPeriodInheritLabel(client),
-    value: project.billing_period,
-    inheritedPeriod: getEffectiveClientBillingPeriod(client),
-  });
-
-  const billingRoundingEditor = createBillingRoundingEditor({
-    legend: "Rounding",
-    inheritLabel: getProjectRoundingInheritLabel(client, project),
-    value: project.billing_rounding,
-    inheritedRounding: project.client_id ? getEffectiveClientBillingRounding(client) : workspaceSettings.billingRounding,
-    showModeWhenUnbillable: true,
-  });
-  const reminderPolicyEditor = createTaskReminderPolicyEditor({
-    legend: "Task Reminder Defaults",
-    inheritLabel: project.client_id ? "Use client task reminder defaults" : "Use workspace task reminder defaults",
-    value: project.taskReminderPolicy,
-  });
-  const taskDefaultsEditor = createProjectTaskDefaultsEditor(project.taskDefaults, {
-    reminderPolicyEditor,
-    billingRoundingEditor,
-  });
-
-  if (!usesSimplifiedBilling) {
-    billingSettings.prepend(
-      billableLabel,
-      billingRateLabel,
-      billingPeriodEditor.element,
-    );
+    return rows;
   }
 
-  billingDetails.append(billingSummary, billingSettings);
-
-  const updateBillableState = () => {
-    const isBillable = usesSimplifiedBilling ? false : billableInput.checked;
-
-    billableInput.checked = !usesSimplifiedBilling && isBillable;
-    billingRateInput.disabled = !isBillable;
-    billingPeriodEditor.setDisabled(!isBillable);
-    billingRoundingEditor.setBillableMode(usesSimplifiedBilling ? false : isBillable);
-  };
-
-  billableInput.addEventListener("change", updateBillableState);
-  updateBillableState();
-
-  const actionGroup = document.createElement("div");
-  actionGroup.className = "project-actions";
-
-  const saveButton = document.createElement("button");
-  saveButton.type = "button";
-  saveButton.textContent = "Save Project";
-  saveButton.dataset.saveProjectButton = project.id;
-  saveButton.addEventListener("click", async () => {
-    if (!nameInput.value.trim()) {
-      setStatus("Project name is required.");
-      return;
+  /**
+   * The actions for one project-context row, or nothing when it offers none.
+   *
+   * `row` is derived from `createProjectClientContextRows`. It was left undeclared until that
+   * builder's `.filter(Boolean)` - which removed every `null` at runtime but did not narrow the
+   * element type - became a narrowing filter at `0.33.33.43.49`.
+   * @param {ReturnType<typeof createProjectClientContextRows>[number]} row
+   */
+  function createProjectContextActionStrip(row) {
+    if (!row.actions.length) {
+      return document.createTextNode("");
     }
 
-    const oldProject = { ...project };
-    project.name = nameInput.value.trim();
-    project.client_id = clientAssignmentSelect?.value || "";
-    project.parent_project_id = parentProjectSelect.value;
-    project.status = statusSelect.value;
-    project.billable = usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked);
-    project.billing_rate = usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value);
-    project.billing_period = usesSimplifiedBilling ? null : billingPeriodEditor.getValue();
-    project.billing_rounding = billingRoundingEditor.getValue();
-    project.taskReminderPolicy = reminderPolicyEditor.getValue();
-    project.taskDefaults = taskDefaultsEditor.getValue();
-    project.tagIds = tagPicker.readTagIds();
+    return requireView().createDetailActionStrip({
+      ariaLabel: `${row.type} actions`,
+      className: "client-projects-related-actions",
+      actions: row.actions,
+    });
+  }
 
-    if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
-      const confirmed = await window.LongtailForge.modal.confirm({
-        title: "Move project?",
-        message: "Move this project in the client/project hierarchy? Existing time entries assigned to this project will be updated to the new client and project names.",
-        confirmLabel: "Move",
-        cancelLabel: "Cancel",
-      });
+  /**
+   * One member of a module action's result, read exactly as `result?.member` read it.
+   *
+   * The result is the registry's `ModuleActionOutcome` or, where the registry is not loaded, the
+   * Add Client dialog's close reason - text, which carries no such member. The nullish test and the
+   * receiver are the optional access's own: a string is read through its wrapper with the string as
+   * receiver, and a nullish value reads nothing.
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function readActionResultMember(value, key) {
+    return value == null ? undefined : Reflect.get(Object(value), key, value);
+  }
 
-      if (!confirmed) {
-        project.client_id = oldProject.client_id || "";
-        project.parent_project_id = oldProject.parent_project_id || "";
-        return;
-      }
+  /**
+   * An Add Client button beside a client picker, which reports the created client's id.
+   *
+   * `onCreated` defaulted to `null` and so inferred `null` (`0.33.33.43.49`): it is the optional
+   * callback it always was, and its one caller is the Add Project form's picker refresh. It is
+   * called only when the registry's outcome says the dialog completed and carries a record id; the
+   * fallback's close text never does, so it is never read as a creation.
+   * @param {{ onCreated?: ((clientId: unknown) => void) | null }} [options]
+   */
+  function createAddClientShortcutButton({ onCreated = null } = {}) {
+    if (!clientsEnabledForWorkspace() || !canCreateTopLevelClient()) {
+      return null;
     }
 
-    const saved = await saveProjectRecord(project, {
-      action: "project_updated",
-      client_id: project.client_id,
-      client_name: getProjectClientName(project.client_id),
-      project_id: project.id,
-      project_name: project.name,
-      confirm_downstream_update: true,
-      taskDefaults: project.taskDefaults,
-      taskReminderPolicy: project.taskReminderPolicy,
-      details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_parent_project_id=${oldProject.parent_project_id || ""};new_parent_project_id=${project.parent_project_id || ""};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
-    }, {
-      openClientId: project.client_id || "__workspace_projects__",
-      flashSelector: `[data-save-project-button="${project.id}"]`,
-      hostContext: options.hostContext || null,
-    });
-    if (saved) {
-      options.onSaved?.(project);
-    }
-  });
+    const button = document.createElement("button");
 
-  const deleteButton = createClientProjectActionButton("Archive", "archive", { danger: true });
-  deleteButton.addEventListener("click", async () => {
-    const shouldDelete = await window.LongtailForge.modal.confirm({
-      title: "Archive project?",
-      message: `Archive project "${project.name}"?`,
-      confirmLabel: "Archive",
-      cancelLabel: "Cancel",
-      danger: true,
-    });
-
-    if (!shouldDelete) {
-      return;
-    }
-
-    const archived = await archiveProjectRecord(project, {
-      action: "project_archived",
-      client_id: client.isWorkspaceScope ? "" : client.id,
-      client_name: client.isWorkspaceScope ? "" : client.name,
-      project_id: project.id,
-      project_name: project.name,
-      details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
-    }, {
-      openClientId: client.id,
-      hostContext: options.hostContext || null,
-    });
-    if (archived) {
-      options.onSaved?.(project);
-    }
-  });
-
-  if (options.actionTarget) {
-    options.actionTarget.append(saveButton, deleteButton);
-  } else {
-    actionGroup.append(saveButton, deleteButton);
-  }
-  if (!clientAssignmentLabel) {
-    wrapper.classList.add("project-editor-no-client");
-  }
-  const identityFields = usesModalLayout
-    ? [statusLabel, clientAssignmentLabel, parentProjectLabel]
-    : [clientAssignmentLabel, parentProjectLabel, statusLabel];
-  wrapper.append(
-    nameLabel,
-    ...identityFields.filter(Boolean),
-    clientActions,
-    taskDefaultsEditor.element,
-    tagPicker.element,
-    ...(!usesSimplifiedBilling ? [billingDetails] : []),
-    ...(options.actionTarget ? [] : [actionGroup]),
-  );
-
-  if (details) {
-    details.appendChild(wrapper);
-    return details;
-  }
-
-  return wrapper;
-}
-
-function createProjectTaskDefaultsEditor(defaults = {}, { reminderPolicyEditor = null, billingRoundingEditor = null } = {}) {
-  const normalized = normalizeProjectTaskDefaults(defaults);
-  const details = document.createElement("details");
-  const summary = document.createElement("summary");
-  const moduleGroup = document.createElement("fieldset");
-  const moduleLegend = document.createElement("legend");
-  const grid = document.createElement("div");
-  const statusLabel = document.createElement("label");
-  const statusSelect = document.createElement("select");
-  const priorityLabel = document.createElement("label");
-  const prioritySelect = document.createElement("select");
-  const assigneeLabel = document.createElement("label");
-  const assigneeSelect = document.createElement("select");
-  const sortFieldset = document.createElement("fieldset");
-  const sortLegend = document.createElement("legend");
-  const sortList = document.createElement("div");
-
-  details.className = "project-defaults-details";
-  summary.textContent = "Project Defaults";
-  moduleGroup.className = "project-module-defaults-group";
-  moduleLegend.textContent = "Task module";
-  grid.className = "project-defaults-grid";
-  statusLabel.textContent = "Default Status";
-  priorityLabel.textContent = "Default Priority";
-  assigneeLabel.textContent = "Default Assignee";
-  sortFieldset.className = "project-default-sort-group";
-  sortLegend.textContent = "Sort order";
-  sortList.className = "project-default-sort-list";
-
-  taskDefaultStatuses.forEach((status) => {
-    statusSelect.appendChild(createOption(status, formatToken(status)));
-  });
-  taskDefaultPriorities.forEach((priority) => {
-    prioritySelect.appendChild(createOption(priority, formatToken(priority)));
-  });
-  taskDefaultAssigneeModes.forEach((mode) => {
-    assigneeSelect.appendChild(createOption(mode, projectTaskAssigneeModeLabels[mode]));
-  });
-  statusSelect.value = normalized.status;
-  prioritySelect.value = normalized.priority;
-  assigneeSelect.value = normalized.defaultAssigneeMode;
-
-  const renderSortRows = (order) => {
-    sortList.replaceChildren(...order.map((item, index) => {
-      const row = document.createElement("div");
-      const name = document.createElement("span");
-      const upButton = createClientProjectActionButton("Move up", "up");
-      const downButton = createClientProjectActionButton("Move down", "down");
-
-      row.className = "project-default-sort-row";
-      row.dataset.sortItem = item;
-      name.textContent = projectTaskSortLabels[item] || item;
-      upButton.disabled = index === 0;
-      downButton.disabled = index === order.length - 1;
-      upButton.addEventListener("click", () => {
-        const nextOrder = [...readSortOrder()];
-        [nextOrder[index - 1], nextOrder[index]] = [nextOrder[index], nextOrder[index - 1]];
-        renderSortRows(nextOrder);
-      });
-      downButton.addEventListener("click", () => {
-        const nextOrder = [...readSortOrder()];
-        [nextOrder[index], nextOrder[index + 1]] = [nextOrder[index + 1], nextOrder[index]];
-        renderSortRows(nextOrder);
-      });
-      row.append(name, upButton, downButton);
-      return row;
-    }));
-  };
-
-  const readSortOrder = () => normalizeProjectTaskSortOrder(
-    [...sortList.querySelectorAll("[data-sort-item]")].map((row) => row.dataset.sortItem),
-  );
-
-  statusLabel.appendChild(statusSelect);
-  priorityLabel.appendChild(prioritySelect);
-  assigneeLabel.appendChild(assigneeSelect);
-  renderSortRows(normalized.sortOrder);
-  sortFieldset.append(sortLegend, sortList);
-  grid.append(statusLabel, priorityLabel, assigneeLabel, sortFieldset);
-  moduleGroup.append(moduleLegend, grid);
-  if (reminderPolicyEditor?.element) {
-    moduleGroup.appendChild(reminderPolicyEditor.element);
-  }
-  if (billingRoundingEditor?.element) {
-    moduleGroup.appendChild(billingRoundingEditor.element);
-  }
-  details.append(summary, moduleGroup);
-
-  return {
-    element: details,
-    getValue: () => ({
-      status: statusSelect.value,
-      priority: prioritySelect.value,
-      defaultAssigneeMode: assigneeSelect.value,
-      sortOrder: readSortOrder(),
-    }),
-  };
-}
-
-function createProjectClientAssignment(project) {
-  if (!clientsEnabledForWorkspace()) {
-    return null;
-  }
-
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.className = "project-client-field";
-  label.textContent = "Client";
-  if (canManageProjectClientScope("")) {
-    select.appendChild(createOption("", "Workspace project"));
-  }
-  sortClientTree(getRealClients()).filter((client) => (
-    isActiveStatus(client.status) &&
-    (client.id === project.client_id || client.canManageProjects)
-  )).forEach((client) => {
-    select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
-  });
-  if (![...select.options].some((option) => option.value === (project.client_id || ""))) {
-    select.appendChild(createOption(project.client_id || "", getProjectClientName(project.client_id) || "Current client"));
-  }
-  select.value = project.client_id || "";
-  select.disabled = select.options.length <= 1;
-  label.appendChild(select);
-  return label;
-}
-
-function createProjectParentAssignment(project, client) {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.className = "project-parent-field";
-  label.textContent = "Parent Project";
-  populateParentProjectSelect(select, {
-    excludedProjectId: project.id,
-    clientId: project.client_id || (client.isWorkspaceScope ? "" : client.id),
-  });
-  select.value = project.parent_project_id || "";
-  label.appendChild(select);
-  return label;
-}
-
-function populateParentProjectSelect(select, { excludedProjectId = "", clientId = "" } = {}) {
-  if (!select) {
-    return;
-  }
-
-  const targetClient = getProjectTargetClient(clientId);
-  const excludedIds = excludedProjectId
-    ? new Set([excludedProjectId, ...getProjectDescendantIds(excludedProjectId, targetClient)])
-    : new Set();
-  const currentValue = select.value || "";
-  select.replaceChildren(createOption("", "No parent project"));
-  sortProjectsForClient(targetClient)
-    .filter((project) => !excludedIds.has(project.id) && isActiveStatus(project.status))
-    .forEach((project) => {
-      select.appendChild(createOption(project.id, `${treeIndent(getProjectDepth(project, targetClient))}${project.name}`));
-    });
-  select.value = [...select.options].some((option) => option.value === currentValue)
-    ? currentValue
-    : "";
-}
-
-function createAddProjectClientAssignment(client) {
-  if (!clientsEnabledForWorkspace()) {
-    return null;
-  }
-
-  const wrapper = document.createElement("div");
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  wrapper.className = "project-add-client-field";
-  label.textContent = "Client";
-  const refreshOptions = (selectedClientId = select.value || getDefaultProjectClientId(client)) => {
-    select.replaceChildren();
-    if (canCreateProjectForClient("")) {
-      select.appendChild(createOption("", workspaceProjectsLabel()));
-    }
-    sortClientTree(getRealClients()).filter((realClient) => (
-      isActiveStatus(realClient.status) && realClient.canCreateProject
-    )).forEach((realClient) => {
-      select.appendChild(createOption(realClient.id, `${treeIndent(getClientDepth(realClient))}${realClient.name}`));
-    });
-    select.value = [...select.options].some((option) => option.value === selectedClientId)
-      ? selectedClientId
-      : select.options[0]?.value || "";
-    select.disabled = select.options.length <= 1;
-  };
-  refreshOptions(getDefaultProjectClientId(client));
-  label.appendChild(select);
-  wrapper.appendChild(label);
-
-  const addClientButton = createAddClientShortcutButton({
-    onCreated: (clientId) => {
-      refreshOptions(clientId);
-      select.dispatchEvent(new window.Event("change", { bubbles: true }));
-    },
-  });
-  if (addClientButton) {
-    wrapper.appendChild(addClientButton);
-  }
-
-  return { element: wrapper, select };
-}
-
-function createProjectClientShortcutActions(project) {
-  return createProjectClientContextRegion(project);
-}
-
-function createProjectClientContextRegion(project) {
-  if (!clientsEnabledForWorkspace()) {
-    return requireView().createElement("div", {
-      className: "client-projects-related-context",
-      hidden: true,
-    });
-  }
-
-  const rows = createProjectClientContextRows(project);
-  return requireView().createListShell({
-    className: "client-projects-related-context",
-    status: false,
-    attrs: {
-      "aria-label": `Project context for ${project.name || "project"}`,
-      "data-client-projects-related-context": project.id || "",
-    },
-    children: [
-      requireView().createDataTable({
-        className: "client-projects-related-context-table-wrap",
-        tableClassName: "client-projects-related-context-table",
-        columns: [
-          { key: "type", label: "Context", header: true },
-          { key: "label", label: "Record" },
-          {
-            key: "actions",
-            label: "Actions",
-            align: "right",
-            render: (row) => createProjectContextActionStrip(row),
-          },
-        ],
-        rows,
-        emptyMessage: "No related context.",
-      }),
-    ],
-  });
-}
-
-function createProjectClientContextRows(project) {
-  const targetClient = getProjectTargetClient(project.client_id);
-  const addClientAction = canCreateTopLevelClient()
-    ? {
-        label: "Add Client",
-        role: "secondary",
-        action: "add-client",
-        onClick: () => {
-          void openClientProjectModuleAction("clients.add")
-            .catch(handleClientProjectActionError);
-        },
-      }
-    : targetClient && !targetClient.isWorkspaceScope && canCreateChildClient(targetClient.id)
-      ? {
-          label: "Add Child Client",
-          role: "secondary",
-          action: "add-child-client",
-          onClick: () => {
-            void openClientProjectModuleAction("clients.add", {
-              lockParentClient: true,
-              parentClientId: targetClient.id,
-            }).catch(handleClientProjectActionError);
-          },
+    button.type = "button";
+    button.textContent = "Add Client";
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const result = await openClientProjectModuleAction("clients.add");
+        const clientId = readActionResultMember(result, "completed")
+          ? readActionResultMember(readActionResultMember(result, "detail"), "recordId") || ""
+          : "";
+        if (clientId) {
+          onCreated?.(clientId);
         }
-      : null;
-  const rows = [
-    {
-      type: "Client",
-      label: getProjectClientLabel(targetClient),
-      actions: [
-        project.client_id && targetClient.canManage ? {
-          label: "Edit",
-          role: "utility",
-          action: "edit-client",
-          onClick: () => {
-            void openClientProjectModuleAction("clients.edit", { clientId: project.client_id })
-              .catch(handleClientProjectActionError);
-          },
-        } : null,
-        addClientAction,
-      ].filter(Boolean),
-    },
-  ];
-  const parentProject = project.parent_project_id
-    ? targetClient.projects.find((candidate) => candidate.id === project.parent_project_id)
-    : null;
-
-  rows.push({
-    type: "Parent Project",
-    label: parentProject?.name || "No parent project",
-    actions: parentProject?.canManage ? [{
-      label: "Edit",
-      role: "utility",
-      action: "edit-project",
-      onClick: () => {
-        void openClientProjectModuleAction("projects.edit", { projectId: parentProject.id })
-          .catch(handleClientProjectActionError);
-      },
-    }] : [],
-  });
-
-  return rows;
-}
-
-function createProjectContextActionStrip(row) {
-  if (!row.actions.length) {
-    return document.createTextNode("");
-  }
-
-  return requireView().createDetailActionStrip({
-    ariaLabel: `${row.type} actions`,
-    className: "client-projects-related-actions",
-    actions: row.actions,
-  });
-}
-
-function createAddClientShortcutButton({ onCreated = null } = {}) {
-  if (!clientsEnabledForWorkspace() || !canCreateTopLevelClient()) {
-    return null;
-  }
-
-  const button = document.createElement("button");
-
-  button.type = "button";
-  button.textContent = "Add Client";
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    try {
-      const result = await openClientProjectModuleAction("clients.add");
-      const clientId = result?.completed ? result.detail?.recordId || "" : "";
-      if (clientId) {
-        onCreated?.(clientId);
+      } catch (error) {
+        handleClientProjectActionError(error);
+      } finally {
+        button.disabled = false;
       }
-    } catch (error) {
-      handleClientProjectActionError(error);
-    } finally {
-      button.disabled = false;
+    });
+    return button;
+  }
+
+  /** @param {NormalizedClientEntry} client */
+  function getDefaultProjectClientId(client) {
+    if (!clientsEnabledForWorkspace()) {
+      return "";
     }
-  });
-  return button;
-}
 
-function getDefaultProjectClientId(client) {
-  if (!clientsEnabledForWorkspace()) {
-    return "";
+    if (!client.isWorkspaceScope) {
+      return client.id;
+    }
+
+    const filteredClientId = selectedProjectClientFilterValue();
+    return getRealClients().some((realClient) => realClient.id === filteredClientId)
+      ? filteredClientId
+      : "";
   }
 
-  if (!client.isWorkspaceScope) {
-    return client.id;
+  /**
+   * The Projects page's client filter, when it names a real client.
+   *
+   * The control is the descriptor's `select` filter, rendered as `<select name="clientId">`, and
+   * nothing else on this surface is named `clientId`, so the checked lookup finds the element the
+   * bare lookup found and refuses nothing that could be there.
+   */
+  function selectedProjectClientFilterValue() {
+    const control = activeClientProjectsReadSurface
+      ? requireCheckedDom().find(activeClientProjectsReadSurface, '[name="clientId"]', HTMLSelectElement)
+      : null;
+    const value = String(control?.value || "").trim();
+    return value && value !== "All" && value !== "__workspace_projects__" ? value : "";
   }
 
-  const filteredClientId = selectedProjectClientFilterValue();
-  return getRealClients().some((realClient) => realClient.id === filteredClientId)
-    ? filteredClientId
-    : "";
-}
+  /**
+   * The entry a project's client id names, or the workspace grouping for none or an unknown one.
+   * @param {unknown} clientId A record's or control's client id; only tested and compared.
+   */
+  function getProjectTargetClient(clientId) {
+    if (!clientId) {
+      return getWorkspaceProjectClient();
+    }
 
-function selectedProjectClientFilterValue() {
-  const control = activeClientProjectsReadSurface?.querySelector?.('[name="clientId"]');
-  const value = String(control?.value || "").trim();
-  return value && value !== "All" && value !== "__workspace_projects__" ? value : "";
-}
-
-function getProjectTargetClient(clientId) {
-  if (!clientId) {
-    return getWorkspaceProjectClient();
+    return getRealClients().find((client) => client.id === clientId) || getWorkspaceProjectClient();
   }
 
-  return getRealClients().find((client) => client.id === clientId) || getWorkspaceProjectClient();
-}
+  /** @param {unknown} clientId A record's client id as it holds it; only tested and compared. */
+  function getProjectClientName(clientId) {
+    if (!clientId) {
+      return "";
+    }
 
-function getProjectClientName(clientId) {
-  if (!clientId) {
-    return "";
+    return getRealClients().find((client) => client.id === clientId)?.name || "";
   }
 
-  return getRealClients().find((client) => client.id === clientId)?.name || "";
-}
+  /**
+   * The create form, used inline and inside the Add Project dialog.
+   *
+   * `onSaved` defaulted to `null` and so inferred `null`, which refused every function the dialog
+   * handed it; it is declared as the optional callback it has always been.
+   * @param {NormalizedClientEntry} client
+   * @param {{
+   *   hostContext?: ClientProjectHostContext,
+   *   onSaved?: (() => unknown) | null,
+   *   parentProjectId?: string,
+   *   showClientAssignment?: boolean,
+   * }} [options]
+   */
+  function createAddProjectForm(client, {
+    hostContext = null,
+    onSaved = null,
+    parentProjectId = "",
+    showClientAssignment = false,
+  } = {}) {
+    const form = document.createElement("form");
+    form.className = "add-project-form";
+    const usesSimplifiedBilling = usesProjectRoundingOnly();
+    const clientAssignment = showClientAssignment && clientsEnabledForWorkspace()
+      ? createAddProjectClientAssignment(client)
+      : null;
+    const initialTargetClient = clientAssignment
+      ? getProjectTargetClient(clientAssignment.select.value)
+      : client;
+    const parentProjectLabel = createProjectParentAssignment({
+      id: "",
+      client_id: client.isWorkspaceScope ? "" : client.id,
+      parent_project_id: parentProjectId,
+    }, client);
 
-function createAddProjectForm(client, {
-  hostContext = null,
-  onSaved = null,
-  parentProjectId = "",
-  showClientAssignment = false,
-} = {}) {
-  const form = document.createElement("form");
-  form.className = "add-project-form";
-  const usesSimplifiedBilling = usesProjectRoundingOnly();
-  const clientAssignment = showClientAssignment && clientsEnabledForWorkspace()
-    ? createAddProjectClientAssignment(client)
-    : null;
-  const initialTargetClient = clientAssignment
-    ? getProjectTargetClient(clientAssignment.select.value)
-    : client;
-  const parentProjectLabel = createProjectParentAssignment({
-    id: "",
-    client_id: client.isWorkspaceScope ? "" : client.id,
-    parent_project_id: parentProjectId,
-  }, client);
+    const nameLabel = document.createElement("label");
+    nameLabel.className = "project-name-field";
+    nameLabel.textContent = "New Project Name";
 
-  const nameLabel = document.createElement("label");
-  nameLabel.className = "project-name-field";
-  nameLabel.textContent = "New Project Name";
+    const nameInput = document.createElement("input");
+    nameInput.required = true;
+    nameLabel.appendChild(nameInput);
 
-  const nameInput = document.createElement("input");
-  nameInput.required = true;
-  nameLabel.appendChild(nameInput);
+    const statusLabel = document.createElement("label");
+    statusLabel.className = "project-status-field";
+    statusLabel.textContent = "Status";
 
-  const statusLabel = document.createElement("label");
-  statusLabel.className = "project-status-field";
-  statusLabel.textContent = "Status";
+    const statusSelect = createStatusSelect("Active");
+    statusLabel.appendChild(statusSelect);
 
-  const statusSelect = createStatusSelect("Active");
-  statusLabel.appendChild(statusSelect);
+    const billingRateLabel = document.createElement("label");
+    billingRateLabel.textContent = "Billing Rate ($/hour)";
 
-  const billingRateLabel = document.createElement("label");
-  billingRateLabel.textContent = "Billing Rate ($/hour)";
+    const billingRateInput = document.createElement("input");
+    billingRateInput.inputMode = "decimal";
+    billingRateInput.value = "";
+    billingRateInput.placeholder = getEffectiveClientBillingRate(initialTargetClient) || "";
+    billingRateLabel.appendChild(billingRateInput);
 
-  const billingRateInput = document.createElement("input");
-  billingRateInput.inputMode = "decimal";
-  billingRateInput.value = "";
-  billingRateInput.placeholder = getEffectiveClientBillingRate(initialTargetClient) || "";
-  billingRateLabel.appendChild(billingRateInput);
+    const billableLabel = createBillableCheckbox(initialTargetClient.isWorkspaceScope ? "no" : initialTargetClient.billable);
+    const billableInput = requireBillableInput(billableLabel);
 
-  const billableLabel = createBillableCheckbox(initialTargetClient.isWorkspaceScope ? "no" : initialTargetClient.billable);
-  const billableInput = billableLabel.querySelector("input");
+    const billingDetails = document.createElement("details");
+    billingDetails.className = "project-billing-details";
 
-  const billingDetails = document.createElement("details");
-  billingDetails.className = "project-billing-details";
+    const billingSummary = document.createElement("summary");
+    billingSummary.textContent = usesSimplifiedBilling ? "Project Rounding" : "Project Billing Settings";
 
-  const billingSummary = document.createElement("summary");
-  billingSummary.textContent = usesSimplifiedBilling ? "Project Rounding" : "Project Billing Settings";
+    const billingSettings = document.createElement("div");
+    billingSettings.className = "project-billing-settings";
 
-  const billingSettings = document.createElement("div");
-  billingSettings.className = "project-billing-settings";
+    const billingPeriodEditor = createBillingPeriodEditor({
+      legend: "Billing Period",
+      inheritLabel: getProjectBillingPeriodInheritLabel(initialTargetClient),
+      value: null,
+      inheritedPeriod: getEffectiveClientBillingPeriod(initialTargetClient),
+    });
 
-  const billingPeriodEditor = createBillingPeriodEditor({
-    legend: "Billing Period",
-    inheritLabel: getProjectBillingPeriodInheritLabel(initialTargetClient),
-    value: null,
-    inheritedPeriod: getEffectiveClientBillingPeriod(initialTargetClient),
-  });
+    const billingRoundingEditor = createBillingRoundingEditor({
+      legend: "Rounding",
+      inheritLabel: getProjectRoundingInheritLabel(initialTargetClient, { client_id: initialTargetClient.isWorkspaceScope ? "" : initialTargetClient.id }),
+      value: null,
+      inheritedRounding: initialTargetClient.isWorkspaceScope ? workspaceSettings.billingRounding : getEffectiveClientBillingRounding(initialTargetClient),
+      showModeWhenUnbillable: true,
+    });
+    const tagPicker = createTagPickerField("Project Tags", [], "project");
+    tagPicker.element.classList.add("project-tags-field");
 
-  const billingRoundingEditor = createBillingRoundingEditor({
-    legend: "Rounding",
-    inheritLabel: getProjectRoundingInheritLabel(initialTargetClient, { client_id: initialTargetClient.isWorkspaceScope ? "" : initialTargetClient.id }),
-    value: null,
-    inheritedRounding: initialTargetClient.isWorkspaceScope ? workspaceSettings.billingRounding : getEffectiveClientBillingRounding(initialTargetClient),
-    showModeWhenUnbillable: true,
-  });
-  const tagPicker = createTagPickerField("Project Tags", [], "project");
-  tagPicker.element.classList.add("project-tags-field");
-
-  billingSettings.append(
-    billingRoundingEditor.element,
-  );
-
-  if (!usesSimplifiedBilling) {
-    billingSettings.prepend(
-      billableLabel,
-      billingRateLabel,
-      billingPeriodEditor.element,
+    billingSettings.append(
+      billingRoundingEditor.element,
     );
-  }
 
-  billingDetails.append(billingSummary, billingSettings);
+    if (!usesSimplifiedBilling) {
+      billingSettings.prepend(
+        billableLabel,
+        billingRateLabel,
+        billingPeriodEditor.element,
+      );
+    }
 
-  const updateBillableState = () => {
-    const isBillable = usesSimplifiedBilling ? false : billableInput.checked;
+    billingDetails.append(billingSummary, billingSettings);
 
-    billableInput.checked = !usesSimplifiedBilling && isBillable;
-    billingRateInput.disabled = !isBillable;
-    billingPeriodEditor.setDisabled(!isBillable);
-    billingRoundingEditor.setDisabled(false);
-    billingRoundingEditor.setBillableMode(!usesSimplifiedBilling && isBillable);
-  };
+    const updateBillableState = () => {
+      const isBillable = usesSimplifiedBilling ? false : billableInput.checked;
 
-  billableInput.addEventListener("change", updateBillableState);
-  updateBillableState();
+      billableInput.checked = !usesSimplifiedBilling && isBillable;
+      billingRateInput.disabled = !isBillable;
+      billingPeriodEditor.setDisabled(!isBillable);
+      billingRoundingEditor.setDisabled(false);
+      billingRoundingEditor.setBillableMode(!usesSimplifiedBilling && isBillable);
+    };
 
-  const saveButton = createAddProjectSubmitButton(client.id);
-  const formFields = [
-    nameLabel,
-  ];
+    billableInput.addEventListener("change", updateBillableState);
+    updateBillableState();
 
-  if (clientAssignment) {
-    formFields.push(clientAssignment.element);
-    clientAssignment.select.addEventListener("change", () => {
+    const saveButton = createAddProjectSubmitButton(client.id);
+    /** @type {Array<HTMLLabelElement | HTMLDivElement>} */
+    const formFields = [
+      nameLabel,
+    ];
+
+    if (clientAssignment) {
+      formFields.push(clientAssignment.element);
+      clientAssignment.select.addEventListener("change", () => {
+        populateParentProjectSelect(parentProjectLabel.querySelector("select"), {
+          clientId: clientAssignment.select.value,
+        });
+      });
       populateParentProjectSelect(parentProjectLabel.querySelector("select"), {
         clientId: clientAssignment.select.value,
       });
+    }
+
+    form.append(
+      ...formFields,
+      parentProjectLabel,
+      tagPicker.element,
+      statusLabel,
+      billingDetails,
+      saveButton,
+    );
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const selectedClientId = clientAssignment?.select.value ?? (client.isWorkspaceScope ? "" : client.id);
+      const targetClient = getProjectTargetClient(selectedClientId);
+      const parentProjectId = requireParentProjectSelect(parentProjectLabel).value;
+      const project = {
+        client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
+        parent_project_id: parentProjectId,
+        name: nameInput.value.trim(),
+        billable: usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked),
+        billing_rate: usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value),
+        billing_period: usesSimplifiedBilling ? null : billingPeriodEditor.getValue(),
+        billing_rounding: billingRoundingEditor.getValue(),
+        status: statusSelect.value,
+        tagIds: tagPicker.readTagIds(),
+      };
+
+      // **The draft is not a project until the server says so.** This used to push it into
+      // `targetClient.projects` before the request went out. On success that was invisible -
+      // `refreshClientProjectData` replaces the whole collection with the server's answer - but on
+      // failure the refresh never ran, so an unsaved draft stayed in the saved-project collection,
+      // carrying no `id` and none of the members the normaliser produces.
+      const created = await createProjectRecord(targetClient, project, {
+        action: "project_created",
+        client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
+        client_name: targetClient.isWorkspaceScope ? "" : targetClient.name,
+        project_id: "",
+        project_name: project.name,
+        details: `status=${project.status};parent_project_id=${project.parent_project_id || ""};billable=${project.billable};billing_rate=${project.billing_rate}`,
+      }, {
+        openClientId: targetClient.id,
+        flashSelector: `[data-add-project-button="${client.id}"]`,
+        hostContext,
+      });
+
+      // Gated, as every other write on this page already gates: the project editor's save, the
+      // archive action and client creation all ask first. Only this one did not, so a failed
+      // create still closed the dialog and discarded what had been typed into it.
+      if (created) {
+        onSaved?.();
+      }
     });
-    populateParentProjectSelect(parentProjectLabel.querySelector("select"), {
-      clientId: clientAssignment.select.value,
+
+    return form;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserClientRecord} BrowserClientRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserProjectRecord} BrowserProjectRecord */
+
+  /** The eleven billing-contact members `clientRowToAppClient` reconstructs. */
+  const CLIENT_CONTACT_TEXT = Object.freeze([
+    "alternate_email",
+    "alternate_name",
+    "alternate_phone_number",
+    "city",
+    "email",
+    "name",
+    "phone_number",
+    "state",
+    "street_address_1",
+    "street_address_2",
+    "zip_code",
+  ]);
+
+  /** The four text members `normalizeClientProjectData` reconstructs beside the closed status. */
+  const CLIENT_TEXT = Object.freeze([
+    "id",
+    "name",
+    "parent_client_id",
+    "workspace_id",
+  ]);
+
+  /** The two words `normalizeClientStatus` answers. */
+  const CLIENT_STATUSES = Object.freeze(["Active", "Inactive"]);
+
+  /** The six text members the project half of the same normaliser reconstructs. */
+  const PROJECT_TEXT = Object.freeze([
+    "client_id",
+    "id",
+    "name",
+    "parent_project_id",
+    "workspace_id",
+  ]);
+
+  /** The three words `normalizeStatus` answers; a project can be completed and a client cannot. */
+  const PROJECT_STATUSES = Object.freeze(["Active", "Completed", "Inactive"]);
+
+  /**
+   * The five members the tag decorator adds - when it runs at all.
+   *
+   * `decorateRecordsForTarget` returns its records untouched when the tags module is not readable,
+   * so a workspace with tags disabled receives records carrying none of these.
+   */
+  const RECORD_TAG_MEMBERS = Object.freeze([
+    "directTags",
+    "effectiveTags",
+    "propagatedTags",
+    "tagAssignments",
+    "tags",
+  ]);
+
+  /** The two values `normalizeBillableFlag` returns on every path. */
+  const RECORD_BILLABLE = Object.freeze(["no", "yes"]);
+
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * The members every raw client and project record shares.
+   * @param {Record<string, unknown>} value
+   */
+  function hasRecordBillingShape(value) {
+    return typeof value.billable === "string"
+      && RECORD_BILLABLE.includes(value.billable)
+      && (value.billing_rate === null || typeof value.billing_rate === "string")
+      && "billing_period" in value
+      && "billing_rounding" in value
+      && RECORD_TAG_MEMBERS.every((member) => !(member in value) || Array.isArray(value[member]));
+  }
+
+  /**
+   * The billing contact a client record carries.
+   * @param {unknown} value
+   * @returns {value is import("../../src/types/browser-contracts.js").BrowserClientBillingContact}
+   */
+  function isClientBillingContact(value) {
+    return isResponseRecord(value)
+      && CLIENT_CONTACT_TEXT.every((member) => typeof value[member] === "string");
+  }
+
+  /**
+   * A client as the create route sends it back.
+   *
+   * **The write-payload normaliser's output, not the read shaper's row and not a normalised
+   * option.** It carries `childScopeIds` and `projects` and no timestamps, because nothing has
+   * been read back from the row yet.
+   * @param {unknown} value
+   * @returns {value is BrowserClientRecord}
+   */
+  function isClientRecord(value) {
+    return isResponseRecord(value)
+      && CLIENT_TEXT.every((member) => typeof value[member] === "string")
+      && value.id !== ""
+      && value.name !== ""
+      && typeof value.status === "string"
+      && CLIENT_STATUSES.includes(value.status)
+      && Array.isArray(value.childScopeIds)
+      && Array.isArray(value.projects)
+      && isClientBillingContact(value.billing_contact)
+      && hasRecordBillingShape(value);
+  }
+
+  /**
+   * A project as the create routes send it back.
+   * @param {unknown} value
+   * @returns {value is BrowserProjectRecord}
+   */
+  function isProjectRecord(value) {
+    return isResponseRecord(value)
+      && PROJECT_TEXT.every((member) => typeof value[member] === "string")
+      && value.id !== ""
+      && value.name !== ""
+      && typeof value.status === "string"
+      && PROJECT_STATUSES.includes(value.status)
+      && "taskDefaults" in value
+      && hasRecordBillingShape(value);
+  }
+
+  /**
+   * The client a create route answered with, or `null`.
+   * @param {unknown} body
+   * @returns {BrowserClientRecord | null}
+   */
+  function readClientRecord(body) {
+    const client = isResponseRecord(body) ? body.client : null;
+    return isClientRecord(client) ? client : null;
+  }
+
+  /**
+   * The project a create route answered with, or `null`.
+   * @param {unknown} body
+   * @returns {BrowserProjectRecord | null}
+   */
+  function readProjectRecord(body) {
+    const project = isResponseRecord(body) ? body.project : null;
+    return isProjectRecord(project) ? project : null;
+  }
+
+  /**
+   * The record a create route must have answered with.
+   *
+   * **The raw reads this replaced already threw for an absent record** - an identifier read on an
+   * undefined client - so the failure path is preserved and only its message improves. A record
+   * the browser cannot vouch for now takes the same path, which is the fail-closed direction.
+   * @template T
+   * @param {T | null} record
+   * @param {string} label
+   * @returns {T}
+   */
+  function requireSavedRecord(record, label) {
+    if (!record) {
+      throw new Error(`The server did not return a usable ${label} record.`);
+    }
+
+    return record;
+  }
+
+  /**
+   * A client not yet saved, as the Add Client dialog builds it (`0.33.33.43.50`).
+   *
+   * The writer spreads the whole draft into its request and reads only `projects`, whose first
+   * entry it posts after the client is created. The dialog always sends none, so that branch is not
+   * reached today; it is kept as it stands.
+   * @typedef {Record<string, unknown> & { projects?: Array<Record<string, unknown>> }} ClientCreateDraft
+   */
+
+  /**
+   * POST the client, merge the saved record back into the draft, and post its first initial
+   * project, if it carries one, under the saved client.
+   * @param {ClientCreateDraft} client
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
+  async function createClientRecord(client, action, viewState = {}) {
+    return persistClientProjectChange(action, viewState, async () => {
+      const initialProjects = Array.isArray(client.projects) ? client.projects : [];
+      const result = await requireApi().postJson("/api/clients", {
+        ...client,
+        action,
+      });
+      const savedClient = requireSavedRecord(readClientRecord(result), "client");
+      Object.assign(client, savedClient, { projects: initialProjects });
+      Object.assign(action, {
+        client_id: savedClient.id,
+        client_name: savedClient.name,
+        parent_client_id: savedClient.parent_client_id,
+      });
+      viewState.openClientId = savedClient.id;
+
+      if (initialProjects.length > 0) {
+        const initialProject = initialProjects[0];
+        const projectAction = {
+          action: "project_created",
+          client_id: savedClient.id,
+          client_name: savedClient.name,
+          project_id: initialProject.id || "",
+          project_name: initialProject.name,
+          details: action.details,
+        };
+        const projectResult = await requireApi().postJson(
+          `/api/clients/${encodeURIComponent(savedClient.id)}/projects`,
+          {
+            ...initialProject,
+            action: projectAction,
+          },
+        );
+        Object.assign(initialProject, requireSavedRecord(readProjectRecord(projectResult), "project"));
+      }
     });
   }
 
-  form.append(
-    ...formFields,
-    parentProjectLabel,
-    tagPicker.element,
-    statusLabel,
-    billingDetails,
-    saveButton,
-  );
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  /**
+   * PUT one client. Two of the three callers strip the tag payload first; the third sends it only
+   * when the editor put `tagIds` on the record.
+   * @param {NormalizedClientRecord & { tagIds?: unknown }} client
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
+  async function saveClientRecord(client, action, viewState = {}) {
+    return persistClientProjectChange(action, viewState, async () => {
+      await requireApi().putJson(
+        `/api/clients/${encodeURIComponent(`${client.id}`)}`,
+        withOptionalTagPayload(client, {
+          action,
+        }),
+      );
+    });
+  }
 
-    const selectedClientId = clientAssignment?.select.value ?? (client.isWorkspaceScope ? "" : client.id);
-    const targetClient = getProjectTargetClient(selectedClientId);
-    const parentProjectId = parentProjectLabel.querySelector("select").value;
-    const project = {
-      client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
-      parent_project_id: parentProjectId,
-      name: nameInput.value.trim(),
-      billable: usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked),
-      billing_rate: usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value),
-      billing_period: usesSimplifiedBilling ? null : billingPeriodEditor.getValue(),
-      billing_rounding: billingRoundingEditor.getValue(),
-      status: statusSelect.value,
-      tagIds: tagPicker.readTagIds(),
+  /**
+   * POST a project draft under its target - the workspace route for the workspace grouping, the
+   * client's own route otherwise - and merge the saved record back into the draft. The draft is
+   * spread wholesale into the request, so it is typed as the open record it is.
+   * @param {NormalizedClientEntry} client
+   * @param {Record<string, unknown>} project
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
+  async function createProjectRecord(client, project, action, viewState = {}) {
+    return persistClientProjectChange(action, viewState, async () => {
+      const url = client.isWorkspaceScope
+        ? "/api/projects"
+        : `/api/clients/${encodeURIComponent(`${client.id}`)}/projects`;
+
+      const result = await requireApi().postJson(
+        url,
+        withOptionalTagPayload(project, {
+          action,
+        }),
+      );
+      const savedProject = requireSavedRecord(readProjectRecord(result), "project");
+      Object.assign(project, savedProject);
+      Object.assign(action, {
+        client_id: savedProject.client_id,
+        project_id: savedProject.id,
+        project_name: savedProject.name,
+      });
+    });
+  }
+
+  /**
+   * @param {NormalizedProjectRecord & { tagIds?: unknown }} project
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
+  async function saveProjectRecord(project, action, viewState = {}) {
+    return persistClientProjectChange(action, viewState, async () => {
+      await requireApi().putJson(
+        `/api/projects/${encodeURIComponent(`${project.id}`)}`,
+        withOptionalTagPayload(project, {
+          confirm_downstream_update: action.confirm_downstream_update === true,
+          action,
+        }),
+      );
+    });
+  }
+
+  /**
+   * The record and the extra members as one request body, without `tagIds` unless the record owns
+   * it: only an editor that set tags sends them.
+   * @param {{ tagIds?: unknown }} record
+   * @param {Record<string, unknown>} [extraPayload]
+   */
+  function withOptionalTagPayload(record, extraPayload = {}) {
+    const payload = {
+      ...record,
+      ...extraPayload,
     };
 
-    targetClient.projects.push(project);
-
-    await createProjectRecord(targetClient, project, {
-      action: "project_created",
-      client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
-      client_name: targetClient.isWorkspaceScope ? "" : targetClient.name,
-      project_id: "",
-      project_name: project.name,
-      details: `status=${project.status};parent_project_id=${project.parent_project_id || ""};billable=${project.billable};billing_rate=${project.billing_rate}`,
-    }, {
-      openClientId: targetClient.id,
-      flashSelector: `[data-add-project-button="${client.id}"]`,
-      hostContext,
-    });
-    onSaved?.();
-  });
-
-  return form;
-}
-
-async function createClientRecord(client, action, viewState = {}) {
-  return persistClientProjectChange(action, viewState, async () => {
-    const initialProjects = Array.isArray(client.projects) ? client.projects : [];
-    const result = await window.LongtailForge.api.postJson("/api/clients", {
-      ...client,
-      action,
-    });
-    Object.assign(client, result.client, { projects: initialProjects });
-    Object.assign(action, {
-      client_id: result.client.id,
-      client_name: result.client.name,
-      parent_client_id: result.client.parent_client_id || "",
-    });
-    viewState.openClientId = result.client.id;
-
-    if (initialProjects.length > 0) {
-      const initialProject = initialProjects[0];
-      const projectAction = {
-        action: "project_created",
-        client_id: result.client.id,
-        client_name: result.client.name,
-        project_id: initialProject.id || "",
-        project_name: initialProject.name,
-        details: action.details,
-      };
-      const projectResult = await window.LongtailForge.api.postJson(
-        `/api/clients/${encodeURIComponent(result.client.id)}/projects`,
-        {
-          ...initialProject,
-          action: projectAction,
-        },
-      );
-      Object.assign(initialProject, projectResult.project);
+    if (!Object.hasOwn(record || {}, "tagIds")) {
+      delete payload.tagIds;
     }
-  });
-}
 
-async function saveClientRecord(client, action, viewState = {}) {
-  return persistClientProjectChange(action, viewState, async () => {
-    await window.LongtailForge.api.putJson(
-      `/api/clients/${encodeURIComponent(client.id)}`,
-      withOptionalTagPayload(client, {
-        action,
-      }),
-    );
-  });
-}
+    return payload;
+  }
 
-async function createProjectRecord(client, project, action, viewState = {}) {
-  return persistClientProjectChange(action, viewState, async () => {
-    const url = client.isWorkspaceScope
-      ? "/api/projects"
-      : `/api/clients/${encodeURIComponent(client.id)}/projects`;
-
-    const result = await window.LongtailForge.api.postJson(
-      url,
-      withOptionalTagPayload(project, {
-        action,
-      }),
-    );
-    Object.assign(project, result.project);
-    Object.assign(action, {
-      client_id: result.project.client_id || "",
-      project_id: result.project.id,
-      project_name: result.project.name,
-    });
-  });
-}
-
-async function saveProjectRecord(project, action, viewState = {}) {
-  return persistClientProjectChange(action, viewState, async () => {
-    await window.LongtailForge.api.putJson(
-      `/api/projects/${encodeURIComponent(project.id)}`,
-      withOptionalTagPayload(project, {
-        confirm_downstream_update: action.confirm_downstream_update === true,
-        action,
-      }),
-    );
-  });
-}
-
-function withOptionalTagPayload(record, extraPayload = {}) {
-  const payload = {
-    ...record,
-    ...extraPayload,
-  };
-
-  if (!Object.hasOwn(record || {}, "tagIds")) {
+  /**
+   * A copy of a client without either tag payload spelling, so its save leaves the client's tags as
+   * they are. Both callers are client saves, and the copy keeps the client's own type for the save
+   * it feeds, which reads its `id`.
+   * @param {NormalizedClientRecord & { tagIds?: unknown, tag_ids?: unknown }} record
+   */
+  function withoutTagPayload(record) {
+    const payload = { ...record };
     delete payload.tagIds;
+    delete payload.tag_ids;
+    return payload;
   }
 
-  return payload;
-}
+  /**
+   * @param {NormalizedProjectRecord} project
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} [viewState]
+   */
+  async function archiveProjectRecord(project, action, viewState = {}) {
+    return persistClientProjectChange(action, viewState, async () => {
+      await requireApi().deleteJson(
+        `/api/projects/${encodeURIComponent(`${project.id}`)}`,
+      );
+    });
+  }
 
-function withoutTagPayload(record) {
-  const payload = { ...record };
-  delete payload.tagIds;
-  delete payload.tag_ids;
-  return payload;
-}
+  /**
+   * What one write reports about itself: the audit action, and the record it touched.
+   *
+   * Every member is optional because the five write wrappers each fill the subset their own record
+   * has - a client write carries no `project_id`, and only the project editor sends
+   * `confirm_downstream_update`. The identifiers are `unknown` rather than `string` because they
+   * come from normalised wire records, which vouch for no member's type; the readers below already
+   * treat them that way, falling back to `""` before anything reads them as text.
+   * @typedef {{
+   *   action?: string,
+   *   client_id?: unknown,
+   *   client_name?: unknown,
+   *   project_id?: unknown,
+   *   project_name?: unknown,
+   *   parent_client_id?: unknown,
+   *   details?: string,
+   *   confirm_downstream_update?: boolean,
+   *   taskDefaults?: unknown,
+   *   taskReminderPolicy?: unknown,
+   * }} ClientProjectAction
+   */
 
-async function archiveProjectRecord(project, action, viewState = {}) {
-  return persistClientProjectChange(action, viewState, async () => {
-    await window.LongtailForge.api.deleteJson(
-      `/api/projects/${encodeURIComponent(project.id)}`,
-    );
-  });
-}
+  /**
+   * The host surface a write may report completion to.
+   *
+   * The published contract keeps `hostContext` `unknown`, and deliberately so - it refuses to name
+   * the shape **for its consumers**. This page still has to say what it does with one, so it names
+   * the two members it reaches for: `complete` once a write lands, and `cancel` when a create dialog
+   * is dismissed. **Both being callable is a precondition, not a proof.** `complete` is tested for
+   * truthiness and `cancel` is optional-called, and in both cases a truthy non-callable still throws
+   * exactly as it always did rather than being filtered out here.
+   *
+   * `cancel` carries a `recordId` only when the dismissed dialog was editing a record: the add
+   * dialogs report the action alone, the detail dialogs report which record too.
+   * @typedef {{
+   *   complete?: (detail: ClientProjectActionCompletion) => unknown,
+   *   cancel?: (detail: { actionId: string, recordId?: unknown }) => unknown,
+   * } | null} ClientProjectHostContext
+   */
 
-async function persistClientProjectChange(action, viewState = {}, request) {
-  // Mutations are record-level; the nested tree is refreshed only as a read model.
-  setStatus("Saving clients and projects...");
+  /**
+   * Which registered module action finished, and on which record.
+   * @typedef {{ actionId: string, recordId: unknown }} ClientProjectActionCompletion
+   */
 
-  try {
-    await request();
-    await refreshClientProjectData();
-    openClientId = viewState.openClientId || action.client_id || "";
-    openBillingClientId = viewState.openBillingClientId || "";
-    openClientBillingSettingsId = viewState.openClientBillingSettingsId || "";
-    await refreshActiveClientProjectsReadSurface();
-    setStatus("");
-    flashSavedButton(viewState.flashSelector);
-    signalClientProjectModuleAction(action, viewState.hostContext || null);
+  /**
+   * What the page should look like once a write lands: which rows stay open, which button flashes,
+   * and which host to tell.
+   * @typedef {{
+   *   openClientId?: unknown,
+   *   openBillingClientId?: unknown,
+   *   openClientBillingSettingsId?: unknown,
+   *   flashSelector?: string,
+   *   hostContext?: ClientProjectHostContext,
+   * }} ClientProjectViewState
+   */
+
+  /**
+   * Run one write, then bring the page back in line with it.
+   *
+   * Answers whether the record was written - **not** whether everything afterwards succeeded. See
+   * the two-phase body: past the write nothing may report the change as unsaved.
+   * @param {ClientProjectAction} action
+   * @param {ClientProjectViewState} viewState
+   * @param {() => Promise<unknown>} request
+   */
+  async function persistClientProjectChange(action, viewState = {}, request) {
+    // Mutations are record-level; the nested tree is refreshed only as a read model.
+    setStatus("Saving clients and projects...");
+
+    try {
+      await request();
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Clients and projects were not saved. Start the local server and try again."));
+      console.error(error);
+      return false;
+    }
+
+    // **Past this line the write is committed**, and nothing below it may report otherwise. Reading
+    // the tree back, restoring the open rows, refreshing the read surface and telling the host its
+    // action finished are all consequences of a record that already exists; a failure in any of
+    // them leaves a stale view, not a lost record. Reporting one as "were not saved" is what
+    // invites the same record to be submitted twice, so the message leads with what is true.
+    try {
+      await refreshClientProjectData();
+      openClientId = viewState.openClientId || action.client_id || "";
+      openBillingClientId = viewState.openBillingClientId || "";
+      openClientBillingSettingsId = viewState.openClientBillingSettingsId || "";
+      await refreshActiveClientProjectsReadSurface();
+      setStatus("");
+      flashSavedButton(viewState.flashSelector);
+      signalClientProjectModuleAction(action, viewState.hostContext || null);
+    } catch (error) {
+      // Not `caughtMessage` alone: that answers the thrown message, which says nothing about the
+      // save having succeeded - and that omission is the whole hazard here.
+      setStatus(`Saved, but the view could not be refreshed. Reload the page to see the change. (${requireErrors().caughtMessage(error, "Unknown error.")})`);
+      console.error(error);
+    }
+
     return true;
-  } catch (error) {
-    setStatus(error.message || "Clients and projects were not saved. Start the local server and try again.");
-    console.error(error);
-    return false;
   }
-}
 
-function signalClientProjectModuleAction(action = {}, hostContext = null) {
-  const actionName = action.action || "";
+  /**
+   * Tell the host which registered module action this write completed, if any.
+   *
+   * The prefix tests are ordered: the exact create actions are matched before the broader
+   * `client_`/`project_` prefixes they would also satisfy.
+   * @param {ClientProjectAction} [action]
+   * @param {ClientProjectHostContext} [hostContext]
+   */
+  function signalClientProjectModuleAction(action = {}, hostContext = null) {
+    const actionName = action.action || "";
 
-  if (actionName === "client_created") {
-    completeClientProjectAction(hostContext, {
-      actionId: "clients.add",
-      recordId: action.client_id || "",
+    if (actionName === "client_created") {
+      completeClientProjectAction(hostContext, {
+        actionId: "clients.add",
+        recordId: action.client_id || "",
+      });
+    } else if (actionName.startsWith("client_")) {
+      completeClientProjectAction(hostContext, {
+        actionId: "clients.edit",
+        recordId: action.client_id || "",
+      });
+    } else if (actionName === "project_created") {
+      completeClientProjectAction(hostContext, {
+        actionId: "projects.add",
+        recordId: action.project_id || "",
+      });
+    } else if (actionName.startsWith("project_")) {
+      completeClientProjectAction(hostContext, {
+        actionId: "projects.edit",
+        recordId: action.project_id || "",
+      });
+    }
+  }
+
+  /**
+   * @param {ClientProjectHostContext} hostContext
+   * @param {ClientProjectActionCompletion} detail
+   */
+  function completeClientProjectAction(hostContext, detail) {
+    if (hostContext?.complete) {
+      hostContext.complete(detail);
+    }
+  }
+
+  async function refreshClientProjectData() {
+    const result = await requireApi().getJson("/api/client-projects?include=reminderPolicy", {
+      cache: "no-store",
     });
-  } else if (actionName.startsWith("client_")) {
-    completeClientProjectAction(hostContext, {
-      actionId: "clients.edit",
-      recordId: action.client_id || "",
-    });
-  } else if (actionName === "project_created") {
-    completeClientProjectAction(hostContext, {
-      actionId: "projects.add",
-      recordId: action.project_id || "",
-    });
-  } else if (actionName.startsWith("project_")) {
-    completeClientProjectAction(hostContext, {
-      actionId: "projects.edit",
-      recordId: action.project_id || "",
-    });
-  }
-}
 
-function completeClientProjectAction(hostContext, detail) {
-  if (hostContext?.complete) {
-    hostContext.complete(detail);
-  }
-}
-
-async function refreshClientProjectData() {
-  const result = await window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", {
-    cache: "no-store",
-  });
-
-  clientProjectData = normalizeData(result);
-}
-
-async function refreshActiveClientProjectsReadSurface() {
-  if (typeof activeClientProjectsReadSurface?.refresh === "function") {
-    await activeClientProjectsReadSurface.refresh();
-  }
-}
-
-function flashSavedButton(selector) {
-  // Keep success feedback attached to the button that initiated the save.
-  if (!selector) {
-    return;
+    clientProjectData = normalizeData(result);
   }
 
-  const button = document.querySelector(selector);
-
-  if (!button) {
-    return;
+  async function refreshActiveClientProjectsReadSurface() {
+    if (typeof activeClientProjectsReadSurface?.refresh === "function") {
+      await activeClientProjectsReadSurface.refresh();
+    }
   }
 
-  const originalText = button.textContent;
-  button.textContent = "Saved.";
-  button.classList.add("is-saved");
+  /** @param {string | undefined} selector The write's `viewState.flashSelector`. */
+  function flashSavedButton(selector) {
+    // Keep success feedback attached to the button that initiated the save.
+    if (!selector) {
+      return;
+    }
 
-  window.setTimeout(() => {
-    button.textContent = originalText;
-    button.classList.remove("is-saved");
-  }, 1600);
-}
+    const button = document.querySelector(selector);
 
-function applyInitialClientParam() {
-  const clientId = new URLSearchParams(window.location.search).get("client") || "";
+    if (!button) {
+      return;
+    }
 
-  if (clientProjectData.clients.some((client) => client.id === clientId && (client.isWorkspaceScope || isActiveStatus(client.status)))) {
-    openClientId = clientId;
+    const originalText = button.textContent;
+    button.textContent = "Saved.";
+    button.classList.add("is-saved");
+
+    window.setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove("is-saved");
+    }, 1600);
   }
-}
 
-function normalizeData(data) {
-  // Normalize immediately after every load/save so render code can trust field shapes.
-  const workspaceProjects = normalizeProjects(data.workspaceProjects || [], "yes", "");
-  const clients = Array.isArray(data.clients)
-    ? data.clients.map((client) => {
-        const clientBillable = normalizeBillableFlag(client.billable);
+  function applyInitialClientParam() {
+    const clientId = new URLSearchParams(window.location.search).get("client") || "";
 
-        return {
-          id: client.id,
-          name: client.name,
-          parent_client_id: client.parent_client_id || "",
-          status: clientStatuses.includes(client.status) ? client.status : "Active",
-          billable: clientBillable,
-          billing_rate: normalizeBillingRate(client.billing_rate),
-          billing_period: normalizeOptionalBillingPeriod(client.billing_period),
-          billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
-          billing_contact: normalizeBillingContact(client.billing_contact),
-          canCreateChild: client.can_create_child === true,
-          canCreateProject: client.can_create_project === true,
-          canManage: client.can_manage === true,
-          canManageProjects: client.can_manage_projects === true,
-          taskReminderPolicy: normalizeTaskReminderPolicy(client.taskReminderPolicy),
-          tags: normalizeTags(client.tags),
-          projects: normalizeProjects(client.projects || [], clientBillable, client.id),
-        };
-      })
-    : [];
+    if (clientProjectData.clients.some((client) => client.id === clientId && (client.isWorkspaceScope || isActiveStatus(client.status)))) {
+      openClientId = clientId;
+    }
+  }
 
-  if (isProjectsPage && (workspaceProjects.length > 0 || clients.length === 0)) {
+  /**
+   * One member of a value the page received from the wire, read the way a property access reads
+   * it (`0.33.33.43.57`, approved by the operator).
+   *
+   * A non-nullish value answers `Reflect.get(Object(value), key, value)`: its own or inherited
+   * member, with the value itself as a getter's receiver - what `value[key]` answers, a primitive's
+   * included. A nullish value is where the two kinds of read part, exactly where the bare reads did:
+   * - a **required** read throws a `TypeError` there, with this file's own message;
+   * - an **optional** read answers `undefined` without reading anything, as `?.` did.
+   *
+   * Nothing is validated, defaulted, filtered or converted: the answer is whatever the member holds.
+   * @param {unknown} value
+   * @param {string} key
+   * @param {{ optional?: boolean }} [options]
+   * @returns {unknown}
+   */
+  function readWireMember(value, key, { optional = false } = {}) {
+    if (value == null) {
+      if (optional) {
+        return undefined;
+      }
+      throw new TypeError(`Clients/Projects cannot read "${key}" from ${value === null ? "null" : "undefined"} loaded data.`);
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /**
+   * Calls a method of a value the page received from the wire, as `value[key](...args)` calls it:
+   * the member is read through `readWireMember`, then applied with the value itself as the receiver
+   * (`0.33.33.43.57`). A list answers its own list method; any other value answers whatever it
+   * carries under that name. A member that cannot be called still fails with a `TypeError` at the
+   * call, now with this file's message rather than the engine's.
+   * @param {unknown} value
+   * @param {string} key
+   * @param {unknown[]} args
+   * @returns {unknown}
+   */
+  function callWireMethod(value, key, args) {
+    const method = readWireMember(value, key);
+    if (typeof method !== "function") {
+      throw new TypeError(`Clients/Projects cannot call "${key}" on loaded data where it is not a function.`);
+    }
+    return Reflect.apply(method, value, args);
+  }
+
+  /**
+   * One real client, as this page holds it.
+   *
+   * **A real client and the workspace grouping are different records, and this file has always
+   * built them as such.** This one carries `parent_client_id`, `canCreateChild`, `canManage` and
+   * `tags`; the grouping below carries none of those, and carries `isWorkspaceScope` instead. Each
+   * branch is extracted so that **its own literal names its type** - neither shape is restated, so
+   * neither can drift from what is actually built.
+   *
+   * The client arrives as the wire delivered it, so it is `unknown`, and every member is read
+   * through `readWireMember` where the bare reads made it (`0.33.33.43.58`, approved by the
+   * operator). `id`, `name`, `status` and the id links stay whatever the wire held - nothing is
+   * validated, stringified or replaced - so each is `unknown` here, and the page's sinks make their
+   * own existing conversion explicit where they write one. `status` is still read twice, to test
+   * and then to keep.
+   * @param {unknown} client
+   */
+  function normalizeClientRecord(client) {
+    const clientBillable = normalizeBillableFlag(readWireMember(client, "billable"));
+
+    return {
+      id: readWireMember(client, "id"),
+      name: readWireMember(client, "name"),
+      parent_client_id: readWireMember(client, "parent_client_id") || "",
+      status: vocabularyHas(clientStatuses, readWireMember(client, "status")) ? readWireMember(client, "status") : "Active",
+      billable: clientBillable,
+      billing_rate: normalizeBillingRate(readWireMember(client, "billing_rate")),
+      billing_period: normalizeOptionalBillingPeriod(readWireMember(client, "billing_period")),
+      billing_rounding: normalizeOptionalBillingRounding(readWireMember(client, "billing_rounding")),
+      billing_contact: normalizeBillingContact(readWireMember(client, "billing_contact")),
+      canCreateChild: readWireMember(client, "can_create_child") === true,
+      canCreateProject: readWireMember(client, "can_create_project") === true,
+      canManage: readWireMember(client, "can_manage") === true,
+      canManageProjects: readWireMember(client, "can_manage_projects") === true,
+      taskReminderPolicy: normalizeTaskReminderPolicy(readWireMember(client, "taskReminderPolicy")),
+      tags: normalizeTags(readWireMember(client, "tags")),
+      projects: normalizeProjects(readWireMember(client, "projects") || [], clientBillable, readWireMember(client, "id")),
+    };
+  }
+
+  /**
+   * The workspace-projects grouping: projects belonging directly to the workspace, gathered under
+   * one entry so the projects surface can list them beside real clients.
+   *
+   * **It is a grouping, not a client.** It is deliberately not editable as a client, creates no
+   * child clients and takes no part in the parent-client hierarchy, which is why it carries no
+   * `parent_client_id`, no `canCreateChild`, no `canManage` and no `tags` - **absent because it has
+   * none of those, not defaulted to `false`**. Every consumer that needs a real client already
+   * reaches it through `getRealClients()`, which filters this entry out by `isWorkspaceScope`.
+   *
+   * Project permissions are untouched: `canCreateProject` and `canManageProjects` come from the
+   * workspace capabilities exactly as before, so creating and managing projects inside the grouping
+   * works as it always did.
+   * @param {ReturnType<typeof normalizeProjects>} workspaceProjects
+   * @param {unknown} [capabilities] The wire's capabilities, read optionally as `?.` read them.
+   */
+  function buildWorkspaceProjectsGrouping(workspaceProjects, capabilities) {
     const simplifiedBilling = usesProjectRoundingOnly();
 
-    clients.unshift({
+    return {
       id: "__workspace_projects__",
       name: workspaceProjectsLabel(),
       status: "Active",
@@ -3124,689 +4469,1098 @@ function normalizeData(data) {
       billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
       billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
       billing_contact: normalizeBillingContact({}),
-      canCreateProject: data.capabilities?.can_create_workspace_project === true,
-      canManageProjects: data.capabilities?.can_manage_workspace_projects === true,
+      canCreateProject: readWireMember(capabilities, "can_create_workspace_project", { optional: true }) === true,
+      canManageProjects: readWireMember(capabilities, "can_manage_workspace_projects", { optional: true }) === true,
       taskReminderPolicy: normalizeTaskReminderPolicy({ inherited: true }),
-      isWorkspaceScope: true,
+      isWorkspaceScope: /** @type {const} */ (true),
       projects: workspaceProjects,
-    });
+    };
   }
 
-  return {
-    capabilities: {
-      canCreateTopLevelClient: data.capabilities?.can_create_top_level_client === true,
-      canCreateWorkspaceProject: data.capabilities?.can_create_workspace_project === true,
-      canManageWorkspaceProjects: data.capabilities?.can_manage_workspace_projects === true,
-    },
-    clients,
-  };
-}
+  /**
+   * One entry of the page's client list: either a real client or the workspace grouping.
+   *
+   * Discriminated by `isWorkspaceScope`, which only the grouping carries.
+   * The real record carries `isWorkspaceScope?: false` so the discriminant can be read on either
+   * arm. That is a statement about the type, not a change to the value: the literal still writes
+   * nothing, and a real client reads `undefined` there exactly as it always did.
+   * @typedef {ReturnType<typeof normalizeClientRecord> & { isWorkspaceScope?: false }} NormalizedClientRecord
+   * @typedef {ReturnType<typeof buildWorkspaceProjectsGrouping>} WorkspaceProjectsGrouping
+   * @typedef {NormalizedClientRecord | WorkspaceProjectsGrouping} NormalizedClientEntry
+   */
 
-function canCreateTopLevelClient() {
-  return clientProjectData.capabilities?.canCreateTopLevelClient === true;
-}
+  /**
+   * One project as this page holds it, derived from the normaliser that builds every one.
+   * @typedef {ReturnType<typeof normalizeProjects>[number]} NormalizedProjectRecord
+   */
 
-function canCreateChildClient(clientId) {
-  return clientProjectData.clients.some((client) => (
-    client.id === clientId &&
-    client.canCreateChild === true
-  ));
-}
-
-function canCreateAnyProject() {
-  return canCreateProjectForClient("") ||
-    getRealClients().some((client) => client.canCreateProject && isActiveStatus(client.status));
-}
-
-function canCreateProjectForClient(clientId) {
-  if (!clientId || clientId === "__workspace_projects__") {
-    return clientProjectData.capabilities?.canCreateWorkspaceProject === true;
+  /**
+   * Whether one entry of the client list is the workspace grouping.
+   *
+   * The exact complement of `isRealClient` below - truthiness, as the `find` it replaced tested -
+   * and a predicate rather than an inline arrow because `find` narrows by a predicate only.
+   * @param {{ isWorkspaceScope?: unknown }} entry
+   * @returns {entry is WorkspaceProjectsGrouping}
+   */
+  function isWorkspaceGrouping(entry) {
+    return Boolean(entry.isWorkspaceScope);
   }
 
-  return getRealClients().some((client) => client.id === clientId && client.canCreateProject === true);
-}
-
-function canManageProjectClientScope(clientId) {
-  if (!clientId || clientId === "__workspace_projects__") {
-    return clientProjectData.capabilities?.canManageWorkspaceProjects === true;
+  /**
+   * Whether one entry of the client list is a real client rather than the workspace grouping.
+   *
+   * The same test `getRealClients` has always applied, given a name so it narrows: an entry that
+   * passes is a client, and the members only a client carries can be read on it.
+   * The parameter is "anything carrying the discriminant" rather than the entry union, because
+   * `getWorkspaceProjectClient` answers a stand-in grouping built from already-normalised
+   * capabilities when the list holds none - a fourth literal this test must also accept.
+   * @param {{ isWorkspaceScope?: unknown }} entry
+   * @returns {entry is NormalizedClientRecord}
+   */
+  function isRealClient(entry) {
+    return !entry.isWorkspaceScope;
   }
 
-  return getRealClients().some((client) => client.id === clientId && client.canManageProjects === true);
-}
-
-function resolveProjectCreateTarget(requestedClientId = "") {
-  const normalizedClientId = requestedClientId === "__workspace_projects__" ? "" : requestedClientId;
-
-  if (normalizedClientId) {
-    return canCreateProjectForClient(normalizedClientId)
-      ? getRealClients().find((client) => client.id === normalizedClientId) || null
-      : null;
-  }
-  if (canCreateProjectForClient("")) {
-    return getWorkspaceProjectClient();
-  }
-
-  return getRealClients().find((client) => client.canCreateProject && isActiveStatus(client.status)) || null;
-}
-
-function applyClientProjectQueryActions() {
-  applyInitialClientParam();
-  openAddClientActionFromQuery();
-  openEditClientActionFromQuery();
-  openAddProjectActionFromQuery();
-  openEditProjectActionFromQuery();
-}
-
-function normalizeProjects(projects, clientBillable, clientId) {
-  return Array.isArray(projects)
-    ? projects.map((project) => ({
-        id: project.id,
-        client_id: project.client_id || clientId || "",
-        parent_project_id: project.parent_project_id || "",
-        name: project.name,
-        billable: usesProjectRoundingOnly() ? "no" : normalizeBillableFlag(project.billable, clientBillable),
-        billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(project.billing_rate),
-        billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(project.billing_period),
-        billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
-        canManage: project.can_manage === true,
-        taskDefaults: normalizeProjectTaskDefaults(project.taskDefaults || project.task_defaults || project),
-        taskReminderPolicy: normalizeTaskReminderPolicy(project.taskReminderPolicy),
-        tags: normalizeTags(project.tags),
-        status: projectStatuses.includes(project.status)
-          ? project.status
-          : "Active",
-      }))
-    : [];
-}
-
-function normalizeTags(tags) {
-  return Array.isArray(tags)
-    ? tags.map((tag) => ({
-        tag_id: String(tag.tag_id || "").trim(),
-        name: String(tag.name || "").trim(),
-        slug: String(tag.slug || "").trim(),
-        color: String(tag.color || "").trim(),
-      })).filter((tag) => tag.tag_id)
-    : [];
-}
-
-function normalizeSettings(settings) {
-  const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
-  const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
-  return {
-    defaultBillingRate: String(readModuleSettingValue(settings, "client-projects", "defaultBillingRate", "")).trim(),
-    billingPeriod: normalizeBillingPeriod({ type: billingPeriodType, startDay: billingPeriodStartDay }),
-    billingRounding: normalizeBillingRounding({
-      enabled: readModuleSettingValue(settings, "time-tracking", "billingRoundingEnabled", false),
-      increment: readModuleSettingValue(settings, "time-tracking", "billingRoundingIncrement", "nearestQuarterHour"),
-    }),
-    workspaceType: ["business", "personal", "family"].includes(settings?.workspaceType)
-      ? settings.workspaceType
-      : "business",
-  };
-}
-
-function readModuleSettingValue(settings, moduleId, settingId, fallback) {
-  const moduleDefinition = (settings?.moduleSettings || []).find((item) => item.moduleId === moduleId);
-  const setting = (moduleDefinition?.settings || []).find((item) => item.id === settingId);
-  return setting && Object.hasOwn(setting, "value") ? setting.value : fallback;
-}
-
-function normalizeProjectTaskDefaults(defaults = {}) {
-  return {
-    priority: taskDefaultPriorities.includes(defaults.priority || defaults.task_default_priority)
-      ? defaults.priority || defaults.task_default_priority
-      : "normal",
-    status: taskDefaultStatuses.includes(defaults.status || defaults.task_default_status)
-      ? defaults.status || defaults.task_default_status
-      : "open",
-    sortOrder: normalizeProjectTaskSortOrder(defaults.sortOrder || defaults.task_default_sort_order_json),
-    defaultAssigneeMode: taskDefaultAssigneeModes.includes(defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode)
-      ? defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode
-      : "creator",
-  };
-}
-
-function normalizeProjectTaskSortOrder(value) {
-  const rawItems = Array.isArray(value) ? value : parseJsonArray(value);
-  const ordered = rawItems.filter((item) => defaultProjectTaskSortOrder.includes(item));
-
-  defaultProjectTaskSortOrder.forEach((item) => {
-    if (!ordered.includes(item)) {
-      ordered.push(item);
-    }
-  });
-
-  return ordered.slice(0, defaultProjectTaskSortOrder.length);
-}
-
-function parseJsonArray(value) {
-  try {
-    const parsed = JSON.parse(String(value || "[]"));
-    return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()) : [];
-  } catch {
-    return [];
-  }
-}
-
-function normalizeTaskReminderPolicy(policy) {
-  return {
-    inherited: policy?.inherited !== false,
-    dateTime: normalizeReminderOffsetList(policy?.offsets?.dateTime || policy?.dateTime || policy?.date_time, [120, 1440]),
-    dateOnly: normalizeReminderOffsetList(policy?.offsets?.dateOnly || policy?.dateOnly || policy?.date_only, [4320, 1440]),
-  };
-}
-
-function normalizeReminderOffsetList(values, fallback) {
-  const offsets = (Array.isArray(values) ? values : [])
-    .map((value) => Number.parseInt(value, 10))
-    .filter((value) => Number.isFinite(value) && value > 0)
-    .slice(0, 2);
-
-  return offsets.length > 0 ? offsets : [...fallback];
-}
-
-function clientsEnabledForWorkspace() {
-  return workspaceSettings.workspaceType === "business";
-}
-
-function isActiveStatus(status) {
-  return String(status || "").trim().toLowerCase() === "active";
-}
-
-function usesProjectRoundingOnly() {
-  return !clientsEnabledForWorkspace();
-}
-
-function normalizeBillingRate(value) {
-  const text = String(value ?? "").trim();
-  return text || null;
-}
-
-function normalizeBillableFlag(value, fallback = "yes") {
-  if (value === false || value === "no") {
-    return "no";
-  }
-
-  if (value === true || value === "yes") {
-    return "yes";
-  }
-
-  return fallback === "no" ? "no" : "yes";
-}
-
-function normalizeBillingPeriod(period) {
-  const type = period?.type === "custom" ? "custom" : "calendarMonth";
-  const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
-
-  return {
-    type,
-    startDay: type === "custom" ? startDay : 1,
-  };
-}
-
-function normalizeOptionalBillingPeriod(period) {
-  if (!period || period.type === "inherit") {
-    return null;
-  }
-
-  return normalizeBillingPeriod(period);
-}
-
-function normalizeBillingRounding(rounding) {
-  const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
-  const increment = increments.includes(rounding?.increment)
-    ? rounding.increment
-    : "nearestQuarterHour";
-
-  return {
-    enabled: Boolean(rounding?.enabled),
-    increment,
-  };
-}
-
-function normalizeOptionalBillingRounding(rounding) {
-  if (!rounding || rounding.type === "inherit") {
-    return null;
-  }
-
-  return normalizeBillingRounding(rounding);
-}
-
-function createTaskReminderPolicyEditor({ legend, inheritLabel, value }) {
-  const fieldset = document.createElement("fieldset");
-  const legendElement = document.createElement("legend");
-  const inheritOption = document.createElement("label");
-  const inheritInput = document.createElement("input");
-  const grid = document.createElement("div");
-  const normalized = normalizeTaskReminderPolicy(value);
-  const timedHours = normalized.dateTime.map((minutes) => Math.round(minutes / 60));
-  const dateOnlyDays = normalized.dateOnly.map((minutes) => Math.round(minutes / 1440));
-  const timedFirst = createNumberField("Timed Reminder 1 (hours before)", timedHours[0] || 2);
-  const timedSecond = createNumberField("Timed Reminder 2 (hours before)", timedHours[1] || 24);
-  const dateOnlyFirst = createNumberField("Date-Only Reminder 1 (days before)", dateOnlyDays[0] || 3);
-  const dateOnlySecond = createNumberField("Date-Only Reminder 2 (days before)", dateOnlyDays[1] || 1);
-
-  fieldset.className = "billing-period-editor task-reminder-policy-editor";
-  legendElement.textContent = legend;
-  inheritOption.className = "inline-option";
-  inheritInput.type = "checkbox";
-  inheritInput.checked = normalized.inherited;
-  inheritOption.append(inheritInput, document.createTextNode(` ${inheritLabel}`));
-  grid.className = "reminder-offset-grid";
-  grid.append(timedFirst.label, timedSecond.label, dateOnlyFirst.label, dateOnlySecond.label);
-
-  const updateState = () => {
-    grid.hidden = inheritInput.checked;
-  };
-
-  inheritInput.addEventListener("change", updateState);
-  updateState();
-  fieldset.append(legendElement, inheritOption, grid);
-
-  return {
-    element: fieldset,
-    getValue: () => ({
-      inherited: inheritInput.checked,
-      dateTime: [
-        readPositiveInteger(timedFirst.input, 2) * 60,
-        readPositiveInteger(timedSecond.input, 24) * 60,
-      ],
-      dateOnly: [
-        readPositiveInteger(dateOnlyFirst.input, 3) * 1440,
-        readPositiveInteger(dateOnlySecond.input, 1) * 1440,
-      ],
-    }),
-  };
-}
-
-function createNumberField(text, value) {
-  const label = document.createElement("label");
-  const input = document.createElement("input");
-
-  input.type = "number";
-  input.min = "1";
-  input.step = "1";
-  input.value = String(value);
-  label.append(text, input);
-  return { label, input };
-}
-
-function readPositiveInteger(input, fallback) {
-  return Math.max(1, Number.parseInt(input?.value, 10) || fallback);
-}
-
-function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPeriod }) {
-  // Reusable editor used at both client and project levels with an explicit inherit mode.
-  const fieldset = document.createElement("fieldset");
-  fieldset.className = "billing-period-editor";
-  fieldset.dataset.billingPeriodEditor = "";
-
-  const legendElement = document.createElement("legend");
-  legendElement.textContent = legend;
-
-  const typeLabel = document.createElement("label");
-  typeLabel.textContent = "Type";
-
-  const typeSelect = document.createElement("select");
-  typeSelect.append(
-    createOption("inherit", inheritLabel),
-    createOption("calendarMonth", "Calendar month"),
-    createOption("custom", "Custom"),
-  );
-  typeSelect.value = value?.type || "inherit";
-  typeLabel.appendChild(typeSelect);
-
-  const startDayLabel = document.createElement("label");
-  startDayLabel.textContent = "Start Day";
-
-  const startDaySelect = document.createElement("select");
-  populateBillingPeriodStartDays(startDaySelect);
-  startDaySelect.value = String(value?.startDay || inheritedPeriod.startDay || 1);
-  startDayLabel.appendChild(startDaySelect);
-
-  const inheritedHint = document.createElement("p");
-  inheritedHint.className = "inherited-setting";
-
-  const updateState = () => {
-    const isCustom = typeSelect.value === "custom";
-    startDayLabel.hidden = !isCustom;
-    startDaySelect.disabled = !isCustom;
-    inheritedHint.textContent = typeSelect.value === "inherit"
-      ? `Effective billing period: ${formatBillingPeriod(inheritedPeriod)}`
-      : "";
-
-    if (typeSelect.value === "calendarMonth") {
-      startDaySelect.value = "1";
-    }
-  };
-
-  typeSelect.addEventListener("change", updateState);
-  updateState();
-
-  fieldset.append(legendElement, typeLabel, startDayLabel, inheritedHint);
-
-  const editor = {
-    element: fieldset,
-    setDisabled(isDisabled) {
-      fieldset.disabled = Boolean(isDisabled);
-    },
-    getValue() {
-      if (typeSelect.value === "inherit") {
-        return null;
+  /**
+   * The `/api/client-projects` body, as the page holds it.
+   *
+   * Nothing validates this body, so it is `unknown`, and each member is read through
+   * `readWireMember` where the bare reads made it (`0.33.33.43.58`, approved by the operator).
+   *
+   * `clients` is read once to test and, only when that answer is a list, a second time to map -
+   * as before. The second answer is re-tested rather than trusted, because only a list types the
+   * map. **Approved refusal:** if the first answer was a list and the second is not - which only an
+   * accessor can produce - this throws its own `TypeError` instead of calling whatever the second
+   * answer carries; it does not fall back to `[]` or reuse the first answer.
+   * @param {unknown} data
+   */
+  function normalizeData(data) {
+    // Normalize immediately after every load/save so render code can trust field shapes.
+    const workspaceProjects = normalizeProjects(readWireMember(data, "workspaceProjects") || [], "yes", "");
+    /** @param {unknown} listedClients The second answer, read where the map always read it. */
+    const mapListedClients = (listedClients) => {
+      if (!Array.isArray(listedClients)) {
+        throw new TypeError("Clients/Projects clients collection changed while being read.");
       }
+      /** @type {unknown[]} */
+      const clientElements = listedClients;
+      return clientElements.map(normalizeClientRecord);
+    };
+    /** @type {NormalizedClientEntry[]} */
+    const clients = Array.isArray(readWireMember(data, "clients")) ? mapListedClients(readWireMember(data, "clients")) : [];
 
-      return normalizeBillingPeriod({
-        type: typeSelect.value,
-        startDay: startDaySelect.value,
-      });
-    },
-  };
-
-  fieldset.billingPeriodEditor = editor;
-  return editor;
-}
-
-function createBillingRoundingEditor({
-  legend,
-  inheritLabel,
-  value,
-  inheritedRounding,
-  showModeWhenUnbillable = false,
-}) {
-  // Rounding follows the same inheritance model as billing period.
-  const fieldset = document.createElement("fieldset");
-  fieldset.className = "billing-period-editor";
-  fieldset.dataset.billingRoundingEditor = "";
-  let isBillableMode = true;
-
-  const legendElement = document.createElement("legend");
-  legendElement.textContent = legend;
-
-  const modeLabel = document.createElement("label");
-  modeLabel.textContent = "Mode";
-
-  const modeSelect = document.createElement("select");
-  modeSelect.append(
-    createOption("inherit", inheritLabel),
-    createOption("exact", "Do not round"),
-    createOption("round", "Round"),
-  );
-  modeSelect.value = value ? (value.enabled ? "round" : "exact") : "inherit";
-  modeLabel.appendChild(modeSelect);
-
-  const roundHoursLabel = document.createElement("label");
-  roundHoursLabel.className = "inline-option";
-
-  const roundHoursInput = document.createElement("input");
-  roundHoursInput.type = "checkbox";
-  roundHoursInput.checked = value ? value.enabled : normalizeBillingRounding(inheritedRounding).enabled;
-  roundHoursLabel.append(
-    roundHoursInput,
-    document.createTextNode("Round hours?"),
-  );
-
-  const incrementLabel = document.createElement("label");
-  incrementLabel.textContent = "Rounding Increment";
-
-  const incrementSelect = document.createElement("select");
-  incrementSelect.append(
-    createOption("nearestQuarterHour", "Nearest quarter hour"),
-    createOption("nearestHalfHour", "Nearest half hour"),
-    createOption("nearestHour", "Nearest hour"),
-  );
-  incrementSelect.value = value?.increment || inheritedRounding.increment || "nearestQuarterHour";
-  incrementLabel.appendChild(incrementSelect);
-
-  const inheritedHint = document.createElement("p");
-  inheritedHint.className = "inherited-setting";
-
-  const getSelectedMode = () => (isBillableMode || showModeWhenUnbillable)
-    ? modeSelect.value
-    : (roundHoursInput.checked ? "round" : "exact");
-
-  const syncRoundHoursFromMode = () => {
-    if (modeSelect.value === "inherit") {
-      roundHoursInput.checked = normalizeBillingRounding(inheritedRounding).enabled;
-      return;
+    if (isProjectsPage && (workspaceProjects.length > 0 || clients.length === 0)) {
+      clients.unshift(buildWorkspaceProjectsGrouping(workspaceProjects, readWireMember(data, "capabilities")));
     }
-
-    roundHoursInput.checked = modeSelect.value === "round";
-  };
-
-  const updateState = () => {
-    const selectedMode = getSelectedMode();
-    modeLabel.hidden = !isBillableMode && !showModeWhenUnbillable;
-    roundHoursLabel.hidden = isBillableMode;
-    incrementLabel.hidden = selectedMode !== "round";
-    incrementSelect.disabled = selectedMode !== "round";
-    inheritedHint.textContent = selectedMode === "inherit"
-      ? `Effective rounding: ${formatBillingRounding(inheritedRounding)}`
-      : "";
-  };
-
-  modeSelect.addEventListener("change", () => {
-    syncRoundHoursFromMode();
-    updateState();
-  });
-  roundHoursInput.addEventListener("change", () => {
-    modeSelect.value = roundHoursInput.checked ? "round" : "exact";
-    updateState();
-  });
-  updateState();
-
-  fieldset.append(legendElement, roundHoursLabel, modeLabel, incrementLabel, inheritedHint);
-
-  const editor = {
-    element: fieldset,
-    setDisabled(isDisabled) {
-      fieldset.disabled = Boolean(isDisabled);
-    },
-    setBillableMode(isBillable) {
-      isBillableMode = Boolean(isBillable);
-      fieldset.disabled = false;
-      syncRoundHoursFromMode();
-      updateState();
-    },
-    getValue() {
-      const selectedMode = modeSelect.value;
-
-      if (selectedMode === "inherit") {
-        return null;
-      }
-
-      return normalizeBillingRounding({
-        enabled: selectedMode === "round",
-        increment: incrementSelect.value,
-      });
-    },
-  };
-
-  fieldset.billingRoundingEditor = editor;
-  return editor;
-}
-
-function populateBillingPeriodStartDays(select) {
-  for (let day = 1; day <= 28; day += 1) {
-    select.appendChild(createOption(String(day), formatOrdinal(day)));
-  }
-}
-
-function getEffectiveClientBillingPeriod(client) {
-  return client.billing_period || workspaceSettings.billingPeriod;
-}
-
-function getEffectiveClientBillingRate(client) {
-  return client.billing_rate || workspaceSettings.defaultBillingRate;
-}
-
-function getEffectiveProjectBillingPeriod(client, project) {
-  return project.billing_period || getEffectiveClientBillingPeriod(client);
-}
-
-function getProjectBillingPeriodInheritLabel(client) {
-  const label = client.isWorkspaceScope ? "workspace" : "client";
-
-  return `Use ${label} billing period (${formatBillingPeriod(getEffectiveClientBillingPeriod(client))})`;
-}
-
-function getEffectiveClientBillingRounding(client) {
-  return client.billing_rounding || workspaceSettings.billingRounding;
-}
-
-function getEffectiveProjectBillingRounding(client, project) {
-  if (!project?.client_id) {
-    return project.billing_rounding || workspaceSettings.billingRounding;
-  }
-
-  return project.billing_rounding || getEffectiveClientBillingRounding(client);
-}
-
-function getProjectRoundingInheritLabel(client, project) {
-  const inheritsWorkspace = client.isWorkspaceScope || !project?.client_id;
-  const inheritedRounding = inheritsWorkspace
-    ? workspaceSettings.billingRounding
-    : getEffectiveClientBillingRounding(client);
-  const label = inheritsWorkspace ? "workspace" : "client";
-
-  return `Use ${label} rounding (${formatBillingRounding(inheritedRounding)})`;
-}
-
-function formatBillingPeriod(period) {
-  const normalizedPeriod = normalizeBillingPeriod(period);
-
-  if (normalizedPeriod.type === "calendarMonth") {
-    return "Calendar month";
-  }
-
-  return `Starts on the ${formatOrdinal(normalizedPeriod.startDay)}`;
-}
-
-function formatBillingRounding(rounding) {
-  const normalizedRounding = normalizeBillingRounding(rounding);
-
-  if (!normalizedRounding.enabled) {
-    return "No rounding";
-  }
-
-  return {
-    nearestHour: "Nearest hour",
-    nearestHalfHour: "Nearest half hour",
-    nearestQuarterHour: "Nearest quarter hour",
-  }[normalizedRounding.increment];
-}
-
-function formatOrdinal(day) {
-  const suffix = day % 10 === 1 && day !== 11
-    ? "st"
-    : day % 10 === 2 && day !== 12
-      ? "nd"
-      : day % 10 === 3 && day !== 13
-        ? "rd"
-        : "th";
-
-  return `${day}${suffix}`;
-}
-
-function normalizeBillingContact(contact) {
-  return billingContactFields.reduce((billingContact, [fieldName]) => {
-    billingContact[fieldName] = contact?.[fieldName] || "";
-    return billingContact;
-  }, {});
-}
-
-function createBillableCheckbox(value) {
-  const label = document.createElement("label");
-  label.className = "inline-option billable-option";
-
-  const input = document.createElement("input");
-  input.type = "checkbox";
-  input.checked = normalizeBillableFlag(value) === "yes";
-
-  label.append(
-    input,
-    document.createTextNode("Billable?"),
-  );
-
-  return label;
-}
-
-function createEmptyBillingContact() {
-  return normalizeBillingContact({});
-}
-
-function createStatusSelect(value) {
-  const select = document.createElement("select");
-
-  projectStatuses.forEach((status) => {
-    const option = createOption(status, status);
-    option.selected = status === value;
-    select.appendChild(option);
-  });
-
-  return select;
-}
-
-function createClientStatusSelect(value) {
-  const select = document.createElement("select");
-
-  clientStatuses.forEach((status) => {
-    const option = createOption(status, status);
-    option.selected = status === value;
-    select.appendChild(option);
-  });
-
-  return select;
-}
-
-function createOption(value, text) {
-  return window.LongtailForge.pageController.createOption(value, text);
-}
-
-function workspaceProjectsLabel() {
-  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
-}
-
-function formatToken(value) {
-  return String(value || "")
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function setStatus(message, options = {}) {
-  window.LongtailForge.pageController.setStatus(null, message, options);
-}
-
-const clientProjectDialogApi = {
-  openAddClient: openAddClientAction,
-  openAddProject: openAddProjectAction,
-  openEditClient: openEditClientAction,
-  openEditProject: openEditProjectAction,
-};
-
-window.LongtailForge.clientProjectDialog = clientProjectDialogApi;
-
-window.LongtailForge.pageController.register("clients-projects", {
-  snapshot: () => ({
-    clientCount: clientProjectData.clients.length,
-    mode: pageMode,
-    openClientId,
-    workspaceProjectCount: clientProjectData.workspaceProjects?.length || 0,
-    workspaceType: workspaceSettings.workspaceType,
-  }),
-  runSmoke: () => {
-    const checks = [
-      { name: "read surface exists", ok: Boolean(activeClientProjectsReadSurface) },
-      { name: "client data loaded", ok: Array.isArray(clientProjectData.clients) },
-      { name: "page mode known", ok: ["combined", "clients", "projects"].includes(pageMode) },
-    ];
 
     return {
-      ok: checks.every((check) => check.ok),
-      pageId: "clients-projects",
-      checks,
+      capabilities: {
+        canCreateTopLevelClient: readWireMember(readWireMember(data, "capabilities"), "can_create_top_level_client", { optional: true }) === true,
+        canCreateWorkspaceProject: readWireMember(readWireMember(data, "capabilities"), "can_create_workspace_project", { optional: true }) === true,
+        canManageWorkspaceProjects: readWireMember(readWireMember(data, "capabilities"), "can_manage_workspace_projects", { optional: true }) === true,
+      },
+      clients,
     };
-  },
-});
+  }
+
+  function canCreateTopLevelClient() {
+    return clientProjectData.capabilities?.canCreateTopLevelClient === true;
+  }
+
+  /**
+   * @param {unknown} clientId A record id as the normaliser passed it through from the wire. The
+   *   only use is `===`, which needs nothing more (`0.33.33.43.56`).
+   */
+  function canCreateChildClient(clientId) {
+    return clientProjectData.clients.some((client) => (
+      client.id === clientId &&
+      // Same narrowing, same outcome: the grouping carries no `canCreateChild`, so `=== true` was
+      // already false for it.
+      isRealClient(client) && client.canCreateChild === true
+    ));
+  }
+
+  function canCreateAnyProject() {
+    return canCreateProjectForClient("") ||
+      getRealClients().some((client) => client.canCreateProject && isActiveStatus(client.status));
+  }
+
+  /** @param {string} clientId */
+  function canCreateProjectForClient(clientId) {
+    if (!clientId || clientId === "__workspace_projects__") {
+      return clientProjectData.capabilities?.canCreateWorkspaceProject === true;
+    }
+
+    return getRealClients().some((client) => client.id === clientId && client.canCreateProject === true);
+  }
+
+  /** @param {string} clientId */
+  function canManageProjectClientScope(clientId) {
+    if (!clientId || clientId === "__workspace_projects__") {
+      return clientProjectData.capabilities?.canManageWorkspaceProjects === true;
+    }
+
+    return getRealClients().some((client) => client.id === clientId && client.canManageProjects === true);
+  }
+
+  /**
+   * The client a new project should belong to, or `null` for a workspace-level one.
+   * @param {string} [requestedClientId]
+   */
+  function resolveProjectCreateTarget(requestedClientId = "") {
+    const normalizedClientId = requestedClientId === "__workspace_projects__" ? "" : requestedClientId;
+
+    if (normalizedClientId) {
+      return canCreateProjectForClient(normalizedClientId)
+        ? getRealClients().find((client) => client.id === normalizedClientId) || null
+        : null;
+    }
+    if (canCreateProjectForClient("")) {
+      return getWorkspaceProjectClient();
+    }
+
+    return getRealClients().find((client) => client.canCreateProject && isActiveStatus(client.status)) || null;
+  }
+
+  function applyClientProjectQueryActions() {
+    applyInitialClientParam();
+    openAddClientActionFromQuery();
+    openEditClientActionFromQuery();
+    openAddProjectActionFromQuery();
+    openEditProjectActionFromQuery();
+  }
+
+  /**
+   * The wire's projects, in the page's own shape.
+   *
+   * `Array.isArray` proves a list, not its elements, so each element is `unknown` and read through
+   * `readWireMember` where the bare reads made it (`0.33.33.43.58`): a malformed element still fails
+   * at the read that failed before, rather than being skipped. A non-list is still an empty list.
+   * `id`, `name`, `status` and the id links stay whatever the wire held, as on the client record.
+   * @param {unknown} projects
+   * @param {string} clientBillable The owning client's normalised billable flag, or `"yes"`.
+   * @param {unknown} clientId The owning client's id as the wire held it, or `""`.
+   */
+  function normalizeProjects(projects, clientBillable, clientId) {
+    return Array.isArray(projects)
+      ? projects.map((/** @type {unknown} */ project) => ({
+          id: readWireMember(project, "id"),
+          client_id: readWireMember(project, "client_id") || clientId || "",
+          parent_project_id: readWireMember(project, "parent_project_id") || "",
+          name: readWireMember(project, "name"),
+          billable: usesProjectRoundingOnly() ? "no" : normalizeBillableFlag(readWireMember(project, "billable"), clientBillable),
+          billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(readWireMember(project, "billing_rate")),
+          billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(readWireMember(project, "billing_period")),
+          billing_rounding: normalizeOptionalBillingRounding(readWireMember(project, "billing_rounding")),
+          canManage: readWireMember(project, "can_manage") === true,
+          taskDefaults: normalizeProjectTaskDefaults(
+            readWireMember(project, "taskDefaults") || readWireMember(project, "task_defaults") || project,
+          ),
+          taskReminderPolicy: normalizeTaskReminderPolicy(readWireMember(project, "taskReminderPolicy")),
+          tags: normalizeTags(readWireMember(project, "tags")),
+          status: vocabularyHas(projectStatuses, readWireMember(project, "status"))
+            ? readWireMember(project, "status")
+            : "Active",
+        }))
+      : [];
+  }
+
+  /** @param {unknown} tags */
+  function normalizeTags(tags) {
+    return Array.isArray(tags)
+      ? tags.map((/** @type {unknown} */ tag) => ({
+          tag_id: String(readWireMember(tag, "tag_id") || "").trim(),
+          name: String(readWireMember(tag, "name") || "").trim(),
+          slug: String(readWireMember(tag, "slug") || "").trim(),
+          color: String(readWireMember(tag, "color") || "").trim(),
+        })).filter((tag) => tag.tag_id)
+      : [];
+  }
+
+  /**
+   * The `/api/settings` body, in the page's own shape.
+   *
+   * Nothing validates this body, so it is `unknown` and read through `readWireMember`
+   * (`0.33.33.43.57`). Its reads were optional, so a nullish body still produces the defaults it
+   * always did. `workspaceType` is read twice, to test and then to keep, as before.
+   * @param {unknown} settings
+   */
+  function normalizeSettings(settings) {
+    const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
+    const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
+    return {
+      defaultBillingRate: String(readModuleSettingValue(settings, "client-projects", "defaultBillingRate", "")).trim(),
+      billingPeriod: normalizeBillingPeriod({ type: billingPeriodType, startDay: billingPeriodStartDay }),
+      billingRounding: normalizeBillingRounding({
+        enabled: readModuleSettingValue(settings, "time-tracking", "billingRoundingEnabled", false),
+        increment: readModuleSettingValue(settings, "time-tracking", "billingRoundingIncrement", "nearestQuarterHour"),
+      }),
+      workspaceType: vocabularyHas(["business", "personal", "family"], readWireMember(settings, "workspaceType", { optional: true }))
+        ? readWireMember(settings, "workspaceType")
+        : "business",
+    };
+  }
+
+  /**
+   * One module setting's stored value, or the caller's fallback when it has none.
+   *
+   * **`Object.hasOwn` rather than truthiness**: a setting explicitly stored as `0`, `""` or `false`
+   * is a real value, and only a setting that was never written falls back.
+   * The module list and each module's settings are described only as far as this reader walks
+   * them: a module is matched by `moduleId` and a setting by `id`, and both stay `unknown` because
+   * nothing here vouches for either.
+   *
+   * The body arrives `unknown` and every access goes through the wire readers, in the order the
+   * bare reads made them (`0.33.33.43.57`). The optional reads stay optional. Each `find` is
+   * called as it was, with the collection as its receiver, so a list searches as it did and a
+   * malformed collection fails at the call. Each element's `moduleId` or `id` stays a required
+   * read, so a malformed element fails where it failed rather than being skipped. `Object.hasOwn`
+   * converts its argument to an object itself, so boxing the setting first answers the same.
+   * @param {unknown} settings
+   * @param {string} moduleId @param {string} settingId @param {unknown} fallback
+   */
+  function readModuleSettingValue(settings, moduleId, settingId, fallback) {
+    const moduleDefinition = callWireMethod(readWireMember(settings, "moduleSettings", { optional: true }) || [], "find", [
+      (/** @type {unknown} */ item) => readWireMember(item, "moduleId") === moduleId,
+    ]);
+    const setting = callWireMethod(readWireMember(moduleDefinition, "settings", { optional: true }) || [], "find", [
+      (/** @type {unknown} */ item) => readWireMember(item, "id") === settingId,
+    ]);
+    return setting && Object.hasOwn(Object(setting), "value") ? readWireMember(setting, "value") : fallback;
+  }
+
+  /**
+   * Whether one of this page's own closed vocabularies contains a value it was handed.
+   *
+   * **The same answer `includes` gave, and it narrows.** `includes` is already `false` for every
+   * non-string, because no string equals one; testing `typeof` first therefore changes no answer -
+   * measured across fifteen values - while telling the compiler that a value which passed is text.
+   * That is what lets the vocabularies stay `string[]` instead of being widened to carry an
+   * unproved needle.
+   * @param {readonly string[]} vocabulary @param {unknown} value
+   * @returns {value is string}
+   */
+  function vocabularyHas(vocabulary, value) {
+    return typeof value === "string" && vocabulary.includes(value);
+  }
+
+  /**
+   * The task defaults a project carries, in the page's own vocabulary.
+   *
+   * Nine members, three of them in two or three spellings each, and every one `unknown`: this
+   * reader is what tests them against the closed vocabularies and falls back when they do not
+   * match. Nothing upstream vouches for any of them.
+   * `unknown`, because a wire project hands over whichever bag it carries (`0.33.33.43.58`); every
+   * member stays a required read, so a `null` bag still fails at its first one.
+   * @param {unknown} [defaults]
+   */
+  function normalizeProjectTaskDefaults(defaults = {}) {
+    const priority = readWireMember(defaults, "priority") || readWireMember(defaults, "task_default_priority");
+    const status = readWireMember(defaults, "status") || readWireMember(defaults, "task_default_status");
+    const assigneeMode = readWireMember(defaults, "defaultAssigneeMode")
+      || readWireMember(defaults, "default_assignee_mode")
+      || readWireMember(defaults, "task_default_assignee_mode");
+
+    return {
+      priority: vocabularyHas(taskDefaultPriorities, priority) ? priority : "normal",
+      status: vocabularyHas(taskDefaultStatuses, status) ? status : "open",
+      sortOrder: normalizeProjectTaskSortOrder(readWireMember(defaults, "sortOrder") || readWireMember(defaults, "task_default_sort_order_json")),
+      defaultAssigneeMode: vocabularyHas(taskDefaultAssigneeModes, assigneeMode) ? assigneeMode : "creator",
+    };
+  }
+
+  /**
+   * The task sort order, as the full vocabulary in the caller's preferred sequence.
+   *
+   * Entries the page does not know are dropped and the ones it knows are appended, so the result
+   * is always the whole set - a stored order can reorder it but cannot shorten or extend it.
+   * @param {unknown} value
+   */
+  function normalizeProjectTaskSortOrder(value) {
+    // `Array.isArray` proves a list, not its items, so they stay `unknown` until tested (`0.33.33.43.58`).
+    /** @type {unknown[]} */
+    const rawItems = Array.isArray(value) ? value : parseJsonArray(value);
+    // `vocabularyHas` answers what `includes` answered for every item: the order holds only text.
+    const ordered = rawItems.filter((/** @type {unknown} */ item) => vocabularyHas(defaultProjectTaskSortOrder, item));
+
+    defaultProjectTaskSortOrder.forEach((item) => {
+      if (!ordered.includes(item)) {
+        ordered.push(item);
+      }
+    });
+
+    return ordered.slice(0, defaultProjectTaskSortOrder.length);
+  }
+
+  /**
+   * One stored JSON array as trimmed text entries, or `[]` for anything unreadable.
+   * @param {unknown} value
+   */
+  function parseJsonArray(value) {
+    try {
+      const parsed = JSON.parse(String(value || "[]"));
+      return Array.isArray(parsed) ? parsed.map((/** @type {unknown} */ item) => String(item || "").trim()) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * The task reminder policy, in the page's own shape.
+   *
+   * `inherited` is `!== false` rather than truthy, so a policy that says nothing about inheritance
+   * inherits; the two offset lists accept a nested `offsets` bag and both flat spellings.
+   * The policy arrives `unknown` from the wire, and its optional reads stay optional through
+   * `readWireMember`, in the same order (`0.33.33.43.58`).
+   * @param {unknown} [policy]
+   */
+  function normalizeTaskReminderPolicy(policy) {
+    /** @param {string} key */
+    const optionalPolicyMember = (key) => readWireMember(policy, key, { optional: true });
+    /** @param {string} key */
+    const optionalOffset = (key) => readWireMember(optionalPolicyMember("offsets"), key, { optional: true });
+    return {
+      inherited: optionalPolicyMember("inherited") !== false,
+      dateTime: normalizeReminderOffsetList(
+        optionalOffset("dateTime") || optionalPolicyMember("dateTime") || optionalPolicyMember("date_time"),
+        [120, 1440],
+      ),
+      dateOnly: normalizeReminderOffsetList(
+        optionalOffset("dateOnly") || optionalPolicyMember("dateOnly") || optionalPolicyMember("date_only"),
+        [4320, 1440],
+      ),
+    };
+  }
+
+  /**
+   * Up to two reminder offsets, in minutes, or the caller's defaults when none survive.
+   *
+   * The template makes explicit the conversion `parseInt` already performed; entries that are not
+   * finite positive numbers are dropped exactly as they were.
+   * @param {unknown} values @param {number[]} fallback
+   */
+  function normalizeReminderOffsetList(values, fallback) {
+    const offsets = (Array.isArray(values) ? values : [])
+      .map((/** @type {unknown} */ value) => Number.parseInt(`${value}`, 10))
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .slice(0, 2);
+
+    return offsets.length > 0 ? offsets : [...fallback];
+  }
+
+  function clientsEnabledForWorkspace() {
+    return workspaceSettings.workspaceType === "business";
+  }
+
+  /** @param {unknown} status */
+  function isActiveStatus(status) {
+    return String(status || "").trim().toLowerCase() === "active";
+  }
+
+  function usesProjectRoundingOnly() {
+    return !clientsEnabledForWorkspace();
+  }
+
+  /**
+   * One billing rate as text, or `null` when there is none.
+   *
+   * `?? ""` rather than `|| ""`, so a rate of `0` survives as `"0"` instead of becoming absent.
+   * @param {unknown} value
+   */
+  function normalizeBillingRate(value) {
+    const text = String(value ?? "").trim();
+    return text || null;
+  }
+
+  /**
+   * The billable flag as the page's own `"yes"`/`"no"` vocabulary.
+   *
+   * Both the boolean and the text spelling are accepted on each side, because the wire sends one
+   * and the form sends the other; anything else falls to the caller's default.
+   * @param {unknown} value @param {string} [fallback]
+   */
+  function normalizeBillableFlag(value, fallback = "yes") {
+    if (value === false || value === "no") {
+      return "no";
+    }
+
+    if (value === true || value === "yes") {
+      return "yes";
+    }
+
+    return fallback === "no" ? "no" : "yes";
+  }
+
+  /**
+   * One billing period, clamped to a day this page can render.
+   *
+   * The template makes explicit the conversion `parseInt` already performed on its own argument,
+   * so a numeric or textual start day reads identically and an unusable one still falls to 1.
+   * @param {{ startDay?: unknown, type?: unknown } | null} [period]
+   */
+  function normalizeBillingPeriod(period) {
+    const type = period?.type === "custom" ? "custom" : "calendarMonth";
+    const startDay = Math.min(28, Math.max(1, Number.parseInt(`${period?.startDay}`, 10) || 1));
+
+    return {
+      type,
+      startDay: type === "custom" ? startDay : 1,
+    };
+  }
+
+  /**
+   * One billing period, or `null` when the record inherits it. `period` is the wire's own value.
+   * @param {unknown} [period]
+   */
+  function normalizeOptionalBillingPeriod(period) {
+    if (!period || readWireMember(period, "type") === "inherit") {
+      return null;
+    }
+
+    return normalizeBillingPeriod(period);
+  }
+
+  /**
+   * One rounding rule, in the page's own increment vocabulary.
+   *
+   * `rounding` may be the wire's own value, so it is `unknown` and read optionally
+   * (`0.33.33.43.57`). The increment is **read once and kept**, as the operator approved: the value
+   * tested is the value returned. For plain data that is the same answer the old test-then-reread
+   * gave; for an accessor it is now one read, not two, which is the approved difference and not a
+   * claim about changing getters. `enabled` is still read after the increment. Pinned by
+   * `clients-projects-normalizer-contracts`.
+   * @param {unknown} [rounding]
+   */
+  function normalizeBillingRounding(rounding) {
+    const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
+    const candidateIncrement = readWireMember(rounding, "increment", { optional: true });
+    const increment = vocabularyHas(increments, candidateIncrement) ? candidateIncrement : "nearestQuarterHour";
+
+    return {
+      enabled: Boolean(readWireMember(rounding, "enabled", { optional: true })),
+      increment,
+    };
+  }
+
+  /** @param {unknown} [rounding] The wire's own rounding value (`0.33.33.43.58`). */
+  function normalizeOptionalBillingRounding(rounding) {
+    if (!rounding || readWireMember(rounding, "type") === "inherit") {
+      return null;
+    }
+
+    return normalizeBillingRounding(rounding);
+  }
+
+  /**
+   * The client and project editors' reminder-default fields, seeded from the record's own policy.
+   * @param {{
+   *   legend: string,
+   *   inheritLabel: string,
+   *   value: ReturnType<typeof normalizeTaskReminderPolicy>,
+   * }} options
+   */
+  function createTaskReminderPolicyEditor({ legend, inheritLabel, value }) {
+    const fieldset = document.createElement("fieldset");
+    const legendElement = document.createElement("legend");
+    const inheritOption = document.createElement("label");
+    const inheritInput = document.createElement("input");
+    const grid = document.createElement("div");
+    const normalized = normalizeTaskReminderPolicy(value);
+    const timedHours = normalized.dateTime.map((minutes) => Math.round(minutes / 60));
+    const dateOnlyDays = normalized.dateOnly.map((minutes) => Math.round(minutes / 1440));
+    const timedFirst = createNumberField("Timed Reminder 1 (hours before)", timedHours[0] || 2);
+    const timedSecond = createNumberField("Timed Reminder 2 (hours before)", timedHours[1] || 24);
+    const dateOnlyFirst = createNumberField("Date-Only Reminder 1 (days before)", dateOnlyDays[0] || 3);
+    const dateOnlySecond = createNumberField("Date-Only Reminder 2 (days before)", dateOnlyDays[1] || 1);
+
+    fieldset.className = "billing-period-editor task-reminder-policy-editor";
+    legendElement.textContent = legend;
+    inheritOption.className = "inline-option";
+    inheritInput.type = "checkbox";
+    inheritInput.checked = normalized.inherited;
+    inheritOption.append(inheritInput, document.createTextNode(` ${inheritLabel}`));
+    grid.className = "reminder-offset-grid";
+    grid.append(timedFirst.label, timedSecond.label, dateOnlyFirst.label, dateOnlySecond.label);
+
+    const updateState = () => {
+      grid.hidden = inheritInput.checked;
+    };
+
+    inheritInput.addEventListener("change", updateState);
+    updateState();
+    fieldset.append(legendElement, inheritOption, grid);
+
+    return {
+      element: fieldset,
+      getValue: () => ({
+        inherited: inheritInput.checked,
+        dateTime: [
+          readPositiveInteger(timedFirst.input, 2) * 60,
+          readPositiveInteger(timedSecond.input, 24) * 60,
+        ],
+        dateOnly: [
+          readPositiveInteger(dateOnlyFirst.input, 3) * 1440,
+          readPositiveInteger(dateOnlySecond.input, 1) * 1440,
+        ],
+      }),
+    };
+  }
+
+  /** @param {string} text @param {number} value */
+  function createNumberField(text, value) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+
+    input.type = "number";
+    input.min = "1";
+    input.step = "1";
+    input.value = String(value);
+    label.append(text, input);
+    return { label, input };
+  }
+
+  /**
+   * One control's value as a positive integer, or the caller's fallback.
+   * @param {{ value?: unknown } | null} input @param {number} fallback
+   */
+  function readPositiveInteger(input, fallback) {
+    return Math.max(1, Number.parseInt(`${input?.value}`, 10) || fallback);
+  }
+
+  /**
+   * One billing-period field, used at both client and project level with an explicit inherit mode.
+   *
+   * `value` is the record's own period, which is `null` when it inherits; `inheritedPeriod` is what
+   * it would inherit and is read directly rather than optionally, so it is required.
+   * @param {{
+   *   legend: string,
+   *   inheritLabel: string,
+   *   value: ReturnType<typeof normalizeOptionalBillingPeriod>,
+   *   inheritedPeriod: { startDay?: unknown, type?: unknown },
+   * }} options
+   */
+  function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPeriod }) {
+    // Reusable editor used at both client and project levels with an explicit inherit mode.
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "billing-period-editor";
+    fieldset.dataset.billingPeriodEditor = "";
+
+    const legendElement = document.createElement("legend");
+    legendElement.textContent = legend;
+
+    const typeLabel = document.createElement("label");
+    typeLabel.textContent = "Type";
+
+    const typeSelect = document.createElement("select");
+    typeSelect.append(
+      createOption("inherit", inheritLabel),
+      createOption("calendarMonth", "Calendar month"),
+      createOption("custom", "Custom"),
+    );
+    typeSelect.value = value?.type || "inherit";
+    typeLabel.appendChild(typeSelect);
+
+    const startDayLabel = document.createElement("label");
+    startDayLabel.textContent = "Start Day";
+
+    const startDaySelect = document.createElement("select");
+    populateBillingPeriodStartDays(startDaySelect);
+    startDaySelect.value = String(value?.startDay || inheritedPeriod.startDay || 1);
+    startDayLabel.appendChild(startDaySelect);
+
+    const inheritedHint = document.createElement("p");
+    inheritedHint.className = "inherited-setting";
+
+    const updateState = () => {
+      const isCustom = typeSelect.value === "custom";
+      startDayLabel.hidden = !isCustom;
+      startDaySelect.disabled = !isCustom;
+      inheritedHint.textContent = typeSelect.value === "inherit"
+        ? `Effective billing period: ${formatBillingPeriod(inheritedPeriod)}`
+        : "";
+
+      if (typeSelect.value === "calendarMonth") {
+        startDaySelect.value = "1";
+      }
+    };
+
+    typeSelect.addEventListener("change", updateState);
+    updateState();
+
+    fieldset.append(legendElement, typeLabel, startDayLabel, inheritedHint);
+
+    const editor = {
+      element: fieldset,
+      /** @param {unknown} isDisabled */
+      setDisabled(isDisabled) {
+        fieldset.disabled = Boolean(isDisabled);
+      },
+      getValue() {
+        if (typeSelect.value === "inherit") {
+          return null;
+        }
+
+        return normalizeBillingPeriod({
+          type: typeSelect.value,
+          startDay: startDaySelect.value,
+        });
+      },
+    };
+
+    billingPeriodEditorsByField.set(fieldset, editor);
+    return editor;
+  }
+
+  /**
+   * One rounding field, following the same inheritance model as the billing period above.
+   *
+   * `inheritedRounding` is read directly and normalised on the way to the effective hint, so it is
+   * required; `value` is `null` while the record inherits. Every caller hands over a rule
+   * `normalizeBillingRounding` already produced - the workspace's, or a client's effective one -
+   * so it is typed as that reader's answer (`0.33.33.43.57`).
+   * @param {{
+   *   legend: string,
+   *   inheritLabel: string,
+   *   value: ReturnType<typeof normalizeOptionalBillingRounding>,
+   *   inheritedRounding: ReturnType<typeof normalizeBillingRounding>,
+   *   showModeWhenUnbillable?: boolean,
+   * }} options
+   */
+  function createBillingRoundingEditor({
+    legend,
+    inheritLabel,
+    value,
+    inheritedRounding,
+    showModeWhenUnbillable = false,
+  }) {
+    // Rounding follows the same inheritance model as billing period.
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "billing-period-editor";
+    fieldset.dataset.billingRoundingEditor = "";
+    let isBillableMode = true;
+
+    const legendElement = document.createElement("legend");
+    legendElement.textContent = legend;
+
+    const modeLabel = document.createElement("label");
+    modeLabel.textContent = "Mode";
+
+    const modeSelect = document.createElement("select");
+    modeSelect.append(
+      createOption("inherit", inheritLabel),
+      createOption("exact", "Do not round"),
+      createOption("round", "Round"),
+    );
+    modeSelect.value = value ? (value.enabled ? "round" : "exact") : "inherit";
+    modeLabel.appendChild(modeSelect);
+
+    const roundHoursLabel = document.createElement("label");
+    roundHoursLabel.className = "inline-option";
+
+    const roundHoursInput = document.createElement("input");
+    roundHoursInput.type = "checkbox";
+    roundHoursInput.checked = value ? value.enabled : normalizeBillingRounding(inheritedRounding).enabled;
+    roundHoursLabel.append(
+      roundHoursInput,
+      document.createTextNode("Round hours?"),
+    );
+
+    const incrementLabel = document.createElement("label");
+    incrementLabel.textContent = "Rounding Increment";
+
+    const incrementSelect = document.createElement("select");
+    incrementSelect.append(
+      createOption("nearestQuarterHour", "Nearest quarter hour"),
+      createOption("nearestHalfHour", "Nearest half hour"),
+      createOption("nearestHour", "Nearest hour"),
+    );
+    incrementSelect.value = value?.increment || inheritedRounding.increment || "nearestQuarterHour";
+    incrementLabel.appendChild(incrementSelect);
+
+    const inheritedHint = document.createElement("p");
+    inheritedHint.className = "inherited-setting";
+
+    const getSelectedMode = () => (isBillableMode || showModeWhenUnbillable)
+      ? modeSelect.value
+      : (roundHoursInput.checked ? "round" : "exact");
+
+    const syncRoundHoursFromMode = () => {
+      if (modeSelect.value === "inherit") {
+        roundHoursInput.checked = normalizeBillingRounding(inheritedRounding).enabled;
+        return;
+      }
+
+      roundHoursInput.checked = modeSelect.value === "round";
+    };
+
+    const updateState = () => {
+      const selectedMode = getSelectedMode();
+      modeLabel.hidden = !isBillableMode && !showModeWhenUnbillable;
+      roundHoursLabel.hidden = isBillableMode;
+      incrementLabel.hidden = selectedMode !== "round";
+      incrementSelect.disabled = selectedMode !== "round";
+      inheritedHint.textContent = selectedMode === "inherit"
+        ? `Effective rounding: ${formatBillingRounding(inheritedRounding)}`
+        : "";
+    };
+
+    modeSelect.addEventListener("change", () => {
+      syncRoundHoursFromMode();
+      updateState();
+    });
+    roundHoursInput.addEventListener("change", () => {
+      modeSelect.value = roundHoursInput.checked ? "round" : "exact";
+      updateState();
+    });
+    updateState();
+
+    fieldset.append(legendElement, roundHoursLabel, modeLabel, incrementLabel, inheritedHint);
+
+    const editor = {
+      element: fieldset,
+      /** @param {unknown} isDisabled */
+      setDisabled(isDisabled) {
+        fieldset.disabled = Boolean(isDisabled);
+      },
+      /** @param {unknown} isBillable */
+      setBillableMode(isBillable) {
+        isBillableMode = Boolean(isBillable);
+        fieldset.disabled = false;
+        syncRoundHoursFromMode();
+        updateState();
+      },
+      getValue() {
+        const selectedMode = modeSelect.value;
+
+        if (selectedMode === "inherit") {
+          return null;
+        }
+
+        return normalizeBillingRounding({
+          enabled: selectedMode === "round",
+          increment: incrementSelect.value,
+        });
+      },
+    };
+
+    billingRoundingEditorsByField.set(fieldset, editor);
+    return editor;
+  }
+
+  /** @param {HTMLSelectElement} select */
+  function populateBillingPeriodStartDays(select) {
+    for (let day = 1; day <= 28; day += 1) {
+      select.appendChild(createOption(String(day), formatOrdinal(day)));
+    }
+  }
+
+  /**
+   * The billing period a client actually uses: its own, or the workspace's when it has none.
+   * @param {NormalizedClientEntry} client
+   */
+  function getEffectiveClientBillingPeriod(client) {
+    return client.billing_period || workspaceSettings.billingPeriod;
+  }
+
+  /**
+   * The billing rate a client actually uses: its own, or the workspace default when it has none.
+   * @param {NormalizedClientEntry} client
+   */
+  function getEffectiveClientBillingRate(client) {
+    return client.billing_rate || workspaceSettings.defaultBillingRate;
+  }
+
+  /**
+   * The billing period a project actually uses: its own, else its client's effective one.
+   *
+   * **Unlike rounding, this does not consult `project.client_id`** - it always inherits through
+   * the `client` it is handed. That is correct because every caller hands a project its own owning
+   * entry (the related-projects list maps a client over its own projects, and the detail dialog
+   * finds a project together with its owner), so for a workspace project `client` is the grouping,
+   * whose period is the workspace's. The asymmetry with rounding is pinned rather than changed.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord} project
+   */
+  function getEffectiveProjectBillingPeriod(client, project) {
+    return project.billing_period || getEffectiveClientBillingPeriod(client);
+  }
+
+  /** @param {NormalizedClientEntry} client */
+  function getProjectBillingPeriodInheritLabel(client) {
+    const label = client.isWorkspaceScope ? "workspace" : "client";
+
+    return `Use ${label} billing period (${formatBillingPeriod(getEffectiveClientBillingPeriod(client))})`;
+  }
+
+  /**
+   * The rounding a client actually uses: its own, or the workspace's when it has none.
+   * @param {NormalizedClientEntry} client
+   */
+  function getEffectiveClientBillingRounding(client) {
+    return client.billing_rounding || workspaceSettings.billingRounding;
+  }
+
+  /**
+   * The rounding a project actually uses. A project with no client skips straight to the
+   * workspace; one with a client falls back through that client's effective rounding.
+   * @param {NormalizedClientEntry} client
+   * @param {NormalizedProjectRecord} project
+   */
+  function getEffectiveProjectBillingRounding(client, project) {
+    if (!project?.client_id) {
+      return project.billing_rounding || workspaceSettings.billingRounding;
+    }
+
+    return project.billing_rounding || getEffectiveClientBillingRounding(client);
+  }
+
+  /**
+   * The "use inherited rounding" label, naming where the inherited value comes from.
+   *
+   * `project` is typed by the one member read off it rather than as a project record, because the
+   * add form calls this before any project exists, handing it a synthesized `{ client_id }`.
+   * @param {NormalizedClientEntry} client
+   * @param {{ client_id?: unknown } | null} [project]
+   */
+  function getProjectRoundingInheritLabel(client, project) {
+    const inheritsWorkspace = client.isWorkspaceScope || !project?.client_id;
+    const inheritedRounding = inheritsWorkspace
+      ? workspaceSettings.billingRounding
+      : getEffectiveClientBillingRounding(client);
+    const label = inheritsWorkspace ? "workspace" : "client";
+
+    return `Use ${label} rounding (${formatBillingRounding(inheritedRounding)})`;
+  }
+
+  /**
+   * A billing period as the page describes it.
+   * @param {Parameters<typeof normalizeBillingPeriod>[0]} period
+   */
+  function formatBillingPeriod(period) {
+    const normalizedPeriod = normalizeBillingPeriod(period);
+
+    if (normalizedPeriod.type === "calendarMonth") {
+      return "Calendar month";
+    }
+
+    return `Starts on the ${formatOrdinal(normalizedPeriod.startDay)}`;
+  }
+
+  /**
+   * A rounding rule as the page describes it.
+   *
+   * The parameter states the two members `normalizeBillingRounding` reads. That reader takes
+   * `unknown` since `0.33.33.43.57`, so this stays the narrower statement of what callers pass.
+   *
+   * The label map is indexed with the normaliser's increment, which is always one of the three keys
+   * - an unknown increment falls back to `nearestQuarterHour` - but whose static type is `string`,
+   * so the map is declared open. The same reasoning `0.33.33.43.34` applied to the label maps.
+   * @param {{ enabled?: unknown, increment?: unknown } | null} [rounding]
+   */
+  function formatBillingRounding(rounding) {
+    const normalizedRounding = normalizeBillingRounding(rounding);
+
+    if (!normalizedRounding.enabled) {
+      return "No rounding";
+    }
+
+    /** @type {Record<string, string>} */
+    const incrementLabels = {
+      nearestHour: "Nearest hour",
+      nearestHalfHour: "Nearest half hour",
+      nearestQuarterHour: "Nearest quarter hour",
+    };
+    return incrementLabels[normalizedRounding.increment];
+  }
+
+  /** @param {number} day */
+  function formatOrdinal(day) {
+    const suffix = day % 10 === 1 && day !== 11
+      ? "st"
+      : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+          ? "rd"
+          : "th";
+
+    return `${day}${suffix}`;
+  }
+
+  /**
+   * The billing contact, with every field the page names present.
+   *
+   * **Present, not coerced.** A falsy value becomes `""`, but a truthy one is passed through as it
+   * arrived - there is no `String()` here - so the values are `unknown` rather than text. The
+   * editor trims on the way in; this reader does not.
+   * `contact` arrives `unknown` from the wire and each field is an optional read, as `?.[]` was
+   * (`0.33.33.43.58`).
+   * @param {unknown} [contact]
+   * @returns {Record<string, unknown>}
+   */
+  function normalizeBillingContact(contact) {
+    // The same fresh object the literal was, declared so the reducer may write any field name.
+    /** @type {Record<string, unknown>} */
+    const initialContact = {};
+    return billingContactFields.reduce((billingContact, [fieldName]) => {
+      billingContact[fieldName] = readWireMember(contact, fieldName, { optional: true }) || "";
+      return billingContact;
+    }, initialContact);
+  }
+
+  /**
+   * The checkbox `createBillableCheckbox` built into `label`, through the shared checked-DOM contract.
+   *
+   * **Required at capture, which moves no failure that can happen.** Each of the three editors
+   * built this label one statement earlier and first depends on the checkbox during the same
+   * synchronous construction. The builder appends its input unconditionally, so there is no state in
+   * which this lookup finds nothing; the check names the markup contract instead of assuming it.
+   * @param {HTMLLabelElement} label
+   * @returns {HTMLInputElement}
+   */
+  function requireBillableInput(label) {
+    const checkedDom = requireCheckedDom();
+    return checkedDom.require(
+      checkedDom.find(label, "input", HTMLInputElement),
+      "Clients/Projects",
+      "billable checkbox",
+    );
+  }
+
+  /** @param {string} value The normalised `"yes"`/`"no"` billable flag. */
+  function createBillableCheckbox(value) {
+    const label = document.createElement("label");
+    label.className = "inline-option billable-option";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = normalizeBillableFlag(value) === "yes";
+
+    label.append(
+      input,
+      document.createTextNode("Billable?"),
+    );
+
+    return label;
+  }
+
+  function createEmptyBillingContact() {
+    return normalizeBillingContact({});
+  }
+
+  /**
+   * A project status select, with the record's status selected.
+   *
+   * The normaliser keeps a status only when it passed the `projectStatuses` test, and otherwise
+   * writes `"Active"`; what it keeps is its second read of the wire, so it is `unknown` here
+   * (`0.33.33.43.58`). It is only compared with `===`, which answers as it always did.
+   * @param {unknown} value
+   */
+  function createStatusSelect(value) {
+    const select = document.createElement("select");
+
+    projectStatuses.forEach((status) => {
+      const option = createOption(status, status);
+      option.selected = status === value;
+      select.appendChild(option);
+    });
+
+    return select;
+  }
+
+  /**
+   * A client status select, with the record's status selected. Like the project status, it is the
+   * normaliser's kept value, `unknown` here and only compared with `===` (`0.33.33.43.58`).
+   * @param {unknown} value
+   */
+  function createClientStatusSelect(value) {
+    const select = document.createElement("select");
+
+    clientStatuses.forEach((status) => {
+      const option = createOption(status, status);
+      option.selected = status === value;
+      select.appendChild(option);
+    });
+
+    return select;
+  }
+
+  /**
+   * **A forwarder, so it takes the page controller's own parameters.** That `createOption` declares
+   * both `unknown` and hands them to the option's setters, which do the conversion; several callers
+   * pass record ids and names straight from the wire.
+   * @param {unknown} value @param {unknown} text
+   */
+  function createOption(value, text) {
+    return requirePageController().createOption(value, text);
+  }
+
+  function workspaceProjectsLabel() {
+    return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
+  }
+
+  /** @param {string} value */
+  function formatToken(value) {
+    return String(value || "")
+      .split("_")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  /**
+   * **A forwarder, like `createOption`:** the page controller's `setStatus` declares its message
+   * `unknown`, and one caller hands over a thrown value's `message`, which can be anything.
+   * @param {unknown} message
+   */
+  function setStatus(message, options = {}) {
+    requirePageController().setStatus(null, message, options);
+  }
+
+  const clientProjectDialogApi = {
+    openAddClient: openAddClientAction,
+    openAddProject: openAddProjectAction,
+    openEditClient: openEditClientAction,
+    openEditProject: openEditProjectAction,
+  };
+
+  const namespace = window.LongtailForge;
+
+  if (!namespace) {
+    throw new Error("Clients and Projects requires the LongtailForge namespace.");
+  }
+
+  namespace.clientProjectDialog = clientProjectDialogApi;
+
+  requirePageController().register("clients-projects", {
+    snapshot: () => ({
+      clientCount: clientProjectData.clients.length,
+      mode: pageMode,
+      openClientId,
+      // **Corrected by `0.33.33.43.33`, as an explicit bug fix rather than an annotation.** This
+      // read `clientProjectData.workspaceProjects`, which the normaliser never writes: it folds the
+      // wire's workspace projects into the workspace grouping's own `projects` and returns only
+      // `{ capabilities, clients }`, so `?.length || 0` answered 0 every time.
+      //
+      // Counted from the normalised data the current user actually holds, which is already
+      // permission- and status-filtered by the server and the normaliser. Client-associated
+      // projects are excluded because they live on their own client's `projects`, and no second
+      // collection is kept for counting - the grouping is the collection.
+      workspaceProjectCount: clientProjectData.clients
+        .find((client) => client.isWorkspaceScope)?.projects.length || 0,
+      workspaceType: workspaceSettings.workspaceType,
+    }),
+    runSmoke: () => {
+      const checks = [
+        { name: "read surface exists", ok: Boolean(activeClientProjectsReadSurface) },
+        { name: "client data loaded", ok: Array.isArray(clientProjectData.clients) },
+        { name: "page mode known", ok: ["combined", "clients", "projects"].includes(pageMode) },
+      ];
+
+      return {
+        ok: checks.every((check) => check.ok),
+        pageId: "clients-projects",
+        checks,
+      };
+    },
+  });
+})();

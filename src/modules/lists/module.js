@@ -1,4 +1,3 @@
-// @ts-check
 import {
   LIST_AUDIT_RECORD_TYPES,
   LIST_EVENT_TYPES,
@@ -198,11 +197,8 @@ const listsModule = {
   historicalReadAccess: true,
   browserApiRoutes: [listsRoutes],
   publicApiRoutes: [listsPublicApiRoutes],
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     {
       id: "lists",
@@ -497,7 +493,6 @@ const listsModule = {
       },
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "lists-script",

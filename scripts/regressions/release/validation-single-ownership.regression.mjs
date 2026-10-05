@@ -7,19 +7,25 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import {
   createProjectTextReader,
   extractFunctionBlock,
+  readRuntimeSourceEntries,
   sourceContainsInOrder,
 } from "../../test-support/source-scan.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
+import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../../data-files-security-static-consolidation.mjs";
 
 const reader = createProjectTextReader();
 const packageJson = reader.readJson("package.json");
 const packageScriptContract = reader.readJson("scripts/package-script-contracts.json");
 const ownershipEvidence = reader.readJson("scripts/validation-ownership-consolidation.json");
 const scanEvidence = reader.readJson("scripts/source-scan-consolidation-evidence.json");
+const consolidatedSourcePaths = new Map(DATA_FILES_SECURITY_STATIC_CONSOLIDATION.movements.map((entry) => [entry.sourcePath, entry.modulePath]));
+/** @param {string} sourcePath */
+const resolveCurrentSourcePath = (sourcePath) => /** @type {string} */ (consolidatedSourcePaths.get(sourcePath) || sourcePath);
 
 assert.equal(packageScriptContract.schemaVersion, 1);
 assert.equal(packageScriptContract.owner, "scripts/regressions/release/validation-single-ownership.regression.mjs");
@@ -32,6 +38,17 @@ assert.deepEqual(
 assert.equal(ownershipEvidence.schemaVersion, 1);
 assert.equal(ownershipEvidence.consolidation, "validation-single-ownership");
 assert.equal(scanEvidence.measurement, "source-scan-consolidation");
+assert.equal(scanEvidence.checkpoint, "0.33.33.5");
+assert.deepEqual(scanEvidence.migration, {
+  plannedEscapeRegExpBaseline: 81,
+  escapeRegExpDefinitionsAtCheckpointStart: 79,
+  escapeRegExpConsumersMigrated: 78,
+  localProjectReadersMigrated: 242,
+  createBrowserContextDefinitionsMigrated: 11,
+});
+assert.equal(scanEvidence.sharedOwner, "scripts/test-support/source-scan.mjs");
+assert.equal(scanEvidence.fakeDomOwner, "scripts/test-support/fake-dom.mjs");
+assert.equal(scanEvidence.contractOwner, "tests/unit/test-support-harnesses.test.mjs");
 assert.equal(ownershipEvidence.processMeasurements.parameterBindingRegression.removedChildProcesses, 1);
 assert.equal(ownershipEvidence.processMeasurements.licensingRegression.removedChildProcesses, 1);
 assert.ok(
@@ -53,11 +70,24 @@ for (const [family, expectedOwner] of Object.entries({
   assert.equal(evidence.retainedOwner, expectedOwner);
   assert.ok(evidence.sourcePaths.length > 0, `${family} should retain its source inventory`);
   for (const sourcePath of evidence.sourcePaths) {
-    assert.equal(typeof reader.readText(sourcePath), "string", `${family} source should remain reviewable: ${sourcePath}`);
+    assert.equal(typeof reader.readText(resolveCurrentSourcePath(sourcePath)), "string", `${family} source should remain reviewable: ${sourcePath}`);
   }
 }
 
+/**
+ * Executable-test text-proxy detectors, each a label paired with the source
+ * pattern that identifies the proxy.
+ * @typedef {readonly [string, RegExp]} ExecutableTestProxyPattern
+ */
+const EXECUTABLE_TEST_TEXT_PROXY_PATTERNS = /** @type {readonly ExecutableTestProxyPattern[]} */ (Object.freeze([
+  ["permission harness text proxy", /\b(?:read|readText|readFileSync)\s*\(\s*["']scripts\/permission-regression\.mjs/],
+  ["Playwright spec text proxy", /\b(?:readFile|readFileSync|readText)\s*\([^;\n]*(?:tests\/e2e|["']tests["'][^;\n]*["']e2e["'])/],
+  ["Playwright config text proxy", /\b(?:readFileSync|readText)\s*\(\s*["']playwright\.config\.js/],
+  ["Playwright directory text proxy", /\breaddirSync\s*\(\s*["']tests\/e2e["']/],
+  ["Vitest source text proxy", /\b(?:readFile|readFileSync|readText)\s*\([^;\n]*tests\/(?:contracts|files|tasks|unit)\/[^"'`\n]+\.test\.mjs/],
+]));
 const duplicateErrors = [];
+const executableTestProxyErrors = [];
 for (const entry of REGRESSION_ENTRIES) {
   const source = reader.readText(entry.path);
   if (/assert\.equal\([^\n]*(?:packageJson\.version|packageLock\.version|packageLock\.packages\[""\]\.version)[^\n]*(?:appVersion|packageJson\.version)/.test(source)) {
@@ -72,8 +102,36 @@ for (const entry of REGRESSION_ENTRIES) {
   if (/assert\.equal\([^\n]*(?:packageJson|repoPackage)\.scripts(?:\[|\.)/.test(source)) {
     duplicateErrors.push(`${entry.path}: exact package-script pin`);
   }
+  if (entry.id !== regressionMeta.id) {
+    for (const [label, pattern] of EXECUTABLE_TEST_TEXT_PROXY_PATTERNS) {
+      if (pattern.test(source)) executableTestProxyErrors.push(`${entry.path}: ${label}`);
+    }
+  }
 }
 assert.deepEqual(duplicateErrors, [], `duplicate validation owners should stay retired:\n${duplicateErrors.join("\n")}`);
+assert.deepEqual(
+  executableTestProxyErrors,
+  [],
+  `regressions must execute behavioral owners instead of reading executable test source:\n${executableTestProxyErrors.join("\n")}`,
+);
+
+const testSupportDuplicateErrors = [];
+const scriptSources = readRuntimeSourceEntries({ sourceDir: "scripts" });
+for (const entry of scriptSources) {
+  if (entry.file !== scanEvidence.sharedOwner && /^function escapeRegExp\s*\(/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local escapeRegExp implementation`);
+  }
+  if (entry.file !== scanEvidence.sharedOwner && /^(?:async\s+)?function (?:readText|readProjectFile)\s*\(/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local project text reader`);
+  }
+  if (entry.file !== scanEvidence.sharedOwner && /^const readText\s*=.*readFile/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local project text reader`);
+  }
+  if (entry.file !== scanEvidence.fakeDomOwner && /^function (?:createBrowserContext|FakeDocument|FakeElement|FakeClassList)\s*\(/m.test(entry.source)) {
+    testSupportDuplicateErrors.push(`${entry.file}: local fake-DOM harness`);
+  }
+}
+assert.deepEqual(testSupportDuplicateErrors, [], `shared test-support implementations must remain single-owner:\n${testSupportDuplicateErrors.join("\n")}`);
 
 const closeoutSource = reader.readText("scripts/lib/closeout-gates.mjs");
 for (const command of [
@@ -86,7 +144,7 @@ for (const command of [
   assert.match(closeoutSource, new RegExp(escapeRegExp(command)), `${command} should retain one ordinary closeout owner`);
 }
 
-const parameterRegression = reader.readText("scripts/parameter-binding-audit-regression.mjs");
+const parameterRegression = reader.readText("scripts/regression-contracts/database/parameter-binding-audit.contract.mjs");
 const licensingRegression = reader.readText("scripts/regressions/licensing/licensing-public-release-gates.regression.mjs");
 assert.doesNotMatch(parameterRegression, /spawnSync|audit-parameter-bindings\.mjs.*--check/);
 assert.doesNotMatch(licensingRegression, /spawnSync|check-licensing-gates\.mjs/);
@@ -99,23 +157,25 @@ assert.doesNotMatch(moduleRegistryRegression, /runGenerator\(rootDir, "--check"\
 
 const manifestRegression = reader.readText("scripts/regressions/release/regression-manifest-generation.regression.mjs");
 for (const retainedCase of [
-  "missingGateErrors",
-  "malformedErrors",
+  "collectCoverageFloorDriftErrors",
+  "buildRatchetedCoveragePolicy",
+  "assertionLossErrors",
+  "malformedRetirementErrors",
+  "invalidPureErrors",
+  "requiredOwnerErrors",
   "malformedMovementErrors",
-  "manual generated-index edits should fail",
-  "manifest generation should be deterministic",
 ]) {
-  assert.match(manifestRegression, new RegExp(escapeRegExp(retainedCase)));
+  assert.match(manifestRegression, new RegExp(escapeRegExp(retainedCase)), `${retainedCase} should retain its executable manifest-policy owner`);
 }
 
-const fastCheckRegression = reader.readText("scripts/regressions/release/fast-check-pipeline.regression.mjs");
-const typecheckRegression = reader.readText("scripts/regressions/framework/typecheck-seams.regression.mjs");
-assert.doesNotMatch(fastCheckRegression, /tsconfig\.compilerOptions/, "fast-check should rely on the typecheck-seams owner");
-assert.match(typecheckRegression, /tsconfig\.compilerOptions\.noEmit/);
-assert.match(typecheckRegression, /tsconfig\.compilerOptions\.strict/);
+const currentStaticContracts = reader.readText("scripts/regressions/release/current-static-contracts.regression.mjs");
+const typecheckRegression = reader.readText("scripts/regressions/framework/full-strict-governance.regression.mjs");
+assert.doesNotMatch(currentStaticContracts, /tsconfig\.compilerOptions/, "the current release owner should rely on the full-strict governance owner");
+assert.match(typecheckRegression, /config\.compilerOptions\.noEmit/);
+assert.match(typecheckRegression, /config\.compilerOptions\.strict/);
 
 for (const target of scanEvidence.targetedFiles) {
-  const source = reader.readText(target.path);
+  const source = reader.readText(resolveCurrentSourcePath(target.path));
   const measured = countGreedyPatterns(source);
   assert.equal(measured, target.after, `${target.path} measured greedy-pattern count should remain current`);
   assert.ok(target.after < target.before, `${target.path} should retain a measured reduction`);
@@ -131,10 +191,7 @@ assert.equal(sourceContainsInOrder("alpha gamma beta", ["alpha", "beta", "gamma"
 
 console.log("Validation single-ownership regression passed.");
 
+/** @param {string} source */
 function countGreedyPatterns(source) {
   return [...source.matchAll(/\[\\s\\S\]\*|\[\^\]\*/g)].length;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

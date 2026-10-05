@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../config.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { db } from "../core/database.js";
@@ -236,7 +235,7 @@ async function start(session, currentSessionId, payload = {}, context = {}) {
       ip_address: context.ipAddress || freshSession.ip_address,
       session_mode: "normal",
       support_session_id: supportSessionId,
-    }, { expiresAt: freshSession.expires_at });
+    }, { expiresAt: String(freshSession.expires_at) });
 
     const timestamp = now.toISOString();
     await supportSessionsRepository.create({

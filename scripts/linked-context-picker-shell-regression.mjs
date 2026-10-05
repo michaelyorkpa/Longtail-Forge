@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const helper = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const css = readText("public/css/longtail-forge.css");
 const pickerContract = readText("docs/linked-context-picker-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
-const roadmap = readText("ROADMAP.md");
-
 
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "picker shell must not own data loading or browser storage");
 assert.match(helper, /function createLinkedContextPicker/, "view builder should implement the shared Linked Context picker shell");
@@ -16,9 +20,21 @@ assert.match(helper, /function createLinkedContextList/, "view builder should im
 assert.match(helper, /createLinkedContextPicker,/, "view builder should expose the picker shell on LongtailForge.view");
 assert.match(helper, /createLinkedContextList,/, "view builder should expose the read-list shell on LongtailForge.view");
 
-const context = createBrowserContext();
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * Framework-owned update hooks the picker shell exposes through `viewParts`.
+ * @typedef {{ setLinkedItems: (items: object[]) => void, setRecords: (records: object[]) => void, setTargets: (targets: object[]) => void, setReadonly: (readonly: boolean) => void }} PickerParts
+ */
+/** @typedef {FakeNode & { viewParts: PickerParts }} PickerNode */
+/**
+ * The published `LongtailForge.view` picker helper catalog under test.
+ * @typedef {Record<string, (...args: unknown[]) => PickerNode>} PickerViewSurface
+ */
+
+const context = createFakeBrowserContext();
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
-const view = context.window.LongtailForge.view;
+const view = /** @type {PickerViewSurface} */ (context.window.LongtailForge.view);
 
 assert.equal(typeof view.createLinkedContextPicker, "function", "LongtailForge.view.createLinkedContextPicker should be exposed");
 assert.equal(typeof view.createLinkedContextList, "function", "LongtailForge.view.createLinkedContextList should be exposed");
@@ -124,8 +140,8 @@ assert.equal(readonlyPicker.getAttribute("data-view-readonly"), "true", "readonl
 assert(findByClass(readonlyPicker, "view-linked-context-picker-target").disabled, "readonly picker should disable target select");
 assert(findByClass(readonlyPicker, "view-linked-context-picker-search").disabled, "readonly picker should disable search input");
 assert(findByClass(readonlyPicker, "view-linked-context-picker-record").disabled, "readonly picker should disable record select");
-assert(findByDatasetValue(readonlyPicker, "surfaceAction", "use-linked-context-target").disabled, "readonly picker should disable Use Target");
-assert(findByDatasetValue(readonlyPicker, "surfaceAction", "remove-linked-context").disabled, "readonly picker should disable Remove");
+assert(requireByDatasetValue(readonlyPicker, "surfaceAction", "use-linked-context-target").disabled, "readonly picker should disable Use Target");
+assert(requireByDatasetValue(readonlyPicker, "surfaceAction", "remove-linked-context").disabled, "readonly picker should disable Remove");
 assert.equal(findByClass(readonlyPicker, "view-linked-context-picker-state").textContent, "You can view linked context but cannot change it.");
 
 const linkedContextList = view.createLinkedContextList({
@@ -158,169 +174,60 @@ assert.match(pickerContract, /`LongtailForge\.view\.createLinkedContextPicker\(o
 assert.match(viewContract, /createLinkedContextPicker/, "view-building contract should list the shared picker primitive");
 assert.match(viewContract, /createLinkedContextList/, "view-building contract should list the shared read-list primitive");
 assert.match(moduleContract, /shared Linked Context picker shell/, "module contract should document framework picker anatomy ownership");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.5\.2 - Framework Linked Context picker shell/, "completed picker shell slice should be archived out of the live roadmap");
 
 console.log("Linked Context picker shell regression passed.");
 
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    document,
-    LongtailForge: {
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          if (options.iconOnly !== false && !options.text) {
-            button.classList.add("icon-button");
-            button.setAttribute("aria-label", options.label);
-            button.title = options.title || options.label;
-          }
-          if (options.text) {
-            button.textContent = options.text;
-          }
-          button.dataset.icon = options.icon;
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this._textContent = "";
-  this.open = false;
-  this.hidden = false;
-  this.disabled = false;
-  this.selected = false;
-  this.value = "";
-  this.type = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "id") {
-      this.id = String(value);
-    }
-    if (name === "class") {
-      this.className = String(value);
-    }
-    if (name === "value") {
-      this.value = String(value);
-    }
-    if (name === "type") {
-      this.type = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = () => {};
-
-  this.querySelector = (selector) => findElement(this, selector);
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.remove = (...names) => {
-    names.filter(Boolean).forEach((name) => this.values.delete(String(name)));
-    this.element.attributes.set("class", this.toString());
-  };
-  this.toString = () => [...this.values].join(" ");
-}
-
+/**
+ * Read one rendered picker element by class.
+ *
+ * Every caller asserts on the element it names, so a shell that stopped
+ * rendering that part now fails naming the class rather than reading a member
+ * off `null` further down.
+ * @param {FakeNode} root @param {string} className @returns {FakeNode}
+ */
 function findByClass(root, className) {
-  return findElement(root, `.${className}`);
+  const element = root.querySelector(`.${className}`);
+  assert.ok(element, `picker shell should render .${className}`);
+  return element;
 }
 
+/**
+ * Read one rendered picker action that must be rendered.
+ *
+ * These callers assert that readonly mode disables the action, which only means
+ * something if the action is there to disable.
+ * @param {FakeNode} root @param {string} name @param {string} value @returns {FakeNode}
+ */
+function requireByDatasetValue(root, name, value) {
+  const element = findByDatasetValue(root, name, value);
+  assert.ok(element, `picker shell should render the ${value} action`);
+  return element;
+}
+
+/**
+ * Read one rendered picker element by dataset value, or null when absent.
+ *
+ * Unlike `findByClass` this legitimately answers null: the assertions using it
+ * prove that non-removable rows expose no remove action.
+ * @param {FakeNode} root @param {string} name @param {string} value @returns {FakeNode | null}
+ */
 function findByDatasetValue(root, name, value) {
   return findDescendants(root).find((element) => element.dataset?.[name] === value) || null;
 }
 
-function findElement(root, selector) {
-  return findDescendants(root).find((element) => matchesSelector(element, selector)) || null;
-}
-
+/** @param {FakeNode} root @returns {FakeNode[]} */
 function findDescendants(root) {
+  /** @type {FakeNode[]} */
   const results = [];
+  /** @type {FakeNode[]} */
   const queue = [...root.children];
   while (queue.length) {
     const element = queue.shift();
+    if (!element) {
+      break;
+    }
     results.push(element);
     queue.push(...element.children);
   }
   return results;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

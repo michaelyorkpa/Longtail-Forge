@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModuleSource = readText("src/modules/tasks/module.js");
 const tasksRoutesSource = readText("src/modules/tasks/tasks.routes.js");
@@ -15,21 +21,21 @@ const styles = readText("public/css/longtail-forge.css");
 
 assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module should report the current app version");
 
-const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
-const updateBulkControls = functionBlock(tasksScript, "updateBulkControls");
-const selectedBulkActions = functionBlock(tasksScript, "selectedBulkActions");
-const lifecycleTaskIds = functionBlock(tasksScript, "bulkLifecycleTaskIds");
-const lifecycleOptions = functionBlock(tasksScript, "updateBulkLifecycleOptions");
-const archiveConfirmation = functionBlock(tasksScript, "confirmBulkArchive");
-const applyBulkAction = functionBlock(tasksScript, "applyBulkAction");
-const reloadTaskList = functionBlock(tasksScript, "reloadTaskList");
+const bulkControls = extractFunctionSpan(tasksScript, "taskBulkToolbarControls");
+const updateBulkControls = extractFunctionSpan(tasksScript, "updateBulkControls");
+const selectedBulkActions = extractFunctionSpan(tasksScript, "selectedBulkActions");
+const lifecycleTaskIds = extractFunctionSpan(tasksScript, "bulkLifecycleTaskIds");
+const lifecycleOptions = extractFunctionSpan(tasksScript, "updateBulkLifecycleOptions");
+const archiveConfirmation = extractFunctionSpan(tasksScript, "confirmBulkArchive");
+const applyBulkAction = extractFunctionSpan(tasksScript, "applyBulkAction");
+const reloadTaskList = extractFunctionSpan(tasksScript, "reloadTaskList");
 
 assert.match(bulkControls, /data-task-bulk-lifecycle[\s\S]*data-task-bulk-lifecycle-control[\s\S]*hidden:\s*true/, "Bulk toolbar should expose a module-owned lifecycle control");
 assert.match(tasksScript, /bulkLifecycleInput\?\.addEventListener\("change", updateBulkControls\)/, "Lifecycle control changes should update bulk action state");
 assert.match(updateBulkControls, /updateBulkLifecycleOptions\(taskIds\)[\s\S]*selectedBulkActions\(taskIds\)/, "Lifecycle options should be refreshed before apply state is calculated");
 assert.match(selectedBulkActions, /lifecycleAction === "restore"[\s\S]*pushLifecycleBulkAction\(actions, lifecycleAction, taskIds\)/, "Restore should dispatch as a Tasks-owned bulk action");
 assert.match(selectedBulkActions, /lifecycleAction === "archive"[\s\S]*pushLifecycleBulkAction\(actions, lifecycleAction, taskIds\)/, "Archive should dispatch as a Tasks-owned bulk action");
-assert.match(lifecycleTaskIds, /lifecycleAction === "restore"[\s\S]*task\.status === "archived"[\s\S]*task\.status !== "archived"/, "Lifecycle target ids should be filtered by supported selected task status");
+assert.match(lifecycleTaskIds, /lifecycleAction === "restore"[\s\S]*taskRowField\(task, "status"\) === "archived"[\s\S]*taskRowField\(task, "status"\) !== "archived"/, "Lifecycle target ids should be filtered by supported selected task status");
 assert.match(lifecycleOptions, /value: "archive", label: "Archive selected"/, "Archive option should appear only when selectable tasks support it");
 assert.match(lifecycleOptions, /value: "restore", label: "Restore selected"/, "Restore option should appear only when selectable tasks support it");
 assert.match(archiveConfirmation, /title:\s*"Archive selected tasks\?"/, "Bulk archive should preserve an explicit archive confirmation prompt");
@@ -52,6 +58,8 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tasks-bu
 process.env.SUPER_ADMIN_PASSWORD = "Tasks-Bulk-Lifecycle-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} LifecycleFixtures */
+
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
 try {
@@ -70,6 +78,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const active = (await tasksService.create({ title: "Bulk lifecycle active" }, session)).task;
   const second = (await tasksService.create({ title: "Bulk lifecycle second" }, session)).task;
@@ -83,6 +92,7 @@ async function createFixtures(session) {
   return { active, completed, permissionTarget, restorePermissionTarget, second };
 }
 
+/** @param {TasksSession} session @param {LifecycleFixtures} fixtures */
 async function assertArchiveAndRestore(session, fixtures) {
   const archived = await tasksService.bulkUpdate({
     action: "archive",
@@ -101,6 +111,7 @@ async function assertArchiveAndRestore(session, fixtures) {
   assert.ok(restored.tasks.every((task) => !task.archived_at), "Restored tasks should clear archive metadata");
 }
 
+/** @param {TasksSession} session @param {LifecycleFixtures} fixtures */
 async function assertDeleteIsUnsupported(session, fixtures) {
   const deleted = await tasksService.bulkUpdate({
     action: "delete",
@@ -112,8 +123,9 @@ async function assertDeleteIsUnsupported(session, fixtures) {
   assert.match(deleted.errors[0].message, /unsupported bulk task action/i);
 }
 
+/** @param {TasksSession} session @param {LifecycleFixtures} fixtures */
 async function assertPermissionsRemainAuthoritative(session, fixtures) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const deniedArchive = await tasksService.bulkUpdate({
     action: "archive",
     task_ids: [fixtures.permissionTarget.task_id],
@@ -133,6 +145,7 @@ async function assertPermissionsRemainAuthoritative(session, fixtures) {
   assert.equal(JSON.stringify(deniedRestore.errors).includes("Bulk lifecycle restore permission target"), false, "Restore errors should not leak inaccessible task labels");
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -177,15 +190,15 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `tasks-bulk-lifecycle-no-role-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function readSeedSession() {
@@ -195,34 +208,10 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function readText(pathName) {
-  return readFileSync(new URL(`../${pathName}`, import.meta.url), "utf8");
-}
-
-
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

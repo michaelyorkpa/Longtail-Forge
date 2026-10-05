@@ -3,6 +3,19 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TaskResumeSession */
+/** One task fixture the browser capture sandbox serves and mutates. */
+/** @typedef {{ task_id?: string, resume_note?: string, status?: string, blocked_reason?: string }} CaptureTaskFixture */
+/** What the capture prompt records about each call this owner asserts on. */
+/** @typedef {{ cancelLabel?: string, confirmLabel?: string, multiline?: boolean, prompt?: string, task?: CaptureTaskFixture }} CapturePromptCall */
+/** The capture helper writes only a resume note and its canonical action. */
+/** @typedef {{ resume_note?: string, resume_note_action?: string }} CaptureWritePayload */
+/** @typedef {{ payload: CaptureWritePayload, url: string }} CaptureWrite */
+/** @typedef {{ captured?: boolean, consumed?: boolean, reason?: string, task?: CaptureTaskFixture }} CaptureResult */
+/** @typedef {{ offer: (options: { task?: CaptureTaskFixture }) => Promise<CaptureResult>, consume: (options: { task?: CaptureTaskFixture }) => Promise<CaptureResult> }} TaskResumeNoteCapture */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-resume-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-resume-context.db");
@@ -29,6 +42,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TaskResumeSession} session */
 async function assertTaskContextFieldsSurviveCreateUpdateRead(session) {
   const created = (await tasksService.create({
     title: "Prepare CTU invoice",
@@ -60,6 +74,7 @@ async function assertTaskContextFieldsSurviveCreateUpdateRead(session) {
   assert.equal(read.resume_note, updated.resume_note);
 }
 
+/** @param {TaskResumeSession} session */
 async function assertResumeNoteFocusLifecycle(session) {
   const openTask = (await tasksService.create({
     title: "Reusable resume-note task",
@@ -101,7 +116,7 @@ async function assertResumeNoteFocusLifecycle(session) {
       resume_note: "Decision received; prepare the final draft.",
       resume_note_action: "capture",
     }, session),
-    (error) => error?.statusCode === 409 && /blocked tasks do not accept/i.test(error.message),
+    (error) => rejectionStatus(error) === 409 && /blocked tasks do not accept/i.test(rejectionMessage(error)),
     "a stale capture must not replace Blocked status or its reason",
   );
   const unchangedBlockedTask = (await tasksService.read(blockedTask.task_id, session)).task;
@@ -118,11 +133,12 @@ async function assertResumeNoteFocusLifecycle(session) {
       resume_note: "Do not revive this task.",
       resume_note_action: "capture",
     }, session),
-    (error) => error?.statusCode === 409 && /only change while a task is active/i.test(error.message),
+    (error) => rejectionStatus(error) === 409 && /only change while a task is active/i.test(rejectionMessage(error)),
     "a stale capture must not revive a completed task",
   );
 }
 
+/** @param {TaskResumeSession} session */
 async function assertTaskContextFeedsSafeSummaries(session) {
   const task = (await tasksService.create({
     title: "Context summary task",
@@ -135,32 +151,38 @@ async function assertTaskContextFeedsSafeSummaries(session) {
 
   const listResult = await tasksService.list(session);
   const listed = listResult.tasks.find((item) => item.task_id === task.task_id);
+  assert.ok(listed, "the canonical Task list should retain the created Task");
+  assert.ok(listed.resumeContext, "the canonical Task list should retain typed resume context");
   assert.equal(listed.next_action, "Ask finance for the signed agreement.");
   assert.equal(listed.resumeContext.active_candidate, true);
 
   const summary = await tasksService.summary(session);
   const assigned = summary.assignedToMe.find((item) => item.task_id === task.task_id);
+  assert.ok(assigned, "the assigned-to-me summary should retain the created Task");
   assert.equal(assigned.next_action, "Ask finance for the signed agreement.");
   assert.equal(assigned.blocked_reason, "Agreement is not signed.");
   assert.equal(assigned.resume_note, "Draft response is saved in the description.");
 
   const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === task.task_id);
+  assert.ok(workItem, "the workbench work-item list should retain the created Task");
   assert.equal(workItem.next_action, "Ask finance for the signed agreement.");
   assert.equal(workItem.blocked_reason, "Agreement is not signed.");
   assert.equal(workItem.resume_note, "Draft response is saved in the description.");
   assert.equal(workItem.resume_context.active_candidate, true);
-  assert.equal(workItem.resumeContext, undefined, "work items emit resume_context once");
+  assert.equal(Object.hasOwn(workItem, "resumeContext"), false, "work items emit resume_context once");
 
   const searchDocument = await indexTaskRecord({
     workspaceId: session.workspace_id,
     recordId: task.task_id,
   });
+  assert.ok(searchDocument && "summary" in searchDocument, "indexing one task should answer its search document");
   assert.equal(searchDocument.summary, "Ask finance for the signed agreement.");
   assert.match(searchDocument.body, /Agreement is not signed/);
   assert.match(searchDocument.body, /Draft response is saved/);
 }
 
+/** @param {TaskResumeSession} session */
 async function assertArchivedTasksAreNotActiveResumeCandidates(session) {
   const task = (await tasksService.create({
     title: "Archived resume context task",
@@ -195,9 +217,13 @@ async function assertResumeNoteCaptureBrowserContract() {
     fs.readFile(new URL("../public/js/tasks.js", import.meta.url), "utf8"),
     fs.readFile(new URL("../public/js/workbench.js", import.meta.url), "utf8"),
   ]);
+  /** @type {CapturePromptCall[]} */
   const promptCalls = [];
+  /** @type {string[]} */
   const reads = [];
+  /** @type {CaptureWrite[]} */
   const writes = [];
+  /** @type {Map<string, CaptureTaskFixture>} */
   const tasks = new Map([
     ["task-yes", { task_id: "task-yes", resume_note: "", status: "open" }],
     ["task-no", { task_id: "task-no", resume_note: "", status: "open" }],
@@ -220,17 +246,18 @@ async function assertResumeNoteCaptureBrowserContract() {
     { confirmed: false, value: "" },
     { confirmed: false, value: "" },
   ];
+  /** @type {{ LongtailForge: { api: { getJson: (url: string) => Promise<{ task: CaptureTaskFixture }>, putJson: (url: string, payload: CaptureWritePayload) => Promise<{ task: CaptureTaskFixture }> }, capturePrompt: { open: (options: CapturePromptCall) => Promise<{ confirmed: boolean, value: string } | undefined> }, taskResumeNoteCapture?: TaskResumeNoteCapture } }} */
   const browserWindow = {
     LongtailForge: {
       api: {
         async getJson(url) {
           reads.push(url);
-          const taskId = decodeURIComponent(url.split("/").at(-1));
+          const taskId = taskIdFromUrl(url);
           return { task: { ...tasks.get(taskId) } };
         },
         async putJson(url, payload) {
           writes.push({ payload, url });
-          const taskId = decodeURIComponent(url.split("/").at(-1));
+          const taskId = taskIdFromUrl(url);
           const task = payload.resume_note_action === "consume"
             ? { ...tasks.get(taskId), resume_note: "" }
             : payload.resume_note_action === "capture"
@@ -251,6 +278,7 @@ async function assertResumeNoteCaptureBrowserContract() {
   vm.runInNewContext(captureScript, { window: browserWindow });
 
   const capture = browserWindow.LongtailForge.taskResumeNoteCapture;
+  assert.ok(capture, "the resume-note capture helper should install itself on the window namespace");
   const yesResult = await capture.offer({ task: { task_id: "task-yes", resume_note: "" } });
   assert.equal(yesResult.captured, true, "Yes should capture a resume note");
   assert.equal(writes.length, 1, "Yes should make one Tasks write");
@@ -268,7 +296,9 @@ async function assertResumeNoteCaptureBrowserContract() {
   assert.equal(repeatedResult.reason, "suppressed", "a just-entered note should suppress another prompt");
   assert.equal(promptCalls.length, 1);
 
-  const existingResult = await capture.offer({ task: tasks.get("task-existing") });
+  const existingFixture = tasks.get("task-existing");
+  assert.ok(existingFixture, "the existing-note fixture should be seeded");
+  const existingResult = await capture.offer({ task: existingFixture });
   assert.equal(existingResult.reason, "suppressed", "an existing resume note should suppress capture before another read");
   assert.equal(promptCalls.length, 1);
 
@@ -277,9 +307,13 @@ async function assertResumeNoteCaptureBrowserContract() {
   assert.equal(writes.length, 1, "No should have no write side effect");
   assert.deepEqual(reads, ["/api/tasks/task-yes", "/api/tasks/task-no"]);
 
-  const blockedResult = await capture.offer({ task: tasks.get("task-blocked") });
+  const blockedFixture = tasks.get("task-blocked");
+  assert.ok(blockedFixture, "the blocked-status fixture should be seeded");
+  const blockedResult = await capture.offer({ task: blockedFixture });
   assert.equal(blockedResult.reason, "blocked-task", "Blocked status should suppress resume capture");
-  const blockedNoteResult = await capture.offer({ task: tasks.get("task-blocked-note") });
+  const blockedNoteFixture = tasks.get("task-blocked-note");
+  assert.ok(blockedNoteFixture, "the blocked-reason fixture should be seeded");
+  const blockedNoteResult = await capture.offer({ task: blockedNoteFixture });
   assert.equal(blockedNoteResult.reason, "blocked-task", "a Blocked Reason should suppress resume capture");
   assert.equal(promptCalls.length, 2, "blocked context should not open the capture prompt");
   assert.deepEqual(reads, ["/api/tasks/task-yes", "/api/tasks/task-no"], "known blocked context should not need another read");
@@ -290,7 +324,9 @@ async function assertResumeNoteCaptureBrowserContract() {
     resume_note: "Continue with the reconciled totals.",
     status: "in_progress",
   });
-  const consumeResult = await capture.consume({ task: tasks.get("task-yes") });
+  const consumedFixture = tasks.get("task-yes");
+  assert.ok(consumedFixture, "the captured fixture should be seeded");
+  const consumeResult = await capture.consume({ task: consumedFixture });
   assert.equal(consumeResult.consumed, true, "re-focusing should consume the prior resume note");
   assert.equal(JSON.stringify(writes.at(-1)), JSON.stringify({
     payload: { resume_note_action: "consume" },
@@ -305,16 +341,17 @@ async function assertResumeNoteCaptureBrowserContract() {
   assert.equal(repeatedAfterConsume.reason, "dismissed");
   assert.equal(promptCalls.length, 3, "consume should reset the per-task in-memory capture suppression");
 
-  assert.match(taskDialogScript, /timerStatus === "paused"[\s\S]*offerTaskResumeNote\(result\.task \|\| task\)/, "Task dialog Pause should offer resume capture after the timer mutation");
-  assert.match(taskDialogScript, /timer\/finalize[\s\S]*offerTaskResumeNote\(result\.task \|\| task/, "Task dialog finalize should offer resume capture");
+  assert.match(taskDialogScript, /timerStatus === "paused"[\s\S]*offerTaskResumeNote\(requireTaskRecords\(\)\.readTask\(result\) \|\| task\)/, "Task dialog Pause should offer resume capture after the timer mutation");
+  assert.match(taskDialogScript, /timer\/finalize[\s\S]*offerTaskResumeNote\(requireTaskRecords\(\)\.readTask\(result\) \|\| task/, "Task dialog finalize should offer resume capture");
   assert.match(tasksScript, /if \(!isRunning\) \{[\s\S]*taskResumeNoteCapture\?\.offer/, "Tasks list Pause should offer resume capture");
-  assert.match(workbenchScript, /async function changeFocus\([\s\S]*navigationIntent\.request\([\s\S]*kind: "workbench-change-focus"[\s\S]*continue: continueChangeFocus/, "Change Focus should hold its exact state transition behind the shared exit intent");
-  assert.match(workbenchScript, /function offerTaskResumeNoteBeforeExit[\s\S]*await window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "interceptable navigation should await resume capture before leaving Task Focus");
-  assert.match(workbenchScript, /function offerTaskResumeNote[\s\S]*void window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "Workbench should not await the capture prompt or block the underlying action");
+  assert.match(workbenchScript, /async function changeFocus\([\s\S]*?requireNamespace\(\)\.navigationIntent;[\s\S]*?intent\.request\([\s\S]*kind: "workbench-change-focus"[\s\S]*continue: continueChangeFocus/, "Change Focus should hold its exact state transition behind the shared exit intent");
+  assert.match(extractFunctionBlock(workbenchScript, "offerTaskResumeNoteBeforeExit"), /await requireNamespace\(\)\.taskResumeNoteCapture\?\.offer/, "interceptable navigation should await resume capture before leaving Task Focus");
+  assert.match(extractFunctionBlock(workbenchScript, "offerTaskResumeNote"), /void requireNamespace\(\)\.taskResumeNoteCapture\?\.offer/, "Workbench should not await the capture prompt or block the underlying action");
   assert.match(workbenchScript, /saveFocusedTaskTimer[\s\S]*timerStatus === "paused"[\s\S]*offerTaskResumeNote/, "focused-task Pause should offer resume capture");
   assert.match(workbenchScript, /finalizeFocusedTaskTimer[\s\S]*timer\/finalize[\s\S]*offerTaskResumeNote/, "focused-task finalize should offer resume capture");
 }
 
+/** @returns {Promise<TaskResumeSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -326,12 +363,38 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
+}
+
+/**
+ * Read the task id a fixture route addresses.
+ * @param {string} url
+ * @returns {string}
+ */
+function taskIdFromUrl(url) {
+  const segment = url.split("/").at(-1);
+  assert.ok(segment, `fixture route should address a task: ${url}`);
+  return decodeURIComponent(segment);
+}
+
+/**
+ * Read a rejected service call's status without assuming the rejection really
+ * is an error object first. A rejection without a numeric status resolves to
+ * -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

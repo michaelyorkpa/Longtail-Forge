@@ -2,7 +2,11 @@ import { config } from "../config.js";
 import { getRequestContext } from "../core/request-context.js";
 import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
 
-/** @param {object | null} [request] */
+/** @typedef {{ maxAgeSeconds?: number, path?: string, domain?: string, httpOnly?: boolean, sameSite?: string, secure?: boolean }} CookieOptions */
+/** @typedef {Parameters<typeof getRequestContext>[0]} CookieRequest */
+/** @typedef {{ requestContext: { isSecure: boolean } }} SecureCookieContextRequest */
+
+/** @param {string} sessionId @param {number} maxAgeSeconds @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildSessionCookie(sessionId, maxAgeSeconds, request = null) {
   return buildCookie(config.cookies.sessionName, sessionId, {
     httpOnly: config.cookies.httpOnly,
@@ -14,7 +18,7 @@ function buildSessionCookie(sessionId, maxAgeSeconds, request = null) {
   });
 }
 
-/** @param {object | null} [request] */
+/** @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildExpiredSessionCookie(request = null) {
   return buildCookie(config.cookies.sessionName, "", {
     httpOnly: config.cookies.httpOnly,
@@ -26,7 +30,7 @@ function buildExpiredSessionCookie(request = null) {
   });
 }
 
-/** @param {string} token @param {object | null} [request] */
+/** @param {string} token @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildCsrfCookie(token, request = null) {
   return buildCookie(config.cookies.csrfName, token, {
     domain: config.cookies.domain,
@@ -37,7 +41,7 @@ function buildCsrfCookie(token, request = null) {
   });
 }
 
-/** @param {object | null} [request] */
+/** @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildExpiredCsrfCookie(request = null) {
   return buildCookie(config.cookies.csrfName, "", {
     domain: config.cookies.domain,
@@ -48,7 +52,7 @@ function buildExpiredCsrfCookie(request = null) {
   });
 }
 
-/** @param {unknown} themeMode @param {object | null} [request] */
+/** @param {unknown} themeMode @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildThemeCookie(themeMode, request = null) {
   return buildCookie(config.cookies.themeName, normalizeThemeMode(themeMode), {
     domain: config.cookies.domain,
@@ -59,7 +63,7 @@ function buildThemeCookie(themeMode, request = null) {
   });
 }
 
-/** @param {unknown} themeAutoSource @param {object | null} [request] */
+/** @param {unknown} themeAutoSource @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildThemeAutoSourceCookie(themeAutoSource, request = null) {
   return buildCookie(config.cookies.themeAutoSourceName, normalizeThemeAutoSource(themeAutoSource), {
     domain: config.cookies.domain,
@@ -70,7 +74,7 @@ function buildThemeAutoSourceCookie(themeAutoSource, request = null) {
   });
 }
 
-/** @param {object | null} [request] */
+/** @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildExpiredThemeCookie(request = null) {
   return buildCookie(config.cookies.themeName, "", {
     domain: config.cookies.domain,
@@ -81,7 +85,7 @@ function buildExpiredThemeCookie(request = null) {
   });
 }
 
-/** @param {object | null} [request] */
+/** @param {CookieRequest | SecureCookieContextRequest | null} [request] */
 function buildExpiredThemeAutoSourceCookie(request = null) {
   return buildCookie(config.cookies.themeAutoSourceName, "", {
     domain: config.cookies.domain,
@@ -92,6 +96,7 @@ function buildExpiredThemeAutoSourceCookie(request = null) {
   });
 }
 
+/** @param {string} name @param {string} value @param {CookieOptions} [options] @returns {string} */
 function buildCookie(name, value, options = {}) {
   const segments = [
     `${name}=${encodeURIComponent(value)}`,
@@ -118,8 +123,17 @@ function buildCookie(name, value, options = {}) {
   return segments.join("; ");
 }
 
+/** @param {CookieRequest | SecureCookieContextRequest | null} request @returns {boolean} */
 function shouldSecureCookie(request) {
+  if (hasSecureCookieContext(request)) {
+    return config.cookies.secure || Boolean(request.requestContext.isSecure);
+  }
   return config.cookies.secure || Boolean(request && getRequestContext(request).isSecure);
+}
+
+/** @param {CookieRequest | SecureCookieContextRequest | null} request @returns {request is SecureCookieContextRequest} */
+function hasSecureCookieContext(request) {
+  return Boolean(request?.requestContext && typeof request.requestContext.isSecure === "boolean");
 }
 
 export {

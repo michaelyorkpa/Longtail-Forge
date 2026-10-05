@@ -50,6 +50,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Validate version-wide checkpoint commits
+        env:
+          LTF_CHECKPOINT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/release/checkpoint-commits.mjs
       - name: Context/setup timing
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - name: Closeout gate timing
@@ -75,7 +79,7 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: GitHub-only documentation browser fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'
@@ -97,7 +101,9 @@ jobs:
         if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - if: needs.classify_changes.outputs.github_only_docs != 'true'
-        run: npx playwright install --with-deps chromium
+        name: Install the Playwright browser
+        timeout-minutes: 23
+        run: node scripts/release/install-playwright-browser.mjs
       - name: Browser check timing
         if: needs.classify_changes.outputs.github_only_docs != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e

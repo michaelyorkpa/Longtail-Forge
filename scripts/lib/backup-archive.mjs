@@ -15,6 +15,228 @@ const BACKUP_FORMAT_VERSION = 1;
 const MAX_CONTROL_FILE_BYTES = 50 * 1024 * 1024;
 const REQUIRED_DESTRUCTIVE_CONFIRMATION = "RESTORE LONGTAIL FORGE BACKUP";
 
+/**
+ * A value that may carry an error message, narrowed from an unknown thrown value.
+ * @typedef {{ message?: unknown }} MessageCarrier
+ */
+
+/**
+ * Minimal structural surface of an open better-sqlite3 statement.
+ * @typedef {object} SqliteStatementLike
+ * @property {(...bindings: unknown[]) => Record<string, unknown>[]} all
+ * @property {(...bindings: unknown[]) => Record<string, unknown> | undefined} get
+ * @property {(...bindings: unknown[]) => unknown} run
+ */
+
+/**
+ * A database handle opened for transactional audit writes.
+ * @typedef {SqliteDatabaseLike & { close: () => void, transaction: (run: () => void) => () => void }} AuditDatabaseHandle
+ */
+
+/**
+ * Minimal structural surface of an open better-sqlite3 database handle.
+ * @typedef {object} SqliteDatabaseLike
+ * @property {(sql: string) => SqliteStatementLike} prepare
+ * @property {(sql: string, options?: { simple?: boolean }) => unknown} pragma
+ */
+
+/**
+ * One applied schema-migration identity row.
+ * @typedef {object} MigrationRow
+ * @property {string} version
+ * @property {string} moduleId
+ * @property {string} name
+ * @property {string} checksum
+ * @property {string} appliedAt
+ */
+
+/**
+ * A COUNT(*) aggregate row.
+ * @typedef {{ count: unknown }} CountRow
+ */
+
+/**
+ * A DISTINCT encryption key version row.
+ * @typedef {{ version: string | null }} KeyVersionRow
+ */
+
+/**
+ * One Files inventory row read from the source database.
+ * @typedef {object} BackupFileRow
+ * @property {string} storageProvider
+ * @property {string} storageKey
+ * @property {unknown} sizeBytes
+ * @property {string | null} sha256
+ * @property {string} storageKind
+ */
+
+/**
+ * One PRAGMA integrity_check result row.
+ * @typedef {{ integrity_check?: unknown }} IntegrityCheckRow
+ */
+
+/**
+ * Secure Notes exposure inventory for one installation.
+ * @typedef {object} SecureNotesInventory
+ * @property {number} encryptedNoteCount
+ * @property {number} encryptedRecordCount
+ * @property {number} encryptedRevisionCount
+ * @property {(string | null)[]} keyVersions
+ */
+
+/**
+ * Local Files storage inventory for one installation.
+ * @typedef {object} StorageInventory
+ * @property {number} externalRecordCount
+ * @property {number} localObjectBytes
+ * @property {number} localObjectCount
+ * @property {number} localReferencedRecordCount
+ * @property {string} [provider]
+ */
+
+/**
+ * Full inspected inventory of the source installation.
+ * @typedef {object} SourceInventory
+ * @property {MigrationRow[]} migrations
+ * @property {SecureNotesInventory} secureNotes
+ * @property {StorageInventory} storage
+ */
+
+/**
+ * Safe non-secret runtime classification values supplied by the operator.
+ * @typedef {object} BackupRuntimeDescriptor
+ * @property {unknown} [environment]
+ * @property {unknown} [scannerMode]
+ * @property {unknown} [sqliteForeignKeys]
+ * @property {unknown} [sqliteJournalMode]
+ * @property {unknown} [workerMode]
+ */
+
+/**
+ * Confirmation state of the Secure Notes key-recovery prerequisite.
+ * @typedef {{ confirmed: boolean }} KeyRecoveryState
+ */
+
+/**
+ * Inputs assembled for one backup manifest.
+ * @typedef {object} CreateManifestInput
+ * @property {string} appVersion
+ * @property {string} backupId
+ * @property {string} createdAt
+ * @property {SourceInventory} inventory
+ * @property {KeyRecoveryState} keyRecovery
+ * @property {BackupRuntimeDescriptor} runtime
+ */
+
+/**
+ * Validated backup manifest document (the properties this module reads).
+ * @typedef {object} BackupManifest
+ * @property {string} format
+ * @property {number} formatVersion
+ * @property {string} backupId
+ * @property {string} createdAt
+ * @property {string} appVersion
+ * @property {{ provider: string, migrationCount: number, migrations: MigrationRow[] }} database
+ * @property {{ provider: string }} storage
+ * @property {SecureNotesInventory & { masterKeyIncluded: boolean, recoveryPrerequisiteRequired: boolean, recoveryPrerequisiteConfirmed: boolean }} secureNotes
+ * @property {unknown} included
+ * @property {unknown} excluded
+ */
+
+/**
+ * Manifest identity keys validated as required text.
+ * @typedef {"backupId" | "createdAt" | "appVersion"} ManifestIdentityKey
+ */
+
+/**
+ * Validated backup checksum inventory document.
+ * @typedef {object} BackupChecksums
+ * @property {number} schemaVersion
+ * @property {string} algorithm
+ * @property {Record<string, string>} files
+ */
+
+/**
+ * One archive listing entry: path plus tar type character.
+ * @typedef {{ name: string, type: string }} TarEntryDescriptor
+ */
+
+/**
+ * Options accepted by createBackup; presence is enforced at runtime.
+ * @typedef {object} CreateBackupOptions
+ * @property {unknown} [appVersion]
+ * @property {string} [auditLogPath]
+ * @property {unknown} [confirmStopped]
+ * @property {unknown} [databaseFile]
+ * @property {unknown} [filesRoot]
+ * @property {unknown} [outputPath]
+ * @property {BackupRuntimeDescriptor} [runtime]
+ * @property {string} [secureNotesKeyBackupPath]
+ */
+
+/**
+ * Options accepted by inspectBackup and withInspectedBackup.
+ * @typedef {object} InspectBackupOptions
+ * @property {unknown} [archivePath]
+ * @property {string} [expectedAppVersion]
+ * @property {string} [secureNotesKeyBackupPath]
+ */
+
+/**
+ * Options accepted by exportBackup; presence is enforced at runtime.
+ * @typedef {object} ExportBackupOptions
+ * @property {unknown} [appVersion]
+ * @property {unknown} [archivePath]
+ * @property {string} [auditLogPath]
+ * @property {string} [expectedAppVersion]
+ * @property {unknown} [outputPath]
+ * @property {string} [secureNotesKeyBackupPath]
+ */
+
+/**
+ * Options accepted by restoreBackup; presence is enforced at runtime.
+ * @typedef {object} RestoreBackupOptions
+ * @property {unknown} [appVersion]
+ * @property {unknown} [archivePath]
+ * @property {string} [auditLogPath]
+ * @property {unknown} [confirmStopped]
+ * @property {unknown} [databaseFile]
+ * @property {string} [destructiveConfirmation]
+ * @property {unknown} [filesRoot]
+ * @property {unknown} [preRestoreBackupPath]
+ * @property {BackupRuntimeDescriptor} [runtime]
+ * @property {string} [secureNotesKeyBackupPath]
+ */
+
+/**
+ * The extracted, checksum-verified view of one backup archive.
+ * @typedef {object} BackupInspection
+ * @property {string} archivePath
+ * @property {string} archiveRoot
+ * @property {string} archiveSha256
+ * @property {string} databasePath
+ * @property {string} filesPath
+ * @property {BackupManifest} manifest
+ * @property {boolean} restorable
+ * @property {string[]} restorabilityWarnings
+ */
+
+/**
+ * The live-instance paths a backup destination must stay outside of.
+ * @typedef {{ databaseFile: string, filesRoot: string }} LiveInstancePaths
+ */
+
+/**
+ * Protected locations the Secure Notes key backup must stay outside of.
+ * @typedef {{ databaseFile: string, filesRoot: string, outputPath: string }} BackupProtectedPaths
+ */
+
+/**
+ * Options accepted by listRegularFiles.
+ * @typedef {{ allowMissing?: boolean }} ListRegularFilesOptions
+ */
+
+/** @param {CreateBackupOptions} options */
 async function createBackup(options) {
   assertStoppedConfirmation(options.confirmStopped);
   const databaseFile = requiredPath(options.databaseFile, "database file");
@@ -124,6 +346,7 @@ async function createBackup(options) {
   }
 }
 
+/** @param {InspectBackupOptions} options */
 async function inspectBackup(options) {
   const archivePath = requiredPath(options.archivePath, "backup archive");
   const expectedAppVersion = String(options.expectedAppVersion || "").trim();
@@ -134,6 +357,7 @@ async function inspectBackup(options) {
   }, async (inspection) => sanitizeInspection(inspection));
 }
 
+/** @param {ExportBackupOptions} options */
 async function exportBackup(options) {
   const sourcePath = requiredPath(options.archivePath, "backup archive");
   const destinationPath = requiredPath(options.outputPath, "export destination");
@@ -159,6 +383,7 @@ async function exportBackup(options) {
   return Object.freeze({ destinationPath, inspection });
 }
 
+/** @param {RestoreBackupOptions} options */
 async function restoreBackup(options) {
   assertStoppedConfirmation(options.confirmStopped);
   if (options.destructiveConfirmation !== REQUIRED_DESTRUCTIVE_CONFIRMATION) {
@@ -278,6 +503,12 @@ async function restoreBackup(options) {
   }
 }
 
+/**
+ * @template T
+ * @param {InspectBackupOptions} options
+ * @param {(inspection: BackupInspection) => Promise<T>} callback
+ * @returns {Promise<T>}
+ */
 async function withInspectedBackup(options, callback) {
   const archivePath = requiredPath(options.archivePath, "backup archive");
   await assertSourceFile(archivePath, "backup archive");
@@ -289,8 +520,8 @@ async function withInspectedBackup(options, callback) {
     runTar(archivePath, "-xzf", ["-C", workspace, "--no-same-owner", "--no-same-permissions"]);
     const archiveRoot = path.join(workspace, ARCHIVE_ROOT);
     await assertNoLinks(archiveRoot);
-    const manifest = await readControlJson(path.join(archiveRoot, "manifest.json"));
-    const checksums = await readControlJson(path.join(archiveRoot, "checksums.json"));
+    const manifest = /** @type {BackupManifest} */ (await readControlJson(path.join(archiveRoot, "manifest.json")));
+    const checksums = /** @type {BackupChecksums} */ (await readControlJson(path.join(archiveRoot, "checksums.json")));
     validateManifest(manifest, options.expectedAppVersion);
     await validateChecksums(archiveRoot, checksums);
     await validateExpectedArchiveFiles(archiveRoot, checksums);
@@ -324,31 +555,36 @@ async function withInspectedBackup(options, callback) {
   }
 }
 
+/**
+ * @param {SqliteDatabaseLike} database
+ * @param {string} filesRoot
+ * @returns {Promise<SourceInventory>}
+ */
 async function inspectSourceInstallation(database, filesRoot) {
   assertDatabaseIntegrity(database, "Source database");
-  const migrations = database.prepare(`
+  const migrations = /** @type {MigrationRow[]} */ (database.prepare(`
 SELECT version, module_id AS moduleId, name, checksum, applied_at AS appliedAt
 FROM schema_migrations
 ORDER BY applied_at, version;
-`).all();
+`).all());
   if (migrations.length === 0) {
     throw new Error("Source database has no applied migration identity.");
   }
-  const secureNoteCount = Number(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get().count);
-  const secureRevisionCount = Number(database.prepare("SELECT COUNT(*) AS count FROM note_revisions WHERE security_mode = 'secure';").get().count);
-  const keyVersions = database.prepare(`
+  const secureNoteCount = Number(/** @type {CountRow} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get()).count);
+  const secureRevisionCount = Number(/** @type {CountRow} */ (database.prepare("SELECT COUNT(*) AS count FROM note_revisions WHERE security_mode = 'secure';").get()).count);
+  const keyVersions = /** @type {KeyVersionRow[]} */ (database.prepare(`
 SELECT DISTINCT encryption_key_version AS version FROM notes WHERE security_mode = 'secure'
 UNION
 SELECT DISTINCT encryption_key_version AS version FROM note_revisions WHERE security_mode = 'secure'
 ORDER BY version;
-`).all().map((row) => row.version).filter(Boolean);
-  const fileRows = database.prepare(`
+`).all()).map((row) => row.version).filter(Boolean);
+  const fileRows = /** @type {BackupFileRow[]} */ (database.prepare(`
 SELECT storage_provider AS storageProvider, storage_key AS storageKey,
        file_size_bytes AS sizeBytes, sha256_hash AS sha256,
        COALESCE(storage_kind, 'internal') AS storageKind
 FROM files
 ORDER BY file_id;
-`).all();
+`).all());
   const unsupported = fileRows.filter((row) => row.storageKind === "internal" && row.storageProvider !== "local");
   if (unsupported.length > 0) {
     throw new Error("Backup refused because internal Files data uses an unsupported non-local storage provider.");
@@ -389,8 +625,9 @@ ORDER BY file_id;
   };
 }
 
+/** @param {CreateManifestInput} manifestInput */
 function createManifest({ appVersion, backupId, createdAt, inventory, keyRecovery, runtime }) {
-  const latestMigration = inventory.migrations.at(-1);
+  const latestMigration = /** @type {MigrationRow} */ (inventory.migrations.at(-1));
   return {
     format: BACKUP_FORMAT,
     formatVersion: BACKUP_FORMAT_VERSION,
@@ -445,11 +682,15 @@ function createManifest({ appVersion, backupId, createdAt, inventory, keyRecover
   };
 }
 
+/**
+ * @param {BackupManifest} manifest
+ * @param {string | undefined} expectedAppVersion
+ */
 function validateManifest(manifest, expectedAppVersion) {
   if (!manifest || manifest.format !== BACKUP_FORMAT || manifest.formatVersion !== BACKUP_FORMAT_VERSION) {
     throw new Error("Unsupported Longtail Forge backup format or format version.");
   }
-  for (const key of ["backupId", "createdAt", "appVersion"]) {
+  for (const key of /** @type {ManifestIdentityKey[]} */ (["backupId", "createdAt", "appVersion"])) {
     requiredText(manifest[key], `manifest ${key}`);
   }
   if (expectedAppVersion && manifest.appVersion !== expectedAppVersion) {
@@ -469,6 +710,10 @@ function validateManifest(manifest, expectedAppVersion) {
   }
 }
 
+/**
+ * @param {string} databasePath
+ * @param {BackupManifest} manifest
+ */
 function verifyDatabaseAgainstManifest(databasePath, manifest) {
   const database = new Database(databasePath, { fileMustExist: true, readonly: true });
   try {
@@ -481,8 +726,8 @@ ORDER BY applied_at, version;
     if (JSON.stringify(migrations) !== JSON.stringify(manifest.database.migrations)) {
       throw new Error("Backup database migration identity does not match its manifest.");
     }
-    const noteCount = Number(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get().count);
-    const revisionCount = Number(database.prepare("SELECT COUNT(*) AS count FROM note_revisions WHERE security_mode = 'secure';").get().count);
+    const noteCount = Number(/** @type {CountRow} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get()).count);
+    const revisionCount = Number(/** @type {CountRow} */ (database.prepare("SELECT COUNT(*) AS count FROM note_revisions WHERE security_mode = 'secure';").get()).count);
     if (noteCount !== manifest.secureNotes.encryptedNoteCount || revisionCount !== manifest.secureNotes.encryptedRevisionCount) {
       throw new Error("Backup Secure Notes inventory does not match its manifest.");
     }
@@ -491,6 +736,10 @@ ORDER BY applied_at, version;
   }
 }
 
+/**
+ * @param {string} databaseFile
+ * @param {string} outputFile
+ */
 async function sourceDatabaseBackup(databaseFile, outputFile) {
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
@@ -506,13 +755,23 @@ async function sourceDatabaseBackup(databaseFile, outputFile) {
   }
 }
 
+/**
+ * @param {SqliteDatabaseLike} database
+ * @param {string} label
+ */
 function assertDatabaseIntegrity(database, label) {
-  const rows = database.pragma("integrity_check");
+  const rows = /** @type {IntegrityCheckRow[]} */ (database.pragma("integrity_check"));
   if (rows.length !== 1 || rows[0].integrity_check !== "ok") {
     throw new Error(`${label} failed SQLite integrity_check.`);
   }
 }
 
+/**
+ * @param {SecureNotesInventory} secureNotes
+ * @param {string | undefined} keyPath
+ * @param {BackupProtectedPaths} protectedPaths
+ * @returns {Promise<KeyRecoveryState>}
+ */
 async function resolveSecureNotesRecovery(secureNotes, keyPath, protectedPaths) {
   if (secureNotes.encryptedRecordCount === 0) {
     return { confirmed: false };
@@ -521,6 +780,10 @@ async function resolveSecureNotesRecovery(secureNotes, keyPath, protectedPaths) 
   return { confirmed: true };
 }
 
+/**
+ * @param {unknown} keyPath
+ * @param {BackupProtectedPaths} protectedPaths
+ */
 async function assertExternalKeyBackup(keyPath, protectedPaths) {
   const resolved = requiredPath(keyPath, "separately protected Secure Notes key backup");
   await assertSourceFile(resolved, "separately protected Secure Notes key backup");
@@ -542,6 +805,7 @@ async function assertExternalKeyBackup(keyPath, protectedPaths) {
   }
 }
 
+/** @param {string} archivePath */
 async function verifyArchiveSidecar(archivePath) {
   const checksumPath = `${archivePath}.sha256`;
   await assertSourceFile(checksumPath, "backup archive checksum sidecar");
@@ -554,6 +818,10 @@ async function verifyArchiveSidecar(archivePath) {
   return actual;
 }
 
+/**
+ * @param {string} archivePath
+ * @returns {TarEntryDescriptor[]}
+ */
 function listTarEntries(archivePath) {
   const names = runTar(archivePath, "-tzf").split(/\r?\n/).filter(Boolean);
   const verbose = runTar(archivePath, "-tvzf").split(/\r?\n/).filter(Boolean);
@@ -563,6 +831,7 @@ function listTarEntries(archivePath) {
   return names.map((name, index) => ({ name, type: verbose[index][0] }));
 }
 
+/** @param {readonly TarEntryDescriptor[]} entries */
 function validateTarEntries(entries) {
   const seen = new Set();
   for (const entry of entries) {
@@ -589,6 +858,10 @@ function validateTarEntries(entries) {
   }
 }
 
+/**
+ * @param {string} archiveRoot
+ * @param {BackupChecksums} checksums
+ */
 async function validateChecksums(archiveRoot, checksums) {
   if (checksums?.schemaVersion !== 1 || checksums?.algorithm !== "sha256" || !checksums.files || Array.isArray(checksums.files)) {
     throw new Error("Backup checksum inventory is invalid.");
@@ -608,6 +881,10 @@ async function validateChecksums(archiveRoot, checksums) {
   }
 }
 
+/**
+ * @param {string} archiveRoot
+ * @param {BackupChecksums} checksums
+ */
 async function validateExpectedArchiveFiles(archiveRoot, checksums) {
   const actual = (await listRegularFiles(archiveRoot)).map((filePath) => toArchiveRelative(archiveRoot, filePath));
   const expected = new Set(["checksums.json", ...Object.keys(checksums.files)]);
@@ -616,13 +893,14 @@ async function validateExpectedArchiveFiles(archiveRoot, checksums) {
   }
 }
 
+/** @param {string} root */
 async function assertNoLinks(root) {
   if (!await pathExists(root)) {
     return;
   }
   const pending = [root];
   while (pending.length > 0) {
-    const current = pending.pop();
+    const current = /** @type {string} */ (pending.pop());
     const stats = await fs.lstat(current);
     if (stats.isSymbolicLink() || (!stats.isDirectory() && !stats.isFile())) {
       throw new Error("Backup paths may contain only regular files and directories; links and special files are refused.");
@@ -635,6 +913,10 @@ async function assertNoLinks(root) {
   }
 }
 
+/**
+ * @param {string} root
+ * @param {ListRegularFilesOptions} [options]
+ */
 async function listRegularFiles(root, options = {}) {
   if (!await pathExists(root)) {
     if (options.allowMissing) {
@@ -645,7 +927,7 @@ async function listRegularFiles(root, options = {}) {
   const files = [];
   const pending = [root];
   while (pending.length > 0) {
-    const current = pending.pop();
+    const current = /** @type {string} */ (pending.pop());
     const stats = await fs.lstat(current);
     if (stats.isSymbolicLink() || (!stats.isDirectory() && !stats.isFile())) {
       throw new Error("Backup paths may contain only regular files and directories.");
@@ -662,8 +944,14 @@ async function listRegularFiles(root, options = {}) {
   return files.sort();
 }
 
+/**
+ * @param {string} databaseFile
+ * @param {string} action
+ * @param {string} changeType
+ * @param {Record<string, unknown>} metadata
+ */
 function recordDatabaseAudit(databaseFile, action, changeType, metadata) {
-  const database = new Database(databaseFile, { fileMustExist: true });
+  const database = /** @type {AuditDatabaseHandle} */ (/** @type {unknown} */ (new Database(databaseFile, { fileMustExist: true })));
   try {
     const workspaces = database.prepare("SELECT workspace_id FROM workspaces ORDER BY workspace_id;").all();
     const insert = database.prepare(`
@@ -684,6 +972,10 @@ INSERT INTO audit_logs (
   }
 }
 
+/**
+ * @param {string} auditLogPath
+ * @param {Record<string, unknown>} entry
+ */
 async function appendOperatorAudit(auditLogPath, entry) {
   await assertNotPublicPath(auditLogPath);
   await fs.mkdir(path.dirname(auditLogPath), { recursive: true });
@@ -691,6 +983,11 @@ async function appendOperatorAudit(auditLogPath, entry) {
   await restrictFile(auditLogPath);
 }
 
+/**
+ * @param {string} archivePath
+ * @param {string} flags
+ * @param {string[]} [trailingArgs]
+ */
 function runTar(archivePath, flags, trailingArgs = []) {
   return runLocalTarArchiveCommand({
     archivePath,
@@ -701,6 +998,7 @@ function runTar(archivePath, flags, trailingArgs = []) {
   });
 }
 
+/** @param {string} filePath */
 async function hashFile(filePath) {
   const hash = createHash("sha256");
   const handle = await fs.open(filePath, "r");
@@ -714,6 +1012,10 @@ async function hashFile(filePath) {
   return hash.digest("hex");
 }
 
+/**
+ * @param {string} filePath
+ * @returns {Promise<unknown>}
+ */
 async function readControlJson(filePath) {
   const stats = await fs.stat(filePath);
   if (!stats.isFile() || stats.size > MAX_CONTROL_FILE_BYTES) {
@@ -726,11 +1028,19 @@ async function readControlJson(filePath) {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @param {unknown} value
+ */
 async function writeJson(filePath, value) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+/**
+ * @param {string} outputPath
+ * @param {LiveInstancePaths} livePaths
+ */
 async function assertSafeBackupDestination(outputPath, { databaseFile, filesRoot }) {
   if (await pathExists(outputPath) || await pathExists(`${outputPath}.sha256`)) {
     throw new Error("Backup destination or checksum sidecar already exists; refusing to overwrite it.");
@@ -741,6 +1051,7 @@ async function assertSafeBackupDestination(outputPath, { databaseFile, filesRoot
   await assertNotPublicPath(outputPath);
 }
 
+/** @param {string} outputPath */
 async function assertSafeExportDestination(outputPath) {
   if (await pathExists(outputPath) || await pathExists(`${outputPath}.sha256`)) {
     throw new Error("Export destination or checksum sidecar already exists; refusing to overwrite it.");
@@ -748,12 +1059,17 @@ async function assertSafeExportDestination(outputPath) {
   await assertNotPublicPath(outputPath);
 }
 
+/** @param {string} targetPath */
 async function assertNotPublicPath(targetPath) {
   if (isPathInside(path.join(repositoryRoot, "public"), targetPath)) {
     throw new Error("Backup archives, exports, and audit logs must not be placed under public static paths.");
   }
 }
 
+/**
+ * @param {string} filesRoot
+ * @param {unknown} storageKey
+ */
 function resolveStoragePath(filesRoot, storageKey) {
   const normalized = String(storageKey || "").replaceAll("\\", "/").trim();
   if (!isSafeArchivePath(normalized)) {
@@ -766,6 +1082,7 @@ function resolveStoragePath(filesRoot, storageKey) {
   return resolved;
 }
 
+/** @param {unknown} value */
 function isSafeArchivePath(value) {
   const text = String(value || "");
   const parts = text.split("/");
@@ -777,15 +1094,27 @@ function isSafeArchivePath(value) {
     && parts.every((part) => part && part !== "." && part !== "..");
 }
 
+/**
+ * @param {string} root
+ * @param {string} candidate
+ */
 function isPathInside(root, candidate) {
   const relative = path.relative(path.resolve(root), path.resolve(candidate));
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+/**
+ * @param {string} root
+ * @param {string} filePath
+ */
 function toArchiveRelative(root, filePath) {
   return path.relative(root, filePath).replaceAll("\\", "/");
 }
 
+/**
+ * @param {string} source
+ * @param {string} destination
+ */
 async function moveIfExists(source, destination) {
   if (!await pathExists(source)) {
     return false;
@@ -795,6 +1124,10 @@ async function moveIfExists(source, destination) {
   return true;
 }
 
+/**
+ * @param {string} filePath
+ * @param {string} label
+ */
 async function assertSourceFile(filePath, label) {
   let stats;
   try {
@@ -807,6 +1140,7 @@ async function assertSourceFile(filePath, label) {
   }
 }
 
+/** @param {string} targetPath */
 async function pathExists(targetPath) {
   try {
     await fs.access(targetPath);
@@ -816,6 +1150,7 @@ async function pathExists(targetPath) {
   }
 }
 
+/** @param {string} filePath */
 async function restrictFile(filePath) {
   await fs.chmod(filePath, 0o600).catch((error) => {
     if (process.platform !== "win32") {
@@ -824,6 +1159,7 @@ async function restrictFile(filePath) {
   });
 }
 
+/** @param {string} directoryPath */
 async function restrictDirectory(directoryPath) {
   await fs.chmod(directoryPath, 0o700).catch((error) => {
     if (process.platform !== "win32") {
@@ -832,15 +1168,27 @@ async function restrictDirectory(directoryPath) {
   });
 }
 
+/**
+ * @param {string | undefined} provided
+ * @param {string} referencePath
+ */
 function resolveAuditLogPath(provided, referencePath) {
   return path.resolve(provided || path.join(path.dirname(referencePath), "backup-operations.jsonl"));
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} label
+ */
 function requiredPath(value, label) {
   const text = requiredText(value, label);
   return path.resolve(text);
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} label
+ */
 function requiredText(value, label) {
   const text = String(value || "").trim();
   if (!text) {
@@ -849,19 +1197,26 @@ function requiredText(value, label) {
   return text;
 }
 
+/** @param {unknown} value */
 function assertStoppedConfirmation(value) {
   if (value !== true) {
     throw new Error("This operation requires --confirm-stopped after stopping the app and worker.");
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {readonly string[]} allowed
+ * @param {string} fallback
+ */
 function safeEnum(value, allowed, fallback) {
   const text = String(value || "").trim();
   return allowed.includes(text) ? text : fallback;
 }
 
+/** @param {unknown} error */
 function classifyError(error) {
-  const message = String(error?.message || "");
+  const message = String(/** @type {MessageCarrier} */ (error)?.message || "");
   if (/checksum/i.test(message)) return "checksum_validation";
   if (/compatib|version|migration/i.test(message)) return "compatibility_validation";
   if (/Secure Notes|key backup/i.test(message)) return "key_recovery_prerequisite";
@@ -869,6 +1224,7 @@ function classifyError(error) {
   return "operation_failed";
 }
 
+/** @param {BackupInspection} inspection */
 function sanitizeInspection(inspection) {
   return Object.freeze({
     archiveSha256: inspection.archiveSha256,

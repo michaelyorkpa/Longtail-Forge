@@ -1,4 +1,3 @@
-// @ts-check
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
   closeSqlite,
@@ -17,6 +16,8 @@ import {
 import { createSqliteDialectSeams } from "./sqlite-dialect-seams.js";
 
 /** @typedef {import("../../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
+/** @typedef {import("../../types/database-contracts.js").DatabaseParams} DatabaseParams */
+/** @typedef {import("../../types/database-contracts.js").PreparedDatabaseBindings} PreparedDatabaseBindings */
 /** @typedef {import("../../types/database-contracts.js").DatabaseRow} DatabaseRow */
 /** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
 
@@ -42,6 +43,7 @@ function createSqliteAdapter() {
   /** @type {Promise<unknown>} */
   let transactionTail = Promise.resolve();
 
+  /** @param {string} operationName */
   function assertNotInsideTransactionContext(operationName) {
     if (transactionContext.getStore()?.active) {
       throw new Error(`Use the transaction client passed to db.transaction() for ${operationName} inside a transaction.`);
@@ -59,7 +61,7 @@ function createSqliteAdapter() {
 
   /**
    * @param {string} sql
-   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @param {DatabaseParams} [params] named bindings or positional values
    * @returns {Promise<DatabaseRow[]>} result rows
    */
   async function executeQuery(sql, params = []) {
@@ -69,7 +71,7 @@ function createSqliteAdapter() {
 
   /**
    * @param {string} sql
-   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @param {DatabaseParams} [params] named bindings or positional values
    * @returns {Promise<DatabaseRow | null>} first result row, if any
    */
   async function executeGet(sql, params = []) {
@@ -79,7 +81,7 @@ function createSqliteAdapter() {
 
   /**
    * @param {string} sql
-   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @param {DatabaseParams} [params] named bindings or positional values
    * @returns {Promise<unknown>} driver run result
    */
   async function executeRun(sql, params = []) {
@@ -87,6 +89,7 @@ function createSqliteAdapter() {
     return runSql(statement.sql, statement.params, statement);
   }
 
+  /** @param {string} sql @param {DatabaseParams} params @returns {PreparedDatabaseBindings} */
   function prepareSqliteStatement(sql, params) {
     return prepareDatabaseBindings(sql, params, {
       placeholderStyle: QUESTION_PLACEHOLDERS,
@@ -95,7 +98,7 @@ function createSqliteAdapter() {
 
   /**
    * @param {string} sql
-   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @param {DatabaseParams} [params] named bindings or positional values
    */
   async function query(sql, params = []) {
     assertNotInsideTransactionContext("queries");
@@ -104,7 +107,7 @@ function createSqliteAdapter() {
 
   /**
    * @param {string} sql
-   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @param {DatabaseParams} [params] named bindings or positional values
    */
   async function get(sql, params = []) {
     assertNotInsideTransactionContext("reads");
@@ -113,7 +116,7 @@ function createSqliteAdapter() {
 
   /**
    * @param {string} sql
-   * @param {Record<string, unknown> | unknown[]} [params] named bindings or positional values
+   * @param {DatabaseParams} [params] named bindings or positional values
    */
   async function run(sql, params = []) {
     assertNotInsideTransactionContext("writes");

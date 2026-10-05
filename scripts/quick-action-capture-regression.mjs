@@ -1,6 +1,9 @@
+import { escapeRegExp, extractFunctionSpan } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const appShellService = readText("src/services/app-shell.service.js");
@@ -14,6 +17,7 @@ const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -25,7 +29,11 @@ check("app-shell bootstrap publishes server-gated quick actions", () => {
   assert.match(appShellService, /quickActions,/);
   assert.match(appShellService, /workspaceContext: \{[\s\S]*quickActions,[\s\S]*viewSurfaces,/);
   assert.match(navigation, /quickActions: shell\.quickActions \|\| shell\.workspaceContext\?\.quickActions \|\| \[\]/);
-  assert.match(navigation, /quickActions: Array\.isArray\(settings\.quickActions\) \? settings\.quickActions : previousContext\.quickActions \|\| \[\]/);
+  // Retargeted by `0.33.33.38.4.15`, which moved the container check into a shared reader.
+  // The pin named the expression; what it defends is that the stored context still takes the
+  // candidate's quick actions and falls back to the cached ones.
+  assert.match(navigation, /quickActions: readContextList\(settings\.quickActions, previous\.quickActions\),/);
+  assert.match(navigation, /function readContextList\([\s\S]{0,220}Array\.isArray\(candidate\)/);
 });
 
 check("quick actions are gated by module, capability, permission, and search availability", () => {
@@ -63,7 +71,11 @@ check("shared footer owns a quiet bottom-right drawer on protected shell pages",
   assert.match(footer, /drawer\.setAttribute\("aria-hidden", "true"\)/);
   assert.match(footer, /setAttribute\("aria-expanded", "false"\)/);
   assert.match(footer, /event\.key === "Escape"/);
-  assert.match(footer, /root\.contains\(event\.target\)/);
+  // An outside click still dismisses the drawer; `0.33.33.44.39` narrowed the target first,
+  // because `contains` takes a `Node` and an event target is only an `EventTarget`. Pinning
+  // the narrowing alongside the containment read keeps the behaviour and forbids a cast.
+  assert.match(footer, /const clickedNode = event\.target instanceof Node \? event\.target : null;/);
+  assert.match(footer, /root\.contains\(clickedNode\)/);
   assert.match(footer, /shell\.toggle\.focus\(\)/);
 });
 
@@ -75,7 +87,7 @@ check("QAC dispatches modal actions through the module action registry with safe
   assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js"/);
   assert.match(footer, /function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/);
   assert.match(footer, /ensureQuickActionDependencies\(action\.moduleActionId\)/);
-  assert.match(footer, /window\.LongtailForge\.moduleActions\.open\(action\.moduleActionId, \{[\s\S]*source: "quick-action-capture"/);
+  assert.match(footer, /(?:window\.LongtailForge\.)?moduleActions\.open\(action\.moduleActionId, \{[\s\S]*source: "quick-action-capture"/);
   assert.match(footer, /function readQuickActionPageContext\(\)[\s\S]*path: window\.location\.pathname[\s\S]*query: window\.location\.search[\s\S]*title:/);
   assert.match(moduleActions, /trigger\.focus\(\)/);
   assert.match(moduleActions, /complete: \(detail = \{\}\) => finish\(true, detail\)/);
@@ -85,8 +97,8 @@ check("QAC dispatches modal actions through the module action registry with safe
 check("QAC uses the shared icon registry and avoids badge or recommendation behavior", () => {
   assert.match(icons, /bolt: Object\.freeze/);
   assert.match(footer, /icon: "bolt"/);
-  assert.doesNotMatch(functionBlock(footer, "createQuickActionShell"), /badge|alert|recommend/i);
-  assert.doesNotMatch(functionBlock(footer, "createQuickActionItem"), /badge|alert|recommend/i);
+  assert.doesNotMatch(extractFunctionSpan(footer, "createQuickActionShell"), /badge|alert|recommend/i);
+  assert.doesNotMatch(extractFunctionSpan(footer, "createQuickActionItem"), /badge|alert|recommend/i);
 });
 
 check("QAC styles are footer-aware, responsive, and quiet until opened", () => {
@@ -133,18 +145,3 @@ check("regression suite includes QAC coverage", () => {
   });
 
 console.log(`Quick Action Capture regression passed ${checks} checks.`);
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `Missing function ${functionName}`);
-  const nextFunction = source.slice(start + 1).search(/\nfunction\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

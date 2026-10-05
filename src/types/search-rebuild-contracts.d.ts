@@ -12,8 +12,8 @@ export type SearchRebuildScope =
 export interface ActiveSearchableTypeDeclaration extends SearchableTypeContribution {
   recordType: string;
   moduleId: string;
-  label: string;
-  description: string;
+  label?: string;
+  description?: string;
   idField: string;
   titleField: string;
   summaryField: string;

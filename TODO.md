@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Time Entries
+
+Actions -> Time Keeping -> Time Entries needs pagination. Currently it will display every last item that matches the filters. It should use database queries that ONLY calls the current page, not everything, then slice it in the browser. The browser should be handed the clean list by the time keeping framework.
+
 ## Playwright needs to include additional browsers
 
 Specifically, Firefox/Mozilla and Webkit for further, future testing.

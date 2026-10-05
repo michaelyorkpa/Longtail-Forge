@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import vm from "node:vm";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** The navigation tree the app shell publishes, reused rather than redeclared. */
+/** @typedef {import("../src/services/app-shell.service.js").AppShellNavigationItem} NavigationItem */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-ui-workflow-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-ui-workflow.db");
@@ -16,13 +24,14 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 
 try {
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertManifest();
   await assertProtectedView(session);
   await assertNavigation(session);
   await assertNoteDetailHtml(session);
+  await assertDuplicateTitlesAreAccepted(session);
   await assertDisabledModuleState(session);
   await assertIntegrity();
 
@@ -34,10 +43,12 @@ try {
 
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule, "the Notes module should be registered");
 
   assert.equal(notesModule.version, appVersion, "Notes module metadata should track the current app version");
 }
 
+/** @param {NotesSession} session */
 async function assertProtectedView(session) {
   const result = await staticService.read("/notes.html", session);
   const html = result.contents.toString("utf8");
@@ -66,6 +77,8 @@ async function assertProtectedView(session) {
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
+  const linkTargetDirectoryJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/link-target-directory.service.js"), "utf8");
+  const listsLinkTargetProviderJs = await fs.readFile(path.join(process.cwd(), "src/modules/lists/link-target.provider.js"), "utf8");
   const notesModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8");
   assert.match(notesJs, /createCollectionActionsDialogShell/);
   assert.match(notesJs, /notes-collection-actions-modal-body/);
@@ -75,7 +88,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /clientVisibleOption\.disabled = secureMode/);
   assert.match(notesJs, /chipStrip\.prepend\(statusBadge\("Secure"\)\)/);
   assert.match(notesJs, /Secure notes do not allow framework file attachments yet\./);
-  assert.match(notesJs, /securityInput\.disabled = Boolean\(note\)/);
+  assert.match(notesJs, /requireNotesValue\(securityInput\)\.disabled = Boolean\(note\)/, "Existing notes must lock the security selector at its required editor access");
   assert.match(notesJs, /collectionFilterOptions/);
   assert.match(notesJs, /hierarchicalCollectionOptions/);
   assert.match(notesJs, /notes-detail-rule/);
@@ -87,8 +100,8 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /Legacy client/);
   assert.match(notesJs, /data-legacy-note-kind/);
   assert.match(notesJs, /async function openEditor\(note = null, options = \{\}\) \{\s*note = await hydrateEditorNote\(note\);/, "Edit Note should hydrate saved notes before filling modal fields");
-  assert.match(notesJs, /async function hydrateEditorNote\(note = null\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*cache: "no-store"[\s\S]*renderDetail\(result\.note\)[\s\S]*return result\.note/, "Editor hydration should refresh the selected detail note before rendering editor state");
-  assert.match(notesJs, /const selectedProjectId = note\?\.project_id \|\| defaults\.project_id \|\| "";[\s\S]*projectInput\.value = selectedProjectId;[\s\S]*projectId: selectedProjectId/, "Edit Note should not read direct project context back from a select before its option exists");
+  assert.match(notesJs, /async function hydrateEditorNote\(note = null\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*cache: "no-store"[\s\S]*requireNoteFromEnvelope\(result\)[\s\S]*renderDetail\(hydrated\)[\s\S]*return hydrated/, "Editor hydration should refresh the selected detail note before rendering editor state");
+  assert.match(notesJs, /const selectedProjectId = note\?\.project_id \|\| defaults\.project_id \|\| "";[\s\S]*requireNotesValue\(projectInput\)\.value = selectedProjectId;[\s\S]*projectId: selectedProjectId/, "Edit Note should not read direct project context back from a select before its option exists");
   assert.match(notesJs, /function primaryContextSummaryForSelection\(targetType, selectedId = ""\)[\s\S]*summaryIds\.includes\(selectedId\)/, "Primary Context controls should preserve the current saved value even when it is not in the first provider page");
   assert.match(notesJs, /function primaryProjectFallbackOption\(selectedProjectId = ""\)[\s\S]*primaryProjectOptionLabel/, "Saved project Primary Context should keep a readable current option fallback on first Edit open");
   assert.match(notesJs, /fetchLinkTargets/);
@@ -110,13 +123,14 @@ async function assertProtectedView(session) {
     notesJs.indexOf("let state = {") < notesJs.indexOf("buildNotesViewShell();"),
     "Notes state should initialize before the shell builds provider-backed dialog controls",
   );
-  assert.match(notesJs, /view\.renderSurface/);
+  assert.match(notesJs, /renderSurface/);
   assert.match(notesJs, /notesViewSurfaceDescriptor/);
   assert.match(notesModuleSource, /layout:\s*"slide-out-sidebar"/);
   assert.doesNotMatch(notesModuleSource, /layout:\s*"sidebar-detail"/);
-  assert.match(notesJs, /layout:\s*"slide-out-sidebar"/);
+  // 0.33.33.35.1.2: notes.js no longer carries a descriptor literal of its own; the layout is
+  // owned by the manifest surface asserted on the line above.
   assert.match(notesJs, /decorateNotesDeclarativeSurface/);
-  assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/);
+  assert.match(notesJs, /registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/);
   assert.match(notesJs, /createNotesLibraryChrome/);
   assert.match(notesJs, /createNotesListChrome/);
   assert.match(notesJs, /createNotesPagination/);
@@ -150,7 +164,7 @@ async function assertProtectedView(session) {
     notesJs,
     /document\.body\.append\([\s\S]*createNoteDialogShell\(\),[\s\S]*createNoteTagsDialogShell\(\),[\s\S]*createNoteFilesDialogShell\(\),[\s\S]*createCollectionDialogShell\(\),[\s\S]*createCollectionActionsDialogShell\(\),[\s\S]*\)/,
   );
-  assert.match(notesJs, /view\.renderDescriptorModalForm/);
+  assert.match(notesJs, /renderDescriptorModalForm/);
   assert.match(notesJs, /notesEditorModalDescriptor/);
   assert.match(notesJs, /notesCollectionModalDescriptor/);
   assert.match(notesJs, /dialog\.dataset\.noteDialog = ""/);
@@ -158,7 +172,12 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /createNoteContextPanel/);
   assert.match(notesJs, /createNoteEditorToolbar/);
   // Note Kind options stay module-owned and exclude the linked-target kinds.
-  const noteKindOptions = notesJs.match(/field: "noteType",[^\n]*?options: (\[\[.*?\]\]) \}/)?.[1] || "";
+  //
+  // 0.33.33.35.1.2: this read notes.js, where the options literal lived only inside the
+  // deleted descriptor fallback. The manifest surface is where the option set is declared
+  // and served from, so that is what it reads now - otherwise deleting a client fallback
+  // would have left a test-owned shadow copy of a live product rule.
+  const noteKindOptions = notesModuleSource.match(/field: "noteType",[^\n]*?options: (\[\[.*?\]\]) \}/)?.[1] || "";
   assert.match(noteKindOptions, /\["decision", "Decision"\]/);
   assert.match(noteKindOptions, /\["procedure", "Procedure"\]/);
   assert.match(noteKindOptions, /\["log", "Log"\]/);
@@ -172,17 +191,15 @@ async function assertProtectedView(session) {
   assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?behavior:\s*"notes\.workflow\.edit"[\s\S]*?behavior:\s*"notes\.workflow\.archive"[\s\S]*?behavior:\s*"notes\.workflow\.restore"/, "Notes descriptor should declare the workflow action strip behaviors");
   assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?requiredPermissions:\s*\[NOTE_PERMISSIONS\.UPDATE\]/, "Edit action should require the note update permission");
   assert.match(notesJs, /NOTE_WORKFLOW_HANDLERS/, "Notes should dispatch workflow actions through a registered behavior map");
-  assert.match(notesJs, /"notes\.workflow\.edit": \(note\) => openEditor\(note\)/, "Edit workflow should map to the editor");
-  assert.match(notesJs, /"notes\.workflow\.archive": \(note\) => archiveNote\(note\)/, "Archive workflow should map to the archive handler");
-  assert.match(notesJs, /"notes\.workflow\.restore": \(note\) => restoreNote\(note\)/, "Restore workflow should map to the restore handler");
-  assert.match(notesJs, /view\.renderDescriptorActionMenu\(detailActionButtons\(note\)/, "Notes detail should render the workflow actions through the framework overflow-menu helper");
+  assertNotesWorkflowDispatch(notesJs);
+  assert.match(notesJs, /renderDescriptorActionMenu\(detailActionButtons\(note\)/, "Notes detail should render the workflow actions through the framework overflow-menu helper");
   assert.match(notesJs, /button\.dataset\.noteAction = action\.id/, "Action menu buttons should carry their declarative action id");
   assert.doesNotMatch(notesJs, /function detailActionsMenu/, "The hand-built <details> actions menu should be replaced by the framework action menu");
 
   // 0.33.5.18.5.2 declarative linked-records panel.
   assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*?recordsField:\s*"links"[\s\S]*?behavior:\s*"notes\.link\.add"[\s\S]*?behavior:\s*"notes\.link\.remove"/, "Notes descriptor should declare the linked-records panel with add/remove behaviors");
   assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*?requiredPermissions:\s*\[NOTE_PERMISSIONS\.MANAGE_LINKS\]/, "Linked-records actions should require the manage-links permission");
-  assert.match(notesJs, /view\.renderDescriptorLinkedRecordsPanel\(descriptor/, "Notes linked-records panel should render through the framework helper");
+  assert.match(notesJs, /renderDescriptorLinkedRecordsPanel\(descriptor/, "Notes linked-records panel should render through the framework helper");
   assert.match(notesJs, /function linkRecordNodes\(note\)/, "Notes should build linked-record rows via linkRecordNodes");
   assert.match(notesJs, /notesLinkedRecordsDescriptor\(\)/, "Notes should resolve the delivered linked-records descriptor");
   assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*title:\s*"Linked Context"[\s\S]*No linked context\./, "Notes linked-records descriptor should use Linked Context in visible copy");
@@ -192,7 +209,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /const section = document\.createElement\("section"\);\s*const list = document\.createElement\("div"\);\s*const form = document\.createElement\("form"\)/, "The linked-records panel should no longer hand-build its section/form anatomy");
 
   // 0.33.5.18.5.3 anatomy cleanup + strict guardrails.
-  assert.match(notesJs, /view\.renderDescriptorModalForm\(modal, \{/, "Note dialogs should be built through the framework modal-form helper");
+  assert.match(notesJs, /renderDescriptorModalForm\(modal, \{/, "Note dialogs should be built through the framework modal-form helper");
   assert.doesNotMatch(notesJs, /view\.createModalForm/, "Notes should no longer call the low-level createModalForm primitive directly");
   assert.doesNotMatch(notesJs, /document\.createElement\("(dialog|table|details)"\)/, "Notes should not hand-build dialog/table/details framework anatomy");
   assert.match(notesJs, /view\.createElement\("details"/, "The collections menu and revisions panel should use the framework element builder for disclosures");
@@ -257,7 +274,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /state\.editingNoteId && state\.editorSelectedTarget && !noteHasLink/, "Saved-note link creation should no longer be deferred until Save Note");
   assert.match(notesJs, /async function addEditorNoteLink\(target = \{\}\)[\s\S]*api\.postJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}\/links`, linkPayloadFromTarget\(target\)\)[\s\S]*await refreshEditorNote\(noteId\)/, "Saved-note add should persist through the link API and refresh the editor note");
   assert.match(notesJs, /async function removeEditorNoteLink\(note, link\)[\s\S]*\/links\/\$\{encodeURIComponent\(noteLinkId\)\}\/remove`[\s\S]*await refreshEditorNote\(noteId\)/, "Saved-note remove should persist through the link API and refresh the editor note");
-  assert.match(notesJs, /async function refreshEditorNote\(noteId\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*state\.editorNote = result\.note[\s\S]*renderDetail\(result\.note\)[\s\S]*renderEditorContextSelection\(\)/, "Editor link mutations should refresh the Add/Edit rows, underlying detail, and readable labels");
+  assert.match(notesJs, /async function refreshEditorNote\(noteId\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*requireNoteFromEnvelope\(result\)[\s\S]*state\.editorNote = refreshed[\s\S]*renderDetail\(refreshed\)[\s\S]*renderEditorContextSelection\(\)/, "Editor link mutations should refresh the Add/Edit rows, underlying detail, and readable labels");
 
   // 0.33.5.18.6.4.3 unsaved-note staged Linked Context.
   assert.match(notesJs, /editorStagedTargets: \[\]/, "The note editor should track unsaved Linked Context in draft state");
@@ -279,7 +296,7 @@ async function assertProtectedView(session) {
   // 0.33.5.18.6.4.4 Notes List footer sorting.
   assert.match(notesJs, /const DEFAULT_NOTE_SORT = "updated_desc"/, "Notes List default sort should be updated newest first");
   assert.match(notesJs, /const NOTES_LIST_SORT_OPTIONS = \[[\s\S]*\["title_asc", "Alphabetical \(A-Z\)"\][\s\S]*\["title_desc", "Alphabetical \(Z-A\)"\][\s\S]*\["created_desc", "Date Created \(Newest First\)"\][\s\S]*\["created_asc", "Date Created \(Oldest First\)"\][\s\S]*\["updated_desc", "Date Updated \(Newest First\)", true\][\s\S]*\["updated_asc", "Date Updated \(Oldest First\)"\][\s\S]*\["library_collection_updated_desc", "Library \/ Collection, then Date Updated"\][\s\S]*\["note_kind_updated_desc", "Note Kind, then Date Updated"\][\s\S]*\["primary_context_updated_desc", "Primary Context, then Date Updated"\]/, "Notes List sort options should match the required labels and default");
-  assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes List sort should live in the footer before pagination");
+  assert.match(notesJs, /registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes List sort should live in the footer before pagination");
   assert.match(notesJs, /function createNotesListSortControl\(\)[\s\S]*className: "notes-list-sort"[\s\S]*select\.dataset\.noteSort = ""[\s\S]*select\.value = DEFAULT_NOTE_SORT/, "Notes List footer should render the sort dropdown");
   assert.match(notesJs, /sortSelect\?\.addEventListener\("change", \(\) => \{\s*state\.page = 1;\s*void reloadNotesFromStart\(\);\s*\}\)/, "Changing Notes List sort should reset to page 1 and reload the server-shaped list");
   assert.doesNotMatch(notesJs, /notesDescriptorSelect\("sort"/, "Sort should no longer be a Filters field in the browser fallback descriptor");
@@ -314,9 +331,9 @@ async function assertProtectedView(session) {
   assert.match(notesCss, /\.view-linked-context-picker-row-hint\s*\{[\s\S]*color:\s*var\(--color-muted\);/, "The shared picker should style Primary Context hint copy through shared row anatomy");
   assert.match(notesServiceJs, /const LINK_TARGET_TYPES = new Set\(\["workspace", "client", "project", "task", "note", "list", "user"\]\)/, "Notes service should keep backend support for Workspace while adding Note/List link targets");
   assert.match(notesServiceJs, /if \(targetType === "note"\)[\s\S]*notesRepository\.list[\s\S]*noteSourceUrl\(note\.note_id\)/, "Notes should provide permission-safe Note link targets");
-  assert.match(notesServiceJs, /if \(targetType === "list"\)[\s\S]*listsRepository\.list[\s\S]*canAccessListTarget[\s\S]*lists\.html\?list/, "Notes should provide permission-safe List link targets");
+  assert.match(listsLinkTargetProviderJs, /listsRepository\.list[\s\S]*canReadList[\s\S]*targetSourceUrl\("list"/, "Lists should provide permission-safe List link targets through its provider");
   assert.match(notesServiceJs, /if \(normalizedTarget\.target_type === "note"\)[\s\S]*canAccessNoteTarget/, "Notes should validate linked Note target access");
-  assert.match(notesServiceJs, /if \(normalizedTarget\.target_type === "list"\)[\s\S]*canAccessListTarget/, "Notes should validate linked List target access");
+  assert.match(linkTargetDirectoryJs, /listsLinkTargetProvider[\s\S]*canAccess\(session, targetType, targetId\)/, "Notes should validate linked List target access through the directory");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);
@@ -329,17 +346,20 @@ async function assertProtectedView(session) {
   assert.match(linkedPanelJs, /readonly/);
 }
 
+/** @param {NotesSession} session */
 async function assertNavigation(session) {
   const bootstrap = await appShellService.bootstrap(session);
-  const actionsMenu = bootstrap.navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
-  const settingsMenu = bootstrap.navigation.find((item) => item.id === "settings" && Array.isArray(item.items));
+  const navigation = navigationItems(bootstrap.navigation);
+  const actionsMenu = navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
+  const settingsMenu = navigation.find((item) => item.id === "settings" && Array.isArray(item.items));
   const adminSettingsMenu = settingsMenu?.items?.find((item) => item.id === "admin-settings-group");
-  const topLevelNotesLink = bootstrap.navigation.find((item) => item.href === "notes.html");
-  const topLevelProjectLink = bootstrap.navigation.find((item) => item.href === "projects.html");
+  const topLevelNotesLink = navigation.find((item) => item.href === "notes.html");
+  const topLevelProjectLink = navigation.find((item) => item.href === "projects.html");
   const notesLink = flattenNavigation(actionsMenu?.items).find((item) => item.href === "notes.html");
   const timeKeepingMenu = actionsMenu?.items?.find((item) => item.id === "time-keeping");
 
   assert.ok(actionsMenu, "Actions menu should appear in authenticated navigation");
+  assert.ok(actionsMenu.items, "the Actions menu should publish its child items");
   assert.equal(topLevelNotesLink, undefined, "Notes should live under Actions instead of top-level navigation");
   assert.equal(topLevelProjectLink, undefined, "Projects should not duplicate the framework-owned Admin menu");
   assert.deepEqual(
@@ -359,6 +379,64 @@ async function assertNavigation(session) {
   assert.equal(notesLink.label, "Notes");
 }
 
+/**
+ * Duplicate and slug-colliding titles are accepted, with the slug disambiguated.
+ *
+ * **Added here rather than as a new regression script**: the estate's consolidation ratchet allows
+ * the discovered-script count to fall and not rise, and this is Notes workflow behaviour, which is
+ * what this script already covers.
+ *
+ * Before `0.33.33.44.17` the second create escaped as `SQLITE_CONSTRAINT_UNIQUE` from `insertNote`
+ * and reached the client as a 500. Duplicate display titles are legitimate: nothing resolves a note
+ * by slug, wiki links are separate metadata where unresolved links are allowed, and
+ * `idx_notes_workspace_slug` is partial on `slug IS NOT NULL` - so the product already stored many
+ * notes with no slug at all.
+ * @param {NotesSession} session
+ */
+async function assertDuplicateTitlesAreAccepted(session) {
+  /** @param {string} title @param {Record<string, unknown>} [extra] */
+  const create = async (title, extra = {}) => (await notesService.create({
+    body_markdown: "Duplicate title fixture",
+    library_bucket: "reference",
+    title,
+    ...extra,
+  }, session)).note;
+
+  const first = await create("Shared Workflow Title");
+  const second = await create("Shared Workflow Title");
+
+  assert.equal(first.slug, "shared-workflow-title");
+  assert.equal(second.slug, "shared-workflow-title-2", "a duplicate title is accepted with a disambiguated slug");
+  assert.equal(first.title, second.title, "only the slug differs; the display titles stay identical");
+
+  // Punctuation is stripped, so distinct titles can slugify the same and collide identically.
+  const punctuated = await create("Shared Workflow Title!!!");
+  assert.equal(punctuated.slug, "shared-workflow-title-3");
+
+  // Nothing slugifiable stores no slug, and several such notes coexist - the index is partial.
+  assert.equal((await create("***")).slug, null);
+  assert.equal((await create("???")).slug, null);
+
+  // A caller-supplied slug is honoured exactly: asking for one is not the same as accepting one.
+  assert.equal((await create("Unrelated Workflow Title", { slug: "workflow-chosen-slug" })).slug, "workflow-chosen-slug");
+
+  // Renaming keeps the slug the note already had, so nothing moves under existing references.
+  const renamed = (await notesService.update(first.note_id, { ...first, title: "Renamed Workflow Title" }, session)).note;
+  assert.equal(renamed.slug, "shared-workflow-title");
+
+  const stored = await querySql(`
+SELECT slug
+FROM notes
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND deleted_at IS NULL
+  AND slug IS NOT NULL
+ORDER BY slug;
+`);
+  const slugs = stored.map((row) => String(row.slug));
+  assert.deepEqual(slugs, [...new Set(slugs)], "every stored slug stays unique, which is what the index requires");
+}
+
+/** @param {NotesSession} session */
 async function assertNoteDetailHtml(session) {
   const result = await notesService.create({
     title: "UI Markdown note",
@@ -371,11 +449,12 @@ async function assertNoteDetailHtml(session) {
   assert.match(readResult.note.body_html, /<strong>bold<\/strong>/);
 }
 
+/** @param {NotesSession} session */
 async function assertDisabledModuleState(session) {
   await setNotesStatus(session.workspace_id, "disabled");
 
   const bootstrap = await appShellService.bootstrap(session);
-  const notesLink = flattenNavigation(bootstrap.navigation).find((item) => item.href === "notes.html");
+  const notesLink = flattenNavigation(navigationItems(bootstrap.navigation)).find((item) => item.href === "notes.html");
   assert.equal(notesLink, undefined, "disabled Notes module should not appear in navigation");
 
   const historicalRead = await staticService.read("/notes.html", session);
@@ -384,6 +463,7 @@ async function assertDisabledModuleState(session) {
   await setNotesStatus(session.workspace_id, "enabled");
 }
 
+/** @param {string} workspaceId @param {string} status */
 async function setNotesStatus(workspaceId, status) {
   const now = new Date().toISOString();
 
@@ -396,6 +476,22 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/**
+ * Cross the bootstrap payload's open navigation list into the tree the shell
+ * actually builds. `AppShellBootstrap` publishes `navigation` as `unknown[]`
+ * because the payload is browser-facing and modules contribute to it, so the
+ * entries are proven to be records here rather than assumed.
+ * @param {readonly unknown[]} navigation
+ * @returns {NavigationItem[]}
+ */
+function navigationItems(navigation) {
+  return navigation.map((item) => {
+    assert.ok(item && typeof item === "object", "app shell navigation entries should be records");
+    return /** @type {NavigationItem} */ (item);
+  });
+}
+
+/** @param {readonly NavigationItem[]} [items] @returns {NavigationItem[]} */
 function flattenNavigation(items = []) {
   return items.flatMap((item) => [
     item,
@@ -403,6 +499,7 @@ function flattenNavigation(items = []) {
   ]);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -411,10 +508,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -424,19 +523,39 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
+}
+
+/** Execute the routing claim rather than pinning calls that cannot validate their inputs.
+ * @param {string} source
+ */
+function assertNotesWorkflowDispatch(source) {
+  /** @type {unknown[][]} */ const calls = [];
+  const result = { edit: Symbol("edit"), archive: Symbol("archive"), restore: Symbol("restore") };
+  const context = vm.createContext({
+    openEditor: (/** @type {unknown} */ note) => { calls.push(["edit", note]); return result.edit; },
+    archiveNote: (/** @type {unknown} */ note) => { calls.push(["archive", note]); return result.archive; },
+    restoreNote: (/** @type {unknown} */ note) => { calls.push(["restore", note]); return result.restore; },
+  });
+  const map = source.slice(source.indexOf("const NOTE_WORKFLOW_HANDLERS ="), source.indexOf("const NOTE_EDITOR_TOOLBAR_ACTIONS ="));
+  const functions = ["isResponseRecord", "hasNoteIdentity", "requireNoteWorkflowIdentity", "isNoteWorkflowEditorSeed", "requireNoteWorkflowEditorSeed", "runNoteWorkflow"];
+  const run = vm.runInContext(`${map}\n${functions.map((name) => extractFunctionBlock(source, name)).join("\n")}\nrunNoteWorkflow`, context);
+  const seed = { note_id: "workflow-id", title: "Partial editor seed", client_id: null };
+  for (const [action, outcome] of Object.entries(result)) {
+    assert.doesNotThrow(() => assert.equal(run(`notes.workflow.${action}`, seed), outcome, `${action} must return its own handler result`));
+    assert.equal(calls[0]?.[1], seed, "the original record must reach the handler by identity");
+    assert.deepEqual(calls.splice(0), [[action, seed]], `${action} must call only its own handler with the original record`);
+    assert.throws(() => run(`notes.workflow.${action}`, { note_id: [] }), /workflow/i, "malformed identities must not dispatch");
+    assert.deepEqual(calls, [], "a refused input must not reach an editor or write");
+  }
 }

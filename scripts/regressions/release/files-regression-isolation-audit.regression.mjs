@@ -8,17 +8,43 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import { readFileSync } from "node:fs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
+import { createStaticRegressionExecutionPlan } from "../../lib/static-regression-execution.mjs";
+import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../../data-files-security-static-consolidation.mjs";
 
-const audit = JSON.parse(readFileSync("scripts/regression-files-isolation-audit.json", "utf8"));
-const staticAudit = JSON.parse(readFileSync("scripts/regression-static-isolation-audit.json", "utf8"));
-const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
+/** @typedef {import("../../lib/regression-discovery.mjs").RegressionSuiteBucket} RegressionSuiteBucket */
+
+/**
+ * Recorded evidence rows read from the checked-in isolation audits and the
+ * legacy discovery snapshot. Each shape names only the fields this owner
+ * asserts against, so the generated JSON stays the single source of truth.
+ * @typedef {{ decision: string, path: string, rationale: string, resources: Record<string, unknown> }} FilesAuditEntry
+ * @typedef {{ concurrency: number, failures: number, passes: number, recoveredFlakes: number, scriptRuns: number, wallSeconds: number }} FilesStressMeasurement
+ * @typedef {{ path: string }} LegacySnapshotScript
+ * @typedef {{ decision: string, path: string, rationale: string, resources: Record<string, unknown>, sourceRunMode: string }} StaticAuditEntry
+ * @typedef {{ decision: string, fallback: string, path: string, rationale: string, resources: Record<string, unknown> }} StaticExecutionAuditEntry
+ * @typedef {{ entries: FilesAuditEntry[], measurements: { baseline: Record<string, number>, postChange: Record<string, number>, quickWins20260731: Record<string, number>, stress: FilesStressMeasurement[] }, parallelRunMode: string, resourceDimensions: unknown, schemaVersion: number, sourceRunMode: string }} FilesIsolationAudit
+ * @typedef {import("../../lib/static-regression-execution.mjs").StaticExecutionAudit} PublishedStaticExecutionAudit
+ * @typedef {{ baseline: Record<string, number>, postChange: Record<string, number>[] }} StaticFullSuiteMeasurements
+ * @typedef {{ certifiedWorkers: number, fullRuns: Record<string, number>[] }} StaticExecutionMeasurements
+ * @typedef {{ entries: StaticAuditEntry[], execution: PublishedStaticExecutionAudit & { defaultResources: Record<string, string>, entries: StaticExecutionAuditEntry[], measurements: StaticExecutionMeasurements }, fullSuiteMeasurements: StaticFullSuiteMeasurements, measurements: Record<string, number>, resourceDimensions: unknown, schemaVersion: number, targetRunMode: string }} StaticIsolationAudit
+ * @typedef {{ scripts: LegacySnapshotScript[] }} LegacySnapshot
+ */
+
+// Three generated audits, all parsed JSON. Each crosses the boundary through
+// the shared record narrowing and names only what this owner asserts on.
+/** @type {FilesIsolationAudit} */
+const audit = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-files-isolation-audit.json", "utf8")), "scripts/regression-files-isolation-audit.json");
+/** @type {StaticIsolationAudit} */
+const staticAudit = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-static-isolation-audit.json", "utf8")), "scripts/regression-static-isolation-audit.json");
+/** @type {LegacySnapshot} */
+const legacySnapshot = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8")), "scripts/regression-legacy-snapshot.json");
 const runner = readFileSync("scripts/run-regressions.mjs", "utf8");
+const staticExecution = readFileSync("scripts/lib/static-regression-execution.mjs", "utf8");
 const scheduler = readFileSync("scripts/test-support/regression-runner-scheduler.mjs", "utf8");
-const roadmap = readFileSync("ROADMAP.md", "utf8");
-const roadmapArchive = readFileSync("ROADMAP-ARCHIVE.md", "utf8");
 const dimensions = [
   "database",
   "fileStorageRoot",
@@ -28,47 +54,55 @@ const dimensions = [
   "workerOrChildProcess",
   "singletonRuntime",
 ];
-const originalFiles = legacySnapshot.scripts
-  .filter((entry) => entry.runMode === "serial-files")
-  .map((entry) => entry.path)
-  .sort();
-const staticAuditPaths = new Set(staticAudit.entries.map((entry) => entry.path));
+const legacyPaths = new Set(legacySnapshot.scripts.map((/** @type {LegacySnapshotScript} */ entry) => entry.path));
+const staticAuditPaths = new Set(staticAudit.entries.map((/** @type {StaticAuditEntry} */ entry) => entry.path));
+const consolidatedSourcePaths = new Map(DATA_FILES_SECURITY_STATIC_CONSOLIDATION.movements.map((entry) => [entry.sourcePath, entry]));
+/** @param {string} sourcePath */
+const activeEntryFor = (sourcePath) => {
+  const movement = consolidatedSourcePaths.get(sourcePath);
+  const activePath = movement
+    ? REGRESSION_ENTRIES.find((entry) => entry.id === movement.retainedOwner)?.path
+    : sourcePath;
+  return REGRESSION_ENTRIES.find((entry) => entry.path === activePath);
+};
 
 assert.equal(audit.schemaVersion, 1);
 assert.equal(audit.sourceRunMode, "serial-files");
 assert.equal(audit.parallelRunMode, "isolated-files");
 assert.deepEqual(audit.resourceDimensions, dimensions);
-assert.deepEqual(audit.entries.map((entry) => entry.path).sort(), originalFiles, "the audit must classify every original serial Files script exactly once");
-assert.equal(new Set(audit.entries.map((entry) => entry.path)).size, 29);
+assert.equal(new Set(audit.entries.map((/** @type {FilesAuditEntry} */ entry) => entry.path)).size, 29);
+assert.equal(audit.entries.filter((/** @type {FilesAuditEntry} */ entry) => !legacyPaths.has(entry.path)).length, 1, "only the consolidated scanner documentation owner may leave the historical Files audit snapshot");
+assert.equal(consolidatedSourcePaths.has("scripts/file-scanner-setup-docs-regression.mjs"), true);
 
 for (const entry of audit.entries) {
   assert.ok(["serial-files", "isolated-files"].includes(entry.decision), `${entry.path} must have an allowed scheduling decision`);
   assert.deepEqual(Object.keys(entry.resources), dimensions, `${entry.path} must classify every mutable resource dimension`);
   assert.ok(entry.rationale.length >= 40, `${entry.path} must retain a script-specific scheduling rationale`);
+  const consolidated = consolidatedSourcePaths.has(entry.path);
   assert.equal(
-    REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode,
-    staticAuditPaths.has(entry.path) ? "static" : entry.decision,
+    activeEntryFor(entry.path)?.runMode,
+    consolidated || staticAuditPaths.has(entry.path) ? "static" : entry.decision,
     `${entry.path} discovery mode must match the latest audited decision`,
   );
 }
 
-const moved = audit.entries.filter((entry) => entry.decision === "isolated-files");
-const retained = audit.entries.filter((entry) => entry.decision === "serial-files");
-const currentlySerial = retained.filter((entry) => !staticAuditPaths.has(entry.path));
+const moved = audit.entries.filter((/** @type {FilesAuditEntry} */ entry) => entry.decision === "isolated-files");
+const retained = audit.entries.filter((/** @type {FilesAuditEntry} */ entry) => entry.decision === "serial-files");
+const currentlySerial = retained.filter((/** @type {FilesAuditEntry} */ entry) => activeEntryFor(entry.path)?.runMode === "serial-files");
 assert.equal(moved.length, 28, "every stateful Files entry has complete per-process resource isolation and may run with isolated scheduling");
 assert.equal(retained.length, 1, "the original serial inventory should retain the separately reclassified scanner documentation owner");
 assert.equal(currentlySerial.length, 0, "no stateful Files entry should remain serial after source audit and bounded stress");
 
 const serialBucket = REGRESSION_BUCKETS.find((bucket) => bucket.runMode === "serial-files");
 const isolatedFilesBucket = REGRESSION_BUCKETS.find((bucket) => bucket.runMode === "isolated-files");
-assert.equal(serialBucket.mode, "serial");
-assert.equal(serialBucket.concurrency, 1);
-assert.deepEqual(serialBucket.scripts.toSorted(), currentlySerial.map((entry) => entry.path).sort());
-assert.equal(isolatedFilesBucket.mode, "parallel");
-assert.equal(isolatedFilesBucket.concurrency, 4);
-assert.deepEqual(isolatedFilesBucket.scripts.toSorted(), moved.map((entry) => entry.path).sort());
+assert.equal(/** @type {RegressionSuiteBucket} */ (serialBucket).mode, "serial");
+assert.equal(/** @type {RegressionSuiteBucket} */ (serialBucket).concurrency, 1);
+assert.deepEqual(/** @type {RegressionSuiteBucket} */ (serialBucket).scripts.toSorted(), currentlySerial.map((/** @type {FilesAuditEntry} */ entry) => entry.path).sort());
+assert.equal(/** @type {RegressionSuiteBucket} */ (isolatedFilesBucket).mode, "parallel");
+assert.equal(/** @type {RegressionSuiteBucket} */ (isolatedFilesBucket).concurrency, 4);
+assert.deepEqual(/** @type {RegressionSuiteBucket} */ (isolatedFilesBucket).scripts.toSorted(), moved.map((/** @type {FilesAuditEntry} */ entry) => entry.path).sort());
 
-assert.deepEqual(audit.measurements.stress.map((entry) => entry.concurrency), [2, 4, 6]);
+assert.deepEqual(audit.measurements.stress.map((/** @type {FilesStressMeasurement} */ entry) => entry.concurrency), [2, 4, 6]);
 for (const result of audit.measurements.stress) {
   assert.equal(result.passes, 3);
   assert.equal(result.scriptRuns, 27);
@@ -96,13 +130,8 @@ assert.ok(audit.measurements.quickWins20260731.stressWallSeconds > 0);
 assert.ok(audit.measurements.quickWins20260731.familyWallSeconds < audit.measurements.postChange.wallSeconds);
 
 const expectedStaticMoves = [
-  "scripts/clients-projects-strict-guardrail-inventory-regression.mjs",
-  "scripts/file-scanner-setup-docs-regression.mjs",
   "scripts/help-markdown-source-layout-regression.mjs",
   "scripts/regressions/database/private-calendar-subscriptions-migration.regression.mjs",
-  "scripts/task-modal-compact-layout-regression.mjs",
-  "scripts/task-modal-followup-regression.mjs",
-  "scripts/task-modal-reflow-regression.mjs",
 ];
 const staticDimensions = [
   "database",
@@ -112,6 +141,15 @@ const staticDimensions = [
   "scanner",
   "environment",
   "singletonRuntime",
+];
+const staticExecutionDimensions = [
+  "environment",
+  "globalState",
+  "timers",
+  "listeners",
+  "cache",
+  "process",
+  "fileSystem",
 ];
 assert.equal(staticAudit.schemaVersion, 1);
 assert.equal(staticAudit.targetRunMode, "static");
@@ -131,7 +169,7 @@ for (const measurement of staticAudit.fullSuiteMeasurements.postChange) {
   assert.equal(measurement.recoveredFlakes, 0);
   assert.ok(measurement.wallSeconds < staticAudit.fullSuiteMeasurements.baseline.wallSeconds);
 }
-assert.deepEqual(staticAudit.entries.map((entry) => entry.path).sort(), expectedStaticMoves);
+assert.deepEqual(staticAudit.entries.map((/** @type {StaticAuditEntry} */ entry) => entry.path).sort(), expectedStaticMoves);
 for (const entry of staticAudit.entries) {
   assert.equal(entry.decision, "static");
   assert.ok(["isolated-database", "serial-files"].includes(entry.sourceRunMode));
@@ -139,14 +177,47 @@ for (const entry of staticAudit.entries) {
   assert.ok(entry.rationale.length >= 80);
   assert.equal(REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode, "static");
 }
+assert.equal(staticAudit.execution.schemaVersion, 1);
+assert.equal(staticAudit.execution.defaultDecision, "child-process");
+assert.deepEqual(staticAudit.execution.resourceDimensions, staticExecutionDimensions);
+assert.deepEqual(Object.keys(staticAudit.execution.defaultResources), staticExecutionDimensions);
+assert.equal(staticAudit.execution.entries.length, 6);
+for (const entry of staticAudit.execution.entries) {
+  assert.ok(["worker-parallel", "worker-sequential"].includes(entry.decision));
+  assert.equal(entry.fallback, "child-process");
+  assert.deepEqual(Object.keys(entry.resources), staticExecutionDimensions);
+  assert.ok(entry.rationale.length >= 80);
+  assert.equal(REGRESSION_ENTRIES.find((candidate) => candidate.path === entry.path)?.runMode, "static");
+}
+assert.equal(staticAudit.execution.entries.filter((/** @type {StaticExecutionAuditEntry} */ entry) => entry.decision === "worker-sequential").length, 1);
+assert.equal(staticAudit.execution.measurements.certifiedWorkers, staticAudit.execution.entries.length);
+assert.equal(staticAudit.execution.measurements.fullRuns.length, 3);
+for (const measurement of staticAudit.execution.measurements.fullRuns) {
+  assert.equal(measurement.failures, 0);
+  assert.equal(measurement.recoveredFlakes, 0);
+  assert.ok(measurement.wallSeconds > 0);
+}
+const staticExecutionPlan = createStaticRegressionExecutionPlan({ audit: staticAudit, entries: REGRESSION_ENTRIES, env: {} });
+const discoveredStaticEntries = REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static");
+assert.equal(staticExecutionPlan.decisions.size, discoveredStaticEntries.length, "every static owner must receive an audited worker or explicit child-process fallback decision");
+assert.equal(staticExecutionPlan.workerCount, staticAudit.execution.entries.length);
+assert.equal(staticExecutionPlan.fallbackCount, discoveredStaticEntries.length - staticAudit.execution.entries.length);
+for (const entry of discoveredStaticEntries) {
+  const decision = staticExecutionPlan.decisions.get(entry.path);
+  assert.ok(decision, `${entry.path} must have an execution decision`);
+  assert.equal(decision.fallback, "child-process");
+  assert.deepEqual(Object.keys(decision.resources), staticExecutionDimensions);
+}
 
 assert.match(runner, /ISOLATED_FILES_BUCKET_NAME = "isolated file storage regressions"/);
 assert.match(runner, /resolveIsolatedFilesParallelism/);
+assert.match(staticExecution, /LTF_STATIC_EXECUTION_MODE/);
+assert.match(runner, /staticDecision\?\.decision === "worker-parallel"/);
+assert.match(runner, /staticDecision\?\.decision === "worker-sequential"/);
+assert.match(runner, /executionMode: "worker"/);
 assert.match(scheduler, /LTF_ISOLATED_FILES_PARALLELISM/);
 assert.match(runner, /bucket\.name === ISOLATED_BUCKET_NAME\s*\? await runIsolatedWithRetry/, "only isolated database regressions may use the retry scheduler");
 assert.doesNotMatch(runner, /bucket\.name === ISOLATED_FILES_BUCKET_NAME\s*\? await runIsolatedWithRetry/, "Files regressions must not gain retry masking");
 assertRoadmapCursorAtLeast("0.33.20", "the completed branch must advance to the Workbench/API performance branch");
-assert.doesNotMatch(roadmap, /^### Version 0\.33\.19\.5\b/m, "the completed slice must leave the live roadmap");
-assert.match(roadmapArchive, /^## Version 0\.33\.19\.5 - Files regression isolation and scheduling audit$/m);
 
 console.log("Files regression isolation audit passed.");

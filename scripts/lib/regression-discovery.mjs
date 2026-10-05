@@ -6,6 +6,17 @@ import {
   inferLegacyRegressionMeta,
 } from "./regression-metadata.mjs";
 
+/** @typedef {import("./regression-metadata.mjs").RegressionMetadata} RegressionMetadata */
+/** @typedef {RegressionMetadata & { legacy: boolean, order: number, path: string }} DiscoveredRegressionEntry */
+/** @typedef {{ schemaVersion: number, scripts: readonly { path: string, runMode: string }[] }} LegacyRegressionSnapshot */
+/** @typedef {{ decision: string, path: string }} FilesIsolationAuditEntry */
+/** @typedef {{ entries: readonly FilesIsolationAuditEntry[], schemaVersion: number }} FilesIsolationAudit */
+/** @typedef {{ decision: string, path: string, rationale: string, resources: Readonly<Record<string, unknown>>, sourceRunMode: string }} StaticIsolationAuditEntry */
+/** @typedef {{ entries: readonly StaticIsolationAuditEntry[], resourceDimensions: readonly string[], schemaVersion: number, targetRunMode: string }} StaticIsolationAudit */
+/** @typedef {{ sourceRunMode: string, targetRunMode: string }} StaticRunModeOverride */
+/** @typedef {{ concurrency: number, mode: string, name: string, runMode: string }} RunModeBucketDefinition */
+/** @typedef {RunModeBucketDefinition & { entries: readonly DiscoveredRegressionEntry[], scripts: readonly string[] }} RegressionSuiteBucket */
+
 const DEFAULT_ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const LEGACY_SNAPSHOT_PATH = "scripts/regression-legacy-snapshot.json";
 const FILES_ISOLATION_AUDIT_PATH = "scripts/regression-files-isolation-audit.json";
@@ -19,6 +30,10 @@ const RUN_MODE_BUCKETS = Object.freeze([
   Object.freeze({ concurrency: 4, mode: "parallel", name: "isolated database regressions", runMode: "isolated-database" }),
 ]);
 
+/**
+ * @param {{ filesIsolationAudit?: unknown, filesIsolationAuditPath?: string, legacySnapshot?: unknown, rootDir?: string, snapshotPath?: string, staticIsolationAudit?: unknown, staticIsolationAuditPath?: string }} [options]
+ * @returns {Promise<readonly DiscoveredRegressionEntry[]>}
+ */
 async function discoverRegressionEntries({
   legacySnapshot,
   filesIsolationAudit,
@@ -28,14 +43,16 @@ async function discoverRegressionEntries({
   filesIsolationAuditPath = FILES_ISOLATION_AUDIT_PATH,
   staticIsolationAuditPath = STATIC_ISOLATION_AUDIT_PATH,
 } = {}) {
-  const snapshot = legacySnapshot || JSON.parse(await fs.readFile(path.join(rootDir, snapshotPath), "utf8"));
+  const snapshot = /** @type {LegacyRegressionSnapshot} */ (legacySnapshot || JSON.parse(await fs.readFile(path.join(rootDir, snapshotPath), "utf8")));
   validateSnapshot(snapshot, snapshotPath);
-  const isolationAudit = filesIsolationAudit || await readOptionalJson(rootDir, filesIsolationAuditPath);
+  const isolationAudit = /** @type {FilesIsolationAudit | null} */ (filesIsolationAudit || await readOptionalJson(rootDir, filesIsolationAuditPath));
   const filesRunModeOverrides = validateFilesIsolationAudit(isolationAudit, filesIsolationAuditPath);
-  const staticAudit = staticIsolationAudit || await readOptionalJson(rootDir, staticIsolationAuditPath);
+  const staticAudit = /** @type {StaticIsolationAudit | null} */ (staticIsolationAudit || await readOptionalJson(rootDir, staticIsolationAuditPath));
   const staticRunModeOverrides = validateStaticIsolationAudit(staticAudit, staticIsolationAuditPath);
 
+  /** @type {Map<string, number>} */
   const snapshotOrder = new Map(snapshot.scripts.map((entry, index) => [normalizeScriptPath(entry.path), index]));
+  /** @type {Map<string, string>} */
   const snapshotRunModes = new Map(snapshot.scripts.map((entry) => [normalizeScriptPath(entry.path), entry.runMode]));
   const candidates = new Set(snapshotOrder.keys());
   const topLevelScripts = await listTopLevelLegacyCandidates(rootDir);
@@ -56,6 +73,7 @@ async function discoverRegressionEntries({
     candidates.add(scriptPath);
   }
 
+  /** @type {DiscoveredRegressionEntry[]} */
   const entries = [];
 
   for (const scriptPath of candidates) {
@@ -65,7 +83,7 @@ async function discoverRegressionEntries({
     try {
       source = await fs.readFile(absolutePath, "utf8");
     } catch (error) {
-      if (error.code === "ENOENT" && snapshotOrder.has(scriptPath)) {
+      if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT" && snapshotOrder.has(scriptPath)) {
         throw new Error(`${scriptPath} is required by ${snapshotPath} but is missing.`);
       }
       throw error;
@@ -73,6 +91,7 @@ async function discoverRegressionEntries({
 
     const exportedMetadata = extractRegressionMeta(source, scriptPath);
     const snapshotRunMode = snapshotRunModes.get(scriptPath);
+    /** @type {RegressionMetadata} */
     let metadata;
 
     if (snapshotRunMode) {
@@ -118,17 +137,27 @@ async function discoverRegressionEntries({
   return Object.freeze(entries.sort(compareEntries));
 }
 
+/**
+ * @param {string} rootDir
+ * @param {string} relativePath
+ * @returns {Promise<unknown>}
+ */
 async function readOptionalJson(rootDir, relativePath) {
   try {
     return JSON.parse(await fs.readFile(path.join(rootDir, relativePath), "utf8"));
   } catch (error) {
-    if (error.code === "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") {
       return null;
     }
     throw error;
   }
 }
 
+/**
+ * @param {FilesIsolationAudit | null} audit
+ * @param {string} auditPath
+ * @returns {Map<string, string>}
+ */
 function validateFilesIsolationAudit(audit, auditPath) {
   if (!audit) {
     return new Map();
@@ -137,6 +166,7 @@ function validateFilesIsolationAudit(audit, auditPath) {
     throw new Error(`${auditPath} must use schemaVersion 1 and contain an entries array.`);
   }
 
+  /** @type {Map<string, string>} */
   const overrides = new Map();
   for (const entry of audit.entries) {
     const scriptPath = normalizeScriptPath(entry?.path);
@@ -151,6 +181,11 @@ function validateFilesIsolationAudit(audit, auditPath) {
   return overrides;
 }
 
+/**
+ * @param {StaticIsolationAudit | null} audit
+ * @param {string} auditPath
+ * @returns {Map<string, Readonly<StaticRunModeOverride>>}
+ */
 function validateStaticIsolationAudit(audit, auditPath) {
   if (!audit) {
     return new Map();
@@ -164,6 +199,7 @@ function validateStaticIsolationAudit(audit, auditPath) {
     throw new Error(auditPath + " must use schemaVersion 1, target static, resource dimensions, and entries.");
   }
 
+  /** @type {Map<string, Readonly<StaticRunModeOverride>>} */
   const overrides = new Map();
   for (const entry of audit.entries) {
     const scriptPath = normalizeScriptPath(entry?.path);
@@ -188,6 +224,10 @@ function validateStaticIsolationAudit(audit, auditPath) {
   return overrides;
 }
 
+/**
+ * @param {readonly DiscoveredRegressionEntry[]} entries
+ * @returns {readonly Readonly<RegressionSuiteBucket>[]}
+ */
 function createRegressionSuite(entries) {
   return Object.freeze(RUN_MODE_BUCKETS.map((definition) => {
     const bucketEntries = Object.freeze(entries.filter((entry) => entry.runMode === definition.runMode));
@@ -199,6 +239,10 @@ function createRegressionSuite(entries) {
   }));
 }
 
+/**
+ * @param {string} rootDir
+ * @returns {Promise<string[]>}
+ */
 async function listTopLevelLegacyCandidates(rootDir) {
   const scriptsDir = path.join(rootDir, "scripts");
   const entries = await fs.readdir(scriptsDir, { withFileTypes: true });
@@ -209,14 +253,19 @@ async function listTopLevelLegacyCandidates(rootDir) {
     .sort();
 }
 
+/**
+ * @param {string} rootDir
+ * @returns {Promise<string[]>}
+ */
 async function listConventionCandidates(rootDir) {
   const conventionRoot = path.join(rootDir, "scripts", "regressions");
+  /** @type {string[]} */
   const files = [];
 
   try {
     await walk(conventionRoot, files);
   } catch (error) {
-    if (error.code !== "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== "ENOENT") {
       throw error;
     }
   }
@@ -227,6 +276,11 @@ async function listConventionCandidates(rootDir) {
     .sort();
 }
 
+/**
+ * @param {string} directory
+ * @param {string[]} files
+ * @returns {Promise<void>}
+ */
 async function walk(directory, files) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
 
@@ -240,6 +294,11 @@ async function walk(directory, files) {
   }
 }
 
+/**
+ * @param {LegacyRegressionSnapshot} snapshot
+ * @param {string} snapshotPath
+ * @returns {void}
+ */
 function validateSnapshot(snapshot, snapshotPath) {
   if (snapshot?.schemaVersion !== 1 || !Array.isArray(snapshot?.scripts)) {
     throw new Error(`${snapshotPath} must use schemaVersion 1 and contain a scripts array.`);
@@ -254,6 +313,11 @@ function validateSnapshot(snapshot, snapshotPath) {
   }
 }
 
+/**
+ * @param {string} scriptPath
+ * @param {string} area
+ * @returns {void}
+ */
 function validateConventionArea(scriptPath, area) {
   if (!scriptPath.startsWith(CONVENTION_PREFIX)) {
     return;
@@ -266,8 +330,14 @@ function validateConventionArea(scriptPath, area) {
   }
 }
 
+/**
+ * @param {readonly DiscoveredRegressionEntry[]} entries
+ * @returns {void}
+ */
 function validateUniqueEntries(entries) {
+  /** @type {Set<string>} */
   const ids = new Set();
+  /** @type {Set<string>} */
   const paths = new Set();
 
   for (const entry of entries) {
@@ -282,6 +352,11 @@ function validateUniqueEntries(entries) {
   }
 }
 
+/**
+ * @param {DiscoveredRegressionEntry} left
+ * @param {DiscoveredRegressionEntry} right
+ * @returns {number}
+ */
 function compareEntries(left, right) {
   if (left.order !== right.order) {
     return left.order - right.order;
@@ -289,6 +364,10 @@ function compareEntries(left, right) {
   return left.path.localeCompare(right.path);
 }
 
+/**
+ * @param {unknown} scriptPath
+ * @returns {string}
+ */
 function normalizeScriptPath(scriptPath) {
   return String(scriptPath || "").replace(/\\/g, "/");
 }

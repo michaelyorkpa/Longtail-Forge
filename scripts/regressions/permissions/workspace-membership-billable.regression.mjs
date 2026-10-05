@@ -8,13 +8,13 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
 import { randomUUID } from "node:crypto";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const fixture = await createDisposableDatabaseFixture("workspace-membership-billable");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../../../src/db/index.js");
 const { usersRepository } = await import("../../../src/repositories/users.repo.js");
@@ -56,7 +56,10 @@ async function assertStaticContracts() {
   assert.doesNotMatch(timeEntriesSource, /timeEntries\.forEach\(\(entry\)[\s\S]*usersById\.set\(entry\.userId, entry\.userId\)/, "historical entries must not reintroduce inactive user IDs into the user filter");
   assert.match(timeTrackerView, /data-stopwatch-billable-control[\s\S]*data-stopwatch-billable/, "the Time Tracker Billable control should have a workspace-aware wrapper");
   assert.match(stopwatchSource, /function workspaceUsesBillableFlag\(\)[\s\S]*workspaceType === "business"[\s\S]*function billableValue\(input\)[\s\S]*\? "yes" : "no"/, "manual timers should hide and coerce Billable outside Business workspaces");
-  assert.match(timerDialogSource, /billableControl\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Create Timer should hide and coerce its Billable field");
+  // `0.33.33.44.24` acquires the control through the checked lookup, so the write names it there
+  // rather than reaching through `fields`. Both halves of the claim - hidden outside Business, and
+  // the coerced value sent with the timer - are unchanged.
+  assert.match(timerDialogSource, /billableControl, "billable control"\)\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Create Timer should hide and coerce its Billable field");
   assert.match(entryDialogSource, /billableControl\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Time Entry should hide and coerce its Billable field");
   assert.match(projectsSource, /withoutUnsupportedBillingFields[\s\S]*field !== "billingDisplay"[\s\S]*"project-billable"/, "project read surfaces should omit billing metadata outside Business workspaces");
   assert.match(userSettingsView, /data-settings-host="user"/, "User Settings should expose the minimal framework host");
@@ -67,6 +70,17 @@ async function assertStaticContracts() {
   assert.match(userSettingsSource, /Leaving \$\{workspace\.workspaceName[\s\S]*Workspace membership removed\.[\s\S]*Workspace membership was not removed\./, "membership-removal status copy should stay explicit");
 }
 
+/**
+ * The workspace-scoped session this owner drives six services with. The
+ * published request-session contract already describes it, so it is reused by
+ * type-only import rather than redeclared here.
+ * @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} MembershipSession
+ */
+
+/** The membership and account statuses a seeded workspace user is created with. */
+/** @typedef {{ membershipStatus: string, userStatus: string }} SeededMemberStatus */
+
+/** @param {MembershipSession} session @returns {Promise<void>} */
 async function assertInactiveMembersAreAbsent(session) {
   const activeUserId = await createWorkspaceUser(session.workspace_id, "Active Member", {
     membershipStatus: "active",
@@ -93,13 +107,16 @@ async function assertInactiveMembersAreAbsent(session) {
   assert.equal(workspaceUserIds.has(inactiveMembershipUserId), false, "inactive memberships should be absent from workspace administration");
   assert.equal(workspaceUserIds.has(inactiveUserId), false, "inactive users should be absent from workspace administration");
 
-  const taskOptions = (await tasksService.list(session)).options.users;
+  const taskList = await tasksService.list(session);
+  assert.ok(taskList.options, "the task list should resolve its assignable-user options");
+  const taskOptions = taskList.options.users;
   const assignableUserIds = new Set(taskOptions.map((user) => user.user_id));
   assert.equal(assignableUserIds.has(activeUserId), true, "active members should remain assignable");
   assert.equal(assignableUserIds.has(inactiveMembershipUserId), false, "inactive memberships must not be assignable");
   assert.equal(assignableUserIds.has(inactiveUserId), false, "inactive users must not be assignable");
 }
 
+/** @param {MembershipSession} session @returns {Promise<void>} */
 async function assertPersonalFamilyBillableBoundary(session) {
   for (const workspaceType of ["personal", "family"]) {
     await setWorkspaceType(session.workspace_id, workspaceType);
@@ -149,7 +166,7 @@ async function assertPersonalFamilyBillableBoundary(session) {
     const browserEntry = browserRead.entries.find((entry) => entry.entry_id === created.entry_id);
     assert.equal(browserEntry?.billable, "no", `${workspaceType} browser reads should not use a legacy Billable yes value`);
 
-    const publicRead = await timeTrackingPublicApiService.listTimeEntries(workspaceSession, { limit: 100 });
+    const publicRead = await timeTrackingPublicApiService.listTimeEntries(/** @type {Parameters<typeof timeTrackingPublicApiService.listTimeEntries>[0]} */ (/** @type {unknown} */ (workspaceSession)), { limit: 100 });
     const publicEntry = publicRead.data.find((entry) => entry.entry_id === created.entry_id);
     assert.equal(publicEntry?.billable, "no", `${workspaceType} public API reads should not expose a legacy Billable yes value`);
 
@@ -159,6 +176,7 @@ async function assertPersonalFamilyBillableBoundary(session) {
   }
 }
 
+/** @param {string} workspaceId @param {string} label @param {SeededMemberStatus} statuses @returns {Promise<string>} */
 async function createWorkspaceUser(workspaceId, label, { membershipStatus, userStatus }) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -187,10 +205,12 @@ VALUES (
   return userId;
 }
 
+/** @param {string} workspaceId @param {string} workspaceType @returns {Promise<void>} */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`UPDATE workspaces SET workspace_type = ${sqlText(workspaceType)} WHERE workspace_id = ${sqlText(workspaceId)};`);
 }
 
+/** @returns {Promise<MembershipSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT user_id, username, display_name, home_workspace_id, active_workspace_id, timezone
@@ -202,23 +222,10 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name || user.username,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
 }

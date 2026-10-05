@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tag-core-records-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tag-core-records-test.db");
@@ -43,9 +44,11 @@ try {
     tagIds: [tag.tag_id],
   }, session)).entry;
 
+  if (!client.tags || !project.tags) throw new Error("Client and project tag snapshots are required.");
   assert.deepEqual(client.tags.map((item) => item.tag_id), [tag.tag_id]);
   assert.deepEqual(project.tags.map((item) => item.tag_id), [tag.tag_id]);
   assert.deepEqual(task.tags.map((item) => item.tag_id), [tag.tag_id]);
+  if (!entry.tags) throw new Error("Time entry should include its effective tag snapshot.");
   assert.deepEqual(entry.tags.map((item) => item.tag_id), [tag.tag_id]);
 
   assert.equal((await clientsService.listClients(session, { tagIds: [tag.tag_id] })).clients.length, 1);
@@ -58,7 +61,8 @@ try {
 
   await assert.rejects(
     () => modulesService.setModuleStatus(session.workspace_id, "tags", false, { session }),
-    (error) => error.message === "Module 'tags' cannot be disabled because it is a core framework module.",
+    (error) => error instanceof Error &&
+      error.message === "Module 'tags' cannot be disabled because it is a core framework module.",
   );
   await runSql(`
 UPDATE workspace_modules
@@ -127,16 +131,10 @@ LIMIT 1;
   const user = rows[0];
 
   assert.ok(user, "protected user should exist");
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
+/** @param {string} workspaceId */
 async function enableAuditLogging(workspaceId) {
   await runSql(`
 UPDATE workspace_settings

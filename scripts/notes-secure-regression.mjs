@@ -1,9 +1,15 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} SecureSession */
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} InternalEvent */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-secure-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-secure.db");
@@ -23,6 +29,7 @@ const { indexNoteRecord } = await import("../src/modules/notes/search-indexers.j
 const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+/** @type {InternalEvent[]} */
 const capturedSecureNoteEvents = [];
 const unsubscribeSecureNoteEvents = [
   "note.created",
@@ -40,11 +47,11 @@ try {
   activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
-  const workspace = await readWorkspace();
-  const adminSession = await readProtectedSession(workspace.workspace_id);
-  const limitedSession = await createClientUserSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const adminSession = await readProtectedSession(workspaceId);
+  const limitedSession = await createClientUserSession(workspaceId);
 
-  await assertManifestAndSchema(adminSession);
+  await assertManifestAndSchema();
   const secureNoteId = await assertSecureNoteEncryption(adminSession);
   await assertSecurePermissions(adminSession, limitedSession);
   await assertSecureHealth(adminSession);
@@ -63,6 +70,7 @@ try {
 
 async function assertManifestAndSchema() {
   const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule, "the Notes module should be registered");
   const permissionIds = new Set(notesModule.permissions.map((permission) => permission.id));
 
   assert.equal(notesModule.version, appVersion);
@@ -107,6 +115,7 @@ async function assertManifestAndSchema() {
   ]);
 }
 
+/** @param {SecureSession} session */
 async function assertSecureNoteEncryption(session) {
   const createResult = await notesService.create({
     title: "Plaintext title only",
@@ -199,12 +208,18 @@ WHERE note_id = ${sqlText(noteId)};
   assert.ok(revisionRows.every((row) => row.key_wrapping_algorithm === "aes-256-gcm"));
   assert.ok(revisionRows.every((row) => row.encryption_nonce && row.encryption_auth_tag && row.key_wrapping_nonce && row.key_wrapping_auth_tag && row.encrypted_at));
 
-  const revisionRead = await notesService.readRevision(noteId, visibleRevisions.revisions[0].note_revision_id, session);
-  assert.match(revisionRead.revision.body_markdown, /Updated secure body needle|Sensitive body needle/);
+  const visibleRevision = visibleRevisions.revisions[0];
+  assert.ok(visibleRevision, "a secure revision should be available for read and restore");
+  const visibleRevisionId = visibleRevision.note_revision_id;
+  assert.ok(visibleRevisionId, "the secure revision should have an ID");
+  const revisionRead = await notesService.readRevision(noteId, visibleRevisionId, session);
+  const revisionBody = revisionRead.revision.body_markdown;
+  assert.ok(revisionBody, "the decrypted secure revision should expose its body");
+  assert.match(revisionBody, /Updated secure body needle|Sensitive body needle/);
   assert.equal(revisionRead.revision.body_excerpt, null);
   assertNoBrowserSecureStorageFields(revisionRead.revision);
 
-  const restored = await notesService.restoreRevision(noteId, visibleRevisions.revisions[0].note_revision_id, session);
+  const restored = await notesService.restoreRevision(noteId, visibleRevisionId, session);
   assertNoBrowserSecureStorageFields(restored.note);
   assertNoBrowserSecureStorageFields(restored.restoredRevision);
   assert.equal(Object.hasOwn(restored.restoredRevision, "body_markdown"), false);
@@ -230,6 +245,7 @@ WHERE note_id = ${sqlText(noteId)};
   return noteId;
 }
 
+/** @param {SecureSession} adminSession @param {SecureSession} limitedSession */
 async function assertSecurePermissions(adminSession, limitedSession) {
   const secure = await notesService.create({
     title: "Owner secure note",
@@ -243,6 +259,7 @@ async function assertSecurePermissions(adminSession, limitedSession) {
   );
 }
 
+/** @param {SecureSession} session */
 async function assertSecureHealth(session) {
   const ready = await notesService.secureHealth(session);
   assert.deepEqual(ready, {
@@ -267,6 +284,7 @@ async function assertSecureHealth(session) {
   process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = previousKey;
 }
 
+/** @param {SecureSession} session @param {string} noteId */
 async function assertMissingKeyFailsClosed(session, noteId) {
   const previousKey = process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY;
   delete process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY;
@@ -299,6 +317,7 @@ async function assertMissingKeyFailsClosed(session, noteId) {
   }
 }
 
+/** @param {SecureSession} session */
 async function assertPlaceholderWarningsBlockActivation(session) {
   await runSql(`
 INSERT INTO notes (
@@ -344,6 +363,7 @@ INSERT INTO notes (
   );
 }
 
+/** @param {string} tableName @param {readonly string[]} expectedColumns */
 async function assertColumns(tableName, expectedColumns) {
   const rows = await querySql(`PRAGMA table_info(${tableName});`);
   const columns = new Set(rows.map((row) => row.name));
@@ -353,6 +373,7 @@ async function assertColumns(tableName, expectedColumns) {
   }
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -361,10 +382,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<SecureSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -375,16 +398,14 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {string} workspaceId @returns {Promise<SecureSession>} */
 async function createClientUserSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -462,24 +483,26 @@ VALUES (
 );
 `);
 
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
+    display_name: "Limited Secure Notes User",
     user_id: userId,
     username: `limited-secure-${userId}@example.test`,
-    display_name: "Limited Secure Notes User",
-    timezone: "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {() => Promise<unknown>} fn @param {RegExp} pattern */
 async function assertRejectsWithMessage(fn, pattern) {
   await assert.rejects(fn, (error) => {
-    assert.match(error.message, pattern);
+    assert.match(error instanceof Error ? error.message : String(error), pattern);
     return true;
   });
 }
 
+/** @param {unknown} value */
 function assertNoBrowserSecureStorageFields(value) {
+  assert.ok(value && typeof value === "object", "a browser-facing note payload should be an object");
   for (const field of [
     "secure_payload",
     "secure_payload_version",
@@ -497,6 +520,7 @@ function assertNoBrowserSecureStorageFields(value) {
   }
 }
 
+/** @param {string} workspaceId @param {readonly string[]} needles */
 async function assertSecureBodyNotPersistedInIntegrationTables(workspaceId, needles) {
   await drainQueuedSearchJobs();
 
@@ -537,10 +561,6 @@ WHERE workspace_id = ${sqlText(workspaceId)}
     new_value: event.new_value,
     metadata: event.metadata,
   }))), false);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function assertIntegrity() {

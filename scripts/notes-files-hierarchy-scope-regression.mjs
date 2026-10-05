@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-files-hierarchy-scope-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-files-hierarchy-scope.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Files-Hierarchy-Scope-Test-123!";
@@ -65,9 +66,12 @@ function assertStaticContract() {
     /As of 0\.33\.6\.14\.2, the Notes list query path and Files browse plus File Context target reads consume the shared descendant-aware hierarchy scope resolver[\s\S]*Browser code continues to submit only the selected direct client\/project values[\s\S]*Notes service\/repository and Files service expand readable descendants server-side/,
     "View-building contract should document the Notes/Files hierarchy scope ownership boundary",
   );
-  assertRoadmapCursorAtLeast("0.33.8", "Roadmap should advance beyond the completed hierarchy and Linked Context follow-up slices");
     }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** @typedef {Awaited<ReturnType<typeof createHierarchyFixtures>>} HierarchyFixtures */
+
+/** @param {NotesSession} session */
 async function createHierarchyFixtures(session) {
   const parentClient = (await clientsService.createClient({ name: "Hierarchy Parent Client" }, session)).client;
   const childClient = (await clientsService.createClient({
@@ -167,6 +171,7 @@ async function createHierarchyFixtures(session) {
   };
 }
 
+/** @param {NotesSession} session @param {HierarchyFixtures} fixtures */
 async function assertNotesHierarchyScope(session, fixtures) {
   const parentClientScope = await notesService.list(session, {
     client_id: fixtures.parentClient.id,
@@ -216,6 +221,7 @@ async function assertNotesHierarchyScope(session, fixtures) {
   );
 }
 
+/** @param {NotesSession} session @param {HierarchyFixtures} fixtures */
 async function assertFilesHierarchyScope(session, fixtures) {
   const parentClientScope = await filesService.listAttachments(session, {
     client_id: fixtures.parentClient.id,
@@ -316,6 +322,7 @@ async function assertFilesHierarchyScope(session, fixtures) {
   );
 }
 
+/** @param {NotesSession} session */
 async function assertUnreadableDescendantsStayExcluded(session) {
   const parentClient = (await clientsService.createClient({ name: "Hierarchy Permission Parent Client" }, session)).client;
   const readableChildClient = (await clientsService.createClient({
@@ -413,6 +420,7 @@ async function assertUnreadableDescendantsStayExcluded(session) {
   );
 }
 
+/** @param {{ clientId: string, label: string, projectId: string, session: NotesSession, targetId: string }} input */
 async function insertAvailableAttachment({ clientId, label, projectId, session, targetId }) {
   const attachmentId = randomUUID();
   const fileId = randomUUID();
@@ -506,6 +514,7 @@ VALUES (
   return attachmentId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -551,16 +560,16 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @param {string} userId @param {string} workspaceId @param {string} projectId */
 async function assignProjectAdminRole(userId, workspaceId, projectId) {
   const now = new Date().toISOString();
 
@@ -588,6 +597,7 @@ VALUES (
 `);
 }
 
+/** @returns {Promise<NotesSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.display_name, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -599,23 +609,10 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

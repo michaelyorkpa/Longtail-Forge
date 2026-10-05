@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-api-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-api-service.db");
@@ -21,9 +25,9 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 
 try {
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const adminSession = await readProtectedSession(workspace.workspace_id);
-  const limitedSession = await createClientUserSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const adminSession = await readProtectedSession(workspaceId);
+  const limitedSession = await createClientUserSession(workspaceId);
 
   await assertNoteLifecycle(adminSession);
   await assertNoteBulkEditing(adminSession, limitedSession);
@@ -41,6 +45,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {NotesSession} session */
 async function assertLinkedRecordPickerReadModel(session) {
   const suffix = randomUUID().slice(0, 8);
   const clientId = `picker-client-${suffix}`;
@@ -93,6 +98,7 @@ async function assertLinkedRecordPickerReadModel(session) {
 
   const taskTargets = await notesService.listLinkTargets(session, { targetType: "task", q: "Picker Task" });
   const taskTarget = taskTargets.targets.find((target) => target.targetId === task.task_id);
+  if (!taskTarget) throw new Error("Task link target should be returned.");
   assert.equal(taskTarget.label, "Picker Task");
   assert.equal(taskTarget.clientId, clientId);
   assert.equal(taskTarget.projectId, projectId);
@@ -115,6 +121,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
   const projectTargets = await notesService.listLinkTargets(session, { targetType: "project", q: "Picker Project" });
   const projectTarget = projectTargets.targets.find((target) => target.targetId === projectId);
+  if (!projectTarget) throw new Error("Project link target should be returned.");
   assert.equal(projectTarget.label, "Picker Project");
   assert.equal(projectTarget.suggestedLibraryBucket, NOTE_LIBRARY_BUCKETS.ONGOING_AREA);
 
@@ -125,12 +132,16 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
   const noteTargets = await notesService.listLinkTargets(session, { targetType: "note", q: "Picker reference note" });
   const noteTarget = noteTargets.targets.find((target) => target.targetId === referenceNote.note.note_id);
+  if (!noteTarget) throw new Error("Note link target should be returned.");
   assert.equal(noteTarget.label, "Picker reference note");
   assert.equal(noteTarget.noteId, referenceNote.note.note_id);
   assert.equal(noteTarget.sourceUrl, `notes.html?note=${encodeURIComponent(referenceNote.note.note_id)}`);
 
+  assert.ok(list, "the picker list fixture should be created");
+
   const listTargets = await notesService.listLinkTargets(session, { targetType: "list", q: "Picker List" });
   const listTarget = listTargets.targets.find((target) => target.targetId === list.list_id);
+  if (!listTarget) throw new Error("List link target should be returned.");
   assert.equal(listTarget.label, "Picker List");
   assert.equal(listTarget.listId, list.list_id);
   assert.equal(listTarget.sourceUrl, `lists.html?list=${encodeURIComponent(list.list_id)}`);
@@ -152,6 +163,10 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   const noteLink = read.note.links.find((link) => link.target_type === "note" || link.targetType === "note");
   const listLink = read.note.links.find((link) => link.target_type === "list" || link.targetType === "list");
 
+  assert.ok(taskLink, "task link should be present");
+  assert.ok(noteLink, "note link should be present");
+  assert.ok(listLink, "list link should be present");
+
   assert.equal(read.note.task_id || "", "");
   assert.equal(taskLink.label, "Picker Task");
   assert.equal(taskLink.source_url, `tasks.html?task=${encodeURIComponent(task.task_id)}`);
@@ -164,6 +179,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(read.note.linked_context.client.label, "Picker Client");
 }
 
+/** @param {NotesSession} session */
 async function assertNoteKindCleanup(session) {
   for (const noteType of Object.values(NOTE_TYPES)) {
     const result = await notesService.create({
@@ -200,6 +216,7 @@ async function assertNoteKindCleanup(session) {
   assert.equal(updated.note.note_type, LEGACY_NOTE_TYPES.CLIENT, "legacy note_type values should round-trip safely");
 }
 
+/** @param {NotesSession} session */
 async function assertNoteLifecycle(session) {
   const createResult = await notesService.create({
     title: "API service note",
@@ -218,7 +235,9 @@ async function assertNoteLifecycle(session) {
 
   assert.equal(createResult.note.library_bucket, NOTE_LIBRARY_BUCKETS.REFERENCE);
   assert.equal(createResult.note.links.length, 1);
+  assert.ok(createResult.searchDocument, "normal Notes creation should return a search document");
   assert.equal(createResult.searchDocument.recordType, "note");
+  assert.ok(createResult.note.body_excerpt, "normal Notes should expose a Markdown excerpt");
   assert.match(createResult.note.body_excerpt, /Heading/);
   assert.equal((await notesService.listRevisions(noteId, session)).revisions.length, 0);
 
@@ -289,18 +308,23 @@ async function assertNoteLifecycle(session) {
   assert.equal(restoreResult.note.status, NOTE_STATUSES.ACTIVE);
 
   const revisionToRestore = revisionsAfterSecondUpdate.revisions.at(-1);
-  const revisionRestoreResult = await notesService.restoreRevision(noteId, revisionToRestore.note_revision_id, session);
-  assert.equal(revisionRestoreResult.restoredRevision.note_revision_id, revisionToRestore.note_revision_id);
+  assert.ok(revisionToRestore, "an earlier revision should be available to restore");
+  const revisionIdToRestore = revisionToRestore.note_revision_id;
+  assert.ok(revisionIdToRestore, "the restorable revision should have an ID");
+  const revisionRestoreResult = await notesService.restoreRevision(noteId, revisionIdToRestore, session);
+  assert.equal(revisionRestoreResult.restoredRevision.note_revision_id, revisionIdToRestore);
 
   const links = await notesService.listLinks(noteId, session);
   assert.equal(links.links.length, 1);
   const removed = await notesService.removeLink(noteId, links.links[0].note_link_id, session);
+  assert.ok(removed.link, "removing a note link should answer the removed link");
   assert.ok(removed.link.removed_at);
 
   const deleteResult = await notesService.softDelete(noteId, session);
   assert.equal(deleteResult.note.status, NOTE_STATUSES.DELETED);
 }
 
+/** @param {NotesSession} session @param {NotesSession} limitedSession */
 async function assertNoteBulkEditing(session, limitedSession) {
   const suffix = randomUUID().slice(0, 8);
   const collection = (await notesService.createCollection({
@@ -382,6 +406,7 @@ async function assertNoteBulkEditing(session, limitedSession) {
   );
 }
 
+/** @param {NotesSession} session */
 async function assertNotesTagAndTargetIntegrations(session) {
   const tag = await tagsService.create(session, {
     color: "#2563eb",
@@ -399,8 +424,10 @@ async function assertNotesTagAndTargetIntegrations(session) {
 
   const filtered = await notesService.list(session, { tagIds: [tag.tag.tag_id] });
   assert.ok(filtered.notes.some((note) => note.note_id === noteId), "Notes list should filter by assigned tags");
+  const filteredNote = filtered.notes.find((note) => note.note_id === noteId);
+  assert.ok(filteredNote, "the tagged note should remain in the filtered result");
   assert.equal(
-    filtered.notes.find((note) => note.note_id === noteId).library_bucket,
+    filteredNote.library_bucket,
     createResult.note.library_bucket,
     "Tag filtering should not alter Library bucket classification",
   );
@@ -421,6 +448,7 @@ async function assertNotesTagAndTargetIntegrations(session) {
   assert.deepEqual(updated.note.tags, [], "Manual note tags should be replaceable without leaving stale tags");
 }
 
+/** @param {NotesSession} session */
 async function assertNotesFileAttachmentIntegration(session) {
   const noteResult = await notesService.create({
     title: "Attachable note",
@@ -444,6 +472,7 @@ async function assertNotesFileAttachmentIntegration(session) {
     targetId: noteResult.note.note_id,
     targetType: "note",
   });
+  assert.ok(upload.file, "the note attachment upload should answer a stored file");
   assert.deepEqual(attachments.attachments.map((attachment) => attachment.fileId), [upload.file.fileId]);
 
   const secureNote = await notesService.create({
@@ -464,6 +493,7 @@ async function assertNotesFileAttachmentIntegration(session) {
   );
 }
 
+/** @param {NotesSession} adminSession @param {NotesSession} limitedSession */
 async function assertPrivateNotesStayHidden(adminSession, limitedSession) {
   const privateNote = await notesService.create({
     title: "Private admin note",
@@ -484,6 +514,7 @@ async function assertPrivateNotesStayHidden(adminSession, limitedSession) {
   );
 }
 
+/** @param {NotesSession} session */
 async function assertDisabledModuleBlocksWrites(session) {
   await runSql(`
 UPDATE workspace_modules
@@ -505,6 +536,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -513,10 +545,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -527,16 +561,14 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function createClientUserSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -614,19 +646,19 @@ VALUES (
 );
 `);
 
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
+    display_name: "Limited Notes User",
     user_id: userId,
     username: `limited-${userId}@example.test`,
-    display_name: "Limited Notes User",
-    timezone: "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {() => Promise<unknown>} fn @param {RegExp} pattern */
 async function assertRejectsWithMessage(fn, pattern) {
   await assert.rejects(fn, (error) => {
-    assert.match(error.message, pattern);
+    assert.match(error instanceof Error ? error.message : String(error), pattern);
     return true;
   });
 }

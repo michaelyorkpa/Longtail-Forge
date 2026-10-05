@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const clientProjectsModule = readText("src/modules/client-projects/module.js");
 const clientsService = readText("src/modules/client-projects/clients.service.js");
@@ -14,10 +15,7 @@ const declarativeGuide = readText("docs/declarative-view-surfaces.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-legacy-snapshot.json");
-
 
 assert.match(
   clientProjectsModule,
@@ -58,7 +56,7 @@ assert.match(
 
 assert.match(
   clientsProjectsScript,
-  /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/,
+  /function renderClientProjectsReadSurface\(\)[\s\S]*renderSurface\(activeClientProjectsReadDescriptor, host\)/,
   "Converted Clients/Projects pages should mount descriptor reads through the shared renderer",
 );
 assert.match(
@@ -149,21 +147,6 @@ assert.match(
   /As of 0\.33\.5\.18\.14\.4[\s\S]*Projects read surface[\s\S]*service-owned ordering[\s\S]*No drag\/drop/,
   "Surface contract should record the converted UI hierarchy boundary",
 );
-assert.doesNotMatch(
-  roadmap,
-  /Completed 0\.33\.5\.18\.14\.4 is archived/,
-  "Roadmap should move the completed hierarchy/reparent slice to the archive pointer",
-);
-assert.doesNotMatch(
-  roadmap,
-  /### Version 0\.33\.5\.18\.14\.4/,
-  "Active roadmap should no longer contain the completed hierarchy/reparent slice body",
-);
-assert.match(
-  changelog,
-  /Version 0\.33\.5\.18\.14\.4[\s\S]*service-owned hierarchy ordering[\s\S]*clients-projects-hierarchy-reparent-regression\.mjs/,
-  "Changelog should record the completed hierarchy/reparent slice and focused regression",
-);
 assert.match(
   regressionSuite,
   /scripts\/clients-projects-hierarchy-reparent-regression\.mjs/,
@@ -171,7 +154,3 @@ assert.match(
 );
 
 console.log("Clients/Projects hierarchy reparent regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

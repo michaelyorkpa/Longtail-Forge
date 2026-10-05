@@ -1,5 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const filesCloseoutVersion = "0.33.5.18.12.7";
 const viewConversionCloseoutVersion = "0.33.5.18.15";
@@ -41,13 +44,4 @@ assert.match(filesInventory, /## Closeout Coverage In 0\.33\.5\.18\.12\.7/, "Fil
 assert.match(filesInventory, /## Closeout Coverage In 0\.33\.5\.18\.12\.7/, "Files inventory should include closeout coverage");
 assert.match(filesInventory, /compact listing-first browse[\s\S]*slide-out filters[\s\S]*shared upload and attachment panel shells[\s\S]*route-backed File Context editing[\s\S]*route-backed Preview[\s\S]*strict `files\.browse` guardrails/, "Files inventory should summarize the shipped closeout boundary");
 
-
 console.log("Files conversion closeout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

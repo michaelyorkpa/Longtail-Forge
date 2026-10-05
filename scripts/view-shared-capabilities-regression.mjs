@@ -1,29 +1,58 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("view-shared-capabilities-regression");
 const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
 
 const builder = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const contract = readText("src/core/modules/manifest-contract.js");
 
 // --- Source guards: the three shared capabilities live in the framework, not modules. ---
-assert.match(renderer, /function appendFilterQuery/, "Renderer should build dataSource query params from filters");
+assert.match(viewDataBindingSource, /function appendFilterQuery/, "Data binding should build dataSource query params from filters");
+assert.match(viewDataBindingSource, /namespace\.viewDataBinding = Object\.freeze\(\{[\s\S]*appendFilterQuery,[\s\S]*loadBoundRecords,/, "Data binding should publish its capability contract");
 assert.match(renderer, /function renderRegions/, "Renderer should render descriptor mount regions");
 assert.match(renderer, /function flushMounts/, "Renderer should flush region mount behaviors");
 assert.match(renderer, /mountType: "fieldOptions"/, "Renderer should mount descriptor option-source behaviors for filter fields");
-assert.match(renderer, /function setFieldOptions/, "Renderer should route descriptor option-source hydration by control type");
-assert.match(renderer, /function setSelectOptions/, "Renderer should hydrate descriptor select options through a shared helper");
-assert.match(renderer, /function mountSearchOptions/, "Renderer should hydrate descriptor search suggestions through a shared popover helper");
+assert.match(viewSearchOptionsSource, /function setFieldOptions/, "Search options should route descriptor option-source hydration by control type");
+assert.match(viewSearchOptionsSource, /function setSelectOptions/, "Search options should hydrate descriptor select options through a shared helper");
+assert.match(viewSearchOptionsSource, /function mountSearchOptions/, "Search options should hydrate descriptor search suggestions through a shared popover helper");
+assert.match(viewSearchOptionsSource, /namespace\.viewSearchOptions = Object\.freeze\(\{[\s\S]*mountSearchOptions,[\s\S]*setFieldOptions,/, "Search options should publish its capability contract");
+assert.doesNotMatch(viewSearchOptionsSource, /@type \{unknown\}/, "Search options must type its popup and controls by narrowing, never by a cast through unknown (0.33.33.48.1)");
 assert.match(renderer, /function tableColumnRenderer/, "Renderer should route table display hooks through framework-owned formatters");
 assert.match(renderer, /function renderItemRow/, "Renderer should render rich item rows");
 assert.match(renderer, /function evaluateVisibleWhen/, "Renderer should evaluate row-action visibility predicates");
-assert.match(renderer, /function interpolateRoute/, "Renderer should interpolate row-action route tokens");
+assert.match(viewActionSecuritySource, /function interpolateRoute/, "Action security should interpolate row-action route tokens");
+// 0.33.33.39.22 retired actionPermissionsAllowed and assertActionPermissions. The claim this
+// line owns - that the module publishes its capabilities as a frozen contract - is unchanged;
+// what it names are the three capabilities that do something.
+assert.match(viewActionSecuritySource, /namespace\.viewActionSecurity = Object\.freeze\(\{[\s\S]*confirmDescriptorAction,[\s\S]*interpolateRoute,[\s\S]*runRouteAction,/, "Action security should publish its capability contract");
+// Declared *and* published, both checked: the module's own docblock still names the retired pair
+// to say where it went, so a bare substring search would match that prose rather than any code.
+assert.doesNotMatch(viewActionSecuritySource, /function (actionPermissionsAllowed|assertActionPermissions)\(/,
+  "Action security must not redeclare a permission hook that enforces nothing");
+assert.doesNotMatch(viewActionSecuritySource, /\n {4}(actionPermissionsAllowed|assertActionPermissions),/,
+  "Action security must not republish one either");
+// None of the three writes to LongtailForge.view: the frozen factory namespace is untouched.
+for (const [label, source] of [["action security", viewActionSecuritySource], ["search options", viewSearchOptionsSource], ["data binding", viewDataBindingSource]]) {
+  assert.doesNotMatch(source, /\.view\s*=/, `${label} must not write the frozen LongtailForge.view factory`);
+}
 assert.match(contract, /function validateRegionsDescriptor/, "Manifest contract should validate descriptor regions");
 
 // --- Manifest validation of the new descriptor fields. ---
@@ -54,25 +83,71 @@ const badVisibleWhenErrors = validateModuleManifest(createModule({
 assert.match(badVisibleWhenErrors.join("\n"), /visibleWhen\.field is required/, "Row-action visibleWhen must declare a field");
 
 // --- Renderer capability execution via a fake DOM. ---
-const context = createBrowserContext([
+const context = createFakeBrowserContext({ responses: [
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
-]);
+], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, context, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, context, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
-const view = context.window.LongtailForge.view;
-let mountedWith = null;
-view.registerBehavior("caps.mount", (ctx) => {
-  mountedWith = ctx;
-  ctx.container.appendChild(context.document.createElement("p")).textContent = "REGION_MOUNTED";
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * A rendered capability surface: fake-DOM anatomy plus the renderer-owned
+ * refresh path and live view state this regression drives.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown>, viewState: { filterValues: Record<string, unknown> } }} CapabilitySurface
+ */
+/**
+ * The published `LongtailForge.view` capability entry points under test.
+ * @typedef {{ registerBehavior: (id: string, handler: Function) => void, renderSurface: (descriptor: object, host: FakeNode) => CapabilitySurface }} CapabilityViewSurface
+ */
+const view = /** @type {CapabilityViewSurface} */ (context.window.LongtailForge.view);
+
+/**
+ * Append a paragraph to a mounted region and set its text.
+ *
+ * `appendChild` answers `false` when the fake DOM rejects the append, so the
+ * node is proven before its text is written; otherwise a rejected append would
+ * silently write nothing and the region assertion would fail without saying why.
+ * @param {FakeNode} container
+ * @param {string} text
+ * @param {import("./test-support/fake-dom.mjs").FakeDocument} [document]
+ */
+function appendParagraph(container, text, document = context.document) {
+  const paragraph = container.appendChild(document.createElement("p"));
+  assert.ok(paragraph, "the mounted region should accept an appended paragraph");
+  paragraph.textContent = text;
+}
+
+/**
+ * One capability behavior invocation, as the renderer hands it to a handler.
+ * @typedef {{
+ *   container: FakeNode,
+ *   control?: FakeNode,
+ *   mountSearchOptions?: Function,
+ *   refresh?: Function,
+ *   setOptions?: Function,
+ * }} CapabilityContext
+ */
+
+// Captured on a record rather than two `let` bindings: a binding assigned only
+// inside a callback is narrowed to its initializer by control-flow analysis, so
+// proving it present afterwards collapses the type to `never`. This is the
+// pattern 0.33.33.32.14 recorded for the same situation.
+/** @type {{ mount: CapabilityContext | null, options: CapabilityContext | null }} */
+const captured = { mount: null, options: null };
+view.registerBehavior("caps.mount", /** @param {CapabilityContext} ctx */ (ctx) => {
+  captured.mount = ctx;
+  appendParagraph(ctx.container, "REGION_MOUNTED");
 });
-let optionMount = null;
-view.registerBehavior("caps.statusOptions", (ctx) => {
-  optionMount = ctx;
+view.registerBehavior("caps.statusOptions", /** @param {CapabilityContext} ctx */ (ctx) => {
+  captured.options = ctx;
   return [
     { value: "open", label: "Open" },
     { value: "closed", label: "Closed" },
@@ -87,6 +162,9 @@ await Promise.resolve();
 // Capability 1: filter -> refetch query params (default + dynamic).
 assert.equal(context.window.LongtailForge.api.calls[0], "/api/caps?status=open", "Filter defaults should be applied to the dataSource query");
 const statusSelect = surface.querySelector("[data-view-input=\"status\"]");
+// The option-source behavior must have run for any of these to mean anything.
+const optionMount = captured.options;
+assert.ok(optionMount, "the option-source behavior should have received a mount context");
 assert.equal(optionMount.control, statusSelect, "Option-source behaviors should receive the select control");
 assert.equal(typeof optionMount.setOptions, "function", "Option-source behaviors should receive a shared setOptions helper");
 assert.equal(typeof optionMount.mountSearchOptions, "function", "Option-source behaviors should receive a shared search-options helper");
@@ -96,7 +174,7 @@ await surface.refresh();
 assert.ok(context.window.LongtailForge.api.calls.includes("/api/caps?status=closed"), "Changing a filter should refetch with new query params");
 
 // Capability 2: mount slot/region filled by a registered behavior.
-assert.ok(mountedWith && typeof mountedWith.refresh === "function", "Mount behavior should receive a safe context with refresh");
+assert.ok(captured.mount && typeof captured.mount.refresh === "function", "Mount behavior should receive a safe context with refresh");
 assert.match(surface.textContent, /REGION_MOUNTED/, "Registered mount behavior should fill its region container");
 
 // Capability 2b: display-only hierarchy metadata + chip-list table display hooks.
@@ -114,16 +192,20 @@ assert.match(surface.textContent, /Complete/, "Row actions matching visibleWhen 
 assert.doesNotMatch(surface.textContent, /Reopen/, "Row actions failing visibleWhen should not render");
 
 // Region-only detail surfaces should not invent an item collection placeholder.
-const regionOnlyContext = createBrowserContext([]);
+const regionOnlyContext = createFakeBrowserContext({ responses: [], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, regionOnlyContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, regionOnlyContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, regionOnlyContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, regionOnlyContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, regionOnlyContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, regionOnlyContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, regionOnlyContext, { filename: "view-renderer.js" });
-regionOnlyContext.window.LongtailForge.view.registerBehavior("caps.regionOnly", (ctx) => {
-  ctx.container.appendChild(regionOnlyContext.document.createElement("p")).textContent = "REGION_ONLY_MOUNT";
+/** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).registerBehavior("caps.regionOnly", /** @param {CapabilityContext} ctx */ (ctx) => {
+  appendParagraph(ctx.container, "REGION_ONLY_MOUNT", regionOnlyContext.document);
 });
 const regionOnlyHost = regionOnlyContext.document.createElement("main");
-const regionOnlySurface = regionOnlyContext.window.LongtailForge.view.renderSurface({
+const regionOnlySurface = /** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).renderSurface({
   id: "region-only-detail",
   layout: "single-column",
   detail: {
@@ -134,13 +216,17 @@ assert.match(regionOnlySurface.textContent, /REGION_ONLY_MOUNT/, "Region-only de
 assert.doesNotMatch(regionOnlySurface.textContent, /Items|No records loaded/, "Region-only detail surfaces should not render the generic item placeholder");
 
 // Missing mount behavior fails visibly without breaking the surface.
-const missingContext = createBrowserContext([{ records: [{ record_id: "r1", name: "Record One" }] }]);
+const missingContext = createFakeBrowserContext({ responses: [{ records: [{ record_id: "r1", name: "Record One" }] }], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, missingContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, missingContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, missingContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, missingContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, missingContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, missingContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, missingContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, missingContext, { filename: "view-renderer.js" });
 const missingHost = missingContext.document.createElement("main");
-const missingSurface = missingContext.window.LongtailForge.view.renderSurface({
+const missingSurface = /** @type {CapabilityViewSurface} */ (missingContext.window.LongtailForge.view).renderSurface({
   id: "missing-region",
   layout: "single-column",
   regions: [{ id: "side", behavior: "not.registered" }],
@@ -258,168 +344,4 @@ function validSurface() {
       fieldBindings: { id: "record_id", title: "title", depth: "depth", parentId: "parent_id", path: "path", tags: "tags", items: "children" },
     },
   };
-}
-
-function createBrowserContext(responses) {
-  const document = new FakeDocument();
-  const queue = [...responses];
-  const calls = [];
-  const window = {
-    document,
-    LongtailForge: {
-      api: {
-        calls,
-        async getJson(url) {
-          calls.push(url);
-          const next = queue.length > 0 ? queue.shift() : responses[responses.length - 1];
-          if (next instanceof Error) {
-            throw next;
-          }
-          return next;
-        },
-      },
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.textContent = options.text || options.label || "";
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this._textContent = "";
-  this.open = false;
-  this.hidden = false;
-  this.disabled = false;
-  this.checked = false;
-  this.colSpan = 1;
-  this.type = "";
-  this.value = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.replaceChildren = (...children) => {
-    this.children = [];
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "class") {
-      this.className = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-  this.removeAttribute = (name) => this.attributes.delete(name);
-  this.addEventListener = () => {};
-  this.showModal = () => {};
-
-  this.querySelector = (selector) => collectMatches(this, selector)[0] || null;
-  this.querySelectorAll = (selector) => collectMatches(this, selector);
-
-  Object.defineProperty(this, "firstChild", { get: () => this.children[0] || null });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function collectMatches(root, selector) {
-  const matches = [];
-  const queue = [...root.children];
-  while (queue.length > 0) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      matches.push(element);
-    }
-    queue.push(...element.children);
-  }
-  return matches;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  const attrMatch = selector.match(/^\[([\w-]+)="([^"]*)"\]$/);
-  if (attrMatch) {
-    return element.getAttribute(attrMatch[1]) === attrMatch[2];
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

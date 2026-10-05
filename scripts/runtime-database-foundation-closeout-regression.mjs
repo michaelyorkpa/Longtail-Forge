@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 
-const root = process.cwd();
+import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
@@ -11,7 +10,6 @@ const runtimeDocs = readText("docs/runtime-configuration.md");
 const databaseDocs = readText("docs/database.md");
 const architectureDocs = readText("docs/architecture.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
-
 
 assert.doesNotMatch(
   roadmap,
@@ -91,9 +89,4 @@ assert.match(sqliteDocs, /one Longtail Forge app process\/server/i, "SQLite smal
 assert.match(sqliteDocs, /roughly 50 total users[\s\S]*5-15 concurrent users/i, "SQLite small-office docs should keep the support target");
 assert.match(sqliteDocs, /Runtime Diagnostics panel[\s\S]*does not edit runtime configuration/i, "SQLite docs should keep diagnostics read-only");
 
-
 console.log("Runtime/database foundation closeout regression passed.");
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}

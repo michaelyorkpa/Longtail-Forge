@@ -1,0 +1,110 @@
+import assert from "node:assert/strict";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createProjectTextReader, extractFunctionBlock } from "../../test-support/source-scan.mjs";
+const { readText: read } = createProjectTextReader();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** @param {string} source @param {string} name */
+const filesPage = read("views/protected/files.html");
+const filesScript = read("public/js/files.js");
+
+assert.match(filesPage, /css\/longtail-forge\.css/, "Files page should reference modal styling");
+assert.match(filesPage, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should reference the Files adapter");
+
+const openerBlock = extractFunctionBlock(filesScript, "openFileEditor");
+const buildBlock = extractFunctionBlock(filesScript, "buildFileEditorDialog");
+const metadataBlock = [
+  extractFunctionBlock(filesScript, "createFileEditorMetadataSection"),
+  extractFunctionBlock(filesScript, "createFileEditorMetadataList"),
+  extractFunctionBlock(filesScript, "createReadOnlyMetadataRow"),
+].join("\n");
+const controlsBlock = [
+  extractFunctionBlock(filesScript, "createFileEditorControlsSection"),
+  extractFunctionBlock(filesScript, "createFileContextSelect"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorOptionControls"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorContextControls"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorProjectControl"),
+  extractFunctionBlock(filesScript, "fileEditorClientOptions"),
+  extractFunctionBlock(filesScript, "fileEditorProjectOptions"),
+].join("\n");
+const targetOptionsBlock = [
+  extractFunctionBlock(filesScript, "loadFileEditorTargetOptions"),
+  extractFunctionBlock(filesScript, "fileEditorTargetOptionQuery"),
+  extractFunctionBlock(filesScript, "fileEditorSelectedContext"),
+  extractFunctionBlock(filesScript, "hydrateTargetSelect"),
+  extractFunctionBlock(filesScript, "createFileEditorTargetOption"),
+  extractFunctionBlock(filesScript, "fileEditorTargetOptionLabel"),
+  extractFunctionBlock(filesScript, "fileEditorTargetContextLabel"),
+].join("\n");
+const editorSource = [
+  openerBlock,
+  buildBlock,
+  metadataBlock,
+  controlsBlock,
+  targetOptionsBlock,
+  extractFunctionBlock(filesScript, "bindFileEditorControlEvents"),
+  extractFunctionBlock(filesScript, "setFileEditorControlsDisabled"),
+].join("\n");
+
+assert.match(filesScript, /namespace\.filesDialog = Object\.freeze\(\{[\s\S]*openFileEditor/, "Files should expose a canonical filesDialog.openFileEditor opener");
+assert.match(openerBlock, /view\.showModal\(dialog,\s*\{[\s\S]*trigger/, "File editor opener should use the shared modal stack with trigger focus return");
+assert.match(openerBlock, /loadFileEditorTargetOptions\(dialog,\s*row\)/, "File editor opener should load route-backed target choices");
+assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*label:\s*`Preview \$\{row\.fileName\}`[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File editor should expose the same standalone Preview footer action as the Files list");
+assert.doesNotMatch(buildBlock, /requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File editor Preview should not bind the Preview modal to the edit modal");
+assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""[\s\S]*previewButton\.hidden = !row\.previewable[\s\S]*previewButton\.disabled = !row\.previewable/, "File editor Preview action should have a stable marker and hide for non-previewable rows");
+// Retargeted by 0.33.33.43.8 for the same reason as its sibling in files-edit-modal-save: the
+// footer action closes over `dialog` before the builder assigns it, so the call now goes through
+// `requireFileEditorDialog`, which throws by name where the null read already threw. The action,
+// label and handler are still required; only the dialog argument's spelling is now optional.
+assert.match(buildBlock, /const markReviewedButton = view\.createActionButton\(\{[\s\S]*action:\s*"files\.restore"[\s\S]*label:\s*`Mark \$\{row\.fileName\} reviewed`[\s\S]*markFileReviewedFromContext\((?:requireFileEditorDialog\()?dialog\)?,\s*row,\s*options\)/, "File editor should expose Mark Reviewed as a modal-only review recovery action");
+assert.match(buildBlock, /markReviewedButton\.dataset\.fileContextMarkReviewed = ""[\s\S]*markReviewedButton\.hidden = !row\.reviewable[\s\S]*markReviewedButton\.disabled = !row\.reviewable/, "File editor Mark Reviewed action should have a stable marker and hide outside in-review recovery");
+assert.match(buildBlock, /renderDescriptorModalForm\(fileEditorModalDescriptor\(\),[\s\S]*utilityActions:\s*\[previewButton,\s*markReviewedButton\][\s\S]*actions:\s*\[closeButton,\s*saveButton\]/, "File editor should use the shared descriptor modal form shell with Preview and Mark Reviewed left of Close and Save");
+assert.match(buildBlock, /viewParts\.form\.addEventListener\("submit"[\s\S]*event\.preventDefault\(\)[\s\S]*saveFileEditorContext\(dialog,\s*row,\s*options\)/, "File editor form should submit through the Files-owned context save handler");
+assert.match(buildBlock, /viewParts\.footer\.dataset\.modalFooter = ""/, "File editor should mark the shared modal footer");
+
+[
+  "File name",
+  "File type",
+  "Size",
+  "Status",
+  "Review state",
+  "Uploaded",
+  "Attached",
+  "Uploader",
+].forEach((label) => {
+  assert.ok(metadataBlock.includes(label), `File editor metadata should show ${label}`);
+});
+assert.match(metadataBlock, /createReadOnlyMetadataRow/, "File editor metadata should be rendered through read-only rows");
+assert.doesNotMatch(metadataBlock, /createFileContextSelect|document\.createElement\("input"\)|document\.createElement\("select"\)|name\s*=/, "File metadata should not create editable controls");
+
+assert.match(controlsBlock, /createFileContextSelect\("fileContextTarget",\s*"target"\)/, "File editor should expose a Target control");
+assert.match(controlsBlock, /createFileContextSelect\("fileContextClient",\s*usesBusinessScope\(\) \? "clientId" : ""\)/, "File editor should expose a Business Client control");
+assert.match(controlsBlock, /createFileContextSelect\("fileContextProject",\s*"projectId"\)/, "File editor should expose a Project control");
+assert.match(controlsBlock, /fields:\s*\[[\s\S]*clientField,[\s\S]*createFileContextField\("Project", projectSelect\),[\s\S]*createFileContextField\("Target", targetSelect\)/, "File editor Context controls should order Client, Project, then Target");
+assert.match(controlsBlock, /clientField\.hidden = !business/, "Personal and Family scope should hide the Client control");
+assert.match(controlsBlock, /clientSelect\.name = business \? "clientId" : ""/, "Personal and Family scope should not submit Client values");
+assert.match(buildBlock, /hydrateFileEditorContextControls\(dialog,\s*row,\s*usesBusinessScope\(\)\)/, "File editor should hydrate Client/Project controls from stable client-project state before loading targets");
+assert.match(controlsBlock, /state\.clients\.map/, "File editor Client options should come from the shared /api/client-projects state, not target-option filters");
+assert.match(controlsBlock, /state\.projects\.filter/, "File editor Project options should come from the shared /api/client-projects state and only filter by selected Client");
+assert.match(controlsBlock, /project\.projectLabel[\s\S]*project\.label/, "Project labels should use nested project labels when a Client is selected and include Client context when all clients are shown");
+assert.doesNotMatch(controlsBlock, /response\.filters\?\.client|response\.filters\?\.project/, "File editor Client/Project controls should not shrink to the filtered target-option response");
+assert.match(targetOptionsBlock, /\/api\/files\/attachable-targets/, "File editor should load target choices through the attachable target provider");
+assert.match(targetOptionsBlock, /usesBusinessScope\(\)[\s\S]*clientId/, "Business Client selection should participate in target option filtering");
+assert.match(targetOptionsBlock, /projectId/, "Project selection should participate in target option filtering");
+assert.doesNotMatch(extractFunctionBlock(filesScript, "fileEditorTargetOptionQuery"), /\bmoduleId:\s*row\.moduleId\b|\btargetType:\s*row\.targetType\b/, "File editor target query should not restrict choices to the current module/target type");
+assert.match(targetOptionsBlock, /context\.clientId !== optionClientId[\s\S]*context\.projectId !== optionProjectId/, "Target option labels should omit context parts already selected by Client/Project filters");
+assert.doesNotMatch(extractFunctionBlock(filesScript, "bindFileEditorControlEvents"), /setSelectValueIfPresent|applyFileEditorSelectedTargetContext/, "Target changes should not rewrite Client/Project dropdown values");
+
+assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""/, "File editor should expose a shared footer Preview control");
+assert.match(buildBlock, /saveButton\.dataset\.fileContextSave = ""/, "File editor should expose a shared footer Save control");
+// The namespace accessor `0.33.33.38.2.6.10` added spells "requi[reNa]mespace", which the
+// case-insensitive word list below reads as "rename". Only that token is neutralised, so a
+// control actually named `rename...` - or `fileRename` - still trips the claim.
+const editorControls = editorSource.replace(/requireNamespace\(\)/g, "root()");
+assert.doesNotMatch(editorControls, /rename|replacement|storageProvider|storageKey|quarantine|hardDelete|permanent|purge/i, "File editor shell should not add forbidden controls");
+assert.doesNotMatch(extractFunctionBlock(filesScript, "createFileActions"), /openFileEditor/, "Files row actions should not open the editor in this slice");
+
+console.log("Files edit modal shell regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

@@ -15,6 +15,17 @@ const CLAMSCAN_HEALTH_ARGS = Object.freeze(["--version"]);
 const CLAMSCAN_SCAN_ARGS = Object.freeze(["--no-summary", "-"]);
 const MAX_SCANNER_OUTPUT_CHARS = 4096;
 
+/** @typedef {import("node:stream").Readable} Readable */
+/** @typedef {import("node:net").Socket} Socket */
+/** @typedef {typeof connectSocket} SocketConnector */
+/** @typedef {typeof spawnProcess} ProcessSpawner */
+/** @typedef {{fileId?: string, openReadStream?: () => Readable | Promise<Readable>}} ScannerFile */
+/** @typedef {{connect?: unknown, host?: unknown, port?: unknown, timeoutMs?: unknown}} ClamdOptions */
+/** @typedef {{executablePath?: unknown, timeoutMs?: unknown, spawn?: unknown}} ClamscanOptions */
+/** @typedef {{reason?: string, result?: string, scanStatus?: string, exitCode?: number|null}} QuarantineOptions */
+/** @typedef {{response: string, socketError: Error|null, streamError: Error|null, timedOut: boolean}} ClamdSessionResult */
+/** @typedef {{stderr: string, stdout: string, spawnError: Error|null, streamError: Error|null, timedOut: boolean, exitCode: number|null, signal: NodeJS.Signals|null}} ScannerProcessResult */
+
 function createNoneFileScannerAdapter() {
   return {
     id: "none",
@@ -24,7 +35,7 @@ function createNoneFileScannerAdapter() {
         status: "disabled",
       };
     },
-    async scan(file = {}) {
+    async scan(/** @type {ScannerFile} */ file = {}) {
       return {
         metadata: {
           scanner: "none",
@@ -47,7 +58,7 @@ function createNoopFileScannerAdapter() {
         status: "pass_through",
       };
     },
-    async scan(file = {}) {
+    async scan(/** @type {ScannerFile} */ file = {}) {
       return {
         metadata: {
           scanner: "noop",
@@ -61,8 +72,9 @@ function createNoopFileScannerAdapter() {
   };
 }
 
+/** @param {ClamdOptions} [options] */
 function createClamdFileScannerAdapter(options = {}) {
-  const connect = typeof options.connect === "function" ? options.connect : connectSocket;
+  const connect = typeof options.connect === "function" ? /** @type {SocketConnector} */ (options.connect) : connectSocket;
   const host = normalizeClamdHost(options.host);
   const port = normalizeClamdPort(options.port);
   const timeoutMs = normalizeTimeoutMs(options.timeoutMs, DEFAULT_CLAMD_TIMEOUT_MS);
@@ -89,7 +101,7 @@ function createClamdFileScannerAdapter(options = {}) {
         status: "unavailable",
       };
     },
-    async scan(file = {}) {
+    async scan(/** @type {ScannerFile} */ file = {}) {
       let inputStream;
       try {
         if (typeof file.openReadStream !== "function") {
@@ -155,10 +167,11 @@ function createClamdFileScannerAdapter(options = {}) {
   };
 }
 
+/** @param {ClamscanOptions} [options] */
 function createClamscanFileScannerAdapter(options = {}) {
   const executablePath = normalizeExecutablePath(options.executablePath);
   const timeoutMs = normalizeTimeoutMs(options.timeoutMs, DEFAULT_CLAMSCAN_TIMEOUT_MS);
-  const spawn = typeof options.spawn === "function" ? options.spawn : spawnProcess;
+  const spawn = typeof options.spawn === "function" ? /** @type {ProcessSpawner} */ (options.spawn) : spawnProcess;
 
   return {
     id: "clamscan",
@@ -182,7 +195,7 @@ function createClamscanFileScannerAdapter(options = {}) {
         status: "unavailable",
       };
     },
-    async scan(file = {}) {
+    async scan(/** @type {ScannerFile} */ file = {}) {
       let inputStream;
       try {
         if (typeof file.openReadStream !== "function") {
@@ -252,6 +265,7 @@ function createClamscanFileScannerAdapter(options = {}) {
   };
 }
 
+/** @param {ScannerFile} file @param {QuarantineOptions} [options] */
 function quarantineClamdScanResult(file, options = {}) {
   return {
     metadata: clamdMetadata(options.result || "unavailable"),
@@ -262,6 +276,7 @@ function quarantineClamdScanResult(file, options = {}) {
   };
 }
 
+/** @param {ScannerFile} file @param {QuarantineOptions} [options] */
 function quarantineScanResult(file, options = {}) {
   return {
     metadata: scannerMetadata(options.result || "unavailable", options.exitCode),
@@ -272,6 +287,10 @@ function quarantineScanResult(file, options = {}) {
   };
 }
 
+/**
+ * @param {string} result
+ */
+/** @param {string} result */
 function clamdMetadata(result) {
   return {
     scanner: "clamd",
@@ -279,29 +298,38 @@ function clamdMetadata(result) {
   };
 }
 
+/**
+ * @param {string} result
+ * @param {unknown} exitCode
+ */
+/** @param {string} result @param {number|null|undefined} exitCode */
 function scannerMetadata(result, exitCode) {
+  /** @type {{scanner: string, result: string, exitCode?: number}} */
   const metadata = {
     scanner: "clamscan",
     result,
   };
 
-  if (Number.isInteger(exitCode)) {
+  if (typeof exitCode === "number" && Number.isInteger(exitCode)) {
     metadata.exitCode = exitCode;
   }
 
   return metadata;
 }
 
+/** @param {unknown} value */
 function normalizeExecutablePath(value) {
   const executablePath = String(value || "").trim();
   return executablePath || DEFAULT_CLAMSCAN_EXECUTABLE;
 }
 
+/** @param {unknown} value */
 function normalizeClamdHost(value) {
   const host = String(value || "").trim();
   return host || DEFAULT_CLAMD_HOST;
 }
 
+/** @param {unknown} value */
 function normalizeClamdPort(value) {
   const port = Number(value);
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
@@ -310,6 +338,7 @@ function normalizeClamdPort(value) {
   return port;
 }
 
+/** @param {unknown} value @param {number} defaultTimeoutMs */
 function normalizeTimeoutMs(value, defaultTimeoutMs) {
   const timeoutMs = Number(value);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -319,13 +348,24 @@ function normalizeTimeoutMs(value, defaultTimeoutMs) {
   return Math.min(Math.max(Math.trunc(timeoutMs), 100), 5 * 60 * 1000);
 }
 
+/** @param {{connect: SocketConnector, host: string, inputStream?: Readable|null, port: number, timeoutMs: number}} input @returns {Promise<ClamdSessionResult>} */
 async function runClamdSession({ connect, host, inputStream = null, port, timeoutMs }) {
   return new Promise((resolve) => {
     let settled = false;
+    /** @type {Socket | null} */
     let socket = null;
+    /**
+ * @type {Error | null}
+ */
     let socketError = null;
+    /**
+ * @type {Error | null}
+ */
     let streamError = null;
     let timedOut = false;
+    /**
+ * @type {string | number | NodeJS.Timeout | null | undefined}
+ */
     let timeout = null;
     let response = "";
 
@@ -334,7 +374,7 @@ async function runClamdSession({ connect, host, inputStream = null, port, timeou
         return;
       }
       settled = true;
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       inputStream?.destroy?.();
       socket?.destroy?.();
       resolve({
@@ -346,9 +386,9 @@ async function runClamdSession({ connect, host, inputStream = null, port, timeou
     };
 
     try {
-      socket = connect({ host, port });
+      socket = /** @type {Socket} */ (connect({ host, port }));
     } catch (error) {
-      socketError = error;
+      socketError = error instanceof Error ? error : new Error(String(error));
       finish();
       return;
     }
@@ -363,7 +403,7 @@ async function runClamdSession({ connect, host, inputStream = null, port, timeou
 
     socket.on("connect", () => {
       writeClamdRequest(socket, inputStream).catch((error) => {
-        streamError = error;
+        streamError = error instanceof Error ? error : new Error(String(error));
         finish();
       });
     });
@@ -379,6 +419,11 @@ async function runClamdSession({ connect, host, inputStream = null, port, timeou
   });
 }
 
+/**
+ * @param {{ end: (arg0: Buffer) => void; }} socket
+ * @param {null} inputStream
+ */
+/** @param {Socket} socket @param {Readable|null} inputStream */
 async function writeClamdRequest(socket, inputStream) {
   if (!inputStream) {
     socket.end(CLAMD_HEALTH_COMMAND);
@@ -401,12 +446,13 @@ async function writeClamdRequest(socket, inputStream) {
   socket.end(CLAMD_END_CHUNK);
 }
 
+/** @param {Socket} socket @param {Buffer} buffer */
 async function writeSocketBuffer(socket, buffer) {
   if (socket.destroyed) {
     throw new Error("Scanner unavailable.");
   }
 
-  await new Promise((resolve, reject) => {
+  await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
     socket.write(buffer, (error) => {
       if (error) {
         reject(error);
@@ -414,9 +460,10 @@ async function writeSocketBuffer(socket, buffer) {
       }
       resolve();
     });
-  });
+  }));
 }
 
+/** @param {string} response */
 function clamdResponseLines(response) {
   return String(response || "")
     .replaceAll("\0", "\n")
@@ -425,27 +472,47 @@ function clamdResponseLines(response) {
     .filter(Boolean);
 }
 
+/** @param {string} response */
 function clamdResponseIsPong(response) {
   return clamdResponseLines(response).some((line) => line === "PONG");
 }
 
+/** @param {string} response */
 function clamdResponseIsClean(response) {
   return clamdResponseLines(response).some((line) => line === "OK" || /:\s*OK$/i.test(line));
 }
 
+/** @param {string} response */
 function clamdResponseIsInfected(response) {
   return clamdResponseLines(response).some((line) => /\bFOUND\b/i.test(line));
 }
 
+/** @param {{executablePath: string, args: readonly string[], inputStream?: Readable|null, spawn: ProcessSpawner, timeoutMs: number}} input @returns {Promise<ScannerProcessResult>} */
 async function runScannerProcess({ executablePath, args, inputStream = null, spawn, timeoutMs }) {
   return new Promise((resolve) => {
+    /** @type {import("node:child_process").ChildProcess | undefined} */
     let child;
+    /**
+ * @type {number | null}
+ */
     let exitCode = null;
+    /**
+ * @type {NodeJS.Signals | null}
+ */
     let signal = null;
     let settled = false;
+    /**
+ * @type {Error | null}
+ */
     let spawnError = null;
+    /**
+ * @type {Error | null}
+ */
     let streamError = null;
     let timedOut = false;
+    /**
+ * @type {string | number | NodeJS.Timeout | null | undefined}
+ */
     let timeout = null;
     let stdout = "";
     let stderr = "";
@@ -455,7 +522,7 @@ async function runScannerProcess({ executablePath, args, inputStream = null, spa
         return;
       }
       settled = true;
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       inputStream?.destroy?.();
       resolve({
         exitCode,
@@ -477,8 +544,12 @@ async function runScannerProcess({ executablePath, args, inputStream = null, spa
         windowsHide: true,
       });
     } catch (error) {
-      spawnError = error;
+      spawnError = error instanceof Error ? error : new Error(String(error));
       finish();
+      return;
+    }
+
+    if (!child) {
       return;
     }
 
@@ -491,7 +562,7 @@ async function runScannerProcess({ executablePath, args, inputStream = null, spa
     timeout.unref?.();
 
     child.on("error", (error) => {
-      spawnError = error;
+      spawnError = error instanceof Error ? error : new Error(String(error));
       inputStream?.destroy?.();
       setImmediate(finish);
     });
@@ -512,14 +583,17 @@ async function runScannerProcess({ executablePath, args, inputStream = null, spa
 
     if (inputStream) {
       inputStream.on("error", (error) => {
-        streamError = error;
+        streamError = error instanceof Error ? error : new Error(String(error));
         child.stdin?.destroy?.();
       });
-      inputStream.pipe(child.stdin);
+      if (child.stdin) {
+        inputStream.pipe(child.stdin);
+      }
     }
   });
 }
 
+/** @param {string} current @param {Buffer|string} chunk */
 function appendBoundedOutput(current, chunk) {
   if (current.length >= MAX_SCANNER_OUTPUT_CHARS) {
     return current;
@@ -528,6 +602,7 @@ function appendBoundedOutput(current, chunk) {
   return (current + chunk.toString("utf8")).slice(0, MAX_SCANNER_OUTPUT_CHARS);
 }
 
+/** @param {string} executablePath @param {readonly string[]} args */
 function createSpawnCommand(executablePath, args) {
   if (process.platform === "win32" && /\.(?:bat|cmd)$/i.test(executablePath)) {
     const commandLine = `"${[executablePath, ...args].map(quoteWindowsCommandArgument).join(" ")}"`;
@@ -542,6 +617,7 @@ function createSpawnCommand(executablePath, args) {
   return { executablePath, args, windowsVerbatimArguments: false };
 }
 
+/** @param {string} value */
 function quoteWindowsCommandArgument(value) {
   return `"${String(value).replace(/"/g, '""')}"`;
 }

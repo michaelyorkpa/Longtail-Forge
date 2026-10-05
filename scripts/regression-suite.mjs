@@ -9,6 +9,7 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const REGRESSION_ENTRIES = await discoverRegressionEntries({ rootDir });
 const REGRESSION_BUCKETS = createRegressionSuite(REGRESSION_ENTRIES);
 
+/** @param {string} runMode */
 const bucketScripts = (runMode) => Object.freeze(
   REGRESSION_ENTRIES
     .filter((entry) => entry.runMode === runMode)

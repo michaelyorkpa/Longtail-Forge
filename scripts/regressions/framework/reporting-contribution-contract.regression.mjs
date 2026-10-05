@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("reporting-contribution-contract");
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
@@ -106,8 +107,12 @@ try {
 }
 
 function assertRealContributionShape() {
-  const report = timeTrackingModule.reporting[0];
-  const asset = timeTrackingModule.browserAssets.find((item) => item.id === report.browserAssetIds[0]);
+  // Time Tracking declares both contribution arrays; reading through these
+  // aliases keeps a missing array failing at the same index it fails at today.
+  const reporting = /** @type {import("../../../src/types/framework-contracts.js").ReportingContribution[]} */ (timeTrackingModule.reporting);
+  const browserAssets = /** @type {import("../../../src/types/framework-contracts.js").BrowserAssetContribution[]} */ (timeTrackingModule.browserAssets);
+  const report = reporting[0];
+  const asset = browserAssets.find((item) => item.id === report.browserAssetIds[0]);
   const filterTypes = report.filters.map((filter) => filter.type);
 
   assert.deepEqual(filterTypes, [
@@ -120,7 +125,7 @@ function assertRealContributionShape() {
   ]);
   assert.ok(asset, "The report renderer asset must be registered by its owning module");
   assert.equal(asset.moduleId, report.moduleId);
-  assert.ok(asset.views.includes("framework:reporting"));
+  assert.ok(/** @type {string[]} */ (asset.views).includes("framework:reporting"));
   assert.deepEqual(report.requiresEnabledModules, ["time-tracking", "client-projects"]);
   assert.equal(containsFunction(report), false);
 }
@@ -301,6 +306,7 @@ function sampleAsset() {
   };
 }
 
+/** @returns {Record<string, unknown>} */
 function sampleReport() {
   return {
     id: "sample-report",
@@ -318,6 +324,7 @@ function sampleReport() {
   };
 }
 
+/** @param {unknown} value @returns {boolean} */
 function containsFunction(value) {
   if (typeof value === "function") {
     return true;
@@ -338,12 +345,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "Fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

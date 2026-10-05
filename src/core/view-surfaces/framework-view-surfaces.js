@@ -71,16 +71,21 @@ const frameworkViewSurfaces = Object.freeze([
   }),
 ]);
 
+/** @returns {import("../../types/framework-contracts.js").ModuleViewContribution[]} */
 function listFrameworkProtectedViews() {
   return frameworkProtectedViews.map(cloneContribution);
 }
 
+/** @returns {import("../../types/framework-contracts.js").ViewSurfaceDescriptor[]} */
 function listFrameworkViewSurfaces() {
-  return frameworkViewSurfaces.map(cloneContribution);
+  return /** @type {import("../../types/framework-contracts.js").ViewSurfaceDescriptor[]} */ (
+    /** @type {unknown} */ (frameworkViewSurfaces.map(cloneContribution))
+  );
 }
 
+/** @template Value @param {Value} value @returns {Value} */
 function cloneContribution(value) {
-  return JSON.parse(JSON.stringify(value));
+  return /** @type {Value} */ (JSON.parse(JSON.stringify(value)));
 }
 
 export {

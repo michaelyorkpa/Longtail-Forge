@@ -1,7 +1,9 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
@@ -18,6 +20,7 @@ const inventoryDoc = readText("docs/clients-projects-strict-guardrail-inventory.
 
 assert.equal(clientProjectsModule.version, appVersion, "Clients/Projects module should report the strict cleanup version");
 
+assert.ok(clientProjectsModule.viewSurfaces, "Clients/Projects should contribute view surfaces");
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));
 assertStrictSurface(surfaces.get("client-projects.clients"), {
   label: "Clients",
@@ -67,8 +70,8 @@ for (const forbidden of [
   assert.doesNotMatch(clientsProjectsScript, new RegExp(escapeRegExp(forbidden)), `Clients/Projects strict adapter should not keep ${forbidden}`);
 }
 
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.clients\.bulk", mountClientBulkToolbar\)/, "Client bulk behavior should remain module-registered");
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.projects\.bulk", mountProjectBulkToolbar\)/, "Project bulk behavior should remain module-registered");
+assert.match(clientsProjectsScript, /registerBehavior\("client-projects\.clients\.bulk", mountClientBulkToolbar\)/, "Client bulk behavior should remain module-registered");
+assert.match(clientsProjectsScript, /registerBehavior\("client-projects\.projects\.bulk", mountProjectBulkToolbar\)/, "Project bulk behavior should remain module-registered");
 assert.match(clientsProjectsScript, /\/api\/client-projects/, "Dialog and bulk data refresh should keep the existing client-projects route");
 assert.match(clientsProjectsScript, /\/api\/clients/, "Client saves should keep existing Client route calls");
 assert.match(clientsProjectsScript, /\/api\/projects/, "Project saves should keep existing Project route calls");
@@ -79,19 +82,38 @@ assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "live 
 
 console.log("Clients/Projects strict closeout regression passed.");
 
+/**
+ * @param {import("../src/types/framework-contracts.js").ViewSurfaceDescriptor | undefined} surface
+ * @param {{
+ *   expectedRowActions: Array<{ icon: unknown, iconOnly: unknown, label: unknown, title: unknown }>,
+ *   label: string,
+ *   route: string,
+ *   tagRowId: string,
+ * }} expectations
+ */
 function assertStrictSurface(surface, { label, route, expectedRowActions, tagRowId }) {
   assert.ok(surface, `${label} descriptor should exist`);
   assert.equal(surface.layout, "table-page", `${label} should remain a table-page read surface`);
   assert.equal(surface.filterPlacement, "slide-out-sidebar", `${label} filters should use the shared slide-out surface`);
+  // The sidebar panels, data source, and table anatomy are optional on the
+  // descriptor contract because not every surface contributes them. These
+  // assertions are the standing proof that this one does, so each is proven
+  // present rather than read through.
+  assert.ok(surface.sidebarPanels, `${label} should contribute sidebar panels`);
   assert.ok(surface.sidebarPanels.some((panel) => panel.type === "filters"), `${label} should declare a filters sidebar panel`);
+  assert.ok(surface.dataSource, `${label} should declare a data source`);
   assert.equal(surface.dataSource.route, route, `${label} route should not change in the cleanup slice`);
+  assert.ok(surface.table, `${label} should contribute a table`);
+  assert.ok(surface.table.columns, `${label} table should contribute columns`);
   assert.equal(surface.table.columns.some((column) => column.label === "Tags" || column.id?.endsWith("-tags")), false, `${label} should not have a standalone Tags table column`);
+  assert.ok(surface.table.secondaryRows, `${label} table should contribute secondary rows`);
   assert.ok(surface.table.secondaryRows.some((row) => (
     row.id === tagRowId
       && row.formatter === "chip-list"
       && row.startColumn === "displayLabel"
       && !Object.hasOwn(row, "label")
   )), `${label} should render unlabeled tags directly below the service-shaped record name`);
+  assert.ok(surface.table.rowActions, `${label} table should contribute row actions`);
   assert.deepEqual(
     surface.table.rowActions.map((action) => ({
       icon: action.icon,
@@ -104,16 +126,9 @@ function assertStrictSurface(surface, { label, route, expectedRowActions, tagRow
   );
 }
 
+/** @param {string} html @param {string} label */
 function assertMinimalStrictHost(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.match(body, /data-client-projects-host/, `${label} host should expose the descriptor host`);
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} protected host should not ship page anatomy`);
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

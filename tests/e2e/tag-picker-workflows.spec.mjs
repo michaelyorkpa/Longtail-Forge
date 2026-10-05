@@ -17,6 +17,9 @@ test("Reporting and Notes bulk actions use the shared typable tag picker", async
   }
 
   const reportingResponse = await page.goto("/reporting.html");
+  if (!reportingResponse) {
+    throw new Error("page.goto(\"/reporting.html\") returned no response");
+  }
   expect(reportingResponse.status(), "Reporting should be served to the authenticated test account").toBe(200);
   const reportingTagInput = page.locator('input[data-reporting-filter-control="tags"]');
   await expect(reportingTagInput).toBeVisible();
@@ -27,6 +30,9 @@ test("Reporting and Notes bulk actions use the shared typable tag picker", async
   await expect(reportingTagInput).toHaveAttribute("data-tag-filter-value", tag.tag_id);
 
   const notesResponse = await page.goto("/notes.html");
+  if (!notesResponse) {
+    throw new Error("page.goto(\"/notes.html\") returned no response");
+  }
   expect(notesResponse.status(), "Notes should be served to the authenticated test account").toBe(200);
   await page.locator("[data-view-slideout-sidebar-trigger]").first().click();
   for (const title of noteTitles) {
@@ -51,6 +57,6 @@ test("Reporting and Notes bulk actions use the shared typable tag picker", async
     const assignmentsResponse = await request.get(`/api/tags/assignments?targetType=note&targetId=${encodeURIComponent(note.note_id)}`);
     expect(assignmentsResponse.status(), `tag assignments for ${note.title} should be readable`).toBe(200);
     const assignments = await assignmentsResponse.json();
-    expect(assignments.directTags.map((entry) => entry.tag_id)).toContain(tag.tag_id);
+    expect(assignments.directTags.map((/** @type {Record<string, unknown>} */ entry) => entry.tag_id)).toContain(tag.tag_id);
   }
 });

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-descriptor-host-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-descriptor-host.db");
@@ -23,17 +26,46 @@ const filesScript = readText("public/js/files.js");
 const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
 
-
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should be a minimal descriptor host");
 assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load client/project helpers plus the view builder, renderer, and shared preview before the Files adapter");
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
 
-assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without letting the renderer fetch the browse data yet");
+assert.match(filesScript, /renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without letting the renderer fetch the browse data yet");
 assert.match(filesScript, /files\.browse\.filters/, "Files adapter should register the browse filter behavior");
 assert.match(filesScript, /files\.browse\.results/, "Files adapter should register the browse results behavior");
 assert.doesNotMatch(filesScript, /files\.browse\.legacy|createFilesBrowseChrome/, "Strict Files adapter should not preserve the legacy full-page browse fallback behavior");
-assert.match(filesScript, /fallbackFilesViewSurfaceDescriptor/, "Files adapter should keep a safe fallback descriptor for early bootstrap timing");
+// 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
+// only source now, so this owner asserts the absence of a local copy rather than its presence,
+// and the descriptor's shape is owned where it is declared - in the module/framework source.
+assert.doesNotMatch(
+  filesScript,
+  /function fallback\w*ViewSurfaceDescriptor\(|LinkedRecordsFallbackDescriptor\(/,
+  "Files must not reintroduce a local descriptor fallback",
+);
+assert.match(
+  filesScript,
+  /surface is Record<string, unknown>[\s\S]*?surface\.id === "files\.browse"[\s\S]*?\|\| null;/,
+  "Files should resolve to null when the server did not deliver its surface",
+);
 assert.match(filesScript, /\/api\/files\/attachments/, "Files adapter should continue to use the service-owned attachments route");
+// 0.33.33.35.1.1 - the view shell waits for the workspace context.
+//
+// The shell is built from a server-delivered descriptor. The synchronous workspace context is
+// hydrated from localStorage, so it is legitimately empty on a first visit, in a private
+// window, after cleared site data, or straight after a logout; the protected view ships only
+// an empty host; and nothing re-renders when the context arrives. Building the shell before
+// the context therefore renders whatever the local fallback says rather than what the server
+// delivered. 0.33.33.35.1.2 removes those fallbacks and depends on this ordering holding.
+assert.match(
+  filesScript,
+  /async function initialize\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*buildFilesViewShell\(\)[\s\S]*cacheFilesElements\(\)[\s\S]*bindFilesEvents\(\)/,
+  "Files should await the workspace context before building the shell and caching the DOM it creates",
+);
+assert.doesNotMatch(
+  filesScript,
+  /^  buildFilesViewShell\(\);$/m,
+  "Files must not build the browse shell outside the context-aware bootstrap",
+);
 
 assert.match(frameworkSurfaceSource, /id:\s*"files\.browse"/, "Framework descriptor registry should declare files.browse");
 assert.match(frameworkSurfaceSource, /moduleId:\s*FRAMEWORK_VIEW_SURFACE_MODULE_ID/, "Files descriptor should use the framework surface module id");
@@ -51,18 +83,18 @@ try {
   await modulesService.syncModuleRegistry(workspaceId);
 
   const activeSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, protectedSession);
-  assertFilesSurface(activeSurfaces.find((surface) => surface.id === "files.browse"), "modulesService.listActiveViewSurfaces");
+  assertFilesSurface(surfaceList(activeSurfaces, "modulesService.listActiveViewSurfaces").find((surface) => surface.id === "files.browse"), "modulesService.listActiveViewSurfaces");
 
   const allowedShell = await appShellService.bootstrap(protectedSession);
-  assertFilesSurface(allowedShell.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap top-level viewSurfaces");
-  assertFilesSurface(allowedShell.workspaceContext.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap workspaceContext.viewSurfaces");
+  assertFilesSurface(surfaceList(allowedShell.viewSurfaces, "app shell viewSurfaces").find((surface) => surface.id === "files.browse"), "appShellService.bootstrap top-level viewSurfaces");
+  assertFilesSurface(surfaceList(allowedShell.workspaceContext.viewSurfaces, "app shell workspaceContext.viewSurfaces").find((surface) => surface.id === "files.browse"), "appShellService.bootstrap workspaceContext.viewSurfaces");
 
   const deniedSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, deniedSession);
-  assert.equal(deniedSurfaces.some((surface) => surface.id === "files.browse"), false, "Files descriptor should not be delivered when files.view is denied");
+  assert.equal(surfaceList(deniedSurfaces, "denied listActiveViewSurfaces").some((surface) => surface.id === "files.browse"), false, "Files descriptor should not be delivered when files.view is denied");
 
   const deniedShell = await appShellService.bootstrap(deniedSession);
-  assert.equal(deniedShell.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied app shell should not receive files.browse");
-  assert.equal(deniedShell.workspaceContext.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied workspace context should not cache files.browse");
+  assert.equal(surfaceList(deniedShell.viewSurfaces, "denied app shell viewSurfaces").some((surface) => surface.id === "files.browse"), false, "Denied app shell should not receive files.browse");
+  assert.equal(surfaceList(deniedShell.workspaceContext.viewSurfaces, "denied workspaceContext.viewSurfaces").some((surface) => surface.id === "files.browse"), false, "Denied workspace context should not cache files.browse");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "Database integrity check should pass after Files descriptor regression setup");
@@ -84,6 +116,7 @@ ON CONFLICT(workspace_id) DO NOTHING;
   await ensureUser(deniedUserId, "files-descriptor-denied", "no");
 }
 
+/** @param {string} userId @param {string} username @param {string} protectedUser */
 async function ensureUser(userId, username, protectedUser) {
   const existing = await querySql(`
 SELECT user_id
@@ -145,6 +178,25 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/** @typedef {import("../src/types/framework-contracts.js").NormalizedViewSurfaceDescriptor} ViewSurfaceDescriptor */
+
+/**
+ * Narrow a published surface list to descriptors.
+ *
+ * The app shell publishes `viewSurfaces` as an open list and
+ * `workspaceContext` as an open record, because modules contribute their own
+ * shapes. This owner only ever asks those lists for `files.browse`, so it names
+ * that one contract at the point of use rather than widening the shell.
+ * @param {unknown} surfaces
+ * @param {string} sourceLabel
+ * @returns {ViewSurfaceDescriptor[]}
+ */
+function surfaceList(surfaces, sourceLabel) {
+  assert.ok(Array.isArray(surfaces), `${sourceLabel} should publish a surface list`);
+  return /** @type {ViewSurfaceDescriptor[]} */ (surfaces);
+}
+
+/** @param {ViewSurfaceDescriptor | undefined} surface @param {string} sourceLabel */
 function assertFilesSurface(surface, sourceLabel) {
   assert.ok(surface, `${sourceLabel} should deliver files.browse`);
   assert.equal(surface.moduleId, "framework", `${sourceLabel} should keep files.browse framework-owned`);
@@ -156,6 +208,7 @@ function assertFilesSurface(surface, sourceLabel) {
   assert.equal(surface.detail?.regions?.[0]?.behavior, "files.browse.results", `${sourceLabel} should mount Files results in the main region`);
 }
 
+/** @param {string} html @param {string} label */
 function assertNoProtectedAnatomy(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
 
@@ -163,16 +216,13 @@ function assertNoProtectedAnatomy(html, label) {
   assert.doesNotMatch(body, /\b(data-file-filters|data-file-list|data-file-status|files-table)\b/, `${label} should not ship Files browse hooks outside the descriptor host`);
 }
 
+/** @param {string} userId */
 function sessionFor(userId) {
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
     workspace_id: workspaceId,
     user_id: userId,
     username: userId,
-  };
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  });
 }

@@ -7,6 +7,9 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { fixtureString } from "../../test-support/session-fixtures.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -24,6 +27,7 @@ const { createApp } = await import("../../../src/core/app.js");
 const { CONTENT_SECURITY_POLICY } = await import("../../../src/core/transport-security.js");
 
 const app = createApp();
+/** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} */
 const server = await new Promise((resolve) => {
   const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
 });
@@ -51,11 +55,13 @@ try {
   assert.equal(protectedHelp.statusCode, 401, "authenticated surfaces must remain protected");
   assert.equal(login.statusCode, 200);
 
-  const runtimeIdentity = JSON.parse(appInfo.body);
+  const runtimeIdentity = requireJsonRecord(JSON.parse(appInfo.body), "the app-info runtime identity");
   assert.equal(appInfo.statusCode, 200);
-  assert.match(runtimeIdentity.correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(runtimeIdentity.canonicalVersion)}$`));
+  const canonicalVersion = fixtureString(runtimeIdentity.canonicalVersion, "the app-info canonical version");
+  const correspondingSourceUrl = fixtureString(runtimeIdentity.correspondingSourceUrl, "the app-info corresponding-source URL");
+  assert.match(correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(canonicalVersion)}$`));
 } finally {
-  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  await /** @type {Promise<void>} */ (new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
   await fs.rm(fixtureRoot, { recursive: true, force: true });
 }
 
@@ -68,6 +74,7 @@ assert.doesNotMatch(footerSource, /or at your option any later version/);
 
 console.log("Public legal surfaces regression passed.");
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener @param {string} requestPath @param {Record<string, string>} [headers] @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureStatusCodeTextResponse>} */
 function request(listener, requestPath, headers = {}) {
   return new Promise((resolve, reject) => {
     const outgoing = http.request({
@@ -75,8 +82,9 @@ function request(listener, requestPath, headers = {}) {
       host: "127.0.0.1",
       method: "GET",
       path: requestPath,
-      port: listener.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (listener.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -89,8 +97,4 @@ function request(listener, requestPath, headers = {}) {
     outgoing.once("error", reject);
     outgoing.end();
   });
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-adapter-contract-"));
@@ -13,7 +16,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Database-Adapter-Test-123!";
 
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
-const roadmap = readText("ROADMAP.md");
 const coreDatabaseSource = readText("src/core/database.js");
 const dbProviderSource = readText("src/db/provider.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
@@ -68,7 +70,7 @@ try {
   assert.equal(db.capabilities.migrationLocking, true, "SQLite adapter should report migration locking support after the migration locking slice");
   assert.equal(db.capabilities.migrationLockStrategy, "lock-file", "SQLite adapter should report its migration lock strategy");
 
-  const paramRow = await db.get("SELECT :value AS value;", { value: "adapter-contract-bound-value" });
+  const paramRow = requireRow(await db.get("SELECT :value AS value;", { value: "adapter-contract-bound-value" }), "paramRow");
   assert.equal(paramRow.value, "adapter-contract-bound-value", "adapter should execute named bound parameters");
 
   const startupHealth = await initializeDatabase();
@@ -78,16 +80,17 @@ try {
 
   const health = await db.health();
   assert.equal(health.provider, "sqlite");
-  assert.equal(path.resolve(health.databaseFile), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
+  assert.equal(path.resolve(/** @type {string} */ (health.databaseFile)), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
 
   const workspace = await getSql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
   assert.ok(workspace?.workspace_id, "db.get should return the first row after migrations");
   const migrationRows = await db.query("SELECT version, module_id FROM schema_migrations ORDER BY applied_at LIMIT 1;", []);
   assert.equal(migrationRows[0]?.version, "0.33.5.18.6.5.4", "existing migrations should still run on SQLite");
 
-  const coreWorkspace = await coreDatabase.db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  /** @type {{ workspace_id: string }} */
+  const coreWorkspace = requireRow(await coreDatabase.db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "coreWorkspace");
   assert.equal(coreWorkspace.workspace_id, workspace.workspace_id, "core database facade should share the active provider-neutral db");
-  const tasks = await tasksRepository.readAll(workspace.workspace_id);
+  const tasks = await tasksRepository.readAll(String(workspace.workspace_id));
   assert.deepEqual(tasks, [], "first-party module repositories should be able to query through the provider-neutral database path");
 
   assertDirectSqliteImportInventory();
@@ -96,7 +99,6 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.19\.5[\s\S]*provider-neutral database adapter/, "database docs should describe the adapter contract");
   assert.match(databaseDocs, /Repositories and module services should not import `src\/db\/sqlite\.js` directly/, "database docs should document the direct SQLite import guardrail");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "adapter contract regression database should pass integrity check");
@@ -110,7 +112,7 @@ try {
 function assertDirectSqliteImportInventory() {
   const allowed = new Set(["src/db/adapters/sqlite-adapter.js"]);
   const offenders = listSourceFiles(["src", "scripts"])
-    .filter((filePath) => /from\s+["'][^"']*sqlite\.js["']/.test(readText(filePath)))
+    .filter((filePath) => /from\s+["'][^"']*sqlite\.js["']/.test(readText(normalizePath(filePath))))
     .map(normalizePath)
     .filter((filePath) => !allowed.has(filePath));
 
@@ -133,7 +135,8 @@ function assertUnsupportedProviderFailsClearly() {
   assert.match(child.stderr || child.stdout, /LONGTAIL_DATABASE_PROVIDER must be sqlite/, "unsupported provider failure should name the supported provider");
 }
 
-function listSourceFiles(directories) {
+function listSourceFiles(/** @type {string[]} */ directories) {
+  /** @type {string[]} */
   const results = [];
   for (const directory of directories) {
     walk(path.join(root, directory), results);
@@ -141,14 +144,19 @@ function listSourceFiles(directories) {
   return results;
 }
 
-function walk(currentPath, results) {
+function walk(/** @type {string} */ currentPath, /** @type {string[]} */ results) {
   const stat = readStat(currentPath);
   if (!stat) {
     return;
   }
 
   if (stat.isDirectory()) {
-    for (const entry of readDir(currentPath)) {
+    const entries = readDir(currentPath);
+    if (!entries) {
+      return;
+    }
+
+    for (const entry of entries) {
       walk(path.join(currentPath, entry), results);
     }
     return;
@@ -159,14 +167,24 @@ function walk(currentPath, results) {
   }
 }
 
-function readDir(directory) {
+function readDir(/** @type {string} */ directory) {
   return readFileSystem(() => fsSync.readdirSync(directory));
 }
 
-function readStat(filePath) {
+function readStat(/** @type {string} */ filePath) {
   return readFileSystem(() => fsSync.statSync(filePath));
 }
 
+/**
+ * Read the filesystem, resolving null when the read fails.
+ *
+ * Generic so the caller keeps what it already knows: `readdirSync` resolves
+ * directory entries and `statSync` resolves `fs.Stats`, and both survive the
+ * boundary instead of being flattened away and recovered downstream.
+ * @template ReadResult
+ * @param {() => ReadResult} callback
+ * @returns {ReadResult | null}
+ */
 function readFileSystem(callback) {
   try {
     return callback();
@@ -199,10 +217,6 @@ function cleanEnv(overrides = {}) {
   return { ...env, ...overrides };
 }
 
-function readText(filePath) {
-  return readFileSync(path.isAbsolute(filePath) ? filePath : path.join(root, filePath), "utf8");
-}
-
-function normalizePath(filePath) {
+function normalizePath(/** @type {string} */ filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
 }

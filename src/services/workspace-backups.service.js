@@ -12,6 +12,12 @@ import { createWorkspaceBackupPackage } from "./workspace-backup-package.js";
 import { AppError } from "../utils/app-error.js";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession & { display_name?: string | null }} WorkspaceBackupSession */
+/** @typedef {import("../repositories/workspaces.repo.js").WorkspaceRow} WorkspaceRow */
+/** @typedef {import("../repositories/workspace-backup-exports.repo.js").WorkspaceBackupExport} WorkspaceBackupExport */
+/** @typedef {Omit<WorkspaceBackupExport, "createdByName" | "status"> & { createdByName?: string, status?: string }} WorkspaceBackupReceipt */
+
+/** @param {WorkspaceBackupSession} session */
 async function create(session) {
   assertPublicDemoCapabilityAllowed("backups.workspace");
   await assertCanManageWorkspaceBackup(session);
@@ -33,7 +39,7 @@ async function create(session) {
       backupId,
       databaseFile: config.databaseFile,
       outputPath,
-      readFileObject: async ({ providerId, storageKey }) => filesService.getFileStorageAdapter(providerId).read(storageKey),
+      readFileObject: async (/** @type {{ providerId: string, storageKey: string }} */ { providerId, storageKey }) => filesService.getFileStorageAdapter(providerId).read(storageKey),
       workspaceId: session.workspace_id,
     });
     const receipt = {
@@ -68,6 +74,7 @@ async function create(session) {
   }
 }
 
+/** @param {WorkspaceBackupSession} session */
 async function readLatest(session) {
   assertPublicDemoCapabilityAllowed("backups.workspace");
   await assertCanManageWorkspaceBackup(session);
@@ -77,6 +84,7 @@ async function readLatest(session) {
   return receipt ? toBrowserReceipt(receipt, workspace) : null;
 }
 
+/** @param {string} workspaceId */
 async function purgeWorkspaceBackupArtifacts(workspaceId) {
   const root = path.resolve(config.workspaceBackups.root);
   const target = path.resolve(root, safeSegment(workspaceId));
@@ -87,12 +95,14 @@ async function purgeWorkspaceBackupArtifacts(workspaceId) {
   await fs.rm(target, { force: true, recursive: true });
 }
 
+/** @param {WorkspaceBackupSession} session */
 async function assertCanManageWorkspaceBackup(session) {
   if (!await permissionsService.isWorkspaceAdministrator(session)) {
     throw new AppError("Only a Workspace Administrator or Super Admin may create workspace backups.", 403);
   }
 }
 
+/** @param {WorkspaceBackupReceipt} receipt @param {WorkspaceRow} workspace */
 function toBrowserReceipt(receipt, workspace) {
   return {
     appVersion: receipt.appVersion,
@@ -109,6 +119,7 @@ function toBrowserReceipt(receipt, workspace) {
   };
 }
 
+/** @param {WorkspaceBackupSession} session @param {WorkspaceRow} workspace @param {string} action @param {Record<string, unknown>} metadata */
 async function recordBackupAudit(session, workspace, action, metadata) {
   return auditService.record({
     session,
@@ -123,17 +134,24 @@ async function recordBackupAudit(session, workspace, action, metadata) {
   });
 }
 
+/** @param {unknown} value */
 function safeSegment(value) {
   return String(value || "").trim().replace(/[^A-Za-z0-9._-]+/g, "-") || "workspace";
 }
 
+/**
+ * @param {string | number | Date} value
+ */
 function formatUtcLabel(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().replace("T", " ").replace(".000Z", " UTC");
 }
 
+/**
+ * @param {unknown} error
+ */
 function classifyFailure(error) {
-  const message = String(error?.message || "");
+  const message = error instanceof Error ? error.message : String(error || "");
   if (/permission|administrator/i.test(message)) return "authorization";
   if (/checksum|integrity|foreign.key/i.test(message)) return "integrity_validation";
   if (/Files object|storage|provider/i.test(message)) return "storage_validation";

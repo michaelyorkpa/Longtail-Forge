@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 2,
+  "exceptions": [
+    {
+      "from": "src/core/modules/registry.js",
+      "to": "src/core/modules/bundled-module-catalog.generated.js",
+      "kind": "static",
+      "reason": "The framework's module-catalog composition link otherwise combines ordinary registered module dependencies into one large component and prevents the intended module-growth workflow."
+    }
+  ],
+  "enforcement": {
+    "static": [
+      [
+        "src/modules/lists/index.js",
+        "src/modules/lists/lists.routes.js",
+        "src/modules/lists/lists.service.js",
+        "src/modules/lists/module.js",
+        "src/modules/lists/public-api.routes.js",
+        "src/modules/lists/public-api.service.js",
+        "src/modules/notes/index.js",
+        "src/modules/notes/link-target-directory.service.js",
+        "src/modules/notes/module.js",
+        "src/modules/notes/notes.routes.js",
+        "src/modules/notes/notes.service.js",
+        "src/modules/notes/public-api.routes.js",
+        "src/modules/notes/public-api.service.js",
+        "src/modules/tasks/index.js",
+        "src/modules/tasks/module.js",
+        "src/modules/tasks/private-calendar-feed.provider.js",
+        "src/modules/tasks/public-api.routes.js",
+        "src/modules/tasks/public-api.service.js",
+        "src/modules/tasks/task-calendar-feed.service.js",
+        "src/modules/tasks/task-jobs.service.js",
+        "src/modules/tasks/task-recurrence.service.js",
+        "src/modules/tasks/tasks.routes.js",
+        "src/modules/tasks/tasks.service.js"
+      ],
+      [
+        "src/modules/client-projects/clients.service.js",
+        "src/modules/client-projects/index.js",
+        "src/modules/client-projects/link-target.provider.js",
+        "src/modules/time-tracking/index.js",
+        "src/modules/time-tracking/module.js",
+        "src/modules/time-tracking/reporting.routes.js",
+        "src/modules/time-tracking/time-tracking-billing.service.js",
+        "src/modules/time-tracking/time-tracking-dashboard.routes.js"
+      ],
+      [
+        "src/services/audit.service.js",
+        "src/services/permissions.service.js"
+      ]
+    ],
+    "staticAndDynamic": [
+      [
+        "src/modules/lists/index.js",
+        "src/modules/lists/lists.routes.js",
+        "src/modules/lists/lists.service.js",
+        "src/modules/lists/module.js",
+        "src/modules/lists/public-api.routes.js",
+        "src/modules/lists/public-api.service.js",
+        "src/modules/notes/catalog-security.service.js",
+        "src/modules/notes/consumer-artifacts.service.js",
+        "src/modules/notes/index.js",
+        "src/modules/notes/link-target-directory.service.js",
+        "src/modules/notes/module.js",
+        "src/modules/notes/notes.routes.js",
+        "src/modules/notes/notes.service.js",
+        "src/modules/notes/public-api.routes.js",
+        "src/modules/notes/public-api.service.js",
+        "src/modules/tasks/index.js",
+        "src/modules/tasks/module.js",
+        "src/modules/tasks/private-calendar-feed.provider.js",
+        "src/modules/tasks/public-api.routes.js",
+        "src/modules/tasks/public-api.service.js",
+        "src/modules/tasks/task-calendar-feed.service.js",
+        "src/modules/tasks/task-jobs.service.js",
+        "src/modules/tasks/task-recurrence.service.js",
+        "src/modules/tasks/tasks.routes.js",
+        "src/modules/tasks/tasks.service.js",
+        "src/services/notifications.service.js"
+      ],
+      [
+        "src/modules/client-projects/clients.service.js",
+        "src/modules/client-projects/index.js",
+        "src/modules/client-projects/link-target.provider.js",
+        "src/modules/time-tracking/index.js",
+        "src/modules/time-tracking/module.js",
+        "src/modules/time-tracking/report-runners.js",
+        "src/modules/time-tracking/reporting.routes.js",
+        "src/modules/time-tracking/time-tracking-billing.service.js",
+        "src/modules/time-tracking/time-tracking-dashboard.routes.js"
+      ],
+      [
+        "src/core/modules/modules.service.js",
+        "src/repositories/workspaces.repo.js",
+        "src/security/security-events.js",
+        "src/services/audit.service.js",
+        "src/services/permissions.service.js",
+        "src/services/private-feeds.service.js"
+      ]
+    ],
+    "computedDynamicImports": {
+      "public/js/dashboard.entry.js": 1,
+      "public/js/footer.js": 1,
+      "public/js/shared/module-actions.js": 1,
+      "scripts/regression-contracts/data-files-security-static-owner.mjs": 1,
+      "scripts/regression-contracts/workflow-module-static-owner.mjs": 1,
+      "scripts/regressions/framework/current-static-contracts.regression.mjs": 1,
+      "scripts/regressions/views/current-static-contracts.regression.mjs": 1,
+      "scripts/test-support/static-regression-worker.mjs": 1
+    }
+  }
+}

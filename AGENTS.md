@@ -304,6 +304,20 @@ No direct static file downloads. Downloads go through permission-checked routes.
 
 ## Development Workflow
 
+### Version-wide internal checkpoints
+
+When the active roadmap explicitly defines numbered internal checkpoints inside one version-wide branch, its branch contract replaces per-slice release packaging until the named branch-closeout checkpoint. Every checkpoint pull request targets the protected `nightly` base; the required Development, browser, maintenance-rehearsal, dependency-review, and CodeQL checks run only on pull requests whose base is `nightly` (or `main`), so a merge into any `agent/*` topic or integration branch runs no protected checks and is staging only, never checkpoint completion. Each internal checkpoint still runs one canonical `npm run verify:slice`, but it does not bump package/lock version metadata, add a changelog release entry, update durable `DECISIONS.md` or owning documentation, or perform runtime identity proof. Stage the completed checkpoint's `ROADMAP.md` to `ROADMAP-ARCHIVE.md` handoff as the final bookkeeping commit in the same protected pull request as its implementation. The archive entry becomes authoritative only when that pull request merges; do not open a second archive-only pull request. The branch-closeout checkpoint rolls the remaining deferred identity and durable-documentation items up once.
+
+Every non-merge implementation commit on that branch must end with exactly one machine-readable trailer of each form:
+
+```text
+LTF-Checkpoint: <slice-id>
+LTF-Summary: <single-line outcome>
+LTF-Docs: <documentation disposition>
+```
+
+Use either `Docs updated: <comma-separated paths>.` or `No docs change needed: <short reason>.` as the complete `LTF-Docs` value. `ROADMAP.md` and `ROADMAP-ARCHIVE.md` are ceremony/bookkeeping paths, not documentation paths for this trailer; their normal handoff uses exactly `LTF-Docs: No docs change needed: completed checkpoint moved to roadmap archive.` Keep all three trailers contiguous in one final commit-message paragraph, with no blank lines between them. Internal checkpoints normally change no more than two ceremony files. The first policy checkpoint may update the governing agent/versioning instructions that establish this rule; later internal checkpoints defer durable documentation. A roadmap-only planning commit may precede implementation; it is not a completed checkpoint. The protected pull-request Development gate validates the complete base-to-head commit range. Exact-SHA Nightly, promotion, artifact, and deployment contracts remain unchanged.
+
 For every implementation slice:
 
 1. Confirm the current version in `package.json`.
@@ -318,6 +332,7 @@ For every implementation slice:
 10. Archive completed roadmap sections according to the roadmap bookkeeping rule.
 11. At final local closeout, run `npm run verify:slice` exactly once. It collects the changed paths once, runs `npm run closeout` once, executes the existing changed-area plan once, and adds the separate permission harness once when the selected areas require it.
 12. After `npm run verify:slice` succeeds, do not separately rerun `closeout`, `check`, changed regressions, an included regression area, or the permission harness unless a source, test, documentation, package, lockfile, workflow, or configuration file changes.
+13. On a version-wide checkpoint branch, after the intended commits are complete, run `npm run checkpoint:validate` before the first push and again after amending any checkpoint commit message. It validates the complete `merge-base(origin/nightly, HEAD)..HEAD` commit range without repeating source verification. A message-only amend does not invalidate a green tree verification; any file change does.
 
 Use the running server for testing when useful. Restart it as needed.
 
@@ -388,6 +403,33 @@ Run `npm run licensing:gates` when preparing a public release, changing third-pa
 For browser route changes, verify `/api/app-info` reports the expected app version after restart.
 
 For every release-version change, restart the app and verify `/api/app-info` after the version guardrail and normal release checks. The full versioning contract and ceremony checklist live in `docs/versioning.md`.
+
+### Scripted multi-site edits
+
+A scripted, regex-driven or otherwise mechanical edit across many sites is verified one transformation at a time. A patch script that reports success is no evidence that it did the right thing.
+
+1. **Check each transformation before starting the next.** Read the diff of every touched file in context. Then run the cheapest check that parses what changed: the owning script, a scoped typecheck, or lint. Do not stack several rewrites and rely on the final `npm run verify:slice` to find a structural mistake.
+2. **Make each replacement prove its own scope.**
+   - Assert how many times each replacement applied.
+   - Prefer literal multi-line anchors to greedy regular expressions.
+   - Pass `String.replace` replacements as functions, so `$` patterns cannot expand.
+3. **Prove any check the edit writes.** When an edit writes an assertion, a guard or a regression, reintroduce the defect it claims to catch and confirm it fails, then confirm it passes again. A guard that cannot fail reads as protection while providing none, and nothing downstream can detect it.
+4. **Escape sequences do not survive nested writers.** Each layer (shell, string literal, patch script) consumes one level of backslash.
+   - Prefer a plain `includes` to a regular expression when a literal is enough.
+   - Prefer the Edit tool when replacement text carries quotes, backticks or regular-expression metacharacters.
+   - Scan written output for control characters other than tab and newline.
+5. **Check line endings per file.** Compare each changed file against the line endings of its own `HEAD` blob, not against `git status` or an aggregate total.
+
+These are the failures behind the rule, each recorded in `ROADMAP-ARCHIVE.md`:
+- **`0.33.33.32.6` and `0.33.33.32.8`.** Blanket rewrites pointed one suite's assertions at a payload declared in a different function, because two flows bound the same response name. The compiler caught both.
+- **`0.33.33.32.7`, recorded in the operator's instruction of 2026-08-22.**
+  - A `const X = await [^;]+;` pattern stopped at a `;` inside a SQL template literal, and inserted an assertion into the query.
+  - A shell-escaped expression produced an unterminated string literal in the governance owner.
+- **`0.33.33.32.7.1`.** An appended helper went unused and failed lint.
+- **`0.33.33.32.24`.** A guard's `\b` was consumed by the script that wrote it, leaving a literal backspace byte. The guard parsed, passed and matched nothing. It was caught only by reintroducing the defect.
+- **`0.33.33.32.28.3.3`.** A replacement ending `}$` before a backtick made `String.replace` insert everything before the match. The file went from 96 lines to 161 and still typechecked and passed. Reading the diff found it.
+- **`0.33.33.32.28.4.1`.** A removal helper left two orphan JSDoc comments, one of them attached to an unrelated function.
+- **`0.33.33.38.2.4.3`.** A fixture's regular expression held a literal backspace byte, so it passed on a tree that violated it.
 
 ## Documentation Rules
 

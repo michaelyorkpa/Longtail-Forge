@@ -1,26 +1,35 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {import("../src/types/task-list-engine-contracts.js").TaskListQuery} TaskListQuery */
+/** @typedef {import("../src/types/task-recurrence-contracts.js").TaskRecord} TaskRecord */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} TaskViewFixtures */
 
 const tasksScript = readText("public/js/tasks.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
+const taskListEngineSource = readText("src/modules/tasks/task-list-engine.js");
 const tasksView = readText("views/protected/tasks.html");
 
-
-assert.match(tasksScript, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Tasks adapter should send selected views through task_view");
+assert.match(tasksScript, /params\.set\("task_view", `\$\{canonicalTaskViewValue\(taskView\)\}`\)/, "Tasks adapter should send selected views through task_view");
 assert.doesNotMatch(tasksScript, /params\.set\("quick_filter"/, "Tasks adapter should not use quick_filter for the saved task view contract");
 assert.match(tasksScript, /complete:\s*"completed"/, "Tasks adapter should map the Completed dropdown option to the completed task_view");
 assert.match(tasksScript, /assigneeValue === "me"[\s\S]*params\.set\("assignee", "me"\)/, "Assignee filter should combine as an advanced filter instead of replacing task_view");
 assert.match(tasksScript, /data-task-reset-filters/, "Sorting and Filters should expose a reset control");
 assert.match(tasksScript, /function resetAdvancedTaskFilters\(\)[\s\S]*resetAdvancedFilterControlsForTaskView\(selectedTaskView\(\)\)/, "Resetting advanced filters should preserve the selected task view");
-assert.match(tasksScript, /function preserveCompatibleAdvancedFiltersForTaskView\(taskView\)[\s\S]*\["my", "unassigned"\]\.includes\(taskView\)[\s\S]*setSelectValue\(assigneeFilter, "all"\)/, "Changing task views should clear incompatible assignee filters");
-assert.match(tasksScript, /const clientValue = usesClientScope\(\) \? clientFilter\?\.value \?\? "all" : "all"/, "Personal and Family task queries should not include client-only UI assumptions");
-assert.match(tasksServiceSource, /function matchesTaskView\(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope = false\)/, "Tasks service should own task_view semantics");
-assert.match(tasksServiceSource, /taskView === "completed"[\s\S]*task\.status === "complete"/, "Completed view should be scoped intentionally");
-assert.match(tasksServiceSource, /taskView === "archived"[\s\S]*task\.status === "archived"/, "Archived view should be scoped intentionally");
+assert.match(tasksScript, /function preserveCompatibleAdvancedFiltersForTaskView\(taskView\)[\s\S]*\["my", "unassigned"\]\.some\(\(value\) => value === taskView\)[\s\S]*setSelectValue\(assigneeFilter, "all"\)/, "Changing task views should clear incompatible assignee filters");
+assert.match(tasksScript, /const clientValue = usesClientScope\(\) \? taskControlValue\(clientFilter\) \?\? "all" : "all"/, "Personal and Family task queries should not include client-only UI assumptions");
+assert.match(taskListEngineSource, /function matchesTaskView\(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope\)/, "The Tasks list engine should own task_view semantics");
+assert.match(taskListEngineSource, /taskView === "completed"[\s\S]*task\.status === "complete"/, "Completed view should be scoped intentionally");
+assert.match(taskListEngineSource, /taskView === "archived"[\s\S]*task\.status === "archived"/, "Archived view should be scoped intentionally");
 assert.match(tasksServiceSource, /function currentWeekEndKey\(dateKey\)/, "Due This Week should use a Tasks-owned user-local current-week boundary");
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/tasks\.js/, "Tasks host should load the task_view query contract cache keys");
 
@@ -47,10 +56,11 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const client = (await clientsService.createClient({ name: "Task View Client" }, session)).client;
   const project = (await clientsService.createProject(client.id, { name: "Task View Project" }, session)).project;
-  const tag = await tagsService.create(session, { name: "Task View Tag" });
+  const tag = (await tagsService.create(session, { name: "Task View Tag" })).tag;
   const today = localDateKey(new Date(), session.timezone);
   const yesterday = addCalendarDaysKey(today, -1);
   const currentWeekEnd = currentWeekEndKey(today);
@@ -83,6 +93,16 @@ async function createFixtures(session) {
     due_date: yesterday,
     project_id: project.id,
     tagIds: [tag.tag_id],
+  });
+  // Identical to `overdue` in every dimension the Overdue view reads — same due
+  // date, project, and assignee — so the tag is the only thing that can
+  // separate them. Without this competing task the tag-composition assertion
+  // below would pass just as well against a filter that ignored tags entirely.
+  const overdueUntagged = await createTask(session, {
+    task_id: `task-view-overdue-untagged-${randomUUID()}`,
+    title: "Task View overdue active untagged",
+    due_date: yesterday,
+    project_id: project.id,
   });
   const todayTask = await createTask(session, {
     task_id: `task-view-today-${randomUUID()}`,
@@ -125,6 +145,7 @@ async function createFixtures(session) {
     completed,
     currentWeekEnd,
     overdue,
+    overdueUntagged,
     project,
     tag,
     today,
@@ -134,6 +155,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {TasksSession} session @param {TaskViewFixtures} fixtures */
 async function assertSavedTaskViews(session, fixtures) {
   const my = await taskIds(session, { task_view: "my", status: "active" });
   assertIncludes(my, fixtures.assigned.task_id, "My Tasks should include active tasks assigned to the current user");
@@ -156,7 +178,11 @@ async function assertSavedTaskViews(session, fixtures) {
   assertExcludes(allActive, fixtures.archived.task_id, "All + Status Active should exclude archived tasks");
 
   assert.deepEqual(await taskIds(session, { task_view: "unassigned", status: "active" }), [fixtures.unassigned.task_id]);
-  assert.deepEqual(await taskIds(session, { task_view: "overdue", status: "active" }), [fixtures.overdue.task_id]);
+  assert.deepEqual(
+    [...await taskIds(session, { task_view: "overdue", status: "active" })].sort(),
+    [fixtures.overdue.task_id, fixtures.overdueUntagged.task_id].sort(),
+    "Overdue should return every overdue active task regardless of tag",
+  );
 
   const today = await taskIds(session, { task_view: "today", status: "active" });
   assertIncludes(today, fixtures.todayTask.task_id, "Due Today should include active tasks due on the current local date");
@@ -173,6 +199,7 @@ async function assertSavedTaskViews(session, fixtures) {
   assert.deepEqual(await taskIds(session, { task_view: "archived", status: "all" }), [fixtures.archived.task_id]);
 }
 
+/** @param {TasksSession} session @param {TaskViewFixtures} fixtures */
 async function assertAdvancedFiltersCompose(session, fixtures) {
   assert.deepEqual(
     await taskIds(session, {
@@ -184,14 +211,24 @@ async function assertAdvancedFiltersCompose(session, fixtures) {
     "Advanced status/project filters should narrow the selected All view",
   );
 
+  // The Overdue view holds two otherwise-equivalent tasks, so this exact result
+  // proves both halves of the composition at once: the tagged task survives and
+  // the untagged one is removed. A filter that ignored `tags` would return both
+  // and fail here, which is what makes the assertion load-bearing.
+  const taggedOverdue = await taskIds(session, {
+    task_view: "overdue",
+    status: "active",
+    tags: [fixtures.tag.tag_id],
+  });
   assert.deepEqual(
-    await taskIds(session, {
-      task_view: "overdue",
-      status: "active",
-      tags: [fixtures.tag.tag_id],
-    }),
+    taggedOverdue,
     [fixtures.overdue.task_id],
     "Advanced tag filters should combine with the selected Overdue view",
+  );
+  assertExcludes(
+    taggedOverdue,
+    fixtures.overdueUntagged.task_id,
+    "An advanced tag filter should drop the equally overdue task that does not carry the tag",
   );
 
   assert.deepEqual(
@@ -224,10 +261,12 @@ async function assertAdvancedFiltersCompose(session, fixtures) {
   );
 }
 
+/** @param {TasksSession} session @param {Partial<TaskRecord> & { title: string, assignee_ids?: string[], tagIds?: string[] }} payload @returns {Promise<TaskRecord>} */
 async function createTask(session, payload) {
   return (await tasksService.create(payload, session)).task;
 }
 
+/** @param {TasksSession} session @param {TaskListQuery} query @returns {Promise<string[]>} */
 async function taskIds(session, query) {
   const result = await tasksService.list(session, query);
   return result.tasks.map((task) => task.task_id);
@@ -240,28 +279,20 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {readonly string[]} ids @param {string} id @param {string} message */
 function assertIncludes(ids, id, message) {
   assert.ok(ids.includes(id), message);
 }
 
+/** @param {readonly string[]} ids @param {string} id @param {string} message */
 function assertExcludes(ids, id, message) {
   assert.equal(ids.includes(id), false, message);
 }
 
+/** @param {Date} date @param {string} [timezone] @returns {string} */
 function localDateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone || "America/New_York",
@@ -273,18 +304,16 @@ function localDateKey(date, timezone = "America/New_York") {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @returns {string} */
 function currentWeekEndKey(dateKey) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   const daysUntilSaturday = (6 - date.getUTCDay() + 7) % 7;
   return addCalendarDaysKey(dateKey, daysUntilSaturday);
 }
 
+/** @param {string} dateKey @param {number} days @returns {string} */
 function addCalendarDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function readText(filePath) {
-  return readFileSync(new URL(`../${filePath}`, import.meta.url), "utf8");
 }

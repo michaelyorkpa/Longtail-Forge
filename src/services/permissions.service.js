@@ -1,5 +1,3 @@
-// @ts-check
-
 import { createHmac, randomBytes } from "node:crypto";
 import { assertPublicDemoCapabilityAllowed } from "../core/public-demo-enforcement.js";
 import { permissionsRepository } from "../repositories/permissions.repo.js";
@@ -19,9 +17,20 @@ import {
 } from "../utils/normalizers.js";
 
 /** @typedef {import("../types/http-contracts.js").PermissionResource} PermissionResource */
-/** @typedef {import("../types/http-contracts.js").PermissionSession} PermissionSession */
+/** @typedef {import("../types/http-contracts.js").AuthorizationSession} PermissionSession */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {RequestSession & { workspace_id: string }} WorkspaceRequestSession */
+/** @typedef {import("../repositories/permissions.repo.js").PermissionAssignmentRow} PermissionAssignmentRow */
+/** @typedef {import("../repositories/permissions.repo.js").PermissionAssignmentInput} PermissionAssignmentInput */
+/** @typedef {import("../repositories/permissions.repo.js").PermissionClientRow} PermissionClientRow */
+/** @typedef {import("../repositories/permissions.repo.js").PermissionProjectRow} PermissionProjectRow */
+/** @typedef {import("../repositories/permissions.repo.js").PermissionRoleRow} PermissionRoleRow */
+/** @typedef {import("../repositories/permissions.repo.js").PermissionUserRow} PermissionUserRow */
+/** @typedef {import("../repositories/permissions.repo.js").PermissionWorkspaceRow} PermissionWorkspaceRow */
+/** @typedef {Record<string, unknown>} LooseRecord */
+/** @typedef {{roleId: string, scopeType: string, scopeId: string}} RequestedAssignment */
+/** @typedef {{actor: PermissionUserRow, actorAssignments: PermissionAssignmentRow[], assignments: PermissionAssignmentInput[], clients: PermissionClientRow[], expectedRevision: string, fullAdministrator: boolean, previousAssignments: PermissionAssignmentRow[], projects: PermissionProjectRow[], roles: PermissionRoleRow[], session: WorkspaceRequestSession, targetUser: PermissionUserRow, workspace: PermissionWorkspaceRow}} RoleAssignmentMutationInput */
+/** @typedef {{actorAssignments: PermissionAssignmentRow[], clientsById: Map<string, PermissionClientRow>, projectsById: Map<string, PermissionProjectRow>, workspace: PermissionWorkspaceRow}} DelegatedAuthorityInput */
 /**
  * @typedef {Object} PermissionAssignment
  * @property {string} role_id
@@ -37,6 +46,7 @@ import {
  * @property {boolean} [allowEditTime]
  */
 
+/** @type {Readonly<Record<string, Set<string>>>} */
 const ROLE_LIMITS = {
   super_admin: new Set([
     "super_admin",
@@ -59,6 +69,7 @@ const ROLE_LIMITS = {
   project_admin: new Set(["project_user"]),
 };
 
+/** @type {Readonly<Record<string, string>>} */
 const ROLE_SCOPE_TYPES = {
   super_admin: "all",
   workspace_admin: "workspace",
@@ -76,17 +87,23 @@ const DELEGATED_ASSIGNMENT_REVISION_SECRET = randomBytes(32);
 /** @type {Map<string, Set<string>> | null} */
 let rolePermissionsCache = null;
 
+/**
+ * @param {import("../types/http-contracts.js").RequestSession | null | undefined} session
+ */
 async function listRoleOptions(session) {
   return listAssignableRoleOptions(session);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").RequestSession | null | undefined} session
+ */
 async function listAssignableRoleOptions(session) {
-  await assertCanAssignRoles(session);
+  const activeSession = await assertCanAssignRoles(session);
   const [roles, settings, clients, projects] = await Promise.all([
     permissionsRepository.readRoles(),
-    settingsRepository.readWorkspaceSettings(session.workspace_id, session),
-    clientsRepository.readAll(session.workspace_id),
-    projectsRepository.readAll(session.workspace_id),
+    settingsRepository.readWorkspaceSettings(activeSession.workspace_id, activeSession),
+    clientsRepository.readAll(activeSession.workspace_id),
+    projectsRepository.readAll(activeSession.workspace_id),
   ]);
   const clientNames = new Map(clients.map((client) => [client.id, client.name]));
   const options = [];
@@ -100,7 +117,7 @@ async function listAssignableRoleOptions(session) {
     const candidates = scopeType === "all"
       ? [{ scopeId: "all", label: "All workspaces" }]
       : scopeType === "workspace"
-        ? [{ scopeId: session.workspace_id, label: "Workspace" }]
+        ? [{ scopeId: activeSession.workspace_id, label: "Workspace" }]
         : scopeType === "client"
           ? clients
             .filter((client) => client.status !== "Inactive")
@@ -116,7 +133,7 @@ async function listAssignableRoleOptions(session) {
     const scopes = [];
 
     for (const candidate of candidates) {
-      if (await canAssignRole(session, {
+      if (await canAssignRole(activeSession, {
         roleId: role.role_id,
         scopeType,
         scopeId: candidate.scopeId,
@@ -137,6 +154,9 @@ async function listAssignableRoleOptions(session) {
   return { roles: options };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").RequestSession | null | undefined} session
+ */
 async function hasUsableDelegatedRoleScope(session) {
   try {
     const options = await listAssignableRoleOptions(session);
@@ -146,45 +166,54 @@ async function hasUsableDelegatedRoleScope(session) {
   }
 }
 
+/** @param {PermissionSession | null | undefined} session @param {unknown} assignments */
 async function validateUserAssignments(session, assignments) {
-  await assertCanAssignRoles(session);
-  return normalizeAssignments(session, Array.isArray(assignments) ? assignments : []);
+  const activeSession = await assertCanAssignRoles(session);
+  return normalizeAssignments(activeSession, Array.isArray(assignments) ? assignments : []);
 }
 
+/**
+ * @param {PermissionSession | null | undefined} session
+ * @param {string} userId
+ */
 async function readUserAssignments(session, userId) {
-  await assertCanAssignRoles(session);
+  const activeSession = await assertCanAssignRoles(session);
 
-  if (!(await isWorkspaceAdministrator(session))) {
+  if (!(await isWorkspaceAdministrator(activeSession))) {
     throw new AppError("Use exact account lookup to manage delegated role assignments.", 403);
   }
 
   return {
-    assignments: await readDecoratedAssignments(session.workspace_id, userId),
+    assignments: await readDecoratedAssignments(activeSession.workspace_id, userId),
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").RequestSession | null | undefined} session
+ */
+/** @param {PermissionSession | null | undefined} session @param {LooseRecord} [payload] */
 async function lookupDelegatedRoleAssignmentAccount(session, payload = {}) {
   assertPublicDemoCapabilityAllowed("administration.role_management");
-  await assertCanAssignRoles(session);
+  const activeSession = await assertCanAssignRoles(session);
   const username = normalizeUsername(payload.username);
 
   if (!isValidEmail(username)) {
     return { match: null };
   }
 
-  const user = await usersRepository.readExactActiveMemberByUsername(session.workspace_id, username);
+  const user = await usersRepository.readExactActiveMemberByUsername(activeSession.workspace_id, username);
   if (!user) {
     return { match: null };
   }
 
   const allAssignments = await permissionsRepository.readAssignmentsForUser(
-    session.workspace_id,
+    activeSession.workspace_id,
     user.user_id,
   );
   const manageableAssignments = [];
 
   for (const assignment of allAssignments) {
-    if (await canAssignExistingRole(session, assignment)) {
+    if (await canAssignExistingRole(activeSession, assignment)) {
       manageableAssignments.push(assignment);
     }
   }
@@ -193,9 +222,9 @@ async function lookupDelegatedRoleAssignmentAccount(session, payload = {}) {
     match: {
       activeMembership: true,
       assignmentRevision: createDelegatedAssignmentRevision(manageableAssignments, {
-        actorUserId: session.user_id,
+        actorUserId: activeSession.user_id,
         targetUserId: user.user_id,
-        workspaceId: session.workspace_id,
+        workspaceId: activeSession.workspace_id,
       }),
       assignments: manageableAssignments.map(decorateDelegatedAssignment),
       displayName: normalizeDisplayName(user.display_name, user.username),
@@ -205,10 +234,12 @@ async function lookupDelegatedRoleAssignmentAccount(session, payload = {}) {
   };
 }
 
+/** @param {PermissionSession | null | undefined} session @param {unknown} userId @param {LooseRecord} payload */
 async function replaceUserAssignments(session, userId, payload) {
   assertPublicDemoCapabilityAllowed("administration.role_management");
-  await assertCanAssignRoles(session);
-  const fullAdministrator = await isWorkspaceAdministrator(session);
+  const activeSession = await assertCanAssignRoles(session);
+  const targetUserId = String(userId || "").trim();
+  const fullAdministrator = await isWorkspaceAdministrator(activeSession);
   if (!Array.isArray(payload.assignments)) {
     throw new AppError("Role assignments must be a list.", 400);
   }
@@ -221,7 +252,7 @@ async function replaceUserAssignments(session, userId, payload) {
   ) {
     throw new AppError("Delegated role assignments cannot set permission overrides.", 403);
   }
-  const assignments = await normalizeAssignments(session, payload.assignments);
+  const assignments = await normalizeAssignments(activeSession, payload.assignments);
   const expectedRevision = String(payload.assignmentRevision || payload.assignment_revision || "").trim();
 
   if (!fullAdministrator && !expectedRevision) {
@@ -229,16 +260,16 @@ async function replaceUserAssignments(session, userId, payload) {
   }
 
   const mutation = await permissionsRepository.mutateUserAssignmentsAtomically({
-    actorUserId: session.user_id,
-    userId,
-    workspaceId: session.workspace_id,
-    planMutation: (state) => planRoleAssignmentMutation({
+    actorUserId: activeSession.user_id,
+    userId: targetUserId,
+    workspaceId: activeSession.workspace_id,
+    planMutation: (state) => planRoleAssignmentMutation(/** @type {RoleAssignmentMutationInput} */ ({
       ...state,
       assignments,
       expectedRevision,
       fullAdministrator,
-      session,
-    }),
+      session: activeSession,
+    })),
   });
   const previousAssignments = mutation.plan.safePreviousAssignments;
   const nextAssignments = mutation.plan.fullAdministrator
@@ -252,9 +283,9 @@ async function replaceUserAssignments(session, userId, payload) {
       assignmentRevision: createDelegatedAssignmentRevision(
         mutation.nextAssignments.filter((assignment) => mutation.plan.manageableKeys.has(assignmentKey(assignment))),
         {
-          actorUserId: session.user_id,
-          targetUserId: userId,
-          workspaceId: session.workspace_id,
+          actorUserId: activeSession.user_id,
+          targetUserId,
+          workspaceId: activeSession.workspace_id,
         },
       ),
       assignments: nextAssignments,
@@ -263,23 +294,23 @@ async function replaceUserAssignments(session, userId, payload) {
 
   const { privateFeedsService } = await import("./private-feeds.service.js");
   await privateFeedsService.reconcileCalendarSubscriptions({
-    session,
-    userId,
-    workspaceId: session.workspace_id,
+    session: activeSession,
+    userId: targetUserId,
+    workspaceId: activeSession.workspace_id,
   });
 
   await auditService.record({
-    session,
+    session: activeSession,
     action: "user_role_assignments_updated",
     changeType: "update",
     recordType: "user_role_assignment",
-    recordId: userId,
+    recordId: targetUserId,
     recordLabel: mutationTargetUser.username,
     recordUrl: mutation.plan.fullAdministrator ? "user-admin.html" : "",
     previousValue: previousAssignments,
     newValue: nextAssignments,
     metadata: {
-      assigned_user_id: userId,
+      assigned_user_id: targetUserId,
       assigned_username: mutationTargetUser.username,
       assignment_count: nextAssignments.length,
       delegation_mode: mutation.plan.fullAdministrator ? "full" : "scoped",
@@ -292,15 +323,16 @@ async function replaceUserAssignments(session, userId, payload) {
     },
     newValue: nextAssignments,
     previousValue: previousAssignments,
-    recordId: userId,
+    recordId: targetUserId,
     recordType: "user_role_assignment",
-    session,
+    session: activeSession,
     source: "permissions",
   });
 
   return response;
 }
 
+/** @param {RoleAssignmentMutationInput} input */
 function planRoleAssignmentMutation({
   actor,
   actorAssignments,
@@ -374,6 +406,7 @@ function planRoleAssignmentMutation({
     throw new AppError("Your role-assignment authority changed. Refresh and try again.", 409);
   }
 
+  /** @param {PermissionAssignmentInput} assignment */
   const canManage = (assignment) => canAssignRoleFromFreshState({
     actorAssignments,
     assignment,
@@ -414,6 +447,7 @@ function planRoleAssignmentMutation({
   };
 }
 
+/** @param {DelegatedAuthorityInput} input */
 function actorHasDelegatedAssignmentAuthority({
   actorAssignments,
   clientsById,
@@ -436,10 +470,11 @@ function actorHasDelegatedAssignmentAuthority({
   ));
 }
 
+/** @param {{actor: PermissionUserRow, actorAssignments: PermissionAssignmentRow[], session: WorkspaceRequestSession, targetUser: PermissionUserRow, workspace: PermissionWorkspaceRow}} input */
 function assertFreshRoleAssignmentActors({ actor, actorAssignments, session, targetUser, workspace }) {
   const workspaceIsActive = String(workspace?.status || "").toLowerCase() === "active";
   const actorHasInstallationAuthority = normalizeProtectedUserFlag(actor?.protected_user)
-    || actorAssignments.some((assignment) => (
+    || actorAssignments.some((/** @type {{ role_id: string; scope_type: string; }} */ assignment) => (
       assignment.role_id === "super_admin"
       && assignment.scope_type === "all"
     ));
@@ -463,6 +498,7 @@ function assertFreshRoleAssignmentActors({ actor, actorAssignments, session, tar
   }
 }
 
+/** @param {PermissionUserRow} actor @param {PermissionAssignmentRow[]} actorAssignments @param {string} workspaceId */
 function actorHasFullAssignmentAuthority(actor, actorAssignments, workspaceId) {
   if (normalizeProtectedUserFlag(actor?.protected_user)) {
     return true;
@@ -484,6 +520,7 @@ function actorHasFullAssignmentAuthority(actor, actorAssignments, workspaceId) {
   }));
 }
 
+/** @param {DelegatedAuthorityInput & {assignment: PermissionAssignmentInput}} input */
 function canAssignRoleFromFreshState({
   actorAssignments,
   assignment,
@@ -539,6 +576,7 @@ function canAssignRoleFromFreshState({
   });
 }
 
+/** @param {{assignment: PermissionAssignmentInput, clientsById: Map<string, PermissionClientRow>, projectsById: Map<string, PermissionProjectRow>, workspace: PermissionWorkspaceRow}} input */
 function assertFreshAssignmentScope({ assignment, clientsById, projectsById, workspace }) {
   if (!workspaceTypeAllowsRole(workspace.workspace_type, assignment.role_id)) {
     throw new AppError("That role is not available for this workspace type.", 403);
@@ -556,34 +594,37 @@ function assertFreshAssignmentScope({ assignment, clientsById, projectsById, wor
     throw new AppError("Role assignment scope does not match the selected role.", 400);
   }
 
-  if (assignment.scope_type === "client" && !clientsById.has(assignment.scope_id)) {
+  const scopeId = assignment.scope_id || "";
+  if (assignment.scope_type === "client" && !clientsById.has(scopeId)) {
     throw new AppError("Role assignment scope does not belong to this workspace.", 400);
   }
 
-  if (assignment.scope_type === "project" && !projectsById.has(assignment.scope_id)) {
+  if (assignment.scope_type === "project" && !projectsById.has(scopeId)) {
     throw new AppError("Role assignment scope does not belong to this workspace.", 400);
   }
 }
 
+/** @param {PermissionAssignmentInput} assignment @param {Map<string, PermissionClientRow>} clientsById @param {Map<string, PermissionProjectRow>} projectsById @param {string} workspaceId @returns {PermissionResource|null} */
 function freshAssignmentResource(assignment, clientsById, projectsById, workspaceId) {
   if (assignment.scope_type === "all" || assignment.scope_type === "workspace") {
     return { workspace_id: workspaceId };
   }
 
+  const scopeId = assignment.scope_id || "";
   if (assignment.scope_type === "client") {
-    const client = clientsById.get(assignment.scope_id);
+    const client = clientsById.get(scopeId);
     if (!client || client.status === "Inactive") {
       return null;
     }
 
     return {
-      client_id: assignment.scope_id,
+      client_id: scopeId,
       workspace_id: workspaceId,
     };
   }
 
   if (assignment.scope_type === "project") {
-    const project = projectsById.get(assignment.scope_id);
+    const project = projectsById.get(scopeId);
     if (!project || project.status === "Inactive") {
       return null;
     }
@@ -602,6 +643,10 @@ function freshAssignmentResource(assignment, clientsById, projectsById, workspac
   return null;
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ * @param {PermissionAssignmentRow} assignment
+ */
 async function canAssignExistingRole(session, assignment) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
   if (!workspaceTypeAllowsRole(settings.workspaceType, assignment.role_id)) {
@@ -610,11 +655,12 @@ async function canAssignExistingRole(session, assignment) {
 
   return canAssignRole(session, {
     roleId: assignment.role_id,
-    scopeId: assignment.scope_id,
+    scopeId: assignment.scope_id || "",
     scopeType: assignment.scope_type,
   });
 }
 
+/** @param {PermissionAssignmentRow[]} assignments @param {{actorUserId: string, targetUserId: string, workspaceId: string}} context */
 function createDelegatedAssignmentRevision(assignments, {
   actorUserId,
   targetUserId,
@@ -636,6 +682,9 @@ function createDelegatedAssignmentRevision(assignments, {
     .digest("hex");
 }
 
+/**
+ * @param {PermissionAssignmentInput} assignment
+ */
 function assignmentKey(assignment) {
   return [
     assignment.role_id,
@@ -644,6 +693,7 @@ function assignmentKey(assignment) {
   ].join("\u001f");
 }
 
+/** @param {PermissionAssignmentRow} assignment */
 function decorateDelegatedAssignment(assignment) {
   return {
     role_id: assignment.role_id,
@@ -665,17 +715,17 @@ async function can(session, action, resource) {
   const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
   const evaluatedResource = resource || { workspace_id: workspaceSession.workspace_id };
 
-  if (await isInstallationSuperAdmin(session)) {
+  if (await isInstallationSuperAdmin(workspaceSession)) {
     return true;
   }
 
-  const user = await readCurrentUser(session);
+  const user = await readCurrentUser(workspaceSession);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return true;
   }
 
-  const assignments = await readAssignmentsForSession(session);
+  const assignments = await readAssignmentsForSession(workspaceSession);
   const permissionsByRole = await readPermissionsByRole();
 
   return assignments.some((assignment) => {
@@ -705,10 +755,11 @@ async function assertCan(session, action, resource) {
  * @param {PermissionSession | null | undefined} session
  * @param {string} action
  * @param {PermissionResource} [resource]
+ * @returns {Promise<WorkspaceRequestSession>}
  */
 async function assertCanInAnyScope(session, action, resource) {
   if (await canInAnyScope(session, action, resource)) {
-    return;
+    return /** @type {WorkspaceRequestSession} */ (session);
   }
 
   await recordAuthorizationDenied(session, action, resource);
@@ -726,7 +777,7 @@ async function recordAuthorizationDenied(session, action, resource) {
     actorUserId: session?.user_id,
     actorUserName: session?.username,
     eventType: "security.authorization.denied",
-    ipAddress: session?.ip_address,
+    ipAddress: session && "ip_address" in session ? session.ip_address : undefined,
     metadata: {
       operation: resource?.operation,
       permission: action,
@@ -749,19 +800,20 @@ async function canInAnyScope(session, action, resource) {
     return false;
   }
 
-  const evaluatedResource = resource || { workspace_id: session.workspace_id };
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+  const evaluatedResource = resource || { workspace_id: workspaceSession.workspace_id };
 
-  if (await isInstallationSuperAdmin(session)) {
+  if (await isInstallationSuperAdmin(workspaceSession)) {
     return true;
   }
 
-  const user = await readCurrentUser(session);
+  const user = await readCurrentUser(workspaceSession);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return true;
   }
 
-  const assignments = await readAssignmentsForSession(session);
+  const assignments = await readAssignmentsForSession(workspaceSession);
   const permissionsByRole = await readPermissionsByRole();
 
   return assignments.some((assignment) => (
@@ -770,30 +822,34 @@ async function canInAnyScope(session, action, resource) {
   ));
 }
 
+/**
+ * @param {PermissionSession | null | undefined} session
+ */
 async function listGrantedPermissionIdsInAnyScope(session) {
   if (!session?.workspace_id || !session?.user_id) {
     return [];
   }
 
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
   const allPermissionIds = await permissionsRepository.readPermissionIds();
-  if (await isInstallationSuperAdmin(session)) {
+  if (await isInstallationSuperAdmin(workspaceSession)) {
     return allPermissionIds;
   }
 
-  const user = await readCurrentUser(session);
+  const user = await readCurrentUser(workspaceSession);
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return allPermissionIds;
   }
 
   const [assignments, permissionsByRole] = await Promise.all([
-    readAssignmentsForSession(session),
+    readAssignmentsForSession(workspaceSession),
     readPermissionsByRole(),
   ]);
 
   return allPermissionIds.filter((permissionId) => assignments.some((assignment) => (
     (permissionsByRole.get(assignment.role_id) || new Set()).has(permissionId) &&
     assignmentAllowsAction(assignment, permissionId, {
-      workspace_id: session.workspace_id,
+      workspace_id: workspaceSession.workspace_id,
     })
   )));
 }
@@ -803,23 +859,29 @@ async function listGrantedPermissionIdsInAnyScope(session) {
 // per assignment, instead of per row. Semantics match can(session, action,
 // resource) exactly for resources carrying { workspace_id, client_id,
 // project_id, operation }.
+/**
+ * @param {PermissionSession | null | undefined} session
+ * @param {string} action
+ */
+/** @param {PermissionSession|null|undefined} session @param {string} action @param {{operation?: string}} [options] @returns {Promise<(resource?: PermissionResource) => boolean>} */
 async function createPermissionEvaluator(session, action, { operation = "read" } = {}) {
   if (!session?.workspace_id || !session?.user_id) {
     return () => false;
   }
 
-  if (await isInstallationSuperAdmin(session)) {
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+  if (await isInstallationSuperAdmin(workspaceSession)) {
     return () => true;
   }
 
-  const user = await readCurrentUser(session);
+  const user = await readCurrentUser(workspaceSession);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return () => true;
   }
 
   const [assignments, permissionsByRole] = await Promise.all([
-    readAssignmentsForSession(session),
+    readAssignmentsForSession(workspaceSession),
     readPermissionsByRole(),
   ]);
   const preparedAssignments = assignments
@@ -829,36 +891,40 @@ async function createPermissionEvaluator(session, action, { operation = "read" }
       overrides: parseJsonObject(assignment.permission_overrides_json),
     }));
 
-  return (resource = { workspace_id: session.workspace_id }) => {
+  return (resource = { workspace_id: workspaceSession.workspace_id }) => {
     const evaluatedResource = { operation, ...resource };
 
     return preparedAssignments.some(({ assignment, overrides }) => (
-      assignmentMatchesResource(assignment, evaluatedResource, session) &&
+      assignmentMatchesResource(assignment, evaluatedResource, workspaceSession) &&
       overridesAllowAction(overrides, action, evaluatedResource)
     ));
   };
 }
 
+/** @template T @param {PermissionSession & {workspace_id: string}} session @param {T[]} clients @returns {Promise<T[]>} */
 async function filterReadableClients(session, clients) {
   if (await can(session, "clients.manage", { workspace_id: session.workspace_id, operation: "read" })) {
     return clients;
   }
 
   const readableScopes = await readReadableScopes(session);
-  return clients.filter((client) => readableScopes.clientIds.has(client.id));
+  return clients.filter((client) => readableScopes.clientIds.has(/** @type {LooseRecord} */ (client).id));
 }
 
+/** @template T @param {PermissionSession & {workspace_id: string}} session @param {T[]} projects @returns {Promise<T[]>} */
 async function filterReadableProjects(session, projects) {
   if (await can(session, "projects.manage", { workspace_id: session.workspace_id, operation: "read" })) {
     return projects;
   }
 
   const readableScopes = await readReadableScopes(session);
-  return projects.filter((project) => (
-    readableScopes.clientIds.has(project.client_id) || readableScopes.projectIds.has(project.id)
-  ));
+  return projects.filter((project) => {
+    const record = /** @type {LooseRecord} */ (project);
+    return readableScopes.clientIds.has(record.client_id) || readableScopes.projectIds.has(record.id);
+  });
 }
 
+/** @template T @param {WorkspaceRequestSession} session @param {T[]} entries @returns {Promise<T[]>} */
 async function filterReadableTimeEntries(session, entries) {
   const visibility = await readTimeEntryVisibility(session);
 
@@ -866,19 +932,25 @@ async function filterReadableTimeEntries(session, entries) {
     return entries;
   }
 
-  return entries.filter((entry) => (
+  return entries.filter((entry) => {
+    const record = /** @type {LooseRecord} */ (entry);
+    return (
     (
-      entry.user_id === visibility.userId ||
-      visibility.editAllClientIds.includes(entry.client_id) ||
-      visibility.editAllProjectIds.includes(entry.project_id)
+      record.user_id === visibility.userId ||
+      visibility.editAllClientIds.includes(record.client_id) ||
+      visibility.editAllProjectIds.includes(record.project_id)
     ) &&
     (
-      visibility.clientIds.includes(entry.client_id) ||
-      visibility.projectIds.includes(entry.project_id)
+      visibility.clientIds.includes(record.client_id) ||
+      visibility.projectIds.includes(record.project_id)
     )
-  ));
+  );
+  });
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ */
 async function readTimeEntryVisibility(session) {
   if (await can(session, "time_entries.edit_all", {
     workspace_id: session.workspace_id,
@@ -905,16 +977,21 @@ async function readTimeEntryVisibility(session) {
   };
 }
 
+/** @template T @param {WorkspaceRequestSession} session @param {T[]} tasks @returns {Promise<T[]>} */
 async function filterReadableTasks(session, tasks) {
   const canReadTask = await createPermissionEvaluator(session, "tasks.view");
 
-  return tasks.filter((task) => canReadTask({
+  return tasks.filter((task) => {
+    const record = /** @type {LooseRecord} */ (task);
+    return canReadTask({
     workspace_id: session.workspace_id,
-    client_id: task.client_id,
-    project_id: task.project_id,
-  }));
+    client_id: record.client_id === null || record.client_id === undefined ? null : String(record.client_id),
+    project_id: record.project_id === null || record.project_id === undefined ? null : String(record.project_id),
+  });
+  });
 }
 
+/** @param {WorkspaceRequestSession} session @param {LooseRecord[]} assignments @returns {Promise<PermissionAssignmentInput[]>} */
 async function normalizeAssignments(session, assignments) {
   const roles = await permissionsRepository.readRoles();
   const roleIds = new Set(roles.map((role) => role.role_id));
@@ -962,6 +1039,7 @@ async function normalizeAssignments(session, assignments) {
   return normalizedAssignments;
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} scopeType @param {string} scopeId */
 async function assertAssignmentScopeBelongsToWorkspace(session, scopeType, scopeId) {
   if (scopeType === "all" || scopeType === "workspace") {
     return;
@@ -976,6 +1054,10 @@ async function assertAssignmentScopeBelongsToWorkspace(session, scopeType, scope
   }
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ * @param {string} roleId
+ */
 async function assertWorkspaceTypeAllowsRole(session, roleId) {
   const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id, session);
 
@@ -986,20 +1068,34 @@ async function assertWorkspaceTypeAllowsRole(session, roleId) {
   throw new AppError("That role is not available for this workspace type.", 403);
 }
 
+/**
+ * @param {string} workspaceType
+ * @param {string} roleId
+ */
 function workspaceTypeAllowsRole(workspaceType, roleId) {
   return workspaceType === "business" ||
     (workspaceType === "family" && FAMILY_ROLE_LIMITS.has(roleId)) ||
     (workspaceType === "personal" && PERSONAL_ROLE_LIMITS.has(roleId));
 }
 
+/**
+ * @param {PermissionSession | null | undefined} session
+ * @returns {Promise<WorkspaceRequestSession>}
+ */
 async function assertCanAssignRoles(session) {
-  if (await hasAssignableRoleScope(session)) {
-    return;
+  if (session?.workspace_id && session.user_id) {
+    const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+    if (await hasAssignableRoleScope(workspaceSession)) {
+      return workspaceSession;
+    }
   }
 
   throw new AppError("You do not have permission to perform that action.", 403);
 }
 
+/**
+ * @param {WorkspaceRequestSession} session
+ */
 async function hasAssignableRoleScope(session) {
   if (await isInstallationSuperAdmin(session)) {
     return true;
@@ -1017,6 +1113,7 @@ async function hasAssignableRoleScope(session) {
   ));
 }
 
+/** @param {WorkspaceRequestSession} session @param {RequestedAssignment} requestedAssignment */
 async function canAssignRole(session, requestedAssignment) {
   if (await isInstallationSuperAdmin(session)) {
     return ROLE_LIMITS.super_admin.has(requestedAssignment.roleId);
@@ -1045,6 +1142,7 @@ async function canAssignRole(session, requestedAssignment) {
   return normalizeProtectedUserFlag(user?.protected_user) && ROLE_LIMITS.super_admin.has(roleId);
 }
 
+/** @param {string} workspaceId @param {RequestedAssignment} assignment @returns {Promise<PermissionResource>} */
 async function readAssignmentResource(workspaceId, assignment) {
   if (assignment.scopeType === "workspace") {
     return { workspace_id: workspaceId };
@@ -1070,6 +1168,9 @@ async function readAssignmentResource(workspaceId, assignment) {
   return { workspace_id: workspaceId };
 }
 
+/**
+ * @param {PermissionSession | null | undefined} session
+ */
 async function isSuperAdmin(session) {
   if (!session?.workspace_id || !session?.user_id) {
     return false;
@@ -1078,6 +1179,9 @@ async function isSuperAdmin(session) {
   return isInstallationSuperAdmin(session);
 }
 
+/**
+ * @param {PermissionSession} session
+ */
 async function isInstallationSuperAdmin(session) {
   const cache = readRequestCache(session);
   const userId = session?.user_id || "";
@@ -1098,22 +1202,29 @@ async function isInstallationSuperAdmin(session) {
   return cache.superAdmins.get(userId);
 }
 
+/**
+ * @param {import("../types/http-contracts.js").NormalRequestSession | import("../types/http-contracts.js").SupportViewRequestSession | import("../types/http-contracts.js").PrivateFeedAuthorizationSession} session
+ */
 async function isWorkspaceAdministrator(session) {
   if (!session?.workspace_id || !session?.user_id) {
     return false;
   }
 
-  if (await isSuperAdmin(session)) {
+  const workspaceSession = /** @type {WorkspaceRequestSession} */ (session);
+  if (await isSuperAdmin(workspaceSession)) {
     return true;
   }
 
-  const assignments = await readAssignmentsForSession(session);
+  const assignments = await readAssignmentsForSession(workspaceSession);
   return assignments.some((assignment) => (
     assignment.role_id === "workspace_admin" &&
-    assignmentMatchesResource(assignment, { workspace_id: session.workspace_id }, session)
+    assignmentMatchesResource(assignment, { workspace_id: workspaceSession.workspace_id }, workspaceSession)
   ));
 }
 
+/**
+ * @param {PermissionSession & {workspace_id: string}} session
+ */
 async function readReadableScopes(session) {
   const assignments = await readAssignmentsForSession(session);
   const permissionsByRole = await readPermissionsByRole();
@@ -1143,6 +1254,9 @@ async function readReadableScopes(session) {
   return { clientIds, editAllClientIds, editAllProjectIds, projectIds };
 }
 
+/**
+ * @param {PermissionSession & {workspace_id: string}} session
+ */
 async function readCurrentUser(session) {
   const cache = readRequestCache(session);
   const cacheKey = `${session.workspace_id}:${session.user_id}`;
@@ -1154,20 +1268,29 @@ async function readCurrentUser(session) {
   return cache.users.get(cacheKey);
 }
 
+/**
+ * @param {PermissionSession & {workspace_id: string}} session
+ */
 async function readAssignmentsForSession(session) {
   const cache = readRequestCache(session);
   const cacheKey = `${session.workspace_id}:${session.user_id}`;
-
-  if (!cache.assignments.has(cacheKey)) {
-    cache.assignments.set(cacheKey, await permissionsRepository.readAssignmentsForUser(
-      session.workspace_id,
-      session.user_id,
-    ));
+  const cachedAssignments = cache.assignments.get(cacheKey);
+  if (cachedAssignments) {
+    return cachedAssignments;
   }
 
-  return cache.assignments.get(cacheKey);
+  const assignments = await permissionsRepository.readAssignmentsForUser(
+    session.workspace_id,
+    session.user_id,
+  );
+  cache.assignments.set(cacheKey, assignments);
+  return assignments;
 }
 
+/**
+ * @param {PermissionSession} session
+ * @returns {{ assignments: Map<string, PermissionAssignment[]>, superAdmins: Map<string, boolean>, users: Map<string, Awaited<ReturnType<typeof usersRepository.readById>>> }}
+ */
 function readRequestCache(session) {
   return {
     assignments: readRequestScopedCache(session, "permissions.assignments"),
@@ -1176,11 +1299,16 @@ function readRequestCache(session) {
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} userId
+ */
 async function readDecoratedAssignments(workspaceId, userId) {
   const assignments = await permissionsRepository.readAssignmentsForUser(workspaceId, userId);
   return assignments.map(decorateAssignment);
 }
 
+/** @param {PermissionAssignmentRow} assignment */
 function decorateAssignment(assignment) {
   return {
     assignment_id: assignment.assignment_id,
@@ -1268,6 +1396,9 @@ function overridesAllowAction(overrides, action, resource) {
   return true;
 }
 
+/**
+ * @param {string} action
+ */
 function actionToOperation(action) {
   if (action.endsWith(".create")) {
     return "create";
@@ -1288,6 +1419,9 @@ function actionToOperation(action) {
   return "";
 }
 
+/**
+ * @param {string} action
+ */
 function actionToResourceKey(action) {
   if (action.startsWith("time_entries.")) {
     return "time_entries";
@@ -1352,6 +1486,9 @@ async function readPermissionsByRole() {
   return rolePermissionsCache;
 }
 
+/**
+ * @param {unknown} value
+ */
 function normalizeOverrides(value) {
   const overrides = parseJsonObject(value);
   const normalized = {
@@ -1364,13 +1501,18 @@ function normalizeOverrides(value) {
   return JSON.stringify(normalized);
 }
 
+/** @param {unknown} [operationAccess] @returns {Record<string, Record<string, boolean>>} */
 function normalizeOperationAccess(operationAccess = {}) {
+  /** @type {Record<string, Record<string, boolean>>} */
   const normalized = {};
+  if (!operationAccess || typeof operationAccess !== "object" || Array.isArray(operationAccess)) {
+    return normalized;
+  }
 
   Object.entries(operationAccess).forEach(([resource, operations]) => {
     normalized[resource] = {};
 
-    Object.entries(operations || {}).forEach(([operation, allowed]) => {
+    Object.entries(operations && typeof operations === "object" && !Array.isArray(operations) ? operations : {}).forEach(([operation, allowed]) => {
       normalized[resource][operation] = allowed !== false;
     });
   });
@@ -1378,6 +1520,9 @@ function normalizeOperationAccess(operationAccess = {}) {
   return normalized;
 }
 
+/**
+ * @param {unknown} value
+ */
 function parseJsonObject(value) {
   if (!value) {
     return {};
@@ -1388,7 +1533,7 @@ function parseJsonObject(value) {
   }
 
   try {
-    return JSON.parse(value);
+    return JSON.parse(String(value));
   } catch {
     return {};
   }

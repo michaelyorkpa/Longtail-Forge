@@ -6,21 +6,51 @@
 (function attachTaskCalendar(global) {
   const root = global.LongtailForge = global.LongtailForge || {};
   const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const CALENDAR_VIEW_IDS = new Set(["day", "week", "month"]);
+  // The same three ids, held as a literal tuple rather than a `Set`. `Set<string>.has` cannot
+  // narrow its argument, so the membership test could not produce the view id it had just
+  // proved; a `find` over the same three values does, without a cast.
+  const CALENDAR_VIEW_IDS = /** @type {const} */ (["day", "week", "month"]);
   const MONTH_TASK_LIMIT = 3;
+
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendar} BrowserTaskCalendar */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarViewId} BrowserTaskCalendarViewId */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarRange} BrowserTaskCalendarRange */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarRenderOptions} BrowserTaskCalendarRenderOptions */
+
+  /**
+   * The view factory this path cannot run without.
+   *
+   * `viewBuilder` stays optional because `renderCalendarBody` legitimately runs without the
+   * factory; every other path here dereferences it, so it acquires a checked one.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = viewBuilder();
+    if (!factory) {
+      throw new Error("Task calendar rendering requires LongtailForge.view.");
+    }
+    return factory;
+  }
 
   function viewBuilder() {
     return root.view;
   }
 
+  /** @param {unknown} value @returns {BrowserTaskCalendarViewId | null} */
   function normalizeCalendarView(value) {
-    return CALENDAR_VIEW_IDS.has(value) ? value : null;
+    return CALENDAR_VIEW_IDS.find((viewId) => viewId === value) ?? null;
   }
 
+  /** @returns {BrowserTaskCalendarViewId | null} */
   function readPreferredCalendarView() {
     return normalizeCalendarView(root.userPreferences?.preferredCalendarView);
   }
 
+  /**
+   * @param {unknown} preferredView @param {{ isMobile?: boolean }} [options]
+   * @returns {BrowserTaskCalendarViewId}
+   */
   function resolveDefaultView(preferredView, options = {}) {
     const normalizedPreference = normalizeCalendarView(preferredView);
 
@@ -34,6 +64,7 @@
     return isMobile ? "day" : "month";
   }
 
+  /** @param {string} viewId @param {Date} anchor @returns {BrowserTaskCalendarRange} */
   function calendarRange(viewId, anchor) {
     if (viewId === "day") {
       const dayKey = dateKeyOf(anchor);
@@ -71,6 +102,117 @@
     };
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarWindow} BrowserTaskCalendarWindow */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarRow} BrowserTaskCalendarRow */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarReminderMarker} BrowserTaskCalendarReminderMarker */
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {unknown} value @returns {value is string} */
+  function isText(value) {
+    return typeof value === "string";
+  }
+
+  /**
+   * One calendar row, saved or projected.
+   *
+   * **The empty `task_id` is the point.** A projected occurrence carries no saved identifier by
+   * design, so the check is not "has an id" but "is internally consistent": a row marked
+   * `virtual` must carry the recurrence identity the click handler opens it with, and a row that
+   * is not marked must carry neither. A row claiming to be virtual without a `templateId` is the
+   * one shape the renderer cannot act on, and it is refused here rather than rendered as a dead
+   * button.
+   * @param {unknown} value @returns {value is BrowserTaskCalendarRow}
+   */
+  function isCalendarRow(value) {
+    if (!isResponseRecord(value)) {
+      return false;
+    }
+
+    const { allDay, client_name: clientName, due_date: dueDate, due_time: dueTime } = value;
+    const { endDate, id, instanceDate, priority, project_name: projectName } = value;
+    const { startDate, status, task_id: taskId, templateId, title, virtual } = value;
+
+    if (typeof allDay !== "boolean" || !isText(clientName) || !isText(dueDate) || !isText(dueTime)
+      || !isText(endDate) || !isText(id) || !isText(priority) || !isText(projectName)
+      || !isText(startDate) || !isText(status) || !isText(taskId) || !isText(title)) {
+      return false;
+    }
+
+    return virtual === true
+      ? isText(templateId) && isText(instanceDate)
+      : virtual === undefined && templateId === undefined && instanceDate === undefined;
+  }
+
+  /** @param {unknown} value @returns {value is BrowserTaskCalendarReminderMarker} */
+  function isReminderMarker(value) {
+    if (!isResponseRecord(value)) {
+      return false;
+    }
+
+    const { date, due_at_utc: dueAtUtc, due_kind: dueKind, offset_minutes: offsetMinutes } = value;
+    const { reminder_at_utc: reminderAtUtc, source, task_id: taskId, title, url } = value;
+    return isText(date) && isText(dueAtUtc) && (dueKind === "date_only" || dueKind === "date_time")
+      && typeof offsetMinutes === "number" && isText(reminderAtUtc) && isText(source)
+      && isText(taskId) && isText(title) && isText(url);
+  }
+
+  /**
+   * The calendar window response, read as a whole or not at all.
+   *
+   * **A malformed body must not become an empty calendar.** Both consumers render "Nothing
+   * scheduled" for a window with no rows, so filtering bad rows away would show the user a
+   * confident, wrong answer: a day that has tasks would read as a day that does not. Answering
+   * `null` sends the caller down the load-error path each already has - the Calendar status line
+   * and the Dashboard panel's "Calendar unavailable" state.
+   *
+   * **`source_enabled: false` is not that case.** A disabled Tasks module still returns a real
+   * window, and the Calendar page shows those due dates read-only. Only a body that fails to
+   * describe itself is refused.
+   *
+   * The validated arrays and rows are returned by identity, so the richer members the producer
+   * sends - and the recurrence identity the click handler forwards - reach the renderer
+   * unchanged.
+   * @param {unknown} body
+   * @returns {BrowserTaskCalendarWindow | null}
+   */
+  function readCalendarWindow(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+
+    const { range, reminders, source_enabled: sourceEnabled, tasks } = body;
+
+    if (!isResponseRecord(range) || !isText(range.startDate) || !isText(range.endDate)
+      || typeof sourceEnabled !== "boolean"
+      || !Array.isArray(tasks) || !tasks.every(isCalendarRow)
+      || !Array.isArray(reminders) || !reminders.every(isReminderMarker)) {
+      return null;
+    }
+
+    return {
+      range: { endDate: range.endDate, startDate: range.startDate },
+      reminders,
+      source_enabled: sourceEnabled,
+      tasks,
+    };
+  }
+
+  /**
+   * The bounded window fetch, validated once for both transports.
+   *
+   * **Both branches pass through the same reader before this resolves.** The dashboard loader
+   * answers `Promise<unknown>` and `response.json()` answers an implicit `any`; validating only
+   * the second would leave the Dashboard panel reading an untyped body through the same public
+   * method. Neither branch retries through the other - a body that cannot be read is a bad
+   * response, not a reason to make a second request.
+   * @param {{ fetchStart: string, fetchEnd: string }} range
+   * @param {{ clientId?: string, projectId?: string, statuses?: unknown }} [filters]
+   * @returns {Promise<BrowserTaskCalendarWindow>}
+   */
   async function fetchCalendarWindow(range, filters = {}) {
     const params = new URLSearchParams({ start: range.fetchStart, end: range.fetchEnd });
 
@@ -92,11 +234,27 @@
 
     const route = `/api/tasks/calendar?${params.toString()}`;
     const dashboardLoadRoute = root.dashboardBootstrap?.loadRoute;
+    const body = typeof dashboardLoadRoute === "function"
+      ? await dashboardLoadRoute(route)
+      : await readNativeCalendarResponse(route);
+    const window = readCalendarWindow(body);
 
-    if (typeof dashboardLoadRoute === "function") {
-      return dashboardLoadRoute(route);
+    if (!window) {
+      throw new Error("The calendar response could not be read.");
     }
 
+    return window;
+  }
+
+  /**
+   * The fetch this helper falls back to when no dashboard loader is published.
+   *
+   * Keeps `no-store`, the permission message the Calendar page already showed for a 403, and the
+   * status-carrying message for every other non-OK response. Only the body leaves here; the
+   * validation belongs to the one reader both transports share.
+   * @param {string} route @returns {Promise<unknown>}
+   */
+  async function readNativeCalendarResponse(route) {
     const response = await fetch(route, { cache: "no-store" });
 
     if (response.status === 403) {
@@ -110,7 +268,18 @@
     return response.json();
   }
 
-  function renderCalendarBody(target, options = {}) {
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarOpenTask} BrowserTaskCalendarOpenTask */
+
+  /** The day-keyed groups the renderer builds once and reads per day. */
+  /** @typedef {Map<string, BrowserTaskCalendarRow[]>} TasksByDate */
+  /** @typedef {Map<string, BrowserTaskCalendarReminderMarker[]>} RemindersByDate */
+
+  /**
+   * @param {Element | null} target
+   * @param {BrowserTaskCalendarRenderOptions} options
+   * @returns {boolean}
+   */
+  function renderCalendarBody(target, options) {
     const view = viewBuilder();
 
     if (!target || !view) {
@@ -146,7 +315,7 @@
   }
 
   function createWeekdayHeaderRow() {
-    const view = viewBuilder();
+    const view = requireView();
     return view.createElement("div", {
       className: "calendar-weekday-row",
       attrs: { "aria-hidden": "true" },
@@ -157,8 +326,15 @@
     });
   }
 
+  /**
+   * @param {BrowserTaskCalendarViewId} viewId
+   * @param {BrowserTaskCalendarRange} range
+   * @param {TasksByDate} tasksByDate
+   * @param {RemindersByDate} remindersByDate
+   * @param {BrowserTaskCalendarOpenTask} onOpenTask
+   */
   function createDayGrid(viewId, range, tasksByDate, remindersByDate, onOpenTask) {
-    const view = viewBuilder();
+    const view = requireView();
     const todayKey = dateKeyOf(new Date());
     const grid = view.createElement("div", {
       className: ["calendar-grid", viewId === "week" ? "calendar-grid--week" : "calendar-grid--month"],
@@ -205,6 +381,8 @@
       }
 
       const visibleTasks = isMonthGrid ? dayTasks.slice(0, MONTH_TASK_LIMIT) : dayTasks;
+      // The month grid appends its own "View all tasks" link after the entries.
+      /** @type {HTMLElement[]} */
       const entryChildren = visibleTasks.map((task) => createTaskEntry(task, onOpenTask));
 
       if (isMonthGrid && dayTasks.length > MONTH_TASK_LIMIT) {
@@ -237,8 +415,14 @@
     return grid;
   }
 
+  /**
+   * @param {string} dayKey
+   * @param {TasksByDate} tasksByDate
+   * @param {RemindersByDate} remindersByDate
+   * @param {BrowserTaskCalendarOpenTask} onOpenTask
+   */
   function createDayView(dayKey, tasksByDate, remindersByDate, onOpenTask) {
-    const view = viewBuilder();
+    const view = requireView();
     const dayTasks = tasksByDate.get(dayKey) || [];
     const dayReminders = remindersByDate.get(dayKey) || [];
     const children = [];
@@ -273,8 +457,13 @@
     });
   }
 
+  /**
+   * @param {BrowserTaskCalendarRow} task
+   * @param {BrowserTaskCalendarOpenTask} onOpenTask
+   * @param {{ showMeta?: boolean }} [options]
+   */
   function createTaskEntry(task, onOpenTask, options = {}) {
-    const view = viewBuilder();
+    const view = requireView();
     const isVirtual = task.virtual === true;
     const timeLabel = task.due_time ? formatDueTime(task.due_time) : "";
     const contextLabel = [task.client_name, task.project_name].filter(Boolean).join(" / ");
@@ -324,8 +513,9 @@
     return entry;
   }
 
+  /** @param {readonly BrowserTaskCalendarReminderMarker[]} reminders */
   function createReminderIndicator(reminders) {
-    const view = viewBuilder();
+    const view = requireView();
     const summary = reminders
       .map((marker) => `${formatReminderTime(marker.reminder_at_utc)} ${marker.title}`)
       .join("\n");
@@ -351,8 +541,9 @@
     return indicator;
   }
 
+  /** @param {BrowserTaskCalendarReminderMarker} marker @param {BrowserTaskCalendarOpenTask} onOpenTask */
   function createReminderRow(marker, onOpenTask) {
-    const view = viewBuilder();
+    const view = requireView();
     const row = view.createElement("button", {
       className: "calendar-reminder-row",
       attrs: {
@@ -374,7 +565,15 @@
     return row;
   }
 
+  /**
+   * The rows of one window, grouped by the day key each carries.
+   * @template Row
+   * @param {readonly Row[]} rows
+   * @param {(row: Row) => string} readKey
+   * @returns {Map<string, Row[]>}
+   */
   function groupByKey(rows, readKey) {
+    /** @type {Map<string, Row[]>} */
     const grouped = new Map();
 
     for (const row of rows) {
@@ -384,31 +583,37 @@
         continue;
       }
 
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
+      // The first row for a day starts its list, as the `has`/`set` pair did before the push.
+      const group = grouped.get(key);
+      if (group) {
+        group.push(row);
+      } else {
+        grouped.set(key, [row]);
       }
-
-      grouped.get(key).push(row);
     }
 
     return grouped;
   }
 
+  /** @param {Date} date @returns {string} */
   function dateKeyOf(date) {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${date.getFullYear()}-${month}-${day}`;
   }
 
+  /** @param {unknown} dateKey @returns {Date} */
   function parseDateKey(dateKey) {
     const [year, month, day] = String(dateKey || "").split("-").map(Number);
     return new Date(year, (month || 1) - 1, day || 1);
   }
 
+  /** @param {Date} date @param {number} days @returns {Date} */
   function addDays(date, days) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
   }
 
+  /** @param {Date} startDate @param {number} count @returns {string[]} */
   function listDayKeys(startDate, count) {
     const days = [];
 
@@ -419,10 +624,12 @@
     return days;
   }
 
+  /** @param {Date} date @returns {string} */
   function formatFullDate(date) {
     return date.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   }
 
+  /** @param {string} dueTime @returns {string} */
   function formatDueTime(dueTime) {
     const [hours, minutes] = String(dueTime).split(":").map(Number);
     const probe = new Date();
@@ -430,6 +637,7 @@
     return probe.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   }
 
+  /** @param {string} reminderAtUtc @returns {string} */
   function formatReminderTime(reminderAtUtc) {
     const date = new Date(reminderAtUtc);
     return Number.isFinite(date.getTime())
@@ -437,12 +645,22 @@
       : "";
   }
 
+  /** @param {unknown} value @returns {string} */
   function formatToken(value) {
     const text = String(value || "").replaceAll("_", " ").trim();
     return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
   }
 
-  root.taskCalendar = Object.freeze({
+  /**
+   * The nine methods this writer publishes.
+   *
+   * Annotated on the literal rather than on the `Object.freeze` call, so the compiler checks the
+   * membership in both directions: a missing method fails, a tenth one fails as an unknown
+   * property, and a changed signature fails. The frozen object is unchanged - this states what it
+   * has always been.
+   * @type {BrowserTaskCalendar}
+   */
+  const taskCalendarApi = {
     addDays,
     calendarRange,
     dateKeyOf,
@@ -452,5 +670,7 @@
     readPreferredCalendarView,
     renderCalendarBody,
     resolveDefaultView,
-  });
+  };
+
+  root.taskCalendar = Object.freeze(taskCalendarApi);
 })(window);

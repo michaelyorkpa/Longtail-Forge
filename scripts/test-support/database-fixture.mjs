@@ -64,12 +64,18 @@ ORDER BY version, module_id;
   return {
     baselineDb,
     verifiedBaselineHandshake,
+    /**
+     * @param {string} script
+     * @param {number} index
+     * @param {{ namespace?: string, useBaseline?: boolean }} [options]
+     */
     async createScriptLaunch(script, index, options = {}) {
       const useBaseline = options.useBaseline !== false;
       const namespace = sanitizePathSegment(options.namespace || "default");
       const scriptDataDir = path.join(root, "script-data", namespace, `${String(index).padStart(3, "0")}-${sanitizePathSegment(script)}`);
       await fs.mkdir(scriptDataDir, { recursive: true });
 
+      /** @type {NodeJS.ProcessEnv} */
       const env = {
         ...process.env,
         LONGTAIL_DATABASE_FILE: path.join(scriptDataDir, "longtail-forge.db"),
@@ -96,10 +102,12 @@ ORDER BY version, module_id;
   };
 }
 
+/** @param {readonly string[]} keys */
 function captureEnv(keys) {
   return Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 }
 
+/** @param {Record<string, string | undefined>} values */
 function restoreEnv(values) {
   for (const [key, value] of Object.entries(values)) {
     if (value === undefined) {
@@ -110,6 +118,7 @@ function restoreEnv(values) {
   }
 }
 
+/** @param {string} value */
 function sanitizePathSegment(value) {
   return String(value || "").replace(/[^a-z0-9.-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "regression";
 }

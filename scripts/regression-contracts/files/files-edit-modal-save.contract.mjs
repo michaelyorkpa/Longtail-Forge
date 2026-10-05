@@ -1,0 +1,97 @@
+import assert from "node:assert/strict";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createProjectTextReader, extractFunctionBlock } from "../../test-support/source-scan.mjs";
+const { readText: read } = createProjectTextReader();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** @param {string} source @param {string} name */
+const filesPage = read("views/protected/files.html");
+const filesScript = read("public/js/files.js");
+const filesStyles = read("public/css/longtail-forge.css");
+const viewContract = read("docs/view-building-contract.md");
+
+assert.match(filesPage, /css\/longtail-forge\.css/, "Files page should reference row affordance and modal styling");
+assert.match(filesPage, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should reference the Files adapter");
+
+const fileRowBlock = extractFunctionBlock(filesScript, "fileRow");
+const tableBlock = extractFunctionBlock(filesScript, "createFilesTable");
+const wireRowsBlock = extractFunctionBlock(filesScript, "wireFilesTableRows");
+const wireRowBlock = extractFunctionBlock(filesScript, "wireFileTableRow");
+const actionIsolationBlock = extractFunctionBlock(filesScript, "isFileRowActionEvent");
+const buildBlock = extractFunctionBlock(filesScript, "buildFileEditorDialog");
+const controlBlock = [
+  extractFunctionBlock(filesScript, "bindFileEditorControlEvents"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorContextControls"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorProjectControl"),
+  extractFunctionBlock(filesScript, "setFileEditorControlsDisabled"),
+  extractFunctionBlock(filesScript, "syncFileEditorSaveState"),
+].join("\n");
+const saveBlock = extractFunctionBlock(filesScript, "saveFileEditorContext");
+const markReviewedBlock = extractFunctionBlock(filesScript, "markFileReviewedFromContext");
+const payloadBlock = extractFunctionBlock(filesScript, "fileEditorContextPayload");
+
+assert.match(fileRowBlock, /const attachmentId = attachment\.fileAttachmentId \|\| attachment\.file_attachment_id \|\| ""/, "File rows should normalize the file attachment id");
+assert.match(fileRowBlock, /attachmentId,/, "File rows should expose the normalized attachment id");
+assert.match(tableBlock, /wireFilesTableRows\(tbody,\s*rows\)/, "Files table creation should wire rows after rendering through the helper table");
+assert.match(wireRowsBlock, /const row = rows\[index\]/, "Files row wiring should preserve row-to-record pairing");
+assert.match(wireRowsBlock, /if \(!row\?\.attachmentId\)/, "Files row wiring should only attach editor behavior to persisted file attachments");
+assert.match(wireRowsBlock, /wireFileTableRow\(rowElement,\s*row\)/, "Files row wiring should delegate per-row behavior");
+
+assert.match(wireRowBlock, /rowElement\.tabIndex = 0/, "Files rows should be keyboard focusable");
+assert.match(wireRowBlock, /rowElement\.dataset\.fileEditorRow = ""/, "Files rows should expose a stable row-open marker");
+assert.match(wireRowBlock, /rowElement\.dataset\.fileAttachmentId = row\.attachmentId/, "Files rows should keep the attachment id available for focus return");
+assert.match(wireRowBlock, /openFileEditor\(row,\s*\{\s*trigger:\s*rowElement\s*\}\)/, "Files row click/Enter should open the canonical File Context modal with focus return");
+assert.match(wireRowBlock, /event\.key !== "Enter"/, "Files row keyboard activation should use Enter");
+assert.doesNotMatch(wireRowBlock, /Space|Spacebar|event\.key\s*===\s*" "/, "Files rows should not claim Space activation while preserving table semantics");
+assert.doesNotMatch(wireRowBlock, /role",\s*"button"|role:\s*"button"/, "Files rows should not be recast as button controls");
+assert.match(actionIsolationBlock, /\[data-file-action\], a, button, input, select, textarea/, "Files row-open should ignore repeated row actions and embedded controls");
+
+assert.match(filesStyles, /\.files-table tbody tr\[data-file-editor-row\][\s\S]*cursor: pointer/, "Files rows should advertise clickability without adding selected-row state");
+assert.match(filesStyles, /\.files-table tbody tr\[data-file-editor-row\]:focus-visible[\s\S]*outline: 2px solid var\(--color-accent\)/, "Files rows should expose a visible keyboard focus ring");
+
+assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*iconOnly:\s*true[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File Context modal should expose the same standalone icon-only Preview action as the Files list");
+assert.doesNotMatch(buildBlock, /requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File Context Preview should not bind the Preview modal to the edit modal");
+// Retargeted by 0.33.33.43.8. The footer action closes over the `dialog` local before the builder
+// assigns it, so the call now passes it through `requireFileEditorDialog`, which throws by name
+// where reading `querySelector` off `null` already threw. The action, icon, label and the handler
+// it dispatches to are all still required; only the dialog argument's spelling is now optional.
+assert.match(buildBlock, /const markReviewedButton = view\.createActionButton\(\{[\s\S]*action:\s*"files\.restore"[\s\S]*icon:\s*"complete"[\s\S]*label:\s*`Mark \$\{row\.fileName\} reviewed`[\s\S]*markFileReviewedFromContext\((?:requireFileEditorDialog\()?dialog\)?,\s*row,\s*options\)/, "File Context should expose a modal-only Mark Reviewed action for in-review files");
+assert.match(buildBlock, /const saveButton = view\.createActionButton\(\{[\s\S]*icon:\s*"save"[\s\S]*iconOnly:\s*true[\s\S]*type:\s*"submit"/, "File Context modal should expose an icon-only Save footer action");
+assert.match(buildBlock, /utilityActions:\s*\[previewButton,\s*markReviewedButton\][\s\S]*actions:\s*\[closeButton,\s*saveButton\]/, "File Context footer should keep Preview and Mark Reviewed as utilities to the left of Close and Save");
+assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""/, "File Context Preview should use a stable marker for footer control");
+assert.match(buildBlock, /markReviewedButton\.dataset\.fileContextMarkReviewed = ""[\s\S]*markReviewedButton\.hidden = !row\.reviewable/, "File Context Mark Reviewed should use a stable marker and stay hidden outside in-review recovery");
+assert.match(buildBlock, /saveButton\.dataset\.fileContextSave = ""/, "File Context Save should use a stable marker for state control");
+assert.match(buildBlock, /saveFileEditorContext\(dialog,\s*row,\s*options\)/, "File Context form submit should call the Files-owned save handler");
+
+assert.match(controlBlock, /hydrateFileEditorProjectControl\(dialog,\s*row\)[\s\S]*loadFileEditorTargetOptions\(dialog,\s*row\)/, "Client changes should refresh the stable Project list before reloading target choices");
+assert.doesNotMatch(controlBlock, /applyFileEditorSelectedTargetContext|setSelectValueIfPresent/, "Target changes should not rewrite Client/Project dropdown values");
+assert.match(controlBlock, /syncFileEditorSaveState\(dialog/, "Target and loading states should keep Save disabled until an available target exists");
+// Retargeted by 0.33.33.43.7, which wraps the same expression in `Boolean(...)` - the conversion
+// the `disabled` setter already performed, written out because the last operand is `undefined`
+// whenever no option is selected. The three conditions and their order are still required; only
+// the surrounding conversion is now optional in the pattern.
+assert.match(controlBlock, /saveButton\.disabled = (?:Boolean\()?forceDisabled \|\| !targetSelect\?\.value \|\| selectedTarget\?\.disabled/, "Save should be disabled while loading, blank, or on unavailable fallback targets");
+
+assert.match(saveBlock, /api\.patchJson\(`\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/context`,\s*payload\)/, "File Context Save should call the attachment-context PATCH route");
+assert.match(saveBlock, /view\.closeModal\(dialog,\s*"saved"\)/, "Successful save should close the modal");
+assert.match(saveBlock, /await loadFiles\(\)/, "Successful save should refresh the browse list");
+assert.match(saveBlock, /focusFileRowByAttachmentId\(row\.attachmentId\)/, "Successful save should return focus to the refreshed attachment row when present");
+assert.match(saveBlock, /catch \(error\) \{[\s\S]*setFileEditorControlsDisabled\(dialog,\s*false\)[\s\S]*setFileEditorStatus\(dialog,\s*requireErrors\(\)\.caughtMessage\(error, "File context was not saved\."\),\s*true\)/, "Failed save should keep the modal open and report an inline error");
+assert.match(markReviewedBlock, /title:\s*"Mark file reviewed\?"[\s\S]*confirmLabel:\s*"Mark Reviewed"[\s\S]*api\.postJson\(`\/api\/files\/\$\{encodeURIComponent\((?:`\$\{)?row\.fileId(?:\}`)?\)\}\/restore`,\s*\{\}\)/, "Mark Reviewed should confirm and use the Files restore route");
+assert.match(markReviewedBlock, /view\.closeModal\(dialog,\s*"reviewed"\)[\s\S]*await loadFiles\(\)[\s\S]*focusFileRowByAttachmentId\(row\.attachmentId\)/, "Mark Reviewed should close, refresh, and restore focus like other File Context saves");
+
+assert.match(payloadBlock, /moduleId:[\s\S]*targetId:[\s\S]*targetType:/, "Save payload should include only the target identity required by the route");
+assert.match(payloadBlock, /payload\.clientId = clientId/, "Business Client selector hints should be sent when available");
+assert.match(payloadBlock, /payload\.projectId = projectId/, "Project selector hints should be sent when available");
+assert.doesNotMatch(payloadBlock, /fileName|displayName|originalFilename|fileId|storageProvider|storageKey|storagePath|hash|scan|quarantine|delete|download/i, "Save payload should not expose file metadata, storage data, scanner state, or file lifecycle operations");
+
+const targetQueryBlock = extractFunctionBlock(filesScript, "fileEditorTargetOptionQuery");
+assert.doesNotMatch(targetQueryBlock, /\bmoduleId:\s*row\.moduleId\b|\btargetType:\s*row\.targetType\b/, "File Context target option query should allow cross-module targets such as Notes as well as Tasks");
+
+assert.match(viewContract, /0\.33\.5\.18\.11\.9[\s\S]*Enter[\s\S]*Space[\s\S]*PATCH [`']?\/api\/files\/attachments\/:fileAttachmentId\/context/, "View-building contract should document the Enter-only row activation and save-route boundary");
+assert.match(viewContract, /0\.33\.5\.18\.11\.9[\s\S]*row-open[\s\S]*Save[\s\S]*PATCH [`']?\/api\/files\/attachments\/:fileAttachmentId\/context/, "View-building contract should document the Files row-open and Save wiring");
+
+console.log("Files edit modal save regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

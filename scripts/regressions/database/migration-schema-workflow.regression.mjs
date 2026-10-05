@@ -24,6 +24,7 @@ import {
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
 const databaseDocs = readFileSync("docs/database.md", "utf8");
+/** @type {string[]} */
 const tempRoots = [];
 
 try {
@@ -160,7 +161,7 @@ async function makeTempRoot() {
   return root;
 }
 
-async function write(root, relativePath, contents) {
+async function write(/** @type {string} */ root, /** @type {string} */ relativePath, /** @type {string} */ contents) {
   const filePath = path.join(root, relativePath);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, contents, "utf8");

@@ -10,6 +10,10 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 const fixture = await createDisposableDatabaseFixture("tasks-dashboard-summary-budgets");
@@ -27,8 +31,11 @@ const { tasksService } = await import("../../../src/modules/tasks/tasks.service.
 const TIMEZONE = "America/New_York";
 const TERMINAL_GROWTH_COUNT = 500;
 
+/** @type {typeof permissionsService.can | null} */
 let originalCan = null;
+/** @type {typeof permissionsService.createPermissionEvaluator | null} */
 let originalCreatePermissionEvaluator = null;
+/** @type {typeof tasksRepository.readDashboardCandidates | null} */
 let originalReadDashboardCandidates = null;
 let canCalls = 0;
 let evaluatorCalls = 0;
@@ -111,11 +118,13 @@ function assertStaticContracts() {
   assert.match(activeTimersSource, /readWorkspaceSettings\(session\.workspace_id, session\)/, "active-timer shaping must reuse the request settings memo");
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const today = localDateKey(new Date(), TIMEZONE);
   const yesterday = addDaysKey(today, -1);
   const inThreeDays = addDaysKey(today, 3);
   const afterHorizon = addDaysKey(today, 10);
+  /** @param {Record<string, unknown>} payload */
   const createTask = async (payload) => (await tasksService.create({
     assignee_ids: [],
     ...payload,
@@ -175,20 +184,23 @@ async function createFixtures(session) {
 }
 
 function instrumentSummaryPath() {
-  originalCan = permissionsService.can;
-  originalCreatePermissionEvaluator = permissionsService.createPermissionEvaluator;
-  originalReadDashboardCandidates = tasksRepository.readDashboardCandidates;
+  const can = permissionsService.can;
+  const createPermissionEvaluator = permissionsService.createPermissionEvaluator;
+  const readDashboardCandidates = tasksRepository.readDashboardCandidates;
+  originalCan = can;
+  originalCreatePermissionEvaluator = createPermissionEvaluator;
+  originalReadDashboardCandidates = readDashboardCandidates;
 
   permissionsService.can = async (...args) => {
     canCalls += 1;
-    return originalCan(...args);
+    return can(...args);
   };
   permissionsService.createPermissionEvaluator = async (...args) => {
     evaluatorCalls += 1;
-    return originalCreatePermissionEvaluator(...args);
+    return createPermissionEvaluator(...args);
   };
   tasksRepository.readDashboardCandidates = async (...args) => {
-    const rows = await originalReadDashboardCandidates(...args);
+    const rows = await readDashboardCandidates(...args);
     loadedCandidateCount = rows.length;
     return rows;
   };
@@ -206,6 +218,7 @@ function restoreSummaryPath() {
   }
 }
 
+/** @param {TasksSession} session */
 async function measureSummary(session) {
   canCalls = 0;
   evaluatorCalls = 0;
@@ -219,6 +232,7 @@ async function measureSummary(session) {
   };
 }
 
+/** @param {Awaited<ReturnType<typeof createFixtures>>} fixtures */
 function expectedSummaryFacts(fixtures) {
   return {
     counts: fixtures.expectedCounts,
@@ -237,6 +251,7 @@ function expectedSummaryFacts(fixtures) {
   };
 }
 
+/** @param {Awaited<ReturnType<typeof tasksService.summary>>} summary */
 function summaryFacts(summary) {
   return {
     counts: summary.counts,
@@ -250,6 +265,7 @@ function summaryFacts(summary) {
   };
 }
 
+/** @param {TasksSession} session @param {{ task_id: string, title: string }} task */
 async function insertTaskTimer(session, task) {
   const now = new Date().toISOString();
   await db.run(`
@@ -311,6 +327,7 @@ VALUES (
   });
 }
 
+/** @param {TasksSession} session @param {number} count @param {string} [prefix] */
 async function insertTerminalTasks(session, count, prefix = "historical-terminal") {
   const now = new Date().toISOString();
 
@@ -377,23 +394,15 @@ FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
 `))[0];
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: TIMEZONE,
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }
 
+/** @param {TasksSession} session @returns {TasksSession} */
 function freshSession(session) {
   return { ...session };
 }
 
+/** @param {Date} date @param {string} timezone @returns {string} */
 function localDateKey(date, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -404,12 +413,14 @@ function localDateKey(date, timezone) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @param {number} days @returns {string} */
 function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
+/** @param {string} source @param {string} startMarker @param {string} endMarker @returns {string} */
 function sliceFunction(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start + startMarker.length);

@@ -1,5 +1,9 @@
 const TASK_CALENDAR_FEED_SCOPE_TYPES = new Set(["workspace", "client", "project"]);
 
+/**
+ * @param {Partial<import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedScope> | null | undefined} value
+ * @returns {Readonly<import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedScope>}
+ */
 function normalizeTaskCalendarFeedScope(value) {
   const type = String(value?.type || "workspace").trim().toLowerCase();
   if (!TASK_CALENDAR_FEED_SCOPE_TYPES.has(type)) {
@@ -15,13 +19,19 @@ function normalizeTaskCalendarFeedScope(value) {
     throw new TypeError("Project-scoped Task calendar feeds require a project.");
   }
 
+  const normalizedType = /** @type {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedScope["type"]} */ (type);
   return Object.freeze({
     clientId: type === "workspace" ? null : clientId,
     projectId: type === "project" ? projectId : null,
-    type,
+    type: normalizedType,
   });
 }
 
+/**
+ * @param {Partial<import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedScope> | null | undefined} scope
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarScopeSqlOptions} [aliases]
+ * @returns {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarScopeSql}
+ */
 function taskCalendarFeedScopeSql(scope, {
   projectAlias = "projects",
   recordAlias,
@@ -54,6 +64,9 @@ function taskCalendarFeedScopeSql(scope, {
   };
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarSubscription} subscription
+ */
 function taskCalendarSubscriptionResource(subscription) {
   const scope = normalizeTaskCalendarFeedScope(subscription?.scope);
   return {
@@ -64,6 +77,7 @@ function taskCalendarSubscriptionResource(subscription) {
   };
 }
 
+/** @param {unknown} value */
 function normalizeIdentity(value) {
   const identity = String(value || "").trim();
   return identity || null;

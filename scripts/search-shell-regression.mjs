@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { createProjectTextReader, extractFunctionBody } from "./test-support/source-scan.mjs";
+const { readTextAsync: readProjectFile } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-shell-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-shell-test.db");
@@ -21,12 +25,21 @@ try {
   const appCore = await readProjectFile("src/core/app.js");
 
   assert.ok(Array.isArray(shell.searchTargets), "app shell bootstrap should return searchTargets");
-  assert.ok(shell.searchTargets.some((target) => target.moduleId === "tasks" && target.recordType === "task"));
-  assert.ok(shell.searchTargets.some((target) => target.moduleId === "client-projects" && target.recordType === "client"));
-  assert.ok(shell.searchTargets.every((target) => (
+  const searchTargets = shell.searchTargets;
+  assert.ok(searchTargets.some((target) => target.moduleId === "tasks" && target.recordType === "task"));
+  assert.ok(searchTargets.some((target) => target.moduleId === "client-projects" && target.recordType === "client"));
+  assert.ok(searchTargets.every((target) => (
     target.id === `${target.moduleId}:${target.recordType}` ||
     target.id === `source:${target.sourceLabel}:${target.recordType}`
   )));
+  // The runtime counterpart of the published AppShellSearchTarget contract:
+  // consumers now trust these six members statically, so the producer is
+  // proven to emit exactly them and nothing else.
+  assert.deepEqual(
+    [...new Set(searchTargets.flatMap((target) => Object.keys(target)))].sort(),
+    ["aggregate", "id", "label", "moduleId", "recordType", "sourceLabel"],
+    "every published search target should carry exactly the six contract members",
+  );
 
   assert.match(navigation, /dataset\.globalSearchForm/);
   assert.match(navigation, /dataset\.globalSearchShell/);
@@ -39,13 +52,13 @@ try {
   assert.match(navigation, /setGlobalSearchOpen\(!isOpen\)/);
   assert.match(navigation, /NAV_ITEMS\.forEach[\s\S]*links\.append\(createNavItem[\s\S]*headerControls\.append\(searchShell, links, notificationWrap\)[\s\S]*nav\.append\(brand, headerControls, toggle\)/);
   assert.match(navigation, /navLinks\.replaceChildren\(\.\.\.items\.map\(\(item\) => createNavItem\(item, currentPage\)\)\)/);
-  assert.doesNotMatch(readFunctionBody(navigation, "renderNavigation"), /globalSearchShell|notificationBell/);
+  assert.doesNotMatch(extractFunctionBody(navigation, "renderNavigation"), /globalSearchShell|notificationBell/);
   assert.match(navigation, /params\.set\("text",\s*text\)/);
   assert.match(navigation, /params\.set\("module",\s*selectedOption\.dataset\.moduleId\)/);
   assert.match(navigation, /params\.set\("source",\s*selectedOption\.dataset\.sourceLabel\)/);
   assert.match(navigation, /params\.set\("recordType",\s*selectedOption\.dataset\.recordType\)/);
   assert.match(navigation, /navigationIntent\.navigate\(query \? `search\.html\?\$\{query\}` : "search\.html"[\s\S]*kind: "global-search"/);
-  assert.doesNotMatch(readFunctionBody(navigation, "submitGlobalSearch"), /fetch\("/);
+  assert.doesNotMatch(extractFunctionBody(navigation, "submitGlobalSearch"), /fetch\("/);
 
   assert.match(styles, /\.global-search-form/);
   assert.match(styles, /\.global-search-shell/);
@@ -81,46 +94,5 @@ ORDER BY username
 LIMIT 1;
 `);
 
-  const user = rows[0];
-
-  assert.ok(user, "protected user fixture is required");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
-}
-
-function readProjectFile(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
-}
-
-function readFunctionBody(source, functionName) {
-  const marker = `function ${functionName}`;
-  const start = source.indexOf(marker);
-
-  assert.notEqual(start, -1, `${functionName} function was not found`);
-
-  const bodyStart = source.indexOf("{", start);
-  let depth = 0;
-
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-
-      if (depth === 0) {
-        return source.slice(bodyStart, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${functionName} function body did not close`);
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected user fixture"));
 }

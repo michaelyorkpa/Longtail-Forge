@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
-const root = process.cwd();
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+const { readText } = createProjectTextReader();
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-external-links-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-external-links.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-External-Links-Test-123!";
@@ -18,7 +23,6 @@ const settingsHostScript = readText("public/js/shared/settings-host.js");
 const userSettingsScript = readText("public/js/user-settings.js");
 const notesScript = readText("public/js/notes.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
@@ -28,8 +32,8 @@ try {
   assertStaticContract();
 
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertMigrationAndColumn();
   await assertSettingsDefaultAndSave(session);
@@ -64,7 +68,10 @@ function assertStaticContract() {
   assert.match(notesScript, /OPEN_EXTERNAL_LINKS_STORAGE_KEY/, "Notes should read the cached Markdown link preference");
   assert.match(notesScript, /await Promise\.all\(\[loadMarkdownRenderingPreference\(\), loadTags\(\), loadCollections\(\), loadNotes\(\)\]\)/, "Notes should load the preference before rendering detail HTML");
   assert.match(notesScript, /body\.innerHTML = note\.body_html \|\| "";[\s\S]*applyExternalMarkdownLinkPreference\(body\);/, "saved Note detail should post-process rendered Markdown after injection");
-  assert.match(notesScript, /preview\.innerHTML = result\.bodyHtml \|\| "";[\s\S]*applyExternalMarkdownLinkPreference\(preview\);/, "live preview should post-process rendered Markdown after injection");
+  // Retargeted when `0.33.33.38.4.12.1` narrowed the preview response: what this owner asserts
+  // is that the live preview post-processes the Markdown it injects, not the spelling of the
+  // value being injected, which now comes from the vouched-for render rather than a raw read.
+  assert.match(notesScript, /preview\.innerHTML = rendered\.bodyHtml;[\s\S]*applyExternalMarkdownLinkPreference\(preview\);/, "live preview should post-process rendered Markdown after injection");
   assert.match(notesScript, /container\.querySelectorAll\("a\[href\]"\)/, "Notes post-processing should inspect anchors only");
   assert.match(notesScript, /const parsed = new window\.URL\(value\);[\s\S]*parsed\.protocol === "http:" \|\| parsed\.protocol === "https:"/, "Notes should only classify absolute http(s) URLs as external links");
   assert.doesNotMatch(notesScript, /new URL\(value,\s*window\.location\.href\)/, "relative app links must not be treated as external links");
@@ -72,7 +79,6 @@ function assertStaticContract() {
   assert.match(notesScript, /anchor\.setAttribute\("rel", "noopener noreferrer"\)/, "enabled preference should protect new-tab external links");
   assert.match(notesScript, /anchor\.removeAttribute\("target"\)/, "disabled preference should leave external links as same-tab anchors");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 }
 
 async function assertMigrationAndColumn() {
@@ -96,6 +102,7 @@ WHERE version = '066';
   assert.equal(column.dflt_value, "0");
 }
 
+/** @param {NotesSession} session */
 async function assertSettingsDefaultAndSave(session) {
   const initial = await usersService.readSettings(session);
   assert.equal(initial.openExternalLinksNewTab, false, "preference should default off");
@@ -111,6 +118,7 @@ async function assertSettingsDefaultAndSave(session) {
   await assertStoredPreference(session.user_id, 0);
 }
 
+/** @param {NotesSession} session */
 async function assertServerRenderedHtmlIsUserAgnostic(session) {
   const markdown = [
     "[External](https://example.com/docs)",
@@ -142,6 +150,7 @@ async function assertServerRenderedHtmlIsUserAgnostic(session) {
   assert.equal(disabledRead.note.body_html, cachedHtml, "disabling the preference must not change cached Note body HTML");
 }
 
+/** @param {string} userId @param {number} expected */
 async function assertStoredPreference(userId, expected) {
   const rows = await querySql(`
 SELECT open_external_links_new_tab
@@ -152,6 +161,7 @@ LIMIT 1;
   assert.equal(rows[0]?.open_external_links_new_tab, expected);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -160,10 +170,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -173,22 +185,14 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

@@ -1,4 +1,3 @@
-// @ts-check
 import { db } from "../core/database.js";
 import { listsService } from "../modules/lists/lists.service.js";
 import { LIST_STATUSES } from "../modules/lists/storage-contract.js";
@@ -19,10 +18,13 @@ import {
   registerResumeStateReadResolver,
 } from "./work-resume-state-read-checks.js";
 
+/** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {import("./work-resume-state-producers.js").ProducerBuilderContext} ProducerBuilderContext */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateBatchReadResolverContext} ResumeStateBatchReadResolverContext */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult} ResumeStateProducerResult */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadResolverContext} ResumeStateReadResolverContext */
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
 /**
  * @typedef {Object} SafeNoteLifecycleRow
  * @property {string} note_id
@@ -32,6 +34,11 @@ import {
  * @property {string} security_mode
  * @property {string} [effective_security_mode]
  */
+/** @typedef {Pick<InternalEvent, "emitted_at" | "metadata" | "new_value" | "previous_value" | "record_id" | "record_type">} ResumeProducerEvent */
+/** @typedef {{ task_id?: string, id?: string, status?: string, blocked_reason?: string, client_id?: string, due_date?: string, resume_note?: string, handoff_note?: string, last_worked_at?: string, updated_at?: string, checklist_progress?: unknown, recurrence_instance_date?: string, recurrence_template_id?: string, next_action?: string, priority?: string, project_id?: string, title?: string, task_title?: string }} TaskEventRecord */
+/** @typedef {{ list_id?: string, client_id?: string, updated_at?: string, project_id?: string, status?: string, title?: string }} ListEventRecord */
+/** @typedef {Partial<SafeNoteLifecycleRow> & { client_id?: string, project_id?: string, title?: string, updated_at?: string }} NoteEventRecord */
+/** @typedef {{ active_timer_id?: string, source_module_id?: string, source_type?: string, source_id?: string, client_id?: string, project_id?: string, source_url?: string, source_label?: string, timer_status?: string, timer_slot?: string, time_entry_id?: string, accumulated_elapsed_seconds?: number }} TimerEventRecord */
 
 const TASK_EVENTS = [
   "task.created",
@@ -159,12 +166,20 @@ function registerTimerProducer() {
 }
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
-async function taskBatchReadResolver({ recordIds, session }) {
+async function taskBatchReadResolver({ recordIds, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return unreadableChecks(recordIds);
+  }
+
   return tasksService.readLifecycleForIds(session, recordIds);
 }
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
-async function listBatchReadResolver({ recordIds, session }) {
+async function listBatchReadResolver({ recordIds, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return unreadableChecks(recordIds);
+  }
+
   return listsService.readLifecycleForIds(session, recordIds);
 }
 
@@ -173,6 +188,10 @@ async function listBatchReadResolver({ recordIds, session }) {
 // and secure-content policy, and that boundary is not re-implemented here.
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return unreadableChecks(recordIds);
+  }
+
   const lifecycleRows = await readSafeNoteLifecycleForIds(workspaceId, recordIds);
   const lifecycleByNoteId = new Map(lifecycleRows.map((row) => [row.note_id, row]));
   const checks = new Map();
@@ -190,7 +209,7 @@ async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
       continue;
     }
 
-    checks.set(recordId, await readEligibleNoteCheck(recordId, session));
+    checks.set(recordId, await readEligibleNoteCheck(recordId, { ...session, workspace_id: workspaceId }));
   }
 
   return checks;
@@ -225,7 +244,11 @@ WHERE workspace_id = :workspaceId
 }
 
 /** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
-async function taskReadResolver({ recordId, session }) {
+async function taskReadResolver({ recordId, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return { readable: false };
+  }
+
   try {
     const result = await tasksService.readCore(recordId, session);
     const task = result.task || {};
@@ -241,7 +264,11 @@ async function taskReadResolver({ recordId, session }) {
 }
 
 /** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
-async function listReadResolver({ recordId, session }) {
+async function listReadResolver({ recordId, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return { readable: false };
+  }
+
   try {
     const result = await listsService.read(recordId, session, { includeDeleted: true });
     const list = result.list || {};
@@ -271,10 +298,14 @@ async function noteReadResolver({ recordId, session, workspaceId }) {
     };
   }
 
-  return readEligibleNoteCheck(recordId, session);
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return { readable: false };
+  }
+
+  return readEligibleNoteCheck(recordId, { ...session, workspace_id: workspaceId });
 }
 
-/** @param {string} recordId @param {Record<string, any>} session @returns {Promise<ResumeStateReadCheck>} */
+/** @param {string} recordId @param {WorkspaceRequestSession} session @returns {Promise<ResumeStateReadCheck>} */
 async function readEligibleNoteCheck(recordId, session) {
   try {
     const note = await notesService.readConsumerSummary(recordId, session, "notes.resume");
@@ -313,7 +344,7 @@ LIMIT 1;
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildTaskPayload({ event }) {
   const task = event.record_type === "task_checklist_item"
     ? checklistTaskPayload(event)
@@ -346,18 +377,18 @@ function buildTaskPayload({ event }) {
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildListPayload({ event }) {
   const list = listFromEvent(event);
-  const listId = list.list_id || event.metadata?.list_id || event.record_id;
+  const listId = list.list_id || metadataText(event.metadata?.list_id) || event.record_id;
 
   if (!listId) {
     return null;
   }
 
   return {
-    clientId: list.client_id || event.metadata?.client_id || "",
-    lastWorkedAt: event.metadata?.last_activity_at || list.updated_at || event.emitted_at,
+    clientId: list.client_id || metadataText(event.metadata?.client_id),
+    lastWorkedAt: metadataText(event.metadata?.last_activity_at) || list.updated_at || event.emitted_at,
     metadata: {
       checked_item_count: event.metadata?.checked_item_count,
       completed_item_count: event.metadata?.completed_item_count,
@@ -368,15 +399,15 @@ function buildListPayload({ event }) {
     nextAction: event.metadata?.next_unchecked_item_label
       ? `Continue with ${event.metadata.next_unchecked_item_label}`
       : "",
-    projectId: list.project_id || event.metadata?.project_id || "",
+    projectId: list.project_id || metadataText(event.metadata?.project_id),
     recordId: listId,
-    sourceUrl: event.metadata?.source_url || `lists.html?list=${encodeURIComponent(listId)}`,
+    sourceUrl: metadataText(event.metadata?.source_url) || `lists.html?list=${encodeURIComponent(listId)}`,
     statusSnapshot: list.status || "active",
-    title: list.title || event.metadata?.title || "List",
+    title: list.title || metadataText(event.metadata?.title) || "List",
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildNotePayload({ event }) {
   const note = noteFromEvent(event);
 
@@ -400,7 +431,7 @@ function buildNotePayload({ event }) {
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildTimerPayload({ event }) {
   const timer = timerFromEvent(event);
 
@@ -449,46 +480,67 @@ function buildTimerPayload({ event }) {
   };
 }
 
-function taskFromEvent(event) {
-  return {
-    ...(event.previous_value || {}),
-    ...(event.new_value || {}),
-  };
+/**
+ * Read a text field out of an event's metadata.
+ *
+ * Metadata is an open record on the published event contract, so these values
+ * arrive as `unknown`. The resume-state writer already normalizes every string
+ * field with `String(value ?? "")`, so this coerces the same way instead of
+ * dropping a non-string value the producer used to pass through. Falsy values
+ * still resolve to the empty string, exactly as the `||` fallback chains that
+ * called for them did.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function metadataText(value) {
+  return value ? String(value) : "";
 }
 
+/** @param {ResumeProducerEvent} event @returns {TaskEventRecord} */
+function taskFromEvent(event) {
+  return /** @type {TaskEventRecord} */ ({
+    ...(event.previous_value || {}),
+    ...(event.new_value || {}),
+  });
+}
+
+/** @param {ResumeProducerEvent} event @returns {TaskEventRecord} */
 function checklistTaskPayload(event) {
-  return {
+  return /** @type {TaskEventRecord} */ ({
     checklist_progress: event.metadata?.checklist_progress || null,
     task_id: event.metadata?.task_id || event.metadata?.target_id || "",
     title: event.metadata?.task_title || "",
     updated_at: event.emitted_at,
-  };
+  });
 }
 
+/** @param {ResumeProducerEvent} event @returns {ListEventRecord} */
 function listFromEvent(event) {
-  return {
+  return /** @type {ListEventRecord} */ ({
     ...(event.previous_value || {}),
     ...(event.new_value || {}),
     ...(event.record_type === "list" ? {} : { list_id: event.metadata?.list_id || "" }),
-  };
+  });
 }
 
+/** @param {ResumeProducerEvent} event @returns {NoteEventRecord} */
 function noteFromEvent(event) {
-  return {
+  return /** @type {NoteEventRecord} */ ({
     ...(event.previous_value || {}),
     ...(event.new_value || {}),
     ...event.metadata,
-  };
+  });
 }
 
+/** @param {ResumeProducerEvent} event @returns {TimerEventRecord} */
 function timerFromEvent(event) {
-  return {
+  return /** @type {TimerEventRecord} */ ({
     ...(event.new_value || {}),
     ...event.metadata,
-  };
+  });
 }
 
-/** @param {SafeNoteLifecycleRow | null | undefined} note */
+/** @param {Partial<SafeNoteLifecycleRow> | null | undefined} note */
 function isResumeEligibleNote(note = null) {
   if (!note) {
     return false;
@@ -502,17 +554,23 @@ function isResumeEligibleNote(note = null) {
     note.effective_security_mode !== NOTE_SECURITY_MODES.SECURE;
 }
 
+/** @param {Record<string, unknown>} [metadata] */
 function safeNoteLinkedContext(metadata = {}) {
-  if (!metadata?.link || typeof metadata.link !== "object") {
+  const link = metadata.link;
+  if (!link || typeof link !== "object") {
     return null;
   }
 
   return {
-    target_id: metadata.link.target_id || "",
-    target_type: metadata.link.target_type || "",
+    target_id: "target_id" in link ? String(link.target_id || "") : "",
+    target_type: "target_type" in link ? String(link.target_type || "") : "",
   };
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} noteId
+ */
 async function readSafeNoteLifecycle(workspaceId, noteId) {
   return /** @type {Promise<SafeNoteLifecycleRow | null>} */ (db.get(`
 SELECT note_id, library_bucket, status, visibility, security_mode
@@ -526,9 +584,13 @@ LIMIT 1;
   }));
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {unknown[]} [noteIds]
+ */
 async function readSafeNoteLifecycleForIds(workspaceId, noteIds = []) {
   const ids = [...new Set((Array.isArray(noteIds) ? noteIds : [])
-    .map((noteId) => textParam(noteId).trim())
+    .map((noteId) => textParam(String(noteId ?? "")).trim())
     .filter(Boolean))];
 
   if (ids.length === 0) {
@@ -546,8 +608,35 @@ WHERE workspace_id = :workspaceId
   }));
 }
 
+/**
+ * @param {string} value
+ */
 function textParam(value) {
   return String(value ?? "");
+}
+
+/**
+ * Prove a read resolver is running in the workspace it was handed.
+ *
+ * The context publishes the session and the workspace separately, and no
+ * type can state that they agree. A resolver that skips this check reads a
+ * record scoped to one workspace with a session scoped to another, so every
+ * module proves it here rather than assuming the caller already did.
+ * @param {WorkspaceRequestSession} session
+ * @param {string} workspaceId
+ * @returns {boolean}
+ */
+function isWorkspaceScopedSession(session, workspaceId) {
+  return Boolean(session.workspace_id) && session.workspace_id === workspaceId;
+}
+
+/**
+ * The refusal a batch resolver returns when it cannot prove its scope.
+ * @param {readonly string[]} recordIds
+ * @returns {Map<string, ResumeStateReadCheck>}
+ */
+function unreadableChecks(recordIds) {
+  return new Map(recordIds.map((recordId) => [recordId, { readable: false }]));
 }
 
 export {

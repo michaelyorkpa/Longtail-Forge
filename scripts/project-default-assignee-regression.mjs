@@ -3,6 +3,15 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} AssigneeSession */
+
+/**
+ * One seeded user this owner inserts and then resolves defaults against.
+ * @typedef {{ userId: string, username: string }} UserFixture
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-project-default-assignee-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-project-default-assignee.db");
@@ -29,16 +38,19 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {AssigneeSession} session @param {string} projectId */
 async function assertCreatorDefault(session, projectId) {
   const task = await createTask(session, projectId, "Creator default");
   assert.deepEqual(task.assignee_ids, [session.user_id]);
 }
 
+/** @param {AssigneeSession} session @param {string} projectId */
 async function assertUnassignedDefault(session, projectId) {
   const task = await createTask(session, projectId, "Unassigned default");
   assert.deepEqual(task.assignee_ids, []);
 }
 
+/** @param {AssigneeSession} session @param {string} projectId */
 async function assertExplicitAssigneesWin(session, projectId) {
   const task = await tasksService.create({
     title: "Explicit empty assignee list",
@@ -49,21 +61,25 @@ async function assertExplicitAssigneesWin(session, projectId) {
   assert.deepEqual(task.task.assignee_ids, []);
 }
 
+/** @param {AssigneeSession} session @param {string} projectId @param {string} expectedUserId */
 async function assertOldestProjectAdminDefault(session, projectId, expectedUserId) {
   const task = await createTask(session, projectId, "Project admin default");
   assert.deepEqual(task.assignee_ids, [expectedUserId]);
 }
 
+/** @param {AssigneeSession} session @param {string} projectId @param {string} expectedUserId */
 async function assertClientAdminFallback(session, projectId, expectedUserId) {
   const task = await createTask(session, projectId, "Client admin fallback");
   assert.deepEqual(task.assignee_ids, [expectedUserId]);
 }
 
+/** @param {AssigneeSession} session @param {string} projectId @param {string} expectedUserId */
 async function assertWorkspaceAdminFallback(session, projectId, expectedUserId) {
   const task = await createTask(session, projectId, "Workspace admin fallback");
   assert.deepEqual(task.assignee_ids, [expectedUserId]);
 }
 
+/** @param {AssigneeSession} session @param {string} projectId @param {string} title */
 async function createTask(session, projectId, title) {
   const result = await tasksService.create({
     title,
@@ -73,6 +89,7 @@ async function createTask(session, projectId, title) {
   return result.task;
 }
 
+/** @param {string} workspaceId */
 async function createFixtures(workspaceId) {
   const now = "2026-06-06T16:00:00.000Z";
   const users = {
@@ -118,6 +135,7 @@ ${assignmentInsertSql(workspaceId, users.workspaceAdmin.userId, "workspace_admin
   };
 }
 
+/** @param {string} label @returns {UserFixture} */
 function userFixture(label) {
   return {
     userId: `${label}-${randomUUID()}`,
@@ -125,6 +143,7 @@ function userFixture(label) {
   };
 }
 
+/** @param {string} workspaceId @param {UserFixture} user */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -155,6 +174,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {UserFixture} user @param {string} now */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (
@@ -175,6 +195,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} name @param {string} now */
 function clientInsertSql(workspaceId, clientId, name, now) {
   return `
 INSERT INTO clients (
@@ -229,6 +250,10 @@ VALUES (
 );`;
 }
 
+/**
+ * @param {string} workspaceId @param {string} clientId @param {string} projectId
+ * @param {string} name @param {string} defaultAssigneeMode @param {string} now
+ */
 function projectInsertSql(workspaceId, clientId, projectId, name, defaultAssigneeMode, now) {
   return `
 INSERT INTO projects (
@@ -273,6 +298,10 @@ VALUES (
 );`;
 }
 
+/**
+ * @param {string} workspaceId @param {string} userId @param {string} roleId
+ * @param {string} scopeType @param {string} scopeId @param {string} now
+ */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedClientId = scopeType === "client" ? scopeId : null;
   const scopedProjectId = scopeType === "project" ? scopeId : null;
@@ -313,16 +342,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected super admin"));
 }

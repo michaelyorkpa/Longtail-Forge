@@ -1,6 +1,6 @@
-// @ts-check
-
 /** @typedef {import("../types/framework-contracts.js").AppShellBootstrap} AppShellBootstrap */
+/** @typedef {import("../types/framework-contracts.js").AppShellSearchTarget} AppShellSearchTarget */
+/** @typedef {import("../types/search-rebuild-contracts.js").ActiveSearchableTypeDeclaration} ActiveSearchableTypeDeclaration */
 /** @typedef {{ href?: string, id: string, items?: AppShellNavigationItem[], label: string, moduleId?: string }} AppShellNavigationItem */
 /** @typedef {{ id: string, items: AppShellNavigationItem[], label: string }} AppShellNavigationMenu */
 /** @typedef {{ actionType: string, description: string, href?: string, icon: string, id: string, label: string, moduleActionId?: string, moduleId: string, publicDemoCapability?: string, requiredModules?: string[], requiredPermissions?: string[], requiredReportingReports?: boolean, requiredSearchTargets?: boolean, requiredWorkspaceCapabilities?: string[], temporaryFallback?: boolean, temporaryLabel?: string }} QuickActionDefinition */
@@ -15,6 +15,16 @@ import { normalizeCalendarViewPreference, normalizeThemeAutoSource, normalizeThe
 import { notificationsService } from "./notifications.service.js";
 import { searchService } from "./search.service.js";
 import { evaluatePublicDemoCapability } from "../core/public-demo-enforcement.js";
+
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {Awaited<ReturnType<typeof settingsService.readWorkspaceBootstrap>>} WorkspaceContext */
+/** @typedef {Awaited<ReturnType<typeof modulesService.listModuleNavigation>>} ModuleNavigation */
+/** @typedef {Awaited<ReturnType<typeof modulesService.listModuleSettingsNavigation>>} ModuleSettingsNavigation */
+/** @typedef {import("../types/framework-contracts.js").SearchableTypeContribution} SearchableTypeContribution */
+/** @typedef {import("../types/framework-contracts.js").ReportingContribution} ReportingContribution */
+/** @typedef {Awaited<ReturnType<typeof readPermissionHints>>} PermissionHints */
+/** @typedef {ReportingContribution & {reportKey: string}} ShellReport */
+/** @typedef {{href?: unknown, id?: unknown, label?: unknown, moduleId?: unknown, parent?: unknown}} ModuleNavInput */
 
 /** @type {readonly Readonly<QuickActionDefinition>[]} */
 const QUICK_ACTION_DEFINITIONS = Object.freeze([
@@ -104,7 +114,10 @@ const QUICK_ACTION_DEFINITIONS = Object.freeze([
   }),
 ]);
 
-/** @returns {Promise<AppShellBootstrap>} */
+/**
+ * @returns {Promise<AppShellBootstrap>}
+ * @param {WorkspaceRequestSession} session
+ */
 async function bootstrap(session) {
   const [
     workspaceContext,
@@ -177,6 +190,15 @@ async function bootstrap(session) {
   };
 }
 
+/**
+ * The searchTargets option is the shell's own normalized targets, not the raw
+ * module contributions. The previous annotation said otherwise and only
+ * type-checked because SearchableTypeContribution carries an index signature
+ * and no required member, so the mismatch was silent.
+ * @param {WorkspaceRequestSession} session
+ * @param {WorkspaceContext} workspaceContext
+ * @param {{reportingReports?: ReportingContribution[], searchTargets?: AppShellSearchTarget[]}} [options]
+ */
 async function readQuickActions(session, workspaceContext, options = {}) {
   const visibleActions = [];
 
@@ -209,19 +231,22 @@ async function readQuickActions(session, workspaceContext, options = {}) {
   return visibleActions;
 }
 
+/** @param {AppShellSearchTarget[]} [searchTargets] */
 function normalizeSearchTargetsForQuickActions(searchTargets = []) {
   return Array.isArray(searchTargets) ? searchTargets.filter((target) => target?.recordType) : [];
 }
 
+/** @param {ReportingContribution[]} [reportingReports] @returns {ShellReport[]} */
 function normalizeReportingReportsForShell(reportingReports = []) {
   return (Array.isArray(reportingReports) ? reportingReports : [])
     .filter((report) => report?.moduleId && report?.id)
     .map((report) => ({
       ...report,
-      reportKey: report.reportKey || `${report.moduleId}:${report.id}`,
+      reportKey: `${report.moduleId}:${report.id}`,
     }));
 }
 
+/** @param {QuickActionDefinition} action @param {WorkspaceContext} workspaceContext */
 function quickActionModulesAvailable(action, workspaceContext) {
   const enabledModules = new Set(Array.isArray(workspaceContext.enabledModules) ? workspaceContext.enabledModules : []);
   const requiredModules = [
@@ -232,6 +257,7 @@ function quickActionModulesAvailable(action, workspaceContext) {
   return requiredModules.every((moduleId) => enabledModules.has(moduleId));
 }
 
+/** @param {QuickActionDefinition} action @param {WorkspaceContext} workspaceContext */
 function quickActionWorkspaceCapabilitiesAvailable(action, workspaceContext) {
   const requiredCapabilities = Array.isArray(action.requiredWorkspaceCapabilities)
     ? action.requiredWorkspaceCapabilities
@@ -249,6 +275,11 @@ function quickActionWorkspaceCapabilitiesAvailable(action, workspaceContext) {
   return requiredCapabilities.some((capability) => availableTools.has(capability));
 }
 
+/**
+ * @param {Readonly<QuickActionDefinition>} action
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {QuickActionDefinition} action @param {WorkspaceRequestSession} session */
 async function quickActionPermissionsAllowed(action, session) {
   for (const permissionId of action.requiredPermissions || []) {
     if (!(await permissionsService.canInAnyScope(session, permissionId, {
@@ -261,6 +292,9 @@ async function quickActionPermissionsAllowed(action, session) {
   return true;
 }
 
+/**
+ * @param {Readonly<QuickActionDefinition>} action
+ */
 function toQuickActionPayload(action) {
   return {
     actionType: action.actionType,
@@ -276,13 +310,29 @@ function toQuickActionPayload(action) {
   };
 }
 
+/**
+ * @param {{ workspace_id: string; }} session
+ */
+/** @param {WorkspaceRequestSession} session */
 async function readSearchTargets(session) {
   const searchableTypes = await searchService.listActiveSearchableTypes(session.workspace_id);
 
   return visibleSearchTargets(searchableTypes);
 }
 
+/**
+ * Collapse the active searchable-type declarations into the shell's visible
+ * search targets, merging same-source record types into one aggregate entry.
+ *
+ * The input is the normalized active declaration rather than the open module
+ * contribution: searchService.listActiveSearchableTypes runs every field
+ * through normalizeSearchableType before this sees it, so the members read
+ * below are strings rather than index-signature reads.
+ * @param {ActiveSearchableTypeDeclaration[]} [searchableTypes]
+ * @returns {AppShellSearchTarget[]}
+ */
 function visibleSearchTargets(searchableTypes = []) {
+  /** @type {Map<string, AppShellSearchTarget>} */
   const visibleTargets = new Map();
 
   for (const type of searchableTypes) {
@@ -314,6 +364,10 @@ function visibleSearchTargets(searchableTypes = []) {
   return [...visibleTargets.values()];
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {WorkspaceRequestSession} session */
 async function readNotificationSummary(session) {
   try {
     return await notificationsService.unreadCount(session);
@@ -332,6 +386,10 @@ async function readNotificationSummary(session) {
   }
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession | null | undefined} session
+ */
+/** @param {WorkspaceRequestSession} session */
 async function readPermissionHints(session) {
   const [
     canManageWorkspaceSettings,
@@ -398,6 +456,7 @@ async function readPermissionHints(session) {
   };
 }
 
+/** @param {WorkspaceContext} workspaceContext @param {ModuleNavigation} moduleNavigation @param {ModuleSettingsNavigation} moduleSettingsNavigation @param {PermissionHints} permissionHints @param {ReportingContribution[]} [reportingReports] */
 async function buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints, reportingReports = []) {
   const capabilities = workspaceContext.workspaceCapabilities || {};
   const workspaceType = workspaceContext.workspaceType || capabilities.workspaceType || "business";
@@ -407,7 +466,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   const standaloneModuleNavigation = moduleNavigation.filter((item) => (
     item.href &&
     !item.parent &&
-    !frameworkOwnedTopLevelHrefs.has(item.href)
+    !frameworkOwnedTopLevelHrefs.has(String(item.href))
   ));
   /** @type {AppShellNavigationMenu} */
   const actionsMenu = {
@@ -470,7 +529,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     });
     addSettingsModuleNavigation(
       modulesSettingsMenu.items,
-      moduleNavigation.filter((item) => !["role-assignments.html", "user-admin.html"].includes(item.href)),
+      moduleNavigation.filter((item) => !["role-assignments.html", "user-admin.html"].includes(String(item.href || ""))),
     );
     moduleSettingsNavigation.forEach((item) => addModuleNavItem(modulesSettingsMenu.items, item));
     sortAdminModuleNavigation(modulesSettingsMenu.items);
@@ -557,20 +616,23 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     ]).filter((item) => item.href || Boolean(item.items?.length)),
   };
 
-  return [
+  /** @type {AppShellNavigationItem[]} */
+  const navigation = [
     { id: "dashboard", label: "Dashboard", href: "dashboard.html" },
     { id: "workbench", label: "Workbench", href: "workbench.html" },
     ...standaloneModuleNavigation.map((item) => ({
-      id: item.id || item.href.replace(/\.html$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
-      label: item.label,
-      href: item.href,
-      moduleId: item.moduleId,
+      id: String(item.id || String(item.href).replace(/\.html$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase()),
+      label: String(item.label || ""),
+      href: String(item.href),
+      moduleId: item.moduleId ? String(item.moduleId) : undefined,
     })),
     actionsMenu,
     settingsMenu,
-  ].filter((item) => item.href || item.items?.length > 0);
+  ];
+  return navigation.filter((item) => Boolean(item.href || (item.items?.length || 0) > 0));
 }
 
+/** @param {AppShellNavigationItem[]} targetItems @param {ReportingContribution[]} [reportingReports] */
 function addReportingNavigation(targetItems, reportingReports = []) {
   normalizeReportingReportsForShell(reportingReports).forEach((report) => {
     targetItems.push({
@@ -582,6 +644,7 @@ function addReportingNavigation(targetItems, reportingReports = []) {
   });
 }
 
+/** @param {AppShellNavigationItem[]} targetItems @param {ModuleNavigation} moduleNavigation */
 function addTimeKeepingNavigation(targetItems, moduleNavigation) {
   const timeKeeping = moduleNavigation.find((item) => item.href === "time-tracker.html");
 
@@ -608,12 +671,14 @@ function addTimeKeepingNavigation(targetItems, moduleNavigation) {
   targetItems.push(timeKeepingMenu);
 }
 
+/** @param {AppShellNavigationItem[]} targetItems @param {ModuleNavigation} moduleNavigation */
 function addSettingsModuleNavigation(targetItems, moduleNavigation) {
   moduleNavigation
     .filter((item) => item.parent === "settings.html")
     .forEach((item) => addModuleNavItem(targetItems, item));
 }
 
+/** @param {AppShellNavigationItem[]} items */
 function sortAdminModuleNavigation(items) {
   const order = new Map([
     ["calendar-settings.html", 0],
@@ -626,39 +691,47 @@ function sortAdminModuleNavigation(items) {
     ["developer-example.html", Number.MAX_SAFE_INTEGER],
   ]);
   items.sort((left, right) => (
-    (order.get(left.href) ?? 100) - (order.get(right.href) ?? 100) ||
+    (order.get(left.href || "") ?? 100) - (order.get(right.href || "") ?? 100) ||
     left.label.localeCompare(right.label) ||
     left.id.localeCompare(right.id)
   ));
 }
 
+/** @param {AppShellNavigationItem[]} targetItems @param {ModuleNavInput|undefined} item */
 function addModuleNavItem(targetItems, item) {
-  if (!item?.href) {
+  if (!item) {
+    return;
+  }
+  const href = String(item?.href || "");
+  if (!href) {
     return;
   }
 
-  if (targetItems.some((existingItem) => existingItem.href === item.href)) {
+  if (targetItems.some((existingItem) => existingItem.href === href)) {
     return;
   }
 
   targetItems.push({
-    id: item.id || item.href.replace(/\.html$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
-    label: item.label,
-    href: item.href,
-    moduleId: item.moduleId,
+    id: String(item.id || href.replace(/\.html$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase()),
+    label: String(item.label || ""),
+    href,
+    moduleId: item.moduleId ? String(item.moduleId) : undefined,
   });
 }
 
+/** @param {Array<Record<string, unknown>>} memberships */
 function normalizeWorkspaceMemberships(memberships) {
   return memberships
     .filter((membership) => membership.status === "active")
     .map((membership) => ({
-      workspace_id: membership.workspace_id,
-      workspaceName: membership.workspace_name,
-      status: membership.status,
+      workspace_id: String(membership.workspace_id || ""),
+      workspaceName: String(membership.workspace_name || ""),
+      status: String(membership.status || ""),
     }));
 }
 
-export const appShellService = {
+const appShellServiceInternal = {
   bootstrap,
 };
+
+export const appShellService = appShellServiceInternal;

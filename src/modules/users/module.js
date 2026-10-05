@@ -1,7 +1,15 @@
-// @ts-check
 import { usersRoutes } from "../../routes/users.routes.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
+
+/** @param {import("../../types/framework-contracts.js").EventSummaryResolverContext} context */
+function moduleDisabledNotificationBody({ event }) {
+  const moduleLabel = event.metadata?.module_label
+    || event.record_id
+    || event.metadata?.module_id
+    || "A module";
+  return `Module "${moduleLabel}" was disabled.`;
+}
 
 /** @type {import("../../types/framework-contracts.js").ModuleManifest} */
 const usersModule = {
@@ -27,10 +35,7 @@ const usersModule = {
   browserApiRoutes: [usersRoutes],
   publicApiRoutes: [],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     { label: "User Admin", href: "user-admin.html", parent: "settings.html" },
     {
@@ -58,7 +63,6 @@ const usersModule = {
       requiredWorkspaceCapabilities: ["team_members", "permissions", "family_permissions"],
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "role-assignments-script",
@@ -159,13 +163,7 @@ const usersModule = {
       moduleId: "users",
       notification: {
         title: "Module Disabled",
-        body: ({ event }) => {
-          const moduleLabel = event.metadata?.module_label
-            || event.record_id
-            || event.metadata?.module_id
-            || "A module";
-          return `Module "${moduleLabel}" was disabled.`;
-        },
+        body: moduleDisabledNotificationBody,
         url: "workspace-settings.html",
         recipientHints: ["workspace_admins"],
       },

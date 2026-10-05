@@ -45,11 +45,20 @@ for (const area of testAreas) console.log(`- ${AREA_COMMANDS[area]}`);
 console.log("- npm run docs:suggest");
 console.log("- npm run verify:slice");
 
+/**
+ * @param {string} value
+ * @returns {Set<string>}
+ */
 function meaningfulTokens(value) {
   const stop = new Set(["acceptance", "criteria", "version", "changes", "current", "without", "through", "every", "only", "complete", "required", "active", "slice"]);
   return new Set(String(value).toLowerCase().match(/[a-z][a-z0-9-]{3,}/g)?.filter((token) => !stop.has(token)) || []);
 }
 
+/**
+ * @param {string} value
+ * @param {ReadonlySet<string>} selectedTokens
+ * @returns {number}
+ */
 function scoreText(value, selectedTokens) {
   const haystack = String(value).toLowerCase();
   let score = 0;
@@ -57,7 +66,12 @@ function scoreText(value, selectedTokens) {
   return score;
 }
 
+/**
+ * @param {string} source
+ * @returns {string[]}
+ */
 function decisionParagraphs(source) {
+  /** @type {string[]} */
   const results = [];
   let heading = "DECISIONS";
   for (const block of source.split(/\r?\n\r?\n/)) {
@@ -74,6 +88,12 @@ function decisionParagraphs(source) {
   return results;
 }
 
+/**
+ * @param {string[]} results
+ * @param {string} heading
+ * @param {string} value
+ * @returns {void}
+ */
 function addDecisionUnits(results, heading, value) {
   const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const bullets = lines.filter((line) => line.startsWith("- "));

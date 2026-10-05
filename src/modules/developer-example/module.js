@@ -1,4 +1,3 @@
-// @ts-check
 import { developerExampleRoutes } from "./routes.js";
 import { developerExamplePublicApiRoutes } from "./public-api.routes.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
@@ -26,11 +25,8 @@ const developerExampleModule = {
   historicalReadAccess: true,
   browserApiRoutes: [developerExampleRoutes],
   publicApiRoutes: [developerExamplePublicApiRoutes],
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     {
       label: "Developer Example",
@@ -78,7 +74,6 @@ const developerExampleModule = {
       },
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "developer-example-script",

@@ -7,7 +7,9 @@ export const regressionMeta = Object.freeze({
   runMode: "static",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
@@ -21,7 +23,10 @@ const fixture = await createDisposableDatabaseFixture("asset-cache-version-regre
 const { modulesService } = await import("../../../src/core/modules/modules.service.js");
 const { staticService } = await import("../../../src/services/static.service.js");
 
-const baseline = JSON.parse(await fs.readFile("scripts/asset-cache-legacy-baseline.json", "utf8"));
+// The frozen baseline is parsed JSON. Its shape is already published by the
+// guard library that consumes it, so it is named rather than restated.
+/** @type {import("../../lib/asset-cache-guard.mjs").LegacyAssetBaseline} */
+const baseline = requireJsonRecord(JSON.parse(await fs.readFile("scripts/asset-cache-legacy-baseline.json", "utf8")), "scripts/asset-cache-legacy-baseline.json");
 const liveFindings = await collectRawAssetVersionReferences();
 
 assert.equal(liveFindings.size, 0, "active source must not contain raw .css?v=/.js?v= cache keys (the inert-key retirement may only stay empty)");
@@ -97,12 +102,15 @@ assert.ok(
 
 const browserHelper = await fs.readFile("public/js/shared/asset-version.js", "utf8");
 const footerSource = await fs.readFile("public/js/footer.js", "utf8");
-const workbenchSource = await fs.readFile("public/js/workbench.js", "utf8");
+// 0.33.33.34 moved the Workbench dependency table and its loader into the shared registry;
+// footer.js keeps its own, because it runs on views that do not load the registry.
+const moduleActionsSource = await fs.readFile("public/js/shared/module-actions.js", "utf8");
 assert.match(browserHelper, /namespace\.assetVersion = Object\.freeze\(\{ url, value \}\)/);
 const browserContext = {
   document: { querySelector: () => ({ content: appVersion }) },
   URLSearchParams,
-  window: {},
+  /** @type {{ LongtailForge: { assetVersion: { url: (assetUrl: string) => string, value: string } } }} */
+  window: /** @type {never} */ ({}),
 };
 vm.runInNewContext(browserHelper, browserContext);
 assert.equal(browserContext.window.LongtailForge.assetVersion.value, appVersion);
@@ -111,16 +119,18 @@ assert.equal(
   `js/example.js?v=${appVersion}`,
 );
 assert.match(footerSource, /assetVersion\?\.url\(dependency\.src\)[\s\S]*script\.src = versionedSrc/);
-assert.match(workbenchSource, /assetVersion\?\.url\(dependency\.src\)[\s\S]*script\.src = versionedSrc/);
+assert.match(moduleActionsSource, /assetVersion\?\.url\(dependency\.src\)[\s\S]*script\.src = versionedSrc/);
 assert.doesNotMatch(footerSource, /script\.src = dependency\.src/);
-assert.doesNotMatch(workbenchSource, /script\.src = dependency\.src/);
+assert.doesNotMatch(moduleActionsSource, /script\.src = dependency\.src/);
 
 console.log("Canonical asset cache version and raw-key guard passed.");
 const { closeDatabase } = await import("../../../src/db/provider.js");
 await closeDatabase();
 await fixture.cleanup();
 
+/** @param {string} rootDir @param {string} extension @returns {Promise<string[]>} */
 async function listFiles(rootDir, extension) {
+  /** @type {string[]} */
   const files = [];
   for (const entry of await fs.readdir(rootDir, { withFileTypes: true })) {
     const filePath = path.join(rootDir, entry.name);
@@ -133,6 +143,7 @@ async function listFiles(rootDir, extension) {
   return files.sort();
 }
 
+/** @param {string} source @returns {{ pathname: string, version: string | null }[]} */
 function extractLocalAssets(source) {
   return [...source.matchAll(/\b(?:src|href)=(['"])([^'"]+)\1/gi)]
     .map((match) => match[2])
@@ -142,8 +153,4 @@ function extractLocalAssets(source) {
       return { pathname: url.pathname, version: url.searchParams.get("v") };
     })
     .filter((asset) => /\.(?:css|js)$/i.test(asset.pathname));
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

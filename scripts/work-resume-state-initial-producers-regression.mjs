@@ -3,6 +3,9 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ResumeSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-initial-producers-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-initial-producers.db");
@@ -16,6 +19,8 @@ const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 const {
+  readResumeStateBatchReadResolver,
+  readResumeStateReadResolver,
   resetResumeStateReadResolvers,
 } = await import("../src/services/work-resume-state-read-checks.js");
 const {
@@ -39,6 +44,7 @@ try {
   await assertListProducerWritesListItemAndLinkState(session);
   await assertNoteProducerWritesOnlySafeActiveWorkNotes(session);
   await assertTimerProducerWritesManualAndSourcedTimerState(session);
+  await assertTaskReadResolversProveTheirWorkspaceScope(session);
 
   console.log("Work resume state initial producers regression passed.");
 } finally {
@@ -49,6 +55,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {ResumeSession} session */
 async function assertTaskProducerWritesTaskAndChecklistState(session) {
   const taskId = `resume-task-${randomUUID()}`;
   await tasksService.create({
@@ -84,9 +91,11 @@ async function assertTaskProducerWritesTaskAndChecklistState(session) {
 
   item = await findResumeItem(session, taskId);
   assert.equal(item.last_action_type, "task.checklist_item.checked");
-  assert.equal(item.metadata.checklist_progress.completed_count, 1);
+  const checklistProgress = /** @type {Record<string, unknown>} */ (item.metadata.checklist_progress);
+  assert.equal(checklistProgress.completed_count, 1);
 }
 
+/** @param {ResumeSession} session */
 async function assertListProducerWritesListItemAndLinkState(session) {
   const listId = `resume-list-${randomUUID()}`;
   await listsService.create({
@@ -136,6 +145,7 @@ async function assertListProducerWritesListItemAndLinkState(session) {
   assert.equal(item.last_action_type, "lists.link.created");
 }
 
+/** @param {ResumeSession} session */
 async function assertNoteProducerWritesOnlySafeActiveWorkNotes(session) {
   const noteId = `resume-note-${randomUUID()}`;
   await notesService.create({
@@ -188,6 +198,7 @@ async function assertNoteProducerWritesOnlySafeActiveWorkNotes(session) {
   assert.equal(await rawResumeRowCount(session, secureNoteId), 0);
 }
 
+/** @param {ResumeSession} session */
 async function assertTimerProducerWritesManualAndSourcedTimerState(session) {
   const manualTimerId = `manual-timer-${randomUUID()}`;
   await activeTimersRepository.upsert({
@@ -264,6 +275,95 @@ async function assertTimerProducerWritesManualAndSourcedTimerState(session) {
   assert.equal(item.metadata.source_module_id, "tasks");
 }
 
+/**
+ * The Tasks read resolvers must prove the session they were handed is scoped
+ * to the workspace the record belongs to before they read Tasks. Both are
+ * driven directly here: the resolver registry publishes them, so the refusal
+ * contract is proven against the registered production functions rather than
+ * against a copy.
+ * @param {ResumeSession} session
+ */
+async function assertTaskReadResolversProveTheirWorkspaceScope(session) {
+  const taskId = `resume-scope-task-${randomUUID()}`;
+  await tasksService.create({ task_id: taskId, title: "Resume scope task" }, session);
+
+  const readResolver = readResumeStateReadResolver("tasks", "task");
+  const batchResolver = readResumeStateBatchReadResolver("tasks", "task");
+  assert.ok(readResolver, "the Tasks per-row read resolver should be registered");
+  assert.ok(batchResolver, "the Tasks batch read resolver should be registered");
+
+  const { workspace_id: workspaceId } = session;
+  const otherWorkspaceId = `other-workspace-${randomUUID()}`;
+  /** @param {ResumeSession} resolverSession @param {string} contextWorkspaceId */
+  const readContext = (resolverSession, contextWorkspaceId) => ({
+    moduleId: "tasks",
+    recordId: taskId,
+    recordType: "task",
+    row: {},
+    session: resolverSession,
+    userId: session.user_id,
+    workspaceId: contextWorkspaceId,
+  });
+  /** @param {ResumeSession} resolverSession @param {string} contextWorkspaceId */
+  const batchContext = (resolverSession, contextWorkspaceId) => ({
+    recordIds: [taskId],
+    rows: [],
+    session: resolverSession,
+    workspaceId: contextWorkspaceId,
+  });
+
+  // A correctly scoped session reads the task.
+  const scopedRead = await readResolver(readContext(session, workspaceId));
+  assert.deepEqual(scopedRead, { archived: false, completed: false, readable: true, status: "open" },
+    "a workspace-scoped session should read the seeded task");
+  const scopedBatch = await batchResolver(batchContext(session, workspaceId));
+  assert.equal(scopedBatch.get(taskId)?.readable, true, "a workspace-scoped session should read the seeded task in batch");
+
+  // A session carrying no workspace scope is refused.
+  const unscopedSession = /** @type {ResumeSession} */ ({ ...session, workspace_id: "" });
+  assert.deepEqual(await readResolver(readContext(unscopedSession, workspaceId)), { readable: false },
+    "a session with no workspace scope must be refused");
+  assert.deepEqual(await batchResolver(batchContext(unscopedSession, workspaceId)), new Map([[taskId, { readable: false }]]),
+    "a session with no workspace scope must be refused in batch");
+
+  // A session scoped to a different workspace than the record is refused.
+  assert.deepEqual(await readResolver(readContext(session, otherWorkspaceId)), { readable: false },
+    "a session scoped to another workspace must be refused");
+  assert.deepEqual(await batchResolver(batchContext(session, otherWorkspaceId)), new Map([[taskId, { readable: false }]]),
+    "a session scoped to another workspace must be refused in batch");
+
+  // A refusal must happen before Tasks is read, not after. Both service
+  // entry points are counted through a temporary substitution and restored.
+  const originalReadCore = tasksService.readCore;
+  const originalReadLifecycleForIds = tasksService.readLifecycleForIds;
+  let taskReads = 0;
+
+  try {
+    tasksService.readCore = async (...args) => {
+      taskReads += 1;
+      return originalReadCore(...args);
+    };
+    tasksService.readLifecycleForIds = async (...args) => {
+      taskReads += 1;
+      return originalReadLifecycleForIds(...args);
+    };
+
+    await readResolver(readContext(unscopedSession, workspaceId));
+    await batchResolver(batchContext(unscopedSession, workspaceId));
+    await readResolver(readContext(session, otherWorkspaceId));
+    await batchResolver(batchContext(session, otherWorkspaceId));
+    assert.equal(taskReads, 0, "a scope refusal must not reach the Tasks service");
+
+    await readResolver(readContext(session, workspaceId));
+    await batchResolver(batchContext(session, workspaceId));
+    assert.equal(taskReads, 2, "a proven scope must still reach the Tasks service");
+  } finally {
+    tasksService.readCore = originalReadCore;
+    tasksService.readLifecycleForIds = originalReadLifecycleForIds;
+  }
+}
+
+/** @param {ResumeSession} session @param {string} recordId */
 async function findResumeItem(session, recordId) {
   const result = await workResumeStateService.listResumeState(session, {
     limit: 100,
@@ -275,6 +375,7 @@ async function findResumeItem(session, recordId) {
   return item;
 }
 
+/** @param {ResumeSession} session @param {string} recordId @returns {Promise<number>} */
 async function rawResumeRowCount(session, recordId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -286,6 +387,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   return Number(rows[0]?.count) || 0;
 }
 
+/** @returns {Promise<ResumeSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -297,12 +399,5 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

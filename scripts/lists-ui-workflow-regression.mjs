@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { extractFunctionSpan } from "./test-support/source-scan.mjs";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ListsUiSession */
+
+/**
+ * One app-shell navigation entry, as this owner walks it.
+ *
+ * The app-shell bootstrap contract publishes `navigation` as an open list,
+ * which `0.33.33.32.13` confirmed is deliberate: the shell carries whatever
+ * the enabled modules contribute. So the shape is described here, where the
+ * walk happens, rather than by tightening a framework payload that is open by
+ * design.
+ * @typedef {{ href?: unknown, id?: unknown, items?: unknown[], label?: unknown }} NavigationItem
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-ui-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-ui.db");
@@ -34,13 +50,16 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
+  assert.ok(listsModule, "the Lists module should be registered");
   assert.equal(listsModule.version, appVersion, "Lists module metadata should track the current app version");
 }
 
+/** @param {ListsUiSession} session */
 async function assertProtectedView(session) {
   const result = await staticService.read("/lists.html", session);
   const html = result.contents.toString("utf8");
   const listsJs = await fs.readFile(path.join(process.cwd(), "public/js/lists.js"), "utf8");
+  const listsModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/lists/module.js"), "utf8");
   const styles = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
   const listsStyles = styles.slice(styles.indexOf(".lists-filters-panel"), styles.indexOf(".client-item"));
 
@@ -58,24 +77,26 @@ async function assertProtectedView(session) {
   assert.ok(html.includes(`css/longtail-forge.css?v=${appVersion}`));
 
   assert.match(listsJs, /buildListsViewShell/);
-  assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);
+  assert.match(listsJs, /renderSurface\(renderDescriptor, host\)/);
   assert.match(listsJs, /listsViewSurfaceDescriptor/);
   assert.match(listsJs, /decorateListsDeclarativeSurface/);
   assert.match(listsJs, /registerListsViewBehaviors/);
   assert.match(listsJs, /renderDescriptorDataTable/);
   assert.match(listsJs, /renderDescriptorModalForm/);
-  assert.match(listsJs, /dataset\.listsTitle/);
-  assert.match(listsJs, /dataset\.listCreate/);
+  assert.match(listsJs, /setListsSurfaceHook\(pageHeading, "listsTitle"\)/);
+  assert.match(listsJs, /setListsSurfaceHook\(createAction, "listCreate"\)/);
   assert.match(listsJs, /"listFilterStatus"/);
-  assert.match(listsJs, /Normal lists/);
+  // 0.33.33.35.1.2: this filter option label lived only in the deleted lists.js fallback
+  // descriptor. The manifest surface declares the option set, so that is what it reads now.
+  assert.match(listsModuleSource, /\["no", "Normal lists", true\]/);
   assert.match(listsJs, /"listFilterAssignee"/);
   assert.match(listsJs, /"listFilterNeeded"/);
   assert.match(listsJs, /"listFilterArchive"/);
-  assert.match(listsJs, /dataset\.listDetail/);
+  assert.match(listsJs, /setListsSurfaceHook\(detail, "listDetail"\)/);
   assert.match(listsJs, /dataset\.listDialog/);
   assert.match(listsJs, /listBusinessControl/);
   assert.match(listsJs, /listContextControl/);
-  assert.match(listsJs, /dataset\.listsIndexPanel/);
+  assert.match(listsJs, /setListsSurfaceHook\(indexPanel, "listsIndexPanel"\)/);
   assert.match(listsJs, /dataset\.listsIndexContent/);
   assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/);
   assert.match(listsJs, /params\.set\("status"/);
@@ -135,8 +156,8 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /handleListEditorLinkedContextRemove/);
   assert.match(listsJs, /state\.editorStagedTargets/);
   assert.match(listsJs, /renderListEditorLinkedItems/);
-  assert.doesNotMatch(functionBlock(listsJs, "createListDialogShell"), /target_id|task_search|task_picker|Paste record ID/);
-  assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/links/);
+  assert.doesNotMatch(extractFunctionSpan(listsJs, "createListDialogShell"), /target_id|task_search|task_picker|Paste record ID/);
+  assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(\x60\$\{listId\}\x60\)\}\/links/);
   assert.match(listsJs, /remove-link/);
   assert.match(listsJs, /Linked Records/);
   assert.match(listsJs, /Unavailable linked record/);
@@ -150,14 +171,14 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /actual_cost/);
   assert.match(listsJs, /tracking_id/);
   assert.match(listsJs, /formatCurrency/);
-  assert.match(listsJs, /activeListsViewDescriptor\?\.indexPanel\?\.collapseOnSelect/);
+  assert.match(listsJs, /readListsIndexPanel\(activeListsViewDescriptor\?\.indexPanel\)\.collapseOnSelect/);
   assert.match(listsJs, /collapseIndexAfterSelection/);
   assert.match(listsJs, /indexPanel\.open = false/);
 
   // 0.33.5.18.5.8 Lists main page refinement.
   assert.match(listsJs, /function createListDetailHeader/, "Lists detail should use a Notes-style header (title row + rule + meta)");
-  assert.match(listsJs, /view\.renderDescriptorActionMenu\(detailActionButtons/, "Lists detail actions should render as a 3-dot overflow menu");
-  assert.doesNotMatch(listsJs, /view\.renderDescriptorActionStrip/, "Lists detail actions should no longer use the inline action strip");
+  assert.match(listsJs, /renderDescriptorActionMenu\(detailActionButtons/, "Lists detail actions should render as a 3-dot overflow menu");
+  assert.doesNotMatch(listsJs, /renderDescriptorActionStrip\(/, "Lists detail actions should no longer use the inline action strip");
   assert.match(listsJs, /function detailMetaItems/, "Lists detail meta should render as compact labeled spans like Notes");
   assert.match(listsJs, /function shouldShowSourceContext/, "The Source panel should be gated so it is omitted for plain independent lists");
   assert.match(listsJs, /shouldShowSourceContext\(list\) \? createSourceContextPanel\(list\) : null/, "renderDetail should only mount the Source panel when it is meaningful");
@@ -181,7 +202,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /function createItemsHeader/, "The detail should render an Items header with an Add Item button");
   assert.match(listsJs, /add\.dataset\.listAction = "add-item"/, "The Add Item button should open the item modal via the add-item action");
   assert.match(listsJs, /function createItemDialogShell/, "The add/edit item form should be a framework-rendered modal");
-  assert.match(listsJs, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*size: "wide"/, "The item modal should be built via renderDescriptorModalForm (framework renders, module supplies fields)");
+  assert.match(listsJs, /renderDescriptorModalForm\(descriptor, \{[\s\S]*size: "wide"/, "The item modal should be built via renderDescriptorModalForm (framework renders, module supplies fields)");
   assert.match(listsJs, /function openItemDialog/, "Add and Edit should open the shared item modal");
   assert.match(listsJs, /function saveItem/, "The item modal should own its save submit");
   assert.match(listsJs, /await openItemDialog\(list, list\?\.items\?\.find/, "Edit item should open the modal pre-filled");
@@ -204,7 +225,7 @@ async function assertProtectedView(session) {
 
   // 0.33.5.18.5.10 follow-up: tighter table + row action overflow menu.
   assert.match(listsJs, /function createItemRowActions/, "Row actions should be built by a dedicated helper");
-  assert.match(listsJs, /view\.renderDescriptorActionMenu\([\s\S]*rowActionButton\("edit-item", \{ menu: true \}\), rowActionButton\("delete-item", \{ menu: true \}\)/, "Edit and Delete should fold into a row '...' overflow menu");
+  assert.match(listsJs, /renderDescriptorActionMenu\([\s\S]*rowActionButton\("edit-item", \{ menu: true \}\), rowActionButton\("delete-item", \{ menu: true \}\)/, "Edit and Delete should fold into a row '...' overflow menu");
   assert.match(listsJs, /renderDescriptorInlineActions\(\s*\[rowActionButton\("move-item-up"\), rowActionButton\("move-item-down"\), menu\]/, "Up and Down should stay inline, ahead of the '...' menu");
 
   assert.match(styles, /\.view-split-list-detail/);
@@ -247,19 +268,23 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(listsStyles, /#eff6ff|#f0fdfa|#fff7ed|#bfdbfe|#99f6e4|#fed7aa/);
 }
 
+/** @param {ListsUiSession} session */
 async function assertNavigation(session) {
   const bootstrap = await appShellService.bootstrap(session);
-  const actionsMenu = bootstrap.navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
-  const listsLink = flattenNavigation(actionsMenu?.items).find((item) => item.href === "lists.html");
+  const actionsMenu = bootstrap.navigation.map(navigationItem).find((item) => item.id === "actions" && Array.isArray(item.items));
+  assert.ok(actionsMenu, "the app shell should publish an actions menu");
+  assert.ok(actionsMenu.items, "the actions menu should carry entries");
+  const listsLink = flattenNavigation(actionsMenu.items).find((item) => item.href === "lists.html");
 
   assert.ok(listsLink, "Lists should appear in authenticated navigation while enabled");
   assert.equal(listsLink.label, "Procurement Lists");
   assert.deepEqual(
-    actionsMenu.items.map((item) => item.label),
+    actionsMenu.items.map(navigationItem).map((item) => item.label),
     ["Time Keeping", "Tasks", "Calendar", "Notes", "Procurement Lists", "Files", "Reporting"],
   );
 }
 
+/** @param {ListsUiSession} session */
 async function assertWorkspaceAwareLabels(session) {
   await runSql(`
 UPDATE workspaces
@@ -278,6 +303,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)};
 `);
 }
 
+/** @param {ListsUiSession} session */
 async function assertDisabledModuleState(session) {
   await setListsStatus(session.workspace_id, "disabled");
 
@@ -291,6 +317,7 @@ async function assertDisabledModuleState(session) {
   await setListsStatus(session.workspace_id, "enabled");
 }
 
+/** @param {string} workspaceId @param {string} status */
 async function setListsStatus(workspaceId, status) {
   const now = new Date().toISOString();
 
@@ -303,51 +330,52 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/**
+ * Prove one navigation entry is a record before it is walked.
+ * @param {unknown} value
+ * @returns {NavigationItem}
+ */
+function navigationItem(value) {
+  assert.ok(value && typeof value === "object" && !Array.isArray(value), "each app-shell navigation entry should be a record");
+  return /** @type {NavigationItem} */ (value);
+}
+
+/** @param {readonly unknown[]} [items] @returns {NavigationItem[]} */
 function flattenNavigation(items = []) {
-  return items.flatMap((item) => [
+  return items.map(navigationItem).flatMap((item) => [
     item,
     ...(item.items ? flattenNavigation(item.items) : []),
   ]);
 }
 
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const next = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, next === -1 ? source.length : next);
-}
-
+/** @returns {Promise<{ workspace_id: string }>} */
 async function readWorkspace() {
-  const rows = await querySql(`
+  const row = requireFirstRow(await querySql(`
 SELECT workspace_id
 FROM workspaces
 ORDER BY created_at
 LIMIT 1;
-`);
+`), "the default workspace");
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  return { workspace_id: fixtureString(row.workspace_id, "the default workspace id") };
 }
 
+/** @param {string} workspaceId @returns {Promise<ListsUiSession>} */
 async function readProtectedSession(workspaceId) {
-  const rows = await querySql(`
+  const row = requireFirstRow(await querySql(`
 SELECT user_id, username, display_name, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
-`);
+`), "the protected user");
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...row,
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
 async function assertIntegrity() {

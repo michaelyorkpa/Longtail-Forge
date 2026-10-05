@@ -3,6 +3,15 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { bumpVersion, formatFollowUpChecklist, normalizeVersion } from "./bump-version.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+
+/**
+ * The fixture manifest and lockfile fields this owner reads back after a bump.
+ * Both are parsed JSON; the shapes name only what is asserted, and the fixture
+ * writer above is what puts them there.
+ * @typedef {{ name: string, version: string }} FixturePackageJson
+ * @typedef {{ packages: { "": { version: string } }, version: string }} FixturePackageLock
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-version-bump-"));
 
@@ -54,6 +63,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {string} rootDir */
 async function writeFixture(rootDir) {
   await fs.mkdir(path.join(rootDir, "docs"), { recursive: true });
   await fs.mkdir(path.join(rootDir, "src"), { recursive: true });
@@ -81,6 +91,7 @@ async function writeFixture(rootDir) {
   ]);
 }
 
+/** @param {string} rootDir */
 async function readFixtureSnapshot(rootDir) {
   const fileNames = await listFiles(rootDir);
   const entries = await Promise.all(fileNames.map(async (fileName) => [
@@ -90,12 +101,19 @@ async function readFixtureSnapshot(rootDir) {
   const sources = Object.fromEntries(entries);
   return {
     fileNames,
-    packageJson: JSON.parse(sources["package.json"]),
-    packageLock: JSON.parse(sources["package-lock.json"]),
+    packageJson: /** @type {FixturePackageJson} */ (requireJsonRecord(JSON.parse(sources["package.json"]), "fixture package.json")),
+    packageLock: /** @type {FixturePackageLock} */ (requireJsonRecord(JSON.parse(sources["package-lock.json"]), "fixture package-lock.json")),
     sources,
   };
 }
 
+/**
+ * Every file under one fixture root, recursively, as sorted POSIX-style
+ * relative paths.
+ * @param {string} rootDir
+ * @param {string} [relativeDir]
+ * @returns {Promise<string[]>}
+ */
 async function listFiles(rootDir, relativeDir = "") {
   const directoryPath = path.join(rootDir, relativeDir);
   const entries = await fs.readdir(directoryPath, { withFileTypes: true });
@@ -113,14 +131,16 @@ async function listFiles(rootDir, relativeDir = "") {
   return fileNames.sort();
 }
 
+/** @param {string} rootDir */
 async function assertRejectsMisalignedFixture(rootDir) {
   const packageLockPath = path.join(rootDir, "package-lock.json");
-  const packageLock = JSON.parse(await fs.readFile(packageLockPath, "utf8"));
+  const packageLock = /** @type {FixturePackageLock} */ (requireJsonRecord(JSON.parse(await fs.readFile(packageLockPath, "utf8")), "fixture package-lock.json"));
   packageLock.packages[""].version = "9.8.7.5";
   await writeJson(packageLockPath, packageLock);
   await assert.rejects(() => bumpVersion("9.8.7.7", { rootDir }), /Version metadata is not aligned/);
 }
 
+/** @param {string} filePath @param {unknown} value */
 function writeJson(filePath, value) {
   return fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }

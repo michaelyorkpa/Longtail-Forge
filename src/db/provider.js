@@ -1,4 +1,3 @@
-// @ts-check
 import { config } from "../config.js";
 import { createSqliteAdapter } from "./adapters/sqlite-adapter.js";
 import { assertRegressionDatabaseTarget } from "./regression-database-safety.js";

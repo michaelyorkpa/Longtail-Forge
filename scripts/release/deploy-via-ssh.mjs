@@ -7,6 +7,11 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { validatePublishedReleaseMetadata } from "./published-container-image.mjs";
 
+/** @typedef {{ metadata?: string, mode?: string }} DeployOptions */
+/** @typedef {{ composeHelper: string, composeInbox: string, host: string, knownHosts: string, port: number, privateKey: string, publicUrl: string, user: string }} DeployConfig */
+/** @typedef {{ commitSha: string, imageDigest: string, ok: boolean }} ComposeHelperResult */
+/** @typedef {import("./published-container-image.mjs").PublishedReleaseMetadata} PublishedReleaseMetadata */
+
 const options = parseArgs(process.argv.slice(2));
 const config = readConfig(process.env);
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-deploy-ssh-"));
@@ -19,9 +24,10 @@ try {
   const sshArgs = ["-i", keyPath, "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", `UserKnownHostsFile=${knownHostsPath}`, "-p", String(config.port)];
   const destination = `${config.user}@${config.host}`;
 
-  const metadata = path.resolve(options.metadata);
+  // parseArgs throws unless --metadata was supplied, so this is always set.
+  const metadata = path.resolve(/** @type {string} */ (options.metadata));
   await fs.access(metadata);
-  const metadataJson = JSON.parse(await fs.readFile(metadata, "utf8"));
+  const metadataJson = /** @type {PublishedReleaseMetadata} */ (JSON.parse(await fs.readFile(metadata, "utf8")));
   const identity = validatePublishedReleaseMetadata(metadataJson);
   run("scp", [...sshArgs.slice(0, -2), "-P", String(config.port), metadata, `${destination}:${config.composeInbox}/`]);
   const helperMode = options.mode === "compose-deploy" ? "deploy" : "rollback";
@@ -45,14 +51,16 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {string[]} args @returns {DeployOptions} */
 function parseArgs(args) {
+  /** @type {DeployOptions} */
   const options = {};
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (["--mode", "--metadata"].includes(arg)) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
-      options[arg.slice(2)] = value;
+      options[/** @type {"metadata" | "mode"} */ (arg.slice(2))] = value;
       index += 1;
       continue;
     }
@@ -63,18 +71,22 @@ function parseArgs(args) {
   return options;
 }
 
+/** @param {NodeJS.ProcessEnv} env @returns {DeployConfig} */
 function readConfig(env) {
+  // Required values are cast at construction because the loop below throws
+  // unless each one is a non-empty string.
+  /** @type {DeployConfig} */
   const values = {
-    host: env.LTF_DEPLOY_HOST,
+    host: /** @type {string} */ (env.LTF_DEPLOY_HOST),
     port: Number(env.LTF_DEPLOY_PORT || 22),
-    user: env.LTF_DEPLOY_USER,
-    privateKey: env.LTF_DEPLOY_SSH_PRIVATE_KEY,
-    knownHosts: env.LTF_DEPLOY_KNOWN_HOSTS,
+    user: /** @type {string} */ (env.LTF_DEPLOY_USER),
+    privateKey: /** @type {string} */ (env.LTF_DEPLOY_SSH_PRIVATE_KEY),
+    knownHosts: /** @type {string} */ (env.LTF_DEPLOY_KNOWN_HOSTS),
     composeInbox: env.LTF_COMPOSE_DEPLOY_INBOX || "/var/lib/longtail-forge-compose-deploy/inbox",
     composeHelper: env.LTF_COMPOSE_DEPLOY_HELPER || "/usr/local/sbin/longtail-forge-compose-deploy",
     publicUrl: String(env.LTF_DEPLOY_PUBLIC_URL || "").replace(/\/$/, ""),
   };
-  for (const key of ["host", "user", "privateKey", "knownHosts", "publicUrl"]) {
+  for (const key of /** @type {ReadonlyArray<keyof DeployConfig>} */ (["host", "user", "privateKey", "knownHosts", "publicUrl"])) {
     if (!String(values[key] || "").trim()) throw new Error(`Missing SSH deployment configuration: ${key}.`);
   }
   if (!/^[a-zA-Z0-9.-]+$/.test(values.host)) throw new Error("Deployment host contains unsupported characters.");
@@ -87,14 +99,17 @@ function readConfig(env) {
   return values;
 }
 
+/** @param {string} helper @param {readonly string[]} args */
 function remoteCommand(helper, args) {
   return ["sudo", "-n", helper, ...args].map(shellQuote).join(" ");
 }
 
+/** @param {unknown} value */
 function shellQuote(value) {
   return `'${String(value).replaceAll("'", `'"'"'`)}'`;
 }
 
+/** @param {string} command @param {readonly string[]} args @returns {string} */
 function run(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   if (result.status !== 0) throw new Error(`${command} failed: ${String(result.stderr || result.stdout).trim()}`);
@@ -102,11 +117,12 @@ function run(command, args) {
   return String(result.stdout || "");
 }
 
+/** @param {unknown} output @returns {ComposeHelperResult} */
 function parseHelperResult(output) {
   const lines = String(output || "").trim().split(/\r?\n/).filter(Boolean);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     try {
-      const result = JSON.parse(lines[index]);
+      const result = /** @type {ComposeHelperResult} */ (JSON.parse(lines[index]));
       if (result?.ok === true && typeof result.imageDigest === "string" && typeof result.commitSha === "string") return result;
     } catch {
       // Retain earlier helper diagnostics and continue to the final structured line.
@@ -115,6 +131,7 @@ function parseHelperResult(output) {
   throw new Error("Compose host helper did not return its structured immutable-image result.");
 }
 
+/** @param {string} publicUrl @param {PublishedReleaseMetadata} metadata */
 async function verifyPublic(publicUrl, metadata) {
   await requireOk(`${publicUrl}/healthz`, "ok");
   await requireOk(`${publicUrl}/readyz`, "ready");
@@ -124,11 +141,13 @@ async function verifyPublic(publicUrl, metadata) {
   }
 }
 
+/** @param {string} url @param {string} expectedStatus */
 async function requireOk(url, expectedStatus) {
   const body = await readJson(url);
   if (body.status !== expectedStatus) throw new Error(`${url} did not report ${expectedStatus}.`);
 }
 
+/** @param {string} url @returns {Promise<Record<string, unknown>>} */
 async function readJson(url) {
   const response = await fetch(url, { headers: { Accept: "application/json" }, redirect: "error" });
   if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}.`);

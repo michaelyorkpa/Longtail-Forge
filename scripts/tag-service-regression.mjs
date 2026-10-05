@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+// Tags publishes the session shape this owner drives; it is imported rather
+// than redescribed so the tag owners in this checkpoint answer to one contract.
+/** @typedef {import("../src/services/tags.service.js").TagSession} TagSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tag-service-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tags-test.db");
@@ -62,6 +67,7 @@ try {
   assert.deepEqual(replaced.assignments.map((assignment) => assignment.tag.slug).sort(), ["client-facing", "research"]);
   const usedTags = await tagsService.list(session, { status: "all" });
   const usedTag = usedTags.tags.find((tag) => tag.tag_id === created.tag.tag_id);
+  assert.ok(usedTag, "the assigned tag should still be listed before its usage count is read");
   assert.equal(usedTag.usage_count, 1);
 
   const removed = await tagsService.remove(session, {
@@ -182,16 +188,10 @@ LIMIT 1;
 
   assert.ok(user, "protected user should exist");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
+/** @param {string} workspaceId */
 async function enableAuditLogging(workspaceId) {
   await runSql(`
 UPDATE workspace_settings
@@ -201,6 +201,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @param {TagSession} session @param {string} [title] @returns {Promise<{ taskId: string }>} */
 async function createTaskTarget(session, title = "Tagged Regression Task") {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -239,6 +240,12 @@ VALUES (
   return { taskId };
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} usernamePrefix
+ * @param {Record<string, unknown> | null} [permissionOverrides]
+ * @returns {Promise<TagSession>}
+ */
 async function createWorkspaceAdminSession(session, usernamePrefix, permissionOverrides = null) {
   const userId = randomUUID();
   const assignmentId = randomUUID();
@@ -312,23 +319,26 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: session.workspace_id,
     home_workspace_id: session.workspace_id,
     timezone: "America/New_York",
     user_id: userId,
     username,
     workspace_id: session.workspace_id,
-  };
+  });
 }
 
+/** @param {() => Promise<unknown>} callback @param {string} message */
 async function assertRejectsWithMessage(callback, message) {
   await assert.rejects(callback, (error) => {
+    assert.ok(error instanceof Error, "the rejection should carry an Error");
     assert.equal(error.message, message);
     return true;
   });
 }
 
+/** @param {string} workspaceId */
 async function assertAuditRows(workspaceId) {
   const rows = await querySql(`
 SELECT action, record_type

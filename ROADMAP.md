@@ -2,18 +2,54 @@
 
 This file is the detailed per-version forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-Active cursor: `0.33.33`.
+Active cursor: `0.33.34`.
 Archived sections are maintained in ROADMAP-ARCHIVE.md.
 
 These version plans are governed by the standing architecture boundaries in `DECISIONS.md` — the Product North Star (product-first framework direction), the Framework and Module Boundary, the Two-Module Rule, and the gradual-modernization and regression-direction rules. `DECISIONS.md` is the single canonical home for those boundaries; this file plans versions against them rather than restating them.
 
-## Version 0.33.33 - Public Demo Analytics, Privacy, and Interest Capture
+## Carried Findings
+
+These open findings were carried out of the Lean Core branch when its closeout, `0.33.33.48`, archived the branch. Each was checked against the live code at that closeout. Listing a finding here does not schedule it: each needs its own roadmap slice, and its owner is accountable for raising one.
+
+- **The checkpoint validator still names the closed branch's series.** `scripts/release/checkpoint-commits.mjs` validates every pull request into `nightly` against `CHECKPOINT_SERIES`, which is still the closed branch's.
+  - **Owner:** the next version-wide branch's first policy checkpoint (Claude).
+  - **Consequence:** until that checkpoint sets its own series, or retires the internal-checkpoint model, a pull request into `nightly` can pass only by naming an archived checkpoint. The "existence is not ownership" rule forbids that.
+- **Recurring-task completion status** (`0.33.33.41.7`).
+  - **Owner:** Tasks.
+  - **Consequence:** after an edit to a recurring task whose next occurrence is still pending, the editor's continuity text can read "Task completed. Next scheduled ... (creating now)." while the task is still open. This is display only, and no data changes. The path is `writeRecurrenceContinuity` to `recurrenceContinuityMessage` in `public/js/task-dialog.js`.
+- **`BrowserTaskRecord.assignee_ids`.** There is no runtime defect today: `attachAssignees` in `src/modules/tasks/tasks.repo.js` emits `assignee_ids`, and the editor initializes its assignee selection from it in `public/js/task-dialog.js`.
+  - **Owner:** the Tasks browser contracts.
+  - **Consequence:** the published `BrowserTaskRecord` contract says the member never appears. Aligning the producer with that contract would make the editor clear every assignee on save.
+- **Detached-trigger focus return.**
+  - **Owner:** the shared modal stack, `public/js/shared/view-modal-stack.js`.
+  - **Consequence:** when a list re-render detaches the control that opened a dialog, closing the dialog skips focus return, so keyboard focus falls to the document. This is a pre-existing accessibility gap.
+- **Notes task-link prefill.**
+  - **Owner:** Notes.
+  - **Consequence:** `openEditorForLinkedTarget` in `public/js/notes.js` awaits `openEditor()`, which resolves only when the dialog closes. So a note opened from a task link shows neither the staged task link nor the log and active-work defaults while it is being edited.
+- **The zero-framework-edit goal is not met for two module-adoption steps.** Support View classification and default grants still edit framework files.
+  - **Owner:** 0.34 planning, which records declarative adoption as an architecture improvement.
+  - **Consequence:** every new module needs those two reviewed framework edits.
+- **The runtime module-catalog cycle is retained.** The raw measurement shows one cycle of 88 files, or 93 with dynamic imports, through `registry.js -> bundled-module-catalog.generated.js`. The cycle gate excludes that one edge under the operator's D2 ruling.
+  - **Owner:** Claude. It is not scheduled.
+- **Eight browser `// @ts-check` pragmas are load-bearing.** Without them, TypeScript 7.0.2 declares a byte-0 `@typedef` before an IIFE twice (TS2300).
+  - **Owner:** whoever next upgrades TypeScript.
+  - **Consequence:** they stay until a compiler change makes them removable.
+- **`FileEditorRow`'s member cannot be declared required** (`0.33.33.43.9`), because `normalizeFileEditorRow` may return a caller's own object.
+  - **Owner:** Files.
+- **`notes-primary-context`'s compiler case is marginal against its five-second bound** (`0.33.33.43.21`).
+  - **Owner:** test maintenance.
+  - **Consequence:** an occasional local timeout on a slow workstation.
+- **`tag-picker-workflows` `[mobile]` is intermittent.** Tag accumulation was disproved as the cause, and cross-worker contention remains the hypothesis.
+  - **Owner:** browser test maintenance.
+  - **Consequence:** an occasional retry. It must never be green-controlled.
+
+## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
 
 Purpose:
 
-Preserve the August 31, 2026 public-demo launch follow-on for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
+Preserve the October 1, 2026 public-demo launch follow-on (moved from August 31, 2026 to allow additional features and the completed Lean Core branch) for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
 
 Dependencies and planned boundary:
 
@@ -25,7 +61,7 @@ Dependencies and planned boundary:
 
 Acceptance criteria:
 
-- The August 31 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
+- The October 1 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
 
 ## Version 0.34 - Support Tickets Module
 

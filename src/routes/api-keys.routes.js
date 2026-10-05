@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { apiKeysService } from "../services/api-keys.service.js";
 import { readJsonBody, workspaceAsyncRoute as asyncRoute } from "../utils/http.js";

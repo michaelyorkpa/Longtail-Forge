@@ -180,6 +180,7 @@ function createModule(overrides = {}) {
   };
 }
 
+/** @param {string} moduleId @param {string} id */
 function protectedView(moduleId, id) {
   return {
     id,
@@ -189,6 +190,25 @@ function protectedView(moduleId, id) {
   };
 }
 
+/**
+ * One valid view surface contribution this owner feeds to the manifest
+ * contract.
+ *
+ * Named rather than inferred: five members carry defaults and three do not, and
+ * a destructured parameter infers only from the defaulted ones, so every caller
+ * passing `moduleId`, `requiredPermission`, or `viewId` was reported as passing
+ * an unknown property.
+ * @param {{
+ *   actionRole?: string,
+ *   actionRoute?: string,
+ *   dataSourceMethod?: string,
+ *   dataSourceRoute?: string,
+ *   moduleId?: string,
+ *   requiredPermission?: string,
+ *   surfaceId?: string,
+ *   viewId?: string,
+ * }} [surface]
+ */
 function validSurface({
   actionRole = "secondary",
   actionRoute = "/api/sample-records",

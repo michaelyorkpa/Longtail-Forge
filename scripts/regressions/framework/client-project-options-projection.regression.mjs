@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -19,9 +20,38 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "client-project-options.
 process.env.SUPER_ADMIN_PASSWORD = "Client-Project-Options-Test-123!";
 
 const optionsHelperSource = readFileSync(path.join(root, "public/js/shared/client-project-options.js"), "utf8");
-const sandboxWindow = {};
+/**
+ * One client or project option row the shared helper normalizes. Fields are
+ * projected verbatim, so the contract is the navigation shape rather than a
+ * per-field schema.
+ * @typedef {{ [key: string]: unknown, projects?: ClientOption[] }} ClientOption
+ */
+/** @type {{ LongtailForge: { clientProjectOptions: { normalizeClients: (clients: unknown, options?: unknown) => ClientOption[] } } }} */
+const sandboxWindow = /** @type {never} */ ({});
 new Function("window", optionsHelperSource)(sandboxWindow);
 const { normalizeClients } = sandboxWindow.LongtailForge.clientProjectOptions;
+
+for (const [pagePath, scriptPath] of [
+  ["views/protected/time-tracker.html", "js/stop-watch.js"],
+  ["views/protected/workbench.html", "js/workbench.js"],
+  ["views/protected/time-entries.html", "js/time-entries.js"],
+]) {
+  assertPageLoadsHelperBeforeScript(pagePath, scriptPath);
+}
+for (const sourcePath of [
+  "public/js/stop-watch.js",
+  "public/js/workbench.js",
+  "public/js/time-entry-dialog.js",
+  "public/js/time-entries.js",
+]) {
+  assertSourceUsesSharedHelper(sourcePath);
+}
+for (const sourcePath of [
+  "public/js/stop-watch.js",
+  "public/js/time-tracking-timer-dialog.js",
+]) {
+  assertTimerUsesSharedProjectOptions(sourcePath);
+}
 
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
 const { readSqliteStatementCount } = await import("../../../src/db/sqlite.js");
@@ -72,6 +102,7 @@ try {
   // only behind the include flag.
   const managementPayload = await clientsService.readClientProjects(session, { includeReminderPolicies: true });
   const managementParent = managementPayload.clients.find((client) => client.id === parentClient.id);
+  assert.ok(managementParent, "management payload should retain the parent client");
   assert.ok(managementParent.taskReminderPolicy, "management payload should carry client reminder policies behind the flag");
   assert.equal(managementParent.taskReminderPolicy.inherited, false);
   assert.ok(
@@ -79,11 +110,13 @@ try {
     "management payload keeps the full billing contact shape",
   );
   const managementWorkspaceProject = managementPayload.workspaceProjects.find((project) => project.id === workspaceProject.id);
+  assert.ok(managementWorkspaceProject, "management payload should retain the workspace project");
   assert.ok(managementWorkspaceProject.taskReminderPolicy, "management payload should carry project reminder policies behind the flag");
   assert.ok(managementPayload.clients.some((client) => client.id === inactiveClient.id), "management payload keeps inactive records");
 
   const ungatedPayload = await clientsService.readClientProjects(session);
   const ungatedParent = ungatedPayload.clients.find((client) => client.id === parentClient.id);
+  assert.ok(ungatedParent, "ungated payload should retain the parent client");
   assert.equal(Object.hasOwn(ungatedParent, "taskReminderPolicy"), false, "reminder policies must be gated behind the include flag");
 
   // The slim projection carries only option fields, filters inactive rows in
@@ -140,6 +173,7 @@ try {
   await fs.rm(tempDir, { force: true, recursive: true });
 }
 
+/** @param {ClientOption} client @returns {Record<string, unknown>} */
 function dropdownProjection(client) {
   return {
     id: client.id,
@@ -166,6 +200,48 @@ function dropdownProjection(client) {
   };
 }
 
+/** @param {string} pagePath @param {string} scriptPath */
+function assertPageLoadsHelperBeforeScript(pagePath, scriptPath) {
+  const html = readFileSync(path.join(root, pagePath), "utf8");
+  const helperIndex = html.indexOf("js/shared/client-project-options.js");
+  const scriptIndex = html.indexOf(scriptPath);
+
+  assert.ok(helperIndex >= 0, `${pagePath} should load the shared client-project options helper.`);
+  assert.ok(scriptIndex >= 0, `${pagePath} should load ${scriptPath}.`);
+  assert.ok(helperIndex < scriptIndex, `${pagePath} should load the shared helper before ${scriptPath}.`);
+}
+
+/** @param {string} sourcePath */
+function assertSourceUsesSharedHelper(sourcePath) {
+  const source = readFileSync(path.join(root, sourcePath), "utf8");
+  assert.match(
+    source,
+    // The claim is that the shared helper does the normalizing, not how the page reached it.
+    /(?:clientProjectOptions|requireClientProjectOptions\(\))\.normalizeClients/,
+    `${sourcePath} should normalize clients through the shared hierarchy helper.`,
+  );
+}
+
+/** @param {string} sourcePath */
+function assertTimerUsesSharedProjectOptions(sourcePath) {
+  const source = readFileSync(path.join(root, sourcePath), "utf8");
+  assert.match(
+    source,
+    /projects\.forEach\(\(project\) => \{[\s\S]*createOption\(project\.id, projectOptionLabel\(project\)\)/,
+    `${sourcePath} should render the shared project hierarchy in its supplied order and with its supplied labels.`,
+  );
+  assert.match(
+    source,
+    /function projectOptionLabel\(project\) \{[\s\S]*(?:clientProjectOptions|requireClientProjectOptions\(\))\.optionLabel\(project\)/,
+    `${sourcePath} should read project labels through the shared Clients/Projects option contract.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /sortByName\(projects\)|sortByName\(client\.projects\)/,
+    `${sourcePath} must not flatten the shared project hierarchy with a second alphabetical sort.`,
+  );
+}
+
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -176,12 +252,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

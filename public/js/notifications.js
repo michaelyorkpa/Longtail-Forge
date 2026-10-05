@@ -1,14 +1,52 @@
 (function initializeNotificationsPage() {
+/**
+ * The published vocabulary this page already vouches for.
+ *
+ * **Nothing new is named here.** `BrowserNotification` was already imported for the state slot and
+ * for the reader's own type predicate, so the renderers below were reading a checked record while
+ * declaring nothing about it. These aliases only shorten the same imports the file already makes.
+ * @typedef {import("../../src/types/browser-contracts.js").BrowserNotification} BrowserNotification
+ * @typedef {import("../../src/types/browser-contracts.js").BrowserNotificationFilterOptions} BrowserNotificationFilterOptions
+ * @typedef {import("../../src/types/browser-contracts.js").BrowserBoundedPagination} BrowserBoundedPagination
+ */
+
+/**
+ * One display group, as **this page's own `groupNotificationsForDisplay` builds it**.
+ *
+ * Not a published shape: the server sends a flat list and the grouping is this page's presentation
+ * choice, keyed by whichever mode the reader's preferences select. The three members are exactly
+ * what `createNotificationGroup` reads.
+ * @typedef {{ id: string, label: string, notifications: BrowserNotification[] }} NotificationDisplayGroup
+ */
+
 const notificationList = document.querySelector("[data-notification-page-list]");
 const notificationStatus = document.querySelector("[data-notification-status]");
-const moduleFilter = document.querySelector("[data-notification-module-filter]");
+/**
+ * The module filter, narrowed to what `views/protected/notifications.html` renders: a `select`.
+ *
+ * Narrowing only, with no refusal. Every read is already guarded - `moduleFilter?.value` at the
+ * request and the display filter, and `renderModuleFilterOptions` returns early - so a control of
+ * the wrong subtype takes the absent path this page already has.
+ */
+const moduleFilterElement = document.querySelector("[data-notification-module-filter]");
+const moduleFilter = moduleFilterElement instanceof HTMLSelectElement ? moduleFilterElement : null;
 const markAllReadButton = document.querySelector("[data-mark-all-notifications-read]");
 const preferenceForm = document.querySelector("[data-notification-preferences-form]");
 const preferenceList = document.querySelector("[data-notification-preference-list]");
-const filterButtons = [...document.querySelectorAll("[data-notification-filter]")];
+// The four status filters are `button`s, and this page reads `dataset` on each of them.
+const filterButtons = [...document.querySelectorAll("[data-notification-filter]")]
+  .filter((button) => button instanceof HTMLElement);
 
 const state = {
   filter: "active",
+  /**
+   * The notifications this page vouched for.
+   *
+   * Annotated because the empty initializer infers `never[]`, which the narrowed response cannot
+   * be assigned to. Measured after the reader landed rather than assumed: it is the one direct
+   * response handoff this child creates.
+   * @type {import("../../src/types/browser-contracts.js").BrowserNotification[]}
+   */
   notifications: [],
   page: 0,
   pageSize: 25,
@@ -17,6 +55,15 @@ const state = {
     total: 0,
   },
   groupingPreferences: { groupingMode: "client_project" },
+  /**
+   * The configurable notification events as `loadPreferences` narrowed them.
+   *
+   * **The direct storage handoff for `0.33.33.38.4.10`'s catalogue contract, and the only state
+   * slot this checkpoint adopts.** It inferred as an empty array of nothing, so no checked value
+   * could be assigned to it once `loadPreferences` stopped returning raw wire elements. Every other
+   * field in this store belongs to its `0.33.33.39`-`.44` owner.
+   * @type {import("../../src/types/browser-contracts.js").BrowserNotificationEventPreference[]}
+   */
   preferences: [],
 };
 
@@ -43,6 +90,161 @@ async function loadNotificationsPage() {
   await Promise.allSettled([loadNotifications(), loadPreferences()]);
 }
 
+/** The seventeen members `notificationRowToAppValue` reconstructs, plus the three text members the decorator adds. */
+const NOTIFICATION_TEXT_MEMBERS = Object.freeze([
+  "actor_user_id", "body", "created_at", "dismissed_at", "displayTitle", "displayType",
+  "event_type", "module_id", "notification_id", "read_at", "recipient_user_id", "record_id",
+  "record_type", "title", "updateTypeLabel", "url", "workspace_id",
+]);
+
+/** The unconditional members of `readTargetMetadata`'s base object. */
+const NOTIFICATION_TARGET_TEXT_MEMBERS = Object.freeze(["moduleId", "recordId", "recordType", "url"]);
+
+/** The status vocabulary the column's CHECK constraint admits. */
+const NOTIFICATION_STATUSES = Object.freeze(["unread", "read", "dismissed", "archived"]);
+
+/** The priority vocabulary the column's CHECK constraint admits. */
+const NOTIFICATION_PRIORITIES = Object.freeze(["low", "normal", "high", "urgent"]);
+
+/** The four bounded-pagination members the shared envelope always answers as finite numbers. */
+const NOTIFICATION_PAGINATION_NUMBERS = Object.freeze(["limit", "maxPageSize", "offset", "returned"]);
+
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isNotificationRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** @param {unknown} value @param {readonly string[]} members @returns {boolean} */
+function hasNotificationText(value, members) {
+  return isNotificationRecord(value) && members.every((member) => typeof value[member] === "string");
+}
+
+/** @param {unknown} value @returns {boolean} */
+function isNotificationStringList(value) {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string" && entry !== "");
+}
+
+/**
+ * A URL this page may put in an `href`.
+ *
+ * **This asks the same question the server now asks**, so the two boundaries refuse the same
+ * values: a scheme is refused, and two leading slash-or-backslash characters are refused because
+ * they are an authority rather than a path and resolve to another origin.
+ *
+ * It previously required a **leading slash**, which no notification writer produces - every one
+ * emits `tasks.html?task=...`, `dashboard.html` and the like - so every notification carrying a
+ * link was refused here and dropped from the list. `0.33.33.38.4.13.1` introduced that rule and
+ * its fixtures used `/tasks.html`, a shape the producers never emit, which hid it.
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isApplicationRelativeUrl(value) {
+  if (typeof value !== "string" || value === "") {
+    return value === "";
+  }
+
+  const url = value.trim();
+  return Boolean(url) && !/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^[/\\]{2}/.test(url);
+}
+
+/** @param {unknown} value @returns {value is import("../../src/types/browser-contracts.js").BrowserNotificationRecordTarget} */
+function isNotificationTarget(value) {
+  return isNotificationRecord(value)
+    && hasNotificationText(value, NOTIFICATION_TARGET_TEXT_MEMBERS)
+    && typeof value.canOpen === "boolean"
+    && typeof value.targetExists === "boolean"
+    && isApplicationRelativeUrl(value.url)
+    && (value.label === undefined || typeof value.label === "string")
+    && (value.context === undefined || hasNotificationText(value.context, ["clientName", "projectName"]));
+}
+
+/**
+ * One notification as the list producer decorates it.
+ *
+ * **Exact, because the spread source is a total reconstruction.** Every member checked here is
+ * named by `notificationRowToAppValue` or added by `decorateForSession`, and the row normaliser
+ * turns every nullable column into `""`, so nothing is nullable.
+ *
+ * **The protected-note redaction is checked as a whole.** The decorator answers a redacted
+ * notification when a note target does not exist, and a record that claims one half of that
+ * redaction without the other did not come from it.
+ * @param {unknown} value
+ * @returns {value is import("../../src/types/browser-contracts.js").BrowserNotification}
+ */
+function isNotificationRecordValue(value) {
+  if (!isNotificationRecord(value)
+    || !hasNotificationText(value, NOTIFICATION_TEXT_MEMBERS)
+    || value.notification_id === ""
+    || !NOTIFICATION_STATUSES.some((status) => status === value.status)
+    || !NOTIFICATION_PRIORITIES.some((priority) => priority === value.priority)
+    || !isNotificationRecord(value.metadata)
+    || !isNotificationTarget(value.target)
+    || !isApplicationRelativeUrl(value.url)) {
+    return false;
+  }
+
+  const target = value.target;
+
+  // A non-openable target carries no navigable URL, because the decorator writes `""` for it.
+  if (!target.canOpen && value.url !== "") {
+    return false;
+  }
+
+  // The redaction is all of it or none of it.
+  if (value.record_type === "note" && target.targetExists === false) {
+    return value.title === "Protected or unavailable note"
+      && value.displayTitle === "Protected or unavailable note"
+      && value.body === ""
+      && Object.keys(value.metadata).length === 0;
+  }
+
+  return true;
+}
+
+/** @param {unknown} value @returns {value is import("../../src/types/browser-contracts.js").BrowserBoundedPagination} */
+function isNotificationPagination(value) {
+  return isNotificationRecord(value)
+    && NOTIFICATION_PAGINATION_NUMBERS.every((member) => typeof value[member] === "number" && Number.isFinite(value[member]))
+    && typeof value.hasMore === "boolean"
+    && typeof value.nextCursor === "string"
+    && (value.total === null || (typeof value.total === "number" && Number.isFinite(value.total)));
+}
+
+/**
+ * The notification list, or `null` when the body is not one this producer sent.
+ *
+ * **One malformed notification refuses the whole response.** This is the recipient's
+ * authoritative notification list, and the raw read defaulted an unreadable body to an empty
+ * array - which rendered "No notifications" for a response the browser never understood.
+ * A genuinely empty list stays a real answer.
+ *
+ * **The producer's own array and records are answered, not rebuilt**, so the members these
+ * renderers do not yet read survive unpromised.
+ * @param {unknown} body
+ * @returns {body is import("../../src/types/browser-contracts.js").BrowserNotificationList}
+ */
+function isNotificationList(body) {
+  return isNotificationRecord(body)
+    && isNotificationRecord(body.filterOptions)
+    && isNotificationStringList(body.filterOptions.events)
+    && isNotificationStringList(body.filterOptions.modules)
+    && isNotificationPagination(body.pagination)
+    && Array.isArray(body.notifications)
+    && body.notifications.every(isNotificationRecordValue);
+}
+
+/**
+ * The notification list, or `null`.
+ *
+ * A predicate narrows and a cast asserts, so the checking happens in `isNotificationList` and
+ * this only chooses between the narrowed value and the refusal.
+ * @param {unknown} body
+ * @returns {import("../../src/types/browser-contracts.js").BrowserNotificationList | null}
+ */
+function readNotificationList(body) {
+  return isNotificationList(body) ? body : null;
+}
+
 async function loadNotifications() {
   setStatus("Loading notifications");
 
@@ -62,10 +264,17 @@ async function loadNotifications() {
       throw new Error("Notifications unavailable.");
     }
 
+    /** @type {unknown} */
     const body = await response.json();
-    state.notifications = Array.isArray(body.notifications) ? body.notifications : [];
-    state.pagination = normalizeNotificationPagination(body.pagination);
-    populateModuleFilter(body.filterOptions);
+    const list = readNotificationList(body);
+
+    if (!list) {
+      throw new Error("The notification list could not be read.");
+    }
+
+    state.notifications = list.notifications;
+    state.pagination = normalizeNotificationPagination(list.pagination);
+    populateModuleFilter(list.filterOptions);
     renderNotifications();
     setStatus("");
   } catch {
@@ -97,6 +306,7 @@ async function loadPreferences() {
   }
 }
 
+/** @param {Partial<BrowserNotificationFilterOptions>} [filterOptions] */
 function populateModuleFilter(filterOptions = {}) {
   if (!moduleFilter) {
     return;
@@ -131,6 +341,7 @@ function renderNotifications() {
   renderPagination();
 }
 
+/** @param {readonly BrowserNotification[]} notifications */
 function groupNotificationsForDisplay(notifications) {
   const groupingMode = normalizeGroupingMode(state.groupingPreferences?.groupingMode);
   const groups = new Map();
@@ -150,6 +361,7 @@ function groupNotificationsForDisplay(notifications) {
   return [...groups.values()];
 }
 
+/** @param {NotificationDisplayGroup} group */
 function createNotificationGroup(group) {
   const section = document.createElement("section");
   const heading = document.createElement("h2");
@@ -165,6 +377,7 @@ function createNotificationGroup(group) {
   return section;
 }
 
+/** @param {readonly BrowserNotification[]} notifications */
 function sortNotificationsForDisplay(notifications) {
   const priorityOrder = new Map([
     ["urgent", 0],
@@ -180,6 +393,7 @@ function sortNotificationsForDisplay(notifications) {
   ));
 }
 
+/** @param {BrowserNotification} notification @param {string} groupingMode */
 function notificationGroupKey(notification, groupingMode) {
   if (groupingMode === "notification_type") {
     const label = notificationUpdateTypeLabel(notification);
@@ -241,13 +455,22 @@ function renderPagination() {
   notificationList.after(controls);
 }
 
+/**
+  * @param {Partial<BrowserBoundedPagination>} [pagination]
+  *
+  * `Partial`, and the reads stay defensive, because this is the normalizer: its whole job is to
+  * answer a usable pair for a page whose reader has already refused a malformed body. `String`
+  * around `total` is what the published `number | null` needs to reach `parseInt`, and changes
+  * nothing - `parseInt` coerces its first argument to a string either way.
+  */
 function normalizeNotificationPagination(pagination = {}) {
   return {
     hasMore: pagination.hasMore === true,
-    total: Number.parseInt(pagination.total, 10) || 0,
+    total: Number.parseInt(String(pagination.total), 10) || 0,
   };
 }
 
+/** @param {BrowserNotification} notification */
 function createNotificationRow(notification) {
   const row = document.createElement("article");
   const heading = document.createElement("div");
@@ -271,7 +494,12 @@ function createNotificationRow(notification) {
   if (contextTitle) {
     title.title = contextTitle;
   }
-  if (notification.url) {
+  // `title` is the anchor exactly when `notification.url` is truthy, because that is the condition
+  // that built it as one - but the compiler cannot correlate the two conditions, so it reports
+  // `href` missing on the `span` arm of the union. Narrowing at the write states the correlation
+  // the constructor above already guarantees; it is true whenever the old condition was, so the
+  // anchor is still given its href and the span is still never given one.
+  if (title instanceof HTMLAnchorElement) {
     title.href = notification.url;
   }
 
@@ -297,6 +525,7 @@ function createNotificationRow(notification) {
   return row;
 }
 
+/** @param {string} label @param {string} icon @param {{ danger?: boolean }} [options] */
 function createNotificationActionButton(label, icon, options = {}) {
   try {
     if (window.LongtailForge?.icons?.createIconButton) {
@@ -320,19 +549,25 @@ function createNotificationActionButton(label, icon, options = {}) {
   return button;
 }
 
+/** @param {BrowserNotification} notification */
 function notificationDisplayTitle(notification) {
   return notification.displayTitle || notification.target?.label || notification.title || "Notification";
 }
 
+/** @param {BrowserNotification} notification */
 function notificationContextTitle(notification) {
   if (notification.target?.recordType !== "task") {
     return "";
   }
 
-  const context = notification.target?.context || {};
+  // The `|| {}` stand-in is gone, not the fallback. An empty object literal has no members, so
+  // every read through it was a property access on `{}` and the published optional `context` was
+  // invisible; the optional chain below is what the runtime always did. Same reading as
+  // `calendar.js` took for the same idiom.
+  const context = notification.target?.context;
   const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || "business";
-  const projectName = String(context.projectName || "").trim();
-  const clientName = String(context.clientName || "").trim();
+  const projectName = String(context?.projectName || "").trim();
+  const clientName = String(context?.clientName || "").trim();
 
   if (workspaceType === "business") {
     return [clientName, projectName].filter(Boolean).join(" / ");
@@ -341,6 +576,7 @@ function notificationContextTitle(notification) {
   return projectName;
 }
 
+/** @param {BrowserNotification} notification */
 function notificationMetaParts(notification) {
   const date = formatDate(notification.created_at);
 
@@ -355,19 +591,23 @@ function notificationMetaParts(notification) {
   ].filter(Boolean);
 }
 
+/** @param {BrowserNotification} notification */
 function notificationUpdateTypeLabel(notification) {
   return notification.updateTypeLabel || notification.displayType || notification.event_type || "Notification";
 }
 
+/** @param {BrowserNotification} notification */
 function notificationPriority(notification) {
   const priority = String(notification?.priority || "normal").trim().toLowerCase();
   return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
 }
 
+/** @param {string} value */
 function normalizeGroupingMode(value) {
   return ["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project";
 }
 
+/** @param {unknown} recordType */
 function formatRecordType(recordType) {
   return String(recordType || "notification")
     .split(/[-_]/)
@@ -376,6 +616,7 @@ function formatRecordType(recordType) {
     .join(" ") || "Notification";
 }
 
+/** @param {boolean} canManageWorkspaceDefaults */
 function renderPreferences(canManageWorkspaceDefaults) {
   const preferences = getNotificationPreferences();
 
@@ -396,6 +637,7 @@ function renderPreferences(canManageWorkspaceDefaults) {
   });
 }
 
+/** @param {string} notificationId @param {string} action */
 async function mutateNotification(notificationId, action) {
   try {
     const response = await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/${action}`, {
@@ -423,6 +665,7 @@ async function markAllRead() {
   await refreshNotificationCount();
 }
 
+/** @param {Event} event */
 async function savePreferences(event) {
   event.preventDefault();
   const preferenceHelper = getNotificationPreferences();
@@ -448,6 +691,7 @@ async function savePreferences(event) {
   }
 }
 
+/** @param {string} value @param {string} label */
 function optionElement(value, label) {
   const option = document.createElement("option");
   option.value = value;
@@ -455,6 +699,7 @@ function optionElement(value, label) {
   return option;
 }
 
+/** @param {string} text */
 function emptyElement(text) {
   const empty = document.createElement("p");
   empty.className = "placeholder-copy";
@@ -462,6 +707,7 @@ function emptyElement(text) {
   return empty;
 }
 
+/** @param {string} message @param {boolean} [isError] */
 function setStatus(message, isError = false) {
   if (!notificationStatus) {
     return;
@@ -496,6 +742,7 @@ async function refreshNotificationCount() {
   }
 }
 
+/** @param {string} value */
 function formatDate(value) {
   const date = new Date(value || "");
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();

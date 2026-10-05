@@ -48,9 +48,15 @@ for (const provider of providers) {
   assert.ok(provider.requiredModules?.includes(provider.moduleId), `${provider.id} should require its owner module`);
 }
 
-assert.deepEqual(providersByTargetType.get("client").workspaceTypes, ["business"], "client target provider should be business-only");
+const clientProvider = providersByTargetType.get("client");
+const projectProvider = providersByTargetType.get("project");
+const taskProvider = providersByTargetType.get("task");
+if (!clientProvider || !projectProvider || !taskProvider) {
+  throw new Error("Client, project, and task linked-context providers must be registered.");
+}
+assert.deepEqual(clientProvider.workspaceTypes, ["business"], "client target provider should be business-only");
 assert.ok(
-  providersByTargetType.get("project").requiredWorkspaceCapabilities.includes("projects"),
+  projectProvider.requiredWorkspaceCapabilities?.includes("projects"),
   "project provider should support project-capable non-business workspaces",
 );
 
@@ -69,9 +75,10 @@ const normalized = assertLinkedContextTargetContract({
   primaryContextHints: {
     projectId: "671b3460-5225-491f-bce1-77fb7d017712",
   },
-}, providersByTargetType.get("task"));
+}, taskProvider);
 
 assert.equal(normalized.displayLabel, "Review trailer wiring");
+if (!normalized.primaryContextHints) throw new Error("Normalized task target should retain primary-context hints.");
 assert.equal(normalized.primaryContextHints.projectId, "671b3460-5225-491f-bce1-77fb7d017712");
 
 const rawUuidLabel = validateLinkedContextTarget({

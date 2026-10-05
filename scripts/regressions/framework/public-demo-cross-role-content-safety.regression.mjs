@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -77,6 +78,7 @@ try {
   await proveReflectedAndBudgetBoundaries(server);
 
   const integrity = await db.get("PRAGMA integrity_check;");
+  assert.ok(integrity, "the integrity probe should return a row");
   assert.equal(integrity.integrity_check, "ok");
   console.log("Public-demo cross-role editable-content safety regression passed.");
 } finally {
@@ -85,6 +87,16 @@ try {
   await fixture.cleanup();
 }
 
+/**
+ * The session this fixture builds for each seeded role. It carries the fields
+ * the permission service resolves; the full authorization session carries
+ * more, and completing it would change what the permission checks see.
+ * @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} ProbeAuthorizationSession
+ */
+
+/** @typedef {import("../../../src/types/route-contracts.js").AsyncRouteHandler} ProbeRouteHandler */
+
+/** @param {{ projectId: string, readerSession: ProbeAuthorizationSession, writerSession: ProbeAuthorizationSession }} context */
 async function proveCrossRoleStoredContent({ projectId, readerSession, writerSession }) {
   const plainTextPayload = '<svg onload="stored-plain-secret">Plain text</svg>';
   const noteTitle = '<img src=x onerror="stored-title-secret">';
@@ -142,12 +154,23 @@ async function proveBrowserSinkInventory() {
   const expected = [
     'public/js/notes.js:body.innerHTML = note.body_html || "";',
     'public/js/notes.js:body.innerHTML = note.body_html || "";',
-    'public/js/notes.js:preview.innerHTML = result.bodyHtml || "";',
-    'public/js/shared/file-preview.js:content.innerHTML = html || "";',
+    // Reviewed under `0.33.33.38.4.12.1`: the same sink, now fed from the vouched-for render
+    // rather than a raw body read, so the assigned markup is the one `renderMarkdownToSafeHtml`
+    // produced and an unreadable response refuses instead of injecting an empty default.
+    'public/js/notes.js:preview.innerHTML = rendered.bodyHtml;',
+    // Reviewed under `0.33.33.38.4.9.5`: the same sink, now fed from a vouched-for
+    // content record rather than a raw `.content || {}` read. The markup is what the
+    // server's `renderMarkdownToHtml` produced from the uploaded file - parsed with
+    // `html: false`, unsafe link targets stripped, images escaped rather than requested -
+    // and an unreadable body now refuses instead of injecting an empty default.
+    'public/js/shared/file-preview.js:content.innerHTML = html;',
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
     'public/js/stop-watch.js:this.projectSelect.innerHTML = "";',
-    'public/js/time-entries.js:timeEntryTable.innerHTML = "";',
+    // `0.33.33.44.18` renamed the local binding when the table became a checked lookup required
+    // once per render. Reviewed and unchanged as a sink: the assigned value is still the constant
+    // empty string, so no content reaches it, and the element is still the page's own table body.
+    'public/js/time-entries.js:table.innerHTML = "";',
     'public/js/time-entry-dialog.js:wrapper.innerHTML = dialogMarkup();',
     'public/js/time-tracking-timer-dialog.js:wrapper.innerHTML = dialogMarkup();',
   ].sort();
@@ -168,35 +191,52 @@ async function proveBrowserSinkInventory() {
   const filesPreview = await fs.readFile("public/js/shared/file-preview.js", "utf8");
   const transportSecurity = await fs.readFile("src/core/transport-security.js", "utf8");
   assert.match(notesBrowser, /body\.innerHTML = note\.body_html \|\| ""/);
-  assert.match(notesBrowser, /preview\.innerHTML = result\.bodyHtml \|\| ""/);
-  assert.match(filesPreview, /content\.innerHTML = html \|\| ""/);
+  // Retargeted under `0.33.33.38.4.12.1`: the sink is unchanged and its source is now the
+  // vouched-for render, so what this owner asserts is that the live preview assigns the
+  // server-sanitised markup rather than that it defaults an unread body to "".
+  assert.match(notesBrowser, /preview\.innerHTML = rendered\.bodyHtml;/);
+  // Retargeted under `0.33.33.38.4.9.5`: the sink is unchanged and its source is now the
+  // vouched-for render, so what this owner asserts is the whole producer-to-sink path - the
+  // content body is read through the contract reader, only its `bodyHtml` is assigned, and
+  // the browser still adds no Markdown parser of its own.
+  assert.match(filesPreview, /const contentBody = readFilePreviewContent\(await api\.getJson\(preview\.contentUrl/);
+  assert.match(filesPreview, /renderFilePreviewMarkdown\(dialog, content\.bodyHtml\)/);
+  assert.match(filesPreview, /content\.innerHTML = html;/);
+  // Case-insensitive and hyphen-optional deliberately: markdown-it's UMD build installs
+  // itself as `window.markdownit`, which the original spelling of this guard did not
+  // match. A bite-proof under `0.33.33.38.4.9.5` introduced that exact global and the
+  // guard let it through, so the pattern now covers the spelling an attacker-shaped
+  // mistake would actually use.
+  assert.doesNotMatch(filesPreview, /markdown-?it|marked|showdown/i);
   assert.match(transportSecurity, /"script-src 'self'"/);
   assert.match(transportSecurity, /"script-src-attr 'none'"/);
   assert.match(transportSecurity, /"object-src 'none'"/);
   assert.match(transportSecurity, /"frame-src 'none'"/);
 }
 
+/** @param {ProbeAuthorizationSession} writerSession @returns {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} */
 function createPreviewProbe(writerSession) {
   const app = express();
   app.use(attachRequestContext);
-  app.use((request, _response, next) => {
-    request.session = writerSession;
+  app.use(/** @type {ProbeRouteHandler} */ ((request, _response, next) => {
+    request.session = /** @type {import("../../../src/types/http-contracts.js").RequestSession} */ (/** @type {unknown} */ (writerSession));
     next();
-  });
+  }));
   app.use(createPublicDemoBudgetMiddleware({
     database: db,
     enabled: true,
     isVisitor: (userId) => userId === writerSession.user_id,
   }));
   app.post("/api/notes/preview", asyncHandler(async (request, response) => {
-    const payload = await readJsonBody(request);
-    response.status(200).json(await notesService.previewMarkdown(payload, request.session));
+    const payload = /** @type {Record<string, unknown>} */ (await readJsonBody(request));
+    response.status(200).json(await notesService.previewMarkdown(payload, /** @type {ProbeAuthorizationSession} */ (request.session)));
   }));
   app.use("/api", apiRouteBoundary);
   app.use(createErrorHandler({ logger: { error() {} } }));
   return app;
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener @returns {Promise<void>} */
 async function proveReflectedAndBudgetBoundaries(listener) {
   const exact = "a".repeat(PUBLIC_DEMO_BUDGET_LIMITS.maxRichTextBytes);
   const acceptedSnakeCase = await request(listener, { body_markdown: exact });
@@ -227,9 +267,13 @@ async function readAdminSession() {
     LIMIT 1
   `);
   assert.ok(user?.user_id && (user.active_workspace_id || user.home_workspace_id));
-  return toSession(user, user.active_workspace_id || user.home_workspace_id);
+  return toSession(
+    /** @type {{ timezone?: string, user_id: string, username: string }} */ (user),
+    /** @type {string} */ (user.active_workspace_id || user.home_workspace_id),
+  );
 }
 
+/** @param {string} workspaceId @param {{ clientId?: string | null, label: string, projectId?: string | null, roleId: string, scopeId: string, scopeType: string }} scope */
 async function createScopedSession(workspaceId, {
   clientId = null,
   label,
@@ -271,20 +315,27 @@ async function createScopedSession(workspaceId, {
   return toSession({ user_id: userId, username, timezone: "America/New_York" }, workspaceId);
 }
 
+/**
+ * @param {{ timezone?: string, user_id: string, username: string }} user
+ * @param {string} workspaceId
+ * @returns {ProbeAuthorizationSession}
+ */
 function toSession(user, workspaceId) {
-  return {
+  return workspaceSessionFixture({
+    ...user,
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** The preview payload this probe posts and the response it reads back. */
+/** @typedef {{ body: { bodyMarkdown: string, error: { code: string, message: string } }, status: number | undefined }} PreviewResponse */
+
+/** @param {string} root @returns {Promise<string[]>} */
 async function listJavaScriptFiles(root) {
   const entries = await fs.readdir(root, { withFileTypes: true });
+  /** @type {string[]} */
   const files = [];
   for (const entry of entries) {
     const candidate = path.join(root, entry.name);
@@ -294,20 +345,34 @@ async function listJavaScriptFiles(root) {
   return files;
 }
 
+/** @param {ProbeRouteHandler} handler @returns {ProbeRouteHandler} */
 function asyncHandler(handler) {
   return (request, response, next) => Promise.resolve(handler(request, response, next)).catch(next);
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener
+ * @returns {Promise<void>}
+ */
 function closeServer(listener) {
   return new Promise((resolve, reject) => listener.close((error) => error ? reject(error) : resolve()));
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener
+ * @param {Record<string, unknown>} payload
+ * @returns {Promise<PreviewResponse>}
+ */
 function request(listener, payload) {
   const body = JSON.stringify(payload);
   return new Promise((resolve, reject) => {
@@ -319,8 +384,9 @@ function request(listener, payload) {
       host: "127.0.0.1",
       method: "POST",
       path: "/api/notes/preview",
-      port: listener.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (listener.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {

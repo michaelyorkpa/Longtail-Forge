@@ -7,7 +7,21 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+
+/**
+ * The result envelope the journey script prints. Only what this owner asserts
+ * on is named; the script writes it, so the shape is exact.
+ * @typedef {{
+ *   checks: number,
+ *   credentialsPrinted: boolean,
+ *   ok: boolean,
+ *   publicDemo: boolean,
+ *   rolesVerified: string[],
+ * }} JourneyResult
+ */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -44,13 +58,17 @@ try {
     },
     timeout: 180_000,
   });
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, result.stderr || result.stdout || String(result.error || ""));
   for (const password of Object.values(passwords)) {
     assert.doesNotMatch(result.stdout, new RegExp(escapeRegExp(password)));
     assert.doesNotMatch(result.stderr, new RegExp(escapeRegExp(password)));
   }
 
-  const output = JSON.parse(result.stdout.slice(result.stdout.lastIndexOf("\n{") + 1));
+  // The journey script's structured stdout. It is sliced out of a mixed
+  // stream, so it crosses the boundary through the shared record narrowing
+  // before the result envelope is read.
+  /** @type {JourneyResult} */
+  const output = requireJsonRecord(JSON.parse(result.stdout.slice(result.stdout.lastIndexOf("\n{") + 1)), "the journey result envelope");
   assert.equal(output.ok, true);
   assert.equal(output.credentialsPrinted, false);
   assert.equal(output.publicDemo, false);
@@ -73,8 +91,4 @@ try {
   console.log("Sanitized-demo complete role permission journey regression passed.");
 } finally {
   await fs.rm(temporaryDirectory, { force: true, recursive: true });
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

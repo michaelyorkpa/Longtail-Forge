@@ -1,0 +1,92 @@
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+const docs = await fs.readFile(path.join(process.cwd(), "docs/notes-module.md"), "utf8");
+const importPlanning = await fs.readFile(path.join(process.cwd(), "docs/notes-import-planning.md"), "utf8");
+const readme = await fs.readFile(path.join(process.cwd(), "README.md"), "utf8");
+const moduleDevelopment = await fs.readFile(path.join(process.cwd(), "docs/module-development.md"), "utf8");
+const workflowContext = await fs.readFile(path.join(process.cwd(), "docs/workflow-context-contract.md"), "utf8");
+
+// Consolidated under notes.current-static-contracts by 0.33.33.10.
+for (const heading of [
+  "## Module Boundaries",
+  "## Library Model",
+  "## Collection Model",
+  "## Bucket Behavior",
+  "## Bucket Derivation",
+  "## Visibility And Permissions",
+  "## Note Data Model",
+  "## Primary Context And Linked Context",
+  "## Linked Context Panel Helper",
+  "## Resume Context Hooks",
+  "## Markdown And Wiki Links",
+  "## Revisions And Changelog",
+  "## Secure Notes",
+  "## Manifest Declarations",
+  "## Search, Tags, And Files",
+  "## Lifecycle Events",
+  "## Import Metadata",
+  "## What Notes Should Not Own",
+]) {
+  assert.match(docs, new RegExp(escapeRegExp(heading)), `${heading} should be documented`);
+}
+
+for (const phrase of [
+  "Active Work",
+  "Ongoing Areas",
+  "Reference Library",
+  "Archive is a read-mostly state",
+  "single-primary membership",
+  "Collection counts are calculated from permission-filtered note lists",
+  "Moving a note to a different Library bucket clears",
+  "Markdown is the canonical editable body format",
+  "Restoring a revision creates a new note update",
+  "application-managed envelope encryption",
+  "not zero-knowledge",
+  "Notes must not write directly to `search_index`",
+  "Secure notes block framework-managed attachments",
+  "sanitizeNoteLifecyclePayload",
+  "OneNote/import-friendly metadata",
+  "does not grant access",
+  "Knowledge Base content",
+  "docs/notes-import-planning.md",
+  "Note Kind",
+  "content-kind metadata only",
+  "legacy linked-context values",
+  "Direct nullable `notes.client_id` and `notes.project_id` fields are Primary Context",
+  "`note_links` rows are Linked Context",
+  "docs/workflow-context-contract.md",
+  "Unavailable linked context",
+  "notesService.listResumeContext",
+  "Global resume-state storage, ranking, dismissal, Workbench feed behavior",
+]) {
+  assert.match(docs, new RegExp(escapeRegExp(phrase), "i"), `${phrase} should be documented`);
+}
+
+for (const phrase of [
+  "Primary Context",
+  "Linked Context",
+  "notes.client_id",
+  "notes.project_id",
+  "note_links",
+  "Normal app UI must not display raw UUIDs",
+  "Audit Logs may display raw IDs",
+  "Unavailable client",
+  "Unavailable project",
+  "Unavailable task",
+  "Unavailable note",
+  "Unavailable list",
+  "Unavailable linked context",
+]) {
+  assert.match(workflowContext, new RegExp(escapeRegExp(phrase), "i"), `${phrase} should be documented in workflow context contract`);
+}
+
+assert.match(readme, /docs\/notes-module\.md/, "README should link the Notes developer guide");
+assert.match(moduleDevelopment, /docs\/notes-module\.md/, "Module development guide should point to Notes as a first-party module example");
+assert.match(moduleDevelopment, /docs\/workflow-context-contract\.md/, "Module development guide should point to the shared workflow context contract");
+assert.match(importPlanning, /future OneNote import workflow/i, "Import planning should leave room for future OneNote import");
+assert.doesNotMatch(docs, /Knowledge Base publishing controls are implemented|user-authored Knowledge Base content is stored in Notes/i);
+
+console.log("Notes developer docs regression passed.");

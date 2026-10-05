@@ -1,5 +1,3 @@
-// @ts-check
-
 import express from "express";
 import compression from "compression";
 import cookieParser from "cookie-parser";
@@ -64,7 +62,8 @@ import { createPublicDemoPerimeterMiddlewares } from "./public-demo-perimeter.js
 import { createPublicDemoBudgetMiddleware } from "./public-demo-budgets.js";
 
 /** @typedef {import("node:http").Server} HttpServer */
-/** @typedef {{ id: string, durationMs: number, errorType?: string, lifecycle: string, owner: string, status: string }} StartupPhaseEvent */
+/** @typedef {import("../types/route-contracts.js").RouterContract} RouterContract */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupPhaseEvent} StartupPhaseEvent */
 
 /** @returns {ReturnType<typeof express>} */
 function createApp() {
@@ -98,7 +97,7 @@ function createApp() {
   app.use(publicApiRoutes);
   app.use(privateFeedPublicRoutes);
   for (const moduleRoutes of modulesService.listModuleRoutes("public")) {
-    app.use(moduleRoutes);
+    app.use(requireRouterContract(moduleRoutes));
   }
   app.use("/api/v1", apiRouteBoundary);
   app.use(requireAuth);
@@ -125,16 +124,17 @@ function createApp() {
   app.use("/api", workbenchRoutes);
   for (const moduleRoute of modulesService.listModuleRouteEntries("browser")) {
     const moduleDefinition = modulesService.getModule(moduleRoute.moduleId);
+    const moduleRouter = requireRouterContract(moduleRoute.router);
 
     if (moduleDefinition?.canDisable === false) {
-      app.use("/api", moduleRoute.router);
+      app.use("/api", moduleRouter);
       continue;
     }
 
     app.use(
       "/api",
-      requireModuleBrowserWritesEnabledForRouter(moduleRoute.moduleId, moduleRoute.router),
-      moduleRoute.router,
+      requireModuleBrowserWritesEnabledForRouter(moduleRoute.moduleId, moduleRouter),
+      moduleRouter,
     );
   }
   app.use("/api", apiRouteBoundary);
@@ -146,6 +146,22 @@ function createApp() {
   return app;
 }
 
+/** @param {unknown} value @returns {RouterContract} */
+function requireRouterContract(value) {
+  if (isRouterContract(value)) {
+    return value;
+  }
+  throw new TypeError("Registered module routes must provide an Express router.");
+}
+
+/** @param {unknown} value @returns {value is RouterContract} */
+function isRouterContract(value) {
+  return Boolean(
+    (typeof value === "function" || (value !== null && typeof value === "object"))
+      && "use" in value
+      && typeof value.use === "function",
+  );
+}
 /** @returns {Promise<void>} */
 async function startServer() {
   try {

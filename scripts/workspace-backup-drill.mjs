@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -10,6 +11,20 @@ import { createOpaqueId, createRecordId } from "../src/core/identifiers.js";
 import { createWorkspaceBackupPackage, inspectWorkspaceBackupPackage, restoreWorkspaceBackupPackage } from "../src/services/workspace-backup-package.js";
 import { resolveStoragePath } from "../src/core/files/local-storage-adapter.js";
 
+/**
+ * An open better-sqlite3 handle on a drill database.
+ * @typedef {InstanceType<typeof Database>} DatabaseHandle
+ */
+
+/**
+ * The provider-neutral Files object read request the workspace backup package
+ * hands to its reader for every internal Files row it stages.
+ * @typedef {object} FileObjectReadRequest
+ * @property {string} fileId
+ * @property {string} providerId
+ * @property {string} storageKey
+ */
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-backup-drill-"));
 const sourceDatabase = path.join(tempDir, "source.db");
@@ -18,7 +33,7 @@ const archivePath = path.join(tempDir, "workspace.ltfworkspace.tgz");
 const targetDatabase = path.join(tempDir, "restored", "workspace.db");
 const targetFiles = path.join(tempDir, "restored", "files");
 const secureKeyBackup = path.join(tempDir, "separate-secure-notes-key.backup");
-const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")));
 const targetWorkspaceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const targetUserId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const targetMembershipId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -36,7 +51,7 @@ try {
     appVersion: packageJson.version,
     databaseFile: sourceDatabase,
     outputPath: archivePath,
-    readFileObject: ({ storageKey }) => createReadStream(resolveStoragePath(sourceFiles, storageKey)),
+    readFileObject: /** @param {FileObjectReadRequest} request */ ({ storageKey }) => createReadStream(resolveStoragePath(sourceFiles, storageKey)),
     workspaceId: targetWorkspaceId,
   });
   assertUuidVersion(created.backupId, 4, "workspace backup package identity");
@@ -96,6 +111,11 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} expectedVersion
+ * @param {string} label
+ */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
@@ -160,17 +180,31 @@ VALUES (?, ?, 'Encrypted recovery note', '', 'general', 'reference', 'derived', 
     database.prepare("INSERT INTO jobs (job_id, workspace_id, job_type, payload_json, status, priority, available_at, attempt_count, max_attempts, created_at, updated_at) VALUES ('target-job', ?, 'test', '{}', 'pending', 0, ?, 0, 3, ?, ?);").run(targetWorkspaceId, now, now, now);
     database.prepare("INSERT INTO search_index (search_index_id, workspace_id, module_id, record_type, record_id, title, summary, body, tags_text, visibility, record_status, source, indexed_at) VALUES ('other-search', 'other-workspace', 'tasks', 'task', 'other-record', 'Other search', '', 'other workspace search secret', '', 'workspace', 'active', 'fixture', ?);").run(now);
     database.prepare("INSERT INTO search_index_fts (search_index_id, workspace_id, module_id, record_type, record_id, title, summary, body, tags_text, source) VALUES ('other-search', 'other-workspace', 'tasks', 'task', 'other-record', 'Other search', '', 'other workspace search secret', '', 'fixture');").run();
-    assert.equal(database.pragma("foreign_key_check").length, 0);
+    assert.equal(/** @type {unknown[]} */ (database.pragma("foreign_key_check")).length, 0);
   } finally {
     database.close();
   }
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} workspaceId
+ * @param {string} name
+ * @param {string} ownerUserId
+ * @param {string} now
+ */
 function insertWorkspace(database, workspaceId, name, ownerUserId, now) {
   database.prepare("INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at) VALUES (?, ?, 'Active', 'business', ?, ?, ?);")
     .run(workspaceId, name, ownerUserId, now, now);
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} userId
+ * @param {string} username
+ * @param {string} displayName
+ * @param {string} workspaceId
+ */
 function insertUser(database, userId, username, displayName, workspaceId) {
   database.prepare(`
 INSERT INTO users (user_id, home_workspace_id, username, display_name, alt_email, timezone, password, theme_mode, user_status, protected_user, active_workspace_id, open_external_links_new_tab, theme_auto_source, password_change_required, preferred_login_landing, preferred_workspace_switch_landing)
@@ -178,11 +212,27 @@ VALUES (?, ?, ?, ?, 'private-alt@example.test', 'America/New_York', 'source-pass
 `).run(userId, workspaceId, username, displayName, workspaceId);
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} id
+ * @param {string} userId
+ * @param {string} workspaceId
+ * @param {string} now
+ */
 function insertMembership(database, id, userId, workspaceId, now) {
   database.prepare("INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?);")
     .run(id, userId, workspaceId, now, now);
 }
 
+/**
+ * @param {DatabaseHandle} database
+ * @param {string} fileId
+ * @param {string} workspaceId
+ * @param {string} userId
+ * @param {string} storageKey
+ * @param {Buffer} content
+ * @param {string} now
+ */
 function insertFile(database, fileId, workspaceId, userId, storageKey, content, now) {
   const sha256 = createHash("sha256").update(content).digest("hex");
   database.prepare(`
@@ -195,27 +245,28 @@ function verifyRestoredDatabase() {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
     assert.deepEqual(database.prepare("SELECT workspace_id, name FROM workspaces").all(), [{ workspace_id: targetWorkspaceId, name: "Recovery Workspace" }]);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Recovery Client'").get().count, 1);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Other Secret Client'").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM api_keys").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM sessions").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM jobs").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM app_settings").get().count, 0);
-    const identity = database.prepare("SELECT username, alt_email, password, user_status, protected_user FROM users").get();
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Recovery Client'").get()).count, 1);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM clients WHERE name = 'Other Secret Client'").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM api_keys").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM sessions").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM jobs").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM app_settings").get()).count, 0);
+    const identity = /** @type {{ username: string, alt_email: string | null, password: string, user_status: string, protected_user: string }} */ (database.prepare("SELECT username, alt_email, password, user_status, protected_user FROM users").get());
     assert.equal(identity.username, "owner@example.test");
     assert.equal(identity.alt_email, null);
     assert.equal(identity.password, "!workspace-backup-retired!");
     assert.equal(identity.user_status, "inactive");
     assert.equal(identity.protected_user, "no");
-    assert.equal(database.prepare("SELECT secure_payload FROM notes WHERE note_id = ?").get(targetNoteId).secure_payload, "ciphertext-only");
+    assert.equal(/** @type {{ secure_payload: string }} */ (database.prepare("SELECT secure_payload FROM notes WHERE note_id = ?").get(targetNoteId)).secure_payload, "ciphertext-only");
     assertIdentifierSnapshot(database);
-    assert.equal(database.pragma("integrity_check")[0].integrity_check, "ok");
+    assert.equal(/** @type {{ integrity_check: string }[]} */ (database.pragma("integrity_check"))[0].integrity_check, "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);
   } finally {
     database.close();
   }
 }
 
+/** @param {DatabaseHandle} database */
 function assertIdentifierSnapshot(database) {
   assert.deepEqual(database.prepare("SELECT workspace_id FROM workspaces WHERE workspace_id = ?").get(targetWorkspaceId), { workspace_id: targetWorkspaceId });
   assert.deepEqual(database.prepare("SELECT id, workspace_id FROM clients WHERE id = ?").get(targetClientId), { id: targetClientId, workspace_id: targetWorkspaceId });

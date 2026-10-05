@@ -3,6 +3,9 @@ import { settingsRepository } from "../../repositories/settings.repo.js";
 
 const MODULE_ID = "client-projects";
 
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectSettingsReadContext} ClientProjectSettingsReadContext */
+
+/** @param {ClientProjectSettingsReadContext} context */
 async function read(context) {
   const workspaceId = readWorkspaceId(context);
   const [{ settingsService }, workspaceSettings] = await Promise.all([
@@ -26,6 +29,7 @@ async function read(context) {
   };
 }
 
+/** @param {ClientProjectSettingsReadContext} context @returns {string} */
 function readWorkspaceId(context) {
   return typeof context === "string"
     ? context

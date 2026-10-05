@@ -1,6 +1,28 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const PROJECT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+
+/**
+ * @typedef {object} RuntimeSourceEntry
+ * @property {string} absolutePath
+ * @property {string} file
+ * @property {string} filePath
+ * @property {string} source
+ */
+
+/**
+ * @typedef {object} RuntimeSourceScanOptions
+ * @property {string} [root]
+ * @property {string} [sourceDir]
+ */
+
+/**
+ * @param {RuntimeSourceScanOptions} [options]
+ * @returns {RuntimeSourceEntry[]}
+ */
 export function readRuntimeSourceEntries({ root = process.cwd(), sourceDir = "src" } = {}) {
   return listRuntimeSourceFiles({ root, sourceDir }).map((absolutePath) => {
     const file = normalizeProjectPath(root, absolutePath);
@@ -13,54 +35,360 @@ export function readRuntimeSourceEntries({ root = process.cwd(), sourceDir = "sr
   });
 }
 
+/**
+ * @param {RuntimeSourceScanOptions} [options]
+ * @returns {string[]}
+ */
 export function listRuntimeSourceFiles({ root = process.cwd(), sourceDir = "src" } = {}) {
+  /** @type {string[]} */
   const files = [];
   walk(path.join(root, sourceDir), files);
   return files;
 }
 
+/**
+ * @param {string} root
+ * @param {string} filePath
+ * @returns {string}
+ */
 export function normalizeProjectPath(root, filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
 }
 
+/**
+ * @param {string} source
+ * @param {number} index
+ * @returns {number}
+ */
 export function lineNumber(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
 
-export function createProjectTextReader({ root = process.cwd() } = {}) {
+/** @param {{ root?: string }} [options] */
+export function createProjectTextReader({ root = PROJECT_ROOT } = {}) {
+  /** @type {Map<string, string>} */
   const cache = new Map();
+  /** @type {Map<string, Promise<string>>} */
+  const asyncCache = new Map();
+  /** @param {string} relativePath */
   const readText = (relativePath) => {
-    const normalizedPath = String(relativePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
-    if (!normalizedPath || path.isAbsolute(normalizedPath) || normalizedPath.split("/").includes("..")) {
-      throw new Error(`Project source reads require an explicit repository-relative path: ${relativePath}`);
-    }
+    const normalizedPath = normalizeReaderPath(relativePath);
     if (!cache.has(normalizedPath)) {
       cache.set(normalizedPath, readFileSync(path.join(root, normalizedPath), "utf8"));
     }
-    return cache.get(normalizedPath);
+    return /** @type {string} */ (cache.get(normalizedPath));
+  };
+  /** @param {string} relativePath */
+  const readTextAsync = (relativePath) => {
+    const normalizedPath = normalizeReaderPath(relativePath);
+    if (!asyncCache.has(normalizedPath)) {
+      asyncCache.set(normalizedPath, readFile(path.join(root, normalizedPath), "utf8"));
+    }
+    return /** @type {Promise<string>} */ (asyncCache.get(normalizedPath));
   };
   return Object.freeze({
-    readJson: (relativePath) => JSON.parse(readText(relativePath)),
-    readMarkdown: (relativePath) => {
+    readJson: (/** @type {string} */ relativePath) => JSON.parse(readText(relativePath)),
+    readMarkdown: (/** @type {string} */ relativePath) => {
       if (!/\.md$/i.test(relativePath || "")) {
         throw new Error(`Markdown source reads require a .md path: ${relativePath}`);
       }
       return readText(relativePath);
     },
     readText,
+    readTextAsync,
   });
 }
 
+/**
+ * Extract one named function's declaration through its matching closing brace.
+ *
+ * The declaration is located in the masked source, so declaration-shaped text
+ * inside a comment or a string cannot be mistaken for the real one, and the
+ * closing brace is found by walking masked braces, so a brace inside a comment,
+ * a string, a template literal, or a regular expression cannot end the region
+ * early. See `maskNonCode` for what the scanner does and does not support.
+ * @param {string} source
+ * @param {string} functionName
+ * @returns {string}
+ */
 export function extractFunctionBlock(source, functionName) {
-  const declaration = new RegExp(`(?:async\\s+)?function\\s+${escapeRegExp(functionName)}\\s*\\(`).exec(source);
+  const masked = scannableSource(source);
+  const declaration = findDeclaration(masked, functionName);
+  const openBrace = findBodyBrace(masked, declaration, functionName);
+  return source.slice(declaration.index, findBalancedClose(masked, openBrace) + 1);
+}
+
+/**
+ * Extract one named function's body, from its opening brace through the
+ * matching close, braces included.
+ *
+ * This is a different region from `extractFunctionBlock`, which spans the
+ * declaration as well, and the difference is load-bearing: an owner asserting
+ * about a body must not accidentally match the signature, and an owner
+ * asserting about a declaration must not lose it. `0.33.33.32.28.4.1` measured
+ * 174 extractions across sixteen contract modules and found 112 that want this
+ * region and 62 that want the other, so both are published rather than one
+ * being forced onto the other.
+ * @param {string} source
+ * @param {string} functionName
+ * @returns {string}
+ */
+export function extractFunctionBody(source, functionName) {
+  const masked = scannableSource(source);
+  const declaration = findDeclaration(masked, functionName);
+  const openBrace = findBodyBrace(masked, declaration, functionName);
+  return source.slice(openBrace, findBalancedClose(masked, openBrace) + 1);
+}
+
+/**
+ * Extract one named function's declaration through everything that follows it,
+ * up to the next top-level function declaration or the end of the source.
+ *
+ * This is a third region, wider than `extractFunctionBlock`: it deliberately
+ * includes whatever sits between a function and the next one — the trailing
+ * constants, lookup tables, and `class` declarations that several owners assert
+ * about together with the function that consumes them. A top-level `const` or
+ * `class` therefore does not end the span; only the next `function` does.
+ *
+ * `0.33.33.32.28.4.2` published this because thirteen Tasks contract modules
+ * had written the same region by hand, and their hand-written version located
+ * the declaration with a substring search — which answers a longer name that
+ * merely starts with the one asked for, and answers a mention inside a comment.
+ * This one anchors the declaration and searches masked source, so neither can
+ * happen.
+ * @param {string} source
+ * @param {string} functionName
+ * @returns {string}
+ */
+export function extractFunctionSpan(source, functionName) {
+  const masked = scannableSource(source);
+  const declaration = findDeclaration(masked, functionName);
+  const end = findNextSiblingFunction(masked, declaration.index + declaration[0].length);
+  return source.slice(declaration.index, end === -1 ? source.length : end);
+}
+
+/**
+ * Extract one named class's named method, from its declaration through the matching
+ * close of that method's own body.
+ *
+ * The class name is required because **a method name is not unique within a file**. A
+ * bare `target()` call, an ordinary `function target()`, an object literal's `target()`,
+ * and another class's `target()` are all indistinguishable from a class method if the
+ * search starts from the name alone. `0.33.33.33.7` published a name-only version and
+ * every one of those four forms redirected it; because the brace walk then anchors to
+ * whatever it found, a wrong start silently widens the region. That is the same
+ * false-region failure `0.33.33.32.28.4` and `0.33.33.33.6.1` exist to prevent, so the
+ * ambiguous contract is replaced rather than patched.
+ *
+ * The region is located structurally, never by indentation or column:
+ *   1. the source is masked, so class- or method-shaped text inside a comment, a string,
+ *      a template literal, or a regular expression cannot be matched;
+ *   2. the named `class` declaration is located in the masked source;
+ *   3. that class's body is bounded by its own balanced braces;
+ *   4. the method is searched for only inside that range;
+ *   5. it must be a **direct** member of the class body rather than something nested
+ *      deeper inside another method;
+ *   6. the region ends at the matching close of the method's own body.
+ *
+ * **Supported syntax is deliberately narrow: ordinary and `async` identifier-named
+ * instance methods only** — `target() {}` and `async target() {}`. Getters, setters,
+ * generators, `async` generators, private `#name` members, computed `["name"]()` keys,
+ * and `static` members are **not** supported and will not be found. A narrow helper that
+ * says so is worth more than a broad one that quietly becomes a partial parser.
+ * @param {string} source
+ * @param {string} className
+ * @param {string} methodName
+ * @returns {string}
+ */
+export function extractClassMethodBlock(source, className, methodName) {
+  const masked = scannableSource(source);
+  const classDeclaration = new RegExp(`(?:^|[^\\w$.])class\\s+${escapeRegExp(className)}\\b`).exec(masked);
+  if (!classDeclaration) {
+    throw new Error(`class ${className} should exist`);
+  }
+  const bodyOpen = masked.indexOf("{", classDeclaration.index + classDeclaration[0].length);
+  if (bodyOpen === -1) {
+    throw new Error(`class ${className} should have a body`);
+  }
+  const bodyClose = findBalancedClose(masked, bodyOpen);
+
+  // A direct member sits exactly one brace inside the class body. Anything deeper belongs
+  // to another method, and anything shallower is outside the class entirely.
+  const member = new RegExp(`(?:async\\s+)?${escapeRegExp(methodName)}\\s*\\(`, "y");
+  let depth = 0;
+  for (let index = bodyOpen + 1; index < bodyClose; index += 1) {
+    const char = masked[index];
+    if (char === "{") { depth += 1; continue; }
+    if (char === "}") { depth -= 1; continue; }
+    if (depth !== 0) continue;
+    // Brace depth alone does not prove a candidate is a class element. A call in a field
+    // initialiser (`field = target();`) or in another method's parameter list
+    // (`other(value = target())`) also sits at class-body depth 0, and matching one of
+    // those produces a region that is not a method at all.
+    //
+    // A class element begins where the previous element ended: at the class body's own
+    // `{`, at the `}` closing a previous method, or at the `;` terminating a previous
+    // field. Requiring that one structural fact is also what makes the unsupported forms
+    // impossible rather than merely listed - `get`, `set`, `static`, `*` and `#` all put
+    // something other than those three characters immediately before the name, and it is
+    // what stops `static async target()` being re-entered at `target` after the `async`
+    // candidate was rejected.
+    //
+    // The narrowing this implies is stated rather than hidden: a method preceded by a
+    // field that relies on automatic semicolon insertion is not found.
+    let beforeCandidate = index;
+    while (beforeCandidate > 0 && /\s/.test(masked[beforeCandidate - 1])) beforeCandidate -= 1;
+    const elementBoundary = beforeCandidate > 0 ? masked[beforeCandidate - 1] : "";
+    if (!"{};".includes(elementBoundary) || elementBoundary === "") continue;
+    member.lastIndex = index;
+    if (!member.test(masked)) continue;
+    // The body brace is found after the parameter list closes, because a default
+    // parameter value can itself contain braces: `target({ a } = {}) {}`.
+    const parameterClose = findBalancedParenClose(masked, masked.indexOf("(", index));
+    const methodBodyOpen = masked.indexOf("{", parameterClose);
+    if (methodBodyOpen === -1) continue;
+    return source.slice(index, findBalancedClose(masked, methodBodyOpen) + 1);
+  }
+  throw new Error(`${className}.${methodName} should exist as a direct class method`);
+}
+
+/**
+ * Index of the parenthesis that closes the one at `openIndex`, walking masked source so a
+ * parenthesis inside a comment, a string, or a regular expression cannot close it.
+ * @param {string} masked
+ * @param {number} openIndex
+ * @returns {number}
+ */
+function findBalancedParenClose(masked, openIndex) {
+  if (openIndex === -1) {
+    throw new Error("Balanced parameter list should include an opening parenthesis.");
+  }
+  let depth = 0;
+  for (let index = openIndex; index < masked.length; index += 1) {
+    const char = masked[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  throw new Error("Balanced parameter list is missing its closing parenthesis.");
+}
+
+/**
+ * Index of the next function declaration that is a sibling of the one starting at
+ * `declarationIndex` — the next one at the same brace depth — or `-1` for the
+ * deliberate end-of-source case.
+ *
+ * `0.33.33.32.28.4.2` published this span with "next top-level function" written as a
+ * `function` keyword at column 0. `0.33.33.33.6` found that this reads a file's layout
+ * rather than its structure: wrapping a controller in an IIFE indents every declaration
+ * by one level, so no candidate matched and every span silently ran to the end of the
+ * file. Across the browser owners already scoped by `0.33.33.33.1` through `.5`, 76 of 96
+ * sampled spans had become whole-file reads. A widened span turns a `doesNotMatch`
+ * assertion into a false failure and, far worse, turns a `match` assertion into a
+ * vacuous one.
+ *
+ * Sibling depth is the structural statement the column test was approximating: a
+ * function at depth 0 of a bare script and a function at depth 1 of an IIFE-wrapped
+ * script are the same thing. Nested helpers sit deeper and still do not end the span,
+ * and a `const` or `class` still does not end it either.
+ * @param {string} masked
+ * @param {number} searchFrom index just past the declaration's own header, so an
+ *   `async function` declaration cannot be terminated by its own `function` keyword
+ * @returns {number}
+ */
+function findNextSiblingFunction(masked, searchFrom) {
+  let depth = 0;
+  for (let index = 0; index < searchFrom; index += 1) {
+    const char = masked[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+  }
+  const declarationDepth = depth;
+
+  // Sticky so each test asks only "does a declaration begin exactly here".
+  // The terminator shape is unchanged from the published contract - `function` plus
+  // whitespace, optionally `async` - so this correction adds brace depth and nothing else.
+  const declarationStart = /(?:async\s+)?function\s+/y;
+  for (let index = searchFrom; index < masked.length; index += 1) {
+    const char = masked[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+    if (depth !== declarationDepth) continue;
+    // A declaration begins at a token boundary, so `myfunction` and `.function` are not
+    // candidates.
+    const previous = masked[index - 1];
+    if (previous !== undefined && /[\w$.]/.test(previous)) continue;
+    declarationStart.lastIndex = index;
+    if (!declarationStart.test(masked)) continue;
+    // Only a declaration ends a span, never a function expression. Reading depth rather
+    // than column made this matter: under the old column-0 rule an expression could only
+    // be mistaken for a declaration if it began a line, whereas at the same brace depth
+    // `const handler = function (event) {}`, `register(function (event) {})`, and a named
+    // function expression all sit exactly where a declaration would.
+    //
+    // A declaration stands in statement position, so the last significant character before
+    // it is a `;`, a brace, or nothing at all. `=`, `(`, `,`, `:` and the rest introduce an
+    // expression. This also subsumes `export function`, which has never ended a span and
+    // still does not, because the character before its keyword is a letter.
+    let beforeKeyword = index;
+    while (beforeKeyword > 0 && /\s/.test(masked[beforeKeyword - 1])) beforeKeyword -= 1;
+    const precedingToken = beforeKeyword > 0 ? masked[beforeKeyword - 1] : "";
+    if (precedingToken !== "" && !/[;{}]/.test(precedingToken)) continue;
+    // The span ends where the next declaration's line begins, not at its keyword, so a
+    // bare script's span is byte-identical to the one this helper has always returned.
+    let lineStart = index;
+    while (lineStart > searchFrom && /[ \t]/.test(masked[lineStart - 1])) lineStart -= 1;
+    return lineStart > searchFrom && masked[lineStart - 1] === "\n" ? lineStart - 1 : index;
+  }
+  return -1;
+}
+
+/**
+ * @param {string} masked
+ * @param {string} functionName
+ * @returns {RegExpExecArray}
+ */
+function findDeclaration(masked, functionName) {
+  const declaration = new RegExp(`(?:async\\s+)?function\\s+${escapeRegExp(functionName)}\\s*\\(`).exec(masked);
   if (!declaration) {
     throw new Error(`${functionName} should exist`);
   }
-  const signature = extractCallExpression(source, declaration.index);
-  const openBrace = source.indexOf("{", declaration.index + signature.length);
-  return source.slice(declaration.index, findBalancedClose(source, openBrace) + 1);
+  return declaration;
 }
 
+/**
+ * Walk the parameter list as a balanced group and answer the brace that opens
+ * the body. The parameter list is walked rather than searched because a default
+ * such as `(candidate = {})` puts a brace inside the signature.
+ * @param {string} masked
+ * @param {RegExpExecArray} declaration
+ * @param {string} functionName
+ * @returns {number}
+ */
+function findBodyBrace(masked, declaration, functionName) {
+  let cursor = declaration.index + declaration[0].length - 1;
+  let parens = 0;
+  for (; cursor < masked.length; cursor += 1) {
+    if (masked[cursor] === "(") parens += 1;
+    else if (masked[cursor] === ")") {
+      parens -= 1;
+      if (parens === 0) break;
+    }
+  }
+  const openBrace = masked.indexOf("{", cursor);
+  if (openBrace === -1) {
+    throw new Error(`${functionName} should have a body`);
+  }
+  return openBrace;
+}
+
+/**
+ * @param {string} source
+ * @param {readonly string[]} snippets
+ * @returns {boolean}
+ */
 export function sourceContainsInOrder(source, snippets) {
   let cursor = 0;
   for (const snippet of snippets) {
@@ -73,6 +401,11 @@ export function sourceContainsInOrder(source, snippets) {
   return true;
 }
 
+/**
+ * @param {string} source
+ * @param {number} startIndex
+ * @returns {string}
+ */
 export function extractCallExpression(source, startIndex) {
   const openIndex = source.indexOf("(", startIndex);
   let depth = 0;
@@ -129,7 +462,12 @@ export function extractCallExpression(source, startIndex) {
   return source.slice(startIndex);
 }
 
+/**
+ * @param {string} source
+ * @returns {string[]}
+ */
 export function splitTopLevelArguments(source) {
+  /** @type {string[]} */
   const args = [];
   let depth = 0;
   let escapeNext = false;
@@ -190,6 +528,10 @@ export function splitTopLevelArguments(source) {
   return args;
 }
 
+/**
+ * @param {string} currentPath
+ * @param {string[]} results
+ */
 function walk(currentPath, results) {
   const stat = statSync(currentPath);
 
@@ -205,28 +547,24 @@ function walk(currentPath, results) {
   }
 }
 
-function findBalancedClose(source, openIndex) {
+/**
+ * Answer the brace matching the one at `openIndex`.
+ *
+ * This walks masked source, where every comment, string, template-literal
+ * text, and regular-expression literal has already been blanked, so it counts
+ * braces and nothing else.
+ * @param {string} masked
+ * @param {number} openIndex
+ * @returns {number}
+ */
+function findBalancedClose(masked, openIndex) {
   if (openIndex === -1) {
     throw new Error("Balanced source block should include an opening brace.");
   }
   let depth = 0;
-  let escapeNext = false;
-  let quote = "";
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-    if (quote) {
-      if (escapeNext) {
-        escapeNext = false;
-      } else if (char === "\\") {
-        escapeNext = true;
-      } else if (char === quote) {
-        quote = "";
-      }
-      continue;
-    }
-    if (char === "\"" || char === "'" || char === "`") {
-      quote = char;
-    } else if (char === "{") {
+  for (let index = openIndex; index < masked.length; index += 1) {
+    const char = masked[index];
+    if (char === "{") {
       depth += 1;
     } else if (char === "}") {
       depth -= 1;
@@ -238,6 +576,283 @@ function findBalancedClose(source, openIndex) {
   throw new Error("Balanced source block is missing its closing brace.");
 }
 
-function escapeRegExp(value) {
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * @param {string} relativePath
+ * @returns {string}
+ */
+function normalizeReaderPath(relativePath) {
+  const normalizedPath = String(relativePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
+  if (!normalizedPath || path.isAbsolute(normalizedPath) || normalizedPath.split("/").includes("..")) {
+    throw new Error(`Project source reads require an explicit repository-relative path: ${relativePath}`);
+  }
+  return normalizedPath;
+}
+
+/**
+ * Characters after which a `/` opens a regular-expression literal rather than
+ * dividing. The list is the operator and punctuator set that cannot end an
+ * expression, so nothing can be divided by what follows them.
+ */
+const REGEX_MAY_FOLLOW = new Set(["(", ",", "=", ":", "[", "!", "&", "|", "?", "+", "-", "*", "%", "^", "~", ";", "{", "}", "<", ">", "\n"]);
+
+/** Keywords after which a `/` opens a regular-expression literal. */
+const REGEX_MAY_FOLLOW_WORD = /(?:^|[^A-Za-z0-9_$])(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)$/;
+
+/** Masking is O(source) and the same file is extracted from dozens of times. */
+const MASK_CACHE_LIMIT = 16;
+/** @type {Map<string, string>} */
+const maskCache = new Map();
+
+/**
+ * Blank every character that is not executable code, preserving length and
+ * every line break so an index into the result is an index into the original.
+ *
+ * Comments, string bodies, template-literal text, and regular-expression
+ * literals are replaced with spaces. Template *substitutions* stay code,
+ * because they are, and their brace depth is tracked so an object literal
+ * inside `${...}` does not close the substitution early.
+ *
+ * **What this is not.** It is a lexical scanner, not a JavaScript parser, and
+ * it commits to one measured reading of the language's genuine ambiguity: a
+ * `/` immediately after `)` is division. That is correct for all 49 occurrences
+ * in this repository, every one of them arithmetic such as
+ * `Math.floor((a - b) / 1000)`. The form it therefore cannot read is a regular
+ * expression in that position, as in `if (ok) /x/.test(value)`; no first-party
+ * source contains one. A `/` that is classified as a regular expression but
+ * does not terminate on its own line is reclassified as division, because a
+ * regular-expression literal cannot span a line break.
+ *
+ * Rather than let a misreading pass silently, `scannableSource` checks that the
+ * masked braces balance and refuses the source if they do not.
+ * @param {string} source
+ * @returns {string}
+ */
+function maskNonCode(source) {
+  const masked = [...source];
+  /** @type {Array<{ kind: string, depth: number }>} */
+  const stack = [{ kind: "code", depth: 0 }];
+  let index = 0;
+  let previousCode = "";
+
+  /** @param {number} from @param {number} to */
+  const blank = (from, to) => {
+    for (let at = from; at < to && at < masked.length; at += 1) {
+      if (masked[at] !== "\n" && masked[at] !== "\r") masked[at] = " ";
+    }
+  };
+
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+    const frame = stack[stack.length - 1];
+
+    if (frame.kind === "line-comment") {
+      if (char === "\n") {
+        stack.pop();
+        index += 1;
+        continue;
+      }
+      blank(index, index + 1);
+      index += 1;
+      continue;
+    }
+    if (frame.kind === "block-comment") {
+      if (char === "*" && next === "/") {
+        blank(index, index + 2);
+        stack.pop();
+        index += 2;
+        continue;
+      }
+      blank(index, index + 1);
+      index += 1;
+      continue;
+    }
+    if (frame.kind === "single" || frame.kind === "double") {
+      if (char === "\\") {
+        blank(index, index + 2);
+        index += 2;
+        continue;
+      }
+      if (char === (frame.kind === "single" ? "'" : "\"")) {
+        stack.pop();
+        previousCode = "\"";
+        index += 1;
+        continue;
+      }
+      blank(index, index + 1);
+      index += 1;
+      continue;
+    }
+    if (frame.kind === "template") {
+      if (char === "\\") {
+        blank(index, index + 2);
+        index += 2;
+        continue;
+      }
+      if (char === "$" && next === "{") {
+        stack.push({ kind: "substitution", depth: 0 });
+        previousCode = "{";
+        index += 2;
+        continue;
+      }
+      if (char === "`") {
+        stack.pop();
+        previousCode = "`";
+        index += 1;
+        continue;
+      }
+      blank(index, index + 1);
+      index += 1;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      stack.push({ kind: "line-comment", depth: 0 });
+      blank(index, index + 2);
+      index += 2;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      stack.push({ kind: "block-comment", depth: 0 });
+      blank(index, index + 2);
+      index += 2;
+      continue;
+    }
+    if (char === "'" || char === "\"") {
+      stack.push({ kind: char === "'" ? "single" : "double", depth: 0 });
+      index += 1;
+      continue;
+    }
+    if (char === "`") {
+      stack.push({ kind: "template", depth: 0 });
+      index += 1;
+      continue;
+    }
+    if (char === "{") {
+      frame.depth += 1;
+      previousCode = "{";
+      index += 1;
+      continue;
+    }
+    if (char === "}") {
+      if (frame.kind === "substitution" && frame.depth === 0) {
+        stack.pop();
+      } else {
+        frame.depth -= 1;
+      }
+      previousCode = "}";
+      index += 1;
+      continue;
+    }
+    if (char === "/") {
+      if (opensRegularExpression(previousCode)) {
+        const end = scanRegularExpression(source, index);
+        if (end !== -1) {
+          blank(index, end);
+          previousCode = "/";
+          index = end;
+          continue;
+        }
+      }
+      previousCode = "/";
+      index += 1;
+      continue;
+    }
+    if (char === "\n") previousCode = "\n";
+    else if (!/\s/.test(char)) previousCode = (previousCode + char).slice(-16);
+    index += 1;
+  }
+
+  return masked.join("");
+}
+
+/**
+ * Mask one source and refuse it if the masking cannot be trusted.
+ *
+ * A source whose masked braces do not balance has been misread — an
+ * unsupported lexical form, an unterminated literal, or a fragment rather than
+ * a file. Returning a region cut from a misread source is the failure mode
+ * these helpers exist to prevent, because a truncated region makes
+ * `assert.doesNotMatch` pass for the wrong reason.
+ * @param {string} source
+ * @returns {string}
+ */
+export function scannableSource(source) {
+  const cached = maskCache.get(source);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const masked = maskNonCode(source);
+  let depth = 0;
+  for (const char of masked) {
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth < 0) {
+        throw new Error("Source could not be scanned: a closing brace appears before its opening brace once comments, strings, template literals, and regular expressions are masked. source-scan reads a `/` after `)` as division, so it cannot read a regular-expression literal in that position.");
+      }
+    }
+  }
+  if (depth !== 0) {
+    throw new Error(`Source could not be scanned: ${depth} unclosed brace(s) once comments, strings, template literals, and regular expressions are masked. source-scan reads a \`/\` after \`)\` as division, so it cannot read a regular-expression literal in that position.`);
+  }
+  if (maskCache.size >= MASK_CACHE_LIMIT) {
+    maskCache.delete(/** @type {string} */ (maskCache.keys().next().value));
+  }
+  maskCache.set(source, masked);
+  return masked;
+}
+
+/**
+ * @param {string} previousCode the last few code characters before the slash
+ * @returns {boolean}
+ */
+function opensRegularExpression(previousCode) {
+  const last = previousCode.slice(-1);
+  if (last === "" || REGEX_MAY_FOLLOW.has(last)) {
+    return true;
+  }
+  return REGEX_MAY_FOLLOW_WORD.test(previousCode);
+}
+
+/**
+ * @param {string} source
+ * @param {number} openIndex
+ * @returns {number} the index just past the literal and its flags, or -1 when
+ * it does not terminate on its own line, which means it was division after all
+ */
+function scanRegularExpression(source, openIndex) {
+  let inCharacterClass = false;
+  for (let index = openIndex + 1; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "\n") {
+      return -1;
+    }
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (inCharacterClass) {
+      if (char === "]") inCharacterClass = false;
+      continue;
+    }
+    if (char === "[") {
+      inCharacterClass = true;
+      continue;
+    }
+    if (char === "/") {
+      let end = index + 1;
+      while (end < source.length && /[dgimsuvy]/.test(source[end])) end += 1;
+      return end;
+    }
+  }
+  return -1;
 }

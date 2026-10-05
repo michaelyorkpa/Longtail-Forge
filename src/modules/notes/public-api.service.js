@@ -1,25 +1,33 @@
 import { notesService } from "./notes.service.js";
 import { assertNoteConsumerAccess, canExposeNoteToConsumer } from "./consumer-policy.js";
+import { pagePublicApiItems, withWorkspaceFallback } from "../../core/public-api-responses.js";
 
+/** @typedef {import("../../types/http-contracts.js").ApiSession} ApiSession */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceNoteLike} NotesServiceNoteLike */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceQuery} NotesServiceQuery */
+
+/** @param {ApiSession} context @param {NotesServiceQuery} [query] */
 async function listNotes(context, query = {}) {
   const result = await notesService.listAll(context, query);
   const notes = result.notes
     .filter((note) => canExposeNoteToConsumer(note, "notes.public-api"))
-    .map((note) => withWorkspaceAlias(shapePublicNote(note), context));
+    .map((note) => withWorkspaceFallback(shapePublicNote(note), context));
 
-  return paged(notes, query);
+  return pagePublicApiItems(notes, query);
 }
 
+/** @param {ApiSession} context @param {string} noteId */
 async function readNote(context, noteId) {
   const result = await notesService.read(noteId, context);
   const note = result.note;
 
   assertNoteConsumerAccess(note, "notes.public-api");
 
-  return withWorkspaceAlias(shapePublicNote(note), context);
+  return withWorkspaceFallback(shapePublicNote(note), context);
 }
 
-function shapePublicNote(note = {}) {
+/** @param {NotesServiceNoteLike} note */
+function shapePublicNote(note) {
   const shaped = { ...note };
 
   delete shaped.body_html;
@@ -28,42 +36,6 @@ function shapePublicNote(note = {}) {
   delete shaped.searchDocument;
 
   return shaped;
-}
-
-function withWorkspaceAlias(record, context) {
-  if (!record || typeof record !== "object") {
-    return record;
-  }
-
-  return {
-    ...record,
-    workspace_id: record.workspace_id || context.workspace_id,
-  };
-}
-
-function paged(items, query) {
-  const limit = clampInteger(query.limit, 1, 100, 50);
-  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
-
-  return {
-    data: items.slice(offset, offset + limit),
-    pagination: {
-      limit,
-      offset,
-      total: items.length,
-      has_more: offset + limit < items.length,
-    },
-  };
-}
-
-function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(value, 10);
-
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-
-  return Math.min(Math.max(parsed, min), max);
 }
 
 export const notesPublicApiService = {

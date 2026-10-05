@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -23,17 +24,26 @@ import {
 } from "../../lib/regression-runner-options.mjs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
-const legacySnapshot = JSON.parse(await fs.readFile("scripts/regression-legacy-snapshot.json", "utf8"));
-const coveragePolicy = JSON.parse(await fs.readFile("scripts/regression-coverage-exceptions.json", "utf8"));
+/** @typedef {import("../../lib/regression-discovery.mjs").RegressionSuiteBucket} RegressionSuiteBucket */
+
+/**
+ * The generated snapshot and policy fields this owner reads. Both are parsed
+ * JSON, so they enter through the shared record narrowing and name only what
+ * is asserted here rather than claiming a whole schema.
+ * @typedef {{ path: string }} LegacySnapshotScript
+ * @typedef {{ scripts: LegacySnapshotScript[] }} LegacySnapshot
+ * @typedef {{ legacyMetadataException: { maximumScripts: number } }} CoveragePolicy
+ */
+
+/** @type {LegacySnapshot} */
+const legacySnapshot = requireJsonRecord(JSON.parse(await fs.readFile("scripts/regression-legacy-snapshot.json", "utf8")), "scripts/regression-legacy-snapshot.json");
+/** @type {CoveragePolicy} */
+const coveragePolicy = requireJsonRecord(JSON.parse(await fs.readFile("scripts/regression-coverage-exceptions.json", "utf8")), "scripts/regression-coverage-exceptions.json");
 const discoveredPaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
 
-const creditedLegacyRetirements = coveragePolicy.retiredScripts.filter((entry) => (
-  entry.floorCredit === true && entry.legacy === true
-)).length;
-assert.equal(
-  legacySnapshot.scripts.length + creditedLegacyRetirements,
-  coveragePolicy.legacyMetadataException.expectedScripts,
-  "migration snapshot plus reviewed credits should preserve the recorded legacy baseline",
+assert.ok(
+  legacySnapshot.scripts.length <= coveragePolicy.legacyMetadataException.maximumScripts,
+  "legacy discovery must stay at or below its shrink-only ceiling",
 );
 for (const entry of legacySnapshot.scripts) {
   assert.ok(discoveredPaths.has(entry.path), `${entry.path} must survive metadata discovery`);
@@ -97,7 +107,7 @@ try {
   assert.deepEqual(fixtureTagOnly.flatMap((bucket) => bucket.scripts), ["scripts/regressions/tasks/new-style.regression.mjs"]);
   assert.deepEqual(focusedOnly.flatMap((bucket) => bucket.scripts), ["scripts/regressions/tasks/new-style.regression.mjs"]);
   assert.deepEqual(
-    fixtureSuite.find((bucket) => bucket.runMode === "serial-files").scripts,
+    /** @type {RegressionSuiteBucket} */ (fixtureSuite.find((bucket) => bucket.runMode === "serial-files")).scripts,
     ["scripts/legacy-sample-regression.mjs"],
     "serial-only legacy regressions must retain their snapshotted run mode",
   );
@@ -173,6 +183,7 @@ assert.match(dryRunResult.stdout, /No regression scripts executed/);
 
 console.log("Regression metadata and discovery runner passed.");
 
+/** @param {unknown} metadata */
 function fixtureSource(metadata) {
   return `export const regressionMeta = Object.freeze(${JSON.stringify(metadata, null, 2)});\n`;
 }

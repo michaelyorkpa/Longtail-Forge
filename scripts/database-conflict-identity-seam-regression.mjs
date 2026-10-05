@@ -1,20 +1,20 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const dialectContractVersion = "0.33.6.14a";
-const conflictIdentitySliceVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-conflict-identity-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-conflict-identity-seams.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Conflict-Identity-Seams-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
@@ -22,7 +22,7 @@ const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js"
 const jobQueueSource = readText("src/core/jobs/job-queue.js");
 const jobRunnerSource = readText("src/core/jobs/job-runner.js");
 const jobsServiceSource = readText("src/services/jobs.service.js");
-const parameterAuditRegression = readText("scripts/parameter-binding-audit-regression.mjs");
+const parameterAuditRegression = readText("scripts/regression-contracts/database/parameter-binding-audit.contract.mjs");
 
 const {
   closeDatabase,
@@ -69,14 +69,12 @@ function assertStaticContract() {
   assert.doesNotMatch(parameterAuditRegression, /src\/core\/jobs\/job-runner\.js:\d+/, "parameter-binding audit should not allowlist raw job runner RETURNING");
   assert.doesNotMatch(parameterAuditRegression, /src\/services\/jobs\.service\.js:\d+/, "parameter-binding audit should not allowlist raw jobs service RETURNING");
 
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.3 - Upsert\/conflict and identity\/RETURNING seams[\s\S]*- \[x\] Implement the provider-neutral upsert\/conflict helper[\s\S]*- \[x\] Implement the returned-row\/last-insert identity seam[\s\S]*- \[x\] Decide the durable-job `RETURNING` outcome[\s\S]*- \[x\] Convert one low-risk proof path/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.3[\s\S]*`databaseDialect\.conflict\.buildInsertOrIgnore\(\.\.\.\)`[\s\S]*[Dd]urable job[\s\S]*returning seam/, "database docs should describe the conflict and identity seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.3 Upsert\/Conflict and Identity Seams[\s\S]*durable-job `RETURNING` statements are converted to the provider returning seam/, "audit docs should record the durable-job RETURNING resolution");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(conflictIdentitySliceVersion)} - [\\s\\S]*upsert\\/conflict and identity seams[\\s\\S]*durable job`), "changelog should record the conflict and identity seam slice");
   }
 
 async function assertStartupConflictProofPath() {
-  const row = await db.get(`
+  const row = requireRow(await db.get(`
 SELECT COUNT(*) AS total
 FROM role_permissions
 WHERE role_id = :roleId
@@ -84,11 +82,11 @@ WHERE role_id = :roleId
 `, {
     permissionId: "roles.assign",
     roleId: "project_admin",
-  });
+  }), "row");
   assert.equal(Number(row.total), 1, "startup conflict proof path should preserve the project-admin role assignment repair");
 }
 
-async function assertConflictStatementBuilders(dialect) {
+async function assertConflictStatementBuilders(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE conflict_identity_proof (
   record_id TEXT PRIMARY KEY,
@@ -186,7 +184,7 @@ CREATE TABLE conflict_identity_proof (
   );
 }
 
-async function assertLastInsertIdentitySeam(dialect) {
+async function assertLastInsertIdentitySeam(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE last_insert_identity_proof (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,7 +208,8 @@ WHERE id = ${dialect.identity.lastInsertRowId()};
 }
 
 async function assertDurableJobReturningSeams() {
-  const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireRow(await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "workspace");
   assert.ok(workspace?.workspace_id, "fresh database should have a workspace for durable job proof");
   const now = "2026-07-05T14:10:00.000Z";
 
@@ -224,6 +223,7 @@ async function assertDurableJobReturningSeams() {
     workspaceId: workspace.workspace_id,
   });
   assert.equal(inserted.action, "inserted");
+  assert.ok(inserted.job, "the conflict-identity insert should return its job");
   assert.equal(inserted.job.jobId, "conflict-identity-proof-job");
   assert.equal(inserted.job.status, "pending");
 
@@ -236,6 +236,7 @@ async function assertDurableJobReturningSeams() {
     workspaceId: workspace.workspace_id,
   });
   assert.equal(updated.action, "updated", "deduped pending enqueue should still return the updated job row through the seam");
+  assert.ok(updated.job, "the conflict-identity update should return its job");
   assert.equal(updated.job.jobId, "conflict-identity-proof-job");
   assert.equal(updated.job.priority, 5);
 
@@ -279,12 +280,4 @@ WHERE job_id = :jobId;
 async function assertIntegrity() {
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "conflict and identity seam regression database should pass integrity check");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

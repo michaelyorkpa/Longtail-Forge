@@ -2,13 +2,108 @@
 
 (function attachNotesLinkedPanel(global) {
   const namespace = global.LongtailForge = global.LongtailForge || {};
-  const api = namespace.api;
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserMountedPanel} BrowserMountedPanel */
+
+  /** @typedef {ReturnType<typeof normalizeOptions>} PanelOptions */
+
+  /**
+   * The container, as the panel uses it.
+   *
+   * `mount` establishes `replaceChildren` before its first render, because it renders at once.
+   * `dispatchEvent` is established where it is used, by `emit`, because a container without one
+   * used to render and then fail only when the first event was emitted - and still does.
+   * @typedef {{ replaceChildren: Element["replaceChildren"], dispatchEvent?: unknown }} PanelContainer
+   */
+
+  /**
+   * @typedef {object} PanelState
+   * @property {string} error
+   * @property {boolean} isLoading
+   * @property {boolean} isLinking
+   * @property {BrowserLinkedNoteItem[]} notes
+   * @property {PanelOptions} options
+   * @property {BrowserLinkedNotePanelResponse | null} panel
+   * @property {readonly unknown[]} selectableNotes written once, read nowhere
+   * @property {string} status
+   */
+
+  /**
+   * An opaque value read for its members, the way a plain member access read it.
+   *
+   * `null` and `undefined` still fail, as the member access failed; anything else is read through
+   * `Object`, which leaves an object as itself and boxes a primitive the way a member read does.
+   * @param {unknown} value
+   * @returns {Record<string, unknown>}
+   */
+  function panelFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("The linked notes panel cannot read members of a missing value.");
+    }
+    /** @type {Record<string, unknown>} */
+    const fields = Object(value);
+    return fields;
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is PanelContainer}
+   */
+  function isPanelContainer(value) {
+    return value !== null && typeof value === "object" && typeof Reflect.get(value, "replaceChildren") === "function";
+  }
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("The linked notes panel requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
+      throw new Error("The linked notes panel requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
+  /**
+   * `container` and `options` stay `unknown`, which is what `BrowserNotesLinkedPanel.mount`
+   * publishes. A missing container fails first, as before; a present one that cannot replace its
+   * children failed at the first render, a moment later, and now fails at the same call with a
+   * message, still as a `TypeError`, after `options` has been read exactly as it always was.
+   * @param {unknown} container
+   * @param {unknown} [options]
+   * @returns {BrowserMountedPanel}
+   */
   function mount(container, options = {}) {
     if (!container) {
       throw new Error("Notes linked panel container is required.");
     }
 
+    /** @type {PanelState} */
     const state = {
       error: "",
       isLoading: false,
@@ -19,6 +114,9 @@
       selectableNotes: [],
       status: "",
     };
+    if (!isPanelContainer(container)) {
+      throw new TypeError("The linked notes panel container must be able to replace its children.");
+    }
     const controller = {
       refresh: () => refresh(container, state),
       destroy: () => container.replaceChildren(),
@@ -29,7 +127,12 @@
     return controller;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   async function refresh(container, state) {
+    const api = requireApi();
     const { options } = state;
 
     if (!options.targetType || !options.targetId) {
@@ -60,19 +163,26 @@
       if (options.projectId) {
         params.set("projectId", options.projectId);
       }
-      const panel = await api.getJson(`/api/notes/for-target?${params.toString()}`, { cache: "no-store" });
+      const panel = readForTarget(await api.getJson(`/api/notes/for-target?${params.toString()}`, { cache: "no-store" }));
+      if (!panel) {
+        throw new Error("Linked notes could not be read.");
+      }
       state.panel = panel;
-      state.notes = panel.linkedNotes || [];
+      state.notes = panel.linkedNotes;
       state.status = "";
       emit(container, "refresh", { notes: state.notes, panel });
     } catch (error) {
-      state.error = error.message || "Linked notes could not be loaded.";
+      state.error = requireErrors().caughtMessage(error, "Linked notes could not be loaded.");
     } finally {
       state.isLoading = false;
       render(container, state);
     }
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function render(container, state) {
     const { options } = state;
     const root = document.createElement("section");
@@ -101,6 +211,10 @@
     container.replaceChildren(root);
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function noteList(container, state) {
     const list = document.createElement("div");
 
@@ -136,23 +250,32 @@
     return list;
   }
 
+  /**
+   * The item the linked-context list hands back to `onRemove`, which is generic in it.
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
+   */
   function linkedNoteListItem(state, note) {
     return {
       className: "notes-linked-panel-item",
       displayLabel: note.label || "Untitled note",
       fullLabel: note.label || "Untitled note",
       hintLabel: note.excerpt || (note.security_mode === "secure" ? "Secure note body is hidden." : ""),
-      isAvailable: note.isAvailable !== false,
+      // No producer sends `isAvailable`: `shapeLinkedNotePanelItem` adds `id`, `label`, `excerpt`,
+      // `sourceUrl` and `links` to the note columns and nothing else, so this answers `true`. It is
+      // read as the undeclared member it is, not declared on a contract no producer honours.
+      isAvailable: ("isAvailable" in note ? note.isAvailable : undefined) !== false,
       moduleId: "notes",
       note,
       removable: canUnlink(state, note),
       secondaryLabel: linkedNoteSecondaryLabel(note),
-      sourceUrl: note.sourceUrl || `notes.html?note=${encodeURIComponent(note.id || "")}`,
+      sourceUrl: note.sourceUrl || `notes.html?note=${encodeURIComponent(String(note.id || ""))}`,
       targetId: note.id || "",
       targetType: "note",
     };
   }
 
+  /** @param {BrowserLinkedNoteItem} note */
   function linkedNoteSecondaryLabel(note) {
     return [note.visibility, note.security_mode, note.status]
       .filter(Boolean)
@@ -160,6 +283,11 @@
       .join(" | ");
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
+   */
   function noteItem(container, state, note) {
     const item = document.createElement("article");
     const body = document.createElement("div");
@@ -192,6 +320,10 @@
     return item;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function panelControls(container, state) {
     const wrapper = document.createElement("div");
     const create = document.createElement("a");
@@ -218,12 +350,17 @@
     return wrapper;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function linkExistingForm(container, state) {
     const form = document.createElement("form");
     const select = document.createElement("select");
     const search = document.createElement("input");
     const submit = document.createElement("button");
-    let searchTimer = null;
+    /** @type {number | undefined} */
+    let searchTimer;
 
     form.className = "notes-linked-panel-link-form";
     search.type = "search";
@@ -247,7 +384,13 @@
     return form;
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {HTMLSelectElement} select
+   * @param {string} [search]
+   */
   async function loadSelectableNotes(state, select, search = "") {
+    const api = requireApi();
     select.disabled = true;
     select.replaceChildren(new global.Option("Loading notes...", ""));
 
@@ -260,10 +403,15 @@
       if (String(search || "").trim()) {
         params.set("q", String(search || "").trim());
       }
-      const result = await api.getJson(`/api/notes?${params.toString()}`, { cache: "no-store" });
+      const selectable = readSelectableNoteList(await api.getJson(`/api/notes?${params.toString()}`, { cache: "no-store" }));
+
+      if (!selectable) {
+        throw new Error("The selectable note list could not be read.");
+      }
+
       const linkedIds = new Set(state.notes.map((note) => note.id));
       const needle = String(search || "").trim().toLowerCase();
-      const notes = (result.notes || [])
+      const notes = selectable
         .filter((note) => !linkedIds.has(note.note_id))
         .filter((note) => !needle || [note.title, note.body_excerpt].filter(Boolean).join(" ").toLowerCase().includes(needle))
         .slice(0, 50);
@@ -277,7 +425,13 @@
     }
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   * @param {string} noteId
+   */
   async function linkExistingNote(container, state, noteId) {
+    const api = requireApi();
     if (!noteId) {
       return;
     }
@@ -290,27 +444,38 @@
       state.isLinking = false;
       await refresh(container, state);
     } catch (error) {
-      state.error = error.message || "Note could not be linked.";
+      state.error = requireErrors().caughtMessage(error, "Note could not be linked.");
       state.isLinking = false;
       render(container, state);
     }
   }
 
+  /**
+   * `note.links` is container-checked with its rows deliberately unpromised, so each row is read
+   * through `panelFields`, which answers what the member access answered and still fails on a
+   * missing row. The link id reaches the route through the template's ToString, which is the
+   * conversion `encodeURIComponent` applied.
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
+   */
   async function unlinkNote(container, state, note) {
+    const api = requireApi();
     const link = (note.links || []).find((item) =>
-      (item.targetType || item.target_type) === state.options.targetType &&
-      (item.targetId || item.target_id) === state.options.targetId);
-    const noteLinkId = link?.noteLinkId || link?.note_link_id;
+      (panelFields(item).targetType || panelFields(item).target_type) === state.options.targetType &&
+      (panelFields(item).targetId || panelFields(item).target_id) === state.options.targetId);
+    const noteLinkId = link === undefined ? undefined : panelFields(link).noteLinkId || panelFields(link).note_link_id;
 
     if (!noteLinkId) {
       return;
     }
 
-    await api.postJson(`/api/notes/${encodeURIComponent(note.id)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
+    await api.postJson(`/api/notes/${encodeURIComponent(note.id)}/links/${encodeURIComponent(`${noteLinkId}`)}/remove`, {});
     emit(container, "unlink", { noteId: note.id });
     await refresh(container, state);
   }
 
+  /** @param {BrowserLinkedNoteItem} note */
   function badges(note) {
     return [note.visibility, note.security_mode, note.status]
       .filter(Boolean)
@@ -322,6 +487,7 @@
       });
   }
 
+  /** @param {PanelState} state */
   function readonlyNotice(state) {
     const notice = document.createElement("p");
 
@@ -332,14 +498,20 @@
     return notice;
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
+   */
   function canUnlink(state, note) {
     return !isReadonly(state) && state.panel?.actions?.canUnlink !== false && note.status !== "archived";
   }
 
+  /** @param {PanelState} state */
   function isReadonly(state) {
     return state.options.readonly || state.panel?.actions?.readonly || state.panel?.moduleState?.enabled === false;
   }
 
+  /** @param {PanelState} state */
   function panelStatus(state) {
     if (state.error) {
       return state.error;
@@ -353,6 +525,7 @@
     return state.notes.length === 1 ? "1 linked note" : `${state.notes.length} linked notes`;
   }
 
+  /** @param {PanelOptions} options */
   function createNoteUrl(options) {
     const params = new URLSearchParams({
       targetType: options.targetType,
@@ -374,6 +547,7 @@
     return `notes.html?${params.toString()}`;
   }
 
+  /** @param {PanelOptions} options */
   function linkPayload(options) {
     return {
       moduleId: options.moduleId,
@@ -382,44 +556,304 @@
     };
   }
 
+  /**
+   * `message` is mostly a string, but `saveFirstMessage` is the caller's own option passed through
+   * unconverted, so the text goes to the node's own setter - the same conversion as before.
+   * @param {unknown} message
+   * @param {boolean} [isError]
+   */
   function emptyState(message, isError = false) {
     const empty = document.createElement("p");
 
     empty.className = isError ? "notes-linked-panel-empty is-error" : "notes-linked-panel-empty";
-    empty.textContent = message;
+    Reflect.set(empty, "textContent", message);
     return empty;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {string} eventName
+   * @param {unknown} [detail]
+   */
   function emit(container, eventName, detail = {}) {
-    container.dispatchEvent(new CustomEvent(`notes-linked-panel:${eventName}`, { detail }));
+    const dispatchEvent = container.dispatchEvent;
+    if (typeof dispatchEvent !== "function") {
+      throw new TypeError("The linked notes panel container must be able to dispatch events.");
+    }
+    Reflect.apply(dispatchEvent, container, [new CustomEvent(`notes-linked-panel:${eventName}`, { detail })]);
   }
 
+  /**
+   * The caller's options, published as `unknown`. `null` still fails as the member read failed;
+   * everything else is read member by member, in the order the literal always read it.
+   * @param {unknown} [options]
+   */
   function normalizeOptions(options = {}) {
+    const fields = panelFields(options);
     return {
-      clientId: normalizeText(options.clientId || options.client_id),
-      emptyMessage: normalizeText(options.emptyMessage || options.empty_message),
-      moduleId: normalizeText(options.moduleId || options.module_id),
-      projectId: normalizeText(options.projectId || options.project_id),
-      readonly: Boolean(options.readonly),
-      saveFirstMessage: options.saveFirstMessage || "",
-      sort: normalizeText(options.sort) || "updated",
-      targetId: normalizeText(options.targetId || options.target_id),
-      targetType: normalizeText(options.targetType || options.target_type),
-      title: normalizeText(options.title),
+      clientId: normalizeText(fields.clientId || fields.client_id),
+      emptyMessage: normalizeText(fields.emptyMessage || fields.empty_message),
+      moduleId: normalizeText(fields.moduleId || fields.module_id),
+      projectId: normalizeText(fields.projectId || fields.project_id),
+      readonly: Boolean(fields.readonly),
+      saveFirstMessage: fields.saveFirstMessage || "",
+      sort: normalizeText(fields.sort) || "updated",
+      targetId: normalizeText(fields.targetId || fields.target_id),
+      targetType: normalizeText(fields.targetType || fields.target_type),
+      title: normalizeText(fields.title),
     };
   }
 
+  /** @param {unknown} value */
   function normalizeText(value) {
     return String(value || "").trim();
   }
 
+  /** @param {unknown} value */
   function formatToken(value) {
     return String(value || "")
       .replace(/_/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteItem} BrowserLinkedNoteItem */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelResponse} BrowserLinkedNotePanelResponse */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelActions} BrowserLinkedNotePanelActions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelEmptyState} BrowserLinkedNotePanelEmptyState */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteTarget} BrowserLinkedNoteTarget */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNoteListItem} BrowserNoteListItem */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotesModuleState} BrowserNotesModuleState */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteSort} BrowserLinkedNoteSort */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserWorkspaceType} BrowserWorkspaceType */
+
+  /** The four sort modes the panel options normalise to. @type {readonly BrowserLinkedNoteSort[]} */
+  const LINKED_NOTE_SORTS = Object.freeze(["pinned", "recent", "title", "updated"]);
+  /** @type {readonly BrowserWorkspaceType[]} */
+  const PANEL_WORKSPACE_TYPES = Object.freeze(["business", "family", "personal"]);
+
+  /** The note columns `shapeNoteForBrowser` always supplies as text. */
+  const PANEL_NOTE_TEXT_COLUMNS = Object.freeze([
+    "created_at", "library_bucket", "library_bucket_source", "note_id", "note_type",
+    "security_mode", "status", "title", "updated_at", "visibility", "workspace_id",
+  ]);
+
+  /** The note columns it names and may answer as `null`. */
+  const PANEL_NOTE_NULLABLE_COLUMNS = Object.freeze([
+    "archived_at", "body_excerpt", "client_id", "created_by_user_id", "deleted_at",
+    "import_source", "import_source_id", "imported_at", "linked_user_id", "note_collection_id",
+    "owner_user_id", "project_id", "slug", "task_id", "ticket_id", "updated_by_user_id",
+  ]);
+
+  /** The members the panel projection adds over those columns. */
+  const PANEL_ITEM_TEXT_MEMBERS = Object.freeze(["id", "label", "sourceUrl"]);
+
+  /** The three action hints that must all be false while the module cannot be written. */
+  const PANEL_WRITE_ACTIONS = Object.freeze(["canCreate", "canLink", "canUnlink"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isPanelRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasPanelText(value, keys) {
+    return keys.every((key) => typeof value[key] === "string");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasPanelNullableText(value, keys) {
+    return keys.every((key) => value[key] === null || typeof value[key] === "string");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasPanelBooleans(value, keys) {
+    return keys.every((key) => typeof value[key] === "boolean");
+  }
+
+  /**
+   * One linked note as `shapeLinkedNotePanelItem` builds it.
+   *
+   * The three members that shaper **deletes** - the markdown body, the plaintext index and the
+   * metadata blob - are not checked here because they are not promised; a panel item that carried
+   * them would not be what this producer sends.
+   * @param {unknown} value
+   * @returns {value is BrowserLinkedNoteItem}
+   */
+  function isLinkedNoteItem(value) {
+    return isPanelRecord(value)
+      && hasPanelText(value, PANEL_NOTE_TEXT_COLUMNS)
+      && hasPanelNullableText(value, PANEL_NOTE_NULLABLE_COLUMNS)
+      && hasPanelText(value, PANEL_ITEM_TEXT_MEMBERS)
+      && (value.excerpt === null || typeof value.excerpt === "string")
+      && Array.isArray(value.links)
+      && value.note_id !== "";
+  }
+
+  /**
+   * One note as `GET /api/notes` sends it, against the already-published list contract.
+   *
+   * **Not `isLinkedNoteItem`.** That predicate also requires `id`, `label` and `sourceUrl`, which
+   * `shapeLinkedNotePanelItem` adds for the *panel* projection and which this endpoint does not
+   * send - using it here would refuse every note the search returns. What the two share is the
+   * column tables, and those are reused rather than copied into a second divergent list.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteListItem}
+   */
+  function isSelectableNoteItem(value) {
+    return isPanelRecord(value)
+      && hasPanelText(value, PANEL_NOTE_TEXT_COLUMNS)
+      && hasPanelNullableText(value, PANEL_NOTE_NULLABLE_COLUMNS)
+      && Array.isArray(value.tags)
+      && value.note_id !== "";
+  }
+
+  /**
+   * The selectable notes of a `GET /api/notes` body, or `null` when it is not one.
+   *
+   * **Only `notes` is claimed.** `noteListResult` names `notes` and `pagination` and is exact at
+   * that level, but this picker neither reads nor stores the pagination, so validating `notes`
+   * alone is the truthful claim and `BrowserNoteListEnvelope` is deliberately not returned.
+   *
+   * **The producer's own note objects are answered, not rebuilt.** The search filters on `title`
+   * and `body_excerpt` and the option carries `note_id`, but rebuilding to those three would
+   * throw away everything else a list note carries and everything the producer adds next.
+   *
+   * **One malformed note refuses the whole response.** `shapeNoteListProjection` shapes every
+   * note in the batch, so an element this page cannot read means the body is not one this
+   * producer sent; quietly dropping it would present a short link picker as a complete one.
+   * @param {unknown} body
+   * @returns {BrowserNoteListItem[] | null}
+   */
+  function readSelectableNoteList(body) {
+    if (!isPanelRecord(body) || !Array.isArray(body.notes) || !body.notes.every(isSelectableNoteItem)) {
+      return null;
+    }
+
+    return /** @type {BrowserNoteListItem[]} */ (body.notes);
+  }
+
+  /** @param {unknown} value @returns {BrowserLinkedNoteTarget | null} */
+  function readLinkedNoteTarget(value) {
+    if (!isPanelRecord(value) || !hasPanelText(value, ["moduleId", "targetId", "targetType", "sourceUrl"])) {
+      return null;
+    }
+    return {
+      moduleId: String(value.moduleId),
+      sourceUrl: String(value.sourceUrl),
+      targetId: String(value.targetId),
+      targetType: String(value.targetType),
+    };
+  }
+
+  /** @param {unknown} value @returns {BrowserNotesModuleState | null} */
+  function readNotesModuleState(value) {
+    if (!isPanelRecord(value) || !hasPanelBooleans(value, ["enabled", "historicalReadAccess", "notesModuleEnabled"])) {
+      return null;
+    }
+    const workspaceType = PANEL_WORKSPACE_TYPES.find((word) => word === value.workspaceType);
+    return workspaceType ? {
+      enabled: value.enabled === true,
+      historicalReadAccess: value.historicalReadAccess === true,
+      notesModuleEnabled: value.notesModuleEnabled === true,
+      workspaceType,
+    } : null;
+  }
+
+  /**
+   * The action hints, or `null` when they contradict the module state that produced them.
+   *
+   * `readonly` is `!enabled` in the producer, and a module that cannot be written yields three
+   * false hints. The reverse is deliberately **not** enforced: an enabled module may still be
+   * denied create or link by permissions, so an enabled state with false hints is ordinary.
+   * @param {unknown} value
+   * @param {BrowserNotesModuleState} moduleState
+   * @returns {BrowserLinkedNotePanelActions | null}
+   */
+  function readPanelActions(value, moduleState) {
+    if (!isPanelRecord(value) || !hasPanelBooleans(value, ["canCreate", "canLink", "canUnlink", "readonly"])) {
+      return null;
+    }
+    if (value.readonly !== !moduleState.enabled) {
+      return null;
+    }
+    if (!moduleState.enabled && PANEL_WRITE_ACTIONS.some((key) => value[key] === true)) {
+      return null;
+    }
+    return {
+      canCreate: value.canCreate === true,
+      canLink: value.canLink === true,
+      canUnlink: value.canUnlink === true,
+      readonly: value.readonly === true,
+    };
+  }
+
+  /** @param {unknown} value @returns {BrowserLinkedNotePanelEmptyState | null} */
+  function readPanelEmptyState(value) {
+    if (!isPanelRecord(value) || !hasPanelText(value, ["body", "title"]) || !isPanelRecord(value.action)) {
+      return null;
+    }
+    const action = value.action;
+    if (!hasPanelText(action, ["href", "label"])) {
+      return null;
+    }
+    return {
+      action: { href: String(action.href), label: String(action.label) },
+      body: String(value.body),
+      title: String(value.title),
+    };
+  }
+
+  /**
+   * What `GET /api/notes/for-target` answered, or `null` when it cannot be vouched for.
+   *
+   * **Refused whole, never shortened.** This one response decides a note count, the linked list,
+   * the create/link/unlink controls and the read-only state. Dropping a malformed item would hide
+   * a note while leaving the panel looking authoritative, and defaulting a malformed count would
+   * tell Tasks a record has no notes. Both are claims the response never made.
+   * @param {unknown} body
+   * @returns {BrowserLinkedNotePanelResponse | null}
+   */
+  function readForTarget(body) {
+    if (!isPanelRecord(body) || !Array.isArray(body.linkedNotes) || !Array.isArray(body.notes)) {
+      return null;
+    }
+    const sort = LINKED_NOTE_SORTS.find((word) => word === body.sort);
+    const target = readLinkedNoteTarget(body.target);
+    const moduleState = readNotesModuleState(body.moduleState);
+    if (!sort || !target || !moduleState) {
+      return null;
+    }
+    const actions = readPanelActions(body.actions, moduleState);
+    if (!actions) {
+      return null;
+    }
+    // The count needs no separate type or range test: requiring it to be strictly equal to the
+    // list length already forces it to be that number, and a break harness proved every extra
+    // guard around it changed no outcome. One check that bites beats three that decorate.
+    const linkedNotes = body.linkedNotes.filter(isLinkedNoteItem);
+    if (linkedNotes.length !== body.linkedNotes.length
+      || body.count !== linkedNotes.length
+      || body.notes.length !== linkedNotes.length) {
+      return null;
+    }
+    const emptyState = linkedNotes.length > 0 ? null : readPanelEmptyState(body.emptyState);
+    if (linkedNotes.length > 0 ? body.emptyState !== null : !emptyState) {
+      return null;
+    }
+    return {
+      actions,
+      count: body.count,
+      emptyState,
+      linkedNotes,
+      moduleState,
+      notes: body.notes,
+      sort,
+      target,
+    };
+  }
+
   namespace.notesLinkedPanel = {
     mount,
+    readForTarget,
   };
 })(window);

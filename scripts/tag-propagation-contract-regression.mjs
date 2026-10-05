@@ -3,6 +3,13 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+// Tags publishes the session shape this owner drives; it is imported rather
+// than redescribed so the five propagation owners in this checkpoint answer to
+// one contract.
+/** @typedef {import("../src/services/tags.service.js").TagSession} TagSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tag-propagation-contract-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tag-propagation-contract.db");
@@ -116,6 +123,7 @@ async function assertManifestValidation() {
   ]), /workspaceField has an invalid format/);
 }
 
+/** @param {TagSession} session @param {string} taskId @param {string} tagId */
 async function assertTagEventsAndRepairFailures(session, taskId, tagId) {
   internalEventBus.reset();
   internalEventBus.on("tag.assignment.manual_added", async () => {
@@ -140,6 +148,7 @@ async function assertTagEventsAndRepairFailures(session, taskId, tagId) {
   assert.equal(repair.failures.length, 1);
 }
 
+/** @param {TagSession} session @param {string} taskId @param {string} tagId */
 async function assertDisabledModuleBlocksPropagation(session, taskId, tagId) {
   await runSql(`
 UPDATE workspace_modules
@@ -168,6 +177,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {TagSession} session @param {string} taskId @param {string} tagId */
 async function assertRepairDryRun(session, taskId, tagId) {
   await tagsRepository.addAssignment(session.workspace_id, {
     created_by_user_id: session.user_id,
@@ -180,6 +190,7 @@ async function assertRepairDryRun(session, taskId, tagId) {
     target_type: "task",
   });
   const propagated = (await tagsService.listPropagatedTagsForTarget(session, "task", taskId))[0];
+  assert.ok(propagated, "the propagated assignment this repair run suppresses should exist");
   await tagsService.suppressPropagatedAssignment(session, {
     assignmentId: propagated.tag_assignment_id,
   });
@@ -193,6 +204,7 @@ async function assertRepairDryRun(session, taskId, tagId) {
   assert.ok(repair.failed_records >= 1);
 }
 
+/** @param {string} id @param {Record<string, unknown>} [overrides] */
 function manifest(id, overrides = {}) {
   return {
     id,
@@ -206,6 +218,7 @@ function manifest(id, overrides = {}) {
   };
 }
 
+/** @param {string} moduleId @param {string} targetType @param {string} tableName */
 function taggable(moduleId, targetType, tableName) {
   return {
     targetType,
@@ -221,6 +234,7 @@ function taggable(moduleId, targetType, tableName) {
   };
 }
 
+/** @param {Record<string, unknown>} [overrides] */
 function validPropagation(overrides = {}) {
   return {
     id: "source-to-target",
@@ -238,6 +252,7 @@ function validPropagation(overrides = {}) {
   };
 }
 
+/** @returns {Promise<TagSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT user_id, username, home_workspace_id, active_workspace_id
@@ -246,19 +261,11 @@ WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
 `);
-  const user = rows[0];
 
-  assert.ok(user, "protected user should exist");
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected user"));
 }
 
+/** @param {TagSession} session @param {string} title @returns {Promise<{ taskId: string }>} */
 async function createTaskTarget(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -297,6 +304,7 @@ VALUES (
   return { taskId };
 }
 
+/** @param {string} workspaceId */
 async function enableAuditLogging(workspaceId) {
   await runSql(`
 UPDATE workspace_settings

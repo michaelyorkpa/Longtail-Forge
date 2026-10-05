@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { asyncRoute } from "../../core/http.js";
+import { workspaceAsyncRoute } from "../../core/http.js";
 
 const developerExampleRoutes = Router();
 
-developerExampleRoutes.get("/developer-example/status", asyncRoute(async (request, response) => {
+developerExampleRoutes.get("/developer-example/status", workspaceAsyncRoute(async (request, response) => {
   response.status(200).json({
     moduleId: "developer-example",
     workspace_id: request.session.workspace_id,
@@ -12,4 +12,3 @@ developerExampleRoutes.get("/developer-example/status", asyncRoute(async (reques
 }));
 
 export { developerExampleRoutes };
-

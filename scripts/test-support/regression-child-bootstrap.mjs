@@ -14,7 +14,7 @@ if (rawDescriptor) {
   try {
     rawHandshake = readFileSync(descriptor, "utf8");
   } catch (error) {
-    throw new Error(`Could not read verified regression baseline handshake: ${error.message || error}`);
+    throw new Error(`Could not read verified regression baseline handshake: ${/** @type {{ message?: string }} */ (error).message || error}`);
   }
 
   if (Buffer.byteLength(rawHandshake, "utf8") > 64 * 1024) {

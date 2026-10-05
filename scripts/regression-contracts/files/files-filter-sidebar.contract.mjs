@@ -1,0 +1,83 @@
+import assert from "node:assert/strict";
+
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
+const filesHtml = readText("views/protected/files.html");
+const filesScript = readText("public/js/files.js");
+const styles = readText("public/css/longtail-forge.css");
+const frameworkSurfaceSource = readText("src/core/view-surfaces/framework-view-surfaces.js");
+const rendererShellRegression = readText("scripts/regression-contracts/views/view-renderer-shell.contract.mjs");
+
+assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should stay a minimal descriptor host");
+assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load the client/project provider helper, renderer, and shared preview before the Files adapter");
+assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
+
+assert.match(frameworkSurfaceSource, /id:\s*"files\.browse"[\s\S]*layout:\s*"slide-out-sidebar"/, "Files descriptor should use the shared slide-out sidebar layout");
+assert.match(frameworkSurfaceSource, /sidebarLabel:\s*"File filters"/, "Files descriptor should label the slide-out drawer");
+assert.match(frameworkSurfaceSource, /sidebarPanels:[\s\S]*id:\s*"files-browse-filters"[\s\S]*behavior:\s*"files\.browse\.filters"[\s\S]*open:\s*true/, "Files descriptor should mount filters in the drawer");
+assert.match(frameworkSurfaceSource, /detail:[\s\S]*id:\s*"files-browse-results"[\s\S]*behavior:\s*"files\.browse\.results"/, "Files descriptor should mount browse results in the slide-out main region");
+assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should preserve the service-owned attachments read route");
+
+assert.match(filesScript, /registerBehavior\("files\.browse\.filters"/, "Files adapter should register the filter behavior");
+assert.match(filesScript, /registerBehavior\("files\.browse\.results"/, "Files adapter should register the results behavior");
+assert.match(filesScript, /renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without renderer-owned data fetching");
+// 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
+// only source now, so this owner asserts the absence of a local copy rather than its presence,
+// and the descriptor's shape is owned where it is declared - in the module/framework source.
+assert.doesNotMatch(
+  filesScript,
+  /function fallback\w*ViewSurfaceDescriptor\(|LinkedRecordsFallbackDescriptor\(/,
+  "Files must not reintroduce a local descriptor fallback",
+);
+assert.match(
+  filesScript,
+  /surface is Record<string, unknown>[\s\S]*?surface\.id === "files\.browse"[\s\S]*?\|\| null;/,
+  "Files should resolve to null when the server did not deliver its surface",
+);
+
+const filterChrome = extractFunctionSpan(filesScript, "createFilesFilterChrome");
+assert.match(filterChrome, /createFilterLabel\("Filename"[\s\S]*createFilterLabel\("Status"[\s\S]*createBusinessFilterLabel\("Client", createClientSelect\(\)\)[\s\S]*createFilterLabel\("Project", createProjectSelect\(\)\)[\s\S]*createAdvancedTargetFilters\(\)/, "Files filters should expose readable filename/status/client/project controls before advanced target filters");
+assert.doesNotMatch(filterChrome, /Client ID|Project ID|Target ID/, "Normal Files filters should not expose raw ID labels");
+
+const advancedFilters = extractFunctionSpan(filesScript, "createAdvancedTargetFilters");
+assert.match(advancedFilters, /createFilesElement\("summary", \{ text: "Advanced target filters" \}\)/, "Raw target filters should live behind an explicit advanced disclosure");
+assert.match(advancedFilters, /"Module"[\s\S]*"fileFilterModule"[\s\S]*"Target Type"[\s\S]*"fileFilterTargetType"[\s\S]*"Target ID"[\s\S]*"fileFilterTargetId"[\s\S]*"Project ID"[\s\S]*"fileFilterProjectId"/, "Advanced target filters should preserve module, target type, target ID, and raw project ID meanings");
+
+assert.match(filesScript, /api\.getJson\("\/api\/client-projects\?view=options", \{ cache: "no-store" \}\)/, "Files filters should reuse the existing client/project option provider");
+assert.match(filesScript, /requireNamespace\(\)\.clientProjectOptions\?\.normalizeClients\?/, "Files filters should reuse shared client/project option normalization");
+assert.match(filesScript, /createOption\("", "All clients"\)/, "Client filter should use readable select options");
+assert.match(filesScript, /createOption\("", "All projects"\)/, "Project filter should use readable select options");
+assert.match(filesScript, /clientId:\s*usesBusinessScope\(\) \? clientFilter\?\.value : ""/, "Client filter values should only be submitted in Business workspaces");
+assert.match(filesScript, /clientFilter\.disabled = !usesBusinessScope\(\)/, "Non-Business workspaces should not submit the disabled Client filter");
+assert.match(filesScript, /element\.hidden = !usesBusinessScope\(\)/, "Non-Business workspaces should hide Client filter controls");
+assert.match(filesScript, /projectId:\s*projectFilter\?\.value \|\| advancedProjectFilter\?\.value/, "Project filter semantics should support readable options plus explicit advanced IDs");
+
+const bindFilesEvents = extractFunctionSpan(filesScript, "bindFilesEvents");
+assert.match(bindFilesEvents, /filterForm\?\.addEventListener\("submit"[\s\S]*loadFiles\(\)/, "Apply should refetch Files through the browse loader");
+assert.match(bindFilesEvents, /clientFilter\?\.addEventListener\("change"[\s\S]*populateProjectFilter\(\)[\s\S]*loadFiles\(\)/, "Client changes should refresh project options and refetch Files");
+assert.match(bindFilesEvents, /moduleFilter[\s\S]*targetTypeFilter[\s\S]*targetIdFilter[\s\S]*projectFilter[\s\S]*advancedProjectFilter[\s\S]*filenameFilter[\s\S]*statusFilter[\s\S]*addEventListener\("change"[\s\S]*loadFiles\(\)/, "Filter value changes should refetch Files through the Files route");
+assert.match(filesScript, /const params = readFilters\(\);[\s\S]*params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*api\.getJson\(`\/api\/files\/attachments\?\$\{params\.toString\(\)\}`/, "Files browse loader should refetch bounded pages through the Files attachments route");
+
+const fileRow = extractFunctionSpan(filesScript, "fileRow");
+assert.match(fileRow, /clientId:[\s\S]*projectId:/, "Files may keep raw context IDs internally for the modal shell");
+assert.doesNotMatch(fileRow, /clientLabel:\s*[^,\n]*(clientId|client_id)|projectLabel:\s*[^,\n]*(projectId|project_id)/, "Normal Files visible labels should not fall back to raw client/project IDs");
+assert.match(filesScript, /function formatTargetDisplay\(targetType, targetLabel\)/, "Files rows should format target context without normal raw ID fallback");
+
+assert.match(styles, /\.view-slideout-sidebar-drawer \.file-filters,[\s\S]*\.files-advanced-filter-fields\s*\{[\s\S]*grid-template-columns:\s*1fr/, "Files filters should collapse to a stable one-column drawer layout");
+assert.match(styles, /\.files-advanced-filters summary\s*\{[\s\S]*cursor:\s*pointer/, "Advanced filters should have a usable disclosure affordance");
+
+assert.match(rendererShellRegression, /Trigger click should open the slide-out drawer/, "Shared renderer regression should cover slide-out trigger open behavior");
+assert.match(rendererShellRegression, /Backdrop click should close the drawer/, "Shared renderer regression should cover slide-out backdrop close behavior");
+assert.match(rendererShellRegression, /Escape should close the drawer/, "Shared renderer regression should cover slide-out Escape close behavior");
+
+console.log("Files filter sidebar regression passed.");
+
+/** @param {string} html @param {string} label */
+function assertNoProtectedAnatomy(html, label) {
+  const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
+
+  assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} should not ship framework-owned protected view anatomy`);
+  assert.doesNotMatch(body, /\b(data-file-filters|data-file-list|data-file-status|files-table)\b/, `${label} should not ship Files browse hooks outside the descriptor host`);
+}
+// Consolidated under files.current-static-contracts by 0.33.33.11.

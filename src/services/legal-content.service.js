@@ -13,16 +13,29 @@ const DOCUMENT_CONFIG = Object.freeze({
   }),
 });
 
+/** @typedef {keyof typeof DOCUMENT_CONFIG} LegalDocumentId */
+
+/**
+ * The exact legal-content projection this service reads; callers may pass the
+ * full runtime configuration or any structurally matching subset.
+ * @typedef {{ legal: { termsContentPath: string, privacyContentPath: string } }} LegalContentConfiguration
+ */
+
+/** @param {LegalContentConfiguration} [runtimeConfig] */
 function createLegalContentService(runtimeConfig = config) {
+  /**
+   * @param {string} documentId
+   */
   async function read(documentId) {
-    const definition = DOCUMENT_CONFIG[documentId];
-    if (!definition) {
+    if (!Object.hasOwn(DOCUMENT_CONFIG, documentId)) {
       return null;
     }
+    const legalDocumentId = /** @type {LegalDocumentId} */ (documentId);
+    const definition = DOCUMENT_CONFIG[legalDocumentId];
 
     const markdown = await fs.readFile(runtimeConfig.legal[definition.pathKey], "utf8");
     return {
-      id: documentId,
+      id: legalDocumentId,
       title: definition.title,
       bodyHtml: renderMarkdownToHtml(markdown),
     };

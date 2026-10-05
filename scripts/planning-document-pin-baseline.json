@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "recordedAtCheckpoint": "0.33.33.25.8",
+  "definition": {
+    "unit": "Each discovered regression entry in scripts/regression-coverage-manifest.json, scanning the entry source plus its folded contract modules as one text.",
+    "historicalContentPinners": "Entries whose source references ROADMAP-ARCHIVE.md or CHANGELOG.md. Release acceptance requires zero by 0.33.33.32; checkpoints 0.33.33.29-0.33.33.32 own the stripping.",
+    "planningDocumentReaders": "Entries whose source references ROADMAP.md, ROADMAP-ARCHIVE.md, or CHANGELOG.md. The release-wide fewer-than-40 target is measured against this list after stripping.",
+    "exclusions": "release.historical-evidence-retirement (the scanning owner) and non-discovered runner/ceremony tooling are excluded by construction. Cursor-floor callers using scripts/lib/roadmap-cursor.mjs without naming a planning document are excluded by construction because the scan matches document names, not helper imports.",
+    "relationToAudit": "The 2026-08-17 audit counted 39 discovered entries asserting on CHANGELOG content and 75 asserting on any planning document; this mention-based scan is intentionally broader (59/100 at baseline) so ceremony-string references also shrink or are consciously retained.",
+    "maintenance": "Shrink-only. Removing a pin requires deleting its id here in the same change; adding any id is prohibited and fails release.historical-evidence-retirement.",
+    "reviewedDispositions": "Reviewed release/docs-area entries recorded at checkpoint 0.33.33.29. Each was inspected and found to reference planning-document filenames as ceremony path strings, synthetic fixture content, or detector patterns rather than as historical product evidence, so each asserts a current live contract and is consciously retained under the release-wide acceptance. Stripping remains owned by later checkpoints for their own areas."
+  },
+  "historicalContentPinners": [
+    "legacy.bump.version",
+    "release.changed-regression-auto-run",
+    "release.current-static-contracts",
+    "release.developer-verification-throughput",
+    "release.github-only-docs-workflow-routing",
+    "release.regression-routing-commands",
+    "release.runtime-artifact-boundary"
+  ],
+  "planningDocumentReaders": [
+    "database.current-static-contracts",
+    "legacy.better.sqlite3.driver.closeout",
+    "legacy.better.sqlite3.helper.core",
+    "legacy.bump.version",
+    "legacy.database.migration.locking",
+    "legacy.database.parameterized.query.pilot",
+    "legacy.database.result.fidelity",
+    "legacy.database.transaction.helper",
+    "legacy.file.multipart.batch.upload.helper",
+    "legacy.file.multipart.upload.route",
+    "legacy.file.upload.compatibility.error.hardening",
+    "legacy.runtime.local.env.materialization",
+    "legacy.sqlite.connection.hardening",
+    "legacy.task.modal.complete.action",
+    "legacy.task.reminder.notification.delivery",
+    "release.changed-regression-auto-run",
+    "release.current-static-contracts",
+    "release.developer-verification-throughput",
+    "release.github-only-docs-workflow-routing",
+    "release.playwright-dev-only-boundary",
+    "release.public-demo-compose-reset",
+    "release.public-demo-reset-scheduler",
+    "release.regression-routing-commands",
+    "release.runtime-artifact-boundary"
+  ],
+  "reviewedDispositions": {
+    "legacy.bump.version": "Retained: writes a synthetic CHANGELOG.md into a temporary directory as version-bump fixture input; never reads repository history.",
+    "release.changed-regression-auto-run": "Retained: lists CHANGELOG.md and ROADMAP.md as ceremony path strings to assert current changed-path routing behavior.",
+    "release.current-static-contracts": "Retained: owns the archived-evidence detector itself. It matches the pattern against a string literal to prove the detector fires, then asserts every other release-gate owner does not match it. Removing these strings would delete the enforcement mechanism.",
+    "release.developer-verification-throughput": "Retained: uses ceremony path strings to assert current slice routing, checkpoint trailer validation, and the deferred release-identity rules.",
+    "release.github-only-docs-workflow-routing": "Retained: lists release bookkeeping paths to assert the current GitHub-only documentation classifier.",
+    "release.regression-routing-commands": "Retained: passes ceremony paths to assert current routing command selection.",
+    "release.runtime-artifact-boundary": "Retained: lists ceremony paths in the runtime-artifact exclusion boundary it asserts."
+  }
+}

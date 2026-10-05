@@ -1,5 +1,3 @@
-// @ts-check
-
 /** @typedef {"permitted" | "read_only" | "disabled" | "hourly_resettable"} PublicDemoCapabilityClassification */
 /** @typedef {{ id: string, classification: PublicDemoCapabilityClassification }} PublicDemoCapabilityDefinition */
 
@@ -71,6 +69,9 @@ function listPublicDemoCapabilities() {
   return PUBLIC_DEMO_CAPABILITIES.map((entry) => ({ ...entry }));
 }
 
+/**
+ * @param {string} capabilityId
+ */
 function getPublicDemoCapability(capabilityId) {
   const entry = PUBLIC_DEMO_CAPABILITIES_BY_ID.get(String(capabilityId || "").trim());
   if (!entry) {

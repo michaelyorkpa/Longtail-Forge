@@ -1,5 +1,3 @@
-// @ts-check
-
 import { db } from "../core/database.js";
 import { accountExportRecoveryRepository } from "./account-export-recovery.repo.js";
 
@@ -14,12 +12,13 @@ import { accountExportRecoveryRepository } from "./account-export-recovery.repo.
 /** @typedef {DatabaseRow & { name: string }} DatabaseTableNameRow */
 /** @typedef {DatabaseRow & { name: string }} DatabaseColumnRow */
 /** @typedef {DatabaseRow & { count: unknown }} PurgeCountRow */
+/** @typedef {DatabaseRow & { status: string, purged_at: string | null, attempt_count: unknown, file_object_count: unknown, file_object_bytes: unknown, database_row_count: unknown }} WorkspacePurgeTombstone */
 /** @typedef {{ workspaceId: string, workspaceFingerprint: string, now: string, purgeJobId: string, purgeToken: string, purgeTombstoneId: string }} PurgeFenceInput */
 /** @typedef {{ workspaceId: string, workspaceFingerprint: string, now: string, purgeToken: string, prepareArtifacts: (transaction: TransactionClient) => Promise<{ fileObjectBytes: number, fileObjectCount: number }> }} PurgeFinalizeInput */
 
-/** @param {string} workspaceFingerprint */
+/** @param {string} workspaceFingerprint @returns {Promise<WorkspacePurgeTombstone | null>} */
 async function readTombstone(workspaceFingerprint) {
-  return db.get(`
+  return /** @type {Promise<WorkspacePurgeTombstone | null>} */ (db.get(`
 SELECT
   purge_tombstone_id,
   workspace_fingerprint,
@@ -37,7 +36,7 @@ SELECT
 FROM workspace_purge_tombstones
 WHERE workspace_fingerprint = :workspaceFingerprint
 LIMIT 1;
-`, { workspaceFingerprint });
+  `, { workspaceFingerprint }));
 }
 
 /** @param {PurgeFenceInput} value */

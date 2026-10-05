@@ -22,8 +22,6 @@ const runtime = readFileSync("docs/runtime-configuration.md", "utf8");
 const operations = readFileSync("docs/operational-security.md", "utf8");
 const readiness = readFileSync("docs/private-preview-readiness.md", "utf8");
 const preview = readFileSync("docs/marketing/friends-and-family-preview.md", "utf8");
-const roadmapArchive = readFileSync("ROADMAP-ARCHIVE.md", "utf8");
-const changelog = readFileSync("CHANGELOG.md", "utf8");
 
 for (const requirement of [
   /two reviewed Longtail Forge private-internet-preview proxy topologies/i,
@@ -242,12 +240,6 @@ assert.match(operations, /pre-invitation/i);
 assert.match(readiness, /record `nginx -t`[\s\S]*exact WireGuard edge peer[\s\S]*forwarding-chain collapse[\s\S]*real client-IP attribution/i);
 assert.match(preview, /invitations remain blocked/i);
 assertRoadmapCursorAtLeast(["0", "33", "24", "3"].join("."), "private-Caddy maintenance routing closeout");
-assert.match(roadmapArchive, /^## Version 0\.33\.24\.2 - Private-Caddy maintenance routing and Node-outage fallback$/m);
-assert.match(roadmapArchive, /0\.33\.24\.2[\s\S]*- \[x\] Extended both disposable Caddy topologies/);
-assert.match(changelog, /^## Version 0\.33\.24\.2 - 2026-07-28$/m);
 assertRoadmapCursorAtLeast(["0", "33", "24", "7"].join("."), "public-Nginx transport fallback closeout");
-assert.match(roadmapArchive, /^## Version 0\.33\.24\.6 - Public-Nginx transport fallback and response ownership$/m);
-assert.match(roadmapArchive, /0\.33\.24\.6[\s\S]*- \[x\] Replaced the simulated outer proxy[\s\S]*real Nginx/);
-assert.match(changelog, /^## Version 0\.33\.24\.6 - 2026-07-28$/m);
 
 console.log("Reference internet deployment regression passed.");

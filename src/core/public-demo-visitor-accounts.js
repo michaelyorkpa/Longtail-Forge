@@ -1,5 +1,3 @@
-// @ts-check
-
 const PUBLIC_DEMO_VISITOR_PASSWORDS = Object.freeze({
   workspace_admin: "Explore-Workspace-2026!",
   client_admin: "Explore-ClientAdmin-2026!",
@@ -8,6 +6,9 @@ const PUBLIC_DEMO_VISITOR_PASSWORDS = Object.freeze({
   project_user: "Explore-ProjectUser-2026!",
   client_external_user: "Explore-ExternalUser-2026!",
 });
+
+/** @typedef {keyof typeof PUBLIC_DEMO_VISITOR_PASSWORDS} PublicDemoVisitorRoleId */
+/** @typedef {{ allowedActions: string[], expectedDenials: string[], representativeRecords: string[], roleId: PublicDemoVisitorRoleId, roleName: string, scopeLabel: string, username: string }} PublicDemoVisitorAccountInput */
 
 const PUBLIC_DEMO_VISITOR_ACCOUNTS = Object.freeze([
   visitorAccount({
@@ -78,6 +79,7 @@ function listPublicDemoVisitorAccounts() {
   }));
 }
 
+/** @param {PublicDemoVisitorAccountInput} input */
 function visitorAccount({
   allowedActions,
   expectedDenials,

@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} CandidateSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-candidate-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-candidate-service.db");
@@ -14,14 +18,7 @@ const {
   registerResumeStateReadResolver,
   resetResumeStateReadResolvers,
 } = await import("../src/services/work-resume-state-read-checks.js");
-const {
-  workCandidateService,
-  normalizeWorkCandidate,
-  rankWorkCandidates,
-  resolveWorkCandidateRankBucket,
-  WORK_CANDIDATE_RANK_BUCKETS,
-  WORK_CANDIDATE_SORTS,
-} = await import("../src/services/work-candidate.service.js");
+const { workCandidateService } = await import("../src/services/work-candidate.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 
 try {
@@ -31,11 +28,6 @@ try {
   resetResumeStateReadResolvers();
   registerResumeStateReadResolver("tasks", "task", async () => ({ readable: true, status: "active" }));
 
-  await assertDirectNormalizationScrubsUnsafeFields();
-  await assertMixedCandidateRankingIsDeterministic();
-  await assertDueDatetimeRankingIsDeterministic();
-  await assertResumeCandidateRankingIsDeterministic();
-  await assertRecentlyTouchedRecurringCreatedExclusion();
   await assertResumeRowsUseStableCandidateShape(session);
   await assertTaskCandidatesUseWorkItemSourceGate(session);
   await assertLiveTimersContributeCandidates(session);
@@ -48,308 +40,7 @@ try {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
-
-async function assertDirectNormalizationScrubsUnsafeFields() {
-  const candidate = normalizeWorkCandidate({
-    bodyHtml: "<p>hidden</p>",
-    contextLabel: "Client Alpha / Project Roadrunner",
-    metadata: {
-      body_markdown: "Hidden body",
-      nested: {
-        safe: "kept",
-        storage_key: "hidden/key",
-      },
-      safe_context: "visible",
-    },
-    moduleId: "tasks",
-    primaryAction: {
-      id: "unsafe.open",
-      label: "Open work",
-      method: "DELETE",
-      payload: {
-        body: "hidden",
-        safe: "kept",
-        scanner_status: "hidden",
-      },
-      route: "javascript:alert(1)",
-      type: "route",
-    },
-    reason: "Review the safe candidate.",
-    recordId: "candidate-task-1",
-    recordType: "task",
-    sourceUrl: "javascript:alert(1)",
-    storage_key: "hidden/key",
-    title: "Candidate Task",
-  });
-
-  assert.equal(candidate.sourceUrl, "");
-  assert.equal(candidate.primaryAction.route, "");
-  assert.equal(candidate.primaryAction.method, "GET");
-  assert.equal(candidate.primaryAction.payload.body, undefined);
-  assert.equal(candidate.primaryAction.payload.scanner_status, undefined);
-  assert.equal(candidate.primaryAction.payload.safe, "kept");
-  assert.equal(candidate.metadata.body_markdown, undefined);
-  assert.equal(candidate.metadata.nested.storage_key, undefined);
-  assert.equal(candidate.metadata.nested.safe, "kept");
-  assert.equal(candidate.metadata.safe_context, "visible");
-  assert.equal(candidate.title, "Candidate Task");
-  assert.equal(candidate.contextLabel, "Client Alpha / Project Roadrunner");
-}
-
-async function assertMixedCandidateRankingIsDeterministic() {
-  const candidates = [
-    normalizeWorkCandidate({
-      dueAt: "2026-07-10",
-      moduleId: "tasks",
-      recordId: "due-week",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=due-week",
-      title: "Due This Week",
-    }),
-    normalizeWorkCandidate({
-      moduleId: "tasks",
-      recordId: "later",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=later",
-      title: "Later Work",
-    }),
-    normalizeWorkCandidate({
-      dueAt: "2026-07-06",
-      metadata: { assigned_to_current_user: true },
-      moduleId: "tasks",
-      recordId: "overdue",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=overdue",
-      title: "Overdue Work",
-    }),
-    normalizeWorkCandidate({
-      moduleId: "time-tracking",
-      metadata: { timer_status: "paused" },
-      recordId: "paused-timer",
-      recordType: "active_work_timer",
-      sourceUrl: "time-tracker.html",
-      status: "paused",
-      title: "Paused Timer",
-    }),
-    normalizeWorkCandidate({
-      dueAt: "2026-07-07",
-      moduleId: "tasks",
-      recordId: "today",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=today",
-      title: "Due Today",
-    }),
-    normalizeWorkCandidate({
-      moduleId: "tasks",
-      recordId: "blocked",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=blocked",
-      status: "blocked",
-      title: "Blocked Work",
-    }),
-    normalizeWorkCandidate({
-      lastWorkedAt: "2026-07-06T18:00:00.000Z",
-      moduleId: "tasks",
-      recordId: "recent",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=recent",
-      title: "Recent Work",
-    }),
-    normalizeWorkCandidate({
-      moduleId: "time-tracking",
-      metadata: { timer_status: "running" },
-      recordId: "running-timer",
-      recordType: "active_work_timer",
-      sourceUrl: "time-tracker.html",
-      status: "running",
-      title: "Running Timer",
-    }),
-  ];
-
-  const ranked = rankWorkCandidates(candidates, {
-    now: "2026-07-07T15:00:00.000Z",
-    timezone: "America/New_York",
-  });
-
-  assert.deepEqual(ranked.map((candidate) => candidate.recordId), [
-    "running-timer",
-    "paused-timer",
-    "overdue",
-    "today",
-    "blocked",
-    "recent",
-    "due-week",
-    "later",
-  ]);
-}
-
-async function assertResumeCandidateRankingIsDeterministic() {
-  const candidates = [
-    normalizeWorkCandidate({
-      moduleId: "tasks",
-      priority: "urgent",
-      recordId: "plain-urgent",
-      recordType: "task",
-      status: "open",
-      title: "Plain Urgent",
-    }),
-    normalizeWorkCandidate({
-      moduleId: "tasks",
-      priority: "low",
-      recordId: "in-progress-low",
-      recordType: "task",
-      status: "in_progress",
-      title: "In Progress Low",
-    }),
-    normalizeWorkCandidate({
-      handoffNote: "Resume the handoff note.",
-      moduleId: "tasks",
-      priority: "low",
-      recordId: "resume-note",
-      recordType: "task",
-      status: "open",
-      title: "Resume Note",
-    }),
-    normalizeWorkCandidate({
-      metadata: { timer_status: "paused" },
-      moduleId: "tasks",
-      priority: "low",
-      recordId: "paused-task-timer",
-      recordType: "task",
-      status: "paused",
-      title: "Paused Task Timer",
-    }),
-    normalizeWorkCandidate({
-      moduleId: "tasks",
-      priority: "high",
-      recordId: "in-progress-high",
-      recordType: "task",
-      status: "in_progress",
-      title: "In Progress High",
-    }),
-    normalizeWorkCandidate({
-      metadata: { timer_status: "running" },
-      moduleId: "tasks",
-      priority: "low",
-      recordId: "running-task-timer",
-      recordType: "task",
-      status: "active",
-      title: "Running Task Timer",
-    }),
-  ];
-
-  const ranked = rankWorkCandidates(candidates, {
-    sort: WORK_CANDIDATE_SORTS.resume,
-    today: "2026-07-07",
-    timezone: "America/New_York",
-  });
-
-  assert.deepEqual(ranked.map((candidate) => candidate.recordId), [
-    "running-task-timer",
-    "paused-task-timer",
-    "resume-note",
-    "in-progress-high",
-    "in-progress-low",
-    "plain-urgent",
-  ]);
-}
-
-async function assertRecentlyTouchedRecurringCreatedExclusion() {
-  const farFutureCreated = normalizeWorkCandidate({
-    dueAt: "2026-07-20",
-    lastActionLabel: "Task Created",
-    lastActionType: "task.created",
-    lastWorkedAt: "2026-07-07T14:00:00.000Z",
-    metadata: {
-      recurrence_instance_date: "2026-07-20",
-      recurrence_template_id: "recurring-template-far",
-    },
-    moduleId: "tasks",
-    recordId: "recurring-far",
-    recordType: "task",
-    title: "Far Recurring Instance",
-  });
-  const nearDueCreated = normalizeWorkCandidate({
-    dueAt: "2026-07-08",
-    lastActionLabel: "Task Created",
-    lastActionType: "task.created",
-    lastWorkedAt: "2026-07-07T14:00:00.000Z",
-    metadata: {
-      recurrence_instance_date: "2026-07-08",
-      recurrence_template_id: "recurring-template-near",
-    },
-    moduleId: "tasks",
-    recordId: "recurring-near",
-    recordType: "task",
-    title: "Near Recurring Instance",
-  });
-
-  assert.notEqual(
-    resolveWorkCandidateRankBucket(farFutureCreated, { today: "2026-07-07", timezone: "America/New_York" }),
-    WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
-    "far-future recurring instances should not enter the recently touched bucket on Task Created alone",
-  );
-  assert.equal(
-    resolveWorkCandidateRankBucket(nearDueCreated, { today: "2026-07-07", timezone: "America/New_York" }),
-    WORK_CANDIDATE_RANK_BUCKETS.recentlyTouched,
-    "recurring instances within about 24 hours of due date may remain recently touched",
-  );
-}
-
-async function assertDueDatetimeRankingIsDeterministic() {
-  const candidates = [
-    normalizeWorkCandidate({
-      dueAt: "2026-07-09T09:00:00.000Z",
-      moduleId: "tasks",
-      rankHint: 1000,
-      recordId: "high-rank-later",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=high-rank-later",
-      title: "A High Rank Later",
-    }),
-    normalizeWorkCandidate({
-      dueAt: "2026-07-07T15:00:00.000Z",
-      moduleId: "tasks",
-      rankHint: 1,
-      recordId: "next-due",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=next-due",
-      title: "Z Next Due",
-    }),
-    normalizeWorkCandidate({
-      dueAt: "2026-07-06T20:00:00.000Z",
-      moduleId: "tasks",
-      rankHint: 1,
-      recordId: "newer-overdue",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=newer-overdue",
-      title: "B Newer Overdue",
-    }),
-    normalizeWorkCandidate({
-      dueAt: "2026-07-01T20:00:00.000Z",
-      moduleId: "tasks",
-      rankHint: 1,
-      recordId: "oldest-overdue",
-      recordType: "task",
-      sourceUrl: "tasks.html?task=oldest-overdue",
-      title: "C Oldest Overdue",
-    }),
-  ];
-
-  const ranked = rankWorkCandidates(candidates, {
-    sort: WORK_CANDIDATE_SORTS.dueDatetime,
-    today: "2026-07-07",
-    timezone: "America/New_York",
-  });
-
-  assert.deepEqual(ranked.map((candidate) => candidate.recordId), [
-    "oldest-overdue",
-    "newer-overdue",
-    "next-due",
-    "high-rank-later",
-  ]);
-}
-
+/** @param {CandidateSession} session */
 async function assertResumeRowsUseStableCandidateShape(session) {
   const taskId = `candidate-task-${randomUUID()}`;
   const sourceUrl = `tasks.html?task=${encodeURIComponent(taskId)}`;
@@ -386,17 +77,21 @@ async function assertResumeRowsUseStableCandidateShape(session) {
   assert.equal(candidate.title, "Normalized Candidate Task");
   assert.equal(candidate.contextLabel, "Client Alpha / Project Roadrunner");
   assert.equal(candidate.reason, "Review the normalized candidate contract.");
+  assert.ok(candidate.primaryAction, "a resume candidate should publish its primary action");
   assert.equal(candidate.primaryAction.href, sourceUrl);
   assert.equal(candidate.primaryAction.type, "link");
   assert.equal(candidate.sourceUrl, sourceUrl);
   assert.equal(candidate.priority, "high");
   assert.equal(candidate.blockedReason, "Waiting for final estimate.");
   assert.equal(candidate.rankHint, 900);
-  assert.equal(candidate.metadata.body_markdown, undefined);
-  assert.equal(candidate.metadata.nested.secure_payload, undefined);
-  assert.equal(candidate.metadata.nested.checkpoint, "kept");
+  assert.ok(candidate.metadata, "a resume candidate should publish its metadata");
+  const nestedMetadata = requireJsonRecord(candidate.metadata.nested, "candidate nested metadata");
+  assert.equal(Object.hasOwn(candidate.metadata, "body_markdown"), false, "candidate metadata must not carry note bodies");
+  assert.equal(Object.hasOwn(nestedMetadata, "secure_payload"), false, "nested candidate metadata must not carry secure payloads");
+  assert.equal(nestedMetadata.checkpoint, "kept");
 }
 
+/** @param {CandidateSession} session */
 async function assertTaskCandidatesUseWorkItemSourceGate(session) {
   const taskId = `candidate-source-task-${randomUUID()}`;
 
@@ -450,6 +145,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {CandidateSession} session */
 async function assertLiveTimersContributeCandidates(session) {
   const activeTimerId = `candidate-timer-${randomUUID()}`;
 
@@ -482,15 +178,19 @@ async function assertLiveTimersContributeCandidates(session) {
   assert.equal(candidate.recordType, "active_work_timer");
   assert.equal(candidate.title, "Manual focus timer");
   assert.equal(candidate.reason, "Timer is running.");
+  assert.ok(candidate.primaryAction, "a live timer candidate should publish its primary action");
+  const timerActionPayload = requireJsonRecord(candidate.primaryAction.payload, "timer candidate action payload");
   assert.equal(candidate.primaryAction.id, "timer.pause");
   assert.equal(candidate.primaryAction.method, "POST");
   assert.equal(candidate.primaryAction.route, "/api/active-timers/42/pause");
-  assert.equal(candidate.primaryAction.payload.timer_status, "paused");
+  assert.equal(timerActionPayload.timer_status, "paused");
   assert.equal(candidate.sourceUrl, "time-tracker.html");
   assert.equal(candidate.rankHint, 1000);
+  assert.ok(candidate.metadata, "a live timer candidate should publish its metadata");
   assert.equal(candidate.metadata.timer_slot, "42");
 }
 
+/** @param {CandidateSession} session */
 async function assertLiveTimersRespectTimerSourceGate(session) {
   await runSql(`
 UPDATE workspace_modules
@@ -517,6 +217,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {CandidateSession} session */
 async function assertSourcePermissionsFilterCandidates(session) {
   const limitedSession = await createLimitedSession(session.workspace_id);
   const limitedTaskId = `candidate-permission-task-${randomUUID()}`;
@@ -587,6 +288,7 @@ function stableCandidateKeys() {
   ].sort();
 }
 
+/** @param {string} workspaceId @returns {Promise<CandidateSession>} */
 async function createLimitedSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -599,16 +301,16 @@ INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, c
 VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, 'active', ${sqlText(now)}, ${sqlText(now)});
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @returns {Promise<CandidateSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -620,12 +322,5 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

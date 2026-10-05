@@ -11,6 +11,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {Awaited<ReturnType<typeof createRecurringTask>>} RecurrenceSource */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-touch-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-touch.db");
@@ -37,10 +42,10 @@ try {
   const source = await createRecurringTask(session);
 
   await taskRecurrenceRepository.replaceTemplateChecklist(
-    session.workspace_id,
-    source.recurrence_template_id,
+    String(session.workspace_id || ""),
+    String(source.recurrence_template_id || ""),
     [{ label: "Template step", sort_order: 1000 }],
-    session.user_id,
+    String(session.user_id || ""),
   );
 
   await assertPermissionChecked(session, source);
@@ -59,6 +64,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createRecurringTask(session) {
   return (await tasksService.create({
     title: "Materialize-on-touch recurrence",
@@ -74,6 +80,7 @@ async function createRecurringTask(session) {
   }, session)).task;
 }
 
+/** @param {TasksSession} session @param {RecurrenceSource} source */
 async function assertPermissionChecked(session, source) {
   const instanceDate = "2026-08-10";
   await assert.rejects(
@@ -85,7 +92,7 @@ async function assertPermissionChecked(session, source) {
       user_id: "user-without-task-permissions",
       username: "no-task-permissions@example.test",
     }),
-    (error) => error.statusCode === 403 && /permission/.test(error.message),
+    (error) => rejectionStatus(error) === 403 && /permission/.test(rejectionMessage(error)),
     "a planned occurrence must not materialize without edit permission",
   );
   assert.equal(
@@ -95,6 +102,7 @@ async function assertPermissionChecked(session, source) {
   );
 }
 
+/** @param {TasksSession} session @param {RecurrenceSource} source */
 async function assertOneOccurrenceMaterializes(session, source) {
   const instanceDate = "2026-08-17";
   const before = await tasksService.calendarWindow(session, { start: "2026-08-10", end: "2026-08-24" });
@@ -125,6 +133,7 @@ async function assertOneOccurrenceMaterializes(session, source) {
   return result;
 }
 
+/** @param {TasksSession} session @param {RecurrenceSource} source @param {RecurrenceSource} task */
 async function assertOccurrenceEditsStayIndependent(session, source, task) {
   const updated = (await tasksService.update(task.task_id, {
     assignee_ids: [session.user_id],
@@ -144,11 +153,14 @@ async function assertOccurrenceEditsStayIndependent(session, source, task) {
   );
 
   const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, source.recurrence_template_id);
+  assert.ok(template, "recurrence template should remain readable after an occurrence-only edit");
+  assert.ok(template.checklistItems, "recurrence template should retain its checklist projection");
   assert.equal(template.description, "Template description", "instance description edits must not rewrite the template");
   assert.deepEqual(template.checklistItems.map((item) => item.label), ["Template step"]);
   assert.equal(await recurrenceInstanceCount(session, source.recurrence_template_id, "2026-08-24"), 0);
 }
 
+/** @param {TasksSession} session @param {RecurrenceSource} source */
 async function assertConcurrentTouchConverges(session, source) {
   const instanceDate = "2026-08-24";
   const results = await Promise.all(Array.from({ length: 8 }, () => (
@@ -195,6 +207,7 @@ WHERE workspace_id = ?
   return task;
 }
 
+/** @param {TasksSession} session @param {RecurrenceSource} source @param {RecurrenceSource} touchedTask */
 async function assertSweepDoesNotDisturbTouchedInstances(session, source, touchedTask) {
   await queueTaskRecurrenceSweepJob({
     availableAt: new Date(),
@@ -204,15 +217,17 @@ async function assertSweepDoesNotDisturbTouchedInstances(session, source, touche
   });
   await runJobs("sweep");
   assert.equal(await recurrenceInstanceCount(session, source.recurrence_template_id, "2026-08-24"), 1);
-  assert.equal((await tasksRepository.readById(session.workspace_id, touchedTask.task_id)).status, "open");
+  assert.equal((await tasksRepository.readById(session.workspace_id, touchedTask.task_id))?.status, "open");
 }
 
+/** @param {TasksSession} session @param {RecurrenceSource} source */
 async function assertCompletionContinuity(session, source) {
   const touched = await tasksService.materializeRecurrenceInstance({
     templateId: source.recurrence_template_id,
     instanceDate: "2026-09-07",
   }, session);
   const completed = await tasksService.complete(touched.task.task_id, session);
+  assert.ok(completed.recurrenceContinuity, "completed touched instance should expose recurrence continuity");
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.recurrenceContinuity.nextScheduledDate, "2026-09-14");
   assert.equal(completed.recurrenceContinuity.followUpQueued, true);
@@ -244,6 +259,7 @@ async function assertBrowserAndRouteContracts() {
   assert.doesNotMatch(renderer, /disabled: isVirtual/);
 }
 
+/** @param {string} label */
 async function runJobs(label) {
   for (let pass = 0; pass < 5; pass += 1) {
     const result = await runJobWorkerOnce({
@@ -251,12 +267,13 @@ async function runJobs(label) {
       mode: "inline",
       workerId: `task-recurrence-touch-${label}-${pass}`,
     });
-    if (!result?.claimedCount) {
+    if (!result?.claimed) {
       break;
     }
   }
 }
 
+/** @param {TasksSession} session @param {string} templateId @param {string} instanceDate @returns {Promise<number>} */
 async function recurrenceInstanceCount(session, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -283,13 +300,27 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
   const user = rows[0];
-  assert.ok(user, "fresh database should seed a protected super admin");
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
+}
+
+/**
+ * Read the HTTP status a rejected service call carries, proving the value
+ * really is an error object first. A rejection without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

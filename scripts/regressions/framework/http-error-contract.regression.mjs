@@ -40,13 +40,23 @@ assert.match(
   "served HTML should install the shared browser error parser before page callers run",
 );
 await assertBrowserApiContract();
+await assertCaughtValueNarrowing();
 await assertCheckedRouteBoundaries();
 assertHeadersAlreadySentPassThrough();
 
+/** One captured failure diagnostic: the logged event and its safe structured fields. */
+/** @typedef {{ event: string, fields: Record<string, unknown> }} CapturedDiagnostic */
+/** The safe error envelope every route this owner drives returns. */
+/** @typedef {{ error: { code: string, fields?: unknown[], message: string, requestId: string } }} ErrorEnvelope */
+/** @typedef {import("../../../src/types/route-contracts.js").AsyncRouteHandler} RouteHandler */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonTextResponse<ErrorEnvelope>} ErrorContractResponse */
+
+/** @type {CapturedDiagnostic[]} */
 const diagnostics = [];
 const logger = {
+  /** @param {unknown} event @param {Record<string, unknown>} [fields] */
   error(event, fields) {
-    diagnostics.push({ event, fields });
+    diagnostics.push({ event: String(event), fields: fields || {} });
   },
 };
 const app = express();
@@ -67,15 +77,15 @@ app.get("/api/dependency", () => {
     expose: true,
   });
 });
-app.post("/api/unexpected", (request) => {
-  request.session = {
+app.post("/api/unexpected", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request) => {
+  request.session = /** @type {import("../../../src/types/http-contracts.js").RequestSession} */ ({
     user_id: "raw-protected-user-id",
     workspace_id: "raw-protected-workspace-id",
-  };
+  });
   throw new Error(
     "exception-secret SELECT * FROM users C:\\protected\\database.sqlite password=credential-secret raw-protected-record-id",
   );
-});
+}));
 app.get("/api/unknown-thrown", () => {
   throw "unknown-thrown-secret raw-unknown-record-id";
 });
@@ -97,7 +107,7 @@ try {
     headers: { Accept: "text/html" },
   });
   assert.equal(conflict.status, 409);
-  assert.match(conflict.headers["content-type"], /^application\/json\b/);
+  assert.match(/** @type {string} */ (conflict.headers["content-type"]), /^application\/json\b/);
   assert.deepEqual(conflict.body, {
     error: {
       code: "conflict",
@@ -128,7 +138,7 @@ try {
   assert.equal(dependency.status, 503);
   assert.equal(dependency.body.error.code, "service_unavailable");
   assert.equal(dependency.body.error.message, "Try again after the dependency recovers.");
-  assertSafeDiagnosticForRequest(diagnostics, dependency.headers["x-request-id"], {
+  assertSafeDiagnosticForRequest(diagnostics, /** @type {string} */ (dependency.headers["x-request-id"]), {
     actorState: "anonymous",
     routeClass: "api-internal",
     workspaceState: "unscoped",
@@ -151,7 +161,7 @@ try {
   assert.equal(unexpected.body.error.message, "Internal server error.");
   assert.equal(unexpected.body.error.requestId, unexpected.headers["x-request-id"]);
   assertNoProtectedDiagnosticContent(unexpected.body);
-  assertSafeDiagnosticForRequest(diagnostics, unexpected.headers["x-request-id"], {
+  assertSafeDiagnosticForRequest(diagnostics, /** @type {string} */ (unexpected.headers["x-request-id"]), {
     actorState: "authenticated",
     routeClass: "api-internal",
     workspaceState: "scoped",
@@ -162,7 +172,7 @@ try {
   assert.equal(unknownThrown.body.error.code, "internal_server_error");
   assert.equal(unknownThrown.body.error.message, "Internal server error.");
   assertNoProtectedDiagnosticContent(unknownThrown.body);
-  assertSafeDiagnosticForRequest(diagnostics, unknownThrown.headers["x-request-id"], {
+  assertSafeDiagnosticForRequest(diagnostics, /** @type {string} */ (unknownThrown.headers["x-request-id"]), {
     actorState: "anonymous",
     routeClass: "api-internal",
     workspaceState: "unscoped",
@@ -181,11 +191,20 @@ try {
     headers: { Accept: "text/html" },
   });
   assert.equal(browserFailure.status, 500);
-  assert.match(browserFailure.headers["content-type"], /^text\/html\b/);
+  assert.match(/** @type {string} */ (browserFailure.headers["content-type"]), /^text\/html\b/);
   assert.match(browserFailure.text, /class="error-page error-page--unexpected"/);
-  assert.match(browserFailure.text, new RegExp(browserFailure.headers["x-request-id"]));
+  // Matching the page against a pattern built from the header was vacuous: an
+  // absent header made the pattern empty, which matches anything.
+  const browserRequestId = /** @type {string} */ (browserFailure.headers["x-request-id"]);
+  assert.equal(typeof browserRequestId, "string", "a browser failure must report a request correlation header");
+  assert.notEqual(browserRequestId, "", "the request correlation header must carry a value");
+  assert.equal(
+    browserFailure.text.includes(browserRequestId),
+    true,
+    "the rendered error page must show the same request ID the correlation header reports",
+  );
   assertNoProtectedDiagnosticContent(browserFailure.text);
-  assertSafeDiagnosticForRequest(diagnostics, browserFailure.headers["x-request-id"], {
+  assertSafeDiagnosticForRequest(diagnostics, browserRequestId, {
     actorState: "anonymous",
     routeClass: "browser-document",
     workspaceState: "unscoped",
@@ -195,7 +214,7 @@ try {
     headers: { Accept: "text/html" },
   });
   assert.equal(unknownBrowser.status, 404);
-  assert.match(unknownBrowser.headers["content-type"], /^text\/html\b/);
+  assert.match(/** @type {string} */ (unknownBrowser.headers["content-type"]), /^text\/html\b/);
   assert.match(unknownBrowser.text, /data-error-code="unavailable"/);
 } finally {
   await closeServer(server);
@@ -245,13 +264,60 @@ async function assertBrowserApiContract() {
   );
 
   const error = await context.window.LongtailForge.api.getJson("/api/example")
-    .then(() => null, (caught) => caught);
+    .then(() => null, (/** @type {{ body: ErrorEnvelope, code: string, message: string, method: string, requestId: string, status: number }} */ caught) => caught);
   assert.equal(error.message, "The record changed.");
   assert.equal(error.code, "conflict");
   assert.equal(error.requestId, "browser-request-id");
   assert.equal(error.status, 409);
   assert.equal(error.method, "GET");
   assert.equal(error.body.error.code, "conflict");
+}
+
+/**
+ * The caught-value narrowing contract `0.33.33.38.4.1` published.
+ *
+ * A `catch` binding holds whatever was thrown, so the 147 sites that read `error.message` and
+ * `error.status` were reading through an unchecked boundary. These two accessors are the checked
+ * read, and this proves they answer the same thing the raw reads answered - including for the
+ * malformed values a raw read silently tolerated.
+ */
+async function assertCaughtValueNarrowing() {
+  const context = vm.createContext({ window: { LongtailForge: {} } });
+  vm.runInContext(
+    await fs.readFile("public/js/shared/error-contract.js", "utf8"),
+    context,
+    { filename: "error-contract.js" },
+  );
+  const { caughtMessage, caughtStatus, createError } = context.window.LongtailForge.errors;
+
+  const apiError = createError({ error: { code: "conflict", message: "The record changed." } }, "Fallback.", 409);
+  assert.equal(caughtMessage(apiError, "Fallback."), "The record changed.");
+  assert.equal(caughtStatus(apiError), 409);
+  assert.equal(caughtStatus(createError(null, "Fallback.")), 0, "a producer that supplied no status still reports 0");
+
+  assert.equal(caughtMessage(new Error("boom"), "Fallback."), "boom", "a native Error still yields its own message");
+  assert.equal(caughtMessage(new TypeError("wrong"), "Fallback."), "wrong");
+  assert.equal(caughtStatus(new Error("boom")), null, "a value carrying no status is absent, not zero");
+
+  for (const malformed of [null, undefined, 0, 42, "boom", true, Symbol("thrown"), [], () => {}]) {
+    assert.equal(
+      caughtMessage(malformed, "Fallback."),
+      "Fallback.",
+      "a thrown value with no message falls back exactly as `error.message || fallback` did",
+    );
+    assert.equal(caughtStatus(malformed), null);
+  }
+
+  assert.equal(caughtMessage({ message: "" }, "Fallback."), "Fallback.", "an empty message falls back, as `||` did");
+  assert.equal(caughtMessage({ message: "direct" }, "Fallback."), "direct");
+  assert.equal(
+    caughtMessage({ message: 42 }, "Fallback."),
+    "Fallback.",
+    "the one deliberate difference: a non-string message falls back rather than being forwarded",
+  );
+  assert.equal(caughtStatus({ status: "409" }), null, "a non-numeric status is absent, so `=== 409` stays false");
+  assert.equal(caughtStatus({ status: 0 }), 0);
+  assert.equal(caughtStatus(Object.create(null)), null);
 }
 
 async function assertCheckedRouteBoundaries() {
@@ -291,17 +357,19 @@ async function assertCheckedRouteBoundaries() {
       apiSession: { user_id: "user-1", workspace_id: "workspace-1" },
     }],
   ]) {
+    /** @type {unknown} */
     let dispatchedRequest = null;
-    await new Promise((resolve, reject) => {
-      adapter(async (routeRequest) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+      /** @type {(handler: RouteHandler) => RouteHandler} */ (adapter)(async (routeRequest) => {
         dispatchedRequest = routeRequest;
         resolve();
-      })(requestValue, {}, reject);
-    });
+      })(/** @type {import("../../../src/types/route-contracts.js").RouteRequest} */ (requestValue), /** @type {import("../../../src/types/route-contracts.js").RouteResponse} */ (/** @type {unknown} */ ({})), reject);
+    }));
     assert.equal(dispatchedRequest, requestValue, "valid refined route contexts must dispatch unchanged");
   }
 }
 
+/** @param {string} payload */
 function readObjectPayload(payload) {
   const requestStream = new PassThrough();
   const result = readJsonObjectBody(requestStream);
@@ -309,11 +377,12 @@ function readObjectPayload(payload) {
   return result;
 }
 
+/** @param {(handler: RouteHandler) => RouteHandler} adapter @param {unknown} requestValue @param {string} expectedMessage @returns {Promise<void>} */
 function assertRouteRefinement(adapter, requestValue, expectedMessage) {
   return new Promise((resolve, reject) => {
     adapter(() => reject(new Error("an invalid route context reached its handler")))(
-      requestValue,
-      {},
+      /** @type {import("../../../src/types/route-contracts.js").RouteRequest} */ (requestValue),
+      /** @type {import("../../../src/types/route-contracts.js").RouteResponse} */ (/** @type {unknown} */ ({})),
       (error) => {
         try {
           assert.ok(error instanceof AppError);
@@ -328,19 +397,23 @@ function assertRouteRefinement(adapter, requestValue, expectedMessage) {
 }
 
 function assertHeadersAlreadySentPassThrough() {
+  /** @type {unknown[]} */
   const forwarded = [];
+  /** @type {unknown[][]} */
   const logged = [];
   const thrownValue = { protected: "already-sent-secret" };
   createErrorHandler({ logger: { error: (...args) => logged.push(args) } })(
     thrownValue,
-    {},
-    { headersSent: true },
+    // Only headersSent is read here, so partial stand-ins change nothing this proves.
+    /** @type {import("../../../src/types/route-contracts.js").RouteRequest} */ (/** @type {unknown} */ ({})),
+    /** @type {import("../../../src/types/route-contracts.js").RouteResponse} */ (/** @type {unknown} */ ({ headersSent: true })),
     (error) => forwarded.push(error),
   );
   assert.deepEqual(forwarded, [thrownValue]);
   assert.deepEqual(logged, [], "headers-already-sent failures must be delegated without a duplicate log or write");
 }
 
+/** @param {string} source @param {string[]} snippets */
 function assertOrdered(source, snippets) {
   let priorIndex = -1;
   for (const snippet of snippets) {
@@ -350,18 +423,26 @@ function assertOrdered(source, snippets) {
   }
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} appInstance @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>} */
 function listen(appInstance) {
   return new Promise((resolve) => {
     const nextServer = appInstance.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @param {string} requestPath
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureRequestOptions} [options]
+ * @returns {Promise<ErrorContractResponse>}
+ */
 function request(serverInstance, requestPath, options = {}) {
   return new Promise((resolve, reject) => {
     const body = options.body || "";
@@ -374,15 +455,18 @@ function request(serverInstance, requestPath, options = {}) {
       host: "127.0.0.1",
       method: options.method || "GET",
       path: requestPath,
-      port: serverInstance.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (serverInstance.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
         const text = Buffer.concat(chunks).toString("utf8");
         const contentType = String(response.headers["content-type"] || "");
         resolve({
-          body: contentType.includes("application/json") ? JSON.parse(text) : null,
+          // A non-JSON response resolves a null body; every route driven here
+          // returns JSON, and a null body still fails at the first envelope read.
+          body: /** @type {ErrorEnvelope} */ (contentType.includes("application/json") ? JSON.parse(text) : null),
           headers: response.headers,
           status: response.statusCode,
           text,
@@ -394,6 +478,7 @@ function request(serverInstance, requestPath, options = {}) {
   });
 }
 
+/** @param {CapturedDiagnostic[]} records @param {string} requestId @param {Record<string, unknown>} expected */
 function assertSafeDiagnosticForRequest(records, requestId, expected) {
   const matchingDiagnostics = records.filter((record) => record.fields.requestId === requestId);
   assert.equal(
@@ -425,6 +510,7 @@ function assertSafeDiagnosticForRequest(records, requestId, expected) {
   assertNoProtectedDiagnosticContent(diagnostic);
 }
 
+/** @param {unknown} value */
 function assertNoProtectedDiagnosticContent(value) {
   assert.doesNotMatch(
     JSON.stringify(value),

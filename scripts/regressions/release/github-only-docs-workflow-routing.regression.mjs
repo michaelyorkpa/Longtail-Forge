@@ -22,6 +22,10 @@ import {
 } from "../../lib/github-change-classification.mjs";
 import { suggestRegressionsForPaths } from "../../lib/regression-change-routing.mjs";
 
+/**
+ * @param {readonly string[]} paths
+ * @param {string} [status]
+ */
 function classify(paths, status = "M") {
   return classifyGitHubChanges(paths.map((filePath) => ({ paths: [filePath], status })));
 }
@@ -191,6 +195,10 @@ assert.match(codeql, /name: CodeQL JavaScript analysis/);
 
 console.log("GitHub-only documentation workflow routing passed.");
 
+/**
+ * @param {readonly string[]} args
+ * @param {string} cwd
+ */
 function runGit(args, cwd) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   assert.equal(result.status, 0, String(result.stderr || result.stdout));

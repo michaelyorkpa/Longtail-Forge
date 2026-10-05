@@ -3,438 +3,581 @@
 // grid/day rendering live in the shared LongtailForge.taskCalendar helpers; this
 // adapter owns the page chrome (toolbar, filters, status) and opens entries
 // through the canonical Task editor.
-const calendarHost = document.querySelector("[data-calendar-host]");
-const calendarView = window.LongtailForge?.view;
-const taskCalendar = window.LongtailForge?.taskCalendar;
+(function attachCalendarPage() {
+  const calendarHost = document.querySelector("[data-calendar-host]");
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
-const CALENDAR_VIEW_OPTIONS = [
-  { id: "month", label: "Month" },
-  { id: "week", label: "Week" },
-  { id: "day", label: "Day" },
-];
-const CALENDAR_STATUS_OPTIONS = [
-  { id: "open", label: "Open" },
-  { id: "in_progress", label: "In Progress" },
-  { id: "blocked", label: "Blocked" },
-  { id: "complete", label: "Completed" },
-  { id: "archived", label: "Archived" },
-];
-const DEFAULT_CALENDAR_STATUSES = ["open", "in_progress", "blocked", "complete"];
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
-const calendarState = {
-  view: taskCalendar?.resolveDefaultView?.(null) || "month",
-  anchor: new Date(),
-  data: null,
-  workspaceType: "business",
-  clientId: "",
-  projectId: "",
-  statuses: [...DEFAULT_CALENDAR_STATUSES],
-  clients: [],
-  projects: [],
-};
-let calendarViewFromQuery = false;
-
-let calendarStatus = null;
-let calendarPeriodLabel = null;
-let calendarViewButtons = [];
-let calendarBodyRegion = null;
-let calendarClientFilter = null;
-let calendarProjectFilter = null;
-let calendarClientFilterControl = null;
-let calendarStatusFilter = null;
-
-applyCalendarQueryParams();
-buildCalendarHost();
-initializeCalendar();
-
-async function initializeCalendar() {
-  if (!calendarHost || !calendarView || !taskCalendar) {
-    return;
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Calendar requires LongtailForge.errors.");
+    }
+    return errors;
   }
 
-  await Promise.resolve(window.LongtailForge?.workspaceContextReady).catch(() => null);
-  if (!calendarViewFromQuery) {
-    calendarState.view = taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView());
-    updateViewSwitchButtons();
+  /**
+   * The view factory this path cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it. The
+   * graceful path that legitimately runs without the factory keeps its own optional read.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Calendar requires LongtailForge.view.");
+    }
+    return factory;
   }
-  applyCalendarWorkspaceContext();
-  await loadCalendarFilterOptions();
-  populateCalendarFilters();
-  await loadCalendarWindow();
-}
+  const taskCalendar = window.LongtailForge?.taskCalendar;
 
-function applyCalendarQueryParams() {
-  if (!taskCalendar) {
-    return;
+  /**
+   * The calendar helper the period-shift path cannot run without.
+   *
+   * **Every other use on this page keeps its optional read**, because each of those entry points
+   * already returns early when the helper is unpublished. `shiftCalendarPeriod` never had that
+   * path: its week and day branches dereference the helper and throw when it is missing, while
+   * its month branch shifts without it. This preserves both - the same failure, at the same
+   * statement, with a message instead of a property access on `undefined`.
+   * @returns {import("../../src/types/browser-contracts.js").BrowserTaskCalendar}
+   */
+  function requireTaskCalendar() {
+    if (!taskCalendar) {
+      throw new Error("Calendar requires LongtailForge.taskCalendar.");
+    }
+    return taskCalendar;
   }
 
-  const params = new URLSearchParams(window.location?.search || "");
-  const requestedView = String(params.get("view") || "").trim().toLowerCase();
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskCalendarOccurrence} BrowserTaskCalendarOccurrence */
 
-  if (CALENDAR_VIEW_OPTIONS.some((option) => option.id === requestedView)) {
-    calendarState.view = requestedView;
-    calendarViewFromQuery = true;
+  /**
+   * A project row for the filter, as **this file's own `flattenCalendarProjectOptions` builds it**.
+   *
+   * Deliberately not the published `NormalizedProjectOption`: that is the shape the shared
+   * client/project helper answers, and this is the flattened row this page derives from it,
+   * carrying a client id it has already resolved and two prepared labels. Naming the published
+   * type here would claim a vocabulary this file does not produce. The four members are exactly
+   * what `populateCalendarProjectFilter` reads.
+   * @typedef {{ id: string, clientId: string, label: string, projectLabel: string }} CalendarProjectOption
+   */
+
+  /**
+   * An element the host has already built, or a refusal naming which one is missing.
+   *
+   * Used only where a cached element is read from a **different** function than the one that
+   * assigned it, so the compiler cannot carry the narrowing. It throws at the same statement the
+   * unguarded dereference threw at before, with the element named instead of
+   * "Cannot set properties of null" - it does not add a guard that silently skips work.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireCalendarElement(value, name) {
+    if (value === null) {
+      throw new TypeError(`The calendar requires its ${name}, which the host has not built.`);
+    }
+    return value;
   }
 
-  const requestedDate = String(params.get("date") || "").trim();
+  /** @type {ReadonlyArray<{ id: import("../../src/types/browser-contracts.js").BrowserTaskCalendarViewId, label: string }>} */
+  const CALENDAR_VIEW_OPTIONS = [
+    { id: "month", label: "Month" },
+    { id: "week", label: "Week" },
+    { id: "day", label: "Day" },
+  ];
+  const CALENDAR_STATUS_OPTIONS = [
+    { id: "open", label: "Open" },
+    { id: "in_progress", label: "In Progress" },
+    { id: "blocked", label: "Blocked" },
+    { id: "complete", label: "Completed" },
+    { id: "archived", label: "Archived" },
+  ];
+  const DEFAULT_CALENDAR_STATUSES = ["open", "in_progress", "blocked", "complete"];
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
-    const anchor = taskCalendar.parseDateKey(requestedDate);
+  const calendarState = {
+    view: taskCalendar?.resolveDefaultView?.(null) || "month",
+    anchor: new Date(),
+    // The direct storage slot for the calendar-window response. `0.33.33.38.4.3.10` made it
+    // typeable by validating that response at the fetch boundary; before that this held an
+    // implicit `any` and every read through it was unchecked.
+    /** @type {import("../../src/types/browser-contracts.js").BrowserTaskCalendarWindow | null} */
+    data: null,
+    workspaceType: "business",
+    clientId: "",
+    projectId: "",
+    statuses: [...DEFAULT_CALENDAR_STATUSES],
+    /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
+    clients: [],
+    /** @type {CalendarProjectOption[]} */
+    projects: [],
+  };
+  let calendarViewFromQuery = false;
 
-    if (Number.isFinite(anchor.getTime())) {
-      calendarState.anchor = anchor;
+  /**
+   * The elements `buildCalendarHost` caches, each `null` until it has run.
+   *
+   * **Twenty-two of this file's thirty-three diagnostics came from these eight lines**: eight
+   * uninitialised declarations, and the fourteen reads that inherited their implicit `any`. They
+   * are annotated rather than initialised, because `null` is the real state before the host is
+   * built and every guard below already reads them that way.
+   *
+   * The three filters are `HTMLSelectElement` because that is what `createElement("select", ...)
+   * returns - the view factory is overloaded on the tag name, so this is the assignment's own
+   * type rather than a cast. Each is read through `.value`, `.options` or `.selectedOptions`,
+   * which a flat `HTMLElement` does not carry.
+   */
+  /** @type {HTMLElement | null} */
+  let calendarStatus = null;
+  /** @type {HTMLElement | null} */
+  let calendarPeriodLabel = null;
+  /** @type {HTMLButtonElement[]} */
+  let calendarViewButtons = [];
+  /** @type {HTMLElement | null} */
+  let calendarBodyRegion = null;
+  /** @type {HTMLSelectElement | null} */
+  let calendarClientFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let calendarProjectFilter = null;
+  /** @type {HTMLElement | null} */
+  let calendarClientFilterControl = null;
+  /** @type {HTMLSelectElement | null} */
+  let calendarStatusFilter = null;
+
+  applyCalendarQueryParams();
+  buildCalendarHost();
+  initializeCalendar();
+
+  async function initializeCalendar() {
+    const calendarView = window.LongtailForge?.view;
+    if (!calendarHost || !calendarView || !taskCalendar) {
+      return;
+    }
+
+    await Promise.resolve(window.LongtailForge?.workspaceContextReady).catch(() => null);
+    if (!calendarViewFromQuery) {
+      calendarState.view = taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView());
+      updateViewSwitchButtons();
+    }
+    applyCalendarWorkspaceContext();
+    await loadCalendarFilterOptions();
+    populateCalendarFilters();
+    await loadCalendarWindow();
+  }
+
+  function applyCalendarQueryParams() {
+    if (!taskCalendar) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location?.search || "");
+    const requestedView = String(params.get("view") || "").trim().toLowerCase();
+
+    // The same membership test as before, kept as the page's own list rather than delegated to
+    // `normalizeCalendarView`; `find` is used so the matched option's id carries its own type.
+    const matchedView = CALENDAR_VIEW_OPTIONS.find((option) => option.id === requestedView);
+
+    if (matchedView) {
+      calendarState.view = matchedView.id;
+      calendarViewFromQuery = true;
+    }
+
+    const requestedDate = String(params.get("date") || "").trim();
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+      const anchor = taskCalendar.parseDateKey(requestedDate);
+
+      if (Number.isFinite(anchor.getTime())) {
+        calendarState.anchor = anchor;
+      }
     }
   }
-}
 
-function buildCalendarHost() {
-  if (!calendarHost || !calendarView) {
-    return;
+  function buildCalendarHost() {
+    const calendarView = requireView();
+    if (!calendarHost || !calendarView) {
+      return;
+    }
+
+    const header = calendarView.createPageHeader({
+      title: "Calendar",
+      subtitle: "Task due dates and reminders, read-only.",
+    });
+
+    calendarStatus = calendarView.createStatusMessage({
+      className: "calendar-status",
+      hidden: true,
+    });
+
+    calendarPeriodLabel = calendarView.createElement("h2", {
+      className: "calendar-period-label",
+      dataset: { calendarPeriodLabel: "" },
+    });
+
+    const previousButton = calendarView.createActionButton({
+      className: "calendar-period-button",
+      icon: "previous",
+      iconOnly: true,
+      label: "Previous period",
+      text: "",
+      onClick: () => shiftCalendarPeriod(-1),
+    });
+    previousButton.dataset.calendarPeriodPrevious = "";
+
+    const todayButton = calendarView.createActionButton({
+      className: "calendar-period-button",
+      label: "Today",
+      onClick: () => {
+        calendarState.anchor = new Date();
+        loadCalendarWindow();
+      },
+    });
+    todayButton.dataset.calendarPeriodToday = "";
+
+    const nextButton = calendarView.createActionButton({
+      className: "calendar-period-button",
+      icon: "next",
+      iconOnly: true,
+      label: "Next period",
+      text: "",
+      onClick: () => shiftCalendarPeriod(1),
+    });
+    nextButton.dataset.calendarPeriodNext = "";
+
+    const periodNav = calendarView.createElement("div", {
+      className: "calendar-period-nav",
+      attrs: { role: "group", "aria-label": "Calendar period" },
+      children: [previousButton, todayButton, nextButton],
+    });
+
+    const toolbar = calendarView.createElement("div", {
+      className: "calendar-toolbar",
+      children: [
+        calendarView.createElement("div", {
+          className: "calendar-toolbar-period",
+          children: [calendarPeriodLabel, periodNav],
+        }),
+        calendarView.createElement("div", {
+          className: "segmented-control calendar-view-switch",
+          attrs: { role: "group", "aria-label": "Calendar view" },
+          children: CALENDAR_VIEW_OPTIONS.map((option) => createViewSwitchButton(option)),
+        }),
+      ],
+    });
+
+    calendarBodyRegion = calendarView.createElement("section", {
+      className: "calendar-body",
+      attrs: { "aria-label": "Calendar" },
+      dataset: { calendarBody: "" },
+    });
+
+    calendarHost.replaceChildren(header, calendarStatus, toolbar, createCalendarFilterPanel(), calendarBodyRegion);
   }
 
-  const header = calendarView.createPageHeader({
-    title: "Calendar",
-    subtitle: "Task due dates and reminders, read-only.",
-  });
+  function createCalendarFilterPanel() {
+    const calendarView = requireView();
+    calendarClientFilter = calendarView.createElement("select", {
+      attrs: { "aria-label": "Client filter" },
+      dataset: { calendarClientFilter: "" },
+    });
+    calendarProjectFilter = calendarView.createElement("select", {
+      attrs: { "aria-label": "Project filter" },
+      dataset: { calendarProjectFilter: "" },
+    });
+    calendarStatusFilter = calendarView.createElement("select", {
+      attrs: { "aria-label": "Task status filter", multiple: true, size: 3 },
+      dataset: { calendarStatusFilter: "" },
+    });
+    calendarClientFilterControl = calendarView.createElement("label", {
+      className: "calendar-filter-control",
+      children: [
+        calendarView.createElement("span", { text: "Client" }),
+        calendarClientFilter,
+      ],
+      dataset: { calendarClientFilterControl: "" },
+    });
 
-  calendarStatus = calendarView.createStatusMessage({
-    className: "calendar-status",
-    dataset: { calendarStatus: "" },
-    hidden: true,
-  });
-
-  calendarPeriodLabel = calendarView.createElement("h2", {
-    className: "calendar-period-label",
-    dataset: { calendarPeriodLabel: "" },
-  });
-
-  const previousButton = calendarView.createActionButton({
-    className: "calendar-period-button",
-    icon: "previous",
-    iconOnly: true,
-    label: "Previous period",
-    text: "",
-    onClick: () => shiftCalendarPeriod(-1),
-  });
-  previousButton.dataset.calendarPeriodPrevious = "";
-
-  const todayButton = calendarView.createActionButton({
-    className: "calendar-period-button",
-    label: "Today",
-    onClick: () => {
-      calendarState.anchor = new Date();
+    // Each handler reads the cached control **when the event fires**, not the one narrowed when
+    // the listener was attached. That is the existing behaviour and it is kept: capturing the
+    // element instead would quietly change which control a handler follows. The compiler cannot
+    // carry a narrowing across a callback boundary, so these read through the same refusal used
+    // wherever a cached element is reached from another scope.
+    calendarClientFilter.addEventListener("change", () => {
+      calendarState.clientId = requireCalendarElement(calendarClientFilter, "client filter").value;
+      populateCalendarProjectFilter();
+      calendarState.projectId = requireCalendarElement(calendarProjectFilter, "project filter").value;
       loadCalendarWindow();
-    },
-  });
-  todayButton.dataset.calendarPeriodToday = "";
+    });
+    calendarProjectFilter.addEventListener("change", () => {
+      calendarState.projectId = requireCalendarElement(calendarProjectFilter, "project filter").value;
+      loadCalendarWindow();
+    });
+    calendarStatusFilter.addEventListener("change", () => {
+      const statusFilter = requireCalendarElement(calendarStatusFilter, "status filter");
+      calendarState.statuses = [...statusFilter.selectedOptions].map((option) => option.value);
+      loadCalendarWindow();
+    });
 
-  const nextButton = calendarView.createActionButton({
-    className: "calendar-period-button",
-    icon: "next",
-    iconOnly: true,
-    label: "Next period",
-    text: "",
-    onClick: () => shiftCalendarPeriod(1),
-  });
-  nextButton.dataset.calendarPeriodNext = "";
-
-  const periodNav = calendarView.createElement("div", {
-    className: "calendar-period-nav",
-    attrs: { role: "group", "aria-label": "Calendar period" },
-    children: [previousButton, todayButton, nextButton],
-  });
-
-  const toolbar = calendarView.createElement("div", {
-    className: "calendar-toolbar",
-    children: [
-      calendarView.createElement("div", {
-        className: "calendar-toolbar-period",
-        children: [calendarPeriodLabel, periodNav],
-      }),
-      calendarView.createElement("div", {
-        className: "segmented-control calendar-view-switch",
-        attrs: { role: "group", "aria-label": "Calendar view" },
-        children: CALENDAR_VIEW_OPTIONS.map((option) => createViewSwitchButton(option)),
-      }),
-    ],
-  });
-
-  calendarBodyRegion = calendarView.createElement("section", {
-    className: "calendar-body",
-    attrs: { "aria-label": "Calendar" },
-    dataset: { calendarBody: "" },
-  });
-
-  calendarHost.replaceChildren(header, calendarStatus, toolbar, createCalendarFilterPanel(), calendarBodyRegion);
-}
-
-function createCalendarFilterPanel() {
-  calendarClientFilter = calendarView.createElement("select", {
-    attrs: { "aria-label": "Client filter" },
-    dataset: { calendarClientFilter: "" },
-  });
-  calendarProjectFilter = calendarView.createElement("select", {
-    attrs: { "aria-label": "Project filter" },
-    dataset: { calendarProjectFilter: "" },
-  });
-  calendarStatusFilter = calendarView.createElement("select", {
-    attrs: { "aria-label": "Task status filter", multiple: true, size: 3 },
-    dataset: { calendarStatusFilter: "" },
-  });
-  calendarClientFilterControl = calendarView.createElement("label", {
-    className: "calendar-filter-control",
-    children: [
-      calendarView.createElement("span", { text: "Client" }),
-      calendarClientFilter,
-    ],
-    dataset: { calendarClientFilterControl: "" },
-  });
-
-  calendarClientFilter.addEventListener("change", () => {
-    calendarState.clientId = calendarClientFilter.value;
-    populateCalendarProjectFilter();
-    calendarState.projectId = calendarProjectFilter.value;
-    loadCalendarWindow();
-  });
-  calendarProjectFilter.addEventListener("change", () => {
-    calendarState.projectId = calendarProjectFilter.value;
-    loadCalendarWindow();
-  });
-  calendarStatusFilter.addEventListener("change", () => {
-    calendarState.statuses = [...calendarStatusFilter.selectedOptions].map((option) => option.value);
-    loadCalendarWindow();
-  });
-
-  return calendarView.createFilterPanel({
-    title: "Filters",
-    className: "calendar-filter-panel",
-    ariaLabel: "Calendar filters",
-    fields: [
-      calendarClientFilterControl,
-      calendarView.createElement("label", {
-        className: "calendar-filter-control",
-        children: [
-          calendarView.createElement("span", { text: "Project" }),
-          calendarProjectFilter,
-        ],
-      }),
-      calendarView.createElement("label", {
-        className: "calendar-filter-control",
-        children: [
-          calendarView.createElement("span", { text: "Task status" }),
-          calendarStatusFilter,
-        ],
-      }),
-    ],
-  });
-}
-
-function shiftCalendarPeriod(direction) {
-  const anchor = calendarState.anchor;
-
-  if (calendarState.view === "month") {
-    calendarState.anchor = new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
-  } else if (calendarState.view === "week") {
-    calendarState.anchor = taskCalendar.addDays(anchor, direction * 7);
-  } else {
-    calendarState.anchor = taskCalendar.addDays(anchor, direction);
+    return calendarView.createFilterPanel({
+      title: "Filters",
+      className: "calendar-filter-panel",
+      ariaLabel: "Calendar filters",
+      fields: [
+        calendarClientFilterControl,
+        calendarView.createElement("label", {
+          className: "calendar-filter-control",
+          children: [
+            calendarView.createElement("span", { text: "Project" }),
+            calendarProjectFilter,
+          ],
+        }),
+        calendarView.createElement("label", {
+          className: "calendar-filter-control",
+          children: [
+            calendarView.createElement("span", { text: "Task status" }),
+            calendarStatusFilter,
+          ],
+        }),
+      ],
+    });
   }
 
-  loadCalendarWindow();
-}
+  /** @param {-1 | 1} direction */
+  function shiftCalendarPeriod(direction) {
+    const anchor = calendarState.anchor;
 
-function applyCalendarWorkspaceContext() {
-  calendarState.workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || "business";
-
-  if (calendarClientFilterControl) {
-    calendarClientFilterControl.hidden = calendarState.workspaceType !== "business";
-  }
-}
-
-async function loadCalendarFilterOptions() {
-  try {
-    const response = await fetch("/api/client-projects?view=options", { cache: "no-store" });
-
-    if (!response.ok) {
-      throw new Error(`Could not load filter options: ${response.status}`);
+    if (calendarState.view === "month") {
+      calendarState.anchor = new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
+    } else {
+      const calendar = requireTaskCalendar();
+      calendarState.anchor = calendarState.view === "week"
+        ? calendar.addDays(anchor, direction * 7)
+        : calendar.addDays(anchor, direction);
     }
 
-    const normalizedClients = window.LongtailForge?.clientProjectOptions?.normalizeClients?.(await response.json()) || [];
-    calendarState.clients = normalizedClients.filter((client) => client.id && !client.isWorkspaceScope);
-    calendarState.projects = flattenCalendarProjectOptions(normalizedClients);
-  } catch {
-    calendarState.clients = [];
-    calendarState.projects = [];
+    loadCalendarWindow();
   }
-}
 
-function flattenCalendarProjectOptions(clients) {
-  const projects = [];
+  function applyCalendarWorkspaceContext() {
+    calendarState.workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || "business";
 
-  for (const client of clients) {
-    const clientLabel = window.LongtailForge?.clientProjectOptions?.optionLabel?.(client)
-      || client.displayName
-      || client.name
-      || "";
+    if (calendarClientFilterControl) {
+      calendarClientFilterControl.hidden = calendarState.workspaceType !== "business";
+    }
+  }
 
-    for (const project of Array.isArray(client.projects) ? client.projects : []) {
-      if (!project?.id) {
-        continue;
+  async function loadCalendarFilterOptions() {
+    try {
+      const response = await fetch("/api/client-projects?view=options", { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`Could not load filter options: ${response.status}`);
       }
 
-      const projectLabel = project.optionLabel || project.name || "Untitled Project";
-      projects.push({
-        id: project.id,
-        clientId: client.isWorkspaceScope ? "" : client.id,
-        label: clientLabel ? `${clientLabel} / ${projectLabel}` : projectLabel,
-        projectLabel,
+      const normalizedClients = window.LongtailForge?.clientProjectOptions?.normalizeClients?.(await response.json()) || [];
+      calendarState.clients = normalizedClients.filter((client) => client.id && !client.isWorkspaceScope);
+      calendarState.projects = flattenCalendarProjectOptions(normalizedClients);
+    } catch {
+      calendarState.clients = [];
+      calendarState.projects = [];
+    }
+  }
+
+  /**
+   * @param {readonly import("../../src/types/browser-contracts.js").NormalizedClientOption[]} clients
+   * @returns {CalendarProjectOption[]}
+   */
+  function flattenCalendarProjectOptions(clients) {
+    /** @type {CalendarProjectOption[]} */
+    const projects = [];
+
+    for (const client of clients) {
+      const clientLabel = window.LongtailForge?.clientProjectOptions?.optionLabel?.(client)
+        || client.displayName
+        || client.name
+        || "";
+
+      for (const project of Array.isArray(client.projects) ? client.projects : []) {
+        if (!project?.id) {
+          continue;
+        }
+
+        const projectLabel = project.optionLabel || project.name || "Untitled Project";
+        projects.push({
+          id: project.id,
+          clientId: client.isWorkspaceScope ? "" : client.id,
+          label: clientLabel ? `${clientLabel} / ${projectLabel}` : projectLabel,
+          projectLabel,
+        });
+      }
+    }
+
+    return projects;
+  }
+
+  function populateCalendarFilters() {
+    const calendarView = requireView();
+    if (calendarClientFilter) {
+      calendarClientFilter.replaceChildren(
+        createCalendarOption("", "All clients"),
+        ...calendarState.clients.map((client) => createCalendarOption(
+          client.id,
+          window.LongtailForge?.clientProjectOptions?.optionLabel?.(client) || client.name || "Untitled Client",
+        )),
+      );
+      calendarClientFilter.value = calendarState.clientId;
+    }
+
+    populateCalendarProjectFilter();
+    if (calendarStatusFilter) {
+      calendarStatusFilter.replaceChildren(
+        ...CALENDAR_STATUS_OPTIONS.map((option) => calendarView.createElement("option", {
+          attrs: { value: option.id },
+          text: option.label,
+        })),
+      );
+      [...calendarStatusFilter.options].forEach((option) => {
+        option.selected = calendarState.statuses.includes(option.value);
       });
     }
   }
 
-  return projects;
-}
-
-function populateCalendarFilters() {
-  if (calendarClientFilter) {
-    calendarClientFilter.replaceChildren(
-      createCalendarOption("", "All clients"),
-      ...calendarState.clients.map((client) => createCalendarOption(
-        client.id,
-        window.LongtailForge?.clientProjectOptions?.optionLabel?.(client) || client.name || "Untitled Client",
-      )),
-    );
-    calendarClientFilter.value = calendarState.clientId;
-  }
-
-  populateCalendarProjectFilter();
-  if (calendarStatusFilter) {
-    calendarStatusFilter.replaceChildren(
-      ...CALENDAR_STATUS_OPTIONS.map((option) => calendarView.createElement("option", {
-        attrs: { value: option.id },
-        text: option.label,
-      })),
-    );
-    [...calendarStatusFilter.options].forEach((option) => {
-      option.selected = calendarState.statuses.includes(option.value);
-    });
-  }
-}
-
-function populateCalendarProjectFilter() {
-  if (!calendarProjectFilter) {
-    return;
-  }
-
-  const previousValue = calendarProjectFilter.value;
-  const selectedClientId = calendarState.workspaceType === "business" ? calendarClientFilter?.value || "" : "";
-  const projects = selectedClientId
-    ? calendarState.projects.filter((project) => project.clientId === selectedClientId)
-    : calendarState.projects;
-
-  calendarProjectFilter.replaceChildren(
-    createCalendarOption("", "All projects"),
-    ...projects.map((project) => createCalendarOption(project.id, selectedClientId ? project.projectLabel : project.label)),
-  );
-  calendarProjectFilter.value = projects.some((project) => project.id === previousValue) ? previousValue : "";
-}
-
-function createCalendarOption(value, label) {
-  return calendarView.createElement("option", {
-    attrs: { value },
-    text: label,
-  });
-}
-
-function createViewSwitchButton(option) {
-  const button = calendarView.createElement("button", {
-    className: "calendar-view-button",
-    text: option.label,
-    attrs: { type: "button", "aria-pressed": option.id === calendarState.view ? "true" : "false" },
-    dataset: { calendarViewOption: option.id },
-  });
-
-  button.addEventListener("click", () => {
-    if (calendarState.view === option.id) {
+  function populateCalendarProjectFilter() {
+    if (!calendarProjectFilter) {
       return;
     }
 
-    calendarState.view = option.id;
-    updateViewSwitchButtons();
-    loadCalendarWindow();
-  });
+    const previousValue = calendarProjectFilter.value;
+    const selectedClientId = calendarState.workspaceType === "business" ? calendarClientFilter?.value || "" : "";
+    const projects = selectedClientId
+      ? calendarState.projects.filter((project) => project.clientId === selectedClientId)
+      : calendarState.projects;
 
-  calendarViewButtons.push(button);
-  return button;
-}
-
-function updateViewSwitchButtons() {
-  for (const button of calendarViewButtons) {
-    const isActive = button.dataset.calendarViewOption === calendarState.view;
-    button.setAttribute("aria-pressed", isActive ? "true" : "false");
-  }
-}
-
-async function loadCalendarWindow() {
-  if (!calendarHost || !calendarView || !taskCalendar) {
-    return;
+    calendarProjectFilter.replaceChildren(
+      createCalendarOption("", "All projects"),
+      ...projects.map((project) => createCalendarOption(project.id, selectedClientId ? project.projectLabel : project.label)),
+    );
+    calendarProjectFilter.value = projects.some((project) => project.id === previousValue) ? previousValue : "";
   }
 
-  setCalendarStatus("Loading calendar...");
-
-  try {
-    const range = taskCalendar.calendarRange(calendarState.view, calendarState.anchor);
-    calendarState.data = await taskCalendar.fetchCalendarWindow(range, {
-      clientId: calendarState.clientId,
-      projectId: calendarState.projectId,
-      statuses: calendarState.statuses,
+  /** @param {string} value @param {string} label */
+  function createCalendarOption(value, label) {
+    const calendarView = requireView();
+    return calendarView.createElement("option", {
+      attrs: { value },
+      text: label,
     });
-    calendarPeriodLabel.textContent = range.label;
-    taskCalendar.renderCalendarBody(calendarBodyRegion, {
-      viewId: calendarState.view,
-      range,
-      data: calendarState.data,
-      onOpenTask: openCalendarTask,
+  }
+
+  /** @param {(typeof CALENDAR_VIEW_OPTIONS)[number]} option */
+  function createViewSwitchButton(option) {
+    const calendarView = requireView();
+    const button = calendarView.createElement("button", {
+      className: "calendar-view-button",
+      text: option.label,
+      attrs: { type: "button", "aria-pressed": option.id === calendarState.view ? "true" : "false" },
+      dataset: { calendarViewOption: option.id },
     });
-    setCalendarStatus(calendarState.data?.source_enabled === false
-      ? "The Tasks module is disabled for this workspace. Existing due dates are shown read-only."
-      : "");
-  } catch (error) {
-    setCalendarStatus(error.message || "Calendar data could not be loaded.", { isError: true });
-    console.error(error);
-  }
-}
 
-function openCalendarTask(taskId, trigger, occurrence = null) {
-  const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
-  const templateId = String(occurrence?.templateId || "").trim();
-  const instanceDate = String(occurrence?.instanceDate || "").trim();
+    button.addEventListener("click", () => {
+      if (calendarState.view === option.id) {
+        return;
+      }
 
-  if (typeof opener !== "function" || (!taskId && (!templateId || !instanceDate))) {
-    return;
+      calendarState.view = option.id;
+      updateViewSwitchButtons();
+      loadCalendarWindow();
+    });
+
+    calendarViewButtons.push(button);
+    return button;
   }
 
-  opener({
-    instanceDate,
-    taskId,
-    templateId,
-    mode: "edit",
-    returnFocusTo: trigger,
-    onSaved: () => loadCalendarWindow(),
-  }).catch((error) => {
-    setCalendarStatus("The task could not be opened.", { isError: true });
-    console.error(error);
-  });
-}
-
-function setCalendarStatus(message, options = {}) {
-  if (!calendarStatus) {
-    return;
+  function updateViewSwitchButtons() {
+    for (const button of calendarViewButtons) {
+      const isActive = button.dataset.calendarViewOption === calendarState.view;
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    }
   }
 
-  calendarStatus.textContent = message || "";
-  calendarStatus.hidden = !message;
-  calendarStatus.dataset.viewTone = options.isError ? "danger" : "info";
-  calendarStatus.setAttribute("role", options.isError ? "alert" : "status");
-  calendarStatus.setAttribute("aria-live", options.isError ? "assertive" : "polite");
-}
+  async function loadCalendarWindow() {
+    const calendarView = window.LongtailForge?.view;
+    if (!calendarHost || !calendarView || !taskCalendar) {
+      return;
+    }
+
+    setCalendarStatus("Loading calendar...");
+
+    try {
+      const range = taskCalendar.calendarRange(calendarState.view, calendarState.anchor);
+      calendarState.data = await taskCalendar.fetchCalendarWindow(range, {
+        clientId: calendarState.clientId,
+        projectId: calendarState.projectId,
+        statuses: calendarState.statuses,
+      });
+      requireCalendarElement(calendarPeriodLabel, "period label").textContent = range.label;
+      taskCalendar.renderCalendarBody(requireCalendarElement(calendarBodyRegion, "body region"), {
+        viewId: calendarState.view,
+        range,
+        data: calendarState.data,
+        onOpenTask: openCalendarTask,
+      });
+      setCalendarStatus(calendarState.data?.source_enabled === false
+        ? "The Tasks module is disabled for this workspace. Existing due dates are shown read-only."
+        : "");
+    } catch (error) {
+      setCalendarStatus(requireErrors().caughtMessage(error, "Calendar data could not be loaded."), { isError: true });
+      console.error(error);
+    }
+  }
+
+  /**
+   * @param {string} taskId @param {Element} trigger
+   * @param {BrowserTaskCalendarOccurrence | null} [occurrence]
+   */
+  function openCalendarTask(taskId, trigger, occurrence = null) {
+    const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
+    const templateId = String(occurrence?.templateId || "").trim();
+    const instanceDate = String(occurrence?.instanceDate || "").trim();
+
+    if (typeof opener !== "function" || (!taskId && (!templateId || !instanceDate))) {
+      return;
+    }
+
+    opener({
+      instanceDate,
+      taskId,
+      templateId,
+      mode: "edit",
+      returnFocusTo: trigger,
+      onSaved: () => loadCalendarWindow(),
+    }).catch((error) => {
+      setCalendarStatus("The task could not be opened.", { isError: true });
+      console.error(error);
+    });
+  }
+
+  /** @param {string} message @param {{ isError?: unknown }} [options] */
+  function setCalendarStatus(message, options = {}) {
+    if (!calendarStatus) {
+      return;
+    }
+
+    calendarStatus.textContent = message || "";
+    calendarStatus.hidden = !message;
+    calendarStatus.dataset.viewTone = options.isError ? "danger" : "info";
+    calendarStatus.setAttribute("role", options.isError ? "alert" : "status");
+    calendarStatus.setAttribute("aria-live", options.isError ? "assertive" : "polite");
+  }
+})();

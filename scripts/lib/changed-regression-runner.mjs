@@ -1,8 +1,21 @@
 import { suggestRegressionsForPaths } from "./regression-change-routing.mjs";
 import { runPackageScript } from "./package-script-runner.mjs";
 
+/**
+ * @typedef {{ areas: readonly string[], fullCheck: boolean, path: string, reason: string }} ChangedRegressionMatch
+ * @typedef {{ areas: readonly string[], commands: readonly string[], fallback: boolean, fullCheckRecommended: boolean, matches: readonly ChangedRegressionMatch[], paths: readonly string[], releaseGate: string, unroutedPaths: readonly string[] }} RegressionSuggestion
+ * @typedef {(filePaths: readonly string[], options: { versionBookkeepingPaths?: readonly string[] }) => RegressionSuggestion} SuggestRegressionsForPaths
+ * @typedef {{ areas: readonly string[], commands: readonly string[], matches: readonly ChangedRegressionMatch[], mode: string, paths: readonly string[], releaseGate: string, unroutedPaths: readonly string[] }} ChangedRegressionPlan
+ * @typedef {{ command: string, status: number | null | undefined }} ExecutedChangedRegressionCommand
+ */
+
+/**
+ * @param {readonly string[]} [filePaths]
+ * @param {{ prechecked?: boolean, versionBookkeepingPaths?: readonly string[] }} [options]
+ * @returns {ChangedRegressionPlan}
+ */
 function createChangedRegressionPlan(filePaths = [], { prechecked = false, versionBookkeepingPaths = [] } = {}) {
-  const suggestion = suggestRegressionsForPaths(filePaths, { versionBookkeepingPaths });
+  const suggestion = /** @type {SuggestRegressionsForPaths} */ (suggestRegressionsForPaths)(filePaths, { versionBookkeepingPaths });
   let mode = "focused";
   let commands = suggestion.commands;
 
@@ -23,9 +36,14 @@ function createChangedRegressionPlan(filePaths = [], { prechecked = false, versi
     mode,
     paths: suggestion.paths,
     releaseGate: suggestion.releaseGate,
+    unroutedPaths: suggestion.unroutedPaths,
   });
 }
 
+/**
+ * @param {ChangedRegressionPlan} plan
+ * @returns {string}
+ */
 function formatChangedRegressionPlan(plan) {
   if (plan.mode === "empty") {
     return [
@@ -48,6 +66,9 @@ function formatChangedRegressionPlan(plan) {
     for (const match of plan.matches) {
       lines.push(`- ${match.path}: ${match.reason} -> ${match.areas.join(", ")}`);
     }
+    for (const filePath of plan.unroutedPaths) {
+      lines.push(`- ${filePath}: no route matched -> full gate`);
+    }
   }
 
   if (plan.mode === "full-check" || plan.mode === "full-regressions") {
@@ -63,7 +84,13 @@ function formatChangedRegressionPlan(plan) {
   return lines.join("\n");
 }
 
+/**
+ * @param {ChangedRegressionPlan} plan
+ * @param {{ runCommand?: (command: string) => { status?: number | null } }} [options]
+ * @returns {{ executed: readonly ExecutedChangedRegressionCommand[], status: number }}
+ */
 function executeChangedRegressionPlan(plan, { runCommand = runNpmCommand } = {}) {
+  /** @type {ExecutedChangedRegressionCommand[]} */
   const executed = [];
 
   for (const command of plan.commands) {
@@ -77,6 +104,10 @@ function executeChangedRegressionPlan(plan, { runCommand = runNpmCommand } = {})
   return Object.freeze({ executed: Object.freeze(executed), status: 0 });
 }
 
+/**
+ * @param {string} command
+ * @returns {{ status: number | null }}
+ */
 function runNpmCommand(command) {
   const match = /^npm run ([a-z0-9:-]+)$/.exec(command);
   if (!match) {

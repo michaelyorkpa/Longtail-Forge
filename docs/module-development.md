@@ -12,6 +12,28 @@ Required fields include `id`, `name`, `displayName`, `description`, `category`, 
 
 Use `enabledByDefault: false` for examples or optional features that should not appear in new workspaces automatically. Use `canDisable: false` only for framework-core modules.
 
+As of 0.33.33.45.3, `createModuleEntry` supplies `publicViews: []`, `seedHooks: []`, `repairHooks: []` and `migrationsDir: null` when a manifest omits them, so a new module leaves those four fields out. A supplied value is kept for the validator to judge. Keep `browserAssetsDir` and `protectedViewsDir` explicit.
+
+### Start From The Scaffold
+
+Use `npm run module:create -- <module-id> [--root <repository-root>]` to generate a strict-clean starting point instead of copying another module.
+
+**The module ID.** It must be a non-reserved, lowercase, kebab-case name of at most 64 characters.
+
+**What the generator refuses.** It writes nothing over existing work: it refuses an existing module directory, any existing output file and any linked output directory.
+
+**The 11 files it writes:**
+- `module.js`, `routes.js`, `public-api.routes.js`, `records.service.js`, `records.repo.js`, `search-indexer.js` and `contracts.d.ts` under `src/modules/<id>/`;
+- `public/js/<id>.js`, an IIFE browser controller compiled by the browser program;
+- `views/protected/<id>.html`;
+- `docs/modules/<id>.md`;
+- `tests/unit/<id>-records.test.mjs`, the module's initial Vitest home.
+
+**What it leaves unwritten.** The repository returns no records until module-owned persistence exists. No migration, seed data or mutation route is invented. Browser reads require the generated `.view` permission, and public API reads require the generated `:read` scope.
+
+**Next steps.** Implement storage and permission-aware reads, then run `npm run modules:registry:generate`. Regeneration alone does not adopt the module into this repository: follow "Adopt A Generated Module Into This Repository" below.
+
+
 Keep entry imports side-effect free. Search indexers, report runners, setting persistence/effects, job handlers, and module-owned startup work belong in `activateApp` and/or `activateWorker`, not at module scope. Activation hooks must remain synchronous and data-free; register later startup work through `context.registerStartupTask(...)`. The framework validates the entire manifest graph first, then activates dependencies before dependents with module-ID ordering as the deterministic tie-breaker. App and worker bootstrap must call the generic module runtime rather than import a specific module's handlers or sweeps.
 
 ### Concern-Based Manifest Source Composition
@@ -81,6 +103,9 @@ Persistent record identity is another explicit framework-wide exception. Server-
 
 The 0.33.18 closeout records the actual qualifications in `docs/architecture.md`: all eight bundled modules consume the canonical entry/catalog contract; Tasks and Notes consume concern composition; Tasks and Time Tracking consume Dashboard contribution asset loading; and database startup plus release tooling are explicit framework-wide exceptions. `LongtailForge.esModuleBridge` remains Dashboard page-local compatibility machinery, not a new general extension API. Future modules may consume the settled manifest and contribution contracts, but a second converted page must prove materially similar loading needs before the bridge is extracted or broadened.
 
+As of 0.33.33.45.3, Time Tracking also consumes concern composition. Three data-only concern files carry its closely related fields: `module.permissions.js`, `module.events.js` and `module.integrations.js`. Each field is assigned explicitly at its original position. Its settings, Help, reporting, views and dashboard stay inline, because each is a single field below the concern threshold.
+
+
 Browser modernization is gradual native ES-module adoption, not a framework rewrite. Dashboard is the first settled conversion: one `<script type="module">` page entry owns an explicit compatibility import list; all imported local assets are same-origin, application-versioned, and deduplicated; and existing `LongtailForge` globals survive temporarily behind `LongtailForge.esModuleBridge`. A converted page must not retain ordered body-level implementation scripts or introduce a new global ordering dependency.
 
 Keep the framework page entry generic. Permission-filtered module scripts and styles must be declared in `browserAssets`, returned by the host's contribution catalog, and loaded through `loadContributedAssets(...)`; do not hard-code a module renderer path into the protected HTML or framework host. A module asset may use `importScripts(...)` only to bridge an existing dependency while it is converted. New module code should use real imports/exports where its dependency is already modular. Keep CSS ownership parallel to behavior ownership: page anatomy belongs in a framework page stylesheet, while module panels belong in module-owned styles. Every converted entry needs missing-file/import, same-origin/versioning, behavior, accessibility, keyboard, responsive, and CSP-safe regression proof. Workbench remains unconverted until its scheduled performance restructuring.
@@ -92,6 +117,15 @@ Browser/session routes go in `browserApiRoutes` and are mounted under `/api` aft
 Every new authenticated browser route must also receive an exact template under a stable ID in `src/core/public-demo-budget-catalog.js`. Choose the read or mutation catalog deliberately, declare bulk collection keys when one request can create multiple records, and add a service-level `reserveAdditionalPublicDemoBudgetUnits(...)` call before persistence when output growth depends on stored state rather than the request body. Do not use a broad prefix: undeclared future routes must fail closed for marked demo visitors. Capability, permission, workspace, validation, and module behavior remain separate authoritative checks after budget admission.
 
 Public API routes go in `publicApiRoutes` and should use API key middleware with a module-declared scope. Describe those endpoints in `publicApiEndpoints` so docs and sanity checks can discover them.
+
+As of 0.33.33.45.1, shape public API responses through `src/core/public-api-responses.js` rather than copying helpers:
+
+- **`publicApiData` and `publicApiList`** are the response envelopes.
+- **`pagePublicApiItems`** is the pager, with its bounded limit and offset.
+- **`withWorkspaceFallback`** is the shared workspace alias for records.
+
+The module keeps its own authorization, exposure filtering and response construction.
+
 
 ## Handle Route Failures
 
@@ -392,6 +426,14 @@ Modules that participate in tag propagation declare `tagPropagation` descriptors
 
 Search is framework-owned. Modules may provide `searchableTypes` descriptors with record fields, required read permission, and a stable string `indexer` ID that the framework search indexer registry resolves internally. Required fields are `recordType`, `moduleId`, `idField`, `titleField`, `summaryField`, `bodyFields`, `workspaceField`, `requiredReadPermission`, and `indexer`; `clientField`, `projectField`, tag text, visibility, record status, and source metadata are optional. Do not put direct function references in manifests, and do not build module-owned global search routes or duplicate search UI. Active searchable type lookup filters out disabled modules and unmet required modules, and active search request shaping carries each target's declared read permission. Module-owned indexers should read records through the owning module service/repository and return data that can be passed through `searchService.normalizeSearchDocument()`; they should not write directly to search tables. Search indexing side effects are queued as durable jobs: after successful create/update/archive/restore/delete flows, modules should call `searchIndexSyncService` so the framework queues a `search.index` job and the worker performs canonical `search_index` and backend FTS writes. Framework search service methods such as `indexSearchDocument()`, `removeSearchDocument()`, and `reindexSearchRecord()` remain direct persistence methods for worker handlers, focused tests, and maintenance tools, not normal module mutation side effects. Rebuild-capable indexers should also return workspace documents when called without a `recordId` in rebuild mode so framework rebuild tooling can upsert canonical rows, remove stale rows, clean up inactive module/type rows, and ask the active adapter to repair backend storage. Keep module search declarations backend-neutral: SQLite FTS and future PostgreSQL full-text syntax belong in adapters. Treat visibility, record status, and source as search metadata, not permission or workflow authority. Exact tag filters use canonical tag assignments; denormalized tag text is only for text matching/ranking. Initial first-party indexers cover Tasks, Time Entries, Clients, and Projects; browser search routes, the shared authenticated-shell search entry, and the `search.html` results page are framework-owned and return or route to permission-shaped search results, with workflow regressions covering discovery, edits, pagination, permissions, Help article search, and UI states. Public API search remains separate roadmap work.
 
+As of 0.33.33.45.2, a module indexer orchestrates through `indexSearchReference(reference, { readAll, readOne, toDocument })` in `src/core/search/record-indexer.js`.
+
+- **The bulk path** reads every record, builds each in order and one at a time, and leaves out any record whose builder answers no document.
+- **The single path** answers `null` for a missing record.
+
+The module keeps its own readers, document builder and eligibility policy. For example, Lists keeps its deleted-record rule in its reader, and Notes keeps its access and visibility decisions in its builder.
+
+
 ## Markdown Rendering
 
 Markdown rendering is framework-owned. Use `src/core/markdown/markdown.service.js` for generic Markdown rendering, plain-text extraction, excerpts, source normalization, and safe URL checks. If a module needs module-specific behavior, such as Notes wiki links or secure-note placeholders, keep that behavior in a thin module adapter over the framework service instead of adding another parser or regex renderer.
@@ -430,6 +472,29 @@ The Help service renders article Markdown through the shared framework Markdown 
 
 Keep Help Center content about current product/module usage. Do not put roadmap promises, in-app authoring workflows, rich embeds, raw HTML, scripts, medical or diagnostic positioning, or workspace-authored operational knowledge into manifest-declared product Help. User-authored operational articles belong to the future Knowledge Base module, not to manifest-declared product help.
 
+## Adopt A Generated Module Into This Repository
+
+The generator's emitted files need no repair, but a new module is not adopted until a reviewed change updates this repository's own inventories and persistence. Under the operator's 2026-10-01 ruling (D3), adoption is an explicit, reviewed step, not something `module:create` or any regeneration does. The `0.33.33.46.1` acceptance adopted a generated module through 14 authored files. They fall into five categories and two companion steps.
+
+**The five categories:**
+1. **API scopes.** Add the module's scopes to the reviewed scope inventory, and to `docs/public-api.md`.
+2. **Bundled-module inventory.** Add the module ID and the activated search indexer, then update the reviewed inventory hash. Re-derive that hash only after diffing the normalized inventory.
+3. **Public demo.** Update the demo inventory and module count, without relaxing any capability restriction.
+4. **Support View.** Classify every module `GET` route explicitly in `src/middleware/support-view-request-gate.js`. Be conservative for reads not yet implemented, because a generated `GET` route is not automatically Support-View safe.
+5. **Default grants.** Add a reviewed forward migration and the reviewed `src/db/schema/current.sql` seed. `npm run db:schema:refresh` writes only `current.generated.sql`; it never supplies the `current.sql` seed.
+
+**The two companion steps,** which the generated guidance does not name:
+1. **The baseline checksum.** Add the pre-adoption legacy baseline checksum to `LEGACY_ROLE_SEED_BASELINE_CHECKSUMS` in `src/db/migrations.js`. Without it, existing databases are refused at upgrade.
+2. **The migration inventory.** Update the five regressions that pin the live migration inventory, together with `docs/database.md`.
+
+**The evidence model.**
+- **A reviewable adoption diff with its exact baseline.** `tests/fixtures/module-adoption/` holds the patch and its baseline.
+- **A full-gate acceptance:** `npm run verify:slice` in a full-history clone outside the operating system's temporary directory. The scale-seed safety rules treat temporary paths as disposable, and the unit suite reads committed history.
+
+Declarative adoption of the Support View classification and the default grants is recorded for 0.34 planning. Until then, those two steps edit framework files.
+
+**Adding tests.** The generated module's first test home is its Vitest file. Adding a discovered regression is a separate reviewed step: see "Adding a Regression" in `docs/regression-suite.md`. That covers an existing canonical area, a new area's registration, and ceiling changes as reviewed policy edits.
+
 ## Sanity Checks
 
-Run `npm run check` before relying on a module change. The check suite validates JavaScript syntax, storage behavior, event bus behavior, audit extensibility, registered module uniqueness, route descriptors, permissions, API scopes, notification declarations, taggable type declarations, searchable type declarations, help declarations, and dependency references.
+Run `npm run verify:slice` before relying on a module change. It is the canonical local gate: it runs closeout once, checks every changed path, and escalates to the full check when routing requires it. It needs a checkout with full git history, because the unit suite reads committed baselines through `git show <sha>:<path>`; a shallow clone fails those tests. Runtime installation and the release artifact need no git history. Within it, `npm run check` The check suite validates JavaScript syntax, storage behavior, event bus behavior, audit extensibility, registered module uniqueness, route descriptors, permissions, API scopes, notification declarations, taggable type declarations, searchable type declarations, help declarations, and dependency references.

@@ -4,6 +4,8 @@ import { permissionsService } from "../../services/permissions.service.js";
 import { taskCalendarSubscriptionResource } from "./task-calendar-feed.scope.js";
 import { buildTasksPrivateCalendarContent } from "./task-calendar-feed.service.js";
 
+/** @typedef {import("../../types/task-workflow-contracts.js").TaskPrivateFeedRenderContext} TaskPrivateFeedRenderContext */
+
 function registerTasksPrivateCalendarFeedProvider() {
   return registerPrivateFeedProvider({
     id: PRIVATE_CALENDAR_PROVIDER_ID,
@@ -11,6 +13,7 @@ function registerTasksPrivateCalendarFeedProvider() {
   });
 }
 
+/** @param {Readonly<TaskPrivateFeedRenderContext>} context */
 async function renderTasksPrivateCalendarFeed({ session, subscription }) {
   if (
     !subscription
@@ -21,7 +24,7 @@ async function renderTasksPrivateCalendarFeed({ session, subscription }) {
   }
 
   const canViewTasks = await permissionsService.can(
-    session,
+    /** @type {import("../../types/http-contracts.js").PrivateFeedAuthorizationSession} */ (session),
     "tasks.view",
     taskCalendarSubscriptionResource(subscription),
   );
@@ -29,7 +32,10 @@ async function renderTasksPrivateCalendarFeed({ session, subscription }) {
     return null;
   }
 
-  return buildTasksPrivateCalendarContent({ session, subscription });
+  return buildTasksPrivateCalendarContent({
+    session: /** @type {import("../../types/http-contracts.js").PrivateFeedAuthorizationSession} */ (session),
+    subscription,
+  });
 }
 
 export {

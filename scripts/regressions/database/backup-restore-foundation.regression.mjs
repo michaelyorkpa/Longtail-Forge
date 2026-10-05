@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { parseCli } from "../../backup.mjs";
@@ -17,12 +18,12 @@ import {
   validateTarEntries,
 } from "../../lib/backup-archive.mjs";
 
-const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8")));
 const backupSource = await fs.readFile("scripts/lib/backup-archive.mjs", "utf8");
 const cliSource = await fs.readFile("scripts/backup.mjs", "utf8");
 
 for (const scriptName of ["backup:create", "backup:inspect", "backup:export", "backup:restore", "backup:drill"]) {
-  assert.ok(packageJson.scripts[scriptName], `${scriptName} should be independently runnable`);
+  assert.ok(requireScripts(packageJson)[scriptName], `${scriptName} should be independently runnable`);
 }
 assert.match(backupSource, /masterKeyIncluded:\s*false/);
 assert.match(backupSource, /recoveryPrerequisiteRequired/);

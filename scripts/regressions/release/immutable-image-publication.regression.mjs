@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import fs from "node:fs/promises";
 import {
   PROVENANCE_PREDICATES,
@@ -19,6 +20,7 @@ import {
   validatePublishedReleaseMetadata,
 } from "../../release/published-container-image.mjs";
 
+/** @param {string} filePath */
 const read = (filePath) => fs.readFile(filePath, "utf8");
 const [
   publisher,
@@ -130,7 +132,7 @@ assert.doesNotMatch(configScript, /demo-development|"nightly", "ssh-compose-dige
 assert.match(configScript, /COMPOSE_DEPLOY_HELPER/);
 assert.match(configScript, /COMPOSE_DEPLOY_INBOX/);
 assert.match(compose, /image: \$\{LONGTAIL_IMAGE:-longtail-forge:local\}/);
-assert.equal(JSON.parse(packageSource).scripts["image:publish"], "node scripts/release/published-container-image.mjs");
+assert.equal(requirePackageManifest(JSON.parse(packageSource)).scripts?.["image:publish"], "node scripts/release/published-container-image.mjs");
 
 const digest = `sha256:${"a".repeat(64)}`;
 const platformDigest = `sha256:${"b".repeat(64)}`;
@@ -167,7 +169,7 @@ const platformManifest = {
   platform: "linux/amd64",
   platformManifest: { digest: platformDigest, mediaType: "application/vnd.oci.image.manifest.v1+json", os: "linux", architecture: "amd64" },
   imageConfigDigest: `sha256:${"1".repeat(64)}`,
-  nativeDependency: { architecture: "x64", betterSqlite3Version: "13.0.1", execution: "published-digest", platform: "linux", sqliteVersion: "3.53.3" },
+  nativeDependency: { architecture: "x64", betterSqlite3Version: "13.0.3", execution: "published-digest", platform: "linux", sqliteVersion: "3.53.4" },
   attestations: {
     sbom: { manifestDigest: sbomDigest, predicateType: SBOM_PREDICATE },
     provenance: { manifestDigest: provenanceDigest, predicateType: [...PROVENANCE_PREDICATES][0] },

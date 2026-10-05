@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tasks-server-side-paging-"));
@@ -73,6 +79,7 @@ function assertStaticContract() {
   assert.match(tasksDocs, /As of 0\.33\.5\.20\.2, the protected Tasks list route returns bounded server-side pages/, "Tasks docs should keep the server-side paging version on the shipped list contract");
   }
 
+/** @param {TasksSession} session @param {number} taskCount */
 async function assertPagedList(session, taskCount) {
   assert.ok(taskCount >= 80, "scale seed should provide a non-trivial task set");
 
@@ -88,7 +95,7 @@ async function assertPagedList(session, taskCount) {
   assert.equal(firstPage.pagination.hasMore, true, "seeded task set should expose a next page");
   assert.ok(firstPage.pagination.nextCursor, "pagination should return an opaque cursor");
   assert.ok(firstPage.tasks.length < taskCount, "normal list reads should not return the whole task table");
-  assert.ok(firstPage.tasks.every((task) => !["complete", "archived"].includes(task.status)), "All view should stay active-only");
+  assert.ok(firstPage.tasks.every((task) => !["complete", "archived"].includes(String(task.status || ""))), "All view should stay active-only");
 
   const secondPage = await tasksService.list(session, {
     task_view: "all",
@@ -104,8 +111,9 @@ async function assertPagedList(session, taskCount) {
   assert.equal([...secondIds].some((taskId) => firstIds.has(taskId)), false, "cursor paging should not duplicate the first page");
 }
 
+/** @param {TasksSession} session */
 async function assertPermissionPruning(session) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const result = await tasksService.list(noRoleSession, {
     task_view: "all",
     status: "all",
@@ -127,20 +135,10 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "seeded database should include a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "seeded database should include a protected super admin"));
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -187,14 +185,14 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `tasks-paging-no-role-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 function runSeed() {
@@ -219,6 +217,7 @@ function runSeed() {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 }
 
+/** @param {Record<string, string>} [overrides] @returns {NodeJS.ProcessEnv} */
 function cleanEnv(overrides = {}) {
   const env = { ...process.env, ...overrides };
   delete env.LTF_REGRESSION_BASELINE_DB;
@@ -226,8 +225,4 @@ function cleanEnv(overrides = {}) {
   delete env.LONGTAIL_DATA_DIR;
   delete env.LONGTAIL_DATABASE_PROVIDER;
   return env;
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

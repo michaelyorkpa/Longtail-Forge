@@ -1,7 +1,285 @@
 (function () {
-  const namespace = window.LongtailForge || {};
-  const registeredActions = new Map();
+  // Scoped inside the IIFE deliberately: a top-level JSDoc typedef in a classic script
+  // leaks into the shared type environment the way a top-level `const` leaks into the
+  // shared lexical one, which is the thing `0.33.33.33` removed from this estate.
+  /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionDependency} ModuleActionDependency */
 
+  const namespace = window.LongtailForge || {};
+  /**
+   * Keyed by the exact identifier each action registered with. **The key is opaque**
+   * (`0.33.33.38.2.10`): `register` accepts any truthy `actionId`/`id`, and `open` finds an action
+   * by that same value, so a numeric `7` and the text `"7"` are two different actions.
+   * @type {Map<unknown, RegisteredModuleAction>}
+   */
+  const registeredActions = new Map();
+  /** @type {Map<string, Promise<void>>} */
+  const dependencyScriptLoads = new Map();
+
+  // The dependency table below is what makes these reads safe: `ensureDependencies` loads the
+  // module action's scripts and each descriptor names the surface and member it must publish,
+  // so an opener never runs before its dialog exists. These accessors say that out loud rather
+  // than re-reading the namespace on trust, and they throw at the same moment the property
+  // access used to - when the action is opened, not when the registry is built.
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("Module actions requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserNotesDialog} */
+  function requireNotesDialog() {
+    const notesDialog = namespace.notesDialog;
+
+    if (!notesDialog) {
+      throw new Error("The Notes dialog is required to open this module action.");
+    }
+
+    return notesDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserListsDialog} */
+  function requireListsDialog() {
+    const listsDialog = namespace.listsDialog;
+
+    if (!listsDialog) {
+      throw new Error("The Lists dialog is required to open this module action.");
+    }
+
+    return listsDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserClientProjectDialog} */
+  function requireClientProjectDialog() {
+    const clientProjectDialog = namespace.clientProjectDialog;
+
+    if (!clientProjectDialog) {
+      throw new Error("The client and project dialog is required to open this module action.");
+    }
+
+    return clientProjectDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserFilesDialog} */
+  function requireFilesDialog() {
+    const filesDialog = namespace.filesDialog;
+
+    if (!filesDialog) {
+      throw new Error("The Files dialog is required to open this module action.");
+    }
+
+    return filesDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserFilePreview} */
+  function requireFilePreview() {
+    const filePreview = namespace.filePreview;
+
+    if (!filePreview) {
+      throw new Error("The file preview helper is required to open this module action.");
+    }
+
+    return filePreview;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserTasksDialog} */
+  function requireTasksDialog() {
+    const tasksDialog = namespace.tasksDialog;
+
+    if (!tasksDialog) {
+      throw new Error("The Tasks dialog is required to open this module action.");
+    }
+
+    return tasksDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserTimeEntryDialog} */
+  function requireTimeEntryDialog() {
+    const timeEntryDialog = namespace.timeEntryDialog;
+
+    if (!timeEntryDialog) {
+      throw new Error("The time entry dialog is required to open this module action.");
+    }
+
+    return timeEntryDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserTimeTrackingTimerDialog} */
+  function requireTimeTrackingTimerDialog() {
+    const timeTrackingTimerDialog = namespace.timeTrackingTimerDialog;
+
+    if (!timeTrackingTimerDialog) {
+      throw new Error("The timer dialog is required to open this module action.");
+    }
+
+    return timeTrackingTimerDialog;
+  }
+
+  /**
+   * Scripts a host page must load before the named action can be opened, in the order
+   * they must run.
+   *
+   * `0.33.33.34` moved this out of `public/js/workbench.js`, where it was a private
+   * constant read at one site. It is framework machinery: which script publishes which
+   * opener is a property of the registry, not of the one surface that happened to
+   * declare it first.
+   *
+   * Entries with `module: true` are loaded through dynamic `import()` rather than a
+   * classic `<script>` element, because those adapters would otherwise collide in the
+   * shared lexical environment.
+   * Indexed with a property key rather than a string: the lookup below converts an opaque action
+   * key exactly as a member access does.
+   * @type {Readonly<Record<PropertyKey, readonly ModuleActionDependency[]>>}
+   */
+  const MODULE_ACTION_DEPENDENCIES = Object.freeze({
+    "notes.view": [
+      { src: "js/shared/notification-subscriptions.js", surface: "notificationSubscriptions" },
+      { src: "js/shared/notes-editor.js", surface: "notesEditor" },
+      { member: "openNoteViewer", module: true, src: "js/notes.js", surface: "notesDialog" },
+    ],
+    "notes.edit": [
+      { src: "js/shared/notification-subscriptions.js", surface: "notificationSubscriptions" },
+      { src: "js/shared/notes-editor.js", surface: "notesEditor" },
+      { member: "openNoteEditor", module: true, src: "js/notes.js", surface: "notesDialog" },
+    ],
+    "lists.edit": [
+      { src: "js/shared/client-project-options.js", surface: "clientProjectOptions" },
+      { member: "openListEditor", module: true, src: "js/lists.js", surface: "listsDialog" },
+    ],
+    "tasks.add": [
+      { src: "js/shared/capture-prompt.js", surface: "capturePrompt" },
+      { src: "js/task-resume-note-capture.js", surface: "taskResumeNoteCapture" },
+      { member: "openTaskEditor", src: "js/task-dialog.js", surface: "tasksDialog" },
+    ],
+    "tasks.edit": [
+      { src: "js/shared/capture-prompt.js", surface: "capturePrompt" },
+      { src: "js/task-resume-note-capture.js", surface: "taskResumeNoteCapture" },
+      { member: "openTaskEditor", src: "js/task-dialog.js", surface: "tasksDialog" },
+    ],
+    // Files publishes the whole editor and preview surface, but a host page must not
+    // load the Files page controller to preview one attachment: it self-initializes
+    // with its own fetches. The action-shaped opener therefore lives in the shared
+    // preview helper, which is what this entry loads.
+    "files.preview": [
+      { member: "openFilePreviewAction", src: "js/shared/file-preview.js", surface: "filePreview" },
+    ],
+    "time-entries.add": [
+      { src: "js/time-entry-dialog.js", surface: "timeEntryDialog" },
+    ],
+    "time-entries.edit": [
+      { src: "js/time-entry-dialog.js", surface: "timeEntryDialog" },
+    ],
+    "clients.add": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+    "clients.edit": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+    "projects.add": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+    "projects.edit": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+  });
+
+  /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionOutcome} ModuleActionOutcome */
+  /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionSummary} ModuleActionSummary */
+
+  /**
+   * An action's dialog opener, as the registry calls it.
+   *
+   * `params` is `{}` rather than `unknown` because the registry spreads it and never reads a
+   * member of it. `{}` is "whatever the host passed that is not nullish", which is what `open`'s
+   * own `= {}` default leaves, and unlike `unknown` it stays spreadable - so the openers below
+   * keep forwarding a string or a bare object exactly as they did. `hostContext` is `unknown`
+   * because the registry only hands it back.
+   *
+   * `register` proves that an opener is a function and nothing else. It does not check how many
+   * parameters one declares, so this signature is what the registry calls with, not a fact about
+   * the descriptor that supplied it.
+   * @typedef {(params?: {}, hostContext?: unknown) => unknown} ModuleActionOpener
+   */
+
+  /**
+   * The members `register` reads off a descriptor.
+   *
+   * **This is not the module-contribution vocabulary.** `BrowserModuleActions.register` still
+   * accepts `unknown`, and `0.33.33.38.2.2.6.4.1`'s decision not to name a descriptor stands:
+   * this typedef is local to the registry, reaches no consumer, and settles nothing about what a
+   * module may contribute. `canOpen`, `mode`, `recordType`, `label`, `title` and `workspaceTypes`
+   * are deliberately absent - they ride the index signature as `unknown`, which is what every
+   * read of them already treats them as.
+   *
+   * **Nothing here is validated.** `register` proves exactly two things: that an identifier is
+   * present and that `open` is a function. The three lists are lists because that is what the
+   * registry's own unguarded reads require of them - `[...]` and `.every` throw for anything else,
+   * exactly where they threw before - not because a descriptor that breaks the precondition is
+   * refused. One still registers.
+   *
+   * **The identifiers are opaque keys, not text** (`0.33.33.38.2.10`). Any truthy value registers,
+   * is stored as a `Map` key and is handed back as it was; no read of it requires text. They were
+   * declared `string`, which described the first-party IDs rather than the registry.
+   * @typedef {object} ModuleActionDescriptorMembers
+   * @property {unknown} [actionId]
+   * @property {unknown} [id]
+   * @property {ModuleActionOpener} [open]
+   * @property {unknown[]} [requiredModules]
+   * @property {unknown[]} [requiredPermissions]
+   * @property {unknown[]} [requiredWorkspaceCapabilities]
+   */
+
+  /** @typedef {Record<string, unknown> & ModuleActionDescriptorMembers} ModuleActionDescriptor */
+
+  /**
+   * The record the registry stores, which is a descriptor spread over the registry's defaults.
+   *
+   * Two of these members are proved rather than assumed: `open` is a function because `register`
+   * refuses a descriptor without one, and the identifiers are pinned after the spread so nothing
+   * a module supplies can overwrite them. Both identifiers are the one opaque key the action
+   * registered with; the three lists being lists carries over from
+   * {@link ModuleActionDescriptorMembers} unchanged and unchecked.
+   * @typedef {object} RegisteredModuleActionMembers
+   * @property {unknown} actionId
+   * @property {unknown} id
+   * @property {ModuleActionOpener} open
+   * @property {unknown[]} requiredModules
+   * @property {unknown[]} requiredPermissions
+   * @property {unknown[]} requiredWorkspaceCapabilities
+   */
+
+  /** @typedef {Record<string, unknown> & RegisteredModuleActionMembers} RegisteredModuleAction */
+
+  /**
+   * The host-supplied options bag `open` forwards into the host context.
+   *
+   * `BrowserModuleActions.open` still declares this `unknown`. The published shape that named it
+   * was withdrawn because declaring it there made a host's own refresh callback stop compiling;
+   * this one is local to the registry and reaches no consumer, so that withdrawal is intact. It
+   * names the five members the registry reads and validates none of them: four stay `unknown`
+   * behind the `typeof` guards that already read them, and `statusElement` is an element because
+   * that is what `BrowserPageController.setStatus` requires of the value this file forwards to
+   * it - not because the registry checks what the host passed.
+   * @typedef {object} ModuleActionOpenOptions
+   * @property {unknown} [onCancel]
+   * @property {unknown} [onComplete]
+   * @property {unknown} [refresh]
+   * @property {unknown} [setStatus]
+   * @property {HTMLElement | null} [statusElement]
+   */
+
+  /** @type {ModuleActionDescriptor[]} */
   const FIRST_PARTY_ACTIONS = [
     {
       id: "tasks.add",
@@ -13,7 +291,7 @@
       requiredModules: ["tasks"],
       requiredPermissions: ["tasks.create"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.tasksDialog.openTaskEditor({ ...params, mode: "add" }, hostContext),
+      open: (params, hostContext) => requireTasksDialog().openTaskEditor({ ...params, mode: "add" }, hostContext),
     },
     {
       id: "tasks.edit",
@@ -25,7 +303,7 @@
       requiredModules: ["tasks"],
       requiredPermissions: ["tasks.view"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.tasksDialog.openTaskEditor({ ...params, mode: "edit" }, hostContext),
+      open: (params, hostContext) => requireTasksDialog().openTaskEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
       id: "time-entries.add",
@@ -37,7 +315,7 @@
       requiredModules: ["time-tracking"],
       requiredPermissions: ["time_entries.create"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
-      open: (params, hostContext) => namespace.timeEntryDialog.openAdd(params, hostContext),
+      open: (params, hostContext) => requireTimeEntryDialog().openAdd(params, hostContext),
     },
     {
       id: "time-tracking.timer.create",
@@ -49,7 +327,7 @@
       requiredModules: ["time-tracking"],
       requiredPermissions: ["time_entries.create"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
-      open: (params, hostContext) => namespace.timeTrackingTimerDialog.openCreate(params, hostContext),
+      open: (params, hostContext) => requireTimeTrackingTimerDialog().openCreate(params, hostContext),
     },
     {
       id: "time-entries.edit",
@@ -61,7 +339,7 @@
       requiredModules: ["time-tracking"],
       requiredPermissions: ["time_entries.edit_own", "time_entries.edit_all"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
-      open: (params, hostContext) => namespace.timeEntryDialog.openEdit(params, hostContext),
+      open: (params, hostContext) => requireTimeEntryDialog().openEdit(params, hostContext),
     },
     {
       id: "notes.add",
@@ -72,7 +350,7 @@
       recordType: "note",
       requiredModules: ["notes"],
       requiredPermissions: ["notes.create"],
-      open: (params, hostContext) => namespace.notesDialog.openNoteEditor({ ...params, mode: "add" }, hostContext),
+      open: (params, hostContext) => requireNotesDialog().openNoteEditor({ ...params, mode: "add" }, hostContext),
     },
     {
       id: "notes.edit",
@@ -83,7 +361,7 @@
       recordType: "note",
       requiredModules: ["notes"],
       requiredPermissions: ["notes.view"],
-      open: (params, hostContext) => namespace.notesDialog.openNoteEditor({ ...params, mode: "edit" }, hostContext),
+      open: (params, hostContext) => requireNotesDialog().openNoteEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
       id: "notes.view",
@@ -94,7 +372,7 @@
       recordType: "note",
       requiredModules: ["notes"],
       requiredPermissions: ["notes.view"],
-      open: (params, hostContext) => namespace.notesDialog.openNoteViewer(params, hostContext),
+      open: (params, hostContext) => requireNotesDialog().openNoteViewer(params, hostContext),
     },
     {
       id: "lists.add",
@@ -105,7 +383,7 @@
       recordType: "list",
       requiredModules: ["lists"],
       requiredPermissions: ["lists.create"],
-      open: (params, hostContext) => namespace.listsDialog.openListEditor({ ...params, mode: "add" }, hostContext),
+      open: (params, hostContext) => requireListsDialog().openListEditor({ ...params, mode: "add" }, hostContext),
     },
     {
       id: "lists.edit",
@@ -116,7 +394,7 @@
       recordType: "list",
       requiredModules: ["lists"],
       requiredPermissions: ["lists.view"],
-      open: (params, hostContext) => namespace.listsDialog.openListEditor({ ...params, mode: "edit" }, hostContext),
+      open: (params, hostContext) => requireListsDialog().openListEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
       id: "projects.add",
@@ -128,7 +406,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["projects.manage"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openAddProject(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openAddProject(params, hostContext),
     },
     {
       id: "projects.edit",
@@ -140,7 +418,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["projects.manage"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openEditProject(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openEditProject(params, hostContext),
     },
     {
       id: "clients.add",
@@ -152,7 +430,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["clients.manage"],
       requiredWorkspaceCapabilities: ["clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openAddClient(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openAddClient(params, hostContext),
       workspaceTypes: ["business"],
     },
     {
@@ -165,7 +443,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["clients.manage"],
       requiredWorkspaceCapabilities: ["clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openEditClient(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openEditClient(params, hostContext),
       workspaceTypes: ["business"],
     },
     {
@@ -176,7 +454,7 @@
       mode: "edit",
       recordType: "file_attachment",
       requiredPermissions: ["files.view"],
-      open: (params, hostContext) => namespace.filesDialog.openFileEditorAction(params, hostContext),
+      open: (params, hostContext) => requireFilesDialog().openFileEditorAction(params, hostContext),
     },
     {
       id: "files.preview",
@@ -186,21 +464,39 @@
       mode: "preview",
       recordType: "file_attachment",
       requiredPermissions: ["files.view"],
-      open: (params, hostContext) => namespace.filesDialog.openFilePreviewAction(params, hostContext),
+      open: (params, hostContext) => requireFilePreview().openFilePreviewAction(params, hostContext),
     },
   ];
 
+  /**
+   * Whether a descriptor declares the opener `register` requires.
+   *
+   * A function rather than the inline `typeof` it replaced, because the spread below has to know
+   * that `open` is there and a check does not survive a call. It holds the same expression,
+   * evaluated at the same point in the same order, so a descriptor answers exactly as it did.
+   * @param {ModuleActionDescriptor} [action]
+   * @returns {action is ModuleActionDescriptor & { open: ModuleActionOpener }}
+   */
+  function declaresDialogOpener(action) {
+    return typeof action?.open === "function";
+  }
+
+  /**
+   * @param {ModuleActionDescriptor} [action]
+   * @returns {RegisteredModuleAction | null}
+   */
   function register(action) {
     const actionId = action?.actionId || action?.id || "";
-    const hasDialogOpener = typeof action?.open === "function";
+    const hasDialogOpener = declaresDialogOpener(action);
 
     if (!actionId || !hasDialogOpener) {
       return null;
     }
 
+    // The identifiers are pinned once, after the spread. An earlier copy of the same pair led
+    // the literal and could never win, so removing it changes nothing but the key order of a
+    // record nothing enumerates.
     const normalized = {
-      actionId,
-      id: actionId,
       moduleId: "",
       recordType: "",
       mode: "",
@@ -218,6 +514,10 @@
     return normalized;
   }
 
+  /**
+   * @param {{ includeUnavailable?: boolean }} [options]
+   * @returns {ModuleActionSummary[]}
+   */
   function list(options = {}) {
     return [...registeredActions.values()]
       .filter((action) => options.includeUnavailable || isActionAvailable(action))
@@ -235,6 +535,15 @@
       }));
   }
 
+  /**
+   * `params` and `options` stay as the defaults infer them - `{}`, which is every non-nullish
+   * value a host can pass - rather than the `unknown` the published signature names, because
+   * this file spreads the one and reads guarded members off the other.
+   *
+   * `actionId` is the opaque key the action registered with, found by exact value.
+   * @param {unknown} actionId
+   * @returns {Promise<ModuleActionOutcome>}
+   */
   async function open(actionId, params = {}, options = {}) {
     const action = registeredActions.get(actionId);
 
@@ -258,6 +567,12 @@
     throw new Error(`Module action '${actionId}' does not provide a dialog opener.`);
   }
 
+  /**
+   * @param {RegisteredModuleAction} action
+   * @param {{}} params
+   * @param {ReturnType<typeof createHostContext>} hostContext
+   * @returns {Promise<ModuleActionOutcome>}
+   */
   async function openRegisteredDialog(action, params, hostContext) {
     try {
       const returnedResult = await action.open(params, hostContext);
@@ -266,28 +581,41 @@
         hostContext.complete(returnedResult);
       }
     } catch (error) {
-      hostContext.setStatus(error.message || "Module action could not be opened.", { isError: true });
+      hostContext.setStatus(requireErrors().caughtMessage(error, "Module action could not be opened."), { isError: true });
       throw error;
     }
 
     return hostContext.result;
   }
 
+  /**
+   * @param {RegisteredModuleAction} action
+   * @param {{}} params
+   * @param {ModuleActionOpenOptions} options
+   */
   function createHostContext(action, params, options) {
     const trigger = document.activeElement;
+    /** @type {(outcome: ModuleActionOutcome) => void} */
     let settle = () => {};
+    /** @type {Promise<ModuleActionOutcome>} */
     const result = new Promise((resolve) => {
       settle = resolve;
     });
     let settled = false;
 
+    /**
+     * @param {boolean} completed
+     * @param {unknown} [detail]
+     */
     function finish(completed, detail = {}) {
       if (settled) {
         return;
       }
 
       settled = true;
-      if (trigger && typeof trigger.focus === "function") {
+      // `focus` is inherited, so `in` is what reads it without asserting an element subtype the
+      // duck-typed guard never required. Anything the guard admitted it still admits.
+      if (trigger && "focus" in trigger && typeof trigger.focus === "function") {
         trigger.focus();
       }
       if (completed && typeof options.onComplete === "function") {
@@ -310,6 +638,10 @@
       params: { ...params },
       refresh: options.refresh || null,
       result,
+      /**
+       * @param {string} message
+       * @param {{ isError?: boolean }} [statusOptions]
+       */
       setStatus: (message, statusOptions = {}) => {
         if (typeof options.setStatus === "function") {
           options.setStatus(message, statusOptions);
@@ -321,6 +653,7 @@
     };
   }
 
+  /** @param {RegisteredModuleAction} action */
   function isActionAvailable(action) {
     return isModuleAvailable(action.moduleId) &&
       (action.requiredModules || []).every((moduleId) => isModuleAvailable(moduleId)) &&
@@ -328,13 +661,16 @@
       isWorkspaceTypeAvailable(action.workspaceTypes);
   }
 
+  /** @param {unknown} moduleId */
   function isModuleAvailable(moduleId) {
     if (!moduleId || moduleId === "framework") {
       return true;
     }
 
-    const context = namespace.workspaceContext || {};
-    const enabledModules = Array.isArray(context.enabledModules) ? context.enabledModules : [];
+    // `enabledModules` is declared `unknown[]`, so the array check is still what makes the
+    // membership test below safe; it is not redundant with the declaration.
+    const context = namespace.workspaceContext;
+    const enabledModules = Array.isArray(context?.enabledModules) ? context.enabledModules : [];
 
     if (enabledModules.length === 0) {
       return true;
@@ -343,6 +679,7 @@
     return enabledModules.includes(moduleId);
   }
 
+  /** @param {unknown} [workspaceTypes] */
   function isWorkspaceTypeAvailable(workspaceTypes = []) {
     if (!Array.isArray(workspaceTypes) || workspaceTypes.length === 0) {
       return true;
@@ -352,15 +689,21 @@
     return workspaceTypes.includes(workspaceType);
   }
 
+  /** @param {unknown} [requiredCapabilities] */
   function hasRequiredWorkspaceCapabilities(requiredCapabilities = []) {
     if (!Array.isArray(requiredCapabilities) || requiredCapabilities.length === 0) {
       return true;
     }
 
-    const capabilities = namespace.workspaceContext?.workspaceCapabilities?.availableTools || [];
+    const availableTools = namespace.workspaceContext?.workspaceCapabilities?.availableTools;
+    const capabilities = Array.isArray(availableTools) ? availableTools : [];
     return requiredCapabilities.some((capability) => capabilities.includes(capability));
   }
 
+  /**
+   * @param {RegisteredModuleAction} action
+   * @returns {ModuleActionSummary}
+   */
   function toPublicAction(action) {
     return {
       actionId: action.actionId,
@@ -376,9 +719,118 @@
     };
   }
 
+  /**
+   * The namespace is late-bound: every entry in the dependency table names a member
+   * some other script publishes after this one has run. Reading it through an explicit
+   * unknown-typed lookup is what keeps the table data rather than a closure.
+   * @param {unknown} host
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function publishedMember(host, key) {
+    if (!host || (typeof host !== "object" && typeof host !== "function")) {
+      return undefined;
+    }
+
+    return /** @type {Record<string, unknown>} */ (host)[key];
+  }
+
+  /**
+   * @param {ModuleActionDependency} dependency
+   * @returns {boolean}
+   */
+  function dependencyIsSatisfied(dependency) {
+    const surface = publishedMember(namespace, dependency.surface);
+
+    return Boolean(dependency.member ? publishedMember(surface, dependency.member) : surface);
+  }
+
+  /**
+   * @param {ModuleActionDependency} dependency
+   * @returns {Promise<void>}
+   */
+  function loadDependency(dependency) {
+    if (dependencyIsSatisfied(dependency)) {
+      return Promise.resolve();
+    }
+
+    const versionedSrc = window.LongtailForge?.assetVersion?.url(dependency.src) || dependency.src;
+    const key = new window.URL(versionedSrc, document.baseURI).href;
+    const inFlight = dependencyScriptLoads.get(key);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const loaded = dependency.module
+      ? import(key).then(() => undefined)
+      : appendClassicScript(dependency, versionedSrc);
+
+    const checkedPromise = loaded.then(() => {
+      if (!dependencyIsSatisfied(dependency)) {
+        throw new Error(`Loaded ${dependency.src}, but the expected helper is unavailable.`);
+      }
+    });
+
+    dependencyScriptLoads.set(key, checkedPromise);
+    return checkedPromise;
+  }
+
+  /**
+   * @param {ModuleActionDependency} dependency
+   * @param {string} versionedSrc
+   * @returns {Promise<void>}
+   */
+  function appendClassicScript(dependency, versionedSrc) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = versionedSrc;
+      script.async = false;
+      script.addEventListener("load", () => resolve());
+      script.addEventListener("error", () => reject(new Error(`Could not load ${dependency.src}.`)));
+      document.body.appendChild(script);
+    });
+  }
+
+  /**
+   * The declared dependencies for an action key, or none.
+   *
+   * The table is a plain object, so looking a key up converts it to a property key first: a symbol
+   * is used as it is, and anything else is converted to text exactly as a member access converts
+   * it - one string conversion, through the same `Symbol.toPrimitive`, `toString` and `valueOf`
+   * calls. A numeric `7` therefore reads the entry for `"7"`, as it always did. Only the symbol
+   * needs its own branch: text conversion would throw for it, where the member access used it.
+   *
+   * **One named difference, for an input no caller produces.** An object whose string conversion
+   * answers a symbol - a `Symbol` wrapper, or a custom `Symbol.toPrimitive` returning one - was
+   * used as that symbol and found nothing; the text conversion now throws `TypeError` for it
+   * instead. No first-party action registers such a key and none can arrive as JSON. Writing the
+   * native conversion out any more exactly would take a cast, an `any`, or a hand-rolled
+   * `ToPrimitive`.
+   * @param {unknown} requestedId
+   * @returns {ModuleActionDependency[]}
+   */
+  function dependenciesFor(requestedId) {
+    // Still spelled `actionId` at the lookup: V8 writes that expression's own text into the
+    // `TypeError` an inherited name such as "constructor" raises, so the message is unchanged.
+    const actionId = typeof requestedId === "symbol" ? requestedId : `${requestedId}`;
+    return [...(MODULE_ACTION_DEPENDENCIES[actionId] || [])];
+  }
+
+  /**
+   * @param {unknown} actionId
+   * @returns {Promise<void>}
+   */
+  async function ensureDependencies(actionId) {
+    for (const dependency of dependenciesFor(actionId)) {
+      await loadDependency(dependency);
+    }
+  }
+
   FIRST_PARTY_ACTIONS.forEach(register);
 
   namespace.moduleActions = {
+    dependenciesFor,
+    ensureDependencies,
     list,
     open,
     register,

@@ -1,2981 +1,3679 @@
-const TASK_FILTER_STORAGE_KEY = "lf_tasks_filters_v1";
-const DEFAULT_TASK_VIEW = "my";
-const TASK_LIST_PAGE_SIZE = 100;
-const BULK_CLIENT_ALL_VALUE = "__all_clients__";
-const QUICK_FILTERS = new Set(["my", "unassigned", "overdue", "today", "week", "complete", "archived"]);
-const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
-const view = window.LongtailForge?.view;
-const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
-  "tasks.lifecycle.complete": ({ record, trigger }) => postTaskAction(record, "complete", trigger),
-  "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
-  "tasks.lifecycle.block": ({ action, record, trigger }) => openTaskDialogForBlock(record, action, trigger),
-  "tasks.lifecycle.resume": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "in_progress", blocked_reason: "" }),
-  "tasks.lifecycle.archive": ({ record }) => postTaskAction(record, "archive"),
-  "tasks.lifecycle.restore": ({ record }) => postTaskAction(record, "restore"),
-});
-const TASK_WORKFLOW_BEHAVIOR_HANDLERS = Object.freeze({
-  "tasks.workflow.assign": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
-  "tasks.workflow.due-date": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
-  "tasks.workflow.due-time": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
-  "tasks.workflow.recurrence": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
-  "tasks.workflow.timer.start": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "running"),
-  "tasks.workflow.timer.pause": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "paused"),
-  "tasks.workflow.timer.resume": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "running"),
-});
+(function attachTasksPage() {
+  // 0.33.33.37 moved status-and-timer legality into LongtailForge.taskLifecycleLegality. Row
+  // visibility resolution stays here - it is a Tasks responsibility, not duplication.
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCapturePrompt} BrowserCapturePrompt */
 
-let activeTasksViewDescriptor = null;
-let state = {
-  tasks: [],
-  options: {
-    clients: [],
-    projects: [],
-    users: [],
-    workspaceType: "business",
-    taskTimersEnabled: true,
-    timeTrackingEnabled: true,
-  },
-  editingTaskId: "",
-  currentUserId: "",
-  quickFilter: DEFAULT_TASK_VIEW,
-  selectedTaskIds: new Set(),
-  attachmentCounts: {},
-  noteCounts: {},
-  pagination: {
-    hasMore: false,
-    nextCursor: "",
-    pageSize: TASK_LIST_PAGE_SIZE,
-  },
-  taskTimers: [],
-  tagOptions: [],
-};
-let hasLoadedTasks = false;
-let tagFilterController = null;
-const taskNestingDepths = new WeakMap();
-const recurrenceContinuityTrackers = new Map();
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
-buildTasksViewShell();
-window.LongtailForge.tasksDialog?.configure?.();
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTasksDialog} BrowserTasksDialog */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListItem} BrowserTaskListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskTimerRecord} BrowserTaskTimerRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListOptions} BrowserTaskListOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListPagination} BrowserTaskListPagination */
 
-const taskStatus = document.querySelector("[data-task-status]");
-const taskList = document.querySelector("[data-task-list]");
-const addTaskButton = document.querySelector("[data-add-task]");
-const taskDialog = document.querySelector("[data-task-dialog]");
-const copyTaskLinkButton = document.querySelector("[data-copy-task-link]");
-const taskViewSelector = document.querySelector("[data-task-view-selector]");
-const sortInput = document.querySelector("[data-task-sort]");
-const statusFilter = document.querySelector("[data-task-status-filter]");
-const assigneeFilter = document.querySelector("[data-task-assignee-filter]");
-const clientFilter = document.querySelector("[data-task-client-filter]");
-const projectFilter = document.querySelector("[data-task-project-filter]");
-const tagFilterControl = document.querySelector("[data-task-tag-filter-control]");
-const tagFilter = document.querySelector("[data-task-tag-filter]");
-const resetTaskFiltersButton = document.querySelector("[data-task-reset-filters]");
-const selectAllInput = document.querySelector("[data-task-select-all]");
-const loadMoreTasksButton = document.querySelector("[data-task-load-more]");
-const taskPagination = document.querySelector("[data-task-pagination]");
-const taskPageSummary = document.querySelector("[data-task-page-summary]");
-const bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
-const bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
-const bulkStatusInput = document.querySelector("[data-task-bulk-status]");
-const bulkBlockedReasonControl = document.querySelector("[data-task-bulk-blocked-reason-control]");
-const bulkBlockedReasonInput = document.querySelector("[data-task-bulk-blocked-reason]");
-const bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
-const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
-const bulkClientControl = document.querySelector("[data-task-bulk-client-control]");
-const bulkClientInput = document.querySelector("[data-task-bulk-client]");
-const bulkProjectControl = document.querySelector("[data-task-bulk-project-control]");
-const bulkProjectInput = document.querySelector("[data-task-bulk-project]");
-const bulkDueDateControl = document.querySelector("[data-task-bulk-due-date-control]");
-const bulkDueDateInput = document.querySelector("[data-task-bulk-due-date]");
-const bulkClearDueDateInput = document.querySelector("[data-task-bulk-clear-due-date]");
-const bulkDueTimeControl = document.querySelector("[data-task-bulk-due-time-control]");
-const bulkDueTimeInput = document.querySelector("[data-task-bulk-due-time]");
-const bulkClearDueTimeInput = document.querySelector("[data-task-bulk-clear-due-time]");
-const bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
-const bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
-const bulkTagActionControl = document.querySelector("[data-task-bulk-tag-action-control]");
-const bulkTagActionInput = document.querySelector("[data-task-bulk-tag-action]");
-const bulkTagsControl = document.querySelector("[data-task-bulk-tags-control]");
-const bulkTagsInput = document.querySelector("[data-task-bulk-tags]");
-const bulkLifecycleControl = document.querySelector("[data-task-bulk-lifecycle-control]");
-const bulkLifecycleInput = document.querySelector("[data-task-bulk-lifecycle]");
-const bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
-const bulkSelectionCount = document.querySelector("[data-task-bulk-selection-count]");
-const recurringInput = document.querySelector("[data-task-recurring]");
-const recurrenceDetailsButton = document.querySelector("[data-task-recurrence-details]");
-const recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
-
-const api = window.LongtailForge.api;
-const pageController = window.LongtailForge.pageController;
-const modal = window.LongtailForge.modal;
-
-addTaskButton?.addEventListener("click", () => openTaskDialog());
-taskViewSelector?.addEventListener("change", handleTaskViewChange);
-resetTaskFiltersButton?.addEventListener("click", resetAdvancedTaskFilters);
-bulkStatusInput?.addEventListener("change", updateBulkControls);
-bulkBlockedReasonInput?.addEventListener("input", updateBulkControls);
-bulkPriorityInput?.addEventListener("change", updateBulkControls);
-bulkClientInput?.addEventListener("change", handleBulkClientChange);
-bulkProjectInput?.addEventListener("change", handleBulkProjectChange);
-bulkDueDateInput?.addEventListener("change", updateBulkControls);
-bulkClearDueDateInput?.addEventListener("change", updateBulkControls);
-bulkDueTimeInput?.addEventListener("change", updateBulkControls);
-bulkClearDueTimeInput?.addEventListener("change", updateBulkControls);
-bulkAssigneesControl?.addEventListener("change", updateBulkControls);
-bulkTagActionInput?.addEventListener("change", updateBulkControls);
-bulkTagsInput?.addEventListener("change", updateBulkControls);
-bulkLifecycleInput?.addEventListener("change", updateBulkControls);
-bulkApplyButton?.addEventListener("click", applyBulkAction);
-selectAllInput?.addEventListener("change", toggleVisibleSelection);
-loadMoreTasksButton?.addEventListener("click", loadMoreTasks);
-[sortInput, statusFilter, assigneeFilter, projectFilter, tagFilter].forEach((input) => {
-  input?.addEventListener("change", async () => {
-    saveFilterState();
-    await reloadTaskList();
-  });
-});
-clientFilter?.addEventListener("change", async () => {
-  // Narrow the Project dropdown to the newly selected client and drop any now-incompatible
-  // project selection BEFORE the reload builds the query, otherwise the request would pair a
-  // new client with a stale cross-client project and return nothing.
-  reconcileProjectFilterForClient();
-  saveFilterState();
-  await reloadTaskList();
-});
-
-loadTasks();
-
-function buildTasksViewShell() {
-  const host = document.querySelector("[data-tasks-host]");
-  if (!host || host.querySelector("[data-task-list]")) {
-    return;
-  }
-  if (!view) {
-    throw new Error("Tasks requires LongtailForge.view to build the protected workspace.");
-  }
-
-  registerTasksViewBehaviors();
-  activeTasksViewDescriptor = tasksViewSurfaceDescriptor();
-  const surface = view.renderSurface({ ...activeTasksViewDescriptor, dataSource: null, modals: [] }, host);
-  decorateTasksDeclarativeSurface(surface);
-}
-
-function registerTasksViewBehaviors() {
-  if (typeof view?.registerBehavior !== "function") {
-    return;
-  }
-  view.registerBehavior("tasks.create", () => openTaskDialog());
-  registerTaskLifecycleBehaviors();
-  registerTaskWorkflowBehaviors();
-  view.registerBehavior("tasks.sidebar.view-selector", ({ container }) => {
-    container.replaceChildren(createTaskViewSelectorChrome());
-  });
-  view.registerBehavior("tasks.sidebar.filters", ({ container }) => {
-    container.replaceChildren(createTaskFilterChrome());
-  });
-  view.registerBehavior("tasks.main.list", ({ container }) => {
-    container.replaceChildren(createTaskMainListChrome());
-  });
-}
-
-function registerTaskLifecycleBehaviors() {
-  taskLifecycleActionStripDescriptor().actions.forEach((action) => {
-    const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
-    if (handler) {
-      view.registerBehavior(action.behavior, handler);
+  /**
+   * The shared single-task narrowing surface.
+   *
+   * `shared/task-records.js` is installed by the framework script block on every page, so this
+   * read fails exactly where the raw `result.task` read failed before.
+   * @returns {BrowserTaskRecords}
+   */
+  function requireTaskRecords() {
+    const taskRecords = window.LongtailForge?.taskRecords;
+    if (!taskRecords) {
+      throw new Error("LongtailForge.taskRecords is unavailable.");
     }
-  });
-}
 
-function registerTaskWorkflowBehaviors() {
-  taskWorkflowActionMenuDescriptor().actions.forEach((action) => {
-    const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
-    if (handler) {
-      view.registerBehavior(action.behavior, handler);
+    return taskRecords;
+  }
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root this page awaits its workspace-context readiness through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** A missing
+   * root failed at this property read before and still fails here, in the same expression and so
+   * inside the same `try` region. A present root that publishes no `workspaceContextReady` never
+   * failed - `await undefined` is a real state this page has always tolerated, and it still
+   * continues one microtask later exactly as it did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Tasks requires the LongtailForge namespace.");
     }
+
+    return namespace;
+  }
+
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Tasks requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
+  /**
+   * The single-field capture dialog this path cannot ask its question without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.2.6.1` made the read checked. Every page that runs this script
+   * loads `shared/capture-prompt.js` ahead of it.
+   * @returns {BrowserCapturePrompt}
+   */
+  function requireCapturePrompt() {
+    const capturePrompt = window.LongtailForge?.capturePrompt;
+    if (!capturePrompt) {
+      throw new Error("Tasks requires LongtailForge.capturePrompt.");
+    }
+    return capturePrompt;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
+
+  const TASK_FILTER_STORAGE_KEY = "lf_tasks_filters_v1";
+  const DEFAULT_TASK_VIEW = "my";
+  const TASK_LIST_PAGE_SIZE = 100;
+  const BULK_CLIENT_ALL_VALUE = "__all_clients__";
+  const QUICK_FILTERS = new Set(["my", "unassigned", "overdue", "today", "week", "complete", "archived"]);
+  const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
+
+  /**
+   * The page controller registry this page cannot run without.
+   *
+   * Acquired at the point of use rather than stored at module scope, so a missing surface still
+   * fails at exactly the moment it failed before `0.33.33.38.2.6.2` made the read checked. Every
+   * page that loads this script loads `shared/page-controller.js` ahead of it.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    const controller = window.LongtailForge?.pageController;
+    if (!controller) {
+      throw new Error("Tasks requires LongtailForge.pageController.");
+    }
+    return controller;
+  }
+
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Tasks uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Tasks requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Tasks requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Tasks requires LongtailForge.view.");
+    }
+    return factory;
+  }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecord} BrowserTaskRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} TaskActionButtonOptions */
+  /** @typedef {ReturnType<typeof taskWorkflowActionMenuDescriptor>["actions"][number] & Pick<TaskActionButtonOptions, "title" | "variant">} TaskWorkflowAction */
+  /** @typedef {ReturnType<typeof taskLifecycleActionStripDescriptor>["actions"][number] & Pick<TaskActionButtonOptions, "title">} TaskLifecycleAction */
+  /**
+   * Members consumed by the local dispatchers; each comes from its descriptor writer.
+   * @typedef {{
+   *   statusPayload?: TaskLifecycleAction["statusPayload"],
+   *   timerStatus?: TaskWorkflowAction["timerStatus"],
+   *   focusTarget?: TaskWorkflowAction["focusTarget"],
+   *   promptBlockedReason?: boolean,
+   * }} TaskBehaviorAction
+   */
+  /** @satisfies {Readonly<Record<string, (context: TaskBehaviorContext) => unknown>>} */
+  const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
+    "tasks.lifecycle.complete": ({ record }) => postTaskAction(record, "complete"),
+    "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
+    "tasks.lifecycle.block": ({ action, record, trigger }) => openTaskDialogForBlock(record, action, trigger),
+    "tasks.lifecycle.resume": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "in_progress", blocked_reason: "" }),
+    "tasks.lifecycle.archive": ({ record }) => postTaskAction(record, "archive"),
+    "tasks.lifecycle.restore": ({ record }) => postTaskAction(record, "restore"),
   });
-}
+  /** @satisfies {Readonly<Record<string, (context: TaskBehaviorContext) => unknown>>} */
+  const TASK_WORKFLOW_BEHAVIOR_HANDLERS = Object.freeze({
+    "tasks.workflow.assign": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+    "tasks.workflow.due-date": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+    "tasks.workflow.due-time": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+    "tasks.workflow.recurrence": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+    "tasks.workflow.timer.start": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "running"),
+    "tasks.workflow.timer.pause": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "paused"),
+    "tasks.workflow.timer.resume": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "running"),
+  });
 
-function tasksViewSurfaceDescriptor() {
-  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-  return surfaces.find((surface) => surface.id === "tasks.workspace" && surface.moduleId === "tasks")
-    || fallbackTasksViewSurfaceDescriptor();
-}
+  /**
+   * What both task behavior dispatchers hand a handler.
+   *
+   * Every handler destructures the subset it needs; the context itself is the superset, and that
+   * is deliberate - a behavior may start reading `api` or `refresh` without its caller changing.
+   * @typedef {{
+   *   action: TaskBehaviorAction,
+   *   api: unknown,
+   *   record: unknown,
+   *   refresh: unknown,
+   *   trigger: unknown,
+   *   workspaceContext: unknown,
+   * }} TaskBehaviorContext
+   */
 
-function fallbackTasksViewSurfaceDescriptor() {
-  return {
-    id: "tasks.workspace",
-    moduleId: "tasks",
-    viewId: "tasks",
-    layout: "slide-out-sidebar",
-    sidebarLabel: "Task filters",
-    pageHeader: {
-      title: "Tasks",
-      primaryAction: {
-        id: "create-task",
-        label: "Add Task",
-        role: "primary",
-        behavior: "tasks.create",
-      },
+  /**
+   * The handler a behavior names, or `undefined` when the map does not declare one.
+   *
+   * Both maps are closed frozen records and `action.behavior` is whatever a descriptor carried,
+   * so indexing them with it was an implicit-any element access. **It also read through the
+   * prototype**: a descriptor declaring `behavior: "toString"` would have found
+   * `Object.prototype.toString`, and all four callers treat a truthy lookup as a handler.
+   * Walking a map's own entries answers only for the keys it actually declares.
+   *
+   * One reader per map rather than one shared reader, deliberately. A shared reader would have to
+   * name the parameter's type, and the only spellings available either erase the closed
+   * vocabulary these maps exist to keep or need a cast to get the handler back out. Reading each
+   * map where its type is known needs neither, and each reader's return stays the union of that
+   * map's own handlers.
+   *
+   * An unrecognised behavior still answers nothing, which is what all four callers already
+   * handle: two skip registration, two set a "Missing task ... behavior" status and return.
+   * @param {unknown} behavior
+   */
+  function taskLifecycleBehaviorHandler(behavior) {
+    for (const [name, handler] of Object.entries(TASK_LIFECYCLE_BEHAVIOR_HANDLERS)) {
+      if (name === behavior) {
+        return handler;
+      }
+    }
+
+    return undefined;
+  }
+
+  /** @param {unknown} behavior */
+  function taskWorkflowBehaviorHandler(behavior) {
+    for (const [name, handler] of Object.entries(TASK_WORKFLOW_BEHAVIOR_HANDLERS)) {
+      if (name === behavior) {
+        return handler;
+      }
+    }
+
+    return undefined;
+  }
+
+  let activeTasksViewDescriptor = null;
+  let state = {
+    /** @type {unknown[]} */
+    tasks: [],
+    /**
+     * The stand-in catalog the page holds until the first load answers.
+     *
+     * `priorities`, `statuses` and `tasks` are here because `readOptions` always sends all nine
+     * members and this slot now carries that contract - **not** because the page reads them. It
+     * reads `clients`, `projects` and `users` and nothing else, so the three additions are inert
+     * defaults rather than new behaviour.
+     * @type {BrowserTaskListOptions}
+     */
+    options: {
+      clients: [],
+      priorities: [],
+      projects: [],
+      statuses: [],
+      tasks: [],
+      users: [],
+      workspaceType: "business",
+      taskTimersEnabled: true,
+      timeTrackingEnabled: true,
     },
-    sidebarPanels: [
-      {
-        id: "tasks-view-selector",
-        type: "navigation",
-        title: "Saved Task Views",
-        behavior: "tasks.sidebar.view-selector",
-        collapsible: false,
-        className: "tasks-view-selector-panel",
-        ariaLabel: "Saved task views",
-      },
-      {
-        id: "tasks-filters",
-        type: "navigation",
-        title: "Sorting and Filters",
-        behavior: "tasks.sidebar.filters",
-        open: false,
-        className: "tasks-filters-panel",
-        ariaLabel: "Sorting and task filters",
-      },
-    ],
-    detail: {
-      regions: [
-        {
-          id: "tasks-main-list",
-          behavior: "tasks.main.list",
-          className: "tasks-main-list-region",
-          ariaLabel: "Task list",
-        },
-      ],
+    /** @type {unknown} */
+    editingTaskId: "",
+    currentUserId: "",
+    /** @type {unknown} */
+    quickFilter: DEFAULT_TASK_VIEW,
+    /** @type {Set<unknown>} */
+    selectedTaskIds: new Set(),
+    /** @type {Awaited<ReturnType<typeof loadAttachmentCounts>>} */
+    attachmentCounts: {},
+    /** @type {Awaited<ReturnType<typeof loadNoteCounts>>} */
+    noteCounts: {},
+    pagination: {
+      hasMore: false,
+      nextCursor: "",
+      pageSize: TASK_LIST_PAGE_SIZE,
     },
-    dataSource: {
-      route: "/api/tasks",
-      method: "GET",
-      recordsKey: "tasks",
-      fieldBindings: {
-        id: "task_id",
-        title: "title",
-        status: "status",
-      },
-    },
+    /** @type {BrowserTaskTimerRecord[]} */
+    taskTimers: [],
+    /**
+     * The tag options the filter and dialog offer.
+     *
+     * Annotated because the empty initializer infers `never[]` once `loadTags` answers a
+     * validated catalogue.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]}
+     */
+    tagOptions: [],
   };
-}
+  let hasLoadedTasks = false;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserTagFilterPickerController | null} */
+  let tagFilterController = null;
+  const taskNestingDepths = new WeakMap();
+  const recurrenceContinuityTrackers = new Map();
 
-function decorateTasksDeclarativeSurface(surface) {
-  const createAction = surface.querySelector('[data-surface-action="tasks.create"], [data-surface-action="create-task"]');
-  if (createAction) {
-    createAction.dataset.addTask = "";
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  initializeTasksPage();
+
+  async function initializeTasksPage() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders.
+    }
+    buildTasksViewShell();
+    requireNamespace().tasksDialog?.configure?.();
+    cacheTasksElements();
+    bindTasksEvents();
+    await loadTasks();
   }
 
-  const main = surface.querySelector(".view-slideout-sidebar-main")
-    || surface.querySelector(".view-sidebar-detail-primary")
-    || surface.querySelector(".view-stacked-detail");
-  if (main) {
-    main.classList.add("tasks-main-list-panel");
-    main.dataset.tasksMainPanel = "";
+  /** @type {Element | null} */
+  let taskStatus = null;
+  /** @type {Element | null} */
+  let taskList = null;
+  /** @type {Element | null} */
+  let addTaskButton = null;
+  /** @type {Element | null} */
+  let taskDialog = null;
+  /** @type {Element | null} */
+  let copyTaskLinkButton = null;
+  /** @type {Element | null} */
+  let taskViewSelector = null;
+  /** @type {Element | null} */
+  let sortInput = null;
+  /** @type {Element | null} */
+  let statusFilter = null;
+  /** @type {Element | null} */
+  let assigneeFilter = null;
+  /** @type {Element | null} */
+  let clientFilter = null;
+  /** @type {Element | null} */
+  let projectFilter = null;
+  /** @type {Element | null} */
+  let tagFilterControl = null;
+  /** @type {Element | null} */
+  let tagFilter = null;
+  /** @type {Element | null} */
+  let resetTaskFiltersButton = null;
+  /** @type {Element | null} */
+  let selectAllInput = null;
+  /** @type {Element | null} */
+  let loadMoreTasksButton = null;
+  /** @type {Element | null} */
+  let taskPagination = null;
+  /** @type {Element | null} */
+  let taskPageSummary = null;
+  /** @type {Element | null} */
+  let bulkToolbar = null;
+  /** @type {Element | null} */
+  let bulkStatusControl = null;
+  /** @type {Element | null} */
+  let bulkStatusInput = null;
+  /** @type {Element | null} */
+  let bulkBlockedReasonControl = null;
+  /** @type {Element | null} */
+  let bulkBlockedReasonInput = null;
+  /** @type {Element | null} */
+  let bulkPriorityControl = null;
+  /** @type {Element | null} */
+  let bulkPriorityInput = null;
+  /** @type {Element | null} */
+  let bulkClientControl = null;
+  /** @type {Element | null} */
+  let bulkClientInput = null;
+  /** @type {Element | null} */
+  let bulkProjectControl = null;
+  /** @type {Element | null} */
+  let bulkProjectInput = null;
+  /** @type {Element | null} */
+  let bulkDueDateControl = null;
+  /** @type {Element | null} */
+  let bulkDueDateInput = null;
+  /** @type {Element | null} */
+  let bulkClearDueDateInput = null;
+  /** @type {Element | null} */
+  let bulkDueTimeControl = null;
+  /** @type {Element | null} */
+  let bulkDueTimeInput = null;
+  /** @type {Element | null} */
+  let bulkClearDueTimeInput = null;
+  /** @type {Element | null} */
+  let bulkAssigneeControl = null;
+  /** @type {Element | null} */
+  let bulkAssigneesControl = null;
+  /** @type {Element | null} */
+  let bulkTagActionControl = null;
+  /** @type {Element | null} */
+  let bulkTagActionInput = null;
+  /** @type {Element | null} */
+  let bulkTagsControl = null;
+  /** @type {Element | null} */
+  let bulkTagsInput = null;
+  /** @type {Element | null} */
+  let bulkLifecycleControl = null;
+  /** @type {Element | null} */
+  let bulkLifecycleInput = null;
+  /** @type {Element | null} */
+  let bulkApplyButton = null;
+  /** @type {Element | null} */
+  let bulkSelectionCount = null;
+  /** @type {Element | null} */
+  let recurringInput = null;
+  /** @type {Element | null} */
+  let recurrenceDetailsButton = null;
+  /** @type {Element | null} */
+  let recurrenceDialog = null;
+
+  const pageController = requirePageController();
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Acquired per call
+   * rather than once at module scope, so a missing surface still fails at exactly the moment it
+   * failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Tasks requires LongtailForge.modal.");
+    }
+    return dialogs;
   }
-}
 
-function createTaskViewSelectorChrome() {
-  return view.createElement("div", {
-    className: "task-view-selector-control",
-    attrs: { "data-task-view-selector-control": "" },
-    children: view.createElement("select", {
-      attrs: {
-        "data-task-view-selector": "",
-        "aria-label": "Saved Task Views",
-      },
-      children: taskOptions([
-        ["my", "My Tasks", true],
-        ["all", "All"],
-        ["unassigned", "Unassigned"],
-        ["overdue", "Overdue"],
-        ["today", "Due Today"],
-        ["week", "Due This Week"],
-        ["complete", "Completed"],
-        ["archived", "Archived"],
-      ]),
-    }),
-  });
-}
+  function cacheTasksElements() {
+    taskStatus = document.querySelector("[data-task-status]");
+    taskList = document.querySelector("[data-task-list]");
+    addTaskButton = document.querySelector("[data-add-task]");
+    taskDialog = document.querySelector("[data-task-dialog]");
+    copyTaskLinkButton = document.querySelector("[data-copy-task-link]");
+    taskViewSelector = document.querySelector("[data-task-view-selector]");
+    sortInput = document.querySelector("[data-task-sort]");
+    statusFilter = document.querySelector("[data-task-status-filter]");
+    assigneeFilter = document.querySelector("[data-task-assignee-filter]");
+    clientFilter = document.querySelector("[data-task-client-filter]");
+    projectFilter = document.querySelector("[data-task-project-filter]");
+    tagFilterControl = document.querySelector("[data-task-tag-filter-control]");
+    tagFilter = document.querySelector("[data-task-tag-filter]");
+    resetTaskFiltersButton = document.querySelector("[data-task-reset-filters]");
+    selectAllInput = document.querySelector("[data-task-select-all]");
+    loadMoreTasksButton = document.querySelector("[data-task-load-more]");
+    taskPagination = document.querySelector("[data-task-pagination]");
+    taskPageSummary = document.querySelector("[data-task-page-summary]");
+    bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
+    bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
+    bulkStatusInput = document.querySelector("[data-task-bulk-status]");
+    bulkBlockedReasonControl = document.querySelector("[data-task-bulk-blocked-reason-control]");
+    bulkBlockedReasonInput = document.querySelector("[data-task-bulk-blocked-reason]");
+    bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
+    bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
+    bulkClientControl = document.querySelector("[data-task-bulk-client-control]");
+    bulkClientInput = document.querySelector("[data-task-bulk-client]");
+    bulkProjectControl = document.querySelector("[data-task-bulk-project-control]");
+    bulkProjectInput = document.querySelector("[data-task-bulk-project]");
+    bulkDueDateControl = document.querySelector("[data-task-bulk-due-date-control]");
+    bulkDueDateInput = document.querySelector("[data-task-bulk-due-date]");
+    bulkClearDueDateInput = document.querySelector("[data-task-bulk-clear-due-date]");
+    bulkDueTimeControl = document.querySelector("[data-task-bulk-due-time-control]");
+    bulkDueTimeInput = document.querySelector("[data-task-bulk-due-time]");
+    bulkClearDueTimeInput = document.querySelector("[data-task-bulk-clear-due-time]");
+    bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
+    bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
+    bulkTagActionControl = document.querySelector("[data-task-bulk-tag-action-control]");
+    bulkTagActionInput = document.querySelector("[data-task-bulk-tag-action]");
+    bulkTagsControl = document.querySelector("[data-task-bulk-tags-control]");
+    bulkTagsInput = document.querySelector("[data-task-bulk-tags]");
+    bulkLifecycleControl = document.querySelector("[data-task-bulk-lifecycle-control]");
+    bulkLifecycleInput = document.querySelector("[data-task-bulk-lifecycle]");
+    bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
+    bulkSelectionCount = document.querySelector("[data-task-bulk-selection-count]");
+    recurringInput = document.querySelector("[data-task-recurring]");
+    recurrenceDetailsButton = document.querySelector("[data-task-recurrence-details]");
+    recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
+  }
 
-function createTaskFilterChrome() {
-  return view.createElement("div", {
-    className: "task-page-toolbar",
-    attrs: {
-      "data-task-filter-toolbar": "",
-      "aria-label": "Sorting and task filters",
-    },
-    children: view.createElement("div", {
-      className: "task-filter-grid",
-      attrs: { "data-task-filter-details": "" },
-      children: [
-        taskControlLabel("Sort", taskSelect({ "data-task-sort": "" }, [
-          ["due_asc", "Due Date", true],
-          ["priority_desc", "Priority"],
-          ["status_asc", "Status"],
-          ["last_worked", "Last Worked"],
-          ["context", "Project / Client"],
-          ["newest", "Newest"],
-          ["oldest", "Oldest"],
-        ])),
-        taskControlLabel("Status", taskSelect({ "data-task-status-filter": "" }, [
-          ["active", "Active", true],
-          ["open", "Open"],
-          ["in_progress", "In Progress"],
-          ["blocked", "Blocked"],
-          ["complete", "Complete"],
-          ["archived", "Archived"],
+  function bindTasksEvents() {
+    addTaskButton?.addEventListener("click", () => openTaskDialog());
+    taskViewSelector?.addEventListener("change", handleTaskViewChange);
+    resetTaskFiltersButton?.addEventListener("click", resetAdvancedTaskFilters);
+    bulkStatusInput?.addEventListener("change", updateBulkControls);
+    bulkBlockedReasonInput?.addEventListener("input", updateBulkControls);
+    bulkPriorityInput?.addEventListener("change", updateBulkControls);
+    bulkClientInput?.addEventListener("change", handleBulkClientChange);
+    bulkProjectInput?.addEventListener("change", handleBulkProjectChange);
+    bulkDueDateInput?.addEventListener("change", updateBulkControls);
+    bulkClearDueDateInput?.addEventListener("change", updateBulkControls);
+    bulkDueTimeInput?.addEventListener("change", updateBulkControls);
+    bulkClearDueTimeInput?.addEventListener("change", updateBulkControls);
+    bulkAssigneesControl?.addEventListener("change", updateBulkControls);
+    bulkTagActionInput?.addEventListener("change", updateBulkControls);
+    bulkTagsInput?.addEventListener("change", updateBulkControls);
+    bulkLifecycleInput?.addEventListener("change", updateBulkControls);
+    bulkApplyButton?.addEventListener("click", applyBulkAction);
+    selectAllInput?.addEventListener("change", toggleVisibleSelection);
+    loadMoreTasksButton?.addEventListener("click", loadMoreTasks);
+    [sortInput, statusFilter, assigneeFilter, projectFilter, tagFilter].forEach((input) => {
+      input?.addEventListener("change", async () => {
+        saveFilterState();
+        await reloadTaskList();
+      });
+    });
+    clientFilter?.addEventListener("change", async () => {
+      // Narrow the Project dropdown to the newly selected client and drop any now-incompatible
+      // project selection BEFORE the reload builds the query, otherwise the request would pair a
+      // new client with a stale cross-client project and return nothing.
+      reconcileProjectFilterForClient();
+      saveFilterState();
+      await reloadTaskList();
+    });
+  }
+
+
+  function buildTasksViewShell() {
+    const host = document.querySelector("[data-tasks-host]");
+    if (!host || host.querySelector("[data-task-list]")) {
+      return;
+    }
+    activeTasksViewDescriptor = tasksViewSurfaceDescriptor();
+    if (!activeTasksViewDescriptor) {
+      return;
+    }
+
+    registerTasksViewBehaviors();
+    const surface = requireDescriptorRenderers().renderSurface({ ...activeTasksViewDescriptor, dataSource: null, modals: [] }, host);
+    decorateTasksDeclarativeSurface(surface);
+  }
+
+  function registerTasksViewBehaviors() {
+    const view = requireView();
+    if (typeof view?.registerBehavior !== "function") {
+      return;
+    }
+    requireDescriptorRenderers().registerBehavior("tasks.create", () => openTaskDialog());
+    registerTaskLifecycleBehaviors();
+    registerTaskWorkflowBehaviors();
+    requireDescriptorRenderers().registerBehavior("tasks.sidebar.view-selector", (/** @type {{container: Element}} */ { container }) => {
+      container.replaceChildren(createTaskViewSelectorChrome());
+    });
+    requireDescriptorRenderers().registerBehavior("tasks.sidebar.filters", (/** @type {{container: Element}} */ { container }) => {
+      container.replaceChildren(createTaskFilterChrome());
+    });
+    requireDescriptorRenderers().registerBehavior("tasks.main.list", (/** @type {{container: Element}} */ { container }) => {
+      container.replaceChildren(createTaskMainListChrome());
+    });
+  }
+
+  function registerTaskLifecycleBehaviors() {
+    taskLifecycleActionStripDescriptor().actions.forEach((action) => {
+      const handler = taskLifecycleBehaviorHandler(action.behavior);
+      if (handler) {
+        requireDescriptorRenderers().registerBehavior(action.behavior, handler);
+      }
+    });
+  }
+
+  function registerTaskWorkflowBehaviors() {
+    taskWorkflowActionMenuDescriptor().actions.forEach((action) => {
+      const handler = taskWorkflowBehaviorHandler(action.behavior);
+      if (handler) {
+        requireDescriptorRenderers().registerBehavior(action.behavior, handler);
+      }
+    });
+  }
+
+  // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
+  // contract now - there is no local descriptor to fall back to. 0.33.33.35.1.1 made this
+  // readable by moving the shell build behind the workspace context, so an absent surface is
+  // an answer rather than a not-yet.
+  function tasksViewSurfaceDescriptor() {
+    const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
+    return surfaces.find(
+      /** @returns {surface is Record<string, unknown>} */
+      (surface) => typeof surface === "object" && surface !== null
+        && "id" in surface && surface.id === "tasks.workspace"
+        && "moduleId" in surface && surface.moduleId === "tasks",
+    ) || null;
+  }
+
+  /** @param {Element} element @param {"addTask" | "tasksMainPanel"} key */
+  function writeTaskSurfaceData(element, key) {
+    const dataset = taskRowField(element, "dataset");
+    if (dataset === null || dataset === undefined) throw new TypeError("Task surface dataset is unavailable.");
+    Reflect.set(Object(dataset), key, "", dataset);
+  }
+
+  /** @param {ReturnType<import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers["renderSurface"]>} surface */
+  function decorateTasksDeclarativeSurface(surface) {
+    const createAction = surface.querySelector('[data-surface-action="tasks.create"], [data-surface-action="create-task"]');
+    if (createAction) {
+      writeTaskSurfaceData(createAction, "addTask");
+    }
+
+    const main = surface.querySelector(".view-slideout-sidebar-main")
+      || surface.querySelector(".view-sidebar-detail-primary")
+      || surface.querySelector(".view-stacked-detail");
+    if (main) {
+      main.classList.add("tasks-main-list-panel");
+      writeTaskSurfaceData(main, "tasksMainPanel");
+    }
+  }
+
+  function createTaskViewSelectorChrome() {
+    const view = requireView();
+    return view.createElement("div", {
+      className: "task-view-selector-control",
+      attrs: { "data-task-view-selector-control": "" },
+      children: view.createElement("select", {
+        attrs: {
+          "data-task-view-selector": "",
+          "aria-label": "Saved Task Views",
+        },
+        children: taskOptions([
+          ["my", "My Tasks", true],
           ["all", "All"],
-        ])),
-        taskControlLabel("Assignee", taskSelect({ "data-task-assignee-filter": "" }, [
-          ["all", "All assignees", true],
-        ])),
-        taskControlLabel("Client", taskSelect({ "data-task-client-filter": "" }, [
-          ["all", "All clients", true],
-        ]), { attrs: { "data-client-workspace-control": "" } }),
-        taskControlLabel("Project", taskSelect({ "data-task-project-filter": "" }, [
-          ["all", "All projects", true],
-        ])),
-        taskControlLabel("Tag", view.createElement("input", {
-          attrs: {
-            type: "text",
-            autocomplete: "off",
-            "data-task-tag-filter": "",
-            placeholder: "Type to search tags",
-          },
-        }), {
-          className: "tag-filter-control",
-          attrs: { "data-task-tag-filter-control": "" },
-          hidden: true,
-        }),
-        view.createElement("div", {
-          className: "task-filter-actions",
-          children: view.createElement("button", {
+          ["unassigned", "Unassigned"],
+          ["overdue", "Overdue"],
+          ["today", "Due Today"],
+          ["week", "Due This Week"],
+          ["complete", "Completed"],
+          ["archived", "Archived"],
+        ]),
+      }),
+    });
+  }
+
+  function createTaskFilterChrome() {
+    const view = requireView();
+    return view.createElement("div", {
+      className: "task-page-toolbar",
+      attrs: {
+        "data-task-filter-toolbar": "",
+        "aria-label": "Sorting and task filters",
+      },
+      children: view.createElement("div", {
+        className: "task-filter-grid",
+        attrs: { "data-task-filter-details": "" },
+        children: [
+          taskControlLabel("Sort", taskSelect({ "data-task-sort": "" }, [
+            ["due_asc", "Due Date", true],
+            ["priority_desc", "Priority"],
+            ["status_asc", "Status"],
+            ["last_worked", "Last Worked"],
+            ["context", "Project / Client"],
+            ["newest", "Newest"],
+            ["oldest", "Oldest"],
+          ])),
+          taskControlLabel("Status", taskSelect({ "data-task-status-filter": "" }, [
+            ["active", "Active", true],
+            ["open", "Open"],
+            ["in_progress", "In Progress"],
+            ["blocked", "Blocked"],
+            ["complete", "Complete"],
+            ["archived", "Archived"],
+            ["all", "All"],
+          ])),
+          taskControlLabel("Assignee", taskSelect({ "data-task-assignee-filter": "" }, [
+            ["all", "All assignees", true],
+          ])),
+          taskControlLabel("Client", taskSelect({ "data-task-client-filter": "" }, [
+            ["all", "All clients", true],
+          ]), { attrs: { "data-client-workspace-control": "" } }),
+          taskControlLabel("Project", taskSelect({ "data-task-project-filter": "" }, [
+            ["all", "All projects", true],
+          ])),
+          taskControlLabel("Tag", view.createElement("input", {
             attrs: {
-              type: "button",
-              "data-task-reset-filters": "",
+              type: "text",
+              autocomplete: "off",
+              "data-task-tag-filter": "",
+              placeholder: "Type to search tags",
             },
-            text: "Reset Filters",
+          }), {
+            className: "tag-filter-control",
+            attrs: { "data-task-tag-filter-control": "" },
+            hidden: true,
+          }),
+          view.createElement("div", {
+            className: "task-filter-actions",
+            children: view.createElement("button", {
+              attrs: {
+                type: "button",
+                "data-task-reset-filters": "",
+              },
+              text: "Reset Filters",
+            }),
+          }),
+        ],
+      }),
+    });
+  }
+
+  function createTaskMainListChrome() {
+    const view = requireView();
+    if (typeof view?.createListShell !== "function") {
+      throw new Error("Tasks list surface requires LongtailForge.view.createListShell.");
+    }
+
+    const selectAll = view.createElement("input", {
+      attrs: {
+        type: "checkbox",
+        "data-task-select-all": "",
+        "aria-label": "Select all visible tasks",
+      },
+    });
+    const taskListBody = view.createElement("tbody", {
+      attrs: { "data-task-list": "" },
+    });
+    const table = view.createElement("table", {
+      className: "list-table task-table",
+      children: [
+        view.createElement("thead", {
+          children: view.createElement("tr", {
+            children: [
+              view.createElement("th", { children: selectAll }),
+              view.createElement("th", {
+                attrs: {
+                  colspan: "6",
+                  "aria-label": "Task details",
+                },
+              }),
+            ],
           }),
         }),
+        taskListBody,
       ],
-    }),
-  });
-}
+    });
+    const list = view.createElement("div", {
+      className: ["view-table-wrap", "list-table-wrap"],
+      attrs: { "data-task-list-surface": "" },
+      children: table,
+    });
+    const pagination = view.createElement("div", {
+      className: "tasks-pagination",
+      attrs: {
+        "data-task-pagination": "",
+        hidden: "",
+      },
+      children: [
+        view.createElement("span", {
+          attrs: { "data-task-page-summary": "" },
+        }),
+        view.createElement("button", {
+          attrs: {
+            type: "button",
+            "data-task-load-more": "",
+          },
+          text: "Load More",
+        }),
+      ],
+    });
 
-function createTaskMainListChrome() {
-  if (typeof view?.createListShell !== "function") {
-    throw new Error("Tasks list surface requires LongtailForge.view.createListShell.");
+    return view.createListShell({
+      className: "tasks-main-list-surface",
+      attrs: { "data-task-main-list-surface": "" },
+      toolbar: createTaskBulkToolbarChrome(),
+      statusAttrs: { "data-task-status": "" },
+      children: list,
+      after: pagination,
+    });
   }
 
-  const selectAll = view.createElement("input", {
-    attrs: {
-      type: "checkbox",
-      "data-task-select-all": "",
-      "aria-label": "Select all visible tasks",
-    },
-  });
-  const taskListBody = view.createElement("tbody", {
-    attrs: { "data-task-list": "" },
-  });
-  const table = view.createElement("table", {
-    className: "list-table task-table",
-    children: [
-      view.createElement("thead", {
-        children: view.createElement("tr", {
-          children: [
-            view.createElement("th", { children: selectAll }),
-            view.createElement("th", {
-              attrs: {
-                colspan: "6",
-                "aria-label": "Task details",
-              },
-            }),
-          ],
-        }),
+  function createTaskBulkToolbarChrome() {
+    const view = requireView();
+    if (typeof view?.createBulkActionToolbar !== "function") {
+      throw new Error("Tasks bulk actions require LongtailForge.view.createBulkActionToolbar.");
+    }
+
+    return view.createBulkActionToolbar({
+      label: "Bulk Actions",
+      selectedCount: state.selectedTaskIds.size,
+      className: "task-bulk-toolbar",
+      bodyClassName: "task-bulk-grid",
+      attrs: {
+        "data-task-bulk-toolbar": "",
+      },
+      body: taskBulkToolbarControls(),
+    });
+  }
+
+  function taskBulkToolbarControls() {
+    const view = requireView();
+    return [
+      taskControlLabel("Status", taskSelect({ "data-task-bulk-status": "" }, [
+        ["", "-", true],
+        ["open", "Open"],
+        ["in_progress", "In Progress"],
+        ["blocked", "Blocked"],
+        ["complete", "Complete"],
+      ]), { attrs: { "data-task-bulk-status-control": "" } }),
+      taskControlLabel("Blocked Reason", view.createElement("input", {
+        attrs: {
+          type: "text",
+          maxlength: "1000",
+          "data-task-bulk-blocked-reason": "",
+          placeholder: "Why are these tasks blocked?",
+        },
+      }), {
+        attrs: { "data-task-bulk-blocked-reason-control": "" },
+        hidden: true,
       }),
-      taskListBody,
-    ],
-  });
-  const list = view.createElement("div", {
-    className: ["view-table-wrap", "list-table-wrap"],
-    attrs: { "data-task-list-surface": "" },
-    children: table,
-  });
-  const pagination = view.createElement("div", {
-    className: "tasks-pagination",
-    attrs: {
-      "data-task-pagination": "",
-      hidden: "",
-    },
-    children: [
-      view.createElement("span", {
-        attrs: { "data-task-page-summary": "" },
+      taskControlLabel("Priority", taskSelect({ "data-task-bulk-priority": "" }, [
+        ["", "-", true],
+        ["low", "Low"],
+        ["normal", "Normal"],
+        ["high", "High"],
+        ["urgent", "Urgent"],
+      ]), { attrs: { "data-task-bulk-priority-control": "" } }),
+      taskControlLabel("Client", taskSelect({ "data-task-bulk-client": "" }, [
+        [BULK_CLIENT_ALL_VALUE, "Choose Client scope", true],
+      ]), {
+        attrs: { "data-task-bulk-client-control": "" },
+        hidden: true,
+      }),
+      taskControlLabel("Project", taskSelect({ "data-task-bulk-project": "" }, [
+        ["", "Choose Project", true],
+      ]), { attrs: { "data-task-bulk-project-control": "" } }),
+      taskControlLabel("Due Date", [
+        view.createElement("input", {
+          attrs: {
+            type: "date",
+            "data-task-bulk-due-date": "",
+          },
+        }),
+        taskCheckboxLine("Clear due date", { "data-task-bulk-clear-due-date": "" }),
+      ], { attrs: { "data-task-bulk-due-date-control": "" } }),
+      taskControlLabel("Due Time", [
+        view.createElement("input", {
+          attrs: {
+            type: "time",
+            "data-task-bulk-due-time": "",
+          },
+        }),
+        taskCheckboxLine("Clear due time", { "data-task-bulk-clear-due-time": "" }),
+      ], { attrs: { "data-task-bulk-due-time-control": "" } }),
+      taskControlLabel("Assignees", view.createElement("div", {
+        className: "task-bulk-assignee-list",
+        attrs: { "data-task-bulk-assignees": "" },
+      }), { attrs: { "data-task-bulk-assignee-control": "" } }),
+      taskControlLabel("Tag Action", taskSelect({ "data-task-bulk-tag-action": "" }, [
+        ["", "-", true],
+        ["tag_add", "Add tags"],
+        ["tag_remove", "Remove tags"],
+        ["tag_replace", "Replace direct tags"],
+      ]), {
+        attrs: { "data-task-bulk-tag-action-control": "" },
+        hidden: true,
+      }),
+      taskControlLabel("Tags", view.createElement("select", {
+        attrs: {
+          "data-task-bulk-tags": "",
+          multiple: true,
+          size: "4",
+        },
+      }), {
+        attrs: { "data-task-bulk-tags-control": "" },
+        hidden: true,
+      }),
+      taskControlLabel("Lifecycle", taskSelect({ "data-task-bulk-lifecycle": "" }, [
+        ["", "-", true],
+      ]), {
+        attrs: { "data-task-bulk-lifecycle-control": "" },
+        hidden: true,
       }),
       view.createElement("button", {
         attrs: {
           type: "button",
-          "data-task-load-more": "",
+          "data-task-bulk-apply": "",
+          disabled: true,
         },
-        text: "Load More",
+        text: "Apply to 0",
       }),
-    ],
-  });
-
-  return view.createListShell({
-    className: "tasks-main-list-surface",
-    attrs: { "data-task-main-list-surface": "" },
-    toolbar: createTaskBulkToolbarChrome(),
-    statusAttrs: { "data-task-status": "" },
-    children: list,
-    after: pagination,
-  });
-}
-
-function createTaskBulkToolbarChrome() {
-  if (typeof view?.createBulkActionToolbar !== "function") {
-    throw new Error("Tasks bulk actions require LongtailForge.view.createBulkActionToolbar.");
+    ];
   }
 
-  return view.createBulkActionToolbar({
-    label: "Bulk Actions",
-    selectedCount: state.selectedTaskIds.size,
-    className: "task-bulk-toolbar",
-    bodyClassName: "task-bulk-grid",
-    attrs: {
-      "data-task-bulk-toolbar": "",
-    },
-    body: taskBulkToolbarControls(),
-  });
-}
-
-function taskBulkToolbarControls() {
-  return [
-    taskControlLabel("Status", taskSelect({ "data-task-bulk-status": "" }, [
-      ["", "-", true],
-      ["open", "Open"],
-      ["in_progress", "In Progress"],
-      ["blocked", "Blocked"],
-      ["complete", "Complete"],
-    ]), { attrs: { "data-task-bulk-status-control": "" } }),
-    taskControlLabel("Blocked Reason", view.createElement("input", {
-      attrs: {
-        type: "text",
-        maxlength: "1000",
-        "data-task-bulk-blocked-reason": "",
-        placeholder: "Why are these tasks blocked?",
-      },
-    }), {
-      attrs: { "data-task-bulk-blocked-reason-control": "" },
-      hidden: true,
-    }),
-    taskControlLabel("Priority", taskSelect({ "data-task-bulk-priority": "" }, [
-      ["", "-", true],
-      ["low", "Low"],
-      ["normal", "Normal"],
-      ["high", "High"],
-      ["urgent", "Urgent"],
-    ]), { attrs: { "data-task-bulk-priority-control": "" } }),
-    taskControlLabel("Client", taskSelect({ "data-task-bulk-client": "" }, [
-      [BULK_CLIENT_ALL_VALUE, "Choose Client scope", true],
-    ]), {
-      attrs: { "data-task-bulk-client-control": "" },
-      hidden: true,
-    }),
-    taskControlLabel("Project", taskSelect({ "data-task-bulk-project": "" }, [
-      ["", "Choose Project", true],
-    ]), { attrs: { "data-task-bulk-project-control": "" } }),
-    taskControlLabel("Due Date", [
-      view.createElement("input", {
-        attrs: {
-          type: "date",
-          "data-task-bulk-due-date": "",
-        },
-      }),
-      taskCheckboxLine("Clear due date", { "data-task-bulk-clear-due-date": "" }),
-    ], { attrs: { "data-task-bulk-due-date-control": "" } }),
-    taskControlLabel("Due Time", [
-      view.createElement("input", {
-        attrs: {
-          type: "time",
-          "data-task-bulk-due-time": "",
-        },
-      }),
-      taskCheckboxLine("Clear due time", { "data-task-bulk-clear-due-time": "" }),
-    ], { attrs: { "data-task-bulk-due-time-control": "" } }),
-    taskControlLabel("Assignees", view.createElement("div", {
-      className: "task-bulk-assignee-list",
-      attrs: { "data-task-bulk-assignees": "" },
-    }), { attrs: { "data-task-bulk-assignee-control": "" } }),
-    taskControlLabel("Tag Action", taskSelect({ "data-task-bulk-tag-action": "" }, [
-      ["", "-", true],
-      ["tag_add", "Add tags"],
-      ["tag_remove", "Remove tags"],
-      ["tag_replace", "Replace direct tags"],
-    ]), {
-      attrs: { "data-task-bulk-tag-action-control": "" },
-      hidden: true,
-    }),
-    taskControlLabel("Tags", view.createElement("select", {
-      attrs: {
-        "data-task-bulk-tags": "",
-        multiple: true,
-        size: "4",
-      },
-    }), {
-      attrs: { "data-task-bulk-tags-control": "" },
-      hidden: true,
-    }),
-    taskControlLabel("Lifecycle", taskSelect({ "data-task-bulk-lifecycle": "" }, [
-      ["", "-", true],
-    ]), {
-      attrs: { "data-task-bulk-lifecycle-control": "" },
-      hidden: true,
-    }),
-    view.createElement("button", {
-      attrs: {
-        type: "button",
-        "data-task-bulk-apply": "",
-        disabled: true,
-      },
-      text: "Apply to 0",
-    }),
-  ];
-}
-
-function taskControlLabel(label, controls, options = {}) {
-  return view.createElement("label", {
-    className: options.className,
-    attrs: options.attrs,
-    hidden: options.hidden,
-    children: [label, controls],
-  });
-}
-
-function taskSelect(attrs, options = []) {
-  return view.createElement("select", {
-    attrs,
-    children: taskOptions(options),
-  });
-}
-
-function taskOptions(options = []) {
-  return options.map(([value, label, selected = false]) => view.createElement("option", {
-    attrs: {
-      value,
-      selected,
-    },
-    text: label,
-  }));
-}
-
-function taskCheckboxLine(label, attrs = {}) {
-  return view.createElement("span", {
-    className: "checkbox-line",
-    children: [
-      view.createElement("input", {
-        attrs: {
-          type: "checkbox",
-          ...attrs,
-        },
-      }),
-      label,
-    ],
-  });
-}
-
-async function loadTasks() {
-  setStatus("Loading tasks...");
-
-  try {
-    await window.LongtailForge.workspaceContextReady;
-    await window.LongtailForge.timezones?.loadSessionTimezone?.();
-    const tagOptions = await loadTagOptions();
-    if (!hasLoadedTasks) {
-      restoreFilterState();
-    }
-    const result = await loadCanonicalTasks();
-    const timersResult = await loadTaskTimers();
-    const [attachmentCounts, noteCounts] = await Promise.all([
-      loadAttachmentCounts(result.tasks || []),
-      loadNoteCounts(result.tasks || []),
-    ]);
-    state = {
-      ...state,
-      tasks: result.tasks || [],
-      taskTimers: timersResult.timers || [],
-      currentUserId: result.currentUserId || state.currentUserId,
-      options: result.options || state.options,
-      attachmentCounts,
-      noteCounts,
-      pagination: normalizeTaskPagination(result.pagination),
-      tagOptions,
-    };
-    populateFilters();
-    configureTaskDialog();
-    renderTasks();
-    openTaskFromUrl();
-    hasLoadedTasks = true;
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Tasks could not be loaded.", { isError: true });
-  }
-}
-
-async function reloadTaskList() {
-  if (!hasLoadedTasks) {
-    return;
-  }
-
-  setStatus("Updating task list...");
-
-  try {
-    const result = await loadCanonicalTasks();
-    const timersResult = await loadTaskTimers();
-    const [attachmentCounts, noteCounts] = await Promise.all([
-      loadAttachmentCounts(result.tasks || []),
-      loadNoteCounts(result.tasks || []),
-    ]);
-    state = {
-      ...state,
-      tasks: result.tasks || [],
-      taskTimers: timersResult.timers || [],
-      currentUserId: result.currentUserId || state.currentUserId,
-      options: result.options || state.options,
-      attachmentCounts,
-      noteCounts,
-      pagination: normalizeTaskPagination(result.pagination),
-    };
-    populateFilters();
-    configureTaskDialog();
-    renderTasks();
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Tasks could not be loaded.", { isError: true });
-  }
-}
-
-async function loadMoreTasks() {
-  const cursor = state.pagination?.nextCursor || "";
-
-  if (!cursor) {
-    return;
-  }
-
-  setStatus("Loading more tasks...");
-
-  try {
-    const result = await loadCanonicalTasks(cursor);
-    const timersResult = await loadTaskTimers();
-    const tasks = mergeTasksById(state.tasks, result.tasks || []);
-    const [attachmentCounts, noteCounts] = await Promise.all([
-      loadAttachmentCounts(tasks),
-      loadNoteCounts(tasks),
-    ]);
-
-    state = {
-      ...state,
-      tasks,
-      taskTimers: timersResult.timers || [],
-      currentUserId: result.currentUserId || state.currentUserId,
-      options: result.options || state.options,
-      attachmentCounts,
-      noteCounts,
-      pagination: normalizeTaskPagination(result.pagination),
-    };
-    populateFilters();
-    configureTaskDialog();
-    renderTasks();
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "More tasks could not be loaded.", { isError: true });
-  }
-}
-
-function mergeTasksById(existingTasks, incomingTasks) {
-  const taskById = new Map();
-
-  [...(existingTasks || []), ...(incomingTasks || [])].forEach((task) => {
-    if (task?.task_id) {
-      taskById.set(task.task_id, task);
-    }
-  });
-
-  return [...taskById.values()];
-}
-
-function normalizeTaskPagination(pagination = {}) {
-  return {
-    hasMore: Boolean(pagination?.hasMore && pagination?.nextCursor),
-    nextCursor: pagination?.nextCursor || "",
-    pageSize: Number(pagination?.pageSize || pagination?.limit) || TASK_LIST_PAGE_SIZE,
-  };
-}
-
-async function loadCanonicalTasks(cursor = "") {
-  const query = buildTaskQuery(cursor);
-  return api.getJson(query ? `/api/tasks?${query}` : "/api/tasks", { cache: "no-store" });
-}
-
-function buildTaskQuery(cursor = "") {
-  const params = new URLSearchParams();
-  const taskView = selectedTaskView();
-  const statusValue = statusFilter?.value || "active";
-  const assigneeValue = assigneeFilter?.value || "all";
-  const clientValue = usesClientScope() ? clientFilter?.value ?? "all" : "all";
-  const projectValue = projectFilter?.value ?? "all";
-  const tagValue = selectedTaskTagFilterValue();
-
-  params.set("task_view", canonicalTaskViewValue(taskView));
-  params.set("status", canonicalStatusValue(statusValue));
-  params.set("sort", canonicalSortValue(sortInput?.value || "due_asc"));
-  params.set("limit", String(TASK_LIST_PAGE_SIZE));
-
-  if (assigneeValue === "me") {
-    params.set("assignee", "me");
-  } else if (assigneeValue === "unassigned") {
-    params.set("assignee", "unassigned");
-  } else if (assigneeValue !== "all") {
-    params.set("assignee_id", assigneeValue);
-  }
-
-  if (clientValue !== "all") {
-    params.set("client_id", clientValue);
-  }
-
-  if (projectValue !== "all") {
-    params.set("project_id", projectValue);
-  }
-
-  if (tagValue !== "all") {
-    params.set("tags", tagValue);
-  }
-
-  if (cursor) {
-    params.set("cursor", cursor);
-  }
-
-  return params.toString();
-}
-
-function canonicalStatusValue(value) {
-  if (value === "complete" || value === "archived" || value === "all") {
-    return value;
-  }
-
-  return value || "active";
-}
-
-function canonicalTaskViewValue(value) {
-  return {
-    all: "all",
-    my: "my",
-    unassigned: "unassigned",
-    overdue: "overdue",
-    today: "today",
-    week: "week",
-    complete: "completed",
-    archived: "archived",
-  }[value] || value;
-}
-
-function canonicalSortValue(value) {
-  return {
-    due_asc: "due_at",
-    priority_desc: "priority",
-    status_asc: "status",
-    newest: "created",
-    oldest: "created_asc",
-    last_worked: "last_worked",
-    context: "context",
-  }[value] || "due_at";
-}
-
-function populateFilters() {
-  const workspaceScopeLabel = getWorkspaceScopeLabel();
-  const hasClientScope = usesClientScope();
-
-  replaceOptions(assigneeFilter, [
-    option("all", "All assignees"),
-    option("me", "Me"),
-    option("unassigned", "Unassigned"),
-    ...state.options.users.map((user) => option(user.user_id, displayUser(user))),
-  ]);
-  setClientScopeControlsVisible(hasClientScope);
-  if (hasClientScope) {
-    replaceOptions(clientFilter, [
-      option("all", "All"),
-      option("", workspaceScopeLabel),
-      ...state.options.clients.map((client) => option(client.id, optionLabel(client))),
-    ]);
-  } else {
-    replaceOptions(clientFilter, [option("all", "All")]);
-  }
-  replaceOptions(projectFilter, [
-    option("all", "All Projects"),
-    option("", "No project"),
-    ...projectOptionsForClient(selectedClientFilterValue()).map((project) => option(project.id, optionLabel(project))),
-  ]);
-  populateTagFilter();
-  populateBulkTagOptions();
-  renderBulkAssigneeOptions();
-  populateBulkContextOptions();
-}
-
-function populateBulkContextOptions() {
-  const selectedProjectId = bulkProjectInput?.value || "";
-
-  if (usesClientScope()) {
-    bulkClientControl?.removeAttribute("hidden");
-    replaceOptions(bulkClientInput, [
-      option(BULK_CLIENT_ALL_VALUE, "Choose Client scope"),
-      option("", getWorkspaceScopeLabel()),
-      ...state.options.clients.map((client) => option(client.id, optionLabel(client))),
-    ]);
-    if (![...bulkClientInput.options].some((entry) => entry.value === bulkClientInput.value)) {
-      bulkClientInput.value = BULK_CLIENT_ALL_VALUE;
-    }
-  } else {
-    bulkClientControl?.remove();
-  }
-
-  populateBulkProjectOptions(selectedProjectId);
-}
-
-function populateBulkProjectOptions(selectedProjectId = "") {
-  if (!bulkProjectInput) {
-    return;
-  }
-
-  const selectedClientId = usesClientScope()
-    ? bulkClientInput?.value ?? BULK_CLIENT_ALL_VALUE
-    : BULK_CLIENT_ALL_VALUE;
-  const projects = (state.options.projects || []).filter((project) => (
-    selectedClientId === BULK_CLIENT_ALL_VALUE || (project.client_id || "") === selectedClientId
-  ));
-  const placeholder = projects.length > 0 ? "Choose Project" : "No active Projects";
-
-  bulkProjectInput.replaceChildren(
-    option("", placeholder),
-    ...projects.map((project) => option(project.id, bulkProjectOptionLabel(project, selectedClientId))),
-  );
-  bulkProjectInput.value = projects.some((project) => project.id === selectedProjectId)
-    ? selectedProjectId
-    : "";
-}
-
-function bulkProjectOptionLabel(project, selectedClientId) {
-  const projectLabel = optionLabel(project);
-
-  if (!usesClientScope() || selectedClientId !== BULK_CLIENT_ALL_VALUE) {
-    return projectLabel;
-  }
-
-  const clientLabel = project.client_id
-    ? optionLabel((state.options.clients || []).find((client) => client.id === project.client_id))
-    : getWorkspaceScopeLabel();
-  return clientLabel ? `${clientLabel} / ${projectLabel}` : projectLabel;
-}
-
-function handleBulkClientChange() {
-  populateBulkProjectOptions();
-  updateBulkControls();
-}
-
-function handleBulkProjectChange() {
-  const project = (state.options.projects || []).find((entry) => entry.id === bulkProjectInput?.value);
-
-  if (project && usesClientScope() && bulkClientInput) {
-    bulkClientInput.value = project.client_id || "";
-    populateBulkProjectOptions(project.id);
-  }
-  updateBulkControls();
-}
-
-function selectedClientFilterValue() {
-  return usesClientScope() ? clientFilter?.value ?? "all" : "all";
-}
-
-function projectMatchesClient(project, clientValue) {
-  if (clientValue === "all") {
-    return true;
-  }
-  return descendantClientScopeIdsForFilter(clientValue).includes(String(project?.client_id ?? ""));
-}
-
-function projectOptionsForClient(clientValue) {
-  return state.options.projects.filter((project) => projectMatchesClient(project, clientValue));
-}
-
-function descendantClientScopeIdsForFilter(clientValue) {
-  const normalizedClientId = String(clientValue ?? "").trim();
-
-  if (!normalizedClientId) {
-    return [""];
-  }
-
-  const descendants = new Set([normalizedClientId]);
-  const pending = [normalizedClientId];
-
-  while (pending.length > 0) {
-    const currentId = pending.pop();
-
-    (state.options.clients || []).forEach((client) => {
-      const candidateId = String(client?.id || "").trim();
-      const parentId = String(client?.parent_client_id || "").trim();
-
-      if (!candidateId || descendants.has(candidateId) || parentId !== currentId) {
-        return;
-      }
-
-      descendants.add(candidateId);
-      pending.push(candidateId);
+  /** @param {unknown} label @param {unknown} controls @param {Pick<import("../../src/types/browser-contracts.js").BrowserViewElementOptions, "className" | "attrs" | "hidden">} [options] */
+  function taskControlLabel(label, controls, options = {}) {
+    const view = requireView();
+    return view.createElement("label", {
+      className: options.className,
+      attrs: options.attrs,
+      hidden: options.hidden,
+      children: [label, controls],
     });
   }
 
-  return [...descendants];
-}
-
-function reconcileProjectFilterForClient() {
-  const clientValue = selectedClientFilterValue();
-  const currentProject = projectFilter?.value ?? "all";
-  // "all" (All Projects) and "" (No project) stay valid under any client; only a specific
-  // project can become incompatible with the newly chosen client.
-  if (currentProject !== "all" && currentProject !== "") {
-    const stillAllowed = projectOptionsForClient(clientValue).some((project) => project.id === currentProject);
-    if (!stillAllowed) {
-      setSelectValue(projectFilter, "all");
-    }
-  }
-  replaceOptions(projectFilter, [
-    option("all", "All Projects"),
-    option("", "No project"),
-    ...projectOptionsForClient(clientValue).map((project) => option(project.id, optionLabel(project))),
-  ]);
-}
-
-function populateTagFilter() {
-  const tags = state.tagOptions || [];
-  const previousValue = selectedTaskTagFilterValue();
-
-  if (!tagFilter || !tagFilterControl) {
-    return;
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewElementOptions["attrs"]} attrs @param {Array<[string, string, boolean?]>} [options] */
+  function taskSelect(attrs, options = []) {
+    const view = requireView();
+    return view.createElement("select", {
+      attrs,
+      children: taskOptions(options),
+    });
   }
 
-  tagFilterControl.hidden = tags.length === 0;
-  const nextValue = previousValue === noTagsFilterValue() || tags.some((tag) => tag.tag_id === previousValue)
-    ? normalizeTagFilterValue(previousValue)
-    : "all";
-  if (!tagFilterController) {
-    tagFilterController = window.LongtailForge?.tags?.mountFilterPicker?.(tagFilter, {
-      tags,
-      value: nextValue,
-    }) || null;
-  } else {
-    tagFilterController.setTags(tags);
-    tagFilterController.setValue(nextValue);
-  }
-}
-
-function noTagsFilterValue() {
-  return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
-}
-
-function normalizeTagFilterValue(value) {
-  return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
-}
-
-function selectedTaskTagFilterValue() {
-  return tagFilterController?.readValue?.()
-    || normalizeTagFilterValue(tagFilter?.dataset?.tagFilterValue || "all");
-}
-
-function renderBulkAssigneeOptions() {
-  if (!bulkAssigneesControl) {
-    return;
+  /** @param {Array<[string, string, boolean?]>} [options] */
+  function taskOptions(options = []) {
+    const view = requireView();
+    return options.map(([value, label, selected = false]) => view.createElement("option", {
+      attrs: {
+        value,
+        selected,
+      },
+      text: label,
+    }));
   }
 
-  const selectedIds = new Set(selectedBulkAssigneeIds());
-  const controls = state.options.users.map((user) => {
-    const labelText = displayUser(user);
-    return view.createElement("label", {
-      className: "task-bulk-assignee-option",
+  /** @param {unknown} label @param {import("../../src/types/browser-contracts.js").BrowserViewElementOptions["attrs"]} [attrs] */
+  function taskCheckboxLine(label, attrs = {}) {
+    const view = requireView();
+    return view.createElement("span", {
+      className: "checkbox-line",
       children: [
         view.createElement("input", {
           attrs: {
             type: "checkbox",
-            value: user.user_id,
-            checked: selectedIds.has(user.user_id),
+            ...attrs,
           },
         }),
-        view.createElement("span", {
-          className: "task-bulk-assignee-name",
-          attrs: { title: labelText },
-          text: labelText,
-        }),
+        label,
       ],
     });
-  });
-
-  bulkAssigneesControl.replaceChildren(...controls);
-}
-
-function populateBulkTagOptions() {
-  if (!bulkTagsInput || !bulkTagActionControl || !bulkTagsControl) {
-    return;
   }
 
-  const tags = state.tagOptions || [];
-  const selectedIds = new Set(selectedBulkTagIds());
-  bulkTagActionControl.hidden = tags.length === 0;
-  bulkTagsControl.hidden = tags.length === 0;
-  bulkTagsInput.replaceChildren(...tags.map((tag) => {
-    const entry = option(tag.tag_id, tag.name || tag.slug);
-    entry.selected = selectedIds.has(tag.tag_id);
-    return entry;
-  }));
-}
+  async function loadTasks() {
+    setStatus("Loading tasks...");
 
-function renderTasks() {
-  const tasks = state.tasks;
-
-  syncSelectionToTasks(tasks);
-  updateTaskViewSelectorState();
-  updateBulkControls();
-  taskList.replaceChildren();
-
-  if (tasks.length === 0) {
-    taskList.appendChild(view.createElement("tr", {
-      children: view.createElement("td", {
-        attrs: { colspan: "7" },
-        text: emptyTaskMessage(),
-      }),
-    }));
-    updateSelectionControls(tasks);
-    renderTaskPagination();
-    return;
+    try {
+      await requireNamespace().workspaceContextReady;
+      await requireNamespace().timezones?.loadSessionTimezone?.();
+      const tagOptions = await loadTagOptions();
+      if (!hasLoadedTasks) {
+        restoreFilterState();
+      }
+      const list = requireTaskRecords().readTaskList(await loadCanonicalTasks());
+      const timersResult = await loadTaskTimers();
+      const [attachmentCounts, noteCounts] = await Promise.all([
+        loadAttachmentCounts(list.tasks),
+        loadNoteCounts(list.tasks),
+      ]);
+      state = {
+        ...state,
+        tasks: list.tasks,
+        taskTimers: requireTaskRecords().readTaskTimers(timersResult),
+        currentUserId: list.currentUserId || state.currentUserId,
+        options: list.options || state.options,
+        attachmentCounts,
+        noteCounts,
+        pagination: normalizeTaskPagination(list.pagination),
+        tagOptions,
+      };
+      populateFilters();
+      configureTaskDialog();
+      renderTasks();
+      openTaskFromUrl();
+      hasLoadedTasks = true;
+      setStatus("");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Tasks could not be loaded."), { isError: true });
+    }
   }
 
-  nestedTaskDisplayRows(tasks).forEach(({ task, depth }) => {
-    taskNestingDepths.set(task, depth);
-    taskList.append(...createTaskRow(task));
-  });
-  updateSelectionControls(tasks);
-  renderTaskPagination();
-}
+  async function reloadTaskList() {
+    if (!hasLoadedTasks) {
+      return;
+    }
 
-function renderTaskPagination() {
-  const hasMore = Boolean(state.pagination?.hasMore && state.pagination?.nextCursor);
+    setStatus("Updating task list...");
 
-  if (taskPagination) {
-    taskPagination.hidden = !hasMore;
+    try {
+      const list = requireTaskRecords().readTaskList(await loadCanonicalTasks());
+      const timersResult = await loadTaskTimers();
+      const [attachmentCounts, noteCounts] = await Promise.all([
+        loadAttachmentCounts(list.tasks),
+        loadNoteCounts(list.tasks),
+      ]);
+      state = {
+        ...state,
+        tasks: list.tasks,
+        taskTimers: requireTaskRecords().readTaskTimers(timersResult),
+        currentUserId: list.currentUserId || state.currentUserId,
+        options: list.options || state.options,
+        attachmentCounts,
+        noteCounts,
+        pagination: normalizeTaskPagination(list.pagination),
+      };
+      populateFilters();
+      configureTaskDialog();
+      renderTasks();
+      setStatus("");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Tasks could not be loaded."), { isError: true });
+    }
   }
 
-  if (taskPageSummary) {
-    taskPageSummary.textContent = hasMore ? `${state.tasks.length} shown` : "";
+  async function loadMoreTasks() {
+    const cursor = state.pagination?.nextCursor || "";
+
+    if (!cursor) {
+      return;
+    }
+
+    setStatus("Loading more tasks...");
+
+    try {
+      const list = requireTaskRecords().readTaskList(await loadCanonicalTasks(cursor));
+      const timersResult = await loadTaskTimers();
+      const tasks = mergeTasksById(state.tasks, list.tasks);
+      const [attachmentCounts, noteCounts] = await Promise.all([
+        loadAttachmentCounts(tasks),
+        loadNoteCounts(tasks),
+      ]);
+
+      state = {
+        ...state,
+        tasks,
+        taskTimers: requireTaskRecords().readTaskTimers(timersResult),
+        currentUserId: list.currentUserId || state.currentUserId,
+        options: list.options || state.options,
+        attachmentCounts,
+        noteCounts,
+        pagination: normalizeTaskPagination(list.pagination),
+      };
+      populateFilters();
+      configureTaskDialog();
+      renderTasks();
+      setStatus("");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "More tasks could not be loaded."), { isError: true });
+    }
   }
 
-  if (loadMoreTasksButton) {
-    loadMoreTasksButton.hidden = !hasMore;
-    loadMoreTasksButton.disabled = !hasMore;
-  }
-}
+  /** @param {unknown[] | null | undefined} existingTasks @param {BrowserTaskListItem[] | null | undefined} incomingTasks */
+  function mergeTasksById(existingTasks, incomingTasks) {
+    const taskById = new Map();
 
-function emptyTaskMessage() {
-  if (state.quickFilter === "my") {
-    return "No tasks are assigned to you for the current filters.";
-  }
+    [...(existingTasks || []), ...(incomingTasks || [])].forEach((task) => {
+      if (optionalTaskLifecycleId(task)) {
+        taskById.set(taskRowField(task, "task_id"), task);
+      }
+    });
 
-  if (state.quickFilter === "unassigned") {
-    return "No unassigned tasks match the current filters.";
+    return [...taskById.values()];
   }
 
-  if (state.quickFilter === "overdue") {
-    return "No overdue tasks need recovery right now.";
+  /**
+   * Reduce the server cursor to the three members the list controls need.
+   *
+   * The parameter is the contract `readTaskList` answers, including its `null`: the reader cannot
+   * vouch for a malformed cursor and this function has always had a total default for that case.
+   * @param {BrowserTaskListPagination | null} [pagination]
+   */
+  function normalizeTaskPagination(pagination = null) {
+    return {
+      hasMore: Boolean(pagination?.hasMore && pagination?.nextCursor),
+      nextCursor: pagination?.nextCursor || "",
+      pageSize: Number(pagination?.pageSize || pagination?.limit) || TASK_LIST_PAGE_SIZE,
+    };
   }
 
-  if (state.quickFilter === "today") {
-    return "No tasks are due today for the current filters.";
+  async function loadCanonicalTasks(cursor = "") {
+    const api = requireApi();
+    const query = buildTaskQuery(cursor);
+    return api.getJson(query ? `/api/tasks?${query}` : "/api/tasks", { cache: "no-store" });
   }
 
-  if (state.quickFilter === "week") {
-    return "No tasks are due this week for the current filters.";
+  /** @param {Element | null | undefined} control @returns {Element} */
+  function requireTaskElement(control) {
+    if (control === null || control === undefined) throw new TypeError("Tasks required element is unavailable.");
+    return control;
   }
 
-  if (state.quickFilter === "complete") {
-    return "No completed tasks match the current filters.";
+  /**
+   * These controls are rendered as selects locally, but reading value does not require
+   * a select subtype. Keep other host elements and inherited accessors readable too.
+   * @param {Element | null | undefined} control @returns {unknown}
+   */
+  function taskControlValue(control) {
+    return control === null || control === undefined ? undefined : Reflect.get(control, "value");
   }
 
-  if (state.quickFilter === "archived") {
-    return "No archived tasks match the current filters.";
+  /** @param {unknown} value @param {"dataset" | "tagFilterValue" | "selectedOptions" | "0" | "textContent"} key @returns {unknown} */
+  function taskOptionalControlField(value, key) {
+    return value === null || value === undefined ? undefined : Reflect.get(Object(value), key, value);
   }
 
-  return "No tasks match the current filters.";
-}
+  /** @param {Element | null} control @returns {unknown} */
+  function taskWorkspaceSelectionText(control) {
+    const selected = taskOptionalControlField(control, "selectedOptions");
+    const option = taskOptionalControlField(selected, "0");
+    const text = taskOptionalControlField(option, "textContent");
+    if (text === null || text === undefined) return undefined;
+    return Reflect.apply(Reflect.get(Object(text), "trim", text), text, []);
+  }
 
-function createTaskRow(task) {
-  const nestingDepth = taskNestingDepths.get(task) || 0;
-  const row = document.createElement("tr");
-  const selectCell = document.createElement("td");
-  const contentCell = document.createElement("td");
-  const checkbox = document.createElement("input");
-  const titleButton = document.createElement("button");
-  const titleBand = document.createElement("div");
-  const titleWrap = document.createElement("div");
-  const metaBand = document.createElement("div");
-  const actionsBand = document.createElement("div");
+  function buildTaskQuery(cursor = "") {
+    const params = new URLSearchParams();
+    const taskView = selectedTaskView();
+    const statusValue = taskControlValue(statusFilter) || "active";
+    const assigneeValue = taskControlValue(assigneeFilter) || "all";
+    const clientValue = usesClientScope() ? taskControlValue(clientFilter) ?? "all" : "all";
+    const projectValue = taskControlValue(projectFilter) ?? "all";
+    const tagValue = selectedTaskTagFilterValue();
 
-  row.dataset.taskStatus = task.status || "open";
-  row.dataset.taskNestingDepth = String(nestingDepth);
-  row.classList.add("task-density-row");
-  row.classList.toggle("is-task-child", nestingDepth > 0);
-  row.style.setProperty("--task-nesting-depth", String(Math.min(nestingDepth, 6)));
-  row.classList.toggle("is-task-complete", task.status === "complete");
-  row.classList.toggle("is-task-archived", task.status === "archived");
+    params.set("task_view", `${canonicalTaskViewValue(taskView)}`);
+    params.set("status", `${canonicalStatusValue(statusValue)}`);
+    params.set("sort", `${canonicalSortValue(taskControlValue(sortInput) || "due_asc")}`);
+    params.set("limit", String(TASK_LIST_PAGE_SIZE));
 
-  checkbox.type = "checkbox";
-  checkbox.value = task.task_id;
-  checkbox.checked = state.selectedTaskIds.has(task.task_id);
-  checkbox.setAttribute("aria-label", `Select ${task.title}`);
-  checkbox.addEventListener("change", () => {
-    if (checkbox.checked) {
-      state.selectedTaskIds.add(task.task_id);
+    if (assigneeValue === "me") {
+      params.set("assignee", "me");
+    } else if (assigneeValue === "unassigned") {
+      params.set("assignee", "unassigned");
+    } else if (assigneeValue !== "all") {
+      params.set("assignee_id", `${assigneeValue}`);
+    }
+
+    if (clientValue !== "all") {
+      params.set("client_id", `${clientValue}`);
+    }
+
+    if (projectValue !== "all") {
+      params.set("project_id", `${projectValue}`);
+    }
+
+    if (tagValue !== "all") {
+      params.set("tags", `${tagValue}`);
+    }
+
+    if (cursor) {
+      params.set("cursor", cursor);
+    }
+
+    return params.toString();
+  }
+
+  /** @param {unknown} value */
+  function canonicalStatusValue(value) {
+    if (value === "complete" || value === "archived" || value === "all") {
+      return value;
+    }
+
+    return value || "active";
+  }
+
+  /** @param {unknown} value @returns {unknown} */
+  function canonicalTaskViewValue(value) {
+    const values = {
+      all: "all",
+      my: "my",
+      unassigned: "unassigned",
+      overdue: "overdue",
+      today: "today",
+      week: "week",
+      complete: "completed",
+      archived: "archived",
+    };
+    return Reflect.get(values, taskRowKey(value)) || value;
+  }
+
+  /** @param {unknown} value @returns {unknown} */
+  function canonicalSortValue(value) {
+    const values = {
+      due_asc: "due_at",
+      priority_desc: "priority",
+      status_asc: "status",
+      newest: "created",
+      oldest: "created_asc",
+      last_worked: "last_worked",
+      context: "context",
+    };
+    return Reflect.get(values, taskRowKey(value)) || "due_at";
+  }
+
+  function populateFilters() {
+    const workspaceScopeLabel = getWorkspaceScopeLabel();
+    const hasClientScope = usesClientScope();
+
+    replaceOptions(assigneeFilter, [
+      option("all", "All assignees"),
+      option("me", "Me"),
+      option("unassigned", "Unassigned"),
+      ...state.options.users.map((user) => option(user.user_id, displayUser(user))),
+    ]);
+    setClientScopeControlsVisible(hasClientScope);
+    if (hasClientScope) {
+      replaceOptions(clientFilter, [
+        option("all", "All"),
+        option("", workspaceScopeLabel),
+        ...state.options.clients.map((client) => option(client.id, optionLabel(client))),
+      ]);
     } else {
-      state.selectedTaskIds.delete(task.task_id);
+      replaceOptions(clientFilter, [option("all", "All")]);
+    }
+    replaceOptions(projectFilter, [
+      option("all", "All Projects"),
+      option("", "No project"),
+      ...projectOptionsForClient(selectedClientFilterValue()).map((project) => option(project.id, optionLabel(project))),
+    ]);
+    populateTagFilter();
+    populateBulkTagOptions();
+    renderBulkAssigneeOptions();
+    populateBulkContextOptions();
+  }
+
+  function populateBulkContextOptions() {
+    const selectedProjectId = optionalBulkSelect(bulkProjectInput)?.value || "";
+
+    if (usesClientScope()) {
+      bulkClientControl?.removeAttribute("hidden");
+      replaceOptions(bulkClientInput, [
+        option(BULK_CLIENT_ALL_VALUE, "Choose Client scope"),
+        option("", getWorkspaceScopeLabel()),
+        ...state.options.clients.map((client) => option(client.id, optionLabel(client))),
+      ]);
+      if (![...requireBulkSelect(bulkClientInput).options].some((entry) => entry.value === requireBulkSelect(bulkClientInput).value)) {
+        requireBulkSelect(bulkClientInput).value = BULK_CLIENT_ALL_VALUE;
+      }
+    } else {
+      bulkClientControl?.remove();
+    }
+
+    populateBulkProjectOptions(selectedProjectId);
+  }
+
+  function populateBulkProjectOptions(selectedProjectId = "") {
+    if (!bulkProjectInput) {
+      return;
+    }
+
+    const selectedClientId = usesClientScope()
+      ? optionalBulkSelect(bulkClientInput)?.value ?? BULK_CLIENT_ALL_VALUE
+      : BULK_CLIENT_ALL_VALUE;
+    const projects = (state.options.projects || []).filter((project) => (
+      selectedClientId === BULK_CLIENT_ALL_VALUE || (project.client_id || "") === selectedClientId
+    ));
+    const placeholder = projects.length > 0 ? "Choose Project" : "No active Projects";
+
+    bulkProjectInput.replaceChildren(
+      option("", placeholder),
+      ...projects.map((project) => option(project.id, bulkProjectOptionLabel(project, selectedClientId))),
+    );
+    requireBulkSelect(bulkProjectInput).value = projects.some((project) => project.id === selectedProjectId)
+      ? selectedProjectId
+      : "";
+  }
+
+  /** @param {BrowserTaskListOptions["projects"][number]} project @param {string} selectedClientId */
+  function bulkProjectOptionLabel(project, selectedClientId) {
+    const projectLabel = optionLabel(project);
+
+    if (!usesClientScope() || selectedClientId !== BULK_CLIENT_ALL_VALUE) {
+      return projectLabel;
+    }
+
+    const clientLabel = project.client_id
+      ? optionLabel((state.options.clients || []).find((client) => client.id === project.client_id))
+      : getWorkspaceScopeLabel();
+    return clientLabel ? `${clientLabel} / ${projectLabel}` : projectLabel;
+  }
+
+  function handleBulkClientChange() {
+    populateBulkProjectOptions();
+    updateBulkControls();
+  }
+
+  function handleBulkProjectChange() {
+    const project = (state.options.projects || []).find((entry) => entry.id === optionalBulkSelect(bulkProjectInput)?.value);
+
+    if (project && usesClientScope() && bulkClientInput) {
+      requireBulkSelect(bulkClientInput).value = project.client_id || "";
+      populateBulkProjectOptions(project.id);
     }
     updateBulkControls();
-    updateSelectionControls(state.tasks);
-  });
-  selectCell.appendChild(checkbox);
+  }
 
-  titleButton.type = "button";
-  titleButton.className = "link-button";
-  titleButton.textContent = task.title;
-  titleButton.addEventListener("click", () => openTaskDialog(task));
-  titleWrap.className = "task-title-wrap";
-  titleWrap.appendChild(titleButton);
-  appendAttachmentCount(titleWrap, task);
-  appendNoteCount(titleWrap, task);
+  function selectedClientFilterValue() {
+    return usesClientScope() ? taskControlValue(clientFilter) ?? "all" : "all";
+  }
 
-  titleBand.className = "task-density-title";
-  titleBand.appendChild(titleWrap);
-  appendTagChips(titleBand, task.tags);
-
-  metaBand.className = "task-density-meta";
-  appendTaskMetadata(metaBand, task);
-  appendTaskContext(metaBand, task);
-
-  actionsBand.className = "task-density-actions";
-  actionsBand.appendChild(createActions(task));
-
-  contentCell.colSpan = 6;
-  contentCell.className = "task-density-cell";
-  contentCell.append(titleBand, metaBand, actionsBand);
-  row.append(selectCell, contentCell);
-  return [row];
-}
-
-function nestedTaskDisplayRows(tasks = []) {
-  const taskById = new Map(tasks.map((task) => [task.task_id, task]));
-  const childrenByParentId = new Map();
-
-  tasks.forEach((task) => {
-    const parentTaskId = task.parentTask?.task_id || task.parent_task?.task_id || task.parent_task_id || "";
-    if (!parentTaskId || !taskById.has(parentTaskId) || parentTaskId === task.task_id) {
-      return;
+  /** @param {BrowserTaskListOptions["projects"][number] | null | undefined} project @param {unknown} clientValue */
+  function projectMatchesClient(project, clientValue) {
+    if (clientValue === "all") {
+      return true;
     }
-    const children = childrenByParentId.get(parentTaskId) || [];
-    children.push(task);
-    childrenByParentId.set(parentTaskId, children);
-  });
+    return descendantClientScopeIdsForFilter(clientValue).includes(String(project?.client_id ?? ""));
+  }
 
-  const nested = [];
-  const appended = new Set();
-  const appendBranch = (task, depth, path = new Set()) => {
-    if (!task?.task_id || appended.has(task.task_id) || path.has(task.task_id)) {
-      return;
+  /** @param {unknown} clientValue */
+  function projectOptionsForClient(clientValue) {
+    return state.options.projects.filter((project) => projectMatchesClient(project, clientValue));
+  }
+
+  /** @param {unknown} clientValue */
+  function descendantClientScopeIdsForFilter(clientValue) {
+    const normalizedClientId = String(clientValue ?? "").trim();
+
+    if (!normalizedClientId) {
+      return [""];
     }
-    appended.add(task.task_id);
-    nested.push({ task, depth });
-    const nextPath = new Set(path).add(task.task_id);
-    (childrenByParentId.get(task.task_id) || []).forEach((child) => appendBranch(child, depth + 1, nextPath));
-  };
 
-  tasks.forEach((task) => {
-    const parentTaskId = task.parentTask?.task_id || task.parent_task?.task_id || task.parent_task_id || "";
-    if (!parentTaskId || !taskById.has(parentTaskId)) {
-      appendBranch(task, 0);
-    }
-  });
-  tasks.forEach((task) => appendBranch(task, 0));
-  return nested;
-}
+    const descendants = new Set([normalizedClientId]);
+    const pending = [normalizedClientId];
 
-function createActions(task) {
-  const wrap = document.createElement("div");
-  const editButton = actionButton("Edit", () => openTaskDialog(task));
-  const duplicateButton = actionButton("Duplicate", () => duplicateTask(task));
-  const copyButton = actionButton("Copy Link", () => copyTaskLink(task));
-  const followButton = actionButton("Follow Notifications", () => followTaskNotifications(task), {
-    icon: "bell",
-    title: "Follow notifications",
-  });
+    while (pending.length > 0) {
+      const currentId = pending.pop();
 
-  wrap.className = "task-row-actions";
-  wrap.append(editButton, duplicateButton, copyButton, followButton, createTaskWorkflowActionMenu(task), createTaskLifecycleActionStrip(task));
-  return wrap;
-}
+      (state.options.clients || []).forEach((client) => {
+        const candidateId = String(client?.id || "").trim();
+        const parentId = String(client?.parent_client_id || "").trim();
 
-function createTaskWorkflowActionMenu(task) {
-  const actions = taskWorkflowActionsForTask(task).map((action) => taskWorkflowActionButton(action, task));
+        if (!candidateId || descendants.has(candidateId) || parentId !== currentId) {
+          return;
+        }
 
-  if (actions.length === 0) {
-    return document.createDocumentFragment();
-  }
-
-  if (typeof view?.createDetailActionMenu === "function") {
-    return view.createDetailActionMenu({
-      ariaLabel: "Task workflow actions",
-      className: "task-row-workflow-actions",
-      summaryLabel: "...",
-      title: "Task workflow actions",
-      floating: true,
-      actions,
-    });
-  }
-
-  const fallback = document.createElement("div");
-  fallback.className = "task-row-workflow-actions";
-  fallback.append(...actions);
-  return fallback;
-}
-
-function taskWorkflowActionsForTask(task) {
-  const actions = taskWorkflowActionMenuDescriptor().actions || [];
-  return actions.filter((action) => taskWorkflowActionVisible(action, task));
-}
-
-function taskWorkflowActionMenuDescriptor() {
-  return {
-    label: "Task workflow actions",
-    actions: [
-      {
-        id: "assign-task",
-        label: "Assign",
-        icon: "edit",
-        role: "secondary",
-        behavior: "tasks.workflow.assign",
-        focusTarget: "assignees",
-        requiredPermissions: ["tasks.assign"],
-        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
-      },
-      {
-        id: "change-task-due-date",
-        label: "Due Date",
-        icon: "edit",
-        role: "secondary",
-        behavior: "tasks.workflow.due-date",
-        focusTarget: "due_date",
-        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
-      },
-      {
-        id: "change-task-due-time",
-        label: "Due Time",
-        icon: "edit",
-        role: "secondary",
-        behavior: "tasks.workflow.due-time",
-        focusTarget: "due_time",
-        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
-      },
-      {
-        id: "apply-task-recurrence",
-        label: "Recurrence",
-        icon: "refresh",
-        role: "secondary",
-        behavior: "tasks.workflow.recurrence",
-        focusTarget: "recurrence",
-        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
-      },
-      {
-        id: "start-task-timer",
-        label: "Start Timer",
-        icon: "start",
-        role: "secondary",
-        behavior: "tasks.workflow.timer.start",
-        timerStatus: "running",
-        timerVisibility: "none",
-        requiredPermissions: ["tasks.view", "time_entries.create"],
-        visibleStatuses: ["open", "in_progress", "blocked"],
-      },
-      {
-        id: "pause-task-timer",
-        label: "Pause Timer",
-        icon: "pause",
-        role: "secondary",
-        behavior: "tasks.workflow.timer.pause",
-        timerStatus: "paused",
-        timerVisibility: "running",
-        requiredPermissions: ["tasks.view", "time_entries.create"],
-        visibleStatuses: ["open", "in_progress", "blocked"],
-      },
-      {
-        id: "resume-task-timer",
-        label: "Resume Timer",
-        icon: "start",
-        role: "secondary",
-        behavior: "tasks.workflow.timer.resume",
-        timerStatus: "running",
-        timerVisibility: "paused",
-        requiredPermissions: ["tasks.view", "time_entries.create"],
-        visibleStatuses: ["open", "in_progress", "blocked"],
-      },
-    ],
-  };
-}
-
-function taskWorkflowActionVisible(action, task) {
-  if (action.timerVisibility && !taskTimerSurfaceAvailable()) {
-    return false;
-  }
-
-  const visibleStatuses = action.visibleStatuses || [];
-  if (visibleStatuses.length > 0 && !visibleStatuses.includes(task.status || "open")) {
-    return false;
-  }
-
-  const timer = taskTimerForTask(task);
-  if (action.timerVisibility === "none") {
-    return !timer;
-  }
-  if (action.timerVisibility === "running") {
-    return timer?.timer_status === "running";
-  }
-  if (action.timerVisibility === "paused") {
-    return Boolean(timer && timer.timer_status !== "running");
-  }
-
-  return true;
-}
-
-function taskTimerSurfaceAvailable() {
-  return state.options?.timeTrackingEnabled !== false && state.options?.taskTimersEnabled !== false;
-}
-
-function taskWorkflowActionButton(action, task) {
-  const disabledReason = taskWorkflowDisabledReason(action, task);
-  const options = {
-    label: action.label,
-    title: disabledReason || action.title || action.label,
-    icon: action.icon,
-    text: action.label,
-    iconOnly: false,
-    variant: action.variant,
-    role: action.role,
-    action: action.behavior || action.id,
-    disabled: Boolean(disabledReason),
-    onClick: (event) => runTaskWorkflowAction(action, task, event?.currentTarget || null),
-  };
-  const button = typeof view?.createActionButton === "function"
-    ? view.createActionButton(options)
-    : actionButton(action.label, options.onClick, { icon: action.icon, title: options.title });
-
-  button.dataset.taskWorkflowAction = action.id;
-  button.dataset.taskWorkflowBehavior = action.behavior || "";
-  button.dataset.taskId = task.task_id || "";
-  if (disabledReason) {
-    button.disabled = true;
-  }
-  return button;
-}
-
-function taskWorkflowDisabledReason(action, task) {
-  if (!task?.task_id) {
-    return "Task action is unavailable.";
-  }
-  if (!hasTaskWorkflowPermission(action, task)) {
-    return "You do not have permission to run this action.";
-  }
-  if (action.timerStatus) {
-    return taskTimerDisabledReason(action, task);
-  }
-  return "";
-}
-
-function hasTaskWorkflowPermission(action, task) {
-  const permissions = workspacePermissionSet();
-  if (!permissions) {
-    return true;
-  }
-
-  const requiredPermissions = Array.isArray(action.requiredPermissions) ? action.requiredPermissions : [];
-  if (requiredPermissions.some((permissionId) => !permissionAllowsTaskAction(permissions, permissionId, task))) {
-    return false;
-  }
-
-  const requiredAnyPermissions = Array.isArray(action.requiredAnyPermissions) ? action.requiredAnyPermissions : [];
-  if (requiredAnyPermissions.length > 0 && !requiredAnyPermissions.some((permissionId) => permissionAllowsTaskAction(permissions, permissionId, task))) {
-    return false;
-  }
-
-  return true;
-}
-
-function taskTimerDisabledReason(action, task) {
-  const timer = taskTimerForTask(task);
-  if (state.options.taskTimersEnabled === false) {
-    return "Task timers are disabled.";
-  }
-  if (state.options.timeTrackingEnabled === false) {
-    return "Time Tracking is disabled.";
-  }
-  if (!task.project_id) {
-    return "Task timers require a project-linked task.";
-  }
-  if (task.status === "complete" || task.status === "archived") {
-    return "Completed and archived tasks cannot use task timers.";
-  }
-  if (action.timerVisibility === "running" && timer?.timer_status !== "running") {
-    return "No running task timer.";
-  }
-  if (action.timerVisibility === "paused" && (!timer || timer.timer_status === "running")) {
-    return "No paused task timer.";
-  }
-  return "";
-}
-
-function createTaskLifecycleActionStrip(task) {
-  const actions = taskLifecycleActionsForTask(task).map((action) => taskLifecycleActionButton(action, task));
-
-  if (typeof view?.createDetailActionStrip === "function") {
-    return view.createDetailActionStrip({
-      ariaLabel: "Task lifecycle actions",
-      className: "task-row-lifecycle-actions",
-      actions,
-    });
-  }
-
-  const fallback = document.createElement("div");
-  fallback.className = "task-row-lifecycle-actions";
-  fallback.append(...actions);
-  return fallback;
-}
-
-function taskLifecycleActionsForTask(task) {
-  const actions = taskLifecycleActionStripDescriptor().actions || [];
-  return actions.filter((action) => taskLifecycleActionVisible(action, task));
-}
-
-function taskLifecycleActionStripDescriptor() {
-  return {
-    label: "Task lifecycle actions",
-    actions: [
-      {
-        id: "complete-task",
-        label: "Complete",
-        icon: "complete",
-        role: "secondary",
-        behavior: "tasks.lifecycle.complete",
-        requiredPermissions: ["tasks.complete"],
-        visibleStatuses: ["open", "in_progress", "blocked"],
-      },
-      {
-        id: "reopen-task",
-        label: "Reopen",
-        icon: "restore",
-        role: "secondary",
-        behavior: "tasks.lifecycle.reopen",
-        requiredPermissions: ["tasks.complete"],
-        visibleStatuses: ["complete"],
-      },
-      {
-        id: "block-task",
-        label: "Block",
-        icon: "pause",
-        role: "secondary",
-        behavior: "tasks.lifecycle.block",
-        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
-        statusPayload: { status: "blocked" },
-        visibleStatuses: ["open", "in_progress"],
-      },
-      {
-        id: "resume-task",
-        label: "Resume",
-        icon: "start",
-        role: "secondary",
-        behavior: "tasks.lifecycle.resume",
-        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
-        statusPayload: { status: "in_progress", blocked_reason: "" },
-        visibleStatuses: ["blocked"],
-      },
-      {
-        id: "archive-task",
-        label: "Archive",
-        icon: "archive",
-        role: "destructive",
-        variant: "danger",
-        behavior: "tasks.lifecycle.archive",
-        requiredPermissions: ["tasks.archive"],
-        visibleStatuses: ["open", "in_progress", "blocked", "complete"],
-        confirm: {
-          title: "Archive task",
-          confirmLabel: "Archive",
-          danger: true,
-          message: (taskRecord) => `Archive "${taskRecord.title}"?`,
-        },
-      },
-      {
-        id: "restore-task",
-        label: "Restore",
-        icon: "restore",
-        role: "secondary",
-        behavior: "tasks.lifecycle.restore",
-        requiredPermissions: ["tasks.restore"],
-        visibleStatuses: ["archived"],
-      },
-    ],
-  };
-}
-
-function taskLifecycleActionVisible(action, task) {
-  const visibleStatuses = action.visibleStatuses || [];
-  if (visibleStatuses.length === 0) {
-    return true;
-  }
-  return visibleStatuses.includes(task.status || "open");
-}
-
-function taskLifecycleActionButton(action, task) {
-  const disabledReason = taskLifecycleDisabledReason(action, task);
-  const options = {
-    label: action.label,
-    title: disabledReason || action.title || action.label,
-    icon: action.icon,
-    text: "",
-    iconOnly: true,
-    variant: action.variant,
-    role: action.role,
-    action: action.behavior || action.id,
-    disabled: Boolean(disabledReason),
-    onClick: (event) => runTaskLifecycleAction(action, task, event?.currentTarget || null),
-  };
-  const button = typeof view?.createActionButton === "function"
-    ? view.createActionButton(options)
-    : actionButton(action.label, options.onClick, { icon: action.icon, title: options.title });
-
-  button.dataset.taskLifecycleAction = action.id;
-  button.dataset.taskLifecycleBehavior = action.behavior || "";
-  button.dataset.taskId = task.task_id || "";
-  if (disabledReason) {
-    button.disabled = true;
-  }
-  return button;
-}
-
-function taskLifecycleDisabledReason(action, task) {
-  if (!task?.task_id) {
-    return "Task action is unavailable.";
-  }
-  if (!hasTaskLifecyclePermission(action, task)) {
-    return "You do not have permission to run this action.";
-  }
-  return "";
-}
-
-function hasTaskLifecyclePermission(action, task) {
-  const permissions = workspacePermissionSet();
-  if (!permissions) {
-    return true;
-  }
-
-  const requiredPermissions = Array.isArray(action.requiredPermissions) ? action.requiredPermissions : [];
-  if (requiredPermissions.some((permissionId) => !permissionAllowsTaskAction(permissions, permissionId, task))) {
-    return false;
-  }
-
-  const requiredAnyPermissions = Array.isArray(action.requiredAnyPermissions) ? action.requiredAnyPermissions : [];
-  if (requiredAnyPermissions.length > 0 && !requiredAnyPermissions.some((permissionId) => permissionAllowsTaskAction(permissions, permissionId, task))) {
-    return false;
-  }
-
-  return true;
-}
-
-function workspacePermissionSet() {
-  const rawPermissions = window.LongtailForge?.workspaceContext?.permissionIds ||
-    window.LongtailForge?.workspaceContext?.permissions;
-  if (!Array.isArray(rawPermissions)) {
-    return null;
-  }
-  const permissionIds = rawPermissions
-    .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
-    .filter(Boolean);
-  return new Set(permissionIds);
-}
-
-function permissionAllowsTaskAction(permissions, permissionId, task) {
-  if (!permissions.has(permissionId)) {
-    return false;
-  }
-  if (permissionId === "tasks.edit_own") {
-    return isOwnTask(task);
-  }
-  return true;
-}
-
-function isOwnTask(task) {
-  const userId = currentUserId();
-  return Boolean(userId && (
-    task.created_by_user_id === userId ||
-    (task.assignee_ids || []).includes(userId)
-  ));
-}
-
-async function runTaskLifecycleAction(action, task, trigger = null) {
-  const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
-  if (!handler) {
-    setStatus(`Missing task lifecycle behavior: ${action.behavior}`, { isError: true });
-    return;
-  }
-  if (action.confirm && !await confirmTaskLifecycleAction(action, task)) {
-    return;
-  }
-
-  await handler({
-    action,
-    api,
-    record: task,
-    refresh: reloadTaskList,
-    trigger,
-    workspaceContext: window.LongtailForge?.workspaceContext || {},
-  });
-}
-
-async function runTaskWorkflowAction(action, task, trigger = null) {
-  const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
-  if (!handler) {
-    setStatus(`Missing task workflow behavior: ${action.behavior}`, { isError: true });
-    return;
-  }
-
-  await handler({
-    action,
-    api,
-    record: task,
-    refresh: reloadTaskList,
-    trigger,
-    workspaceContext: window.LongtailForge?.workspaceContext || {},
-  });
-}
-
-function openTaskDialogForWorkflow(task, action, trigger = null, defaults = {}) {
-  if (!task?.task_id) {
-    setStatus("Task action is unavailable.", { isError: true });
-    return null;
-  }
-
-  return openTaskDialog(task, {
-    defaults,
-    focusTarget: action.focusTarget || "",
-    promptBlockedReason: action.promptBlockedReason === true,
-    returnFocusTo: trigger || document.activeElement,
-  });
-}
-
-function openTaskDialogForBlock(task, action = {}, trigger = null) {
-  return openTaskDialogForWorkflow(task, {
-    ...action,
-    focusTarget: "blocked_reason",
-    promptBlockedReason: true,
-  }, trigger, {
-    status: "blocked",
-  });
-}
-
-async function saveTaskTimerAction(task, timerStatus) {
-  if (!task?.task_id) {
-    setStatus("Task timer action is unavailable.", { isError: true });
-    return;
-  }
-
-  const timer = taskTimerForTask(task);
-  const elapsedSeconds = readTaskTimerElapsedSeconds(timer);
-  const isRunning = timerStatus === "running";
-  const verb = isRunning ? (timer ? "Resuming" : "Starting") : "Pausing";
-
-  setStatus(`${verb} task timer...`);
-
-  try {
-    const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`, {
-      active_task_timer_id: timer?.active_task_timer_id || timer?.active_timer_id || "",
-      timer_status: isRunning ? "running" : "paused",
-      accumulated_elapsed_seconds: elapsedSeconds,
-      last_active_start_time: new Date().toISOString(),
-    });
-    if (result.task) {
-      upsertTask(result.task);
-    }
-    if (result.timer) {
-      upsertTaskTimerState(result.timer);
-    }
-    if (!isRunning) {
-      void window.LongtailForge.taskResumeNoteCapture?.offer({
-        task: result.task || task,
-        onSaved(updatedTask) {
-          if (updatedTask) {
-            upsertTask(updatedTask);
-          }
-        },
-        onError(error) {
-          setStatus(error.message || "Resume note could not be saved.", { isError: true });
-        },
+        descendants.add(candidateId);
+        pending.push(candidateId);
       });
     }
-    await reloadTaskList();
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Task timer action failed.", { isError: true });
-  }
-}
 
-function taskTimerForTask(task) {
-  return state.taskTimers.find((timer) => timer.task_id === task?.task_id);
-}
-
-function upsertTaskTimerState(timer) {
-  const existingIndex = state.taskTimers.findIndex((item) => item.task_id === timer.task_id);
-  state.taskTimers = state.taskTimers.map((item) =>
-    item.timer_status === "running" && item.task_id !== timer.task_id
-      ? { ...item, timer_status: "paused", last_active_start_time: null }
-      : item,
-  );
-
-  if (existingIndex >= 0) {
-    state.taskTimers.splice(existingIndex, 1, timer);
-  } else {
-    state.taskTimers.push(timer);
-  }
-}
-
-function readTaskTimerElapsedSeconds(timer) {
-  if (!timer) {
-    return 0;
+    return [...descendants];
   }
 
-  const baseSeconds = Number.parseInt(timer.accumulated_elapsed_seconds, 10) || 0;
-  if (timer.timer_status !== "running" || !timer.last_active_start_time) {
-    return baseSeconds;
+  function reconcileProjectFilterForClient() {
+    const clientValue = selectedClientFilterValue();
+    const currentProject = taskControlValue(projectFilter) ?? "all";
+    // "all" (All Projects) and "" (No project) stay valid under any client; only a specific
+    // project can become incompatible with the newly chosen client.
+    if (currentProject !== "all" && currentProject !== "") {
+      const stillAllowed = projectOptionsForClient(clientValue).some((project) => project.id === currentProject);
+      if (!stillAllowed) {
+        setSelectValue(projectFilter, "all");
+      }
+    }
+    replaceOptions(projectFilter, [
+      option("all", "All Projects"),
+      option("", "No project"),
+      ...projectOptionsForClient(clientValue).map((project) => option(project.id, optionLabel(project))),
+    ]);
   }
 
-  const startedAt = new Date(timer.last_active_start_time).getTime();
-  if (!Number.isFinite(startedAt)) {
-    return baseSeconds;
-  }
+  function populateTagFilter() {
+    const tags = state.tagOptions || [];
+    const previousValue = selectedTaskTagFilterValue();
 
-  return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-}
-
-function appendTaskMetadata(container, task) {
-  const assigneeText = task.assignees?.length
-    ? task.assignees.map(displayUser).join(", ")
-    : "Unassigned";
-  const items = [
-    { label: "Scope", value: formatScope(task), className: "task-scope-cell" },
-    { label: "Assignees", value: assigneeText, className: "task-assignee-cell" },
-    { label: "Status", value: formatToken(task.status) },
-    { label: "Priority", value: formatToken(task.priority) },
-    { label: "Due", value: formatDue(task) },
-  ];
-
-  items.forEach((item) => {
-    const node = document.createElement("span");
-    node.className = ["task-meta-item", item.className].filter(Boolean).join(" ");
-    node.textContent = `${item.label}: ${item.value}`;
-    node.title = `${item.label}: ${item.value}`;
-    container.appendChild(node);
-  });
-}
-
-function appendTaskContext(container, task) {
-  const chips = [];
-
-  appendParentTaskChip(container, task);
-
-  if (task.next_action) {
-    chips.push({ label: "Next", value: task.next_action, className: "is-next" });
-  }
-
-  if (task.status === "blocked" && task.blocked_reason) {
-    chips.push({ label: "Blocked", value: task.blocked_reason, className: "is-blocked" });
-  }
-
-  const checklistText = checklistProgressText(task.checklistProgress);
-  if (checklistText) {
-    chips.push({ label: "Checklist", value: checklistText, className: "is-progress" });
-  }
-
-  const blockingText = blockingSummaryText(task.relationshipSummary);
-  if (blockingText) {
-    chips.push({ label: "Blocking", value: blockingText, className: "is-blocked" });
-  }
-
-  if (task.resume_note) {
-    chips.push({ label: "Resume", value: "Note saved", title: task.resume_note, className: "is-resume" });
-  }
-
-  if (chips.length === 0) {
-    return;
-  }
-
-  const summary = typeof view?.createDetailBadgeRow === "function"
-    ? view.createDetailBadgeRow({
-        ariaLabel: "Task context",
-        className: "task-context-summary",
-        badges: chips.map(taskContextBadge),
-      })
-    : taskContextSummaryFallback(chips);
-  container.appendChild(summary);
-}
-
-function appendParentTaskChip(container, task) {
-  const parentTask = task.parentTask || task.parent_task || null;
-  const parentTaskId = parentTask?.task_id || task.parent_task_id || "";
-  const parentTitle = String(parentTask?.title || task.parent_task_title || "").trim();
-
-  if (!parentTaskId || !parentTitle) {
-    return;
-  }
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "task-context-chip is-parent-link";
-  button.textContent = `Child of: ${truncateTaskName(parentTitle)}`;
-  button.title = `Open parent task: ${parentTitle}`;
-  button.addEventListener("click", () => openTaskDialogById(parentTaskId, button));
-  container.appendChild(button);
-}
-
-function truncateTaskName(value, maxLength = 42) {
-  const text = String(value || "").trim();
-  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
-}
-
-function taskContextBadge(chip) {
-  return {
-    className: ["task-context-chip", chip.className],
-    label: chip.label,
-    title: chip.title || `${chip.label}: ${chip.value}`,
-    value: chip.value,
-  };
-}
-
-function taskContextSummaryFallback(chips) {
-  const summary = document.createElement("div");
-
-  summary.className = "task-context-summary";
-  chips.forEach((chip) => {
-    const node = document.createElement("span");
-    node.className = ["task-context-chip", chip.className].filter(Boolean).join(" ");
-    node.textContent = `${chip.label}: ${chip.value}`;
-    node.title = chip.title || `${chip.label}: ${chip.value}`;
-    summary.appendChild(node);
-  });
-  return summary;
-}
-
-function actionButton(label, handler, options = {}) {
-  const button = window.LongtailForge.icons?.createIconButton
-    ? window.LongtailForge.icons.createIconButton({
-      icon: options.icon || taskActionIcon(label),
-      label,
-      title: options.title || label,
-      variant: label === "Archive" ? "danger" : "",
-    })
-    : document.createElement("button");
-
-  button.type = "button";
-  if (!window.LongtailForge.icons?.createIconButton) {
-    button.textContent = label;
-  }
-  button.addEventListener("click", handler);
-  return button;
-}
-
-function taskActionIcon(label) {
-  return {
-    Archive: "archive",
-    Complete: "complete",
-    "Copy Link": "copy",
-    Duplicate: "duplicate",
-    Edit: "edit",
-    "Follow Notifications": "bell",
-    Block: "pause",
-    Reopen: "restore",
-    Restore: "restore",
-    Resume: "start",
-  }[label] || "more";
-}
-
-function checklistProgressText(progress = {}) {
-  const total = Number(progress.total_count) || 0;
-
-  if (total <= 0) {
-    return "";
-  }
-
-  const completed = Number(progress.completed_count) || 0;
-  const next = progress.next_incomplete_item_label ? `, next: ${progress.next_incomplete_item_label}` : "";
-  return `${completed}/${total}${next}`;
-}
-
-function blockingSummaryText(summary = {}) {
-  const blockers = Number(summary.incomplete_blocking_child_count) || 0;
-
-  if (blockers <= 0) {
-    return "";
-  }
-
-  return `${blockers} child${blockers === 1 ? "" : "ren"}`;
-}
-
-async function loadAttachmentCounts(tasks) {
-  const targetIds = tasks.map((task) => task.task_id).filter(Boolean);
-
-  if (targetIds.length === 0) {
-    return {};
-  }
-
-  try {
-    const result = await api.getJson(`/api/files/attachments/counts?${new URLSearchParams({
-      moduleId: "tasks",
-      targetType: "task",
-      targetIds: targetIds.join(","),
-    }).toString()}`, { cache: "no-store" });
-
-    return result.counts || {};
-  } catch {
-    return {};
-  }
-}
-
-async function loadNoteCounts(tasks) {
-  const counts = {};
-
-  await Promise.all(tasks.map(async (task) => {
-    if (!task.task_id) {
+    if (!tagFilter || !tagFilterControl) {
       return;
     }
-    try {
-      const result = await api.getJson(`/api/notes/for-target?${new URLSearchParams({
-        moduleId: "tasks",
-        targetType: "task",
-        targetId: task.task_id,
-      }).toString()}`, { cache: "no-store" });
-      counts[task.task_id] = Number(result.count) || 0;
-    } catch {
-      counts[task.task_id] = 0;
+
+    Reflect.set(tagFilterControl, "hidden", tags.length === 0);
+    const nextValue = previousValue === noTagsFilterValue() || tags.some((tag) => tag.tag_id === previousValue)
+      ? normalizeTagFilterValue(previousValue)
+      : "all";
+    if (!tagFilterController) {
+      // Narrowed at the call site rather than by widening the surface: the filter picker writes
+      // `value`, `autocomplete` and `dataset` on the element it mounts, so it needs an input and
+      // says so. A control that is not one takes the same path a missing one already took.
+      tagFilterController = tagFilter instanceof HTMLInputElement
+        ? window.LongtailForge?.tags?.mountFilterPicker?.(tagFilter, {
+          tags,
+          value: nextValue,
+        }) || null
+        : null;
+    } else {
+      tagFilterController.setTags(tags);
+      tagFilterController.setValue(nextValue);
     }
-  }));
-
-  return counts;
-}
-
-function appendAttachmentCount(target, task) {
-  const count = Number(state.attachmentCounts[task.task_id] || 0);
-
-  if (count <= 0) {
-    return;
   }
 
-  const chip = document.createElement("span");
-
-  chip.className = "task-attachment-count";
-  chip.textContent = `${count} file${count === 1 ? "" : "s"}`;
-  target.appendChild(chip);
-}
-
-function appendNoteCount(target, task) {
-  const count = Number(state.noteCounts[task.task_id] || 0);
-
-  if (count <= 0) {
-    return;
+  function noTagsFilterValue() {
+    return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
   }
 
-  const chip = document.createElement("button");
-
-  chip.type = "button";
-  chip.className = "task-note-count";
-  chip.textContent = `${count} note${count === 1 ? "" : "s"}`;
-  chip.title = "Open task notes";
-  chip.addEventListener("click", () => openTaskDialog(task, { focusNotes: true }));
-  target.appendChild(chip);
-}
-
-async function followTaskNotifications(task) {
-  if (!window.LongtailForge.notificationSubscriptions) {
-    setStatus("Notification following is unavailable.", { isError: true });
-    return;
+  /** @param {unknown} value */
+  function normalizeTagFilterValue(value) {
+    return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
   }
 
-  setStatus("Following task notifications...");
-
-  try {
-    await window.LongtailForge.notificationSubscriptions.follow(
-      window.LongtailForge.notificationSubscriptions.taskTarget(task.task_id),
-    );
-    setStatus("Task notifications followed.");
-  } catch (error) {
-    setStatus(error.message || "Task notifications were not followed.", { isError: true });
+  function selectedTaskTagFilterValue() {
+    return tagFilterController?.readValue?.()
+      || normalizeTagFilterValue(taskOptionalControlField(taskOptionalControlField(tagFilter, "dataset"), "tagFilterValue") || "all");
   }
-}
 
-async function confirmTaskLifecycleAction(action, task) {
-  const confirmOptions = typeof action.confirm === "object" ? action.confirm : {};
-  const message = typeof confirmOptions.message === "function"
-    ? confirmOptions.message(task)
-    : confirmOptions.message || `Continue with ${action.label || action.id}?`;
-  if (modal?.confirm) {
-    return modal.confirm({
-      title: confirmOptions.title || action.label || "Confirm task action",
-      message,
-      confirmLabel: confirmOptions.confirmLabel || action.label || "Continue",
-      danger: confirmOptions.danger === true || action.role === "destructive",
+  function renderBulkAssigneeOptions() {
+    const view = requireView();
+    if (!bulkAssigneesControl) {
+      return;
+    }
+
+    const selectedIds = new Set(selectedBulkAssigneeIds());
+    const controls = state.options.users.map((user) => {
+      const labelText = displayUser(user);
+      return view.createElement("label", {
+        className: "task-bulk-assignee-option",
+        children: [
+          view.createElement("input", {
+            attrs: {
+              type: "checkbox",
+              value: user.user_id,
+              checked: selectedIds.has(user.user_id),
+            },
+          }),
+          view.createElement("span", {
+            className: "task-bulk-assignee-name",
+            attrs: { title: labelText },
+            text: labelText,
+          }),
+        ],
+      });
     });
-  }
-  if (typeof window.confirm === "function") {
-    return window.confirm(message);
-  }
-  return true;
-}
 
-async function postTaskAction(task, action) {
-  setStatus(`${formatToken(action)} task...`);
+    bulkAssigneesControl.replaceChildren(...controls);
+  }
 
-  try {
-    const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/${action}`, {});
-    upsertTask(result.task);
-    await reloadTaskList();
-    if (action === "complete" && result.recurrenceContinuity) {
-      renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-      trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
-    } else if (action === "complete") {
-      setStatus("Task completed.");
-    } else {
-      setStatus("");
+  function populateBulkTagOptions() {
+    if (!bulkTagsInput || !bulkTagActionControl || !bulkTagsControl) {
+      return;
     }
-  } catch (error) {
-    setStatus(error.message || "Task action failed.", { isError: true });
+
+    const tags = state.tagOptions || [];
+    const selectedIds = new Set(selectedBulkTagIds());
+    requireBulkElement(bulkTagActionControl).hidden = tags.length === 0;
+    requireBulkElement(bulkTagsControl).hidden = tags.length === 0;
+    bulkTagsInput.replaceChildren(...tags.map((tag) => {
+      const entry = option(tag.tag_id, tag.name || tag.slug);
+      entry.selected = selectedIds.has(tag.tag_id);
+      return entry;
+    }));
   }
-}
 
-async function updateTaskLifecycleStatus(task, payload) {
-  setStatus(`${formatToken(payload.status)} task...`);
+  function renderTasks() {
+    const view = requireView();
+    const tasks = state.tasks;
 
-  try {
-    const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}`, payload);
-    upsertTask(result.task);
-    await reloadTaskList();
-    if (result.recurrenceContinuity) {
-      renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-      trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
-    } else {
-      setStatus("");
+    syncSelectionToTasks(tasks);
+    updateTaskViewSelectorState();
+    updateBulkControls();
+    requireTaskElement(taskList).replaceChildren();
+
+    if (tasks.length === 0) {
+      requireTaskElement(taskList).appendChild(view.createElement("tr", {
+        children: view.createElement("td", {
+          attrs: { colspan: "7" },
+          text: emptyTaskMessage(),
+        }),
+      }));
+      updateSelectionControls(tasks);
+      renderTaskPagination();
+      return;
     }
-  } catch (error) {
-    setStatus(error.message || "Task action failed.", { isError: true });
+
+    nestedTaskDisplayRows(tasks).forEach(({ task, depth }) => {
+      if (!isTaskNestingKey(task)) throw new TypeError("Invalid value used as weak map key");
+      taskNestingDepths.set(task, depth);
+      requireTaskElement(taskList).append(...createTaskRow(task));
+    });
+    updateSelectionControls(tasks);
+    renderTaskPagination();
   }
-}
 
-function renderTaskRecurrenceContinuity(continuity) {
-  const tasksDialog = window.LongtailForge.tasksDialog;
-  const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
-  setStatus(message);
-  tasksDialog?.renderRecurrenceContinuity?.(taskStatus, continuity);
-}
+  function renderTaskPagination() {
+    const hasMore = Boolean(state.pagination?.hasMore && state.pagination?.nextCursor);
 
-function renderBulkRecurrenceContinuity(continuities = []) {
-  const messages = continuities
-    .map((continuity) => window.LongtailForge.tasksDialog?.recurrenceContinuityMessage?.(continuity))
-    .filter(Boolean);
-  const message = `Updated recurring tasks. ${messages.join(" ")}`.trim();
-  setStatus(message);
-
-  for (const continuity of continuities) {
-    if (continuity.status !== "available" || !continuity.nextTask?.url) {
-      continue;
+    if (taskPagination) {
+      Reflect.set(taskPagination, "hidden", !hasMore);
     }
-    const link = document.createElement("a");
-    link.className = "button button-secondary button-compact";
-    link.href = continuity.nextTask.url;
-    link.textContent = `Open ${continuity.nextTask.title || "next task"}`;
-    taskStatus.append(document.createTextNode(" "), link);
-  }
-}
 
-function trackTaskRecurrenceContinuity(taskId, initialContinuity) {
-  if (!taskId || initialContinuity?.status !== "pending") {
-    return;
+    if (taskPageSummary) {
+      taskPageSummary.textContent = hasMore ? `${state.tasks.length} shown` : "";
+    }
+
+    if (loadMoreTasksButton) {
+      Reflect.set(loadMoreTasksButton, "hidden", !hasMore);
+      Reflect.set(loadMoreTasksButton, "disabled", !hasMore);
+    }
   }
 
-  const tracker = Symbol(taskId);
-  recurrenceContinuityTrackers.set(taskId, tracker);
-  window.LongtailForge.tasksDialog?.pollRecurrenceContinuity?.(taskId, {
-    initialContinuity,
-    onUpdate: async (continuity) => {
-      if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
+  function emptyTaskMessage() {
+    if (state.quickFilter === "my") {
+      return "No tasks are assigned to you for the current filters.";
+    }
+
+    if (state.quickFilter === "unassigned") {
+      return "No unassigned tasks match the current filters.";
+    }
+
+    if (state.quickFilter === "overdue") {
+      return "No overdue tasks need recovery right now.";
+    }
+
+    if (state.quickFilter === "today") {
+      return "No tasks are due today for the current filters.";
+    }
+
+    if (state.quickFilter === "week") {
+      return "No tasks are due this week for the current filters.";
+    }
+
+    if (state.quickFilter === "complete") {
+      return "No completed tasks match the current filters.";
+    }
+
+    if (state.quickFilter === "archived") {
+      return "No archived tasks match the current filters.";
+    }
+
+    return "No tasks match the current filters.";
+  }
+
+  /** @param {unknown} value @returns {value is WeakKey} */
+  function isTaskNestingKey(value) {
+    return Object(value) === value || typeof value === "symbol";
+  }
+
+  /** @param {unknown} task */
+  function createTaskRow(task) {
+    const nestingDepth = (isTaskNestingKey(task) ? taskNestingDepths.get(task) : undefined) || 0;
+    const row = document.createElement("tr");
+    const selectCell = document.createElement("td");
+    const contentCell = document.createElement("td");
+    const checkbox = document.createElement("input");
+    const titleButton = document.createElement("button");
+    const titleBand = document.createElement("div");
+    const titleWrap = document.createElement("div");
+    const metaBand = document.createElement("div");
+    const actionsBand = document.createElement("div");
+
+    Reflect.set(row.dataset, "taskStatus", taskRowField(task, "status") || "open");
+    row.dataset.taskNestingDepth = String(nestingDepth);
+    row.classList.add("task-density-row");
+    row.classList.toggle("is-task-child", nestingDepth > 0);
+    row.style.setProperty("--task-nesting-depth", String(Math.min(nestingDepth, 6)));
+    row.classList.toggle("is-task-complete", taskRowField(task, "status") === "complete");
+    row.classList.toggle("is-task-archived", taskRowField(task, "status") === "archived");
+
+    checkbox.type = "checkbox";
+    Reflect.set(checkbox, "value", taskRowField(task, "task_id"));
+    checkbox.checked = state.selectedTaskIds.has(taskRowField(task, "task_id"));
+    checkbox.setAttribute("aria-label", `Select ${taskRowField(task, "title")}`);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        state.selectedTaskIds.add(taskRowField(task, "task_id"));
+      } else {
+        state.selectedTaskIds.delete(taskRowField(task, "task_id"));
+      }
+      updateBulkControls();
+      updateSelectionControls(state.tasks);
+    });
+    selectCell.appendChild(checkbox);
+
+    titleButton.type = "button";
+    titleButton.className = "link-button";
+    Reflect.set(titleButton, "textContent", taskRowField(task, "title"));
+    titleButton.addEventListener("click", () => openTaskDialog(task));
+    titleWrap.className = "task-title-wrap";
+    titleWrap.appendChild(titleButton);
+    appendAttachmentCount(titleWrap, task);
+    appendNoteCount(titleWrap, task);
+
+    titleBand.className = "task-density-title";
+    titleBand.appendChild(titleWrap);
+    appendTagChips(titleBand, taskRowField(task, "tags"));
+
+    metaBand.className = "task-density-meta";
+    appendTaskMetadata(metaBand, task);
+    appendTaskContext(metaBand, task);
+
+    actionsBand.className = "task-density-actions";
+    actionsBand.appendChild(createActions(task));
+
+    contentCell.colSpan = 6;
+    contentCell.className = "task-density-cell";
+    contentCell.append(titleBand, metaBand, actionsBand);
+    row.append(selectCell, contentCell);
+    return [row];
+  }
+
+  /** @param {unknown[]} [tasks] */
+  function nestedTaskDisplayRows(tasks = []) {
+    /** @type {Map<unknown, unknown>} */
+    const taskById = new Map(tasks.map((task) => [taskRowField(task, "task_id"), task]));
+    /** @type {Map<unknown, unknown[]>} */
+    const childrenByParentId = new Map();
+
+    tasks.forEach((task) => {
+      const parentTaskId = optionalTaskRowField(taskRowField(task, "parentTask"), "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
+      if (!parentTaskId || !taskById.has(parentTaskId) || parentTaskId === taskRowField(task, "task_id")) {
         return;
       }
-      if (continuity?.status === "available") {
-        await reloadTaskList();
+      const children = childrenByParentId.get(parentTaskId) || [];
+      children.push(task);
+      childrenByParentId.set(parentTaskId, children);
+    });
+
+    /** @type {Array<{task: unknown, depth: number}>} */
+    const nested = [];
+    const appended = new Set();
+    /** @param {unknown} task @param {number} depth @param {Set<unknown>} [path] */
+    const appendBranch = (task, depth, path = new Set()) => {
+      if (!optionalTaskLifecycleId(task) || appended.has(taskRowField(task, "task_id")) || path.has(taskRowField(task, "task_id"))) {
+        return;
       }
-      renderTaskRecurrenceContinuity(continuity);
-    },
-  }).catch(() => {
-    // Keep the safe scheduled-date message; navigation or the recurrence sweep can recover it.
-  }).finally(() => {
-    if (recurrenceContinuityTrackers.get(taskId) === tracker) {
-      recurrenceContinuityTrackers.delete(taskId);
-    }
-  });
-}
+      appended.add(taskRowField(task, "task_id"));
+      nested.push({ task, depth });
+      const nextPath = new Set(path).add(taskRowField(task, "task_id"));
+      (childrenByParentId.get(taskRowField(task, "task_id")) || []).forEach((child) => appendBranch(child, depth + 1, nextPath));
+    };
 
-function duplicateTask(task) {
-  openTaskDialog(task, { duplicate: true });
-}
-
-function openTaskDialog(task = null, options = {}) {
-  state.editingTaskId = options.duplicate === true ? "" : task?.task_id || "";
-  configureTaskDialog();
-  return window.LongtailForge.tasksDialog.openTaskEditor({
-    defaults: options.defaults || {},
-    duplicate: options.duplicate === true,
-    focusNotes: options.focusNotes === true,
-    focusTarget: options.focusTarget || "",
-    mode: task && options.duplicate !== true ? "edit" : "add",
-    promptBlockedReason: options.promptBlockedReason === true,
-    returnFocusTo: options.returnFocusTo || document.activeElement,
-    task,
-  }, options.hostContext || null);
-}
-
-function openTaskDialogById(taskId, returnFocusTo = null) {
-  if (!taskId) {
-    return null;
+    tasks.forEach((task) => {
+      const parentTaskId = optionalTaskRowField(taskRowField(task, "parentTask"), "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
+      if (!parentTaskId || !taskById.has(parentTaskId)) {
+        appendBranch(task, 0);
+      }
+    });
+    tasks.forEach((task) => appendBranch(task, 0));
+    return nested;
   }
-  state.editingTaskId = taskId;
-  configureTaskDialog();
-  return window.LongtailForge.tasksDialog.openTaskEditor({
-    mode: "edit",
-    returnFocusTo: returnFocusTo || document.activeElement,
-    taskId,
-  });
-}
 
-function configureTaskDialog() {
-  window.LongtailForge.tasksDialog?.configure?.({
-    currentUserId: currentUserId(),
-    onSaved: async (result) => {
-      if (result.task) {
-        upsertTask(result.task);
+  /** @param {unknown} task */
+  function createActions(task) {
+    const wrap = document.createElement("div");
+    const editButton = actionButton("Edit", () => openTaskDialog(task));
+    const duplicateButton = actionButton("Duplicate", () => duplicateTask(task));
+    const copyButton = actionButton("Copy Link", () => copyTaskLink(task));
+    const followButton = actionButton("Follow Notifications", () => followTaskNotifications(task), {
+      icon: "bell",
+      title: "Follow notifications",
+    });
+
+    wrap.className = "task-row-actions";
+    wrap.append(editButton, duplicateButton, copyButton, followButton, createTaskWorkflowActionMenu(task), createTaskLifecycleActionStrip(task));
+    return wrap;
+  }
+
+  /** @param {unknown} task */
+  function createTaskWorkflowActionMenu(task) {
+    const view = requireView();
+    const actions = taskWorkflowActionsForTask(task).map((action) => taskWorkflowActionButton(action, task));
+
+    if (actions.length === 0) {
+      return document.createDocumentFragment();
+    }
+
+    if (typeof view?.createDetailActionMenu === "function") {
+      return view.createDetailActionMenu({
+        ariaLabel: "Task workflow actions",
+        className: "task-row-workflow-actions",
+        summaryLabel: "...",
+        title: "Task workflow actions",
+        floating: true,
+        actions,
+      });
+    }
+
+    const fallback = document.createElement("div");
+    fallback.className = "task-row-workflow-actions";
+    fallback.append(...actions);
+    return fallback;
+  }
+
+  /** @param {unknown} task */
+  function taskWorkflowActionsForTask(task) {
+    const actions = taskWorkflowActionMenuDescriptor().actions || [];
+    return actions.filter((action) => taskWorkflowActionVisible(action, task));
+  }
+
+  function taskWorkflowActionMenuDescriptor() {
+    return {
+      label: "Task workflow actions",
+      actions: [
+        {
+          id: "assign-task",
+          label: "Assign",
+          icon: "edit",
+          role: "secondary",
+          behavior: "tasks.workflow.assign",
+          focusTarget: "assignees",
+          requiredPermissions: ["tasks.assign"],
+          requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+        },
+        {
+          id: "change-task-due-date",
+          label: "Due Date",
+          icon: "edit",
+          role: "secondary",
+          behavior: "tasks.workflow.due-date",
+          focusTarget: "due_date",
+          requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+        },
+        {
+          id: "change-task-due-time",
+          label: "Due Time",
+          icon: "edit",
+          role: "secondary",
+          behavior: "tasks.workflow.due-time",
+          focusTarget: "due_time",
+          requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+        },
+        {
+          id: "apply-task-recurrence",
+          label: "Recurrence",
+          icon: "refresh",
+          role: "secondary",
+          behavior: "tasks.workflow.recurrence",
+          focusTarget: "recurrence",
+          requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+        },
+        {
+          id: "start-task-timer",
+          label: "Start Timer",
+          icon: "start",
+          role: "secondary",
+          behavior: "tasks.workflow.timer.start",
+          timerStatus: "running",
+          timerVisibility: "none",
+          requiredPermissions: ["tasks.view", "time_entries.create"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
+        },
+        {
+          id: "pause-task-timer",
+          label: "Pause Timer",
+          icon: "pause",
+          role: "secondary",
+          behavior: "tasks.workflow.timer.pause",
+          timerStatus: "paused",
+          timerVisibility: "running",
+          requiredPermissions: ["tasks.view", "time_entries.create"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
+        },
+        {
+          id: "resume-task-timer",
+          label: "Resume Timer",
+          icon: "start",
+          role: "secondary",
+          behavior: "tasks.workflow.timer.resume",
+          timerStatus: "running",
+          timerVisibility: "paused",
+          requiredPermissions: ["tasks.view", "time_entries.create"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
+        },
+      ],
+    };
+  }
+
+  /** @returns {BrowserTaskLifecycleLegality} */
+  function requireTaskLifecycleLegality() {
+    const legality = window.LongtailForge?.taskLifecycleLegality;
+    if (typeof legality?.timerMatchesVisibility !== "function") {
+      throw new Error("Task actions require LongtailForge.taskLifecycleLegality.");
+    }
+    return legality;
+  }
+
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
+  function taskWorkflowActionVisible(action, task) {
+    if (action.timerVisibility && !taskTimerSurfaceAvailable()) {
+      return false;
+    }
+
+    /** @type {readonly unknown[]} */
+    const visibleStatuses = action.visibleStatuses || [];
+    if (visibleStatuses.length > 0 && !visibleStatuses.includes(taskRowField(task, "status") || "open")) {
+      return false;
+    }
+
+    return requireTaskLifecycleLegality()
+      .timerMatchesVisibility(taskTimerForTask(task), action.timerVisibility);
+  }
+
+  function taskTimerSurfaceAvailable() {
+    return state.options?.timeTrackingEnabled !== false && state.options?.taskTimersEnabled !== false;
+  }
+
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
+  function taskWorkflowActionButton(action, task) {
+    const view = requireView();
+    const disabledReason = taskWorkflowDisabledReason(action, task);
+    /** @type {TaskActionButtonOptions & {onClick: (event: Event) => unknown}} */
+    const options = {
+      label: action.label,
+      title: disabledReason || action.title || action.label,
+      icon: action.icon,
+      text: action.label,
+      iconOnly: false,
+      variant: action.variant,
+      role: action.role,
+      action: action.behavior || action.id,
+      disabled: Boolean(disabledReason),
+      onClick: (event) => runTaskWorkflowAction(action, task, event?.currentTarget || null),
+    };
+    const button = typeof view?.createActionButton === "function"
+      ? view.createActionButton(options)
+      : actionButton(action.label, options.onClick, { icon: action.icon, title: options.title });
+
+    button.dataset.taskWorkflowAction = action.id;
+    button.dataset.taskWorkflowBehavior = action.behavior || "";
+    Reflect.set(button.dataset, "taskId", taskRowField(task, "task_id") || "");
+    if (disabledReason) {
+      button.disabled = true;
+    }
+    return button;
+  }
+
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
+  function taskWorkflowDisabledReason(action, task) {
+    if (!optionalTaskLifecycleId(task)) {
+      return "Task action is unavailable.";
+    }
+    if (action.timerStatus) {
+      return taskTimerDisabledReason(action, task);
+    }
+    return "";
+  }
+
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
+  function taskTimerDisabledReason(action, task) {
+    const timer = taskTimerForTask(task);
+    if (state.options.taskTimersEnabled === false) {
+      return "Task timers are disabled.";
+    }
+    if (state.options.timeTrackingEnabled === false) {
+      return "Time Tracking is disabled.";
+    }
+    if (!taskRowField(task, "project_id")) {
+      return "Task timers require a project-linked task.";
+    }
+    if (taskRowField(task, "status") === "complete" || taskRowField(task, "status") === "archived") {
+      return "Completed and archived tasks cannot use task timers.";
+    }
+    if (action.timerVisibility === "running" && timer?.timer_status !== "running") {
+      return "No running task timer.";
+    }
+    if (action.timerVisibility === "paused" && (!timer || timer.timer_status === "running")) {
+      return "No paused task timer.";
+    }
+    return "";
+  }
+
+  /** @param {unknown} task */
+  function createTaskLifecycleActionStrip(task) {
+    const view = requireView();
+    const actions = taskLifecycleActionsForTask(task).map((action) => taskLifecycleActionButton(action, task));
+
+    if (typeof view?.createDetailActionStrip === "function") {
+      return view.createDetailActionStrip({
+        ariaLabel: "Task lifecycle actions",
+        className: "task-row-lifecycle-actions",
+        actions,
+      });
+    }
+
+    const fallback = document.createElement("div");
+    fallback.className = "task-row-lifecycle-actions";
+    fallback.append(...actions);
+    return fallback;
+  }
+
+  /** @param {unknown} task */
+  function taskLifecycleActionsForTask(task) {
+    const actions = taskLifecycleActionStripDescriptor().actions || [];
+    return actions.filter((action) => taskLifecycleActionVisible(action, task));
+  }
+
+  function taskLifecycleActionStripDescriptor() {
+    return {
+      label: "Task lifecycle actions",
+      actions: [
+        {
+          id: "complete-task",
+          label: "Complete",
+          icon: "complete",
+          role: "secondary",
+          behavior: "tasks.lifecycle.complete",
+          requiredPermissions: ["tasks.complete"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
+        },
+        {
+          id: "reopen-task",
+          label: "Reopen",
+          icon: "restore",
+          role: "secondary",
+          behavior: "tasks.lifecycle.reopen",
+          requiredPermissions: ["tasks.complete"],
+          visibleStatuses: ["complete"],
+        },
+        {
+          id: "block-task",
+          label: "Block",
+          icon: "pause",
+          role: "secondary",
+          behavior: "tasks.lifecycle.block",
+          requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+          statusPayload: { status: "blocked" },
+          visibleStatuses: ["open", "in_progress"],
+        },
+        {
+          id: "resume-task",
+          label: "Resume",
+          icon: "start",
+          role: "secondary",
+          behavior: "tasks.lifecycle.resume",
+          requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+          statusPayload: { status: "in_progress", blocked_reason: "" },
+          visibleStatuses: ["blocked"],
+        },
+        {
+          id: "archive-task",
+          label: "Archive",
+          icon: "archive",
+          role: "destructive",
+          variant: "danger",
+          behavior: "tasks.lifecycle.archive",
+          requiredPermissions: ["tasks.archive"],
+          visibleStatuses: ["open", "in_progress", "blocked", "complete"],
+          confirm: {
+            title: "Archive task",
+            confirmLabel: "Archive",
+            danger: true,
+            message: (/** @type {unknown} */ taskRecord) => `Archive "${taskRowField(taskRecord, "title")}"?`,
+          },
+        },
+        {
+          id: "restore-task",
+          label: "Restore",
+          icon: "restore",
+          role: "secondary",
+          behavior: "tasks.lifecycle.restore",
+          requiredPermissions: ["tasks.restore"],
+          visibleStatuses: ["archived"],
+        },
+      ],
+    };
+  }
+
+  /** @param {TaskLifecycleAction} action @param {unknown} task */
+  function taskLifecycleActionVisible(action, task) {
+    /** @type {readonly unknown[]} */
+    const visibleStatuses = action.visibleStatuses || [];
+    if (visibleStatuses.length === 0) {
+      return true;
+    }
+    return visibleStatuses.includes(taskRowField(task, "status") || "open");
+  }
+
+  /** @param {TaskLifecycleAction} action @param {unknown} task */
+  function taskLifecycleActionButton(action, task) {
+    const view = requireView();
+    const disabledReason = taskLifecycleDisabledReason(action, task);
+    /** @type {TaskActionButtonOptions & {onClick: (event: Event) => unknown}} */
+    const options = {
+      label: action.label,
+      title: disabledReason || action.title || action.label,
+      icon: action.icon,
+      text: "",
+      iconOnly: true,
+      variant: action.variant,
+      role: action.role,
+      action: action.behavior || action.id,
+      disabled: Boolean(disabledReason),
+      onClick: (event) => runTaskLifecycleAction(action, task, event?.currentTarget || null),
+    };
+    const button = typeof view?.createActionButton === "function"
+      ? view.createActionButton(options)
+      : actionButton(action.label, options.onClick, { icon: action.icon, title: options.title });
+
+    button.dataset.taskLifecycleAction = action.id;
+    button.dataset.taskLifecycleBehavior = action.behavior || "";
+    Reflect.set(button.dataset, "taskId", taskRowField(task, "task_id") || "");
+    if (disabledReason) {
+      button.disabled = true;
+    }
+    return button;
+  }
+
+  /** @param {unknown} action @param {unknown} task */
+  function taskLifecycleDisabledReason(action, task) {
+    if (!optionalTaskLifecycleId(task)) {
+      return "Task action is unavailable.";
+    }
+    return "";
+  }
+
+  /** @param {TaskLifecycleAction} action @param {unknown} task @param {unknown} [trigger] */
+  async function runTaskLifecycleAction(action, task, trigger = null) {
+    const api = requireApi();
+    const handler = taskLifecycleBehaviorHandler(action.behavior);
+    if (!handler) {
+      setStatus(`Missing task lifecycle behavior: ${action.behavior}`, { isError: true });
+      return;
+    }
+    if (action.confirm && !await confirmTaskLifecycleAction(action, task)) {
+      return;
+    }
+
+    /** @type {TaskBehaviorContext} */
+    const context = {
+      action,
+      api,
+      record: task,
+      refresh: reloadTaskList,
+      trigger,
+      workspaceContext: window.LongtailForge?.workspaceContext || {},
+    };
+
+    await handler(context);
+  }
+
+  /** @param {TaskWorkflowAction} action @param {unknown} task @param {unknown} [trigger] */
+  async function runTaskWorkflowAction(action, task, trigger = null) {
+    const api = requireApi();
+    const handler = taskWorkflowBehaviorHandler(action.behavior);
+    if (!handler) {
+      setStatus(`Missing task workflow behavior: ${action.behavior}`, { isError: true });
+      return;
+    }
+
+    /** @type {TaskBehaviorContext} */
+    const context = {
+      action,
+      api,
+      record: task,
+      refresh: reloadTaskList,
+      trigger,
+      workspaceContext: window.LongtailForge?.workspaceContext || {},
+    };
+
+    await handler(context);
+  }
+
+  /** @param {unknown} task @param {TaskBehaviorAction} action @param {{status?: string}} [defaults] @param {unknown} [trigger] */
+  function openTaskDialogForWorkflow(task, action, trigger = null, defaults = {}) {
+    if (!optionalTaskLifecycleId(task)) {
+      setStatus("Task action is unavailable.", { isError: true });
+      return null;
+    }
+
+    return openTaskDialog(task, {
+      defaults,
+      focusTarget: action.focusTarget || "",
+      promptBlockedReason: action.promptBlockedReason === true,
+      returnFocusTo: trigger || document.activeElement,
+    });
+  }
+
+  /** @param {unknown} task @param {TaskBehaviorAction} [action] @param {unknown} [trigger] */
+  function openTaskDialogForBlock(task, action = {}, trigger = null) {
+    return openTaskDialogForWorkflow(task, {
+      ...action,
+      focusTarget: "blocked_reason",
+      promptBlockedReason: true,
+    }, trigger, {
+      status: "blocked",
+    });
+  }
+
+  /** @param {unknown} task @returns {unknown} */
+  function optionalTaskLifecycleId(task) {
+    return task === null || task === undefined ? undefined : taskActionField(task, "task_id");
+  }
+
+  /**
+   * Preserve the original receiver, including a primitive receiver on an inherited getter.
+   * @param {unknown} value @param {"task_id" | "message" | "task" | "recurrenceContinuity"} key @returns {unknown}
+   */
+  function taskActionField(value, key) {
+    if (value === null || value === undefined) throw new TypeError("Task action fields are unavailable.");
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @returns {unknown} */
+  function optionalTaskActionId(value) {
+    return value == null ? undefined : taskActionField(value, "task_id");
+  }
+
+  /** @param {unknown} task @param {string} timerStatus */
+  async function saveTaskTimerAction(task, timerStatus) {
+    const api = requireApi();
+    if (!optionalTaskActionId(task)) {
+      setStatus("Task timer action is unavailable.", { isError: true });
+      return;
+    }
+
+    const timer = taskTimerForTask(task);
+    const elapsedSeconds = readTaskTimerElapsedSeconds(timer);
+    const isRunning = timerStatus === "running";
+    const verb = isRunning ? (timer ? "Resuming" : "Starting") : "Pausing";
+
+    setStatus(`${verb} task timer...`);
+
+    try {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskActionField(task, "task_id")}`)}/timer`, {
+        active_task_timer_id: timer?.active_task_timer_id || timer?.active_timer_id || "",
+        timer_status: isRunning ? "running" : "paused",
+        accumulated_elapsed_seconds: elapsedSeconds,
+        last_active_start_time: new Date().toISOString(),
+      });
+      const timerTask = requireTaskRecords().readTask(result);
+      if (timerTask) {
+        upsertTask(timerTask);
+      }
+      const savedTimer = requireTaskRecords().readTaskTimer(result);
+      if (savedTimer) {
+        upsertTaskTimerState(savedTimer);
+      }
+      if (!isRunning) {
+        void requireNamespace().taskResumeNoteCapture?.offer({
+          task: timerTask || task,
+          /** @param {unknown} updatedTask */
+          onSaved(updatedTask) {
+            if (updatedTask) {
+              upsertTask(updatedTask);
+            }
+          },
+          /** @param {unknown} error */
+          onError(error) {
+            setStatus(taskActionField(error, "message") || "Resume note could not be saved.", { isError: true });
+          },
+        });
       }
       await reloadTaskList();
-      if (result.recurrenceContinuity) {
-        globalThis.setTimeout(() => {
-          renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-          trackTaskRecurrenceContinuity(result.task?.task_id || "", result.recurrenceContinuity);
-        }, 0);
-      }
-    },
-    onAttachmentsChanged: refreshTaskAttachmentCounts,
-    onAttachmentsRefreshed: refreshTaskAttachmentCounts,
-    onNotesChanged: refreshTaskNoteCounts,
-    options: state.options,
-    setStatus,
-    tagOptions: state.tagOptions,
-    taskTimers: state.taskTimers,
-    tasks: state.tasks,
-  });
-}
-
-async function refreshTaskAttachmentCounts() {
-  state.attachmentCounts = await loadAttachmentCounts(state.tasks);
-  renderTasks();
-}
-
-async function refreshTaskNoteCounts() {
-  state.noteCounts = await loadNoteCounts(state.tasks);
-  renderTasks();
-}
-
-async function loadTaskTimers() {
-  try {
-    return await api.getJson("/api/tasks/timers", { cache: "no-store" });
-  } catch {
-    return { timers: [] };
-  }
-}
-
-async function loadTagOptions() {
-  if (!window.LongtailForge.tags?.loadTags) {
-    return [];
-  }
-
-  try {
-    return await window.LongtailForge.tags.loadTags();
-  } catch {
-    return [];
-  }
-}
-
-function appendTagChips(container, tags) {
-  if (!container || !window.LongtailForge.tags?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
-    return;
-  }
-
-  const list = document.createElement("div");
-  list.className = "tag-chip-list";
-  window.LongtailForge.tags.renderTagList(list, tags);
-  container.appendChild(list);
-}
-
-async function applyBulkAction(event) {
-  if (!await captureBulkBlockedReason(event?.currentTarget || bulkApplyButton)) {
-    return;
-  }
-  const taskIds = [...state.selectedTaskIds];
-  const actions = selectedBulkActions(taskIds);
-
-  if (actions.length === 0) {
-    return;
-  }
-
-  if (!await confirmMixedBulkActions(actions, taskIds)) {
-    return;
-  }
-
-  setStatus("Updating selected tasks...");
-
-  try {
-    const results = [];
-    const errors = [];
-    const recurrenceContinuities = [];
-
-    for (const payload of actions) {
-      const result = await api.postJson("/api/tasks/bulk", payload);
-      results.push(...(result.tasks || []));
-      errors.push(...(result.errors || []));
-      recurrenceContinuities.push(...(result.recurrenceContinuities || []));
+      setStatus("");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Task timer action failed."), { isError: true });
     }
+  }
 
-    results.forEach(upsertTask);
-    state.selectedTaskIds.clear();
-    resetBulkInputs();
-    await reloadTaskList();
-    if (errors.length) {
-      const firstError = errors[0]?.message ? ` ${errors[0].message}` : "";
-      setStatus(`Updated ${results.length} task changes. ${errors.length} changes could not be updated.${firstError}`, {
-        isError: results.length === 0,
-      });
-    } else if (recurrenceContinuities.length > 0) {
-      renderBulkRecurrenceContinuity(recurrenceContinuities);
-      recurrenceContinuities.forEach((continuity) => {
-        trackTaskRecurrenceContinuity(continuity.task_id, continuity);
-      });
+  /** @param {unknown} task */
+  function taskTimerForTask(task) {
+    return state.taskTimers.find((timer) => timer.task_id === optionalTaskLifecycleId(task));
+  }
+
+  /** @param {BrowserTaskTimerRecord} timer */
+  function upsertTaskTimerState(timer) {
+    const existingIndex = state.taskTimers.findIndex((item) => item.task_id === timer.task_id);
+    state.taskTimers = state.taskTimers.map((item) =>
+      item.timer_status === "running" && item.task_id !== timer.task_id
+        ? { ...item, timer_status: "paused", last_active_start_time: null }
+        : item,
+    );
+
+    if (existingIndex >= 0) {
+      state.taskTimers.splice(existingIndex, 1, timer);
     } else {
-      setStatus(`Updated ${results.length} task changes.`);
+      state.taskTimers.push(timer);
     }
-  } catch (error) {
-    setStatus(error.message || "Selected tasks were not updated.", { isError: true });
-  }
-}
-
-async function captureBulkBlockedReason(trigger = null) {
-  if (bulkStatusInput?.value !== "blocked" || bulkBlockedReasonInput?.value.trim()) {
-    return true;
   }
 
-  const result = await window.LongtailForge.capturePrompt.open({
-    cancelLabel: "Cancel",
-    confirmLabel: "Continue",
-    label: "Blocked reason",
-    prompt: "Why is the task now blocked?",
-    trigger,
-  });
-  if (!result.confirmed) {
-    return false;
-  }
-
-  bulkBlockedReasonInput.value = result.value;
-  updateBulkControls();
-  return true;
-}
-
-function updateBulkControls() {
-  const taskIds = [...state.selectedTaskIds];
-  const selectedCount = taskIds.length;
-
-  updateBulkToolbarSummary(selectedCount);
-  updateBulkLifecycleOptions(taskIds);
-  const hasSelectedAction = selectedBulkActions(taskIds).length > 0;
-  const blockedStatusSelected = bulkStatusInput?.value === "blocked";
-  bulkStatusControl?.removeAttribute("hidden");
-  if (bulkBlockedReasonControl) {
-    bulkBlockedReasonControl.hidden = !blockedStatusSelected;
-  }
-  if (bulkBlockedReasonInput) {
-    bulkBlockedReasonInput.required = false;
-    bulkBlockedReasonInput.removeAttribute("aria-invalid");
-  }
-  bulkPriorityControl?.removeAttribute("hidden");
-  bulkProjectControl?.removeAttribute("hidden");
-  bulkDueDateControl?.removeAttribute("hidden");
-  bulkDueTimeControl?.removeAttribute("hidden");
-  bulkAssigneeControl?.removeAttribute("hidden");
-  syncBulkDueControlStates();
-  if ((state.tagOptions || []).length > 0) {
-    bulkTagActionControl?.removeAttribute("hidden");
-    bulkTagsControl?.removeAttribute("hidden");
-  }
-
-  if (bulkApplyButton) {
-    bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction;
-    bulkApplyButton.textContent = `Apply to ${selectedCount}`;
-  }
-
-  if (bulkToolbar && selectedCount > 0) {
-    bulkToolbar.open = true;
-  }
-}
-
-function updateBulkToolbarSummary(selectedCount) {
-  if (!bulkSelectionCount) {
-    return;
-  }
-
-  bulkSelectionCount.textContent = `${selectedCount} selected`;
-  bulkSelectionCount.hidden = selectedCount === 0;
-}
-
-function selectedBulkActions(taskIds) {
-  if (taskIds.length === 0) {
-    return [];
-  }
-
-  const actions = [];
-  const lifecycleAction = bulkLifecycleInput?.value || "";
-  const status = bulkStatusInput?.value || "";
-  const blockedReason = bulkBlockedReasonInput?.value.trim() || "";
-  const priority = bulkPriorityInput?.value || "";
-  const projectId = bulkProjectInput?.value || "";
-  const dueDate = bulkDueDateInput?.value || "";
-  const shouldClearDueDate = Boolean(bulkClearDueDateInput?.checked);
-  const dueTime = bulkDueTimeInput?.value || "";
-  const shouldClearDueTime = Boolean(bulkClearDueTimeInput?.checked);
-  const assigneeIds = selectedBulkAssigneeIds();
-  const tagAction = bulkTagActionInput?.value || "";
-  const tagIds = selectedBulkTagIds();
-
-  if (lifecycleAction === "restore") {
-    pushLifecycleBulkAction(actions, lifecycleAction, taskIds);
-  }
-
-  if (status) {
-    actions.push({
-      action: "status",
-      task_ids: taskIds,
-      status,
-      blocked_reason: status === "blocked" ? blockedReason : "",
-    });
-  }
-
-  if (priority) {
-    actions.push({ action: "priority", task_ids: taskIds, priority });
-  }
-
-  if (projectId) {
-    const project = (state.options.projects || []).find((entry) => entry.id === projectId);
-    actions.push({
-      action: "project_assign",
-      task_ids: taskIds,
-      project_id: projectId,
-      ...(usesClientScope() ? { client_id: project?.client_id || "" } : {}),
-    });
-  }
-
-  if (shouldClearDueDate || dueDate) {
-    actions.push({ action: "due_date", task_ids: taskIds, due_date: shouldClearDueDate ? "" : dueDate });
-  }
-
-  if (!shouldClearDueDate && (shouldClearDueTime || dueTime)) {
-    actions.push({ action: "due_time", task_ids: taskIds, due_time: shouldClearDueTime ? "" : dueTime });
-  }
-
-  if (assigneeIds.length > 0) {
-    actions.push({ action: "assignee_replace", task_ids: taskIds, assignee_ids: assigneeIds });
-  }
-
-  if (tagAction && tagIds.length > 0) {
-    actions.push({ action: tagAction, task_ids: taskIds, tagIds });
-  }
-
-  if (lifecycleAction === "archive") {
-    pushLifecycleBulkAction(actions, lifecycleAction, taskIds);
-  }
-
-  return actions;
-}
-
-function pushLifecycleBulkAction(actions, lifecycleAction, taskIds) {
-  const lifecycleTaskIds = bulkLifecycleTaskIds(lifecycleAction, taskIds);
-
-  if (lifecycleTaskIds.length > 0) {
-    actions.push({ action: lifecycleAction, task_ids: lifecycleTaskIds });
-  }
-}
-
-function bulkLifecycleTaskIds(lifecycleAction, taskIds) {
-  return selectedTasksForBulk(taskIds)
-    .filter((task) => lifecycleAction === "restore"
-      ? task.status === "archived"
-      : task.status !== "archived")
-    .map((task) => task.task_id);
-}
-
-function selectedTasksForBulk(taskIds) {
-  const ids = new Set(taskIds);
-  return state.tasks.filter((task) => ids.has(task.task_id));
-}
-
-function updateBulkLifecycleOptions(taskIds) {
-  if (!bulkLifecycleControl || !bulkLifecycleInput) {
-    return;
-  }
-
-  const selectedTasks = selectedTasksForBulk(taskIds);
-  const canArchive = selectedTasks.some((task) => task.status !== "archived");
-  const canRestore = selectedTasks.some((task) => task.status === "archived");
-  const selectedValue = bulkLifecycleInput.value;
-  const options = [{ value: "", label: "-" }];
-
-  if (canArchive) {
-    options.push({ value: "archive", label: "Archive selected" });
-  }
-
-  if (canRestore) {
-    options.push({ value: "restore", label: "Restore selected" });
-  }
-
-  bulkLifecycleInput.replaceChildren(...options.map((entry) => {
-    const option = document.createElement("option");
-    option.value = entry.value;
-    option.textContent = entry.label;
-    return option;
-  }));
-
-  bulkLifecycleInput.value = options.some((entry) => entry.value === selectedValue) ? selectedValue : "";
-  bulkLifecycleControl.hidden = selectedTasks.length === 0 || options.length <= 1;
-}
-
-async function confirmMixedBulkActions(actions, taskIds) {
-  const warnings = mixedBulkActionWarnings(actions, taskIds);
-
-  if (actions.some((action) => action.action === "archive")) {
-    return confirmBulkArchive(actions, taskIds, warnings);
-  }
-
-  if (warnings.length === 0) {
-    return true;
-  }
-
-  if (!modal?.confirm) {
-    return window.confirm(`${warnings.join(" ")} Apply these bulk changes?`);
-  }
-
-  return modal.confirm({
-    title: "Apply bulk task changes?",
-    message: `${warnings.join(" ")} Apply these bulk changes to ${taskIds.length} selected task${taskIds.length === 1 ? "" : "s"}?`,
-    confirmLabel: "Apply Changes",
-    cancelLabel: "Review First",
-  });
-}
-
-async function confirmBulkArchive(actions, taskIds, warnings = []) {
-  const archiveAction = actions.find((action) => action.action === "archive");
-  const archiveCount = archiveAction?.task_ids?.length || taskIds.length;
-  const archiveText = `Archive ${archiveCount} selected task${archiveCount === 1 ? "" : "s"}? Archived tasks move to the Archived view and can be restored later.`;
-  const message = [warnings.join(" "), archiveText].filter(Boolean).join(" ");
-
-  if (!modal?.confirm) {
-    return window.confirm(message);
-  }
-
-  return modal.confirm({
-    title: "Archive selected tasks?",
-    message,
-    confirmLabel: "Archive Tasks",
-    cancelLabel: "Review First",
-    danger: true,
-  });
-}
-
-function mixedBulkActionWarnings(actions, taskIds) {
-  const selectedTasks = state.tasks.filter((task) => taskIds.includes(task.task_id));
-  const warnings = [];
-
-  if (actions.some((action) => action.action === "due_date") && hasMixedValues(selectedTasks, "due_date")) {
-    warnings.push("Selected tasks currently have different due dates.");
-  }
-
-  if (actions.some((action) => action.action === "due_time") && hasMixedValues(selectedTasks, "due_time")) {
-    warnings.push("Selected tasks currently have different due times.");
-  }
-
-  if (actions.some((action) => action.action === "project_assign") && hasMixedValues(selectedTasks, "project_id")) {
-    warnings.push("Selected tasks currently have different Projects.");
-  }
-
-  if (actions.some((action) => ["tag_add", "tag_remove", "tag_replace"].includes(action.action)) && hasMixedTagValues(selectedTasks)) {
-    warnings.push("Selected tasks currently have different tags.");
-  }
-
-  return warnings;
-}
-
-function hasMixedValues(tasks, fieldName) {
-  return new Set(tasks.map((task) => task[fieldName] || "")).size > 1;
-}
-
-function hasMixedTagValues(tasks) {
-  const values = tasks.map((task) =>
-    (task.tags || [])
-      .map((tag) => tag.tag_id)
-      .filter(Boolean)
-      .sort()
-      .join("|")
-  );
-  return new Set(values).size > 1;
-}
-
-function syncBulkDueControlStates() {
-  if (bulkDueDateInput && bulkClearDueDateInput) {
-    bulkDueDateInput.disabled = bulkClearDueDateInput.checked;
-  }
-
-  if (bulkDueTimeInput && bulkClearDueTimeInput) {
-    bulkDueTimeInput.disabled = bulkClearDueTimeInput.checked || Boolean(bulkClearDueDateInput?.checked);
-  }
-
-  if (bulkClearDueTimeInput) {
-    bulkClearDueTimeInput.disabled = Boolean(bulkClearDueDateInput?.checked);
-  }
-}
-
-function selectedBulkAssigneeIds() {
-  return [...(bulkAssigneesControl?.querySelectorAll("input[type='checkbox']:checked") || [])]
-    .map((input) => input.value)
-    .filter(Boolean);
-}
-
-function selectedBulkTagIds() {
-  return [...(bulkTagsInput?.selectedOptions || [])]
-    .map((option) => option.value)
-    .filter(Boolean);
-}
-
-function resetBulkInputs() {
-  if (bulkStatusInput) {
-    bulkStatusInput.value = "";
-  }
-  if (bulkBlockedReasonInput) {
-    bulkBlockedReasonInput.value = "";
-    bulkBlockedReasonInput.required = false;
-    bulkBlockedReasonInput.removeAttribute("aria-invalid");
-  }
-  if (bulkBlockedReasonControl) {
-    bulkBlockedReasonControl.hidden = true;
-  }
-  if (bulkPriorityInput) {
-    bulkPriorityInput.value = "";
-  }
-  if (bulkClientInput?.isConnected) {
-    bulkClientInput.value = BULK_CLIENT_ALL_VALUE;
-  }
-  populateBulkProjectOptions();
-  if (bulkDueDateInput) {
-    bulkDueDateInput.value = "";
-  }
-  if (bulkClearDueDateInput) {
-    bulkClearDueDateInput.checked = false;
-  }
-  if (bulkDueTimeInput) {
-    bulkDueTimeInput.value = "";
-  }
-  if (bulkClearDueTimeInput) {
-    bulkClearDueTimeInput.checked = false;
-  }
-  bulkAssigneesControl?.querySelectorAll("input[type='checkbox']").forEach((input) => {
-    input.checked = false;
-  });
-  if (bulkTagActionInput) {
-    bulkTagActionInput.value = "";
-  }
-  if (bulkTagsInput) {
-    [...bulkTagsInput.options].forEach((entry) => {
-      entry.selected = false;
-    });
-  }
-  if (bulkLifecycleInput) {
-    bulkLifecycleInput.value = "";
-  }
-  syncBulkDueControlStates();
-}
-
-function toggleVisibleSelection() {
-  const tasks = state.tasks;
-
-  tasks.forEach((task) => {
-    if (selectAllInput.checked) {
-      state.selectedTaskIds.add(task.task_id);
-    } else {
-      state.selectedTaskIds.delete(task.task_id);
+  /** @param {BrowserTaskTimerRecord | null | undefined} timer */
+  function readTaskTimerElapsedSeconds(timer) {
+    if (!timer) {
+      return 0;
     }
-  });
-  renderTasks();
-}
 
-function updateSelectionControls(tasks) {
-  if (!selectAllInput) {
-    return;
-  }
-
-  const visibleIds = tasks.map((task) => task.task_id);
-  const selectedVisibleCount = visibleIds.filter((taskId) => state.selectedTaskIds.has(taskId)).length;
-
-  selectAllInput.checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
-  selectAllInput.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
-}
-
-function syncSelectionToTasks(visibleTasks) {
-  const validIds = new Set(state.tasks.map((task) => task.task_id));
-
-  [...state.selectedTaskIds].forEach((taskId) => {
-    if (!validIds.has(taskId)) {
-      state.selectedTaskIds.delete(taskId);
+    const baseSeconds = Number.parseInt(`${timer.accumulated_elapsed_seconds}`, 10) || 0;
+    if (timer.timer_status !== "running" || !timer.last_active_start_time) {
+      return baseSeconds;
     }
-  });
 
-  if (visibleTasks.length === 0) {
-    state.selectedTaskIds.clear();
-  }
-}
-
-function usesClientScope() {
-  return state.options.workspaceType === "business";
-}
-
-function setClientScopeControlsVisible(isVisible) {
-  document.querySelectorAll("[data-client-workspace-control]").forEach((element) => {
-    element.hidden = !isVisible;
-  });
-}
-
-function handleTaskViewChange() {
-  if (!taskViewSelector) {
-    return;
-  }
-
-  const selectedView = TASK_VIEW_VALUES.has(taskViewSelector.value) ? taskViewSelector.value : DEFAULT_TASK_VIEW;
-  state.quickFilter = selectedView;
-  preserveCompatibleAdvancedFiltersForTaskView(selectedView);
-  saveFilterState();
-  reloadTaskList();
-}
-
-function applyQuickFilterDefaults() {
-  setStatusFilterValue(defaultStatusForTaskView(selectedTaskView()));
-}
-
-function resetAdvancedTaskFilters() {
-  resetAdvancedFilterControlsForTaskView(selectedTaskView());
-  saveFilterState();
-  reloadTaskList();
-}
-
-function resetAdvancedFilterControlsForTaskView(taskView) {
-  if (sortInput) {
-    sortInput.value = "due_asc";
-  }
-  setStatusFilterValue(defaultStatusForTaskView(taskView));
-  setSelectValue(assigneeFilter, "all");
-  setSelectValue(clientFilter, "all");
-  setSelectValue(projectFilter, "all");
-  tagFilterController?.setValue?.("all");
-}
-
-function preserveCompatibleAdvancedFiltersForTaskView(taskView) {
-  if (!isStatusFilterCompatibleWithTaskView(taskView, statusFilter?.value || "active")) {
-    setStatusFilterValue(defaultStatusForTaskView(taskView));
-  }
-
-  if (["my", "unassigned"].includes(taskView)) {
-    setSelectValue(assigneeFilter, "all");
-  }
-
-  if (!usesClientScope()) {
-    setSelectValue(clientFilter, "all");
-  }
-}
-
-function updateTaskViewSelectorState() {
-  if (!taskViewSelector) {
-    return;
-  }
-
-  const selectedView = selectedTaskView();
-  taskViewSelector.value = TASK_VIEW_VALUES.has(selectedView) ? selectedView : DEFAULT_TASK_VIEW;
-}
-
-function selectedTaskView() {
-  return TASK_VIEW_VALUES.has(state.quickFilter) ? state.quickFilter : DEFAULT_TASK_VIEW;
-}
-
-function defaultStatusForTaskView(taskView) {
-  if (taskView === "complete") {
-    return "complete";
-  }
-
-  if (taskView === "archived") {
-    return "archived";
-  }
-
-  return "active";
-}
-
-function isStatusFilterCompatibleWithTaskView(taskView, statusValue) {
-  const status = canonicalStatusValue(statusValue);
-
-  if (taskView === "complete") {
-    return status === "complete" || status === "all";
-  }
-
-  if (taskView === "archived") {
-    return status === "archived" || status === "all";
-  }
-
-  return !["complete", "archived"].includes(status);
-}
-
-function setStatusFilterValue(value) {
-  setSelectValue(statusFilter, value);
-}
-
-function setSelectValue(select, value) {
-  if (!select) {
-    return;
-  }
-
-  if ([...select.options].some((item) => item.value === value)) {
-    select.value = value;
-  }
-}
-
-function upsertTask(task) {
-  const existingIndex = state.tasks.findIndex((item) => item.task_id === task.task_id);
-
-  if (existingIndex >= 0) {
-    state.tasks.splice(existingIndex, 1, task);
-    return;
-  }
-
-  state.tasks.unshift(task);
-}
-
-function openTaskFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const taskId = params.get("task");
-
-  if (params.get("new") === "1") {
-    openTaskDialog();
-    return;
-  }
-
-  if (!taskId) {
-    return;
-  }
-
-  const task = state.tasks.find((item) => item.task_id === taskId);
-  if (task) {
-    openTaskDialog(task);
-  }
-}
-
-async function copyTaskLink(task) {
-  const url = new window.URL(window.location.href);
-  url.searchParams.set("task", task.task_id);
-
-  try {
-    await navigator.clipboard.writeText(url.toString());
-    setStatus("Task link copied.");
-  } catch {
-    setStatus(url.toString());
-  }
-}
-
-function restoreFilterState() {
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(TASK_FILTER_STORAGE_KEY) || "{}");
-    if (saved.sort && sortInput) {
-      sortInput.value = saved.sort;
+    const startedAt = new Date(timer.last_active_start_time).getTime();
+    if (!Number.isFinite(startedAt)) {
+      return baseSeconds;
     }
-    if (Object.hasOwn(saved, "quickFilter")) {
-      state.quickFilter = saved.quickFilter === "" ? "all" : TASK_VIEW_VALUES.has(saved.quickFilter)
-        ? saved.quickFilter
-        : DEFAULT_TASK_VIEW;
-    } else {
-      state.quickFilter = DEFAULT_TASK_VIEW;
-    }
-  } catch {
-    state.quickFilter = DEFAULT_TASK_VIEW;
-  }
-  applyQuickFilterDefaults();
-  updateTaskViewSelectorState();
-}
 
-function saveFilterState() {
-  window.localStorage.setItem(TASK_FILTER_STORAGE_KEY, JSON.stringify({
-    sort: sortInput?.value || "due_asc",
-    quickFilter: state.quickFilter,
-  }));
-}
-
-function replaceOptions(select, options) {
-  if (!select) {
-    return;
+    return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   }
 
-  const previousValues = [...select.selectedOptions].map((item) => item.value);
-  select.replaceChildren(...options);
+  /** @typedef {{label: string, value: unknown, className: string, title?: unknown}} TaskContextChip */
 
-  if (select.multiple) {
-    [...select.options].forEach((item) => {
-      item.selected = previousValues.includes(item.value);
-    });
-    return;
+  /**
+   * These projections remain opaque; preserve inherited reads and primitive receivers.
+   * @param {unknown} value
+   * @param {"task_id" | "title" | "parent_task_id" | "incomplete_blocking_child_count" | "parent_task" | "parent_task_title" | "total_count" | "completed_count" | "next_incomplete_item_label" | "status" | "dataset" | "tags" | "parentTask" | "project_id" | "assignees" | "priority" | "next_action" | "blocked_reason" | "checklistProgress" | "relationshipSummary" | "resume_note" | "project_name" | "client_name" | "due_date" | "due_time" | "due_at_utc" | "due_timezone" | "length" | "displayName" | "display_name" | "username" | "user_id" | "email"} key
+   * @returns {unknown}
+   */
+  function taskRowField(value, key) {
+    if (value === null || value === undefined) throw new TypeError("Task row fields are unavailable.");
+    return Reflect.get(Object(value), key, value);
   }
 
-  if ([...select.options].some((item) => item.value === previousValues[0])) {
-    select.value = previousValues[0];
-  }
-}
-
-function option(value, label) {
-  return pageController.createOption(value, label);
-}
-
-function optionLabel(record) {
-  return record?.optionLabel || record?.display_label || record?.displayName || record?.name || record?.title || "";
-}
-
-function displayUser(user) {
-  const displayName = String(user.displayName || user.display_name || user.username || user.user_id || "").trim();
-  const email = String(user.username || user.email || "").trim();
-
-  if (displayName && email && displayName !== email) {
-    return `${displayName} (${email})`;
+  /**
+   * Native ToPropertyKey, including a symbol returned by an opaque conversion hook.
+   * The one-entry object is temporary; the original tally access remains at its original site.
+   * @param {unknown} value @returns {string | symbol}
+   */
+  function taskRowKey(value) {
+    return Reflect.ownKeys(Object.fromEntries([[value, undefined]]))[0];
   }
 
-  return displayName || email || user.user_id;
-}
-
-function getWorkspaceScopeLabel() {
-  if (window.LongtailForge?.getWorkspaceProjectsLabel) {
-    return window.LongtailForge.getWorkspaceProjectsLabel();
+  /**
+   * Invoke the collection member at the original use, retaining opaque results and receivers.
+   * @param {unknown} value @param {"map" | "filter" | "sort" | "join"} key @param {unknown[]} args
+   * @returns {unknown}
+   */
+  function callTaskRowMethod(value, key, args) {
+    if (value === null || value === undefined) throw new TypeError("Task row collection is unavailable.");
+    const method = Reflect.get(Object(value), key, value);
+    if (typeof method !== "function") throw new TypeError("Task row collection member is not callable.");
+    return Reflect.apply(method, value, args);
   }
 
-  const workspaceName = String(window.LongtailForge?.workspaceContext?.workspaceName || "").trim() ||
-    document.querySelector("[data-workspace-selector]")?.selectedOptions?.[0]?.textContent?.trim() ||
-    document.querySelector("[data-workspace-name]")?.textContent?.trim() ||
-    "Workspace";
-
-  return `${workspaceName} Projects`;
-}
-
-function formatScope(task) {
-  if (task.project_name && task.client_name) {
-    return `${task.client_name} / ${task.project_name}`;
+  /** @param {unknown} value @param {"task_id" | "title"} key @returns {unknown} */
+  function optionalTaskRowField(value, key) {
+    return value == null ? undefined : taskRowField(value, key);
   }
 
-  if (task.project_name) {
-    return task.project_name;
-  }
-
-  if (task.client_name) {
-    return task.client_name;
-  }
-
-  return getWorkspaceScopeLabel();
-}
-
-function formatDue(task) {
-  if (!task.due_date) {
-    return "None";
-  }
-
-  if (!task.due_time) {
-    return task.due_date;
-  }
-
-  return window.LongtailForge.timezones?.formatDateTime?.(task.due_at_utc, task.due_timezone) ||
-    `${task.due_date} ${task.due_time}`;
-}
-
-function formatToken(value) {
-  return String(value || "")
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function currentUserId() {
-  return state.currentUserId ||
-    window.LongtailForge?.workspaceContext?.userId ||
-    window.LongtailForge?.workspaceContext?.user_id ||
-    "";
-}
-
-function setStatus(message, options = {}) {
-  pageController.setStatus(taskStatus, message, options);
-}
-
-window.LongtailForge.pageController.register("tasks", {
-  snapshot: () => ({
-    taskCount: state.tasks.length,
-    visibleTaskCount: state.tasks.length,
-    selectedTaskCount: state.selectedTaskIds.size,
-    quickFilter: state.quickFilter,
-    sort: sortInput?.value || "due_asc",
-    optionCounts: {
-      clients: state.options.clients.length,
-      projects: state.options.projects.length,
-      users: state.options.users.length,
-    },
-  }),
-  runSmoke: () => {
-    const checks = [
-      { name: "task list exists", ok: Boolean(taskList) },
-      { name: "add button exists", ok: Boolean(addTaskButton) },
-      { name: "task dialog exists", ok: Boolean(taskDialog) },
-      { name: "task view selector exists", ok: Boolean(taskViewSelector) },
-      { name: "sort select exists", ok: Boolean(sortInput) },
-      { name: "bulk controls exist", ok: Boolean(bulkToolbar && bulkStatusInput && bulkPriorityInput && bulkAssigneesControl && bulkLifecycleInput && bulkApplyButton) },
-      { name: "copy link exists", ok: Boolean(copyTaskLinkButton) },
-      { name: "recurrence controls exist", ok: Boolean(recurringInput && recurrenceDetailsButton && recurrenceDialog) },
+  /** @param {Element} container @param {unknown} task */
+  function appendTaskMetadata(container, task) {
+    const assignees = taskRowField(task, "assignees");
+    const assigneeText = (assignees === null || assignees === undefined ? undefined : taskRowField(assignees, "length"))
+      ? callTaskRowMethod(callTaskRowMethod(taskRowField(task, "assignees"), "map", [displayUser]), "join", [", "])
+      : "Unassigned";
+    const items = [
+      { label: "Scope", value: formatScope(task), className: "task-scope-cell" },
+      { label: "Assignees", value: assigneeText, className: "task-assignee-cell" },
+      { label: "Status", value: formatToken(taskRowField(task, "status")) },
+      { label: "Priority", value: formatToken(taskRowField(task, "priority")) },
+      { label: "Due", value: formatDue(task) },
     ];
 
+    items.forEach((item) => {
+      const node = document.createElement("span");
+      node.className = ["task-meta-item", item.className].filter(Boolean).join(" ");
+      node.textContent = `${item.label}: ${item.value}`;
+      node.title = `${item.label}: ${item.value}`;
+      container.appendChild(node);
+    });
+  }
+
+  /** @param {Element} container @param {unknown} task */
+  function appendTaskContext(container, task) {
+    const view = requireView();
+    const chips = [];
+
+    appendParentTaskChip(container, task);
+
+    if (taskRowField(task, "next_action")) {
+      chips.push({ label: "Next", value: taskRowField(task, "next_action"), className: "is-next" });
+    }
+
+    if (taskRowField(task, "status") === "blocked" && taskRowField(task, "blocked_reason")) {
+      chips.push({ label: "Blocked", value: taskRowField(task, "blocked_reason"), className: "is-blocked" });
+    }
+
+    const checklistText = checklistProgressText(taskRowField(task, "checklistProgress"));
+    if (checklistText) {
+      chips.push({ label: "Checklist", value: checklistText, className: "is-progress" });
+    }
+
+    const blockingText = blockingSummaryText(taskRowField(task, "relationshipSummary"));
+    if (blockingText) {
+      chips.push({ label: "Blocking", value: blockingText, className: "is-blocked" });
+    }
+
+    if (taskRowField(task, "resume_note")) {
+      chips.push({ label: "Resume", value: "Note saved", title: taskRowField(task, "resume_note"), className: "is-resume" });
+    }
+
+    if (chips.length === 0) {
+      return;
+    }
+
+    const summary = typeof view?.createDetailBadgeRow === "function"
+      ? view.createDetailBadgeRow({
+          ariaLabel: "Task context",
+          className: "task-context-summary",
+          badges: chips.map(taskContextBadge),
+        })
+      : taskContextSummaryFallback(chips);
+    container.appendChild(summary);
+  }
+
+  /** @param {Element} container @param {unknown} task */
+  function appendParentTaskChip(container, task) {
+    const parentTask = taskRowField(task, "parentTask") || taskRowField(task, "parent_task") || null;
+    const parentTaskId = optionalTaskRowField(parentTask, "task_id") || taskRowField(task, "parent_task_id") || "";
+    const parentTitle = String(optionalTaskRowField(parentTask, "title") || taskRowField(task, "parent_task_title") || "").trim();
+
+    if (!parentTaskId || !parentTitle) {
+      return;
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "task-context-chip is-parent-link";
+    button.textContent = `Child of: ${truncateTaskName(parentTitle)}`;
+    button.title = `Open parent task: ${parentTitle}`;
+    button.addEventListener("click", () => openTaskDialogById(parentTaskId, button));
+    container.appendChild(button);
+  }
+
+  /** @param {unknown} value */
+  function truncateTaskName(value, maxLength = 42) {
+    const text = String(value || "").trim();
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
+  }
+
+  /** @param {TaskContextChip} chip */
+  function taskContextBadge(chip) {
     return {
-      ok: checks.every((check) => check.ok),
-      pageId: "tasks",
-      checks,
+      className: ["task-context-chip", chip.className],
+      label: chip.label,
+      title: chip.title || `${chip.label}: ${chip.value}`,
+      value: chip.value,
     };
-  },
-});
+  }
+
+  /** @param {TaskContextChip[]} chips */
+  function taskContextSummaryFallback(chips) {
+    const summary = document.createElement("div");
+
+    summary.className = "task-context-summary";
+    chips.forEach((chip) => {
+      const node = document.createElement("span");
+      node.className = ["task-context-chip", chip.className].filter(Boolean).join(" ");
+      node.textContent = `${chip.label}: ${chip.value}`;
+      Reflect.set(node, "title", chip.title || `${chip.label}: ${chip.value}`);
+      summary.appendChild(node);
+    });
+    return summary;
+  }
+
+  /** @param {string} label @param {(event: Event) => unknown} handler @param {Pick<TaskActionButtonOptions, "icon" | "title">} [options] */
+  function actionButton(label, handler, options = {}) {
+    const button = window.LongtailForge?.icons?.createIconButton
+      ? window.LongtailForge.icons.createIconButton({
+        icon: options.icon || taskActionIcon(label),
+        label,
+        title: options.title || label,
+        variant: label === "Archive" ? "danger" : "",
+      })
+      : document.createElement("button");
+
+    button.type = "button";
+    if (!window.LongtailForge?.icons?.createIconButton) {
+      button.textContent = label;
+    }
+    button.addEventListener("click", handler);
+    return button;
+  }
+
+  /** @param {string} label */
+  function taskActionIcon(label) {
+    const icons = {
+      Archive: "archive",
+      Complete: "complete",
+      "Copy Link": "copy",
+      Duplicate: "duplicate",
+      Edit: "edit",
+      "Follow Notifications": "bell",
+      Block: "pause",
+      Reopen: "restore",
+      Restore: "restore",
+      Resume: "start",
+    };
+    return Reflect.get(icons, label) || "more";
+  }
+
+  /** @param {unknown} [progress] */
+  function checklistProgressText(progress = {}) {
+    const total = Number(taskRowField(progress, "total_count")) || 0;
+
+    if (total <= 0) {
+      return "";
+    }
+
+    const completed = Number(taskRowField(progress, "completed_count")) || 0;
+    const next = taskRowField(progress, "next_incomplete_item_label") ? `, next: ${taskRowField(progress, "next_incomplete_item_label")}` : "";
+    return `${completed}/${total}${next}`;
+  }
+
+  /** @param {unknown} [summary] */
+  function blockingSummaryText(summary = {}) {
+    const blockers = Number(taskRowField(summary, "incomplete_blocking_child_count")) || 0;
+
+    if (blockers <= 0) {
+      return "";
+    }
+
+    return `${blockers} child${blockers === 1 ? "" : "ren"}`;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFileAttachmentCounts} BrowserFileAttachmentCounts */
+
+  /**
+   * The attachment tally, or `null` when the body is not one this producer sends.
+   *
+   * Every value is checked as a non-negative integer because every one of them is a counter
+   * the server seeded to zero and then incremented. No finiteness test guards them: JSON
+   * carries neither `NaN` nor `Infinity`, so requiring an integer already excludes both.
+   *
+   * `meta` is not read. The producer omits it entirely on its empty-request return, and
+   * refusing a tally over a member nothing here renders would be inventing a contract for it.
+   * @param {unknown} body
+   * @returns {Record<string, number> | null}
+   */
+  function readAttachmentCounts(body) {
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return null;
+    }
+
+    const counts = /** @type {Record<string, unknown>} */ (body).counts;
+
+    if (typeof counts !== "object" || counts === null || Array.isArray(counts)) {
+      return null;
+    }
+
+    const tally = /** @type {Record<string, unknown>} */ (counts);
+
+    return Object.keys(tally).every((key) => (
+      typeof tally[key] === "number" && Number.isInteger(tally[key]) && Number(tally[key]) >= 0
+    ))
+      ? /** @type {Record<string, number>} */ (counts)
+      : null;
+  }
+
+  /** @param {unknown[]} tasks @returns {Promise<Record<string, number>>} */
+  async function loadAttachmentCounts(tasks) {
+    const api = requireApi();
+    const targetIds = tasks.map((task) => taskRowField(task, "task_id")).filter(Boolean);
+
+    if (targetIds.length === 0) {
+      return {};
+    }
+
+    try {
+      const counts = readAttachmentCounts(await api.getJson(`/api/files/attachments/counts?${new URLSearchParams({
+        moduleId: "tasks",
+        targetType: "task",
+        targetIds: targetIds.join(","),
+      }).toString()}`, { cache: "no-store" }));
+
+      if (!counts) {
+        throw new Error("The attachment counts could not be read.");
+      }
+
+      return counts;
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * The Notes Linked Panel surface, which owns this producer's reader.
+   *
+   * Acquired at the point of use like every other surface this page depends on: `tasks.html`
+   * loads `shared/notes-linked-panel.js` before this script, so a missing surface is a delivery
+   * fault worth failing on rather than optional-chaining past.
+   * @returns {import("../../src/types/browser-contracts.js").BrowserNotesLinkedPanel}
+   */
+  function requireNotesLinkedPanel() {
+    const panel = window.LongtailForge?.notesLinkedPanel;
+    if (!panel) {
+      throw new Error("Tasks requires LongtailForge.notesLinkedPanel.");
+    }
+    return panel;
+  }
+
+  /** @param {unknown[]} tasks */
+  async function loadNoteCounts(tasks) {
+    const api = requireApi();
+    /** @type {Record<PropertyKey, number>} */
+    const counts = {};
+
+    await Promise.all(tasks.map(async (task) => {
+      if (!taskRowField(task, "task_id")) {
+        return;
+      }
+      try {
+        const result = await api.getJson(`/api/notes/for-target?${new URLSearchParams({
+          moduleId: "tasks",
+          targetType: "task",
+          targetId: `${taskRowField(task, "task_id")}`,
+        }).toString()}`, { cache: "no-store" });
+        const panel = requireNotesLinkedPanel().readForTarget(result);
+        if (!panel) {
+          throw new Error("Linked note count could not be read.");
+        }
+        counts[taskRowKey(taskRowField(task, "task_id"))] = panel.count;
+      } catch {
+        counts[taskRowKey(taskRowField(task, "task_id"))] = 0;
+      }
+    }));
+
+    return counts;
+  }
+
+  /** @param {Element} target @param {unknown} task */
+  function appendAttachmentCount(target, task) {
+    const count = Number(Reflect.get(state.attachmentCounts, taskRowKey(taskRowField(task, "task_id"))) || 0);
+
+    if (count <= 0) {
+      return;
+    }
+
+    const chip = document.createElement("span");
+
+    chip.className = "task-attachment-count";
+    chip.textContent = `${count} file${count === 1 ? "" : "s"}`;
+    target.appendChild(chip);
+  }
+
+  /** @param {Element} target @param {unknown} task */
+  function appendNoteCount(target, task) {
+    const count = Number(Reflect.get(state.noteCounts, taskRowKey(taskRowField(task, "task_id"))) || 0);
+
+    if (count <= 0) {
+      return;
+    }
+
+    const chip = document.createElement("button");
+
+    chip.type = "button";
+    chip.className = "task-note-count";
+    chip.textContent = `${count} note${count === 1 ? "" : "s"}`;
+    chip.title = "Open task notes";
+    chip.addEventListener("click", () => openTaskDialog(task, { focusNotes: true }));
+    target.appendChild(chip);
+  }
+
+  /** @param {unknown} task */
+  async function followTaskNotifications(task) {
+    const subscriptions = requireNamespace().notificationSubscriptions;
+
+    if (!subscriptions) {
+      setStatus("Notification following is unavailable.", { isError: true });
+      return;
+    }
+
+    setStatus("Following task notifications...");
+
+    try {
+      const follow = subscriptions.follow;
+      /** @type {unknown} */
+      const target = Reflect.apply(subscriptions.taskTarget, subscriptions, [taskRowField(task, "task_id")]);
+      await Reflect.apply(follow, subscriptions, [target]);
+      setStatus("Task notifications followed.");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Task notifications were not followed."), { isError: true });
+    }
+  }
+
+  /** @param {TaskLifecycleAction} action @param {unknown} task */
+  async function confirmTaskLifecycleAction(action, task) {
+    const modal = requireModalDialogs();
+    /** @type {Partial<NonNullable<TaskLifecycleAction["confirm"]>>} */
+    const confirmOptions = typeof action.confirm === "object" ? action.confirm : {};
+    const message = typeof confirmOptions.message === "function"
+      ? confirmOptions.message(task)
+      : confirmOptions.message || `Continue with ${action.label || action.id}?`;
+    if (modal?.confirm) {
+      return modal.confirm({
+        title: confirmOptions.title || action.label || "Confirm task action",
+        message,
+        confirmLabel: confirmOptions.confirmLabel || action.label || "Continue",
+        danger: confirmOptions.danger === true || action.role === "destructive",
+      });
+    }
+    if (typeof window.confirm === "function") {
+      return window.confirm(message);
+    }
+    return true;
+  }
+
+  /** @param {unknown} task @param {string} action */
+  async function postTaskAction(task, action) {
+    const api = requireApi();
+    setStatus(`${formatToken(action)} task...`);
+
+    try {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskActionField(task, "task_id")}`)}/${action}`, {});
+      const actionTask = requireTaskRecords().readTaskDetail(result);
+      const actionContinuity = requireTaskRecords().readRecurrenceContinuity(result);
+      upsertTask(actionTask);
+      await reloadTaskList();
+      if (action === "complete" && actionContinuity) {
+        renderTaskRecurrenceContinuity(actionContinuity);
+        trackTaskRecurrenceContinuity(actionTask?.task_id || taskActionField(task, "task_id"), actionContinuity);
+      } else if (action === "complete") {
+        setStatus("Task completed.");
+      } else {
+        setStatus("");
+      }
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Task action failed."), { isError: true });
+    }
+  }
+
+  /** @param {unknown} task @param {NonNullable<TaskLifecycleAction["statusPayload"]>} payload */
+  async function updateTaskLifecycleStatus(task, payload) {
+    const api = requireApi();
+    setStatus(`${formatToken(payload.status)} task...`);
+
+    try {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskActionField(task, "task_id")}`)}`, payload);
+      const lifecycleTask = requireTaskRecords().readTaskDetail(result);
+      const lifecycleContinuity = requireTaskRecords().readRecurrenceContinuity(result);
+      upsertTask(lifecycleTask);
+      await reloadTaskList();
+      if (lifecycleContinuity) {
+        renderTaskRecurrenceContinuity(lifecycleContinuity);
+        trackTaskRecurrenceContinuity(lifecycleTask?.task_id || taskActionField(task, "task_id"), lifecycleContinuity);
+      } else {
+        setStatus("");
+      }
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Task action failed."), { isError: true });
+    }
+  }
+
+  /** @param {unknown} continuity */
+  function renderTaskRecurrenceContinuity(continuity) {
+    const tasksDialog = requireNamespace().tasksDialog;
+    const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
+    setStatus(message);
+    tasksDialog?.renderRecurrenceContinuity?.(taskStatus, continuity);
+  }
+
+  /** @param {import("../../src/types/browser-contracts.js").BrowserTaskBulkRecurrenceContinuity[]} continuities */
+  function renderBulkRecurrenceContinuity(continuities = []) {
+    const messages = continuities
+      .map((continuity) => requireNamespace().tasksDialog?.recurrenceContinuityMessage?.(continuity))
+      .filter(Boolean);
+    const message = `Updated recurring tasks. ${messages.join(" ")}`.trim();
+    setStatus(message);
+
+    for (const continuity of continuities) {
+      if (continuity.status !== "available" || !continuity.nextTask?.url) {
+        continue;
+      }
+      const link = document.createElement("a");
+      link.className = "button button-secondary button-compact";
+      link.href = continuity.nextTask.url;
+      link.textContent = `Open ${continuity.nextTask.title || "next task"}`;
+      requireTaskElement(taskStatus).append(document.createTextNode(" "), link);
+    }
+  }
+
+  /** @param {unknown} taskId @param {unknown} initialContinuity */
+  function trackTaskRecurrenceContinuity(taskId, initialContinuity) {
+    if (!taskId || (initialContinuity === null || initialContinuity === undefined ? undefined : taskRowField(initialContinuity, "status")) !== "pending") {
+      return;
+    }
+
+    const tracker = Symbol(`${taskId}`);
+    recurrenceContinuityTrackers.set(taskId, tracker);
+    requireNamespace().tasksDialog?.pollRecurrenceContinuity?.(taskId, {
+      initialContinuity,
+      /** @param {unknown} continuity */
+      onUpdate: async (continuity) => {
+        if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
+          return;
+        }
+        if ((continuity === null || continuity === undefined ? undefined : taskRowField(continuity, "status")) === "available") {
+          await reloadTaskList();
+        }
+        renderTaskRecurrenceContinuity(continuity);
+      },
+    }).catch(() => {
+      // Keep the safe scheduled-date message; navigation or the recurrence sweep can recover it.
+    }).finally(() => {
+      if (recurrenceContinuityTrackers.get(taskId) === tracker) {
+        recurrenceContinuityTrackers.delete(taskId);
+      }
+    });
+  }
+
+  /** @param {unknown} task */
+  function duplicateTask(task) {
+    openTaskDialog(task, { duplicate: true });
+  }
+
+  /**
+   * The Task dialog, which `tasks.html` loads before this controller.
+   *
+   * Only the two openers below require it. Every other reader on this page - the recurrence
+   * message, the continuity render and the poller - keeps its optional chain, because those run
+   * from a status area that a host without the dialog still renders.
+   * @returns {BrowserTasksDialog}
+   */
+  function requireTasksDialog() {
+    const tasksDialog = requireNamespace().tasksDialog;
+
+    if (!tasksDialog) {
+      throw new Error("The Task dialog is required by the Tasks page.");
+    }
+
+    return tasksDialog;
+  }
+
+  /**
+   * Local opener values, built by row, Notes-count and workflow callers; the host channel stays opaque.
+   * @typedef {{defaults?: {status?: string}, duplicate?: boolean, focusNotes?: boolean, focusTarget?: string, promptBlockedReason?: boolean, returnFocusTo?: unknown, hostContext?: unknown}} TaskDialogOpenOptions
+   */
+  /** @param {unknown} [task] @param {TaskDialogOpenOptions} [options] */
+  function openTaskDialog(task = null, options = {}) {
+    state.editingTaskId = options.duplicate === true ? "" : optionalTaskLifecycleId(task) || "";
+    configureTaskDialog();
+    return requireTasksDialog().openTaskEditor({
+      defaults: options.defaults || {},
+      duplicate: options.duplicate === true,
+      focusNotes: options.focusNotes === true,
+      focusTarget: options.focusTarget || "",
+      mode: task && options.duplicate !== true ? "edit" : "add",
+      promptBlockedReason: options.promptBlockedReason === true,
+      returnFocusTo: options.returnFocusTo || document.activeElement,
+      task,
+    }, options.hostContext || null);
+  }
+
+  /** @param {unknown} taskId @param {unknown} [returnFocusTo] */
+  function openTaskDialogById(taskId, returnFocusTo = null) {
+    if (!taskId) {
+      return null;
+    }
+    state.editingTaskId = taskId;
+    configureTaskDialog();
+    return requireTasksDialog().openTaskEditor({
+      mode: "edit",
+      returnFocusTo: returnFocusTo || document.activeElement,
+      taskId,
+    });
+  }
+
+  function configureTaskDialog() {
+    requireNamespace().tasksDialog?.configure?.({
+      currentUserId: currentUserId(),
+      /** @param {unknown} result */
+      onSaved: async (result) => {
+        if (taskActionField(result, "task")) {
+          upsertTask(taskActionField(result, "task"));
+        }
+        await reloadTaskList();
+        if (taskActionField(result, "recurrenceContinuity")) {
+          globalThis.setTimeout(() => {
+            renderTaskRecurrenceContinuity(taskActionField(result, "recurrenceContinuity"));
+            trackTaskRecurrenceContinuity(optionalTaskLifecycleId(taskActionField(result, "task")) || "", taskActionField(result, "recurrenceContinuity"));
+          }, 0);
+        }
+      },
+      onAttachmentsChanged: refreshTaskAttachmentCounts,
+      onAttachmentsRefreshed: refreshTaskAttachmentCounts,
+      onNotesChanged: refreshTaskNoteCounts,
+      options: state.options,
+      setStatus,
+      tagOptions: state.tagOptions,
+      taskTimers: state.taskTimers,
+      tasks: state.tasks,
+    });
+  }
+
+  async function refreshTaskAttachmentCounts() {
+    state.attachmentCounts = await loadAttachmentCounts(state.tasks);
+    renderTasks();
+  }
+
+  async function refreshTaskNoteCounts() {
+    state.noteCounts = await loadNoteCounts(state.tasks);
+    renderTasks();
+  }
+
+  async function loadTaskTimers() {
+    const api = requireApi();
+    try {
+      return await api.getJson("/api/tasks/timers", { cache: "no-store" });
+    } catch {
+      return { timers: [] };
+    }
+  }
+
+  async function loadTagOptions() {
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.loadTags) {
+      return [];
+    }
+
+    try {
+      return await tagSurface.loadTags();
+    } catch {
+      return [];
+    }
+  }
+
+  /** @param {Element | null | undefined} container @param {unknown} tags */
+  function appendTagChips(container, tags) {
+    if (!container) {
+      return;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "tag-chip-list";
+    tagSurface.renderTagList(list, tags);
+    container.appendChild(list);
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLElement} */
+  function requireBulkElement(control) {
+    if (control instanceof HTMLElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk element control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLDetailsElement} */
+  function requireBulkDetails(control) {
+    if (control instanceof HTMLDetailsElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLDetailsElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk details control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLButtonElement} */
+  function requireBulkButton(control) {
+    if (control instanceof HTMLButtonElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLButtonElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk button control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control */
+  function optionalBulkSelect(control) {
+    return control == null ? undefined : requireBulkSelect(control);
+  }
+
+  /** @param {Element | null | undefined} control */
+  function optionalBulkInput(control) {
+    return control == null ? undefined : requireBulkInput(control);
+  }
+
+  /** @param {unknown} tag @returns {unknown} */
+  function bulkTaskTagId(tag) {
+    if (tag === null || tag === undefined) throw new TypeError("Tasks bulk tag row is unavailable.");
+    return Reflect.get(Object(tag), "tag_id");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLInputElement} */
+  function requireBulkInput(control) {
+    if (control instanceof HTMLInputElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLInputElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk input control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLSelectElement} */
+  function requireBulkSelect(control) {
+    if (control instanceof HTMLSelectElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLSelectElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk select control is unavailable.");
+  }
+
+  /** @param {Event} [event] */
+  async function applyBulkAction(event) {
+    const api = requireApi();
+    if (!await captureBulkBlockedReason(event?.currentTarget || bulkApplyButton)) {
+      return;
+    }
+    const taskIds = [...state.selectedTaskIds];
+    const actions = selectedBulkActions(taskIds);
+
+    if (actions.length === 0) {
+      return;
+    }
+
+    if (!await confirmMixedBulkActions(actions, taskIds)) {
+      return;
+    }
+
+    setStatus("Updating selected tasks...");
+
+    try {
+      const results = [];
+      const errors = [];
+      const recurrenceContinuities = [];
+
+      for (const payload of actions) {
+        const result = await api.postJson("/api/tasks/bulk", payload);
+        results.push(...requireTaskRecords().readBulkTasks(result));
+        errors.push(...requireErrors().readBulkFailures(result));
+        recurrenceContinuities.push(...requireTaskRecords().readBulkRecurrenceContinuities(result));
+      }
+
+      results.forEach(upsertTask);
+      state.selectedTaskIds.clear();
+      resetBulkInputs();
+      await reloadTaskList();
+      if (errors.length) {
+        const firstError = errors[0]?.message ? ` ${errors[0].message}` : "";
+        setStatus(`Updated ${results.length} task changes. ${errors.length} changes could not be updated.${firstError}`, {
+          isError: results.length === 0,
+        });
+      } else if (recurrenceContinuities.length > 0) {
+        renderBulkRecurrenceContinuity(recurrenceContinuities);
+        recurrenceContinuities.forEach((continuity) => {
+          trackTaskRecurrenceContinuity(continuity.task_id, continuity);
+        });
+      } else {
+        setStatus(`Updated ${results.length} task changes.`);
+      }
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Selected tasks were not updated."), { isError: true });
+    }
+  }
+
+  /** @param {EventTarget | null} [trigger] */
+  async function captureBulkBlockedReason(trigger = null) {
+    if (optionalBulkSelect(bulkStatusInput)?.value !== "blocked" || optionalBulkInput(bulkBlockedReasonInput)?.value.trim()) {
+      return true;
+    }
+
+    const result = await requireCapturePrompt().open({
+      cancelLabel: "Cancel",
+      confirmLabel: "Continue",
+      label: "Blocked reason",
+      prompt: "Why is the task now blocked?",
+      trigger,
+    });
+    if (!result.confirmed) {
+      return false;
+    }
+
+    requireBulkInput(bulkBlockedReasonInput).value = result.value;
+    updateBulkControls();
+    return true;
+  }
+
+  function updateBulkControls() {
+    const taskIds = [...state.selectedTaskIds];
+    const selectedCount = taskIds.length;
+
+    updateBulkToolbarSummary(selectedCount);
+    updateBulkLifecycleOptions(taskIds);
+    const hasSelectedAction = selectedBulkActions(taskIds).length > 0;
+    const blockedStatusSelected = optionalBulkSelect(bulkStatusInput)?.value === "blocked";
+    bulkStatusControl?.removeAttribute("hidden");
+    if (bulkBlockedReasonControl) {
+      requireBulkElement(bulkBlockedReasonControl).hidden = !blockedStatusSelected;
+    }
+    if (bulkBlockedReasonInput) {
+      requireBulkInput(bulkBlockedReasonInput).required = false;
+      bulkBlockedReasonInput.removeAttribute("aria-invalid");
+    }
+    bulkPriorityControl?.removeAttribute("hidden");
+    bulkProjectControl?.removeAttribute("hidden");
+    bulkDueDateControl?.removeAttribute("hidden");
+    bulkDueTimeControl?.removeAttribute("hidden");
+    bulkAssigneeControl?.removeAttribute("hidden");
+    syncBulkDueControlStates();
+    if ((state.tagOptions || []).length > 0) {
+      bulkTagActionControl?.removeAttribute("hidden");
+      bulkTagsControl?.removeAttribute("hidden");
+    }
+
+    if (bulkApplyButton) {
+      requireBulkButton(bulkApplyButton).disabled = selectedCount === 0 || !hasSelectedAction;
+      bulkApplyButton.textContent = `Apply to ${selectedCount}`;
+    }
+
+    if (bulkToolbar && selectedCount > 0) {
+      requireBulkDetails(bulkToolbar).open = true;
+    }
+  }
+
+  /** @param {number} selectedCount */
+  function updateBulkToolbarSummary(selectedCount) {
+    if (!bulkSelectionCount) {
+      return;
+    }
+
+    bulkSelectionCount.textContent = `${selectedCount} selected`;
+    requireBulkElement(bulkSelectionCount).hidden = selectedCount === 0;
+  }
+
+  /**
+   * Outgoing action members are established by the bulk controls and selected task ids.
+   * @typedef {{action: string, task_ids: unknown[], status?: string, blocked_reason?: string, priority?: string, project_id?: string, client_id?: string, due_date?: string, due_time?: string, assignee_ids?: string[], tagIds?: string[]}} TasksBulkAction
+   */
+  /** @param {unknown[]} taskIds */
+  function selectedBulkActions(taskIds) {
+    if (taskIds.length === 0) {
+      return [];
+    }
+
+    /** @type {TasksBulkAction[]} */
+    const actions = [];
+    const lifecycleAction = optionalBulkSelect(bulkLifecycleInput)?.value || "";
+    const status = optionalBulkSelect(bulkStatusInput)?.value || "";
+    const blockedReason = optionalBulkInput(bulkBlockedReasonInput)?.value.trim() || "";
+    const priority = optionalBulkSelect(bulkPriorityInput)?.value || "";
+    const projectId = optionalBulkSelect(bulkProjectInput)?.value || "";
+    const dueDate = optionalBulkInput(bulkDueDateInput)?.value || "";
+    const shouldClearDueDate = Boolean(optionalBulkInput(bulkClearDueDateInput)?.checked);
+    const dueTime = optionalBulkInput(bulkDueTimeInput)?.value || "";
+    const shouldClearDueTime = Boolean(optionalBulkInput(bulkClearDueTimeInput)?.checked);
+    const assigneeIds = selectedBulkAssigneeIds();
+    const tagAction = optionalBulkSelect(bulkTagActionInput)?.value || "";
+    const tagIds = selectedBulkTagIds();
+
+    if (lifecycleAction === "restore") {
+      pushLifecycleBulkAction(actions, lifecycleAction, taskIds);
+    }
+
+    if (status) {
+      actions.push({
+        action: "status",
+        task_ids: taskIds,
+        status,
+        blocked_reason: status === "blocked" ? blockedReason : "",
+      });
+    }
+
+    if (priority) {
+      actions.push({ action: "priority", task_ids: taskIds, priority });
+    }
+
+    if (projectId) {
+      const project = (state.options.projects || []).find((entry) => entry.id === projectId);
+      actions.push({
+        action: "project_assign",
+        task_ids: taskIds,
+        project_id: projectId,
+        ...(usesClientScope() ? { client_id: project?.client_id || "" } : {}),
+      });
+    }
+
+    if (shouldClearDueDate || dueDate) {
+      actions.push({ action: "due_date", task_ids: taskIds, due_date: shouldClearDueDate ? "" : dueDate });
+    }
+
+    if (!shouldClearDueDate && (shouldClearDueTime || dueTime)) {
+      actions.push({ action: "due_time", task_ids: taskIds, due_time: shouldClearDueTime ? "" : dueTime });
+    }
+
+    if (assigneeIds.length > 0) {
+      actions.push({ action: "assignee_replace", task_ids: taskIds, assignee_ids: assigneeIds });
+    }
+
+    if (tagAction && tagIds.length > 0) {
+      actions.push({ action: tagAction, task_ids: taskIds, tagIds });
+    }
+
+    if (lifecycleAction === "archive") {
+      pushLifecycleBulkAction(actions, lifecycleAction, taskIds);
+    }
+
+    return actions;
+  }
+
+  /** @param {TasksBulkAction[]} actions @param {string} lifecycleAction @param {unknown[]} taskIds */
+  function pushLifecycleBulkAction(actions, lifecycleAction, taskIds) {
+    const lifecycleTaskIds = bulkLifecycleTaskIds(lifecycleAction, taskIds);
+
+    if (lifecycleTaskIds.length > 0) {
+      actions.push({ action: lifecycleAction, task_ids: lifecycleTaskIds });
+    }
+  }
+
+  /** @param {string} lifecycleAction @param {unknown[]} taskIds */
+  function bulkLifecycleTaskIds(lifecycleAction, taskIds) {
+    return selectedTasksForBulk(taskIds)
+      .filter((task) => lifecycleAction === "restore"
+        ? taskRowField(task, "status") === "archived"
+        : taskRowField(task, "status") !== "archived")
+      .map((task) => taskRowField(task, "task_id"));
+  }
+
+  /** @param {unknown[]} taskIds */
+  function selectedTasksForBulk(taskIds) {
+    const ids = new Set(taskIds);
+    return state.tasks.filter((task) => ids.has(taskRowField(task, "task_id")));
+  }
+
+  /** @param {unknown[]} taskIds */
+  function updateBulkLifecycleOptions(taskIds) {
+    if (!bulkLifecycleControl || !bulkLifecycleInput) {
+      return;
+    }
+
+    const selectedTasks = selectedTasksForBulk(taskIds);
+    const canArchive = selectedTasks.some((task) => taskRowField(task, "status") !== "archived");
+    const canRestore = selectedTasks.some((task) => taskRowField(task, "status") === "archived");
+    const selectedValue = requireBulkSelect(bulkLifecycleInput).value;
+    const options = [{ value: "", label: "-" }];
+
+    if (canArchive) {
+      options.push({ value: "archive", label: "Archive selected" });
+    }
+
+    if (canRestore) {
+      options.push({ value: "restore", label: "Restore selected" });
+    }
+
+    bulkLifecycleInput.replaceChildren(...options.map((entry) => {
+      const option = document.createElement("option");
+      option.value = entry.value;
+      option.textContent = entry.label;
+      return option;
+    }));
+
+    requireBulkSelect(bulkLifecycleInput).value = options.some((entry) => entry.value === selectedValue) ? selectedValue : "";
+    requireBulkElement(bulkLifecycleControl).hidden = selectedTasks.length === 0 || options.length <= 1;
+  }
+
+  /** @param {TasksBulkAction[]} actions @param {unknown[]} taskIds */
+  async function confirmMixedBulkActions(actions, taskIds) {
+    const modal = requireModalDialogs();
+    const warnings = mixedBulkActionWarnings(actions, taskIds);
+
+    if (actions.some((action) => action.action === "archive")) {
+      return confirmBulkArchive(actions, taskIds, warnings);
+    }
+
+    if (warnings.length === 0) {
+      return true;
+    }
+
+    if (!modal?.confirm) {
+      return window.confirm(`${warnings.join(" ")} Apply these bulk changes?`);
+    }
+
+    return modal.confirm({
+      title: "Apply bulk task changes?",
+      message: `${warnings.join(" ")} Apply these bulk changes to ${taskIds.length} selected task${taskIds.length === 1 ? "" : "s"}?`,
+      confirmLabel: "Apply Changes",
+      cancelLabel: "Review First",
+    });
+  }
+
+  /** @param {TasksBulkAction[]} actions @param {unknown[]} taskIds @param {string[]} [warnings] */
+  async function confirmBulkArchive(actions, taskIds, warnings = []) {
+    const modal = requireModalDialogs();
+    const archiveAction = actions.find((action) => action.action === "archive");
+    const archiveCount = archiveAction?.task_ids?.length || taskIds.length;
+    const archiveText = `Archive ${archiveCount} selected task${archiveCount === 1 ? "" : "s"}? Archived tasks move to the Archived view and can be restored later.`;
+    const message = [warnings.join(" "), archiveText].filter(Boolean).join(" ");
+
+    if (!modal?.confirm) {
+      return window.confirm(message);
+    }
+
+    return modal.confirm({
+      title: "Archive selected tasks?",
+      message,
+      confirmLabel: "Archive Tasks",
+      cancelLabel: "Review First",
+      danger: true,
+    });
+  }
+
+  /** @param {TasksBulkAction[]} actions @param {unknown[]} taskIds */
+  function mixedBulkActionWarnings(actions, taskIds) {
+    const selectedTasks = state.tasks.filter((task) => taskIds.includes(taskRowField(task, "task_id")));
+    const warnings = [];
+
+    if (actions.some((action) => action.action === "due_date") && hasMixedValues(selectedTasks, "due_date")) {
+      warnings.push("Selected tasks currently have different due dates.");
+    }
+
+    if (actions.some((action) => action.action === "due_time") && hasMixedValues(selectedTasks, "due_time")) {
+      warnings.push("Selected tasks currently have different due times.");
+    }
+
+    if (actions.some((action) => action.action === "project_assign") && hasMixedValues(selectedTasks, "project_id")) {
+      warnings.push("Selected tasks currently have different Projects.");
+    }
+
+    if (actions.some((action) => ["tag_add", "tag_remove", "tag_replace"].includes(action.action)) && hasMixedTagValues(selectedTasks)) {
+      warnings.push("Selected tasks currently have different tags.");
+    }
+
+    return warnings;
+  }
+
+  /** @param {unknown[]} tasks @param {"due_date" | "due_time" | "project_id"} fieldName */
+  function hasMixedValues(tasks, fieldName) {
+    return new Set(tasks.map((task) => taskRowField(task, fieldName) || "")).size > 1;
+  }
+
+  /** @param {unknown[]} tasks */
+  function hasMixedTagValues(tasks) {
+    const values = tasks.map((task) =>
+      callTaskRowMethod(callTaskRowMethod(callTaskRowMethod(callTaskRowMethod(
+        taskRowField(task, "tags") || [], "map", [(/** @type {unknown} */ tag) => bulkTaskTagId(tag)],
+      ), "filter", [Boolean]), "sort", []), "join", ["|"])
+    );
+    return new Set(values).size > 1;
+  }
+
+  function syncBulkDueControlStates() {
+    if (bulkDueDateInput && bulkClearDueDateInput) {
+      requireBulkInput(bulkDueDateInput).disabled = requireBulkInput(bulkClearDueDateInput).checked;
+    }
+
+    if (bulkDueTimeInput && bulkClearDueTimeInput) {
+      requireBulkInput(bulkDueTimeInput).disabled = requireBulkInput(bulkClearDueTimeInput).checked || Boolean(optionalBulkInput(bulkClearDueDateInput)?.checked);
+    }
+
+    if (bulkClearDueTimeInput) {
+      requireBulkInput(bulkClearDueTimeInput).disabled = Boolean(optionalBulkInput(bulkClearDueDateInput)?.checked);
+    }
+  }
+
+  function selectedBulkAssigneeIds() {
+    return [...(bulkAssigneesControl?.querySelectorAll("input[type='checkbox']:checked") || [])]
+      .map((input) => requireBulkInput(input).value)
+      .filter(Boolean);
+  }
+
+  function selectedBulkTagIds() {
+    return [...(optionalBulkSelect(bulkTagsInput)?.selectedOptions || [])]
+      .map((option) => option.value)
+      .filter(Boolean);
+  }
+
+  function resetBulkInputs() {
+    if (bulkStatusInput) {
+      requireBulkSelect(bulkStatusInput).value = "";
+    }
+    if (bulkBlockedReasonInput) {
+      requireBulkInput(bulkBlockedReasonInput).value = "";
+      requireBulkInput(bulkBlockedReasonInput).required = false;
+      bulkBlockedReasonInput.removeAttribute("aria-invalid");
+    }
+    if (bulkBlockedReasonControl) {
+      requireBulkElement(bulkBlockedReasonControl).hidden = true;
+    }
+    if (bulkPriorityInput) {
+      requireBulkSelect(bulkPriorityInput).value = "";
+    }
+    if (bulkClientInput?.isConnected) {
+      requireBulkSelect(bulkClientInput).value = BULK_CLIENT_ALL_VALUE;
+    }
+    populateBulkProjectOptions();
+    if (bulkDueDateInput) {
+      requireBulkInput(bulkDueDateInput).value = "";
+    }
+    if (bulkClearDueDateInput) {
+      requireBulkInput(bulkClearDueDateInput).checked = false;
+    }
+    if (bulkDueTimeInput) {
+      requireBulkInput(bulkDueTimeInput).value = "";
+    }
+    if (bulkClearDueTimeInput) {
+      requireBulkInput(bulkClearDueTimeInput).checked = false;
+    }
+    bulkAssigneesControl?.querySelectorAll("input[type='checkbox']").forEach((input) => {
+      requireBulkInput(input).checked = false;
+    });
+    if (bulkTagActionInput) {
+      requireBulkSelect(bulkTagActionInput).value = "";
+    }
+    if (bulkTagsInput) {
+      [...requireBulkSelect(bulkTagsInput).options].forEach((entry) => {
+        entry.selected = false;
+      });
+    }
+    if (bulkLifecycleInput) {
+      requireBulkSelect(bulkLifecycleInput).value = "";
+    }
+    syncBulkDueControlStates();
+  }
+
+  function toggleVisibleSelection() {
+    const tasks = state.tasks;
+
+    tasks.forEach((task) => {
+      if (requireBulkInput(selectAllInput).checked) {
+        state.selectedTaskIds.add(taskRowField(task, "task_id"));
+      } else {
+        state.selectedTaskIds.delete(taskRowField(task, "task_id"));
+      }
+    });
+    renderTasks();
+  }
+
+  /** @param {unknown[]} tasks */
+  function updateSelectionControls(tasks) {
+    if (!selectAllInput) {
+      return;
+    }
+
+    const visibleIds = tasks.map((task) => taskRowField(task, "task_id"));
+    const selectedVisibleCount = visibleIds.filter((taskId) => state.selectedTaskIds.has(taskId)).length;
+
+    requireBulkInput(selectAllInput).checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+    requireBulkInput(selectAllInput).indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
+  }
+
+  /** @param {unknown[]} visibleTasks */
+  function syncSelectionToTasks(visibleTasks) {
+    const validIds = new Set(state.tasks.map((task) => taskRowField(task, "task_id")));
+
+    [...state.selectedTaskIds].forEach((taskId) => {
+      if (!validIds.has(taskId)) {
+        state.selectedTaskIds.delete(taskId);
+      }
+    });
+
+    if (visibleTasks.length === 0) {
+      state.selectedTaskIds.clear();
+    }
+  }
+
+  function usesClientScope() {
+    return state.options.workspaceType === "business";
+  }
+
+  /** @param {boolean} isVisible */
+  function setClientScopeControlsVisible(isVisible) {
+    document.querySelectorAll("[data-client-workspace-control]").forEach((element) => {
+      Reflect.set(element, "hidden", !isVisible);
+    });
+  }
+
+  function handleTaskViewChange() {
+    if (!taskViewSelector) {
+      return;
+    }
+
+    /** @type {ReadonlySet<unknown>} */
+    const viewValues = TASK_VIEW_VALUES;
+    const selectedView = viewValues.has(taskControlValue(taskViewSelector)) ? taskControlValue(taskViewSelector) : DEFAULT_TASK_VIEW;
+    state.quickFilter = selectedView;
+    preserveCompatibleAdvancedFiltersForTaskView(selectedView);
+    saveFilterState();
+    reloadTaskList();
+  }
+
+  function applyQuickFilterDefaults() {
+    setStatusFilterValue(defaultStatusForTaskView(selectedTaskView()));
+  }
+
+  function resetAdvancedTaskFilters() {
+    resetAdvancedFilterControlsForTaskView(selectedTaskView());
+    saveFilterState();
+    reloadTaskList();
+  }
+
+  /** @param {unknown} taskView */
+  function resetAdvancedFilterControlsForTaskView(taskView) {
+    if (sortInput) {
+      Reflect.set(sortInput, "value", "due_asc");
+    }
+    setStatusFilterValue(defaultStatusForTaskView(taskView));
+    setSelectValue(assigneeFilter, "all");
+    setSelectValue(clientFilter, "all");
+    setSelectValue(projectFilter, "all");
+    tagFilterController?.setValue?.("all");
+  }
+
+  /** @param {unknown} taskView */
+  function preserveCompatibleAdvancedFiltersForTaskView(taskView) {
+    if (!isStatusFilterCompatibleWithTaskView(taskView, taskControlValue(statusFilter) || "active")) {
+      setStatusFilterValue(defaultStatusForTaskView(taskView));
+    }
+
+    if (["my", "unassigned"].some((value) => value === taskView)) {
+      setSelectValue(assigneeFilter, "all");
+    }
+
+    if (!usesClientScope()) {
+      setSelectValue(clientFilter, "all");
+    }
+  }
+
+  function updateTaskViewSelectorState() {
+    if (!taskViewSelector) {
+      return;
+    }
+
+    const selectedView = selectedTaskView();
+    /** @type {ReadonlySet<unknown>} */
+    const viewValues = TASK_VIEW_VALUES;
+    Reflect.set(taskViewSelector, "value", viewValues.has(selectedView) ? selectedView : DEFAULT_TASK_VIEW);
+  }
+
+  function selectedTaskView() {
+    /** @type {ReadonlySet<unknown>} */
+    const viewValues = TASK_VIEW_VALUES;
+    return viewValues.has(state.quickFilter) ? state.quickFilter : DEFAULT_TASK_VIEW;
+  }
+
+  /** @param {unknown} taskView */
+  function defaultStatusForTaskView(taskView) {
+    if (taskView === "complete") {
+      return "complete";
+    }
+
+    if (taskView === "archived") {
+      return "archived";
+    }
+
+    return "active";
+  }
+
+  /** @param {unknown} taskView @param {unknown} statusValue */
+  function isStatusFilterCompatibleWithTaskView(taskView, statusValue) {
+    const status = canonicalStatusValue(statusValue);
+
+    if (taskView === "complete") {
+      return status === "complete" || status === "all";
+    }
+
+    if (taskView === "archived") {
+      return status === "archived" || status === "all";
+    }
+
+    return !requireTaskLifecycleLegality().isTerminalStatus(status);
+  }
+
+  /** @param {string} value */
+  function setStatusFilterValue(value) {
+    setSelectValue(statusFilter, value);
+  }
+
+  /** @param {Element | null | undefined} select @param {string} value */
+  function setSelectValue(select, value) {
+    if (!select) {
+      return;
+    }
+    const control = requireBulkSelect(select);
+
+    if ([...control.options].some((item) => item.value === value)) {
+      control.value = value;
+    }
+  }
+
+  /** @param {unknown} task */
+  function upsertTask(task) {
+    const existingIndex = state.tasks.findIndex((item) => taskRowField(item, "task_id") === taskRowField(task, "task_id"));
+
+    if (existingIndex >= 0) {
+      state.tasks.splice(existingIndex, 1, task);
+      return;
+    }
+
+    state.tasks.unshift(task);
+  }
+
+  function openTaskFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const taskId = params.get("task");
+
+    if (params.get("new") === "1") {
+      openTaskDialog();
+      return;
+    }
+
+    if (!taskId) {
+      return;
+    }
+
+    const task = state.tasks.find((item) => taskRowField(item, "task_id") === taskId);
+    if (task) {
+      openTaskDialog(task);
+    }
+  }
+
+  /** @param {unknown} task */
+  async function copyTaskLink(task) {
+    const url = new window.URL(window.location.href);
+    url.searchParams.set("task", `${taskRowField(task, "task_id")}`);
+
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setStatus("Task link copied.");
+    } catch {
+      setStatus(url.toString());
+    }
+  }
+
+  function restoreFilterState() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(TASK_FILTER_STORAGE_KEY) || "{}");
+      if (saved.sort && sortInput) {
+        Reflect.set(sortInput, "value", saved.sort);
+      }
+      if (Object.hasOwn(saved, "quickFilter")) {
+        state.quickFilter = saved.quickFilter === "" ? "all" : TASK_VIEW_VALUES.has(saved.quickFilter)
+          ? saved.quickFilter
+          : DEFAULT_TASK_VIEW;
+      } else {
+        state.quickFilter = DEFAULT_TASK_VIEW;
+      }
+    } catch {
+      state.quickFilter = DEFAULT_TASK_VIEW;
+    }
+    applyQuickFilterDefaults();
+    updateTaskViewSelectorState();
+  }
+
+  function saveFilterState() {
+    window.localStorage.setItem(TASK_FILTER_STORAGE_KEY, JSON.stringify({
+      sort: taskControlValue(sortInput) || "due_asc",
+      quickFilter: state.quickFilter,
+    }));
+  }
+
+  /** @param {Element | null | undefined} select @param {HTMLOptionElement[]} options */
+  function replaceOptions(select, options) {
+    if (!select) {
+      return;
+    }
+    const control = requireBulkSelect(select);
+
+    const previousValues = [...control.selectedOptions].map((item) => item.value);
+    control.replaceChildren(...options);
+
+    if (control.multiple) {
+      [...control.options].forEach((item) => {
+        item.selected = previousValues.includes(item.value);
+      });
+      return;
+    }
+
+    if ([...control.options].some((item) => item.value === previousValues[0])) {
+      control.value = previousValues[0];
+    }
+  }
+
+  /** @param {unknown} value @param {unknown} label */
+  function option(value, label) {
+    return pageController.createOption(value, label);
+  }
+
+  /** @param {unknown} record @param {"optionLabel" | "display_label" | "displayName" | "name" | "title"} key @returns {unknown} */
+  function taskFilterLabelField(record, key) {
+    return record === null || record === undefined ? undefined : Reflect.get(Object(record), key, record);
+  }
+
+  /** @param {unknown} record */
+  function optionLabel(record) {
+    return taskFilterLabelField(record, "optionLabel") || taskFilterLabelField(record, "display_label") || taskFilterLabelField(record, "displayName") || taskFilterLabelField(record, "name") || taskFilterLabelField(record, "title") || "";
+  }
+
+  /** @param {unknown} user */
+  function displayUser(user) {
+    const displayName = String(taskRowField(user, "displayName") || taskRowField(user, "display_name") || taskRowField(user, "username") || taskRowField(user, "user_id") || "").trim();
+    const email = String(taskRowField(user, "username") || taskRowField(user, "email") || "").trim();
+
+    if (displayName && email && displayName !== email) {
+      return `${displayName} (${email})`;
+    }
+
+    return displayName || email || taskRowField(user, "user_id");
+  }
+
+  function getWorkspaceScopeLabel() {
+    if (window.LongtailForge?.getWorkspaceProjectsLabel) {
+      return window.LongtailForge.getWorkspaceProjectsLabel();
+    }
+
+    const workspaceName = String(window.LongtailForge?.workspaceContext?.workspaceName || "").trim() ||
+      taskWorkspaceSelectionText(document.querySelector("[data-workspace-selector]")) ||
+      document.querySelector("[data-workspace-name]")?.textContent?.trim() ||
+      "Workspace";
+
+    return `${workspaceName} Projects`;
+  }
+
+  /** @param {unknown} task */
+  function formatScope(task) {
+    if (taskRowField(task, "project_name") && taskRowField(task, "client_name")) {
+      return `${taskRowField(task, "client_name")} / ${taskRowField(task, "project_name")}`;
+    }
+
+    if (taskRowField(task, "project_name")) {
+      return taskRowField(task, "project_name");
+    }
+
+    if (taskRowField(task, "client_name")) {
+      return taskRowField(task, "client_name");
+    }
+
+    return getWorkspaceScopeLabel();
+  }
+
+  /** @param {unknown} task */
+  function formatDue(task) {
+    if (!taskRowField(task, "due_date")) {
+      return "None";
+    }
+
+    if (!taskRowField(task, "due_time")) {
+      return taskRowField(task, "due_date");
+    }
+
+    const timezones = requireNamespace().timezones;
+    const formatDateTime = timezones?.formatDateTime;
+    /** @type {unknown} */
+    const formatted = formatDateTime === null || formatDateTime === undefined
+      ? undefined
+      : Reflect.apply(formatDateTime, timezones, [taskRowField(task, "due_at_utc"), taskRowField(task, "due_timezone")]);
+    return formatted ||
+      `${taskRowField(task, "due_date")} ${taskRowField(task, "due_time")}`;
+  }
+
+  /** @param {unknown} value */
+  function formatToken(value) {
+    return String(value || "")
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  function currentUserId() {
+    return state.currentUserId ||
+      window.LongtailForge?.workspaceContext?.userId ||
+      "";
+  }
+
+  /** @param {unknown} message @param {{isError?: boolean}} [options] */
+  function setStatus(message, options = {}) {
+    pageController.setStatus(taskStatus, message, options);
+  }
+
+  requirePageController().register("tasks", {
+    snapshot: () => ({
+      taskCount: state.tasks.length,
+      visibleTaskCount: state.tasks.length,
+      selectedTaskCount: state.selectedTaskIds.size,
+      quickFilter: state.quickFilter,
+      sort: taskControlValue(sortInput) || "due_asc",
+      optionCounts: {
+        clients: state.options.clients.length,
+        projects: state.options.projects.length,
+        users: state.options.users.length,
+      },
+    }),
+    runSmoke: () => {
+      const checks = [
+        { name: "task list exists", ok: Boolean(taskList) },
+        { name: "add button exists", ok: Boolean(addTaskButton) },
+        { name: "task dialog exists", ok: Boolean(taskDialog) },
+        { name: "task view selector exists", ok: Boolean(taskViewSelector) },
+        { name: "sort select exists", ok: Boolean(sortInput) },
+        { name: "bulk controls exist", ok: Boolean(bulkToolbar && bulkStatusInput && bulkPriorityInput && bulkAssigneesControl && bulkLifecycleInput && bulkApplyButton) },
+        { name: "copy link exists", ok: Boolean(copyTaskLinkButton) },
+        { name: "recurrence controls exist", ok: Boolean(recurringInput && recurrenceDetailsButton && recurrenceDialog) },
+      ];
+
+      return {
+        ok: checks.every((check) => check.ok),
+        pageId: "tasks",
+        checks,
+      };
+    },
+  });
+})();

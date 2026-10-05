@@ -13,8 +13,17 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { readPayload } from "../../test-support/http-payload-assertions.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
-const root = process.cwd();
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {{ data: { estimate_minutes: unknown, task_id: unknown } }} EstimateRecordPayload */
+/** @typedef {{ data: { task_id: unknown, estimate_minutes: unknown }[] }} EstimateListPayload */
+/** @typedef {{ error: { message: unknown } }} EstimateErrorPayload */
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-estimate-minutes-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "task-estimate-minutes.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -36,6 +45,7 @@ const { taskRecurrenceService } = await import("../../../src/modules/tasks/task-
 const { tasksRepository } = await import("../../../src/modules/tasks/tasks.repo.js");
 const { tasksService } = await import("../../../src/modules/tasks/tasks.service.js");
 
+/** @type {import("node:http").Server | undefined} */
 let server;
 
 try {
@@ -52,14 +62,19 @@ try {
     scopes: ["tasks:read", "tasks:write"],
   }, session);
   server = await listen(createApp());
-  await assertPublicApiRoundTrips(`http://127.0.0.1:${server.address().port}`, apiKey.rawKey);
+  const listeningServer = server;
+  assert.ok(listeningServer, "the public API fixture server should be listening");
+  const address = listeningServer.address();
+  assert.ok(address && typeof address === "object", "the public API fixture server should bind a TCP port");
+  await assertPublicApiRoundTrips(`http://127.0.0.1:${address.port}`, apiKey.rawKey);
 
   const integrity = await querySql("PRAGMA integrity_check;");
   assert.equal(integrity[0]?.integrity_check, "ok");
   console.log("Task estimate minutes regression passed.");
 } finally {
   if (server) {
-    await new Promise((resolve) => server.close(resolve));
+    const listening = server;
+    await new Promise((resolve) => listening.close(() => resolve(undefined)));
   }
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
@@ -71,9 +86,9 @@ function assertStaticContract() {
   assert.match(contractsSource, /estimate_minutes: optionalNullableNumberInput\("Estimate minutes"\)/);
   assert.match(dialogSource, /data-task-estimate-minutes/);
   assert.match(dialogSource, /taskEditorInput\(view, "number", \{[\s\S]*min: "0"[\s\S]*step: "15"/);
-  assert.match(dialogSource, /fields\.estimate\.value = task\?\.estimate_minutes \?\?/,
+  assert.match(dialogSource, /writeTaskControl\(fields\.estimate, "value", task\?\.estimate_minutes \?\?/,
     "duplicate mode should hydrate the source Task estimate through the canonical editor");
-  assert.match(dialogSource, /estimate_minutes: fields\.estimate\.value === "" \? null : Number\(fields\.estimate\.value\)/);
+  assert.match(dialogSource, /estimate_minutes: taskProjectionFields\(requireTaskControl\(fields\.estimate\)\)\.value === "" \? null : Number\(taskProjectionFields\(requireTaskControl\(fields\.estimate\)\)\.value\)/);
   assert.match(recurrenceServiceSource, /estimate_minutes: task\.estimate_minutes/);
   assert.match(recurrenceServiceSource, /estimate_minutes: template\.estimate_minutes/);
 }
@@ -93,10 +108,11 @@ ORDER BY name;
 `);
   assert.equal(schemaRows.length, 2);
   for (const row of schemaRows) {
-    assert.match(row.sql, /estimate_minutes INTEGER[\s\S]*estimate_minutes >= 0[\s\S]*estimate_minutes % 15 = 0/);
+    assert.match(String(row.sql), /estimate_minutes INTEGER[\s\S]*estimate_minutes >= 0[\s\S]*estimate_minutes % 15 = 0/);
   }
 }
 
+/** @param {TasksSession} session */
 async function assertServiceRoundTrips(session) {
   const blank = (await tasksService.create({ title: "No estimate" }, session)).task;
   assert.equal(blank.estimate_minutes, null);
@@ -125,7 +141,7 @@ async function assertServiceRoundTrips(session) {
   for (const invalid of [-15, 1, 14, 16, 22.5, "not-a-duration"]) {
     await assert.rejects(
       tasksService.create({ estimate_minutes: invalid, title: `Invalid estimate ${invalid}` }, session),
-      (error) => error?.statusCode === 400 && /multiple of 15 minutes/.test(error.message),
+      (error) => rejectionStatus(error) === 400 && /multiple of 15 minutes/.test(rejectionMessage(error)),
     );
   }
 
@@ -145,6 +161,7 @@ WHERE workspace_id = :workspaceId
   );
 }
 
+/** @param {TasksSession} session */
 async function assertRecurrencePreservation(session) {
   const recurring = (await tasksService.create({
     due_date: "2026-07-22",
@@ -159,6 +176,7 @@ async function assertRecurrencePreservation(session) {
   }, session)).task;
 
   let template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, recurring.recurrence_template_id);
+  assert.ok(template, "created recurrence template should remain readable");
   assert.equal(template.estimate_minutes, 30);
 
   const updated = (await tasksService.update(recurring.task_id, {
@@ -174,6 +192,7 @@ async function assertRecurrencePreservation(session) {
   assert.equal(updated.estimate_minutes, 75);
 
   template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, recurring.recurrence_template_id);
+  assert.ok(template, "updated recurrence template should remain readable");
   assert.equal(template.estimate_minutes, 75);
 
   const next = await taskRecurrenceService.createNextInstance({
@@ -192,10 +211,12 @@ async function assertRecurrencePreservation(session) {
       }),
     },
   });
+  assert.ok(next, "materializing the next recurrence occurrence should return a result");
   assert.equal(next.wasCreated, true);
   assert.equal(next.task.estimate_minutes, 75);
 }
 
+/** @param {string} baseUrl @param {string} rawKey */
 async function assertPublicApiRoundTrips(baseUrl, rawKey) {
   const created = await apiRequest(baseUrl, "/api/v1/tasks", {
     body: { estimate_minutes: 30, title: "Public API estimated task" },
@@ -203,24 +224,26 @@ async function assertPublicApiRoundTrips(baseUrl, rawKey) {
     rawKey,
   });
   assert.equal(created.status, 201);
-  assert.equal(created.body.data.estimate_minutes, 30);
+  assert.equal(/** @type {EstimateRecordPayload} */ (readPayload(created, ["data"], "public API create")).data.estimate_minutes, 30);
 
-  const taskId = created.body.data.task_id;
+  const taskId = String(/** @type {EstimateRecordPayload} */ (readPayload(created, ["data"], "public API create")).data.task_id);
   const updated = await apiRequest(baseUrl, `/api/v1/tasks/${encodeURIComponent(taskId)}`, {
     body: { estimate_minutes: 60 },
     method: "PUT",
     rawKey,
   });
   assert.equal(updated.status, 200);
-  assert.equal(updated.body.data.estimate_minutes, 60);
+  assert.equal(/** @type {EstimateRecordPayload} */ (readPayload(updated, ["data"], "public API update")).data.estimate_minutes, 60);
 
   const read = await apiRequest(baseUrl, `/api/v1/tasks/${encodeURIComponent(taskId)}`, { rawKey });
   assert.equal(read.status, 200);
-  assert.equal(read.body.data.estimate_minutes, 60);
+  assert.equal(/** @type {EstimateRecordPayload} */ (readPayload(read, ["data"], "public API read")).data.estimate_minutes, 60);
 
   const listed = await apiRequest(baseUrl, "/api/v1/tasks", { rawKey });
   assert.equal(listed.status, 200);
-  assert.equal(listed.body.data.find((task) => task.task_id === taskId)?.estimate_minutes, 60);
+  const listedTasks = /** @type {EstimateListPayload} */ (readPayload(listed, ["data"], "public API list")).data;
+  assert.ok(Array.isArray(listedTasks), "the public API list payload should carry an array of tasks");
+  assert.equal(listedTasks.find((task) => task.task_id === taskId)?.estimate_minutes, 60);
 
   const invalid = await apiRequest(baseUrl, `/api/v1/tasks/${encodeURIComponent(taskId)}`, {
     body: { estimate_minutes: 10 },
@@ -228,7 +251,7 @@ async function assertPublicApiRoundTrips(baseUrl, rawKey) {
     rawKey,
   });
   assert.equal(invalid.status, 400);
-  assert.match(invalid.body.error.message, /multiple of 15 minutes/);
+  assert.match(String(/** @type {EstimateErrorPayload} */ (readPayload(invalid, ["error"], "public API rejection")).error.message), /multiple of 15 minutes/);
 
   const cleared = await apiRequest(baseUrl, `/api/v1/tasks/${encodeURIComponent(taskId)}`, {
     body: { estimate_minutes: null },
@@ -236,9 +259,10 @@ async function assertPublicApiRoundTrips(baseUrl, rawKey) {
     rawKey,
   });
   assert.equal(cleared.status, 200);
-  assert.equal(cleared.body.data.estimate_minutes, null);
+  assert.equal(/** @type {EstimateRecordPayload} */ (readPayload(cleared, ["data"], "public API clear")).data.estimate_minutes, null);
 }
 
+/** @param {string} baseUrl @param {string} route @param {{ body?: unknown, method?: string, rawKey?: string }} [options] @returns {Promise<{ body: unknown, status: number }>} */
 async function apiRequest(baseUrl, route, { body, method = "GET", rawKey } = {}) {
   const response = await fetch(`${baseUrl}${route}`, {
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -255,6 +279,7 @@ async function apiRequest(baseUrl, route, { body, method = "GET", rawKey } = {})
   };
 }
 
+/** @param {import("node:http").Server | { listen: (port: number, host: string, callback: () => void) => import("node:http").Server }} app */
 async function listen(app) {
   return new Promise((resolve, reject) => {
     const nextServer = app.listen(0, "127.0.0.1", () => resolve(nextServer));
@@ -270,18 +295,27 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
   const user = rows[0];
-  assert.ok(user);
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }
 
-function readText(filePath) {
-  return fs.readFile(path.join(root, filePath), "utf8");
+/**
+ * Read the HTTP status a rejected service call carries, proving the value
+ * really is an error object first. A rejection without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

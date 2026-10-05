@@ -20,12 +20,77 @@ const OPERATION_PHASES = new Set([
   ...UNIT_ENTRIES.map((entry) => `promoted-${entry}`),
 ]);
 
+/**
+ * An option name settable through a public-demo activation flag.
+ * @typedef {"confirmQuiescent" | "dataRoot" | "operationId" | "target"} PublicDemoActivationFlagName
+ */
+
+/**
+ * Options while flag parsing is still in progress.
+ * @typedef {object} PublicDemoActivationOptionsDraft
+ * @property {string} action
+ * @property {string} [confirmQuiescent]
+ * @property {string} [dataRoot]
+ * @property {string} [operationId]
+ * @property {string} [target]
+ */
+
+/**
+ * Fully validated activation arguments (dataRoot/target proven present).
+ * @typedef {object} PublicDemoActivationArgs
+ * @property {string} action
+ * @property {string} [confirmQuiescent]
+ * @property {string} dataRoot
+ * @property {string} [operationId]
+ * @property {string} target
+ */
+
+/**
+ * Resolved on-disk locations for one activation operation.
+ * @typedef {object} PublicDemoActivationPaths
+ * @property {string} activeOperation
+ * @property {string} candidateRoot
+ * @property {string} dataRoot
+ * @property {string} failedRoot
+ * @property {string} previousRoot
+ */
+
+/**
+ * Frozen outcome reported by inspect and mutation operations.
+ * @typedef {object} PublicDemoActivationOutcome
+ * @property {boolean} [active]
+ * @property {string} [operationId]
+ * @property {string} [phase]
+ * @property {string} status
+ * @property {string} target
+ */
+
+/**
+ * The persisted reset-operation marker document.
+ * @typedef {object} PublicDemoResetOperation
+ * @property {string} [completedAt]
+ * @property {string} contract
+ * @property {string} generatedAt
+ * @property {string} operationId
+ * @property {string} phase
+ * @property {string} [recoveredAt]
+ * @property {string} state
+ * @property {string} target
+ */
+
+/**
+ * Parse and strictly validate the activation command line.
+ * @param {readonly string[]} args raw CLI arguments after the script path
+ * @returns {Readonly<PublicDemoActivationArgs>}
+ */
 function parsePublicDemoActivationArgs(args) {
   const action = args[0];
   if (!new Set(["activate", "finalize", "inspect", "recover"]).has(action)) {
     throw new Error("Choose activate, finalize, inspect, or recover.");
   }
+  /** @type {PublicDemoActivationOptionsDraft} */
   const options = { action };
+  /** @type {Set<string>} */
   const seen = new Set();
   const flags = new Map([
     ["--confirm-quiescent", "confirmQuiescent"],
@@ -40,7 +105,7 @@ function parsePublicDemoActivationArgs(args) {
     seen.add(flag);
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`${flag} requires a value.`);
-    options[flags.get(flag)] = value;
+    options[/** @type {PublicDemoActivationFlagName} */ (flags.get(flag))] = value;
   }
   if (options.target !== DEMO_DATA_TARGET) throw new Error(`--target must be exactly ${DEMO_DATA_TARGET}.`);
   if (!path.isAbsolute(String(options.dataRoot || ""))) throw new Error("--data-root must be absolute.");
@@ -55,9 +120,13 @@ function parsePublicDemoActivationArgs(args) {
   if (!new Set(["activate", "recover"]).has(action) && options.confirmQuiescent) {
     throw new Error("--confirm-quiescent is accepted only for activate or recover.");
   }
-  return Object.freeze(options);
+  return Object.freeze(/** @type {PublicDemoActivationArgs} */ (options));
 }
 
+/**
+ * Refuse activation outside the exact production Compose demo runtime.
+ * @param {{ dataRoot: string, environment?: NodeJS.ProcessEnv, requireCanonicalDataRoot?: boolean, requireRoot?: boolean, target: string }} input
+ */
 function assertPublicDemoActivationRuntime({
   dataRoot,
   environment = process.env,
@@ -80,6 +149,12 @@ function assertPublicDemoActivationRuntime({
   }
 }
 
+/**
+ * Resolve the frozen activation path set for one operation.
+ * @param {string} dataRoot
+ * @param {string} [operationId]
+ * @returns {Readonly<PublicDemoActivationPaths>}
+ */
 function resolvePublicDemoActivationPaths(dataRoot, operationId = "") {
   const root = path.resolve(dataRoot);
   return Object.freeze({
@@ -91,6 +166,10 @@ function resolvePublicDemoActivationPaths(dataRoot, operationId = "") {
   });
 }
 
+/**
+ * Run one activate/finalize/inspect/recover operation end to end.
+ * @param {{ action: string, dataRoot: string, environment?: NodeJS.ProcessEnv, operationId?: string, requireCanonicalDataRoot?: boolean, requireRoot?: boolean, target: string }} input
+ */
 async function runPublicDemoActivationOperation({
   action,
   dataRoot,
@@ -122,6 +201,11 @@ async function runPublicDemoActivationOperation({
   return finalizeActivation(paths, existing);
 }
 
+/**
+ * Retire the active unit and promote the verified candidate.
+ * @param {PublicDemoActivationPaths} paths
+ * @param {string} operationId
+ */
 async function activateCandidate(paths, operationId) {
   if (await pathExists(paths.activeOperation)) throw new Error("Another public-demo reset operation is active.");
   await assertAbsent(paths.previousRoot, "retained previous unit");
@@ -129,6 +213,7 @@ async function activateCandidate(paths, operationId) {
   await assertUnit(paths.dataRoot, { exact: false, label: "active public-demo unit" });
   await assertUnit(paths.candidateRoot, { exact: true, label: "verified public-demo candidate" });
 
+  /** @type {PublicDemoResetOperation} */
   const operation = {
     contract: PUBLIC_DEMO_ACTIVATION_CONTRACT,
     generatedAt: new Date().toISOString(),
@@ -167,6 +252,11 @@ async function activateCandidate(paths, operationId) {
   return operationResult("baseline-activated", operationId);
 }
 
+/**
+ * Reconstruct the prior unit from an interrupted or finished operation.
+ * @param {PublicDemoActivationPaths} paths
+ * @param {PublicDemoResetOperation} operation
+ */
 async function recoverPrevious(paths, operation) {
   if (operation.phase === "completed") {
     await assertUnit(paths.dataRoot, { exact: false, label: "completed public-demo unit" });
@@ -239,6 +329,11 @@ async function recoverPrevious(paths, operation) {
   return operationResult("prior-unit-recovered", operation.operationId);
 }
 
+/**
+ * Complete an activated operation and retain its evidence.
+ * @param {PublicDemoActivationPaths} paths
+ * @param {PublicDemoResetOperation} operation
+ */
 async function finalizeActivation(paths, operation) {
   if (operation.phase !== "activated") throw new Error("The public-demo reset is not ready for finalization.");
   await assertUnit(paths.dataRoot, { exact: false, label: "activated public-demo unit" });
@@ -251,6 +346,11 @@ async function finalizeActivation(paths, operation) {
   return operationResult("activation-finalized", operation.operationId);
 }
 
+/**
+ * Report the current activation state without mutating anything.
+ * @param {string} markerPath
+ * @returns {Promise<Readonly<PublicDemoActivationOutcome>>}
+ */
 async function inspectActiveOperation(markerPath) {
   const operation = await readOperation(markerPath);
   if (!operation) return Object.freeze({ active: false, status: "no-active-reset", target: DEMO_DATA_TARGET });
@@ -264,6 +364,11 @@ async function inspectActiveOperation(markerPath) {
   });
 }
 
+/**
+ * Validate the reset-operation marker document exactly.
+ * @param {PublicDemoResetOperation | null} operation
+ * @param {string} operationId
+ */
 function assertOperation(operation, operationId) {
   const allowed = new Set(["completedAt", "contract", "generatedAt", "operationId", "phase", "recoveredAt", "state", "target"]);
   if (!operation || Object.keys(operation).some((key) => !allowed.has(key))
@@ -280,6 +385,11 @@ function assertOperation(operation, operationId) {
   }
 }
 
+/**
+ * Verify a directory holds exactly (or at least) one real demo unit.
+ * @param {string} root
+ * @param {{ allowSidecars?: boolean, exact: boolean, label: string }} expectations
+ */
 async function assertUnit(root, { allowSidecars = false, exact, label }) {
   await assertRealDirectory(root, `${label} root`);
   const entries = await fs.readdir(root);
@@ -296,10 +406,14 @@ async function assertUnit(root, { allowSidecars = false, exact, label }) {
   await assertNoLinks(path.join(root, "files"));
 }
 
+/**
+ * Reject any symbolic link anywhere beneath the given root.
+ * @param {string} root
+ */
 async function assertNoLinks(root) {
   const pending = [root];
   while (pending.length) {
-    const current = pending.pop();
+    const current = /** @type {string} */ (pending.pop());
     const stats = await fs.lstat(current);
     if (stats.isSymbolicLink()) throw new Error("Public-demo activation state contains a symbolic link.");
     if (!stats.isDirectory()) continue;
@@ -307,20 +421,40 @@ async function assertNoLinks(root) {
   }
 }
 
+/**
+ * Require a real (non-link) directory.
+ * @param {string} target
+ * @param {string} label
+ */
 async function assertRealDirectory(target, label) {
   const stats = await fs.lstat(target).catch(() => null);
   if (!stats?.isDirectory() || stats.isSymbolicLink()) throw new Error(`${label} must be a real directory.`);
 }
 
+/**
+ * Require a real (non-link) file.
+ * @param {string} target
+ * @param {string} label
+ */
 async function assertRealFile(target, label) {
   const stats = await fs.lstat(target).catch(() => null);
   if (!stats?.isFile() || stats.isSymbolicLink()) throw new Error(`${label} must be a real file.`);
 }
 
+/**
+ * Refuse to overwrite a path that already exists.
+ * @param {string} target
+ * @param {string} label
+ */
 async function assertAbsent(target, label) {
   if (await pathExists(target)) throw new Error(`The ${label} already exists; refusing replacement.`);
 }
 
+/**
+ * Read the reset-operation marker if present.
+ * @param {string} markerPath
+ * @returns {Promise<PublicDemoResetOperation | null>}
+ */
 async function readOperation(markerPath) {
   if (!await pathExists(markerPath)) return null;
   await assertRealFile(markerPath, "public-demo reset operation marker");
@@ -331,6 +465,11 @@ async function readOperation(markerPath) {
   }
 }
 
+/**
+ * Atomically persist a validated reset-operation marker.
+ * @param {string} markerPath
+ * @param {PublicDemoResetOperation} operation
+ */
 async function writeOperation(markerPath, operation) {
   assertOperation(operation, operation.operationId);
   const temporary = `${markerPath}.tmp-${process.pid}-${Date.now()}`;
@@ -342,6 +481,12 @@ async function writeOperation(markerPath, operation) {
   }
 }
 
+/**
+ * Whether the recorded phase proves this sidecar was already retired.
+ * @param {string} sidecar
+ * @param {string} phase
+ * @returns {boolean}
+ */
 function sidecarWasRetired(sidecar, phase) {
   const sidecarIndex = SQLITE_SIDECARS.indexOf(sidecar);
   const recordedSidecarIndex = SQLITE_SIDECARS.findIndex((entry) => phase === `retired-${entry}`);
@@ -349,10 +494,21 @@ function sidecarWasRetired(sidecar, phase) {
   return phase.startsWith("promoted-") || new Set(["activated", "completed", "recovered"]).has(phase);
 }
 
+/**
+ * Frozen operation outcome for the CLI.
+ * @param {string} status
+ * @param {string} operationId
+ * @returns {Readonly<PublicDemoActivationOutcome>}
+ */
 function operationResult(status, operationId) {
   return Object.freeze({ operationId, status, target: DEMO_DATA_TARGET });
 }
 
+/**
+ * Lowercased origin of a bare-origin URL; empty for anything else.
+ * @param {string | undefined} value
+ * @returns {string}
+ */
 function normalizeOrigin(value) {
   try {
     const parsed = new URL(String(value || ""));
@@ -363,17 +519,27 @@ function normalizeOrigin(value) {
   }
 }
 
+/**
+ * Whether the value is a millisecond-precision ISO-8601 UTC timestamp.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isIsoTimestamp(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return false;
   return !Number.isNaN(Date.parse(value));
 }
 
+/**
+ * Whether a path exists (without following a trailing symlink).
+ * @param {string} target
+ * @returns {Promise<boolean>}
+ */
 async function pathExists(target) {
   try {
     await fs.lstat(target);
     return true;
   } catch (error) {
-    if (error?.code === "ENOENT") return false;
+    if (/** @type {NodeJS.ErrnoException} */ (error)?.code === "ENOENT") return false;
     throw error;
   }
 }

@@ -1,5 +1,5 @@
-// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
+import { pagePublicApiItems, withWorkspaceFallback } from "../../core/public-api-responses.js";
 import { AppError } from "../../core/errors.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { auditService } from "../../core/audit.js";
@@ -15,9 +15,13 @@ import {
 } from "./time-tracking.contracts.js";
 
 /** @typedef {import("zod").infer<typeof PublicApiTimeEntryCreateSchema>} PublicApiTimeEntryCreatePayload */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").PublicApiContext} PublicApiContext */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").PublicApiQuery} PublicApiQuery */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRecord} TimeEntryRecord */
 
 const MODULE_ID = "time-tracking";
 
+/** @param {PublicApiContext} context @param {PublicApiQuery} query */
 async function listTimeEntries(context, query) {
   const [storedEntries, settings] = await Promise.all([
     timeEntriesRepository.readAll(context.workspace_id),
@@ -26,9 +30,10 @@ async function listTimeEntries(context, query) {
   const entries = workspaceSupportsBillable(settings.workspaceType)
     ? storedEntries
     : storedEntries.map((entry) => ({ ...entry, billable: "no" }));
-  return paged(entries.map((entry) => withWorkspaceAlias(entry, context)), query);
+  return pagePublicApiItems(entries.map((entry) => withWorkspaceFallback(entry, context)), query);
 }
 
+/** @param {PublicApiContext} context @param {unknown} rawPayload */
 async function createTimeEntry(context, rawPayload) {
   await assertModuleWriteEnabled(context, MODULE_ID);
   const payload = parseTimeTrackingEdgePayload(PublicApiTimeEntryCreateSchema, rawPayload);
@@ -85,7 +90,7 @@ async function createTimeEntry(context, rawPayload) {
     },
   });
 
-  return withWorkspaceAlias(entry, context);
+  return withWorkspaceFallback(entry, context);
 }
 
 /** @param {PublicApiTimeEntryCreatePayload} payload */
@@ -109,42 +114,6 @@ function normalizePublicApiDuration(payload) {
     durationHours: (durationSeconds / 3600).toFixed(4),
     durationSeconds,
   };
-}
-
-function withWorkspaceAlias(record, context) {
-  if (!record || typeof record !== "object") {
-    return record;
-  }
-
-  return {
-    ...record,
-    workspace_id: record.workspace_id || context.workspace_id,
-  };
-}
-
-function paged(items, query) {
-  const limit = clampInteger(query.limit, 1, 100, 50);
-  const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER, 0);
-
-  return {
-    data: items.slice(offset, offset + limit),
-    pagination: {
-      limit,
-      offset,
-      total: items.length,
-      has_more: offset + limit < items.length,
-    },
-  };
-}
-
-function clampInteger(value, min, max, fallback) {
-  const parsed = Number.parseInt(value, 10);
-
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-
-  return Math.min(Math.max(parsed, min), max);
 }
 
 export const timeTrackingPublicApiService = {

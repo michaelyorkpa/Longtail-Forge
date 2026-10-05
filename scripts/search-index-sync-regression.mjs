@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("search-index-sync-regression");
 const { clearSearchIndexersForTests, registerSearchIndexer } = await import("../src/core/search/indexer-registry.js");
@@ -139,7 +141,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(reindexResult.ok, true);
   assert.equal(reindexResult.operation, "queue_reindex");
   assert.equal(queuedRows.length, 1);
-  assert.match(queuedRows[0].dedupe_key, /search:reindex/);
+  assert.match(String(queuedRows[0].dedupe_key), /search:reindex/);
 
   const reindexSummary = await runJobWorkerOnce({
     claimLimit: 1,
@@ -185,6 +187,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(removeSummary.completed, 1);
   assert.deepEqual(removedRows, []);
 
+  /** @type {string[]} */
   const loggedMessages = [];
   const missingContextResult = await searchIndexSyncService.reindexRecord({
     moduleId: "developer-example",
@@ -232,30 +235,29 @@ LIMIT 1;
   assert.equal(failedSummary.failed, 1);
   assert.equal(failedJob.status, "failed");
   assert.equal(failedJob.attempt_count, 1);
-  assert.match(failedJob.last_error, /synthetic indexing failure/);
-  assert.ok(Date.parse(failedJob.available_at) > beforeFailureRun, "failed search jobs should be scheduled for retry");
+  assert.match(String(failedJob.last_error), /synthetic indexing failure/);
+  assert.ok(Date.parse(String(failedJob.available_at)) > beforeFailureRun, "failed search jobs should be scheduled for retry");
   failingUnregister();
   clearSearchIndexersForTests();
 });
 
 console.log(`Search index sync regression passed ${checks} checks.`);
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assert.equal(typeof name, "string");
   assertion();
   checks += 1;
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();
   checks += 1;
 }
 
-function readText(relativePath) {
-  return readFileSync(relativePath, "utf8");
-}
-
+/** @returns {string} */
 function readPublicJavascript() {
   return collectFiles("public/js")
     .filter((filePath) => filePath.endsWith(".js"))
@@ -263,6 +265,7 @@ function readPublicJavascript() {
     .join("\n");
 }
 
+/** @param {string} directory @returns {string[]} */
 function collectFiles(directory) {
   return readdirSync(directory)
     .flatMap((entry) => {

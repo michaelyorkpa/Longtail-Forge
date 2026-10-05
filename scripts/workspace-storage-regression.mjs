@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-storage-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-workspace-storage-test.db");
@@ -31,7 +32,8 @@ try {
       ...initialSettings,
       workspaceType: rejectedWorkspaceType,
     }),
-    (error) => error?.statusCode === 400 && /Workspace type cannot be changed after creation/.test(error.message),
+    (error) => /** @type {{ statusCode?: number }} */ (error)?.statusCode === 400
+      && /Workspace type cannot be changed after creation/.test(String(/** @type {{ message?: string }} */ (error).message)),
     "workspace settings repository should reject a workspace type mutation",
   );
   assert.equal(
@@ -43,10 +45,6 @@ try {
   await settingsRepository.saveWorkspaceSettings(workspaceId, {
     workspaceName: "Workspace Storage Regression",
     workspaceType: initialSettings.workspaceType,
-    fiscalYear: { startMonth: 4, startDay: 15 },
-    defaultBillingRate: "125",
-    billingPeriod: { type: "monthly", startDay: 7 },
-    billingRounding: { enabled: true, increment: "nearestQuarterHour" },
     audit: { loggingEnabled: true, retentionDays: 45 },
   });
 
@@ -77,7 +75,8 @@ try {
     description: "Workspace storage regression entry",
     start_time: "2026-06-02T12:00:00.000Z",
     end_time: "2026-06-02T13:00:00.000Z",
-    duration_seconds: 3600,
+    task_id: "",
+    duration_seconds: "3600",
     duration_hours: "1.00",
     billable: "yes",
     invoice_status: "unbilled",
@@ -114,9 +113,10 @@ try {
 async function readDefaultWorkspaceId() {
   const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
   assert.ok(rows[0]?.workspace_id, "expected initialized default workspace");
-  return rows[0].workspace_id;
+  return fixtureString(rows[0].workspace_id, "default workspace ID");
 }
 
+/** @param {string} workspaceId */
 async function readDefaultUserId(workspaceId) {
   const rows = await querySql(`
 SELECT user_id
@@ -126,7 +126,7 @@ ORDER BY protected_user DESC, username
 LIMIT 1;
 `);
   assert.ok(rows[0]?.user_id, "expected initialized default user");
-  return rows[0].user_id;
+  return fixtureString(rows[0].user_id, "default user ID");
 }
 
 async function assertLegacyTablesRemoved() {
@@ -149,6 +149,7 @@ WHERE type = 'table'
   assert.equal(rows.length, 0, "legacy active timer tables should not exist after unified timer migration");
 }
 
+/** @param {string} workspaceId */
 async function assertWorkspaceRows(workspaceId) {
   const checks = [
     ["workspaces", "workspace_id"],

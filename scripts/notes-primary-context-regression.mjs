@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import vm from "node:vm";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-primary-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-primary-context.db");
@@ -44,7 +48,11 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesJs, /clientField\.hidden = true/);
   assert.match(notesJs, /clientInput\?\.addEventListener\("change", handlePrimaryClientChange\)/);
   assert.match(notesJs, /projectInput\?\.addEventListener\("change", handlePrimaryProjectChange\)/);
-  assert.match(notesJs, /context\.workspaceType \|\| context\.workspace_type \|\| ""/);
+  // `0.33.33.38.2.9` deleted the `workspace_type` arm: `buildWorkspaceContext` folds every
+  // snake_case input into its canonical member, so that arm could never fire. The claim is
+  // unchanged - Notes reads the workspace type from the stored context and normalizes it.
+  assert.match(notesJs, /normalizeWorkspaceType\(context\?\.workspaceType \|\| ""\)/,
+    "Notes still reads the workspace type from the stored context, through its canonical member");
   assert.match(notesJs, /function normalizeWorkspaceType\(value = ""\)/);
   assert.match(notesJs, /return normalizeWorkspaceType\(state\.workspaceType\) === "business" && workspaceHasClientTools\(\)/);
   assert.match(notesJs, /function workspaceHasClientTools\(\)/);
@@ -58,17 +66,15 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesJs, /function readEditorVisibility\(\)/);
   assert.match(notesJs, /visibility: readEditorVisibility\(\)/);
   assert.match(notesJs, /async function openEditor\(note = null, options = \{\}\) \{\s*note = await hydrateEditorNote\(note\);/, "Edit Note should hydrate saved notes before Primary Context controls are populated");
-  assert.match(notesJs, /async function hydrateEditorNote\(note = null\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*cache: "no-store"[\s\S]*return result\.note/, "Editor hydration should read the authoritative no-store note payload");
+  assert.match(notesJs, /async function hydrateEditorNote\(note = null\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*cache: "no-store"[\s\S]*requireNoteFromEnvelope\(result\)[\s\S]*return hydrated/, "Editor hydration should read the authoritative no-store note payload");
   assert.match(notesJs, /const selectedClientId = note\?\.client_id \|\| defaults\.client_id \|\| "";[\s\S]*const selectedProjectId = note\?\.project_id \|\| defaults\.project_id \|\| "";[\s\S]*loadPrimaryContextOptions\(\{[\s\S]*clientId: selectedClientId,[\s\S]*projectId: selectedProjectId,[\s\S]*\}\);/, "Edit Note should pass direct note IDs into Primary Context option loading before browser selects can drop unavailable values");
   assert.match(notesJs, /function primaryClientFallbackOption\(selectedClientId = ""\)/, "Saved Primary Context client values should stay selectable even when provider paging omits them");
   assert.match(notesJs, /function primaryProjectFallbackOption\(selectedProjectId = ""\)/, "Saved Primary Context project values should stay selectable even when provider paging omits them");
   assert.match(notesJs, /populatePrimaryClientOptions\(derivedClientId\);[\s\S]*populatePrimaryProjectOptions\(selectedProjectId\);/, "Primary Context option loading should preserve selected direct context values");
   assert.doesNotMatch(notesJs, /primaryContextManuallyChanged|readEditorPrimaryContextPayload|inferPrimaryContextFromEditorTargets|primaryContextFromTarget|taskLinkPrimaryContext|applyContextTarget/, "Linked Context must not create, update, delete, or recover Primary Context");
-  assert.match(notesJs, /state\.primaryContextClients = clients\.filter\(isActivePrimaryClientTarget\)/);
-  assert.match(notesJs, /function isActivePrimaryClientTarget\(client = \{\}\)/);
-  assert.match(notesJs, /normalizeText\(client\.status\)\.toLowerCase\(\) === "active"/);
-  assert.match(notesJs, /client_id: usesBusinessScope\(\) \? normalizeText\(clientInput\.value\) \|\| null : null/);
-  assert.match(notesJs, /project_id: normalizeText\(projectInput\.value\) \|\| null/);
+  // Execute the filtered load and payload reads: annotations and checked access may
+  // change spelling, but active membership, absence, scope and timing must not change.
+  await assertPrimaryContextReadBehavior(notesJs);
   assert.match(notesJs, /function primaryProjectOptionLabel\(project = \{\}\)/);
   assert.match(notesJs, /return `\$\{projectName\} - \$\{contextName\}`;/);
   assert.match(notesJs, /function linkRecordNodes\(note\)[\s\S]*notePrimaryContextItem\(note\)[\s\S]*linkItem\(note, link\)/);
@@ -79,6 +85,57 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesCss, /\.notes-primary-context\s*\{[\s\S]*border-top:\s*1px solid var\(--color-border-subtle\);/);
 }
 
+/** @param {string} source */
+async function assertPrimaryContextReadBehavior(source) {
+  const active = { targetId: "active", status: " Active " };
+  const clients = [active, { targetId: "inactive", status: "Inactive" }, { targetId: "missing" }];
+  const projects = [{ targetId: "project", projectId: "project", clientId: "active" }];
+  const context = vm.createContext({
+    state: { workspaceType: "business", primaryContextClients: [], primaryContextProjects: [], editingNoteId: "", tagPicker: null },
+    business: true, editor: null,
+    clientInput: { value: " active ", disabled: false }, projectInput: { value: " project ", disabled: false },
+    ...Object.fromEntries(["titleInput", "bodyInput", "libraryInput", "collectionInput", "typeInput", "securityInput", "userInput", "visibilityInput"].map((name) => [name, { value: "" }])),
+    fetchLinkTargets: async (/** @type {{targetType: string}} */ query) => query.targetType === "client" ? clients : projects,
+    updatePrimaryContextVisibility: () => {}, populateLinkClientContextSelect: () => {},
+    findPrimaryContextProject: () => null, primaryContextSummaryForSelection: () => ({}),
+    populatePrimaryClientOptions: () => {}, populatePrimaryProjectOptions: () => {}, stagedLinkPayloads: () => [],
+  });
+  const names = ["loadPrimaryContextOptions", "isActivePrimaryClientTarget", "readEditorPayload", "readEditorVisibility", "requireNotesValue", "normalizeText", "normalizeWorkspaceType"];
+  const api = vm.runInContext(`function usesBusinessScope() { return business; }
+${names.map((name) => extractFunctionBlock(source, name)).join("\n")}
+({${names.join(",")}})`, context);
+  await assert.doesNotReject(() => api.loadPrimaryContextOptions(), "Primary Context load must tolerate omitted selections");
+  assert.deepEqual(context.state.primaryContextClients, [active], "Primary Context must offer only active clients from the directory");
+  assert.equal(context.state.primaryContextProjects, projects, "Primary Context must preserve the project directory identity");
+  assert.doesNotThrow(() => assert.equal(api.isActivePrimaryClientTarget(), false), "Primary Context filter must tolerate an absent client");
+  assert.equal(api.isActivePrimaryClientTarget({}), false, "Primary Context filter must reject a missing status");
+  assert.equal(api.isActivePrimaryClientTarget({ status: " ACTIVE " }), true, "Primary Context status matching must remain normalized");
+  assert.throws(() => api.isActivePrimaryClientTarget(null), /null/, "An explicit null client retains its existing failure");
+  const payload = api.readEditorPayload();
+  assert.equal(payload.client_id, "active", "Primary Context must normalize the business client ID");
+  assert.equal(payload.project_id, "project", "Primary Context must normalize and retain project identity");
+  context.clientInput.value = " "; context.projectInput.value = " ";
+  assert.equal(api.readEditorPayload().client_id, null, "Primary Context empty client means null");
+  assert.equal(api.readEditorPayload().project_id, null, "Primary Context empty project means null");
+  context.business = false; context.clientInput = null; context.projectInput.value = " project ";
+  assert.doesNotThrow(() => api.readEditorPayload(), "Non-business payload must not require a client control");
+  assert.equal(api.readEditorPayload().client_id, null, "Non-business payload must omit client scope");
+  assert.equal(api.readEditorPayload().project_id, "project", "Non-business payload must retain the project");
+  context.business = true;
+  let projectReads = 0;
+  Object.defineProperty(context.projectInput, "value", { get() { projectReads += 1; return "project"; } });
+  assert.throws(() => api.readEditorPayload(), /Required Notes value/, "Business client control must be required at its read");
+  assert.equal(projectReads, 0, "Missing business client must fail before reading the project");
+  context.business = false; context.projectInput = null;
+  let userReads = 0;
+  Object.defineProperty(context.userInput, "value", { get() { userReads += 1; return "user"; } });
+  assert.throws(() => api.readEditorPayload(), /Required Notes value/, "Project control must remain required outside business scope");
+  assert.equal(userReads, 0, "Missing project must fail before reading the linked user");
+}
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+
+/** @param {NotesSession} session @param {{ workspace_id: string, workspace_name: string }} workspace */
 async function assertBusinessPrimaryContextTargets(session, workspace) {
   await setWorkspaceType(session.workspace_id, "business");
   const suffix = randomUUID().slice(0, 8);
@@ -157,6 +214,7 @@ async function assertBusinessPrimaryContextTargets(session, workspace) {
   assert.equal(updated.note.project_id || "", "");
 }
 
+/** @param {NotesSession} session */
 async function assertFamilyPrimaryContextTargets(session) {
   await setWorkspaceType(session.workspace_id, "family");
   const suffix = randomUUID().slice(0, 8);
@@ -192,6 +250,7 @@ async function assertIntegrity() {
   assert.equal(result[0]?.integrity_check, "ok");
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -200,12 +259,16 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name: string }>} */
 async function readWorkspace() {
   const rows = await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(rows, "workspace fixture is required");
+  assert.ok(typeof row.workspace_id === "string" && row.workspace_id, "the seeded workspace should carry an id");
+  assert.ok(typeof row.workspace_name === "string", "the seeded workspace should carry a name");
+  return { workspace_id: row.workspace_id, workspace_name: row.workspace_name };
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -214,13 +277,10 @@ WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
 `);
-  const user = rows[0];
-  assert.ok(user?.user_id, "protected user fixture is required");
-  return {
+  const user = requireFirstRow(rows, "protected user fixture is required");
+  return workspaceSessionFixture({
+    ...user,
     display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
     workspace_id: workspaceId,
-  };
+  });
 }

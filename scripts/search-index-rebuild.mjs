@@ -29,6 +29,7 @@ const result = args.allWorkspaces
 
 console.log(JSON.stringify(result, null, 2));
 
+/** @param {string[]} values */
 function parseArgs(values) {
   const parsed = {
     allWorkspaces: false,

@@ -1,4 +1,3 @@
-// @ts-check
 import { createRecordId } from "../../core/identifiers.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
@@ -20,6 +19,7 @@ import {
 
 /** @typedef {import("../../types/http-contracts.js").RequestSession & { workspace_id: string }} WorkspaceRequestSession */
 /** @typedef {import("../../utils/normalizers.js").TimeEntryInput} TimeEntryInput */
+/** @typedef {import("../../utils/normalizers.js").TimeEntry} TimeEntry */
 /** @typedef {import("zod").infer<typeof BrowserTimeEntryCreateSchema>} BrowserTimeEntryCreatePayload */
 /** @typedef {(TimeEntryInput | BrowserTimeEntryCreatePayload) & { tagIds?: unknown[], tag_ids?: unknown[] }} TimeEntryCreateInput */
 /** @typedef {{ tagIds?: unknown, tag_ids?: unknown, tags?: unknown }} TimeEntryListQuery */
@@ -258,6 +258,7 @@ async function hasTaskTime(workspaceId, taskId) {
   return timeEntriesRepository.hasForTask(workspaceId, taskId);
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} targetType @param {string} targetId @param {{ tagIds?: unknown, tag_ids?: unknown }} [payload] */
 async function saveTargetTags(session, targetType, targetId, payload = {}) {
   if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
     return;
@@ -270,18 +271,20 @@ async function saveTargetTags(session, targetType, targetId, payload = {}) {
   });
 }
 
+/** @param {WorkspaceRequestSession} session @param {TimeEntry} entry */
 function resolveTimeEntryEditPermission(session, entry) {
   return entry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} action @param {TimeEntry} previousEntry @param {{ client_id?: unknown, project_id?: unknown }} resource */
 async function assertCanCorrectTimeEntry(session, action, previousEntry, resource) {
   await assertTimeEntryEditPermission(session, action, resource, "update");
 
   if (previousEntry.user_id !== session.user_id) {
     await permissionsService.assertCan(session, "time_entries.edit_all", {
       workspace_id: session.workspace_id,
-      client_id: resource.client_id || "",
-      project_id: resource.project_id || "",
+      client_id: String(resource.client_id || ""),
+      project_id: String(resource.project_id || ""),
       operation: "update",
     });
   }
@@ -291,11 +294,12 @@ async function assertCanCorrectTimeEntry(session, action, previousEntry, resourc
 // superset of edit_own: a role permitted to correct anyone's entries (e.g. workspace_admin) must
 // be able to correct its own. Accept either grant so those roles are not blocked from their own
 // time. Correcting someone else's entry still requires edit_all (asserted separately by callers).
+/** @param {WorkspaceRequestSession} session @param {string} action @param {{ client_id?: unknown, project_id?: unknown }} resource @param {string} operation */
 async function assertTimeEntryEditPermission(session, action, resource, operation) {
   const editResource = {
     workspace_id: session.workspace_id,
-    client_id: resource.client_id || "",
-    project_id: resource.project_id || "",
+    client_id: String(resource.client_id || ""),
+    project_id: String(resource.project_id || ""),
     operation,
   };
 
@@ -311,6 +315,7 @@ async function assertTimeEntryEditPermission(session, action, resource, operatio
   await permissionsService.assertCan(session, action, editResource);
 }
 
+/** @param {TimeEntry} previousEntry @param {TimeEntry} updatedEntry */
 function sensitiveTimeEntryCorrectionFields(previousEntry, updatedEntry) {
   return [
     previousEntry.user_id !== updatedEntry.user_id ? "user_id" : "",
@@ -321,6 +326,7 @@ function sensitiveTimeEntryCorrectionFields(previousEntry, updatedEntry) {
   ].filter(Boolean);
 }
 
+/** @param {WorkspaceRequestSession} session @param {string} targetType @param {string} targetId @param {string} reason */
 async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
   try {
     await tagsService.refreshPropagatedAssignmentsForTarget(session, {
@@ -337,6 +343,7 @@ async function requestTagPropagationRefresh(session, targetType, targetId, reaso
   }
 }
 
+/** @param {WorkspaceRequestSession} session @param {TimeEntry} entry @param {string} reason */
 async function snapshotTimeEntryEffectiveTags(session, entry, reason) {
   const sourceTargetType = entry.task_id ? "task" : "project";
   const sourceTargetId = entry.task_id || entry.project_id || "";
@@ -370,6 +377,7 @@ async function snapshotTimeEntryEffectiveTags(session, entry, reason) {
   }
 }
 
+/** @param {string} workspaceId @param {TimeEntryInput} entry */
 async function resolveTimeEntryScope(workspaceId, entry) {
   return resolveProjectRecordScope(workspaceId, entry, {
     archivedClientMessage: "Archived clients cannot receive new time entries.",
@@ -379,6 +387,7 @@ async function resolveTimeEntryScope(workspaceId, entry) {
   });
 }
 
+/** @param {string} workspaceId @param {string} entryId @param {string} reason */
 async function syncTimeEntrySearchIndex(workspaceId, entryId, reason) {
   await searchIndexSyncService.reindexRecord({
     workspaceId,

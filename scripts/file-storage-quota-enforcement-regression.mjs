@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-quota-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -38,40 +39,52 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the quota admitted the upload.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 async function assertStaticContracts() {
   const [
-    _packageJson,
-    _packageLock,
-    _roadmap,
-    changelog,
     moduleContract,
     moduleDevelopment,
     runtimeDocs,
     filesServiceSource,
+    filesStorageAccountingServiceSource,
     _regressionSuite,
   ] = await Promise.all([
-    readJson("package.json"),
-    readJson("package-lock.json"),
-    readText("ROADMAP.md"),
-    readText("CHANGELOG.md"),
     readText("docs/module-contract.md"),
     readText("docs/module-development.md"),
     readText("docs/runtime-configuration.md"),
     readText("src/services/files.service.js"),
+    readText("src/services/files-storage-accounting.service.js"),
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-          assert.match(changelog, /Version 0\.33\.5\.25\.2[\s\S]*Activated workspace and per-user Files storage quota enforcement/, "changelog should preserve the shipped quota enforcement history");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
   assert.match(moduleContract, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module contract should describe service-owned quota enforcement");
   assert.match(moduleDevelopment, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "module development docs should describe service-owned quota enforcement");
   assert.match(runtimeDocs, /0\.33\.5\.25\.2[\s\S]*workspace and per-user storage quotas/, "runtime docs should describe active quota enforcement");
-  assert.match(filesServiceSource, /assertStorageQuotaAllowsUpload/, "Files service should enforce quotas before buffered upload persistence");
-  assert.match(filesServiceSource, /resolveStreamedUploadLimit/, "Files service should enforce quota limits while streaming");
-  assert.match(filesServiceSource, /readInternalStorageQuotaUsage/, "Files service should read actual internal usage for quota checks");
+  assert.match(filesServiceSource, /filesStorageAccountingService\.assertStorageQuotaAllowsUpload/, "Files facade should enforce quotas through the Files accounting policy before buffered upload persistence");
+  assert.match(filesServiceSource, /filesStorageAccountingService\.resolveStreamedUploadLimit/, "Files facade should enforce streamed limits through the Files accounting policy");
+  assert.match(filesStorageAccountingServiceSource, /async function assertStorageQuotaAllowsUpload/, "Files accounting policy should own quota admission");
+  assert.match(filesStorageAccountingServiceSource, /async function resolveStreamedUploadLimit/, "Files accounting policy should own streamed quota limits");
+  assert.match(filesStorageAccountingServiceSource, /filesRepo\.readInternalStorageQuotaUsage/, "Files accounting policy should read actual internal usage through the repository");
+  assert.doesNotMatch(filesStorageAccountingServiceSource, /storage[_A-Z]?key|protectedPath|scanner/i, "Files accounting policy should not consume storage keys, protected paths, or scanner details");
   }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertBufferedWorkspaceQuota(session, taskId) {
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: null, workspaceLimitBytes: 12 });
@@ -80,7 +93,7 @@ async function assertBufferedWorkspaceQuota(session, taskId) {
     originalFilename: "buffered-workspace-at-limit.txt",
     text: "w".repeat(12),
   }));
-  assert.equal(atLimit.file.fileSizeBytes, 12, "workspace quota should allow an upload exactly at the limit");
+  assert.equal(requireFile(atLimit, "at-limit upload").fileSizeBytes, 12, "workspace quota should allow an upload exactly at the limit");
 
   await assertRejectedUpload(
     () => filesService.uploadAndAttach(session, bufferedPayload(taskId, {
@@ -93,6 +106,7 @@ async function assertBufferedWorkspaceQuota(session, taskId) {
   await assertNoFileOrAttachmentForOriginalFilename("buffered-workspace-over-limit.txt");
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertBufferedPerUserQuota(session, taskId) {
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: 10, workspaceLimitBytes: null });
@@ -101,7 +115,7 @@ async function assertBufferedPerUserQuota(session, taskId) {
     originalFilename: "buffered-user-at-limit.txt",
     text: "u".repeat(10),
   }));
-  assert.equal(atLimit.file.fileSizeBytes, 10, "per-user quota should allow an upload exactly at the limit");
+  assert.equal(requireFile(atLimit, "at-limit upload").fileSizeBytes, 10, "per-user quota should allow an upload exactly at the limit");
 
   await assertRejectedUpload(
     () => filesService.uploadAndAttach(session, bufferedPayload(taskId, {
@@ -114,6 +128,7 @@ async function assertBufferedPerUserQuota(session, taskId) {
   await assertNoFileOrAttachmentForOriginalFilename("buffered-user-over-limit.txt");
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertBufferedNullLimits(session, taskId) {
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: null, workspaceLimitBytes: null });
@@ -122,9 +137,10 @@ async function assertBufferedNullLimits(session, taskId) {
     originalFilename: "buffered-null-limits.txt",
     text: "n".repeat(64),
   }));
-  assert.equal(upload.file.fileSizeBytes, 64, "NULL workspace and per-user limits should remain unlimited for buffered uploads");
+  assert.equal(requireFile(upload, "unlimited upload").fileSizeBytes, 64, "NULL workspace and per-user limits should remain unlimited for buffered uploads");
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertStreamedWorkspaceQuota(session, taskId) {
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: null, workspaceLimitBytes: 6 });
@@ -133,7 +149,7 @@ async function assertStreamedWorkspaceQuota(session, taskId) {
     originalFilename: "streamed-workspace-at-limit.txt",
     text: "s".repeat(6),
   }));
-  assert.equal(atLimit.file.fileSizeBytes, 6, "workspace quota should allow a streamed upload exactly at the limit");
+  assert.equal(requireFile(atLimit, "at-limit upload").fileSizeBytes, 6, "workspace quota should allow a streamed upload exactly at the limit");
 
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: null, workspaceLimitBytes: 5 });
@@ -154,6 +170,7 @@ async function assertStreamedWorkspaceQuota(session, taskId) {
   );
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertStreamedPerUserQuota(session, taskId) {
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: 7, workspaceLimitBytes: null });
@@ -162,7 +179,7 @@ async function assertStreamedPerUserQuota(session, taskId) {
     originalFilename: "streamed-user-at-limit.txt",
     text: "p".repeat(7),
   }));
-  assert.equal(atLimit.file.fileSizeBytes, 7, "per-user quota should allow a streamed upload exactly at the limit");
+  assert.equal(requireFile(atLimit, "at-limit upload").fileSizeBytes, 7, "per-user quota should allow a streamed upload exactly at the limit");
 
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: 4, workspaceLimitBytes: null });
@@ -183,6 +200,7 @@ async function assertStreamedPerUserQuota(session, taskId) {
   );
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertStreamedNullLimits(session, taskId) {
   await resetStoredFileRows();
   await saveStorageLimits(session, { perUserLimitBytes: null, workspaceLimitBytes: null });
@@ -191,9 +209,10 @@ async function assertStreamedNullLimits(session, taskId) {
     originalFilename: "streamed-null-limits.txt",
     text: "z".repeat(64),
   }));
-  assert.equal(upload.file.fileSizeBytes, 64, "NULL workspace and per-user limits should remain unlimited for streamed uploads");
+  assert.equal(requireFile(upload, "unlimited upload").fileSizeBytes, 64, "NULL workspace and per-user limits should remain unlimited for streamed uploads");
 }
 
+/** @param {FilesSession} session @param {{ perUserLimitBytes: number | null, workspaceLimitBytes: number | null }} limits */
 async function saveStorageLimits(session, { perUserLimitBytes, workspaceLimitBytes }) {
   await filesService.saveWorkspaceFileSettings(session, {
     internalStorageLimitBytes: workspaceLimitBytes,
@@ -201,18 +220,21 @@ async function saveStorageLimits(session, { perUserLimitBytes, workspaceLimitByt
   });
 }
 
+/** @param {() => Promise<unknown>} uploadFn @param {RegExp} messagePattern @param {string} description */
 async function assertRejectedUpload(uploadFn, messagePattern, description) {
   await assert.rejects(
     uploadFn,
     (error) => {
-      assert.equal(error.statusCode, 413, description);
-      assert.match(error.message, messagePattern, description);
+      const denial = /** @type {{ message?: string, statusCode?: number }} */ (error);
+      assert.equal(denial.statusCode, 413, description);
+      assert.match(String(denial.message), messagePattern, description);
       return true;
     },
     description,
   );
 }
 
+/** @param {string} originalFilename */
 async function assertNoFileOrAttachmentForOriginalFilename(originalFilename) {
   const fileRows = await querySql(`
 SELECT file_id
@@ -243,6 +265,7 @@ WHERE job_type = 'file.scan';
 `);
 }
 
+/** @param {string} targetId @param {{ chunks?: Array<Buffer | string>, displayName?: string, originalFilename?: string, text?: string }} [options] */
 function bufferedPayload(targetId, options = {}) {
   return {
     contentBase64: Buffer.from(options.text || "buffered quota body").toString("base64"),
@@ -255,6 +278,7 @@ function bufferedPayload(targetId, options = {}) {
   };
 }
 
+/** @param {string} targetId @param {{ chunks?: Array<Buffer | string>, displayName?: string, originalFilename?: string, text?: string }} [options] */
 function streamedPayload(targetId, options = {}) {
   const chunks = Array.isArray(options.chunks) && options.chunks.length > 0
     ? options.chunks
@@ -273,9 +297,11 @@ function streamedPayload(targetId, options = {}) {
   };
 }
 
+/** @param {string} directory @returns {Promise<string[]>} */
 async function listStoredFiles(directory) {
   try {
     const entries = await fs.readdir(directory, { withFileTypes: true });
+    /** @type {string[]} */
     const files = [];
 
     for (const entry of entries) {
@@ -291,13 +317,14 @@ async function listStoredFiles(directory) {
 
     return files.sort();
   } catch (error) {
-    if (error?.code === "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error)?.code === "ENOENT") {
       return [];
     }
     throw error;
   }
 }
 
+/** @returns {Promise<FilesSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone, home_workspace_id, active_workspace_id
@@ -306,15 +333,17 @@ WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user?.user_id, "fresh database should seed a protected super admin");
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const user = requireFirstRow(rows, "protected super admin");
+  assert.ok(user.user_id, "fresh database should seed a protected super admin");
   const workspaceId = user.active_workspace_id || user.home_workspace_id;
 
   return {
     active_workspace_id: workspaceId,
-    display_name: user.display_name,
-    role: "super_admin",
+    home_workspace_id: workspaceId,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: user.timezone || "America/New_York",
     user_id: user.user_id,
     username: user.username,
@@ -322,6 +351,7 @@ LIMIT 1;
   };
 }
 
+/** @param {FilesSession} session @param {string} title */
 async function createTask(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -365,10 +395,3 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
-async function readJson(relativePath) {
-  return JSON.parse(await readText(relativePath));
-}
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}

@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tasksModuleSource = readText("src/modules/tasks/module.js");
 const tasksRoutesSource = readText("src/modules/tasks/tasks.routes.js");
@@ -12,11 +19,11 @@ const tasksScript = readText("public/js/tasks.js");
 
 assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module should report the current app version");
 
-const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
-const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
-const selectedBulkActions = functionBlock(tasksScript, "selectedBulkActions");
-const applyBulkAction = functionBlock(tasksScript, "applyBulkAction");
-const reloadTaskList = functionBlock(tasksScript, "reloadTaskList");
+const bulkChrome = extractFunctionSpan(tasksScript, "createTaskBulkToolbarChrome");
+const bulkControls = extractFunctionSpan(tasksScript, "taskBulkToolbarControls");
+const selectedBulkActions = extractFunctionSpan(tasksScript, "selectedBulkActions");
+const applyBulkAction = extractFunctionSpan(tasksScript, "applyBulkAction");
+const reloadTaskList = extractFunctionSpan(tasksScript, "reloadTaskList");
 
 assert.match(tasksScript, /bulkApplyButton\?\.addEventListener\("click", applyBulkAction\)/, "Bulk apply control should dispatch to the Tasks-owned handler");
 assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*body:\s*taskBulkToolbarControls\(\)/, "Framework toolbar should host the Tasks-owned bulk control body");
@@ -59,6 +66,10 @@ const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.j
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} BulkFixtures */
+
+/** @type {InternalEvent[]} */
 const capturedTaskEvents = [];
 const unsubscribeTaskUpdated = internalEventBus.on("task.updated", async (event) => {
   capturedTaskEvents.push(event);
@@ -86,6 +97,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const keepTag = (await tagsService.create(session, { name: "Bulk Keep" })).tag;
   const addTag = (await tagsService.create(session, { name: "Bulk Add" })).tag;
@@ -112,6 +124,7 @@ async function createFixtures(session) {
   return { addTag, first, firstProject, keepTag, replaceTag, second, secondProject };
 }
 
+/** @param {TasksSession} session @param {BulkFixtures} fixtures */
 async function assertStatusPriorityAssigneeBulkUpdates(session, fixtures) {
   const taskIds = [fixtures.first.task_id, fixtures.second.task_id];
   const status = await tasksService.bulkUpdate({ action: "status", status: "in_progress", task_ids: taskIds }, session);
@@ -131,6 +144,7 @@ async function assertStatusPriorityAssigneeBulkUpdates(session, fixtures) {
   assert.deepEqual(assignees.tasks.map((task) => task.assignee_ids), [[session.user_id], [session.user_id]]);
 }
 
+/** @param {TasksSession} session @param {BulkFixtures} fixtures */
 async function assertProjectBulkUpdates(session, fixtures) {
   const taskIds = [fixtures.first.task_id, fixtures.second.task_id];
   const moved = await tasksService.bulkUpdate({
@@ -159,14 +173,22 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 ORDER BY created_at DESC
 LIMIT 1;
 `);
-  assert.equal(JSON.parse(audit?.metadata_json || "{}").project_id, fixtures.secondProject.id, "bulk Project assignment should retain canonical audit scope metadata");
+  const auditMetadata = requireJsonRecord(
+    JSON.parse(String(audit?.metadata_json || "{}")),
+    "bulk project assignment audit metadata",
+  );
+  assert.equal(auditMetadata.project_id, fixtures.secondProject.id, "bulk Project assignment should retain canonical audit scope metadata");
 
   const indexed = await indexTaskRecord({
     workspaceId: session.workspace_id,
     recordId: fixtures.first.task_id,
   });
-  assert.equal(indexed?.client_id, fixtures.secondProject.client_id);
-  assert.equal(indexed?.project_id, fixtures.secondProject.id, "the canonical Search document should reflect the bulk Project move");
+  assert.ok(
+    indexed && !("documents" in indexed),
+    "indexing a single bulk-updated task should return that record's search document",
+  );
+  assert.equal(indexed.client_id, fixtures.secondProject.client_id);
+  assert.equal(indexed.project_id, fixtures.secondProject.id, "the canonical Search document should reflect the bulk Project move");
 
   const cascadeParent = (await tasksService.create({
     title: "Bulk Project cascade parent",
@@ -232,6 +254,7 @@ LIMIT 1;
   assert.equal(JSON.stringify(deniedMove.errors).includes(scopedTask.title), false, "bulk Project errors should not leak inaccessible Task labels");
 }
 
+/** @param {TasksSession} session @param {BulkFixtures} fixtures */
 async function assertDueDateAndDueTimeClearing(session, fixtures) {
   const clearedTime = await tasksService.bulkUpdate({
     action: "due_time",
@@ -252,6 +275,7 @@ async function assertDueDateAndDueTimeClearing(session, fixtures) {
   assert.equal(clearedDate.tasks[0].due_time, "", "Clearing due date should clear due time too");
 }
 
+/** @param {TasksSession} session @param {BulkFixtures} fixtures */
 async function assertTagAddRemoveReplace(session, fixtures) {
   const added = await tasksService.bulkUpdate({
     action: "tag_add",
@@ -275,11 +299,13 @@ async function assertTagAddRemoveReplace(session, fixtures) {
     task_ids: [fixtures.first.task_id],
   }, session);
   assert.equal(replaced.errors.length, 0);
+  assert.ok(replaced.tasks[0], "bulk tag replacement should return the changed task");
   assert.deepEqual(replaced.tasks[0].tags.map((tag) => tag.tag_id), [fixtures.replaceTag.tag_id]);
 }
 
+/** @param {TasksSession} session @param {BulkFixtures} fixtures */
 async function assertPermissionsRemainAuthoritative(session, fixtures) {
-  const noRoleSession = await createNoRoleSession(session.workspace_id);
+  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
   const denied = await tasksService.bulkUpdate({
     action: "priority",
     priority: "urgent",
@@ -291,6 +317,7 @@ async function assertPermissionsRemainAuthoritative(session, fixtures) {
   assert.equal(JSON.stringify(denied.errors).includes("Bulk nondestructive first"), false, "Partial bulk errors should not leak inaccessible task labels");
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -335,17 +362,18 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `tasks-bulk-nondestructive-no-role-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @param {string} workspaceId @param {string} projectId @returns {Promise<TasksSession>} */
 async function createProjectAdminSession(workspaceId, projectId) {
   const session = await createNoRoleSession(workspaceId);
   const now = new Date().toISOString();
@@ -383,34 +411,10 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function readText(pathName) {
-  return readFileSync(new URL(`../${pathName}`, import.meta.url), "utf8");
-}
-
-
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

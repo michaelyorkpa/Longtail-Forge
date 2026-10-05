@@ -14,11 +14,15 @@ const require = createRequire(import.meta.url);
 const playwrightCli = require.resolve("@playwright/test/cli");
 const playwrightArgs = [playwrightCli, "test", ...process.argv.slice(2)];
 
+/** @typedef {import("node:child_process").ChildProcess} ManagedChildProcess */
+
+/** @type {ManagedChildProcess | null} */
 let managedServer = null;
+/** @type {ManagedChildProcess | null} */
 let playwright = null;
 let interruptedSignal = "";
 
-for (const signal of ["SIGINT", "SIGTERM"]) {
+for (const signal of /** @type {ReadonlyArray<NodeJS.Signals>} */ (["SIGINT", "SIGTERM"])) {
   process.once(signal, () => {
     interruptedSignal = signal;
     playwright?.kill(signal);
@@ -57,8 +61,10 @@ try {
   await stopManagedServer(managedServer);
 }
 
+/** @param {ManagedChildProcess} child */
 async function waitForManagedServer(child) {
   const deadline = Date.now() + 120000;
+  /** @type {Error | null} */
   let lastError = null;
 
   while (Date.now() < deadline) {
@@ -70,7 +76,7 @@ async function waitForManagedServer(child) {
       if (response.ok) return;
       lastError = new Error(`Readiness returned HTTP ${response.status}.`);
     } catch (error) {
-      lastError = error;
+      lastError = error instanceof Error ? error : new Error(String(error));
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -78,6 +84,7 @@ async function waitForManagedServer(child) {
   throw new Error(`Managed e2e server did not become ready within 120 seconds: ${lastError?.message || "unknown error"}`);
 }
 
+/** @param {ManagedChildProcess | null} child */
 async function stopManagedServer(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
 
@@ -92,6 +99,10 @@ async function stopManagedServer(child) {
   await waitForExit(child);
 }
 
+/**
+ * @param {ManagedChildProcess} child
+ * @returns {Promise<{ code: number | null, signal: NodeJS.Signals | null }>}
+ */
 function waitForExit(child) {
   if (child.exitCode !== null || child.signalCode !== null) {
     return Promise.resolve({ code: child.exitCode, signal: child.signalCode });

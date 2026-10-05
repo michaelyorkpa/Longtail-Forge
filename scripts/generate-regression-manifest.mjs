@@ -6,6 +6,7 @@ import {
   buildRegressionManifest,
   buildRatchetedCoveragePolicy,
   collectCoverageFloorDriftErrors,
+  generatedContentMatches,
   serializeRegressionManifest,
 } from "./lib/regression-manifest.mjs";
 import { REGRESSION_ENTRIES } from "./regression-suite.mjs";
@@ -32,14 +33,14 @@ const expected = serializeRegressionManifest(manifest);
 
 if (checkOnly) {
   const actual = await fs.readFile(path.resolve(MANIFEST_PATH), "utf8");
-  if (actual !== expected) {
+  if (!generatedContentMatches(actual, expected)) {
     throw new Error(`Regression coverage manifest is stale. Run ${MANIFEST_GENERATOR}.`);
   }
   console.log(`Regression coverage manifest is current (${REGRESSION_ENTRIES.length} scripts).`);
 } else {
   if (ratchetFloors) {
     await fs.writeFile(path.resolve(POLICY_SOURCE), `${JSON.stringify(policy, null, 2)}\n`, "utf8");
-    console.log(`Ratchet floors advanced in ${POLICY_SOURCE}; no floor was lowered.`);
+    console.log(`Coverage guardrails advanced in ${POLICY_SOURCE}; no floor was lowered and no ceiling was raised.`);
   }
   await fs.writeFile(path.resolve(MANIFEST_PATH), expected, "utf8");
   console.log(`Generated ${MANIFEST_PATH} from ${REGRESSION_ENTRIES.length} discovered scripts.`);

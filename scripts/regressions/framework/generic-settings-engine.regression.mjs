@@ -9,12 +9,18 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("generic-settings-engine");
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
 const { modulesService } = await import("../../../src/core/modules/modules.service.js");
 const { settingsService } = await import("../../../src/services/settings.service.js");
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} WorkspaceSession */
+/** The rejection shape the settings service throws: an HTTP status plus a safe message. */
+/** @typedef {{ message: string, statusCode: number }} RejectedSaveError */
+/** @type {(() => void)[]} */
 const unregister = [];
+/** @type {WorkspaceSession} */
 let currentSession;
 
 try {
@@ -157,7 +163,7 @@ WHERE workspace_id = '${session.workspace_id.replaceAll("'", "''")}'
     },
     async write({ value }) {
       frameworkWrites += 1;
-      frameworkStoredValue = value;
+      frameworkStoredValue = String(value);
     },
   }));
   unregister.push(settingsService.registerOnChangeEffect("framework.exampleMode", async ({ value }) => {
@@ -183,13 +189,15 @@ WHERE workspace_id = '${session.workspace_id.replaceAll("'", "''")}'
   await fixture.cleanup();
 }
 
+/** @param {unknown} moduleSettings @param {RegExp} messagePattern */
 async function assertRejectedSave(moduleSettings, messagePattern) {
   await assert.rejects(
     () => settingsService.save({ moduleSettings }, currentSession),
-    (error) => error?.statusCode === 400 && messagePattern.test(error.message),
+    (error) => /** @type {RejectedSaveError} */ (error)?.statusCode === 400 && messagePattern.test(/** @type {RejectedSaveError} */ (error).message),
   );
 }
 
+/** @param {{ moduleSettings: { moduleId: string, settings: { id: string, value: unknown }[] }[] }} settings @param {string} moduleId @param {string} settingId @returns {unknown} */
 function readSettingValue(settings, moduleId, settingId) {
   return settings.moduleSettings
     .find((moduleDefinition) => moduleDefinition.moduleId === moduleId)
@@ -207,13 +215,6 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "Fresh database should seed a protected super admin");
 
-  currentSession = {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  currentSession = workspaceSessionFixture(user);
   return currentSession;
 }

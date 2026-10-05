@@ -4,6 +4,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} InternalEvent */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-timer-resume-metadata-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-timer-resume-metadata.db");
 process.env.SUPER_ADMIN_PASSWORD = "Timer-Resume-Metadata-Test-Password-123!";
@@ -35,6 +38,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId @param {InternalEvent[]} receivedEvents */
 async function assertManualTimerPayloadAndEvents(session, projectId, receivedEvents) {
   const started = await activeTimersService.save("1", {
     accumulated_elapsed_seconds: 0,
@@ -65,6 +69,7 @@ async function assertManualTimerPayloadAndEvents(session, projectId, receivedEve
   assert.ok(receivedEvents.every((event) => !Object.hasOwn(event.metadata || {}, "sourceMetadata")));
 }
 
+/** @param {TimeTrackingSession} session @param {{ task_id: string, title: string, project_id: string }} task @param {InternalEvent[]} receivedEvents */
 async function assertTaskTimerResumeContext(session, task, receivedEvents) {
   const result = await taskTimersService.save(task.task_id, {
     accumulated_elapsed_seconds: 45,
@@ -84,17 +89,19 @@ async function assertTaskTimerResumeContext(session, task, receivedEvents) {
   const list = await activeTimersService.listAll(session);
   const listedTaskTimer = list.timers.find((timer) => timer.source_id === task.task_id);
 
+  assert.ok(listedTaskTimer, "task timer should remain listed for resume context proof");
   assert.equal(listedTaskTimer.resumeContext.sourceLabel, task.title);
   assert.equal(listedTaskTimer.resumeContext.accumulatedElapsedSeconds, 45);
 
   await taskTimersService.remove(task.task_id, session);
   assert.ok(receivedEvents.some((event) => (
     event.name === "timer.discarded" &&
-    event.metadata.source_id === task.task_id &&
-    event.metadata.source_label === task.title
+    event.metadata?.source_id === task.task_id &&
+    event.metadata?.source_label === task.title
   )));
 }
 
+/** @param {TimeTrackingSession} session @param {{ task_id: string, title: string, project_id: string }} task */
 async function assertInaccessibleSourceDetailsAreHidden(session, task) {
   const noRoleSession = await createNoRoleSession(session.workspace_id);
   const result = await activeTimersService.saveSourced({
@@ -142,6 +149,7 @@ async function assertTimeTrackingEventTypesRegistered() {
 }
 
 function captureTimerEvents() {
+  /** @type {InternalEvent[]} */
   const receivedEvents = [];
 
   for (const eventName of ["timer.started", "timer.paused", "timer.finalized", "timer.discarded"]) {
@@ -156,6 +164,7 @@ function captureTimerEvents() {
   return receivedEvents;
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function createTask(session, projectId) {
   const result = await tasksService.create({
     assignee_ids: [session.user_id],
@@ -166,6 +175,7 @@ async function createTask(session, projectId) {
   return result.task;
 }
 
+/** @param {string} workspaceId */
 async function createProject(workspaceId) {
   const now = new Date().toISOString();
   const projectId = randomUUID();
@@ -216,6 +226,7 @@ VALUES (
   return projectId;
 }
 
+/** @param {string} workspaceId @returns {Promise<import("../src/types/time-tracking-contracts.d.ts").TimeTrackingSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -264,8 +275,11 @@ VALUES (
 `);
 
   return {
+    active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: "America/New_York",
     user_id: userId,
     username,
@@ -273,6 +287,7 @@ VALUES (
   };
 }
 
+/** @returns {Promise<import("../src/types/time-tracking-contracts.d.ts").TimeTrackingSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -283,13 +298,17 @@ LIMIT 1;
   const user = rows[0];
 
   assert.ok(user, "fresh database should seed a protected super admin");
+  const workspaceId = String(user.active_workspace_id || user.home_workspace_id || "");
 
   return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
+    active_workspace_id: workspaceId,
+    home_workspace_id: String(user.home_workspace_id || workspaceId),
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
+    timezone: String(user.timezone || "America/New_York"),
+    user_id: String(user.user_id),
+    username: String(user.username || ""),
+    workspace_id: workspaceId,
   };
 }

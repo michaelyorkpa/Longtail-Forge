@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { notificationsService } from "../services/notifications.service.js";
 import { readJsonObjectBody, workspaceAsyncRoute as asyncRoute } from "../utils/http.js";

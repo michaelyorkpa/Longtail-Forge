@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-params-pilot-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-params-pilot.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Params-Test-123!";
@@ -66,14 +68,16 @@ try {
   await assertDriverBindingCoercionAndValidation();
 
   await initializeDatabase();
-  const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
-  const user = await db.get(`
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireRow(await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "workspace");
+  /** @type {{ timezone: string, user_id: string, username: string }} */
+  const user = requireRow(await db.get(`
 SELECT user_id, username, timezone
 FROM users
 WHERE home_workspace_id = :workspaceId
 ORDER BY rowid
 LIMIT 1;
-`, { workspaceId: workspace.workspace_id });
+`, { workspaceId: workspace.workspace_id }), "user");
 
   assert.ok(workspace?.workspace_id, "fresh startup should create a workspace");
   assert.ok(user?.user_id, "fresh startup should create a user");
@@ -108,11 +112,11 @@ function assertPilotSourceShape() {
   assert.match(workspacesSource, /createWorkspace[\s\S]*db\.transaction/, "workspace creation should use the adapter transaction helper after the conversion wave");
   assert.doesNotMatch(workspacesSource, /\bsqlText\b|\bsqlInteger\b|\bquerySql\b|\brunSql\b/, "workspace repository should stay off interpolation helpers after the conversion wave");
 
-  assert.match(tasksSource, /db\.query\(taskSelectSql\(`[\s\S]*tasks\.workspace_id = :workspaceId[\s\S]*tasks\.task_id = :taskId/, "Tasks readById should use named params");
+  assert.match(tasksSource, /queryTaskRows\(taskSelectSql\(`[\s\S]*tasks\.workspace_id = :workspaceId[\s\S]*tasks\.task_id = :taskId/, "Tasks readById should use named params through the typed query helper");
   assert.match(notesSource, /db\.get\(`[\s\S]*workspace_id = :workspaceId[\s\S]*note_id = :noteId/, "Notes readById should use named params");
 }
 
-async function assertSessionRepositoryParams(workspaceId, user) {
+async function assertSessionRepositoryParams(/** @type {string} */ workspaceId, /** @type {{ timezone: string, user_id: string, username: string }} */ user) {
   const sessionId = `session-${randomUUID()}-' ; DROP TABLE sessions; --`;
   const username = `name ${randomUUID()} ' ; DROP TABLE users; --`;
 
@@ -127,13 +131,13 @@ async function assertSessionRepositoryParams(workspaceId, user) {
     username,
   });
 
-  const readBack = await sessionsRepository.readById(sessionId);
+  const readBack = requireRow(await sessionsRepository.readById(sessionId), "readBack");
   assert.equal(readBack.session_id, sessionId);
   assert.equal(readBack.username, username);
   assert.equal(readBack.ip_address, "127.0.0.1'; DROP TABLE sessions; --");
 
-  await sessionsRepository.updateUsernameForUser(workspaceId, user.user_id, "updated '; DROP TABLE sessions; --");
-  const updated = await sessionsRepository.readById(sessionId);
+  await sessionsRepository.updateUsernameForUser(workspaceId, /** @type {string} */ (user.user_id), "updated '; DROP TABLE sessions; --");
+  const updated = requireRow(await sessionsRepository.readById(sessionId), "updated");
   assert.equal(updated.username, "updated '; DROP TABLE sessions; --");
 
   await sessionsRepository.remove(`${sessionId}-missing`);
@@ -141,7 +145,7 @@ async function assertSessionRepositoryParams(workspaceId, user) {
   await sessionsRepository.remove(sessionId);
   assert.equal(await sessionsRepository.readById(sessionId), null);
 
-  const sessionsTable = await db.get("SELECT COUNT(1) AS count FROM sessions;");
+  const sessionsTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM sessions;"), "sessionsTable");
   assert.ok(Number(sessionsTable.count) >= 0, "sessions table should survive SQL-like bound values");
 }
 
@@ -187,9 +191,9 @@ CREATE TABLE compatibility_multi_statement (
 INSERT INTO compatibility_multi_statement (id, label)
 VALUES ('literal-path', 'multi statement compatibility');
 `);
-  const compatibilityRow = await db.get("SELECT label FROM compatibility_multi_statement WHERE id = :id;", {
+  const compatibilityRow = requireRow(await db.get("SELECT label FROM compatibility_multi_statement WHERE id = :id;", {
     id: "literal-path",
-  });
+  }), "compatibilityRow");
   assert.equal(compatibilityRow.label, "multi statement compatibility", "no-parameter multi-statement compatibility SQL should still execute");
 
   await assert.rejects(
@@ -223,18 +227,18 @@ VALUES (:id);
   );
 }
 
-async function assertWorkspaceRepositoryParams(workspaceId) {
-  const existing = await workspacesRepository.readById(workspaceId);
+async function assertWorkspaceRepositoryParams(/** @type {string} */ workspaceId) {
+  const existing = requireRow(await workspacesRepository.readById(workspaceId), "existing");
   assert.equal(existing.workspace_id, workspaceId);
 
   const hostileWorkspace = await workspacesRepository.readById("missing'; DROP TABLE workspaces; --");
   assert.equal(hostileWorkspace, null);
 
-  const workspacesTable = await db.get("SELECT COUNT(1) AS count FROM workspaces;");
+  const workspacesTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM workspaces;"), "workspacesTable");
   assert.ok(Number(workspacesTable.count) >= 1, "workspaces table should survive SQL-like bound values");
 }
 
-async function assertTaskReadParams(workspaceId) {
+async function assertTaskReadParams(/** @type {string} */ workspaceId) {
   const taskId = `task-${randomUUID()}-' ; DROP TABLE tasks; --`;
   const title = "Task title '; DROP TABLE tasks; --";
   const now = new Date().toISOString();
@@ -257,17 +261,18 @@ VALUES (
 `, { createdAt: now, taskId, title, updatedAt: now, workspaceId });
 
   const task = await tasksRepository.readById(workspaceId, taskId);
+  assert.ok(task, "parameterized Tasks read should return the inserted task");
   assert.equal(task.task_id, taskId);
   assert.equal(task.title, title);
 
   const missing = await tasksRepository.readById(workspaceId, "missing'; DROP TABLE tasks; --");
   assert.equal(missing, null);
 
-  const tasksTable = await db.get("SELECT COUNT(1) AS count FROM tasks;");
+  const tasksTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM tasks;"), "tasksTable");
   assert.ok(Number(tasksTable.count) >= 1, "tasks table should survive SQL-like bound values");
 }
 
-async function assertNoteReadParams(workspaceId) {
+async function assertNoteReadParams(/** @type {string} */ workspaceId) {
   const noteId = `note-${randomUUID()}-' ; DROP TABLE notes; --`;
   const title = "Note title '; DROP TABLE notes; --";
   const now = new Date().toISOString();
@@ -290,16 +295,13 @@ VALUES (
 `, { createdAt: now, noteId, title, updatedAt: now, workspaceId });
 
   const note = await notesRepository.readById(workspaceId, noteId);
+  assert.ok(note, "parameterized Notes read should find the inserted record");
   assert.equal(note.note_id, noteId);
   assert.equal(note.title, title);
 
   const missing = await notesRepository.readById(workspaceId, "missing'; DROP TABLE notes; --");
   assert.equal(missing, null);
 
-  const notesTable = await db.get("SELECT COUNT(1) AS count FROM notes;");
+  const notesTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM notes;"), "notesTable");
   assert.ok(Number(notesTable.count) >= 1, "notes table should survive SQL-like bound values");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

@@ -1,4 +1,3 @@
-// @ts-check
 /** @param {unknown} value */
 function sqlText(value) {
   return `'${String(value ?? "").replaceAll("'", "''")}'`;

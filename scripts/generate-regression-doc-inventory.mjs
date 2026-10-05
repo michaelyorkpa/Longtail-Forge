@@ -5,7 +5,7 @@ import {
   buildRegressionDocInventory,
   replaceRegressionDocInventory,
 } from "./lib/regression-doc-inventory.mjs";
-import { POLICY_SOURCE } from "./lib/regression-manifest.mjs";
+import { POLICY_SOURCE, generatedContentMatches } from "./lib/regression-manifest.mjs";
 
 const DOC_PATH = "docs/regression-suite.md";
 const MANIFEST_PATH = "scripts/regression-coverage-manifest.json";
@@ -28,7 +28,7 @@ const block = buildRegressionDocInventory({
 const expected = replaceRegressionDocInventory(source, block);
 
 if (mode === "--check") {
-  if (source !== expected) {
+  if (!generatedContentMatches(source, expected)) {
     throw new Error(`Generated regression inventory is stale. Run ${INVENTORY_GENERATOR} --write.`);
   }
   console.log("Generated regression documentation inventory is current.");

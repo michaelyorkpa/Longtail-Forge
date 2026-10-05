@@ -9,6 +9,10 @@
     return view;
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserCapturePromptOptions} [options]
+   * @returns {Promise<import("../../../src/types/browser-contracts.js").BrowserCapturePromptResult>}
+   */
   function open(options = {}) {
     const view = requireView();
     const input = options.multiline === false

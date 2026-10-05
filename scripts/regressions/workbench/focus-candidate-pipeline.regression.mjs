@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-focus-candidate-pipeline-"));
@@ -75,6 +76,7 @@ try {
 
   // Re-registering the per-row production resolver supersedes the batch
   // shortcut, so the same reads run through the per-row path.
+  /** @type {import("../../../src/types/framework-contracts.js").ResumeStateReadResolver} */
   const perRowTaskResolver = async ({ recordId, session: resolverSession }) => {
     try {
       const result = await tasksService.readCore(recordId, resolverSession);
@@ -160,12 +162,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

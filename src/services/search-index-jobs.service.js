@@ -12,6 +12,16 @@ const OPERATION_REMOVE = "remove";
 const OPERATION_REBUILD = "rebuild";
 let searchIndexJobHandlersRegistered = false;
 
+/** @typedef {{moduleId: string, recordId: string, recordType: string, workspaceId: string}} SearchJobReference */
+/** @typedef {{moduleId?: unknown, module_id?: unknown, recordId?: unknown, record_id?: unknown, recordType?: unknown, record_type?: unknown, workspaceId?: unknown, workspace_id?: unknown, reason?: unknown, [key: string]: unknown}} SearchJobContext */
+/** @typedef {{maxAttempts?: number, max_attempts?: number, priority?: number}} SearchJobOptions */
+/** @typedef {SearchJobOptions & {app?: boolean, dryRun?: boolean, dry_run?: boolean, moduleId?: unknown, module_id?: unknown, requestedByUserId?: unknown, requested_by_user_id?: unknown, scope?: unknown, source?: unknown, workspaceId?: unknown, workspace_id?: unknown}} SearchRebuildOptions */
+/** @typedef {SearchRebuildOptions & {operation?: unknown, recordReference?: SearchJobContext}} SearchJobPayload */
+/** @typedef {{code?: string, message?: string}} SearchJobError */
+/** @typedef {{ok?: boolean, errors?: SearchJobError[], [key: string]: unknown}} SearchJobResult */
+/** @typedef {import("../types/search-rebuild-contracts.js").SearchRebuildSummary} SearchRebuildSummary */
+
+/** @param {{replace?: boolean}} [options] */
 function registerSearchIndexJobHandlers(options = {}) {
   if (searchIndexJobHandlersRegistered && !options.replace && getJobHandler(SEARCH_INDEX_JOB_TYPE)) {
     return;
@@ -24,6 +34,7 @@ function registerSearchIndexJobHandlers(options = {}) {
   searchIndexJobHandlersRegistered = true;
 }
 
+/** @param {SearchJobContext} [context] @param {SearchJobOptions} [options] */
 async function queueSearchIndexRecord(context = {}, options = {}) {
   const reference = normalizeRecordReference(context);
   const enqueued = await enqueueJob({
@@ -45,6 +56,7 @@ async function queueSearchIndexRecord(context = {}, options = {}) {
   return shapeQueueResult(enqueued, OPERATION_REINDEX, reference);
 }
 
+/** @param {SearchJobContext} [context] @param {SearchJobOptions} [options] */
 async function queueSearchIndexRemoval(context = {}, options = {}) {
   const reference = normalizeRecordReference(context);
   const enqueued = await enqueueJob({
@@ -66,6 +78,7 @@ async function queueSearchIndexRemoval(context = {}, options = {}) {
   return shapeQueueResult(enqueued, OPERATION_REMOVE, reference);
 }
 
+/** @param {SearchRebuildOptions} [options] */
 async function queueSearchIndexRebuild(options = {}) {
   const scope = normalizeRebuildScope(options.scope || (options.app === true ? "app" : options.workspaceId || options.workspace_id ? "workspace" : "app"));
   const workspaceId = scope === "app"
@@ -112,6 +125,7 @@ async function queueSearchIndexRebuild(options = {}) {
   };
 }
 
+/** @param {SearchRebuildOptions} [options] */
 async function queueSearchIndexRebuildIfEmpty(options = {}) {
   const row = await db.get("SELECT COUNT(*) AS count FROM search_index;");
   const indexedCount = Number(row?.count || 0);
@@ -140,6 +154,7 @@ async function queueSearchIndexRebuildIfEmpty(options = {}) {
   };
 }
 
+/** @param {{payload?: SearchJobPayload}} input */
 async function handleSearchIndexJob({ payload = {} }) {
   const operation = normalizeText(payload.operation);
 
@@ -162,6 +177,7 @@ async function handleSearchIndexJob({ payload = {} }) {
   throw new Error(`Unknown search index job operation "${operation}".`);
 }
 
+/** @param {SearchJobPayload} [payload] */
 async function runRebuild(payload = {}) {
   const scope = normalizeRebuildScope(payload.scope);
   const moduleId = normalizeText(payload.moduleId || payload.module_id);
@@ -196,6 +212,7 @@ async function runRebuild(payload = {}) {
   });
 }
 
+/** @param {SearchJobResult} [result] */
 function assertSearchResult(result = {}) {
   if (result.ok === false) {
     throw new Error(formatSearchErrors(result.errors));
@@ -204,7 +221,8 @@ function assertSearchResult(result = {}) {
   return result;
 }
 
-function assertRebuildSummary(summary = {}) {
+/** @param {SearchRebuildSummary} summary */
+function assertRebuildSummary(summary) {
   if (Number(summary.counts?.failed || 0) > 0) {
     const errors = (summary.targets || [])
       .flatMap((target) => target.errors || [])
@@ -217,6 +235,7 @@ function assertRebuildSummary(summary = {}) {
   return summary;
 }
 
+/** @param {Awaited<ReturnType<typeof enqueueJob>>} enqueued @param {string} operation @param {SearchJobReference} reference */
 function shapeQueueResult(enqueued, operation, reference) {
   const action = enqueued?.action || "";
   return {
@@ -235,6 +254,7 @@ function shapeQueueResult(enqueued, operation, reference) {
   };
 }
 
+/** @param {SearchJobContext} [context] @returns {SearchJobReference} */
 function normalizeRecordReference(context = {}) {
   return {
     workspaceId: normalizeRequiredText(context.workspaceId || context.workspace_id, "Search index job requires a workspace."),
@@ -244,6 +264,7 @@ function normalizeRecordReference(context = {}) {
   };
 }
 
+/** @param {string} operation @param {SearchJobReference} reference */
 function dedupeKey(operation, reference) {
   return [
     "search",
@@ -255,6 +276,7 @@ function dedupeKey(operation, reference) {
   ].join(":");
 }
 
+/** @param {{moduleId: string, scope: string, workspaceId: string}} input */
 function rebuildDedupeKey({ moduleId, scope, workspaceId }) {
   return [
     "search",
@@ -273,13 +295,15 @@ ORDER BY created_at ASC, workspace_id ASC
 LIMIT 1;
 `);
 
-  return row?.workspace_id || "";
+  return String(row?.workspace_id || "");
 }
 
+/** @param {unknown} value */
 function normalizeRebuildScope(value) {
   return normalizeText(value) === "app" ? "app" : "workspace";
 }
 
+/** @param {unknown} value @param {string} message */
 function normalizeRequiredText(value, message) {
   const text = normalizeText(value);
 
@@ -290,10 +314,12 @@ function normalizeRequiredText(value, message) {
   return text;
 }
 
+/** @param {unknown} value */
 function normalizeText(value) {
   return String(value || "").trim();
 }
 
+/** @param {SearchJobError[]} [errors] */
 function formatSearchErrors(errors = []) {
   return errors
     .map((error) => error.message || error.code || "Search indexing failed.")

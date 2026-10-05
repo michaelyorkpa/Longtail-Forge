@@ -1,32 +1,56 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { requireJsonRecord } from "../test-support/json-record-assertions.mjs";
 import {
   collectChangedPaths,
   normalizeChangedPath,
 } from "./regression-change-routing.mjs";
 
+/** @typedef {{ docs: readonly string[], id: string, label: string, sourcePatterns: readonly string[] }} DocsOwnershipAreaInput */
+/** @typedef {{ areas: readonly DocsOwnershipAreaInput[], noteConvention?: { docsUpdated?: string, noDocsChangeNeeded?: string }, schemaVersion: number }} DocsOwnershipIndexInput */
+/** @typedef {Readonly<{ expression: string, matcher: RegExp }>} DocsSourcePattern */
+/** @typedef {Readonly<{ docs: readonly string[], id: string, label: string, sourcePatterns: readonly DocsSourcePattern[] }>} DocsOwnershipArea */
+/** @typedef {Readonly<{ areas: readonly DocsOwnershipArea[], noteConvention: Readonly<{ docsUpdated?: string, noDocsChangeNeeded?: string }>, schemaVersion: number }>} DocsOwnershipIndex */
+/** @typedef {Readonly<{ docs: readonly string[], id: string, label: string, matchingPaths: readonly string[] }>} MatchedDocsArea */
+/** @typedef {ReturnType<typeof suggestDocsForPaths>} DocsSuggestion */
+
 const DOCS_OWNERSHIP_INDEX = "docs/docs-ownership.json";
 const DOCS_UPDATED_PREFIX = "Docs updated:";
 const NO_DOCS_CHANGE_PREFIX = "No docs change needed:";
 
+/**
+ * @param {{ cwd?: string, indexPath?: string }} [options]
+ * @returns {DocsOwnershipIndex}
+ */
 function loadDocsOwnershipIndex({ cwd = process.cwd(), indexPath = DOCS_OWNERSHIP_INDEX } = {}) {
-  const index = JSON.parse(readFileSync(path.resolve(cwd, indexPath), "utf8"));
+  // The parsed index enters open and the existing validator narrows it, which
+  // is what its parameter type was always meant to be doing.
+  const index = requireJsonRecord(JSON.parse(readFileSync(path.resolve(cwd, indexPath), "utf8")), indexPath);
   return validateDocsOwnershipIndex(index);
 }
 
+/**
+ * @param {unknown} index
+ * @returns {DocsOwnershipIndex}
+ */
 function validateDocsOwnershipIndex(index) {
-  if (index?.schemaVersion !== 1 || !Array.isArray(index.areas)) {
+  if (!index || typeof index !== "object" || Array.isArray(index)) {
+    throw new Error("Documentation ownership index must be a JSON object.");
+  }
+  const candidate = /** @type {DocsOwnershipIndexInput} */ (index);
+  if (candidate.schemaVersion !== 1 || !Array.isArray(candidate.areas)) {
     throw new Error("Documentation ownership index must use schemaVersion 1 and define areas.");
   }
   if (
-    index.noteConvention?.docsUpdated !== "Docs updated: <comma-separated paths>." ||
-    index.noteConvention?.noDocsChangeNeeded !== "No docs change needed: <short reason>."
+    candidate.noteConvention?.docsUpdated !== "Docs updated: <comma-separated paths>." ||
+    candidate.noteConvention?.noDocsChangeNeeded !== "No docs change needed: <short reason>."
   ) {
     throw new Error("Documentation ownership index must publish both closeout note conventions.");
   }
 
+  /** @type {Set<string>} */
   const ids = new Set();
-  const areas = index.areas.map((area, areaIndex) => {
+  const areas = candidate.areas.map((area, areaIndex) => {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(area?.id || "")) {
       throw new Error(`Documentation ownership area ${areaIndex + 1} needs a stable kebab-case id.`);
     }
@@ -45,14 +69,14 @@ function validateDocsOwnershipIndex(index) {
       throw new Error(`Documentation ownership area ${area.id} needs likely documentation paths.`);
     }
 
-    const sourcePatterns = area.sourcePatterns.map((pattern) => {
+    const sourcePatterns = area.sourcePatterns.map((/** @type {string} */ pattern) => {
       if (typeof pattern !== "string" || !pattern.trim()) {
         throw new Error(`Documentation ownership area ${area.id} contains an empty source pattern.`);
       }
       try {
         return Object.freeze({ expression: pattern, matcher: new RegExp(pattern) });
       } catch (error) {
-        throw new Error(`Documentation ownership area ${area.id} has invalid pattern ${pattern}: ${error.message}`);
+        throw new Error(`Documentation ownership area ${area.id} has invalid pattern ${pattern}: ${/** @type {Error} */ (error).message}`);
       }
     });
     const docs = [...new Set(area.docs.map(normalizeChangedPath).filter(Boolean))];
@@ -73,16 +97,22 @@ function validateDocsOwnershipIndex(index) {
 
   return Object.freeze({
     areas: Object.freeze(areas),
-    noteConvention: Object.freeze({ ...index.noteConvention }),
-    schemaVersion: index.schemaVersion,
+    noteConvention: Object.freeze({ ...candidate.noteConvention }),
+    schemaVersion: candidate.schemaVersion,
   });
 }
 
+/**
+ * @param {readonly string[]} [filePaths]
+ * @param {{ index?: DocsOwnershipIndexInput, note?: string }} [options]
+ */
 function suggestDocsForPaths(filePaths = [], { index, note = "" } = {}) {
   const ownership = index ? validateDocsOwnershipIndex(index) : loadDocsOwnershipIndex();
   const paths = [...new Set(filePaths.map(normalizeChangedPath).filter(Boolean))].sort();
   const changedPathSet = new Set(paths);
+  /** @type {MatchedDocsArea[]} */
   const matchedAreas = [];
+  /** @type {Set<string>} */
   const suggestedDocs = new Set();
 
   for (const area of ownership.areas) {
@@ -129,6 +159,10 @@ function suggestDocsForPaths(filePaths = [], { index, note = "" } = {}) {
   });
 }
 
+/**
+ * @param {unknown} note
+ * @returns {Readonly<{ kind: string, value: string }> | null}
+ */
 function parseDocsChangeNote(note) {
   const value = String(note || "").trim();
   for (const [prefix, kind] of [
@@ -142,6 +176,11 @@ function parseDocsChangeNote(note) {
   return null;
 }
 
+/**
+ * @param {DocsSuggestion} result
+ * @param {{ check?: boolean }} [options]
+ * @returns {string}
+ */
 function formatDocsSuggestion(result, { check = false } = {}) {
   const lines = [
     "Documentation ownership review",
@@ -185,6 +224,10 @@ function formatDocsSuggestion(result, { check = false } = {}) {
   return lines.join("\n");
 }
 
+/**
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isDocumentationPath(filePath) {
   const normalized = normalizeChangedPath(filePath);
   return /(?:^|\/)README\.md$/i.test(normalized) ||

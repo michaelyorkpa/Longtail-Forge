@@ -7,6 +7,11 @@ import { canAccessNote, NOTE_PERMISSIONS } from "../../src/modules/notes/access-
 
 const workspaceId = "workspace-a";
 
+/**
+ * @param {string} id
+ * @param {string | null} [parentId]
+ * @param {Record<string, unknown>} [options]
+ */
 function collection(id, parentId = null, options = {}) {
   return {
     note_library_collection_id: id,
@@ -18,6 +23,7 @@ function collection(id, parentId = null, options = {}) {
   };
 }
 
+/** @param {...ReturnType<typeof collection>} collections */
 function collectionMap(...collections) {
   return new Map(collections.map((item) => [item.note_library_collection_id, item]));
 }
@@ -109,6 +115,7 @@ describe("Notes effective security", () => {
     const cycleB = collection("cycle-b", "cycle-a");
     const foreign = collection("foreign", null, { workspace_id: "workspace-b" });
 
+    /** @type {Array<[{ note_collection_id: string, security_mode: string, workspace_id: string }, Map<string, ReturnType<typeof collection>>, string]>} */
     const scenarios = [
       [{ note_collection_id: "missing", security_mode: "normal", workspace_id: workspaceId }, collectionMap(), "missing_collection"],
       [{ note_collection_id: "orphan", security_mode: "normal", workspace_id: workspaceId }, collectionMap(orphan), "missing_ancestor"],

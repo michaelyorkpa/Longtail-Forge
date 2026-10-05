@@ -8,13 +8,24 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
+/**
+ * One recorded runner-baseline environment opt-out from
+ * scripts/regression-baseline-bypass-audit.json.
+ * @typedef {{ path: string, rationale: string }} RetainedEnvironmentOptOut
+ * @typedef {{ customBootstrapOwners: string[], fullChainOwners: string[], retainedEnvironmentOptOuts: RetainedEnvironmentOptOut[] }} BypassAudit
+ */
+
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const audit = JSON.parse(await fs.readFile(path.join(rootDir, "scripts/regression-baseline-bypass-audit.json"), "utf8"));
+// The checked-in rationale audit is parsed JSON; it enters through the shared
+// record narrowing and names only the three lists this owner classifies on.
+/** @type {BypassAudit} */
+const audit = requireJsonRecord(JSON.parse(await fs.readFile(path.join(rootDir, "scripts/regression-baseline-bypass-audit.json"), "utf8")), "scripts/regression-baseline-bypass-audit.json");
 const foundOptOuts = [];
 
 for (const scriptPath of await listMjsFiles(path.join(rootDir, "scripts"))) {
@@ -26,7 +37,7 @@ for (const scriptPath of await listMjsFiles(path.join(rootDir, "scripts"))) {
   }
 }
 
-const auditedOptOuts = audit.retainedEnvironmentOptOuts.map((entry) => entry.path).sort();
+const auditedOptOuts = audit.retainedEnvironmentOptOuts.map((/** @type {RetainedEnvironmentOptOut} */ entry) => entry.path).sort();
 assert.deepEqual(foundOptOuts.sort(), auditedOptOuts, "Runner-baseline environment opt-outs must match the checked-in rationale audit.");
 for (const entry of audit.retainedEnvironmentOptOuts) {
   assert.ok(entry.rationale.length >= 40, `${entry.path} needs a substantive retained-opt-out rationale.`);
@@ -48,6 +59,10 @@ assert.deepEqual(discoveredBypassOwners, auditedBypassOwners, "Every baseline-by
 
 console.log("Regression baseline bypass audit passed.");
 
+/**
+ * @param {string} directoryPath
+ * @returns {Promise<string[]>}
+ */
 async function listMjsFiles(directoryPath) {
   const results = [];
   for (const entry of await fs.readdir(directoryPath, { withFileTypes: true })) {

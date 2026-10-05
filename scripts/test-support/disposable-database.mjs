@@ -5,6 +5,10 @@ import { hasRegisteredVerifiedRegressionBaselineHandshake } from "../../src/db/r
 
 const DEFAULT_FIXTURE_PASSWORD = "Regression-Fixture-Password-123!";
 
+/**
+ * @param {string} name
+ * @param {{ reuseExisting?: boolean }} [options]
+ */
 async function createDisposableDatabaseFixture(name, { reuseExisting = false } = {}) {
   const existingDatabaseFile = String(process.env.LONGTAIL_DATABASE_FILE || "").trim();
 
@@ -38,6 +42,11 @@ async function createDisposableDatabaseFixture(name, { reuseExisting = false } =
   };
 }
 
+/**
+ * @param {string} parentPath
+ * @param {string} candidatePath
+ * @returns {boolean}
+ */
 function isPathWithin(parentPath, candidatePath) {
   const relativePath = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
   return relativePath !== "" && relativePath !== ".." && !relativePath.startsWith(`..${path.sep}`) && !path.isAbsolute(relativePath);

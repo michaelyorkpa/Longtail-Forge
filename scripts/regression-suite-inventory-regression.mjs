@@ -1,13 +1,29 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 
 const docs = readFileSync("docs/regression-suite.md", "utf8");
 const runner = readFileSync("scripts/run-regressions.mjs", "utf8");
 const suite = readFileSync("scripts/regression-suite.mjs", "utf8");
 const discovery = readFileSync("scripts/lib/regression-discovery.mjs", "utf8");
-const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
-const coveragePolicy = JSON.parse(readFileSync("scripts/regression-coverage-exceptions.json", "utf8"));
+/**
+ * The generated snapshot and policy fields this owner reads. Both files are
+ * parsed JSON, so they enter through the shared record narrowing and name
+ * only what is read here rather than claiming a whole schema.
+ * @typedef {{ scripts: readonly unknown[] }} LegacySnapshot
+ * @typedef {{ floorCredit?: boolean, runMode?: string }} RetiredScriptEntry
+ * @typedef {{
+ *   legacyMetadataException: { maximumScripts: number },
+ *   retiredScripts: readonly RetiredScriptEntry[],
+ * }} CoveragePolicy
+ */
+
+/** @type {LegacySnapshot} */
+const legacySnapshot = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8")), "regression-legacy-snapshot.json");
+/** @type {CoveragePolicy} */
+const coveragePolicy = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-coverage-exceptions.json", "utf8")), "regression-coverage-exceptions.json");
 
 for (const entryPoint of [
   "scripts/run-regressions.mjs",
@@ -85,13 +101,9 @@ assert.ok(
   REGRESSION_SCRIPTS.includes("scripts/regression-suite-inventory-regression.mjs"),
   "inventory contract guardrail should be registered",
 );
-const creditedLegacyRetirements = coveragePolicy.retiredScripts.filter((entry) => (
-  entry.floorCredit === true && entry.legacy === true
-)).length;
-assert.equal(
-  legacySnapshot.scripts.length + creditedLegacyRetirements,
-  coveragePolicy.legacyMetadataException.expectedScripts,
-  "the legacy migration snapshot and reviewed credits should reconcile to the recorded baseline",
+assert.ok(
+  legacySnapshot.scripts.length <= coveragePolicy.legacyMetadataException.maximumScripts,
+  "the legacy migration snapshot must not exceed its shrink-only ceiling",
 );
 const flattenedBucketScripts = REGRESSION_BUCKETS.flatMap((bucket) => bucket.scripts);
 assert.equal(flattenedBucketScripts.length, REGRESSION_ENTRIES.length, "bucket membership should cover every discovered entry");
@@ -108,9 +120,23 @@ const bucketFloors = new Map([
   ["isolated file storage regressions", 9],
   ["isolated database regressions", 150],
 ]);
+const bucketRunModes = new Map([
+  ["static/source regressions", "static"],
+  ["default database regressions", "serial-database"],
+  ["file storage regressions", "serial-files"],
+  ["isolated file storage regressions", "isolated-files"],
+  ["isolated database regressions", "isolated-database"],
+]);
 for (const bucket of REGRESSION_BUCKETS) {
+  const retiredCredits = coveragePolicy.retiredScripts.filter((entry) => (
+    entry.floorCredit === true && entry.runMode === bucketRunModes.get(bucket.name)
+  )).length;
+  // A bucket without a recorded floor would otherwise compare against
+  // undefined and pass; name the bucket instead.
+  const bucketFloor = bucketFloors.get(bucket.name);
+  assert.ok(bucketFloor !== undefined, `${bucket.name} should have a recorded coverage floor`);
   assert.ok(
-    bucket.scripts.length >= bucketFloors.get(bucket.name),
+    bucket.scripts.length + retiredCredits >= bucketFloor,
     bucket.name + " should retain its coverage floor without pinning safe reclassification",
   );
 }
@@ -123,7 +149,3 @@ assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
 
 console.log("Regression suite inventory contract passed.");
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

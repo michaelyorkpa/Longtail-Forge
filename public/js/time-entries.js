@@ -1,857 +1,1500 @@
 // Time Entries reuses the reporting data sources, then writes changes back by entry ID.
-const filterClientSelect = document.querySelector("[data-time-entry-filter-client]");
-const filterProjectSelect = document.querySelector("[data-time-entry-filter-project]");
-const filterStatusSelect = document.querySelector("[data-time-entry-filter-status]");
-const filterPeriodSelect = document.querySelector("[data-time-entry-filter-period]");
-const filterCustomDates = document.querySelector("[data-time-entry-filter-custom-dates]");
-const filterStartDateInput = document.querySelector("[data-time-entry-filter-start-date]");
-const filterEndDateInput = document.querySelector("[data-time-entry-filter-end-date]");
-const filterUsersSelect = document.querySelector("[data-time-entry-filter-users]");
-const filterTagControl = document.querySelector("[data-time-entry-filter-tag-control]");
-const filterTagSelect = document.querySelector("[data-time-entry-filter-tag]");
-const sortSelect = document.querySelector("[data-time-entry-sort]");
-const addTimeEntryButton = document.querySelector("[data-add-time-entry]");
-const timeEntryStatus = document.querySelector("[data-time-entry-status]");
-const timeEntryTable = document.querySelector("[data-time-entry-table]");
-const bulkToolbar = document.querySelector("[data-time-entry-bulk-toolbar]");
-const bulkActionSelect = document.querySelector("[data-time-entry-bulk-action]");
-const bulkTagsControl = document.querySelector("[data-time-entry-bulk-tags]");
-const bulkApplyButton = document.querySelector("[data-time-entry-bulk-apply]");
-const selectAllInput = document.querySelector("[data-time-entry-select-all]");
+(function attachTimeEntriesPage() {
+  /**
+   * One filter control, at the subtype `views/protected/time-entries.html` renders, or `null`.
+   *
+   * **Typed-or-null on purpose**, the same reading `0.33.33.44.5` settled for User Administration.
+   * The markup is static and always carries these controls, but acquisition runs at module
+   * evaluation - outside the `try` in `loadTimeEntryData` - so refusing here would turn a missing
+   * control into a dead page instead of the "Entries could not be loaded." status it produces
+   * today. The subtype is settled here; presence is settled at the statement that already
+   * dereferenced it.
+   * @template T
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function findTimeEntryControl(selector, constructor) {
+    const element = document.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
 
-let timeEntryClients = [];
-let timeEntrySettings = {
-  billingPeriod: { type: "calendarMonth", startDay: 1 },
-};
-let timeEntries = [];
-let timeEntryUsers = [];
-let timeEntryTagOptions = [];
-let bulkTagPicker = null;
-let bulkTagObserver = null;
-const selectedEntryIds = new Set();
-
-initializeTimeEntries();
-
-filterStatusSelect.addEventListener("change", renderEntries);
-filterPeriodSelect.addEventListener("change", () => {
-  updateFilterDateState();
-  renderEntries();
-});
-filterStartDateInput.addEventListener("change", renderEntries);
-filterEndDateInput.addEventListener("change", renderEntries);
-filterUsersSelect.addEventListener("change", renderEntries);
-filterTagSelect?.addEventListener("change", renderEntries);
-sortSelect.addEventListener("change", renderEntries);
-addTimeEntryButton.addEventListener("click", openAddDialog);
-filterClientSelect.addEventListener("change", () => {
-  populateFilterProjects();
-  renderEntries();
-});
-filterProjectSelect.addEventListener("change", renderEntries);
-bulkActionSelect?.addEventListener("change", updateBulkControls);
-bulkApplyButton?.addEventListener("click", applyBulkTagAction);
-selectAllInput?.addEventListener("change", toggleVisibleSelection);
-
-async function loadTimeEntryData() {
-  setTimeEntryStatus("Loading entries...");
-
-  try {
-    const [settingsResponse, clientsResponse, entriesResponse, usersResponse] = await Promise.all([
-      fetch("/api/settings", { cache: "no-store" }),
-      fetch("/api/client-projects?view=options", { cache: "no-store" }),
-      fetch("/api/time-entries", { cache: "no-store" }),
-      fetch("/api/users", { cache: "no-store" }),
-    ]);
-
-    if (!clientsResponse.ok) {
-      throw new Error(`Could not load client data: ${clientsResponse.status}`);
+  /**
+   * Narrow at an access this page already made unguarded.
+   *
+   * Controls the page already guarded keep their guards - the tag filter is read through `?.` and
+   * an explicit absence check, and stays optional. This is only for the statements that
+   * dereferenced a control directly, which is what makes it required.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireTimeEntryValue(value, name) {
+    if (value === null) {
+      throw new TypeError(`Time Entries requires its ${name}.`);
     }
 
-    timeEntrySettings = settingsResponse.ok
-      ? normalizeSettings(await settingsResponse.json())
-      : normalizeSettings({});
-    timeEntryClients = normalizeClients(await clientsResponse.json());
-    timeEntries = entriesResponse.ok
-      ? normalizeTimeEntries(await entriesResponse.json())
-      : [];
-    timeEntryTagOptions = await loadTagOptions();
-    timeEntryUsers = usersResponse.ok
-      ? normalizeUsers(await usersResponse.json())
-      : [];
+    return value;
+  }
 
-    populateClientOptions(filterClientSelect, "All clients");
-    selectWorkspaceScopeClientIfNeeded(filterClientSelect);
-    populateFilterProjects();
-    populateUserOptions();
-    populateTagFilter();
-    await mountBulkTagPicker();
-    setDefaultCustomDates();
+  const filterClientSelect = findTimeEntryControl("[data-time-entry-filter-client]", HTMLSelectElement);
+  const filterProjectSelect = findTimeEntryControl("[data-time-entry-filter-project]", HTMLSelectElement);
+  const filterStatusSelect = findTimeEntryControl("[data-time-entry-filter-status]", HTMLSelectElement);
+  const filterPeriodSelect = findTimeEntryControl("[data-time-entry-filter-period]", HTMLSelectElement);
+  const filterCustomDates = findTimeEntryControl("[data-time-entry-filter-custom-dates]", HTMLElement);
+  const filterStartDateInput = findTimeEntryControl("[data-time-entry-filter-start-date]", HTMLInputElement);
+  const filterEndDateInput = findTimeEntryControl("[data-time-entry-filter-end-date]", HTMLInputElement);
+  const filterUsersSelect = findTimeEntryControl("[data-time-entry-filter-users]", HTMLSelectElement);
+  const filterTagControl = findTimeEntryControl("[data-time-entry-filter-tag-control]", HTMLElement);
+  const filterTagSelect = findTimeEntryControl("[data-time-entry-filter-tag]", HTMLSelectElement);
+  const sortSelect = findTimeEntryControl("[data-time-entry-sort]", HTMLSelectElement);
+  const addTimeEntryButton = findTimeEntryControl("[data-add-time-entry]", HTMLButtonElement);
+  const timeEntryStatus = findTimeEntryControl("[data-time-entry-status]", HTMLElement);
+  const timeEntryTable = findTimeEntryControl("[data-time-entry-table]", HTMLElement);
+  const bulkToolbar = findTimeEntryControl("[data-time-entry-bulk-toolbar]", HTMLDetailsElement);
+  const bulkActionSelect = findTimeEntryControl("[data-time-entry-bulk-action]", HTMLSelectElement);
+  const bulkTagsControl = findTimeEntryControl("[data-time-entry-bulk-tags]", HTMLElement);
+  const bulkApplyButton = findTimeEntryControl("[data-time-entry-bulk-apply]", HTMLButtonElement);
+  const selectAllInput = findTimeEntryControl("[data-time-entry-select-all]", HTMLInputElement);
+
+  /**
+   * The client and project catalogue the filters and billing resolution read.
+   *
+   * Established by the shared surface rather than by this page: `clientProjectOptions`
+   * publishes `normalizeClients` as **total** over `unknown`, answering
+   * `NormalizedClientOption[]`, so `id`, `projects`, `billable` and the optional
+   * `isWorkspaceScope` are facts here rather than hopes.
+   * @type {NormalizedClientOption[]}
+   */
+  let timeEntryClients = [];
+  /** @type {TimeEntrySettings} */
+  let timeEntrySettings = {
+    billingPeriod: { type: "calendarMonth", startDay: 1 },
+    workspaceCapabilities: {},
+  };
+  /**
+   * The rows this page filters, orders and renders.
+   *
+   * Typed from what `readTimeEntryCollection` establishes rather than from the wire: every
+   * element has been through the checked row predicate, so each declared member is a fact the
+   * compiler can hold the readers to. It holds the last collection that could be read whole -
+   * a response the page had to refuse leaves this untouched rather than shortening it.
+   * @type {NormalizedTimeEntry[]}
+   */
+  let timeEntries = [];
+  /** @type {NormalizedTimeEntryUser[]} */
+  let timeEntryUsers = [];
+
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} NormalizedClientOption */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedProjectOption} NormalizedProjectOption */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedBillingPeriod} NormalizedBillingPeriod */
+
+  /** @typedef {{ userId: string, username: string, userStatus: "active" | "inactive" }} NormalizedTimeEntryUser */
+
+  /** @typedef {{ billingPeriod: NormalizedBillingPeriod, workspaceCapabilities: Record<string, unknown> }} TimeEntrySettings */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord} BrowserTagCatalogRecord */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagPickerController} BrowserTagPickerController */
+
+  /**
+   * The tag catalogue this page offers, both in the filter and in the bulk picker.
+   *
+   * Established by the published surface rather than by this page: `loadTags` answers
+   * `Promise<BrowserTagCatalogRecord[]>`, and `loadTagOptions` returns that or an empty list on
+   * either refusal path, so `tag_id`, `name` and `slug` are facts here rather than hopes.
+   * @type {BrowserTagCatalogRecord[]}
+   */
+  let timeEntryTagOptions = [];
+  /**
+   * The mounted bulk picker, or `null` before it mounts and when the surface declines.
+   *
+   * `mountPicker` is declared to answer `BrowserTagPickerController | null`, so absence is a
+   * state this page has always had to hold. The reads below keep their optional calls: this
+   * checkpoint types the slot, and does not re-decide how a mounted picker is spoken to.
+   * @type {BrowserTagPickerController | null}
+   */
+  let bulkTagPicker = null;
+  /** @type {MutationObserver | null} */
+  let bulkTagObserver = null;
+  const selectedEntryIds = new Set();
+
+  initializeTimeEntries();
+
+  requireTimeEntryValue(filterStatusSelect, "status filter").addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterPeriodSelect, "period filter").addEventListener("change", () => {
     updateFilterDateState();
     renderEntries();
-    setTimeEntryStatus("");
-  } catch (error) {
-    setTimeEntryStatus("Entries could not be loaded.");
-    console.error(error);
-  }
-}
-
-async function initializeTimeEntries() {
-  await window.LongtailForge.timezones.loadSessionTimezone();
-  await window.LongtailForge.workspaceContextReady;
-  await loadTimeEntryData();
-  openAddFromUrl();
-  openEntryFromUrl();
-}
-
-function populateClientOptions(select, placeholder) {
-  select.replaceChildren(createOption("", placeholder));
-
-  timeEntryClients.forEach((client) => {
-    select.appendChild(createOption(client.id, clientOptionLabel(client)));
   });
-}
-
-function selectWorkspaceScopeClientIfNeeded(select) {
-  if (workspaceShowsClientTools()) {
-    return;
-  }
-
-  const workspaceClient = timeEntryClients.find((client) => client.isWorkspaceScope);
-
-  if (workspaceClient) {
-    select.value = workspaceClient.id;
-  }
-}
-
-function populateFilterProjects() {
-  const client = getClient(filterClientSelect.value);
-  filterProjectSelect.replaceChildren(createOption("", "All projects"));
-  const projects = client
-    ? client.projects
-    : getAllFilterProjects();
-  filterProjectSelect.disabled = projects.length === 0;
-
-  sortByName(projects).forEach((project) => {
-    filterProjectSelect.appendChild(createOption(project.id, project.name));
+  requireTimeEntryValue(filterStartDateInput, "custom start date").addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterEndDateInput, "custom end date").addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterUsersSelect, "user filter").addEventListener("change", renderEntries);
+  filterTagSelect?.addEventListener("change", renderEntries);
+  requireTimeEntryValue(sortSelect, "sort control").addEventListener("change", renderEntries);
+  requireTimeEntryValue(addTimeEntryButton, "add entry button").addEventListener("click", openAddDialog);
+  requireTimeEntryValue(filterClientSelect, "client filter").addEventListener("change", () => {
+    populateFilterProjects();
+    renderEntries();
   });
-}
+  requireTimeEntryValue(filterProjectSelect, "project filter").addEventListener("change", renderEntries);
+  bulkActionSelect?.addEventListener("change", updateBulkControls);
+  bulkApplyButton?.addEventListener("click", applyBulkTagAction);
+  selectAllInput?.addEventListener("change", toggleVisibleSelection);
 
-function renderEntries() {
-  // The table is rebuilt from state after every filter change or save.
-  timeEntryTable.innerHTML = "";
-  const entries = getFilteredEntries();
-  syncSelectionToEntries(entries);
-  updateSelectionControls(entries);
-  updateBulkControls();
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
 
-  if (!entries.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 7;
-    cell.textContent = "No entries match these filters.";
-    row.appendChild(cell);
-    timeEntryTable.appendChild(row);
-    return;
-  }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
-  entries.forEach((entry) => {
-    const row = document.createElement("tr");
-    row.append(
-      createSelectionCell(entry),
-      createTableCell(formatDate(entry.endTime)),
-      createTableCell(entry.clientName),
-      createProjectCell(entry),
-      createTableCell(formatHours(entry.durationSeconds)),
-      createTableCell(formatEntryStatus(entry)),
-      createActionsCell(entry),
-    );
-    timeEntryTable.appendChild(row);
-  });
-}
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
 
-function createSelectionCell(entry) {
-  const cell = document.createElement("td");
-  const checkbox = document.createElement("input");
+  /**
+   * The namespace root this page awaits its workspace-context readiness through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** A missing
+   * root failed at this property read before and still fails here, in the same expression and so
+   * inside the same `try` region. A present root that publishes no `workspaceContextReady` never
+   * failed - `await undefined` is a real state this page has always tolerated, and it still
+   * continues one microtask later exactly as it did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
 
-  cell.className = "time-entry-selection-cell";
-  checkbox.type = "checkbox";
-  checkbox.value = entry.entryId;
-  checkbox.checked = selectedEntryIds.has(entry.entryId);
-  checkbox.setAttribute("aria-label", `Select ${entry.projectName || "time entry"} from ${formatDate(entry.endTime)}`);
-  checkbox.addEventListener("change", () => {
-    if (checkbox.checked) {
-      selectedEntryIds.add(entry.entryId);
-    } else {
-      selectedEntryIds.delete(entry.entryId);
+    if (!namespace) {
+      throw new Error("Time Entries requires the LongtailForge namespace.");
     }
-    updateSelectionControls(getFilteredEntries());
-    updateBulkControls();
-  });
-  cell.appendChild(checkbox);
-  return cell;
-}
 
-function getFilteredEntries() {
-  const selectedUsers = getSelectedUserIds();
-  const selectedDateRange = getSelectedDateRange();
-  const selectedTagId = filterTagSelect?.value || "";
-  const noTagsValue = noTagsFilterValue();
-
-  return timeEntries
-    .filter((entry) => matchesStatusFilter(entry))
-    .filter((entry) => isEntryInRange(entry, selectedDateRange))
-    .filter((entry) => selectedUsers.length === 0 || selectedUsers.includes(entry.userId))
-    .filter((entry) => {
-      if (!selectedTagId) {
-        return true;
-      }
-      if (selectedTagId === noTagsValue || selectedTagId === "__no_effective_tags__") {
-        return (entry.tags || []).length === 0;
-      }
-      return (entry.tags || []).some((tag) => tag.tag_id === selectedTagId);
-    })
-    .filter((entry) => !filterClientSelect.value || matchesClient(entry, getClient(filterClientSelect.value)))
-    .filter((entry) => !filterProjectSelect.value || matchesProject(entry, getProject(filterClientSelect.value, filterProjectSelect.value)))
-    .sort(compareEntries);
-}
-
-function compareEntries(firstEntry, secondEntry) {
-  switch (sortSelect.value) {
-    case "end_asc":
-      return firstEntry.endTime - secondEntry.endTime;
-    case "duration_desc":
-      return secondEntry.durationSeconds - firstEntry.durationSeconds;
-    case "duration_asc":
-      return firstEntry.durationSeconds - secondEntry.durationSeconds;
-    case "project_asc":
-      return String(firstEntry.projectName || "").localeCompare(
-        String(secondEntry.projectName || ""),
-        undefined,
-        { sensitivity: "base" },
-      );
-    case "end_desc":
-    default:
-      return secondEntry.endTime - firstEntry.endTime;
-  }
-}
-
-function createActionsCell(entry) {
-  const cell = document.createElement("td");
-  const actions = document.createElement("div");
-  const editButton = createTimeEntryActionButton("Edit", "edit");
-  const deleteButton = createTimeEntryActionButton("Delete", "delete", { danger: true });
-
-  actions.className = "table-actions";
-  editButton.addEventListener("click", () => openEditDialog(entry.entryId));
-
-  deleteButton.addEventListener("click", () => deleteEntry(entry));
-
-  actions.append(editButton, deleteButton);
-  cell.appendChild(actions);
-  return cell;
-}
-
-function createTimeEntryActionButton(label, icon, options = {}) {
-  if (window.LongtailForge.icons?.createIconButton) {
-    return window.LongtailForge.icons.createIconButton({
-      icon,
-      label,
-      title: label,
-      variant: options.danger ? "danger" : "",
-    });
+    return namespace;
   }
 
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = label;
-  button.classList.toggle("danger-button", options.danger === true);
-  return button;
-}
-
-async function openEditDialog(entryId) {
-  setTimeEntryStatus("Opening entry...");
-
-  try {
-    const result = await window.LongtailForge.timeEntryDialog.openEdit({ entryId }, {
-      complete: async () => {
-        await loadTimeEntryData();
-        setTimeEntryStatus(`Saved ${entryId}.`);
-      },
-      setStatus: setTimeEntryStatus,
-    });
-    if (result !== "complete") {
-      setTimeEntryStatus("");
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Time Entries requires LongtailForge.errors.");
     }
-  } catch (error) {
-    setTimeEntryStatus(error.message || "Entry could not be opened.");
+    return errors;
   }
-}
 
-async function openAddDialog() {
-  setTimeEntryStatus("Opening entry...");
-
-  try {
-    const result = await window.LongtailForge.timeEntryDialog.openAdd({}, {
-      complete: async () => {
-        await loadTimeEntryData();
-        setTimeEntryStatus("Entry saved.");
-      },
-      setStatus: setTimeEntryStatus,
-    });
-    if (result !== "complete") {
-      setTimeEntryStatus("");
+  /**
+   * The timezone state and formatters this page cannot render dates without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.2.6.2` made the read checked. Every page that loads this script
+   * loads `shared/timezones.js` ahead of it.
+   *
+   * `navigation.js`, `shared/settings-host.js`, `tasks.js`, and `task-dialog.js` read the same
+   * surface optionally and fall back, and they keep doing so: absence is a real state there.
+   * @returns {BrowserTimezones}
+   */
+  function requireTimezones() {
+    const timezones = window.LongtailForge?.timezones;
+    if (!timezones) {
+      throw new Error("Time Entries requires LongtailForge.timezones.");
     }
-  } catch (error) {
-    setTimeEntryStatus(error.message || "Entry could not be opened.");
-  }
-}
-
-function createProjectCell(entry) {
-  const cell = createTableCell(entry.projectName);
-
-  if (window.LongtailForge.tags?.renderTagList && Array.isArray(entry.tags) && entry.tags.length > 0) {
-    const tagList = document.createElement("div");
-    tagList.className = "tag-chip-list";
-    window.LongtailForge.tags.renderTagList(tagList, entry.tags);
-    cell.appendChild(tagList);
+    return timezones;
   }
 
-  return cell;
-}
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
-async function deleteEntry(entry) {
-  const shouldDelete = await window.LongtailForge.modal.confirm({
-    title: "Delete entry?",
-    message: `Delete the ${formatDate(entry.endTime)} entry for ${entry.clientName || entry.projectName}?`,
-    confirmLabel: "Delete",
-    cancelLabel: "Cancel",
-    danger: true,
-  });
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFormatters} BrowserFormatters */
 
-  if (!shouldDelete) {
-    return;
+  /**
+   * The value formatters this page cannot render an invoice status without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.6.6` made the read checked. `time-entries.html` loads
+   * `shared/formatters.js` ahead of this script.
+   *
+   * `time-tracking-dashboard.js` and `time-tracking-reporting.js` read the same surface through
+   * `|| {}` and fall back, and they are right to: both are module-contributed scripts injected
+   * into views by capability and permission, and **the dashboard view never receives
+   * `shared/formatters.js` at all**. `reporting.js` guards it for the same reason.
+   * @returns {BrowserFormatters}
+   */
+  function requireFormatters() {
+    const formatters = window.LongtailForge?.formatters;
+    if (!formatters) {
+      throw new Error("Time Entries requires LongtailForge.formatters.");
+    }
+    return formatters;
   }
 
-  setTimeEntryStatus("Deleting entry...");
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRecords} BrowserRecords */
 
-  try {
-    await window.LongtailForge.api.deleteJson(
-      `/api/time-entries/${encodeURIComponent(entry.entryId)}`,
-    );
-
-    await loadTimeEntryData();
-    setTimeEntryStatus("Entry deleted.");
-  } catch (error) {
-    setTimeEntryStatus("Entry was not deleted. Start the local server and try again.");
-    console.error(error);
-  }
-}
-
-function openEntryFromUrl() {
-  const entryId = new URLSearchParams(window.location.search).get("entry") || "";
-
-  if (entryId) {
-    openEditDialog(entryId);
-  }
-}
-
-function openAddFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-
-  if (params.get("new") === "1" || params.get("add") === "1") {
-    openAddDialog();
-  }
-}
-
-function normalizeClients(data) {
-  return window.LongtailForge.clientProjectOptions.normalizeClients(data);
-}
-
-function clientOptionLabel(client) {
-  return window.LongtailForge.clientProjectOptions.optionLabel(client);
-}
-
-function normalizeTimeEntries(data) {
-  return Array.isArray(data?.entries)
-    ? data.entries.map((entry) => ({
-        entryId: entry.entry_id,
-        userId: entry.user_id,
-        clientId: entry.client_id,
-        clientName: entry.client_name,
-        projectId: entry.project_id,
-        projectName: entry.project_name,
-        description: entry.description,
-        startTime: new Date(entry.start_time),
-        endTime: new Date(entry.end_time),
-        durationSeconds: Number(entry.duration_seconds) || 0,
-        billable: normalizeEntryBillable(entry.billable),
-        invoiceStatus: entry.invoice_status || "unbilled",
-        tags: Array.isArray(entry.tags) ? entry.tags : [],
-      }))
-    : [];
-}
-
-function normalizeSettings(settings) {
-  const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
-  const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
-  return {
-    billingPeriod: normalizeBillingPeriod({ type: billingPeriodType, startDay: billingPeriodStartDay }),
-    workspaceCapabilities: settings?.workspaceCapabilities || {},
-  };
-}
-
-function readModuleSettingValue(settings, moduleId, settingId, fallback) {
-  const moduleDefinition = (settings?.moduleSettings || []).find((item) => item.moduleId === moduleId);
-  const setting = (moduleDefinition?.settings || []).find((item) => item.id === settingId);
-  return setting && Object.hasOwn(setting, "value") ? setting.value : fallback;
-}
-
-function normalizeUsers(data) {
-  return Array.isArray(data?.users)
-    ? data.users.map((user) => ({
-        userId: String(user.user_id || "").trim(),
-        username: String(user.username || "").trim(),
-        userStatus: user.userStatus === "inactive" ? "inactive" : "active",
-      }))
-    : [];
-}
-
-function populateUserOptions() {
-  const usersById = new Map();
-
-  timeEntryUsers.forEach((user) => {
-    usersById.set(user.userId, user.username || user.userId);
-  });
-
-  filterUsersSelect.replaceChildren();
-
-  [...usersById.entries()]
-    .sort((firstUser, secondUser) => firstUser[1].localeCompare(secondUser[1], undefined, {
-      sensitivity: "base",
-    }))
-    .forEach(([userId, label]) => {
-      filterUsersSelect.appendChild(createOption(userId, label));
-    });
-}
-
-async function loadTagOptions() {
-  if (!window.LongtailForge.tags?.loadTags) {
-    return [];
+  /**
+   * The record matchers this page cannot filter without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.6.4` made the read checked. `time-entries.html` is the only page
+   * that loads `shared/records.js`, and it loads it ahead of this script.
+   *
+   * `shared/page-controller.js` and `time-entry-dialog.js` guard the same members and fall back,
+   * and they are right to: six of the seven pages that load the page controller never receive
+   * `records.js` at all. **This page does, so here the dependency is real.**
+   * @returns {BrowserRecords}
+   */
+  function requireRecords() {
+    const records = window.LongtailForge?.records;
+    if (!records) {
+      throw new Error("Time Entries requires LongtailForge.records.");
+    }
+    return records;
   }
 
-  try {
-    return await window.LongtailForge.tags.loadTags();
-  } catch {
-    return [];
-  }
-}
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
 
-function populateTagFilter() {
-  if (!filterTagSelect || !filterTagControl) {
-    return;
-  }
-
-  const previousValue = filterTagSelect.value || "";
-  filterTagControl.hidden = timeEntryTagOptions.length === 0;
-  filterTagSelect.replaceChildren(
-    tagFilterAllOption(),
-    tagFilterNoTagsOption(),
-    ...timeEntryTagOptions.map((tag) => createOption(tag.tag_id, tag.name || tag.slug)),
-  );
-  filterTagSelect.value = previousValue === noTagsFilterValue() || previousValue === "__no_effective_tags__" || timeEntryTagOptions.some((tag) => tag.tag_id === previousValue)
-    ? normalizeTagFilterValue(previousValue)
-    : "";
-}
-
-async function mountBulkTagPicker() {
-  if (!bulkTagsControl || !window.LongtailForge.tags?.mountPicker) {
-    return;
+  /**
+   * The page controller registry this page cannot run without.
+   *
+   * Acquired at the point of use rather than stored at module scope, so a missing surface still
+   * fails at exactly the moment it failed before `0.33.33.38.2.6.2` made the read checked. Every
+   * page that loads this script loads `shared/page-controller.js` ahead of it.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    const controller = window.LongtailForge?.pageController;
+    if (!controller) {
+      throw new Error("Time Entries requires LongtailForge.pageController.");
+    }
+    return controller;
   }
 
-  bulkTagObserver?.disconnect();
-  bulkTagPicker = await window.LongtailForge.tags.mountPicker(bulkTagsControl, {
-    allowCreate: false,
-    label: "Tags",
-    placeholder: "Find tags",
-    tags: timeEntryTagOptions,
-  });
-  if (window.MutationObserver) {
-    bulkTagObserver = new window.MutationObserver(updateBulkControls);
-    bulkTagObserver.observe(bulkTagsControl, {
-      childList: true,
-      subtree: true,
-    });
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Time entries requires LongtailForge.api.");
+    }
+    return apiClient;
   }
-  updateBulkControls();
-}
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
 
-async function applyBulkTagAction() {
-  const targetIds = [...selectedEntryIds];
-  const tagIds = bulkTagPicker?.readTagIds?.() || [];
-  const action = bulkActionSelect?.value === "remove" ? "remove" : "add";
-
-  if (targetIds.length === 0 || tagIds.length === 0) {
-    updateBulkControls();
-    return;
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Time entries requires LongtailForge.modal.");
+    }
+    return dialogs;
   }
 
-  setTimeEntryStatus("Updating time entry tags...");
-  if (bulkApplyButton) {
-    bulkApplyButton.disabled = true;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagBulkAssignmentResult} BrowserTagBulkAssignmentResult */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagBulkAction} BrowserTagBulkAction */
+
+  /**
+   * The three words `normalizeBulkTagAction` answers before it throws.
+   * @type {readonly BrowserTagBulkAction[]}
+   */
+  const TAG_BULK_ACTIONS = Object.freeze(["add", "remove", "replace"]);
+
+  /**
+   * A plain JSON object, which is the least a wire body can be before any member is read.
+   *
+   * Named for the page rather than for its first caller: the bulk response and the entries
+   * response ask the same question, and `0.33.33.44.12` found this one already here rather than
+   * adding a second predicate beside it.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isTimeEntryRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
-  try {
-    const result = await window.LongtailForge.api.postJson("/api/tags/bulk-assignments", {
+  /**
+   * What the bulk tag route answered, or `null` when it cannot be vouched for.
+   *
+   * **Refused rather than defaulted, because the numbers are the message.** The raw
+   * `Number(...) || 0` reads turned an unreadable body into "Updated tags on 0 time entries",
+   * which reports a specific outcome the response never stated. `null` takes the mutation's own
+   * error path, which says the tags could not be updated.
+   *
+   * The failure list is checked through the surface `0.33.33.38.4.11` published for it rather
+   * than re-validated here.
+   * @param {unknown} body
+   * @returns {BrowserTagBulkAssignmentResult | null}
+   */
+  function readTagBulkAssignment(body) {
+    if (!isTimeEntryRecord(body)) {
+      return null;
+    }
+    const { action: actionWord, changed, changed_count: changedCount, errors, skipped_count: skippedCount, target_type: targetType } = body;
+    if (typeof actionWord !== "string"
+      || !Array.isArray(changed)
+      || !Array.isArray(errors)
+      || typeof targetType !== "string" || targetType === ""
+      || ![changedCount, skippedCount].every((count) => typeof count === "number" && Number.isFinite(count))
+      || changedCount !== changed.length
+      || skippedCount !== errors.length) {
+      return null;
+    }
+    // Searched rather than tested for membership, because a membership test answers a boolean
+    // and leaves the word as bare `string`; the search answers the vocabulary's own member.
+    const action = TAG_BULK_ACTIONS.find((word) => word === actionWord);
+    if (!action) {
+      return null;
+    }
+    // `readBulkFailures` drops any entry it cannot vouch for, and this producer builds every
+    // failure with a message fallback. A shorter list therefore means the body did not come
+    // from this producer, and the count would be describing failures the browser cannot see.
+    const failures = requireErrors().readBulkFailures(body);
+    if (failures.length !== skippedCount) {
+      return null;
+    }
+    return {
       action,
-      tagIds,
-      targetIds,
-      targetType: "time_entry",
-    });
-    const changedCount = Number(result.changed_count) || 0;
-    const skippedCount = Number(result.skipped_count) || 0;
-    selectedEntryIds.clear();
-    bulkTagPicker?.setSelected?.([]);
+      changed,
+      changed_count: changedCount,
+      errors: failures,
+      skipped_count: skippedCount,
+      target_type: targetType,
+    };
+  }
+
+  async function loadTimeEntryData() {
+    setTimeEntryStatus("Loading entries...");
+
+    try {
+      const [settingsResponse, clientsResponse, entriesResponse, usersResponse] = await Promise.all([
+        fetch("/api/settings", { cache: "no-store" }),
+        fetch("/api/client-projects?view=options", { cache: "no-store" }),
+        fetch("/api/time-entries", { cache: "no-store" }),
+        fetch("/api/users", { cache: "no-store" }),
+      ]);
+
+      if (!clientsResponse.ok) {
+        throw new Error(`Could not load client data: ${clientsResponse.status}`);
+      }
+
+      timeEntrySettings = settingsResponse.ok
+        ? normalizeSettings(await settingsResponse.json())
+        : normalizeSettings({});
+      timeEntryClients = normalizeClients(await clientsResponse.json());
+      // **A partial read is a failed read.** The rows this page cannot vouch for are still rows
+      // the workspace has, so admitting the readable ones and rendering them would report a
+      // shorter day than the one that was worked. Refusing here leaves `timeEntries` holding the
+      // last collection that *was* whole - the assignment below never runs - and the catch says
+      // so, which is the only honest pair of outcomes for an authoritative list.
+      // **A failed read is not an empty day.** Three ways this response can fail to be an answer,
+      // and all three now take the same path: the request itself failed, the envelope could not be
+      // read, or some rows could not. `0.33.33.44.14` closed the third; `0.33.33.44.15` closes the
+      // first two, which until now both said "no entries" - a claim the server never made. Every
+      // failure leaves `timeEntries` holding the last collection that *was* whole, because the
+      // assignment is below the guards, and the catch reports it.
+      if (!entriesResponse.ok) {
+        throw new Error(`Could not load time entries: ${entriesResponse.status}`);
+      }
+
+      const entryCollection = readTimeEntryCollection(await entriesResponse.json());
+
+      if (!entryCollection) {
+        throw new Error("The time entry response carried no readable entry collection.");
+      }
+
+      if (entryCollection.refused > 0) {
+        throw new Error(
+          `The time entry response could not be read: ${entryCollection.refused} of `
+          + `${entryCollection.entries.length + entryCollection.refused} entries were refused.`,
+        );
+      }
+
+      timeEntries = entryCollection.entries;
+      timeEntryTagOptions = await loadTagOptions();
+      timeEntryUsers = usersResponse.ok
+        ? normalizeUsers(await usersResponse.json())
+        : [];
+
+      const clientFilter = requireTimeEntryValue(filterClientSelect, "client filter");
+      populateClientOptions(clientFilter, "All clients");
+      selectWorkspaceScopeClientIfNeeded(clientFilter);
+      populateFilterProjects();
+      populateUserOptions();
+      populateTagFilter();
+      await mountBulkTagPicker();
+      setDefaultCustomDates();
+      updateFilterDateState();
+      renderEntries();
+      setTimeEntryStatus("");
+    } catch (error) {
+      setTimeEntryStatus("Entries could not be loaded.");
+      console.error(error);
+    }
+  }
+
+  async function initializeTimeEntries() {
+    await requireTimezones().loadSessionTimezone();
+    await requireNamespace().workspaceContextReady;
     await loadTimeEntryData();
-    const skippedText = skippedCount > 0 ? ` ${skippedCount} skipped.` : "";
-    setTimeEntryStatus(`Updated tags on ${changedCount} time ${changedCount === 1 ? "entry" : "entries"}.${skippedText}`);
-  } catch (error) {
-    setTimeEntryStatus(error.message || "Time entry tags could not be updated.");
-    console.error(error);
-  } finally {
+    openAddFromUrl();
+    openEntryFromUrl();
+  }
+
+  /** @param {HTMLSelectElement} select @param {string} placeholder */
+  function populateClientOptions(select, placeholder) {
+    select.replaceChildren(createOption("", placeholder));
+
+    timeEntryClients.forEach((client) => {
+      select.appendChild(createOption(client.id, clientOptionLabel(client)));
+    });
+  }
+
+  /** @param {HTMLSelectElement} select */
+  function selectWorkspaceScopeClientIfNeeded(select) {
+    if (workspaceShowsClientTools()) {
+      return;
+    }
+
+    const workspaceClient = timeEntryClients.find((client) => client.isWorkspaceScope);
+
+    if (workspaceClient) {
+      select.value = workspaceClient.id;
+    }
+  }
+
+  function populateFilterProjects() {
+    const projectFilter = requireTimeEntryValue(filterProjectSelect, "project filter");
+    const client = getClient(requireTimeEntryValue(filterClientSelect, "client filter").value);
+    projectFilter.replaceChildren(createOption("", "All projects"));
+    const projects = client
+      ? client.projects
+      : getAllFilterProjects();
+    projectFilter.disabled = projects.length === 0;
+
+    sortByName(projects).forEach((project) => {
+      projectFilter.appendChild(createOption(project.id, project.name));
+    });
+  }
+
+  function renderEntries() {
+    const table = requireTimeEntryValue(timeEntryTable, "entry table");
+    // The table is rebuilt from state after every filter change or save.
+    table.innerHTML = "";
+    const entries = getFilteredEntries();
+    syncSelectionToEntries(entries);
+    updateSelectionControls(entries);
+    updateBulkControls();
+
+    if (!entries.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 7;
+      cell.textContent = "No entries match these filters.";
+      row.appendChild(cell);
+      table.appendChild(row);
+      return;
+    }
+
+    entries.forEach((entry) => {
+      const row = document.createElement("tr");
+      row.append(
+        createSelectionCell(entry),
+        createTableCell(formatDate(entry.endTime)),
+        createTableCell(entry.clientName),
+        createProjectCell(entry),
+        createTableCell(formatHours(entry.durationSeconds)),
+        createTableCell(formatEntryStatus(entry)),
+        createActionsCell(entry),
+      );
+      table.appendChild(row);
+    });
+  }
+
+  /** @param {NormalizedTimeEntry} entry */
+  function createSelectionCell(entry) {
+    const cell = document.createElement("td");
+    const checkbox = document.createElement("input");
+
+    cell.className = "time-entry-selection-cell";
+    checkbox.type = "checkbox";
+    checkbox.value = entry.entryId;
+    checkbox.checked = selectedEntryIds.has(entry.entryId);
+    checkbox.setAttribute("aria-label", `Select ${entry.projectName || "time entry"} from ${formatDate(entry.endTime)}`);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        selectedEntryIds.add(entry.entryId);
+      } else {
+        selectedEntryIds.delete(entry.entryId);
+      }
+      updateSelectionControls(getFilteredEntries());
+      updateBulkControls();
+    });
+    cell.appendChild(checkbox);
+    return cell;
+  }
+
+  /**
+   * A tag carrying the identity the tag filter compares against.
+   *
+   * The entry's `tags` are `unknown[]` because only the array itself was ever checked. This
+   * narrows at the one read that takes a member off an element, so an element without a string
+   * `tag_id` simply does not match - which is what the unchecked read did too.
+   * @param {unknown} value
+   * @returns {value is { tag_id: string }}
+   */
+  function isTagWithIdentity(value) {
+    return isTimeEntryRecord(value) && typeof value.tag_id === "string";
+  }
+
+  /** @returns {NormalizedTimeEntry[]} */
+  function getFilteredEntries() {
+    const clientFilter = requireTimeEntryValue(filterClientSelect, "client filter");
+    const projectFilter = requireTimeEntryValue(filterProjectSelect, "project filter");
+    const selectedUsers = getSelectedUserIds();
+    const selectedDateRange = getSelectedDateRange();
+    const selectedTagId = filterTagSelect?.value || "";
+    const noTagsValue = noTagsFilterValue();
+
+    return timeEntries
+      .filter((entry) => matchesStatusFilter(entry))
+      .filter((entry) => isEntryInRange(entry, selectedDateRange))
+      .filter((entry) => selectedUsers.length === 0 || selectedUsers.includes(entry.userId))
+      .filter((entry) => {
+        if (!selectedTagId) {
+          return true;
+        }
+        if (selectedTagId === noTagsValue || selectedTagId === "__no_effective_tags__") {
+          return (entry.tags || []).length === 0;
+        }
+        return (entry.tags || []).some((tag) => isTagWithIdentity(tag) && tag.tag_id === selectedTagId);
+      })
+      .filter((entry) => !clientFilter.value || matchesClient(entry, getClient(clientFilter.value)))
+      .filter((entry) => !projectFilter.value || matchesProject(entry, getProject(clientFilter.value, projectFilter.value)))
+      .sort(compareEntries);
+  }
+
+  /**
+   * @param {NormalizedTimeEntry} firstEntry
+   * @param {NormalizedTimeEntry} secondEntry
+   * @returns {number}
+   */
+  function compareEntries(firstEntry, secondEntry) {
+    switch (requireTimeEntryValue(sortSelect, "sort control").value) {
+      // `endTime` is a `Date`, and the subtraction that ordered these rows was always calling
+      // `valueOf`. Stating `getTime()` is the same number, now written where it happens.
+      case "end_asc":
+        return firstEntry.endTime.getTime() - secondEntry.endTime.getTime();
+      case "duration_desc":
+        return secondEntry.durationSeconds - firstEntry.durationSeconds;
+      case "duration_asc":
+        return firstEntry.durationSeconds - secondEntry.durationSeconds;
+      case "project_asc":
+        return String(firstEntry.projectName || "").localeCompare(
+          String(secondEntry.projectName || ""),
+          undefined,
+          { sensitivity: "base" },
+        );
+      case "end_desc":
+      default:
+        return secondEntry.endTime.getTime() - firstEntry.endTime.getTime();
+    }
+  }
+
+  /** @param {NormalizedTimeEntry} entry */
+  function createActionsCell(entry) {
+    const cell = document.createElement("td");
+    const actions = document.createElement("div");
+    const editButton = createTimeEntryActionButton("Edit", "edit");
+    const deleteButton = createTimeEntryActionButton("Delete", "delete", { danger: true });
+
+    actions.className = "table-actions";
+    editButton.addEventListener("click", () => openEditDialog(entry.entryId));
+
+    deleteButton.addEventListener("click", () => deleteEntry(entry));
+
+    actions.append(editButton, deleteButton);
+    cell.appendChild(actions);
+    return cell;
+  }
+
+  /**
+   * @param {string} label
+   * @param {string} icon
+   * @param {{ danger?: boolean }} [options]
+   * @returns {HTMLElement}
+   */
+  function createTimeEntryActionButton(label, icon, options = {}) {
+    if (window.LongtailForge?.icons?.createIconButton) {
+      return window.LongtailForge.icons.createIconButton({
+        icon,
+        label,
+        title: label,
+        variant: options.danger ? "danger" : "",
+      });
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.classList.toggle("danger-button", options.danger === true);
+    return button;
+  }
+
+  // `time-entries.html` loads `js/time-entry-dialog.js` itself, so this reads a dependency the
+  // page guarantees rather than probing for one. It throws where the property access used to
+  // throw, inside the same try/catch that already reported the failure.
+  /** @returns {import("../../src/types/browser-contracts.js").BrowserTimeEntryDialog} */
+  function requireTimeEntryDialog() {
+    const timeEntryDialog = requireNamespace().timeEntryDialog;
+
+    if (!timeEntryDialog) {
+      throw new Error("The time entry dialog is required to open an entry.");
+    }
+
+    return timeEntryDialog;
+  }
+
+  /** @param {string} entryId */
+  async function openEditDialog(entryId) {
+    setTimeEntryStatus("Opening entry...");
+
+    try {
+      const result = await requireTimeEntryDialog().openEdit({ entryId }, {
+        complete: async () => {
+          await loadTimeEntryData();
+          setTimeEntryStatus(`Saved ${entryId}.`);
+        },
+        setStatus: setTimeEntryStatus,
+      });
+      if (result !== "complete") {
+        setTimeEntryStatus("");
+      }
+    } catch (error) {
+      setTimeEntryStatus(requireErrors().caughtMessage(error, "Entry could not be opened."));
+    }
+  }
+
+  async function openAddDialog() {
+    setTimeEntryStatus("Opening entry...");
+
+    try {
+      const result = await requireTimeEntryDialog().openAdd({}, {
+        complete: async () => {
+          await loadTimeEntryData();
+          setTimeEntryStatus("Entry saved.");
+        },
+        setStatus: setTimeEntryStatus,
+      });
+      if (result !== "complete") {
+        setTimeEntryStatus("");
+      }
+    } catch (error) {
+      setTimeEntryStatus(requireErrors().caughtMessage(error, "Entry could not be opened."));
+    }
+  }
+
+  /** @param {NormalizedTimeEntry} entry */
+  function createProjectCell(entry) {
+    const cell = createTableCell(entry.projectName);
+
+    const tagSurface = requireNamespace().tags;
+
+    if (tagSurface?.renderTagList && Array.isArray(entry.tags) && entry.tags.length > 0) {
+      const tagList = document.createElement("div");
+      tagList.className = "tag-chip-list";
+      tagSurface.renderTagList(tagList, entry.tags);
+      cell.appendChild(tagList);
+    }
+
+    return cell;
+  }
+
+  /** @param {NormalizedTimeEntry} entry */
+  async function deleteEntry(entry) {
+    const shouldDelete = await requireModalDialogs().confirm({
+      title: "Delete entry?",
+      message: `Delete the ${formatDate(entry.endTime)} entry for ${entry.clientName || entry.projectName}?`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      danger: true,
+    });
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setTimeEntryStatus("Deleting entry...");
+
+    try {
+      await requireApi().deleteJson(
+        `/api/time-entries/${encodeURIComponent(entry.entryId)}`,
+      );
+
+      await loadTimeEntryData();
+      setTimeEntryStatus("Entry deleted.");
+    } catch (error) {
+      setTimeEntryStatus("Entry was not deleted. Start the local server and try again.");
+      console.error(error);
+    }
+  }
+
+  function openEntryFromUrl() {
+    const entryId = new URLSearchParams(window.location.search).get("entry") || "";
+
+    if (entryId) {
+      openEditDialog(entryId);
+    }
+  }
+
+  function openAddFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("new") === "1" || params.get("add") === "1") {
+      openAddDialog();
+    }
+  }
+
+  // Every page that loads this controller also loads `js/shared/client-project-options.js`,
+  // so this reads a dependency the page guarantees rather than probing for one.
+  function requireClientProjectOptions() {
+    const clientProjectOptions = window.LongtailForge?.clientProjectOptions;
+
+    if (!clientProjectOptions) {
+      throw new Error("Time Entries requires the client and project option helper.");
+    }
+
+    return clientProjectOptions;
+  }
+
+  /** @param {unknown} data @returns {NormalizedClientOption[]} */
+  function normalizeClients(data) {
+    return requireClientProjectOptions().normalizeClients(data);
+  }
+
+  /** @param {{ displayName?: string, name?: string, optionLabel?: string }} client @returns {string} */
+  function clientOptionLabel(client) {
+    return requireClientProjectOptions().optionLabel(client);
+  }
+
+  /**
+   * The wire columns `/api/time-entries` guarantees as text.
+   *
+   * Traced rather than assumed, and the same ten `0.33.33.44.6` settled for the dialog: the route
+   * maps every row through `timeEntryRowToAppValue`, which calls `normalizeTimeEntry` in
+   * `src/utils/normalizers.js`, and that returns `String(...).trim()` for each of these. It is the
+   * same producer feeding both pages, so both check the same list.
+   *
+   * `duration_seconds` is deliberately string-valued on the wire and is read here through
+   * `Number(...) || 0`, and `billable` and `tags` reach their own checks below, so none of the
+   * three belongs in this list.
+   */
+  const TIME_ENTRY_TEXT_COLUMNS = Object.freeze([
+    "client_id", "client_name", "description", "end_time", "entry_id",
+    "invoice_status", "project_id", "project_name", "start_time", "user_id",
+  ]);
+
+  /**
+   * @typedef {{
+   *   billable: "yes" | "no" | "",
+   *   clientId: string,
+   *   clientName: string,
+   *   description: string,
+   *   durationSeconds: number,
+   *   endTime: Date,
+   *   entryId: string,
+   *   invoiceStatus: string,
+   *   projectId: string,
+   *   projectName: string,
+   *   startTime: Date,
+   *   tags: unknown[],
+   *   userId: string,
+   * }} NormalizedTimeEntry
+   *
+   * `tags` stays `unknown[]` because nothing establishes its elements: the body is only checked
+   * with `Array.isArray`, and the shared `renderTagList` takes `unknown[]` too. The one place a
+   * member is read off an element narrows at that read instead of declaring over it.
+   */
+
+  /**
+   * @typedef {{
+   *   client_id: string, client_name: string, description: string, end_time: string,
+   *   entry_id: string, invoice_status: string, project_id: string, project_name: string,
+   *   start_time: string, user_id: string,
+   * }} TimeEntryTextColumns
+   */
+
+  /**
+   * A row this page can read every declared member off.
+   *
+   * Checked, not coerced: the predicate carries the ten columns it proved, so the mapping below
+   * reads them as the strings the check established rather than re-asserting them. Against the
+   * real producer nothing is dropped - the server already guarantees all ten - so this refuses a
+   * body that never reaches the page in practice rather than silently building a row whose
+   * declared members were never established.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown> & TimeEntryTextColumns}
+   */
+  function isTimeEntryRow(value) {
+    return isTimeEntryRecord(value)
+      && TIME_ENTRY_TEXT_COLUMNS.every((column) => typeof value[column] === "string");
+  }
+
+  /**
+   * What the time-entry response could be read as, and how much of it could not.
+   *
+   * **`refused` exists because dropping rows silently is a different answer from reading them.**
+   * `0.33.33.44.12` made the row check sound but left the filter quiet, so a body carrying one
+   * readable and one unreadable entry produced a *shorter* collection that the loader then
+   * presented as complete, with the status cleared. This page's entry list is authoritative -
+   * totals and invoicing are read off it - so a partial read must not look like a whole one.
+   * The count is answered here and the policy is applied by the loader, which is the only place
+   * that knows what the page was already showing.
+   *
+   * **`null` is a third answer, and it is not the same as an empty one.** `0.33.33.44.14` folded a
+   * body that carries no `entries` array into "read, zero rows, nothing refused", which says the
+   * workspace has no entries - a claim the body never made. A missing or non-array member means
+   * the envelope could not be read at all, and it is refused the way `readTagBulkAssignment`
+   * refuses one: `null`, so the caller takes its failure path. `{ entries: [] }` is a real answer
+   * and stays one.
+   * @param {unknown} data
+   * @returns {{ entries: NormalizedTimeEntry[], refused: number } | null}
+   */
+  function readTimeEntryCollection(data) {
+    if (!isTimeEntryRecord(data) || !Array.isArray(data.entries)) {
+      return null;
+    }
+
+    const rows = data.entries;
+    const entries = readTimeEntryRows(rows);
+
+    return { entries, refused: rows.length - entries.length };
+  }
+
+  /**
+   * @param {unknown[]} rows
+   * @returns {NormalizedTimeEntry[]}
+   */
+  function readTimeEntryRows(rows) {
+    return rows.filter(isTimeEntryRow).map((entry) => ({
+      entryId: entry.entry_id,
+      userId: entry.user_id,
+      clientId: entry.client_id,
+      clientName: entry.client_name,
+      projectId: entry.project_id,
+      projectName: entry.project_name,
+      description: entry.description,
+      startTime: new Date(entry.start_time),
+      endTime: new Date(entry.end_time),
+      durationSeconds: Number(entry.duration_seconds) || 0,
+      billable: normalizeEntryBillable(entry.billable),
+      invoiceStatus: entry.invoice_status || "unbilled",
+      tags: Array.isArray(entry.tags) ? entry.tags : [],
+    }));
+  }
+
+  /** @param {unknown} settings @returns {TimeEntrySettings} */
+  function normalizeSettings(settings) {
+    const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
+    const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
+    return {
+      billingPeriod: normalizeBillingPeriod({ type: billingPeriodType, startDay: billingPeriodStartDay }),
+      workspaceCapabilities: isTimeEntryRecord(settings) && isTimeEntryRecord(settings.workspaceCapabilities)
+        ? settings.workspaceCapabilities
+        : {},
+    };
+  }
+
+  /**
+   * One module setting, or the fallback when the body does not carry it.
+   *
+   * The value stays `unknown`: `/api/settings` publishes whatever each module registered, and
+   * nothing here establishes its type. Callers narrow it - `normalizeBillingPeriod` is total
+   * over anything - rather than this reader declaring over a value it only found.
+   * @param {unknown} settings
+   * @param {string} moduleId
+   * @param {string} settingId
+   * @param {unknown} fallback
+   * @returns {unknown}
+   */
+  function readModuleSettingValue(settings, moduleId, settingId, fallback) {
+    const moduleSettings = isTimeEntryRecord(settings) && Array.isArray(settings.moduleSettings)
+      ? settings.moduleSettings
+      : [];
+    const moduleDefinition = moduleSettings.find(
+      (item) => isTimeEntryRecord(item) && item.moduleId === moduleId,
+    );
+    const definitionSettings = isTimeEntryRecord(moduleDefinition) && Array.isArray(moduleDefinition.settings)
+      ? moduleDefinition.settings
+      : [];
+    const setting = definitionSettings.find((item) => isTimeEntryRecord(item) && item.id === settingId);
+    return isTimeEntryRecord(setting) && Object.hasOwn(setting, "value") ? setting.value : fallback;
+  }
+
+  /** @param {unknown} data @returns {NormalizedTimeEntryUser[]} */
+  function normalizeUsers(data) {
+    const users = isTimeEntryRecord(data) && Array.isArray(data.users) ? data.users : [];
+
+    return users.map((user) => {
+      const record = isTimeEntryRecord(user) ? user : {};
+
+      return {
+        userId: String(record.user_id || "").trim(),
+        username: String(record.username || "").trim(),
+        userStatus: record.userStatus === "inactive" ? "inactive" : "active",
+      };
+    });
+  }
+
+  function populateUserOptions() {
+    const usersById = new Map();
+
+    timeEntryUsers.forEach((user) => {
+      usersById.set(user.userId, user.username || user.userId);
+    });
+
+    const userFilter = requireTimeEntryValue(filterUsersSelect, "user filter");
+
+    userFilter.replaceChildren();
+
+    [...usersById.entries()]
+      .sort((firstUser, secondUser) => firstUser[1].localeCompare(secondUser[1], undefined, {
+        sensitivity: "base",
+      }))
+      .forEach(([userId, label]) => {
+        userFilter.appendChild(createOption(userId, label));
+      });
+  }
+
+  /** @returns {Promise<BrowserTagCatalogRecord[]>} */
+  async function loadTagOptions() {
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.loadTags) {
+      return [];
+    }
+
+    try {
+      return await tagSurface.loadTags();
+    } catch {
+      return [];
+    }
+  }
+
+  function populateTagFilter() {
+    if (!filterTagSelect || !filterTagControl) {
+      return;
+    }
+
+    const previousValue = filterTagSelect.value || "";
+    filterTagControl.hidden = timeEntryTagOptions.length === 0;
+    filterTagSelect.replaceChildren(
+      tagFilterAllOption(),
+      tagFilterNoTagsOption(),
+      ...timeEntryTagOptions.map((tag) => createOption(tag.tag_id, tag.name || tag.slug)),
+    );
+    filterTagSelect.value = previousValue === noTagsFilterValue() || previousValue === "__no_effective_tags__" || timeEntryTagOptions.some((tag) => tag.tag_id === previousValue)
+      ? normalizeTagFilterValue(previousValue)
+      : "";
+  }
+
+  async function mountBulkTagPicker() {
+    if (!bulkTagsControl) {
+      return;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.mountPicker) {
+      return;
+    }
+
+    bulkTagObserver?.disconnect();
+    bulkTagPicker = await tagSurface.mountPicker(bulkTagsControl, {
+      allowCreate: false,
+      label: "Tags",
+      placeholder: "Find tags",
+      tags: timeEntryTagOptions,
+    });
+    if (window.MutationObserver) {
+      bulkTagObserver = new window.MutationObserver(updateBulkControls);
+      bulkTagObserver.observe(bulkTagsControl, {
+        childList: true,
+        subtree: true,
+      });
+    }
     updateBulkControls();
   }
-}
 
-function toggleVisibleSelection() {
-  const entries = getFilteredEntries();
-  const shouldSelect = selectAllInput?.checked === true;
+  async function applyBulkTagAction() {
+    const targetIds = [...selectedEntryIds];
+    const tagIds = bulkTagPicker?.readTagIds?.() || [];
+    const action = bulkActionSelect?.value === "remove" ? "remove" : "add";
 
-  entries.forEach((entry) => {
-    if (shouldSelect) {
-      selectedEntryIds.add(entry.entryId);
+    if (targetIds.length === 0 || tagIds.length === 0) {
+      updateBulkControls();
+      return;
+    }
+
+    setTimeEntryStatus("Updating time entry tags...");
+    if (bulkApplyButton) {
+      bulkApplyButton.disabled = true;
+    }
+
+    try {
+      const result = await requireApi().postJson("/api/tags/bulk-assignments", {
+        action,
+        tagIds,
+        targetIds,
+        targetType: "time_entry",
+      });
+      const assignment = readTagBulkAssignment(result);
+      if (!assignment) {
+        throw new Error("The bulk tag response could not be read.");
+      }
+      const changedCount = assignment.changed_count;
+      const skippedCount = assignment.skipped_count;
+      selectedEntryIds.clear();
+      bulkTagPicker?.setSelected?.([]);
+      await loadTimeEntryData();
+      const skippedText = skippedCount > 0 ? ` ${skippedCount} skipped.` : "";
+      setTimeEntryStatus(`Updated tags on ${changedCount} time ${changedCount === 1 ? "entry" : "entries"}.${skippedText}`);
+    } catch (error) {
+      setTimeEntryStatus(requireErrors().caughtMessage(error, "Time entry tags could not be updated."));
+      console.error(error);
+    } finally {
+      updateBulkControls();
+    }
+  }
+
+  function toggleVisibleSelection() {
+    const entries = getFilteredEntries();
+    const shouldSelect = selectAllInput?.checked === true;
+
+    entries.forEach((entry) => {
+      if (shouldSelect) {
+        selectedEntryIds.add(entry.entryId);
+      } else {
+        selectedEntryIds.delete(entry.entryId);
+      }
+    });
+    renderEntries();
+  }
+
+  /** @param {NormalizedTimeEntry[]} entries */
+  function syncSelectionToEntries(entries) {
+    const visibleIds = new Set(entries.map((entry) => entry.entryId));
+    [...selectedEntryIds].forEach((entryId) => {
+      if (!visibleIds.has(entryId)) {
+        selectedEntryIds.delete(entryId);
+      }
+    });
+  }
+
+  /** @param {NormalizedTimeEntry[]} [entries] */
+  function updateSelectionControls(entries = getFilteredEntries()) {
+    if (!selectAllInput) {
+      return;
+    }
+
+    const selectedVisibleCount = entries.filter((entry) => selectedEntryIds.has(entry.entryId)).length;
+    selectAllInput.checked = entries.length > 0 && selectedVisibleCount === entries.length;
+    selectAllInput.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < entries.length;
+    selectAllInput.disabled = entries.length === 0;
+  }
+
+  function updateBulkControls() {
+    const selectedCount = selectedEntryIds.size;
+    const tagIds = bulkTagPicker?.readTagIds?.() || [];
+    const hasTags = tagIds.length > 0;
+
+    if (bulkToolbar && selectedCount > 0) {
+      bulkToolbar.open = true;
+    }
+    if (bulkApplyButton) {
+      bulkApplyButton.disabled = selectedCount === 0 || !hasTags;
+      bulkApplyButton.textContent = `Apply to ${selectedCount}`;
+    }
+  }
+
+  function tagFilterAllOption() {
+    return window.LongtailForge?.tags?.allTagsOption?.() || createOption("", "All tags");
+  }
+
+  function tagFilterNoTagsOption() {
+    return window.LongtailForge?.tags?.noTagsOption?.() || createOption(noTagsFilterValue(), "No Tags");
+  }
+
+  function noTagsFilterValue() {
+    return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
+  }
+
+  /** @param {string} value @returns {string} */
+  function normalizeTagFilterValue(value) {
+    return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
+  }
+
+  /** @returns {string[]} */
+  function getSelectedUserIds() {
+    const userFilter = requireTimeEntryValue(filterUsersSelect, "user filter");
+
+    return [...userFilter.selectedOptions].map((option) => option.value);
+  }
+
+  /**
+   * @param {NormalizedTimeEntry} entry
+   * @returns {boolean}
+   */
+  function matchesStatusFilter(entry) {
+    const statusFilter = requireTimeEntryValue(filterStatusSelect, "status filter");
+
+    if (getEffectiveEntryBillable(entry) !== "yes") {
+      return !statusFilter.value;
+    }
+
+    return !statusFilter.value || entry.invoiceStatus === statusFilter.value;
+  }
+
+  /**
+   * The two answers a date filter can give, kept as one discriminated shape because
+   * `isEntryInRange` branches on exactly that: `invalid` first, then the window.
+   *
+   * `start` and `end` are declared absent on the invalid side rather than omitted, so reading
+   * `range?.invalid` stays legal on both and the guard narrows instead of asserting.
+   * @typedef {{ invalid: true, start?: undefined, end?: undefined }} TimeEntryInvalidRange
+   * @typedef {{ invalid?: false, start: Date, end: Date }} TimeEntryWindow
+   * @typedef {TimeEntryInvalidRange | TimeEntryWindow} TimeEntryDateRange
+   */
+
+  /**
+   * The window the list is filtered to, or `null` for every entry.
+   *
+   * `invalid` is its own answer rather than an empty window: `isEntryInRange` refuses every row
+   * for it, which is how a half-typed custom range shows nothing instead of everything.
+   * @returns {TimeEntryDateRange | null}
+   */
+  function getSelectedDateRange() {
+    const periodFilter = requireTimeEntryValue(filterPeriodSelect, "period filter");
+
+    if (periodFilter.value === "all") {
+      return null;
+    }
+
+    if (periodFilter.value === "custom") {
+      return getCustomDateRange();
+    }
+
+    return getBillingPeriodRange(timeEntrySettings.billingPeriod, periodFilter.value);
+  }
+
+  /** @returns {TimeEntryDateRange} */
+  function getCustomDateRange() {
+    const endDateInput = requireTimeEntryValue(filterEndDateInput, "custom end date");
+    const startDate = parseDateInput(requireTimeEntryValue(filterStartDateInput, "custom start date").value);
+    const endDate = parseDateInput(endDateInput.value);
+
+    if (!startDate || !endDate || startDate > endDate) {
+      return { invalid: true };
+    }
+
+    const exclusiveEndDate = new Date(
+      requireTimezones().zonedDateTimeToUtcIso(addDateInputDays(endDateInput.value, 1), "00:00:00"),
+    );
+    return { start: startDate, end: exclusiveEndDate };
+  }
+
+  /**
+   * Shift a `YYYY-MM-DD` control value by whole days, in UTC.
+   *
+   * UTC on purpose: the value is a date the user typed, not an instant, so month arithmetic must
+   * not shift across a local DST boundary.
+   * @param {string} value
+   * @param {number} dayCount
+   * @returns {string}
+   */
+  function addDateInputDays(value, dayCount) {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day + dayCount));
+
+    return [
+      date.getUTCFullYear(),
+      String(date.getUTCMonth() + 1).padStart(2, "0"),
+      String(date.getUTCDate()).padStart(2, "0"),
+    ].join("-");
+  }
+
+  /**
+   * @param {unknown} period
+   * @param {string} mode
+   * @returns {TimeEntryWindow}
+   */
+  function getBillingPeriodRange(period, mode) {
+    const today = new Date();
+    const normalizedPeriod = normalizeBillingPeriod(period);
+    let start;
+
+    if (normalizedPeriod.type === "custom") {
+      start = getCurrentCustomPeriodStart(today, normalizedPeriod.startDay);
     } else {
-      selectedEntryIds.delete(entry.entryId);
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
     }
-  });
-  renderEntries();
-}
 
-function syncSelectionToEntries(entries) {
-  const visibleIds = new Set(entries.map((entry) => entry.entryId));
-  [...selectedEntryIds].forEach((entryId) => {
-    if (!visibleIds.has(entryId)) {
-      selectedEntryIds.delete(entryId);
+    if (mode === "last") {
+      start = addMonths(start, -1);
     }
-  });
-}
-
-function updateSelectionControls(entries = getFilteredEntries()) {
-  if (!selectAllInput) {
-    return;
-  }
-
-  const selectedVisibleCount = entries.filter((entry) => selectedEntryIds.has(entry.entryId)).length;
-  selectAllInput.checked = entries.length > 0 && selectedVisibleCount === entries.length;
-  selectAllInput.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < entries.length;
-  selectAllInput.disabled = entries.length === 0;
-}
-
-function updateBulkControls() {
-  const selectedCount = selectedEntryIds.size;
-  const tagIds = bulkTagPicker?.readTagIds?.() || [];
-  const hasTags = tagIds.length > 0;
-
-  if (bulkToolbar && selectedCount > 0) {
-    bulkToolbar.open = true;
-  }
-  if (bulkApplyButton) {
-    bulkApplyButton.disabled = selectedCount === 0 || !hasTags;
-    bulkApplyButton.textContent = `Apply to ${selectedCount}`;
-  }
-}
-
-function tagFilterAllOption() {
-  return window.LongtailForge?.tags?.allTagsOption?.() || createOption("", "All tags");
-}
-
-function tagFilterNoTagsOption() {
-  return window.LongtailForge?.tags?.noTagsOption?.() || createOption(noTagsFilterValue(), "No Tags");
-}
-
-function noTagsFilterValue() {
-  return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
-}
-
-function normalizeTagFilterValue(value) {
-  return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
-}
-
-function getSelectedUserIds() {
-  return [...filterUsersSelect.selectedOptions].map((option) => option.value);
-}
-
-function matchesStatusFilter(entry) {
-  if (getEffectiveEntryBillable(entry) !== "yes") {
-    return !filterStatusSelect.value;
-  }
-
-  return !filterStatusSelect.value || entry.invoiceStatus === filterStatusSelect.value;
-}
-
-function getSelectedDateRange() {
-  if (filterPeriodSelect.value === "all") {
-    return null;
-  }
-
-  if (filterPeriodSelect.value === "custom") {
-    return getCustomDateRange();
-  }
-
-  return getBillingPeriodRange(timeEntrySettings.billingPeriod, filterPeriodSelect.value);
-}
-
-function getCustomDateRange() {
-  const startDate = parseDateInput(filterStartDateInput.value);
-  const endDate = parseDateInput(filterEndDateInput.value);
-
-  if (!startDate || !endDate || startDate > endDate) {
-    return { invalid: true };
-  }
-
-  const exclusiveEndDate = new Date(
-    window.LongtailForge.timezones.zonedDateTimeToUtcIso(addDateInputDays(filterEndDateInput.value, 1), "00:00:00"),
-  );
-  return { start: startDate, end: exclusiveEndDate };
-}
-
-function addDateInputDays(value, dayCount) {
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + dayCount));
-
-  return [
-    date.getUTCFullYear(),
-    String(date.getUTCMonth() + 1).padStart(2, "0"),
-    String(date.getUTCDate()).padStart(2, "0"),
-  ].join("-");
-}
-
-function getBillingPeriodRange(period, mode) {
-  const today = new Date();
-  const normalizedPeriod = normalizeBillingPeriod(period);
-  let start;
-
-  if (normalizedPeriod.type === "custom") {
-    start = getCurrentCustomPeriodStart(today, normalizedPeriod.startDay);
-  } else {
-    start = new Date(today.getFullYear(), today.getMonth(), 1);
-  }
-
-  if (mode === "last") {
-    start = addMonths(start, -1);
-  }
-
-  return {
-    start,
-    end: addMonths(start, 1),
-  };
-}
-
-function getCurrentCustomPeriodStart(date, startDay) {
-  const currentMonthStart = new Date(date.getFullYear(), date.getMonth(), startDay);
-
-  if (date >= currentMonthStart) {
-    return currentMonthStart;
-  }
-
-  return new Date(date.getFullYear(), date.getMonth() - 1, startDay);
-}
-
-function addMonths(date, monthCount) {
-  return new Date(date.getFullYear(), date.getMonth() + monthCount, date.getDate());
-}
-
-function isEntryInRange(entry, range) {
-  if (range?.invalid) {
-    return false;
-  }
-
-  return Boolean(
-    !range ||
-    (Number.isFinite(entry.endTime.getTime()) &&
-      entry.endTime >= range.start &&
-      entry.endTime < range.end)
-  );
-}
-
-function normalizeBillingPeriod(period) {
-  const type = period?.type === "custom" ? "custom" : "calendarMonth";
-  const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
-
-  return {
-    type,
-    startDay: type === "custom" ? startDay : 1,
-  };
-}
-
-function getClient(clientId) {
-  return timeEntryClients.find((client) => client.id === clientId);
-}
-
-function getProject(clientId, projectId) {
-  if (clientId) {
-    return getClient(clientId)?.projects.find((project) => project.id === projectId);
-  }
-
-  return getAllFilterProjects().find((project) => project.id === projectId);
-}
-
-function getAllFilterProjects() {
-  return timeEntryClients.flatMap((client) => client.projects || []);
-}
-
-function matchesClient(entry, client) {
-  return window.LongtailForge.records.matchesClient(entry, client);
-}
-
-function matchesProject(entry, project) {
-  return window.LongtailForge.records.matchesProject(entry, project);
-}
-
-function parseDateInput(value) {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(window.LongtailForge.timezones.zonedDateTimeToUtcIso(value, "00:00:00"));
-
-  return Number.isFinite(date.getTime()) ? date : null;
-}
-
-function formatDate(date) {
-  return Number.isFinite(date.getTime())
-    ? window.LongtailForge.timezones.formatDate(date)
-    : "";
-}
-
-function formatHours(seconds) {
-  return formatDuration(seconds);
-}
-
-function formatInvoiceStatus(status) {
-  return window.LongtailForge.formatters.entryStatus(status);
-}
-
-function formatEntryStatus(entry) {
-  if (getEffectiveEntryBillable(entry) !== "yes") {
-    return "N/A";
-  }
-
-  return formatInvoiceStatus(entry.invoiceStatus);
-}
-
-function getEffectiveEntryBillable(entry) {
-  const client = timeEntryClients.find((currentClient) => matchesClient(entry, currentClient));
-  const project = client?.projects.find((currentProject) => matchesProject(entry, currentProject));
-  const billableValues = [
-    normalizeEntryBillable(entry.billable),
-    normalizeEntryBillable(project?.billable),
-    normalizeEntryBillable(client?.billable),
-  ];
-
-  return billableValues.includes("no")
-    ? "no"
-    : billableValues.find((value) => value === "yes") || "yes";
-}
-
-function normalizeEntryBillable(value) {
-  if (value === "yes" || value === true) {
-    return "yes";
-  }
-
-  if (value === "no" || value === false) {
-    return "no";
-  }
-
-  return "";
-}
-
-function formatDateInput(date) {
-  return window.LongtailForge.timezones.formatDateInput(date);
-}
-
-function formatDuration(totalSeconds) {
-  const normalizedSeconds = Math.max(0, Number.parseInt(totalSeconds, 10) || 0);
-  const hours = Math.floor(normalizedSeconds / 3600);
-  const minutes = Math.floor((normalizedSeconds % 3600) / 60);
-  const seconds = normalizedSeconds % 60;
-
-  return [
-    String(hours).padStart(2, "0"),
-    String(minutes).padStart(2, "0"),
-    String(seconds).padStart(2, "0"),
-  ].join(":");
-}
-
-function setDefaultCustomDates() {
-  const today = new Date();
-  filterStartDateInput.value = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
-  filterEndDateInput.value = formatDateInput(today);
-}
-
-function updateFilterDateState() {
-  const isCustom = filterPeriodSelect.value === "custom";
-  filterCustomDates.hidden = !isCustom;
-  filterStartDateInput.disabled = !isCustom;
-  filterEndDateInput.disabled = !isCustom;
-}
-
-function createOption(value, text) {
-  return window.LongtailForge.pageController.createOption(value, text);
-}
-
-function createTableCell(text) {
-  const cell = document.createElement("td");
-  cell.textContent = text;
-  return cell;
-}
-
-function sortByName(items) {
-  return window.LongtailForge.pageController.sortByName(items);
-}
-
-function setTimeEntryStatus(message) {
-  window.LongtailForge.pageController.setStatus(timeEntryStatus, message);
-}
-
-function workspaceShowsClientTools() {
-  const tools = timeEntrySettings.workspaceCapabilities?.availableTools || [];
-
-  return Array.isArray(tools) && tools.includes("clients_projects");
-}
-
-window.LongtailForge.pageController.register("time-entries", {
-  snapshot: () => ({
-    clientCount: timeEntryClients.length,
-    entryCount: timeEntries.length,
-    selectedEntryId: "",
-    sortMode: sortSelect.value,
-    userCount: timeEntryUsers.length,
-    workspaceShowsClientTools: workspaceShowsClientTools(),
-  }),
-  runSmoke: () => {
-    const checks = [
-      { name: "toolbar controls exist", ok: Boolean(addTimeEntryButton && sortSelect) },
-      { name: "filter controls exist", ok: Boolean(filterStatusSelect && filterPeriodSelect && filterUsersSelect) },
-      { name: "bulk tag controls exist", ok: Boolean(bulkToolbar && bulkActionSelect && bulkTagsControl && bulkApplyButton && selectAllInput) },
-      { name: "entry table exists", ok: Boolean(timeEntryTable) },
-      { name: "time entry dialog helper exists", ok: Boolean(window.LongtailForge.timeEntryDialog) },
-      { name: "entry data is an array", ok: Array.isArray(timeEntries) },
-    ];
 
     return {
-      ok: checks.every((check) => check.ok),
-      pageId: "time-entries",
-      checks,
+      start,
+      end: addMonths(start, 1),
     };
-  },
-});
+  }
+
+  /** @param {Date} date @param {number} startDay @returns {Date} */
+  function getCurrentCustomPeriodStart(date, startDay) {
+    const currentMonthStart = new Date(date.getFullYear(), date.getMonth(), startDay);
+
+    if (date >= currentMonthStart) {
+      return currentMonthStart;
+    }
+
+    return new Date(date.getFullYear(), date.getMonth() - 1, startDay);
+  }
+
+  /** @param {Date} date @param {number} monthCount @returns {Date} */
+  function addMonths(date, monthCount) {
+    return new Date(date.getFullYear(), date.getMonth() + monthCount, date.getDate());
+  }
+
+  /**
+   * @param {NormalizedTimeEntry} entry
+   * @param {TimeEntryDateRange | null} range
+   * @returns {boolean}
+   */
+  function isEntryInRange(entry, range) {
+    if (range?.invalid) {
+      return false;
+    }
+
+    return Boolean(
+      !range ||
+      (Number.isFinite(entry.endTime.getTime()) &&
+        entry.endTime >= range.start &&
+        entry.endTime < range.end)
+    );
+  }
+
+  /** @param {unknown} period @returns {NormalizedBillingPeriod} */
+  function normalizeBillingPeriod(period) {
+    const source = isTimeEntryRecord(period) ? period : {};
+    const type = source.type === "custom" ? "custom" : "calendarMonth";
+    const startDay = Math.min(28, Math.max(1, Number.parseInt(String(source.startDay), 10) || 1));
+
+    return {
+      type,
+      startDay: type === "custom" ? startDay : 1,
+    };
+  }
+
+  /** @param {string} clientId @returns {NormalizedClientOption | undefined} */
+  function getClient(clientId) {
+    return timeEntryClients.find((client) => client.id === clientId);
+  }
+
+  /** @param {string} clientId @param {string} projectId @returns {NormalizedProjectOption | undefined} */
+  function getProject(clientId, projectId) {
+    if (clientId) {
+      return getClient(clientId)?.projects.find((project) => project.id === projectId);
+    }
+
+    return getAllFilterProjects().find((project) => project.id === projectId);
+  }
+
+  function getAllFilterProjects() {
+    return timeEntryClients.flatMap((client) => client.projects || []);
+  }
+
+  /** @param {NormalizedTimeEntry} entry @param {NormalizedClientOption | undefined} client */
+  function matchesClient(entry, client) {
+    return requireRecords().matchesClient(entry, client);
+  }
+
+  /** @param {NormalizedTimeEntry} entry @param {NormalizedProjectOption | undefined} project */
+  function matchesProject(entry, project) {
+    return requireRecords().matchesProject(entry, project);
+  }
+
+  /** @param {string} value @returns {Date | null} */
+  function parseDateInput(value) {
+    if (!value) {
+      return null;
+    }
+
+    const date = new Date(requireTimezones().zonedDateTimeToUtcIso(value, "00:00:00"));
+
+    return Number.isFinite(date.getTime()) ? date : null;
+  }
+
+  /** @param {Date} date @returns {string} */
+  function formatDate(date) {
+    return Number.isFinite(date.getTime())
+      ? requireTimezones().formatDate(date)
+      : "";
+  }
+
+  /** @param {number} seconds @returns {string} */
+  function formatHours(seconds) {
+    return formatDuration(seconds);
+  }
+
+  /** @param {string} status @returns {string} */
+  function formatInvoiceStatus(status) {
+    return requireFormatters().entryStatus(status);
+  }
+
+  /** @param {NormalizedTimeEntry} entry @returns {string} */
+  function formatEntryStatus(entry) {
+    if (getEffectiveEntryBillable(entry) !== "yes") {
+      return "N/A";
+    }
+
+    return formatInvoiceStatus(entry.invoiceStatus);
+  }
+
+  /** @param {NormalizedTimeEntry} entry @returns {"yes" | "no" | ""} */
+  function getEffectiveEntryBillable(entry) {
+    const client = timeEntryClients.find((currentClient) => matchesClient(entry, currentClient));
+    const project = client?.projects.find((currentProject) => matchesProject(entry, currentProject));
+    const billableValues = [
+      normalizeEntryBillable(entry.billable),
+      normalizeEntryBillable(project?.billable),
+      normalizeEntryBillable(client?.billable),
+    ];
+
+    return billableValues.includes("no")
+      ? "no"
+      : billableValues.find((value) => value === "yes") || "yes";
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {"yes" | "no" | ""}
+   */
+  function normalizeEntryBillable(value) {
+    if (value === "yes" || value === true) {
+      return "yes";
+    }
+
+    if (value === "no" || value === false) {
+      return "no";
+    }
+
+    return "";
+  }
+
+  /** @param {Date} date @returns {string} */
+  function formatDateInput(date) {
+    return requireTimezones().formatDateInput(date);
+  }
+
+  /** @param {number | string} totalSeconds @returns {string} */
+  function formatDuration(totalSeconds) {
+    // `parseInt` already stringifies its argument, and both a number and a wire string reach here.
+    // Saying so is the same call, written where it happens.
+    const normalizedSeconds = Math.max(0, Number.parseInt(String(totalSeconds), 10) || 0);
+    const hours = Math.floor(normalizedSeconds / 3600);
+    const minutes = Math.floor((normalizedSeconds % 3600) / 60);
+    const seconds = normalizedSeconds % 60;
+
+    return [
+      String(hours).padStart(2, "0"),
+      String(minutes).padStart(2, "0"),
+      String(seconds).padStart(2, "0"),
+    ].join(":");
+  }
+
+  function setDefaultCustomDates() {
+    const today = new Date();
+    requireTimeEntryValue(filterStartDateInput, "custom start date").value =
+      formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+    requireTimeEntryValue(filterEndDateInput, "custom end date").value = formatDateInput(today);
+  }
+
+  function updateFilterDateState() {
+    const isCustom = requireTimeEntryValue(filterPeriodSelect, "period filter").value === "custom";
+    requireTimeEntryValue(filterCustomDates, "custom date fields").hidden = !isCustom;
+    requireTimeEntryValue(filterStartDateInput, "custom start date").disabled = !isCustom;
+    requireTimeEntryValue(filterEndDateInput, "custom end date").disabled = !isCustom;
+  }
+
+  /** @param {string} value @param {string} text @returns {HTMLOptionElement} */
+  function createOption(value, text) {
+    return requirePageController().createOption(value, text);
+  }
+
+  /** @param {string} text @returns {HTMLElement} */
+  function createTableCell(text) {
+    const cell = document.createElement("td");
+    cell.textContent = text;
+    return cell;
+  }
+
+  /**
+   * @template {{ name?: string }} T
+   * @param {T[]} items
+   * @returns {T[]}
+   */
+  function sortByName(items) {
+    return requirePageController().sortByName(items);
+  }
+
+  /** @param {string} message */
+  function setTimeEntryStatus(message) {
+    requirePageController().setStatus(timeEntryStatus, message);
+  }
+
+  function workspaceShowsClientTools() {
+    const tools = timeEntrySettings.workspaceCapabilities?.availableTools || [];
+
+    return Array.isArray(tools) && tools.includes("clients_projects");
+  }
+
+  requirePageController().register("time-entries", {
+    snapshot: () => ({
+      clientCount: timeEntryClients.length,
+      entryCount: timeEntries.length,
+      selectedEntryId: "",
+      sortMode: requireTimeEntryValue(sortSelect, "sort control").value,
+      userCount: timeEntryUsers.length,
+      workspaceShowsClientTools: workspaceShowsClientTools(),
+    }),
+    runSmoke: () => {
+      const checks = [
+        { name: "toolbar controls exist", ok: Boolean(addTimeEntryButton && sortSelect) },
+        { name: "filter controls exist", ok: Boolean(filterStatusSelect && filterPeriodSelect && filterUsersSelect) },
+        { name: "bulk tag controls exist", ok: Boolean(bulkToolbar && bulkActionSelect && bulkTagsControl && bulkApplyButton && selectAllInput) },
+        { name: "entry table exists", ok: Boolean(timeEntryTable) },
+        { name: "time entry dialog helper exists", ok: Boolean(requireNamespace().timeEntryDialog) },
+        { name: "entry data is an array", ok: Array.isArray(timeEntries) },
+      ];
+
+      return {
+        ok: checks.every((check) => check.ok),
+        pageId: "time-entries",
+        checks,
+      };
+    },
+  });
+})();

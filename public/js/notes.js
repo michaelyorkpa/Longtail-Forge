@@ -1,949 +1,1820 @@
-const api = window.LongtailForge.api;
-const view = window.LongtailForge.view;
-const PAGE_SIZE = 12;
-const BUCKET_LABELS = {
-  active_work: "Active Work",
-  ongoing_area: "Ongoing Areas",
-  reference: "Reference Library",
-};
-const NOTE_KIND_LABELS = {
-  general: "General",
-  meeting: "Meeting",
-  research: "Research",
-  decision: "Decision",
-  procedure: "Procedure",
-  reference: "Reference",
-  idea: "Idea",
-  log: "Log",
-  client: "Legacy client",
-  project: "Legacy project",
-  task: "Legacy task",
-  ticket: "Legacy ticket",
-  user: "Legacy user",
-};
-const LEGACY_NOTE_KINDS = new Set(["client", "project", "task", "ticket", "user"]);
-const COLLECTION_BUCKET_ORDER = ["active_work", "ongoing_area", "reference"];
-const DEFAULT_NOTE_SORT = "updated_desc";
-const NOTES_LIST_SORT_OPTIONS = [
-  ["title_asc", "Alphabetical (A-Z)"],
-  ["title_desc", "Alphabetical (Z-A)"],
-  ["created_desc", "Date Created (Newest First)"],
-  ["created_asc", "Date Created (Oldest First)"],
-  ["updated_desc", "Date Updated (Newest First)", true],
-  ["updated_asc", "Date Updated (Oldest First)"],
-  ["library_collection_updated_desc", "Library / Collection, then Date Updated"],
-  ["note_kind_updated_desc", "Note Kind, then Date Updated"],
-  ["primary_context_updated_desc", "Primary Context, then Date Updated"],
-];
-const LINK_TARGET_TYPE_LABELS = {
-  workspace: "Workspace",
-  client: "Client",
-  list: "List",
-  note: "Note",
-  project: "Project",
-  task: "Task",
-  user: "User",
-};
-const DEFAULT_LINK_TARGET_TYPE = "project";
-const LINK_TARGET_TYPE_ORDER = ["project", "task", "note", "list", "client", "user"];
-const LINK_CLIENT_CONTEXT_ALL = "all";
-const LINK_CLIENT_CONTEXT_WORKSPACE = "workspace";
-const NOTE_BULK_COLLECTION_UNCATEGORIZED = "__uncategorized";
-const OPEN_EXTERNAL_LINKS_STORAGE_KEY = "lf_open_external_links_new_tab";
-const NOTE_WORKFLOW_HANDLERS = {
-  "notes.workflow.edit": (note) => openEditor(note),
-  "notes.workflow.archive": (note) => archiveNote(note),
-  "notes.workflow.restore": (note) => restoreNote(note),
-};
-const NOTE_EDITOR_TOOLBAR_ACTIONS = Object.freeze([
-  { command: "bold", text: "B", label: "Bold" },
-  { command: "italic", text: "I", label: "Italic" },
-  { command: "underline", text: "U", label: "Underline" },
-  { command: "heading", text: "H", label: "Heading" },
-  { command: "unorderedList", icon: "list", label: "Unordered list" },
-  { command: "orderedList", text: "1.", label: "Ordered list" },
-  { command: "checklist", icon: "list-checks", label: "Checklist" },
-  { command: "link", icon: "link", label: "Link" },
-  { command: "wikiLink", text: "Wiki", label: "Wiki link" },
-  { preview: true, icon: "eye", label: "Preview" },
-]);
+(function attachNotesPage() {
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
-let state = {
-  activeBucket: "all",
-  availableTags: [],
-  attachmentController: null,
-  bulkCollections: [],
-  bulkTagPicker: null,
-  collectionDialogMode: "create",
-  collectionEditingId: "",
-  collections: [],
-  dialogDataReady: null,
-  editingNoteId: "",
-  editorAttachmentController: null,
-  editorContextSummaries: {},
-  editorHostContext: null,
-  editorHostContextSettled: false,
-  editorNote: null,
-  editorSelectedTarget: null,
-  editorStagedTargets: [],
-  libraryManuallyChanged: false,
-  linkTargetClientContext: LINK_CLIENT_CONTEXT_ALL,
-  linkTargetSearchTimer: null,
-  linkTargets: [],
-  notes: [],
-  notesCursorStack: [],
-  notesCurrentCursor: "",
-  notesNextCursor: "",
-  notesPagination: null,
-  page: 1,
-  primaryContextClients: [],
-  primaryContextProjects: [],
-  previewRequestId: 0,
-  settingsLoaded: false,
-  selectedNote: null,
-  selectedNoteIds: new Set(),
-  selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
-  filesDialogNoteId: "",
-  tagPicker: null,
-  tagsDialogNoteId: "",
-  workspaceType: "",
-  openExternalLinksNewTab: readStoredOpenExternalLinksPreference(),
-};
-let activeNoteViewDialog = null;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
-const notesWorkspaceHost = document.querySelector("[data-notes-host]");
-const isNotesWorkspaceSurface = Boolean(notesWorkspaceHost);
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteRecord} BrowserNoteRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteListItem} BrowserNoteListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteRevisionSummary} BrowserNoteRevisionSummary */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteEffectiveSecurityMode} BrowserNoteEffectiveSecurityMode */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNotePagination} BrowserNotePagination */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteListEnvelope} BrowserNoteListEnvelope */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCollection} BrowserNoteCollection */
 
-buildNotesViewShell();
-if (!isNotesWorkspaceSurface) {
-  ensureNotesDialogShells();
-}
+  /**
+   * Editor inputs include an ID-only action parameter and list records. Hydration
+   * returns the original input on failure, so the editor cannot promise a full detail.
+   * @typedef {Partial<Pick<BrowserNoteRecord, "note_id" | "title" | "library_bucket" | "note_collection_id" | "note_type" | "visibility" | "security_mode" | "client_id" | "project_id" | "task_id" | "linked_user_id" | "linked_context" | "body_markdown" | "links">>} NotesEditorSeed
+   * @typedef {BrowserNoteRecord | NotesEditorSeed} NotesEditorNote
+   */
+  /**
+   * Only the host members this lifecycle consumes. The module-actions producer
+   * creates cancel/complete and captures the active element; refresh is passed through.
+   * @typedef {object} NotesEditorHostContext
+   * @property {Element | null} [trigger]
+   * @property {(detail: unknown) => unknown} [cancel]
+   * @property {(detail: unknown) => unknown} [complete]
+   * @property {unknown} [refresh] - forwarded unchecked by the host; saveNoteForm checks callability.
+   */
+  /**
+   * @typedef {object} NotesEditorOptions
+   * @property {NotesEditorNote} [defaults]
+   * @property {NotesEditorHostContext | null} [hostContext]
+   * @property {Element | null} [trigger]
+   */
 
-const statusMessage = document.querySelector("[data-notes-status]");
-const filtersForm = document.querySelector("[data-notes-filters]");
-const statusFilter = document.querySelector("[data-note-filter-status]");
-const visibilityFilter = document.querySelector("[data-note-filter-visibility]");
-const securityFilter = document.querySelector("[data-note-filter-security]");
-const typeFilter = document.querySelector("[data-note-filter-type]");
-const collectionFilter = document.querySelector("[data-note-filter-collection]");
-const contextFilter = document.querySelector("[data-note-filter-context]");
-const ownerFilter = document.querySelector("[data-note-filter-owner]");
-const tagFilter = document.querySelector("[data-note-filter-tags]");
-const updatedFilter = document.querySelector("[data-note-filter-updated]");
-const sortSelect = document.querySelector("[data-note-sort]");
-const notesList = document.querySelector("[data-notes-list]");
-const detailPanel = document.querySelector("[data-note-detail]");
-const createButton = document.querySelector("[data-note-create]");
-const prevButton = document.querySelector("[data-notes-prev]");
-const nextButton = document.querySelector("[data-notes-next]");
-const pageLabel = document.querySelector("[data-notes-page]");
-const collectionPanel = document.querySelector("[data-notes-collections-panel]");
-const collectionLibraryFilter = document.querySelector("[data-note-collection-library-filter]");
-const collectionActionsMount = document.querySelector("[data-note-collection-actions]");
-const dialog = document.querySelector("[data-note-dialog]");
-const form = document.querySelector("[data-note-form]");
-const dialogTitle = document.querySelector("[data-note-dialog-title]");
-const notificationToggle = document.querySelector("[data-note-notification-toggle]");
-const titleInput = document.querySelector("[data-note-title]");
-const libraryInput = document.querySelector("[data-note-library]");
-const collectionInput = document.querySelector("[data-note-collection]");
-const typeInput = document.querySelector("[data-note-type]");
-const visibilityInput = document.querySelector("[data-note-visibility]");
-const securityInput = document.querySelector("[data-note-security]");
-const secureWarning = document.querySelector("[data-note-secure-warning]");
-const contextClientInput = document.querySelector("[data-note-context-client]");
-const contextTargetTypeInput = document.querySelector("[data-note-context-target-type]");
-const contextSearchInput = document.querySelector("[data-note-context-search]");
-const contextResultsInput = document.querySelector("[data-note-context-results]");
-const contextApplyButton = document.querySelector("[data-note-context-apply]");
-const contextList = document.querySelector("[data-note-context-list]");
-const contextSelectedMessage = document.querySelector("[data-note-context-selected]");
-const clientInput = document.querySelector("[data-note-client-id]");
-const projectInput = document.querySelector("[data-note-project-id]");
-const primaryClientField = document.querySelector("[data-note-primary-client-field]");
-const primaryProjectField = document.querySelector("[data-note-primary-project-field]");
-const taskInput = document.querySelector("[data-note-task-id]");
-const userInput = document.querySelector("[data-note-user-id]");
-const suggestionMessage = document.querySelector("[data-note-library-suggestion]");
-const detailsGroup = document.querySelector("[data-note-details-group]");
-const tagsDialog = document.querySelector("[data-note-tags-dialog]");
-const tagsEditor = document.querySelector("[data-note-tags-editor]");
-const tagsDialogCloseButton = document.querySelector("[data-note-tags-dialog-close]");
-const filesDialog = document.querySelector("[data-note-files-dialog]");
-const filesEditor = document.querySelector("[data-note-files-editor]");
-const filesDialogCloseButton = document.querySelector("[data-note-files-dialog-close]");
-const filesSaveFirstWarning = document.querySelector("[data-note-files-save-first-warning]");
-const tagsToggle = document.querySelector("[data-note-tags-toggle]");
-const filesToggle = document.querySelector("[data-note-files-toggle]");
-const copyLinkButton = document.querySelector("[data-copy-note-link]");
-const bodyInput = document.querySelector("[data-note-body]");
-const markdownEditor = document.querySelector("[data-note-markdown-editor]");
-const previewToggle = document.querySelector("[data-note-preview-toggle]");
-const preview = document.querySelector("[data-note-preview]");
-const formStatus = document.querySelector("[data-note-form-status]");
-const cancelButton = document.querySelector("[data-note-cancel]");
-const saveButton = document.querySelector("[data-note-save]");
-const saveCloseButton = document.querySelector("[data-note-save-close]");
-const bulkToolbar = document.querySelector("[data-note-bulk-toolbar]");
-const bulkEditButton = document.querySelector("[data-note-bulk-edit]");
-const bulkClearButton = document.querySelector("[data-note-bulk-clear]");
-const bulkDialog = document.querySelector("[data-note-bulk-dialog]");
-const bulkForm = document.querySelector("[data-note-bulk-form]");
-const bulkCancelButton = document.querySelector("[data-note-bulk-cancel]");
-const bulkApplyButton = document.querySelector("[data-note-bulk-apply]");
-const bulkLibraryInput = document.querySelector("[data-note-bulk-library]");
-const bulkCollectionInput = document.querySelector("[data-note-bulk-collection]");
-const bulkTypeInput = document.querySelector("[data-note-bulk-type]");
-const bulkVisibilityInput = document.querySelector("[data-note-bulk-visibility]");
-const bulkTagActionInput = document.querySelector("[data-note-bulk-tag-action]");
-const bulkTagsEditor = document.querySelector("[data-note-bulk-tags]");
-const bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
-const collectionDialog = document.querySelector("[data-note-collection-dialog]");
-const collectionForm = document.querySelector("[data-note-collection-form]");
-const collectionDialogTitle = document.querySelector("[data-note-collection-dialog-title]");
-const collectionDialogCloseButton = document.querySelector("[data-note-collection-dialog-close]");
-const collectionTitleInput = document.querySelector("[data-note-collection-title]");
-const collectionLibraryInput = document.querySelector("[data-note-collection-library]");
-const collectionParentInput = document.querySelector("[data-note-collection-parent]");
-const collectionFormStatus = document.querySelector("[data-note-collection-form-status]");
-const collectionCancelButton = document.querySelector("[data-note-collection-cancel]");
-const collectionSaveButton = document.querySelector("[data-note-collection-save]");
-const collectionActionsDialog = document.querySelector("[data-note-collection-actions-dialog]");
-const collectionActionsDialogTitle = document.querySelector("[data-note-collection-actions-dialog-title]");
-const collectionActionsDialogBody = document.querySelector("[data-note-collection-actions-dialog-body]");
-const collectionActionsDialogCloseButton = document.querySelector("[data-note-collection-actions-dialog-close]");
+  /**
+   * The note columns the producer selects by name in both projections and never nulls.
+   *
+   * These are the table's `NOT NULL` columns, which is why they are checked rather than assumed:
+   * a value that is missing any of them is not a note this page can render.
+   */
+  const REQUIRED_NOTE_COLUMNS = Object.freeze([
+    "created_at",
+    "library_bucket",
+    "library_bucket_source",
+    "note_id",
+    "note_type",
+    "security_mode",
+    "status",
+    "title",
+    "updated_at",
+    "visibility",
+    "workspace_id",
+  ]);
 
-const editor = window.LongtailForge.notesEditor?.createPlainTextarea(bodyInput);
+  /**
+   * The note columns the producer selects by name and may return as `null`.
+   *
+   * Checked as `string | null` rather than skipped: the select names them, so a body that omits one
+   * is not the shape `shapeNoteForBrowser` produces, and silently accepting it would make the
+   * contract a wish.
+   */
+  const NULLABLE_NOTE_COLUMNS = Object.freeze([
+    "archived_at",
+    "body_excerpt",
+    "client_id",
+    "created_by_user_id",
+    "deleted_at",
+    "import_source",
+    "import_source_id",
+    "imported_at",
+    "linked_user_id",
+    "note_collection_id",
+    "owner_user_id",
+    "project_id",
+    "slug",
+    "task_id",
+    "ticket_id",
+    "updated_by_user_id",
+  ]);
 
-createButton?.addEventListener("click", () => openEditor());
-collectionActionsDialogCloseButton?.addEventListener("click", closeCollectionActionsDialog);
-collectionLibraryFilter?.addEventListener("change", () => selectBucket(collectionLibraryFilter.value));
-collectionFilter?.addEventListener("change", () => selectCollection(collectionFilter.value));
-filtersForm?.addEventListener("change", () => {
-  state.page = 1;
-  state.selectedCollectionId = collectionFilter?.value || "";
-  updateCollectionPanelSelection();
-  updateUrlCollection();
-  void reloadNotesFromStart();
-});
-sortSelect?.addEventListener("change", () => {
-  state.page = 1;
-  void reloadNotesFromStart();
-});
-prevButton?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  void loadPreviousNotesPage();
-});
-nextButton?.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  void loadNextNotesPage();
-});
-form?.addEventListener("submit", saveNote);
-saveCloseButton?.addEventListener("click", saveAndCloseNote);
-notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
-cancelButton?.addEventListener("click", cancelEditor);
-bulkEditButton?.addEventListener("click", openBulkEditor);
-bulkClearButton?.addEventListener("click", clearBulkSelection);
-bulkForm?.addEventListener("submit", applyBulkEdit);
-bulkCancelButton?.addEventListener("click", closeBulkEditor);
-bulkLibraryInput?.addEventListener("change", populateBulkCollectionOptions);
-collectionForm?.addEventListener("submit", saveCollection);
-collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
-collectionCancelButton?.addEventListener("click", closeCollectionDialog);
-collectionLibraryInput?.addEventListener("change", () => populateCollectionParentOptions());
-libraryInput?.addEventListener("change", () => {
-  state.libraryManuallyChanged = true;
-  populateNoteCollectionOptions();
-  updateLibrarySuggestion();
-});
-securityInput?.addEventListener("change", updateSecureUiState);
-previewToggle?.addEventListener("click", togglePreview);
-bodyInput?.addEventListener("input", () => renderPreview());
-clientInput?.addEventListener("change", handlePrimaryClientChange);
-projectInput?.addEventListener("change", handlePrimaryProjectChange);
-[taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
-contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
-contextClientInput?.addEventListener("change", handleEditorLinkClientContextChange);
-contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
-contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
-document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
-tagsToggle?.addEventListener("click", openTagsDialog);
-tagsDialogCloseButton?.addEventListener("click", closeTagsDialog);
-tagsDialog?.addEventListener("close", handleTagsDialogClose);
-filesToggle?.addEventListener("click", openFilesDialog);
-filesDialogCloseButton?.addEventListener("click", closeFilesDialog);
-filesDialog?.addEventListener("close", handleFilesDialogClose);
-copyLinkButton?.addEventListener("click", copyCurrentNoteLink);
-dialog?.addEventListener("close", handleEditorDialogClose);
+  /**
+   * The detail-only columns `NOTE_COLUMNS` adds over `NOTE_LIST_COLUMNS`, minus `body_markdown`
+   * which is `NOT NULL` and checked with the required set.
+   */
+  /**
+   * The detail-only members the producer always supplies as text: the `NOT NULL` body column and
+   * the owner label, which `resolveNoteOwnerLabel` returns as `""` rather than omitting.
+   */
+  const REQUIRED_NOTE_DETAIL_COLUMNS = Object.freeze([
+    "body_markdown",
+    "owner_display_name",
+  ]);
 
-const notesDialogApi = Object.freeze({
-  openAdd: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "add" }, hostContext),
-  openEdit: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
-  openNoteEditor,
-  openNoteViewer,
-  openView: openNoteViewer,
-});
+  /**
+   * The detail members the producer **deletes** rather than nulls, so absence is the signal.
+   *
+   * `body_html` is gone whenever the route passed no `includeBodyHtml`; `secure_title_warning` is
+   * added only for an effectively secure note.
+   */
+  const OPTIONAL_NOTE_DETAIL_MEMBERS = Object.freeze([
+    "body_html",
+    "secure_title_warning",
+  ]);
 
-window.LongtailForge.notesDialog = Object.freeze({
-  ...(window.LongtailForge.notesDialog || {}),
-  ...notesDialogApi,
-});
+  const NULLABLE_NOTE_DETAIL_COLUMNS = Object.freeze([
+    "body_plaintext_index",
+    "import_batch_id",
+    "import_source_path",
+    "metadata_json",
+    "original_notebook",
+    "original_page_id",
+    "original_section",
+    "original_section_group",
+  ]);
 
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "notes.add",
-  id: "notes.add",
-  label: "Add Note",
-  mode: "add",
-  moduleId: "notes",
-  open: (params, hostContext) => openNoteEditor({ ...params, mode: "add" }, hostContext),
-  recordType: "note",
-  requiredModules: ["notes"],
-  requiredPermissions: ["notes.create"],
-  title: "Add Note",
-});
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "notes.edit",
-  id: "notes.edit",
-  label: "Edit Note",
-  mode: "edit",
-  moduleId: "notes",
-  open: (params, hostContext) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
-  recordType: "note",
-  requiredModules: ["notes"],
-  requiredPermissions: ["notes.view"],
-  title: "Edit Note",
-});
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "notes.view",
-  id: "notes.view",
-  label: "View Note",
-  mode: "view",
-  moduleId: "notes",
-  open: (params, hostContext) => openNoteViewer(params, hostContext),
-  recordType: "note",
-  requiredModules: ["notes"],
-  requiredPermissions: ["notes.view"],
-  title: "View Note",
-});
-
-if (isNotesWorkspaceSurface) {
-  initialize();
-}
-
-function buildNotesViewShell() {
-  const host = document.querySelector("[data-notes-host]");
-  if (!host || host.querySelector("[data-notes-list]")) {
-    return;
-  }
-  if (!view) {
-    throw new Error("Notes requires LongtailForge.view to build the protected workspace.");
-  }
-  registerNotesViewBehaviors();
-  const descriptor = notesViewSurfaceDescriptor();
-  // The renderer auto-renders descriptor.modals into the surface; Notes builds and owns its own
-  // dialogs (createNoteDialogShell/createCollectionDialogShell), so suppress the framework duplicates.
-  const surface = view.renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
-  decorateNotesDeclarativeSurface(surface);
-  document.body.append(
-    createNoteDialogShell(),
-    createNoteTagsDialogShell(),
-    createNoteFilesDialogShell(),
-    createNoteBulkDialogShell(),
-    createCollectionDialogShell(),
-    createCollectionActionsDialogShell(),
-  );
-}
-
-function ensureNotesDialogShells() {
-  const shells = [];
-  if (!document.querySelector("[data-note-dialog]")) {
-    shells.push(createNoteDialogShell());
-  }
-  if (!document.querySelector("[data-note-tags-dialog]")) {
-    shells.push(createNoteTagsDialogShell());
-  }
-  if (!document.querySelector("[data-note-files-dialog]")) {
-    shells.push(createNoteFilesDialogShell());
-  }
-
-  if (shells.length > 0) {
-    document.body.append(...shells);
-  }
-}
-
-function registerNotesViewBehaviors() {
-  if (typeof view.registerBehavior !== "function") {
-    return;
-  }
-  view.registerBehavior("notes.create", () => openEditor());
-  view.registerBehavior("notes.sidebar.library", ({ container }) => {
-    container.replaceChildren(createNotesLibraryChrome());
-  });
-  view.registerBehavior("notes.sidebar.notes-list-footer", ({ container }) => {
-    container.replaceChildren(createNotesListSortControl(), createNotesPagination());
-  });
-  view.registerBehavior("notes.filters.tags", hydrateNoteTagFilterOptions);
-  Object.keys(NOTE_WORKFLOW_HANDLERS).forEach((behaviorId) => {
-    view.registerBehavior(behaviorId, ({ record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
-  });
-}
-
-function runNoteWorkflow(behaviorId, note) {
-  const handler = NOTE_WORKFLOW_HANDLERS[behaviorId];
-  if (!handler || !note) {
-    return undefined;
-  }
-  return handler(note);
-}
-
-function notesActionStripDescriptor() {
-  return notesViewSurfaceDescriptor().detail?.actionStrip || notesWorkflowActionStripDescriptor();
-}
-
-function notesWorkflowActionStripDescriptor() {
-  return {
-    label: "Note actions",
-    actions: [
-      { id: "edit-note", label: "Edit", role: "secondary", behavior: "notes.workflow.edit" },
-      { id: "archive-note", label: "Archive", role: "secondary", behavior: "notes.workflow.archive" },
-      { id: "restore-note", label: "Restore", role: "secondary", behavior: "notes.workflow.restore" },
-    ],
-  };
-}
-
-function notesLinkedRecordsDescriptor() {
-  return notesViewSurfaceDescriptor().detail?.linkedRecords || notesLinkedRecordsFallbackDescriptor();
-}
-
-function notesLinkedRecordsFallbackDescriptor() {
-  return {
-    title: "Linked Context",
-    recordsField: "links",
-    emptyState: { message: "No linked context." },
-    fields: [
-      { field: "target_type", type: "select", label: "Type", behavior: "notes.link.target-type" },
-      { field: "target_search", type: "search", label: "Search records", placeholder: "Search records", autocomplete: "off", behavior: "notes.link.search" },
-      { field: "target_results", type: "select", label: "Record", required: true, behavior: "notes.link.results" },
-    ],
-    actions: [
-      { id: "add-link", label: "Add Link", role: "primary", behavior: "notes.link.add" },
-      { id: "remove-link", label: "Remove", role: "destructive", behavior: "notes.link.remove" },
-    ],
-  };
-}
-
-function createNoteActionStrip(note) {
-  const label = notesActionStripDescriptor().label || "Note actions";
-  return view.renderDescriptorActionMenu(detailActionButtons(note), {
-    summaryLabel: "...",
-    ariaLabel: label,
-    title: label,
-  });
-}
-
-function detailActionButtons(note) {
-  const actions = notesActionStripDescriptor().actions || [];
-  const actionById = new Map(actions.map((action) => [action.id, action]));
-  const buttons = [];
-  const archived = note.status === "archived";
-
-  const editAction = actionById.get("edit-note");
-  if (editAction) {
-    const edit = noteWorkflowActionButton(editAction, note);
-    if (archived) {
-      edit.disabled = true;
-      edit.title = "Restore archived notes before editing.";
+  /**
+   * The target identifiers a bulk action reported changing.
+   *
+   * **Two producers, two member names, one consumer concept.** `POST /api/notes/bulk` answers with
+   * `notes` and `POST /api/tags/bulk-assignments` with `changed`, and this function merges them the
+   * way the bulk editor already did - by collecting identifiers, never records. **The record shapes
+   * stay with their owners**: a bulk-updated note is `0.33.33.38.4.2`'s contract and a tag
+   * assignment result is `0.33.33.38.2.2.10`'s, and neither is claimed here.
+   * @param {unknown} body
+   * @returns {string[]}
+   */
+  function bulkChangedIds(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    /** @type {string[]} */
+    const ids = [];
+    for (const [member, key] of [["notes", "note_id"], ["changed", "target_id"]]) {
+      const entries = envelope && Array.isArray(envelope[member]) ? envelope[member] : [];
+      for (const entry of entries) {
+        const record = isResponseRecord(entry) ? entry[key] : null;
+        if (typeof record === "string" && record) {
+          ids.push(record);
+        }
+      }
     }
-    buttons.push(edit);
-  }
-  const toggleAction = archived ? actionById.get("restore-note") : actionById.get("archive-note");
-  if (toggleAction) {
-    buttons.push(noteWorkflowActionButton(toggleAction, note));
-  }
-  return buttons;
-}
 
-function noteWorkflowActionButton(action, note) {
-  const button = view.createActionButton({
-    label: action.label || action.id,
-    role: action.role,
-    onClick: () => runNoteWorkflow(action.behavior, note),
-  });
-  button.dataset.noteAction = action.id;
-  return button;
-}
-
-async function openNoteEditor(params = {}, hostContext = null) {
-  await prepareNoteDialogData();
-
-  const mode = normalizeNoteEditorMode(params);
-  const noteId = readNoteEditorId(params);
-  const note = params.note || params.record || params.noteRecord || (noteId ? { note_id: noteId } : null);
-
-  if (mode === "edit" && !note?.note_id) {
-    throw new Error("Note ID is required.");
+    return ids;
   }
 
-  const result = await openEditor(mode === "add" ? null : note, {
-    defaults: normalizeNoteEditorDefaults(params),
-    hostContext,
-    trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
-  });
-  return hostContext?.result || result;
-}
-
-async function openNoteViewer(params = {}, hostContext = null) {
-  const noteId = readNoteEditorId(params);
-
-  if (!noteId) {
-    throw new Error("Note ID is required.");
+  /**
+   * A non-null, non-array object; this also accepts native DOM dataset bags.
+   *
+   * A type predicate rather than a cast: `0.33.33.38.2.4.5` established that an annotation checks
+   * and a cast asserts, and a `JSON.parse` result is the value that most needs the check.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
-  await window.LongtailForge.workspaceContextReady;
-  await loadMarkdownRenderingPreference();
-
-  if (activeNoteViewDialog?.isConnected) {
-    view.closeModal(activeNoteViewDialog, "replace");
+  /**
+   * Every named column is present and is a string.
+   *
+   * Takes `unknown` rather than a record so it can be applied to a value a predicate has already
+   * narrowed: an interface without an index signature is not a `Record<string, unknown>`, and
+   * asking for one here would make the second predicate unable to reuse the first.
+   * @param {unknown} value
+   * @param {readonly string[]} columns
+   * @returns {boolean}
+   */
+  function hasTextColumns(value, columns) {
+    return isResponseRecord(value) && columns.every((column) => typeof value[column] === "string");
   }
 
-  const trigger = params.returnFocusTo || params.trigger || hostContext?.trigger || null;
-  const dialog = createNoteViewDialog(noteId);
-  const closeResult = new Promise((resolve) => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
-  });
+  /**
+   * Every named column is present and is either a string or `null`.
+   * @param {unknown} value
+   * @param {readonly string[]} columns
+   * @returns {boolean}
+   */
+  function hasNullableTextColumns(value, columns) {
+    return isResponseRecord(value)
+      && columns.every((column) => value[column] === null || typeof value[column] === "string");
+  }
 
-  dialog.addEventListener("close", () => {
-    if (activeNoteViewDialog === dialog) {
-      activeNoteViewDialog = null;
+  /**
+   * Every named column is either absent or a string. Used for the members the producer **deletes**
+   * rather than nulls, where presence itself carries meaning.
+   * @param {unknown} value
+   * @param {readonly string[]} columns
+   * @returns {boolean}
+   */
+  function hasOptionalTextColumns(value, columns) {
+    return isResponseRecord(value)
+      && columns.every((column) => value[column] === undefined || typeof value[column] === "string");
+  }
+
+  /**
+   * Every named member is present and is an array.
+   * @param {unknown} value
+   * @param {readonly string[]} members
+   * @returns {boolean}
+   */
+  function hasArrayMembers(value, members) {
+    return isResponseRecord(value) && members.every((member) => Array.isArray(value[member]));
+  }
+
+  /**
+   * One note as `GET /api/notes` returns it.
+   *
+   * **Element validation, not container validation.** `Array.isArray(result.notes)` says nothing
+   * about what is inside it, and the tags lesson in this estate is that trusting the container is
+   * how untrusted elements become trusted records.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteListItem}
+   */
+  function isNoteListItem(value) {
+    return isResponseRecord(value)
+      && hasTextColumns(value, REQUIRED_NOTE_COLUMNS)
+      && hasNullableTextColumns(value, NULLABLE_NOTE_COLUMNS)
+      && hasArrayMembers(value, ["tags"])
+      && value.note_id !== "";
+  }
+
+  /**
+   * One note as the single-note routes return it, after `attachNoteIntegrations`.
+   *
+   * `body_html`, `secure_title_warning` and `secure_body_decrypted` are checked only when present,
+   * because the producer **deletes** them rather than nulling them.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteRecord}
+   */
+  function isNoteRecord(value) {
+    return isNoteListItem(value)
+      && hasTextColumns(value, REQUIRED_NOTE_DETAIL_COLUMNS)
+      && hasNullableTextColumns(value, NULLABLE_NOTE_DETAIL_COLUMNS)
+      && hasArrayMembers(value, ["links"])
+      && hasOptionalTextColumns(value, OPTIONAL_NOTE_DETAIL_MEMBERS);
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteMarkdownPreview} BrowserNoteMarkdownPreview */
+
+  /**
+   * The Markdown preview, or `null` when it cannot be vouched for.
+   *
+   * **Refused rather than defaulted, because the default was two claims at once.** `bodyHtml || ""`
+   * rendered an unreadable body as an empty preview, which says the Markdown produces nothing -
+   * and it did so on a value the page then assigns to `innerHTML`. The two constants are checked
+   * as constants: a body that labels its formats differently did not come from this shaper.
+   * @param {unknown} body
+   * @returns {BrowserNoteMarkdownPreview | null}
+   */
+  function readMarkdownPreview(body) {
+    if (!isResponseRecord(body)
+      || body.bodyFormat !== "markdown"
+      || body.bodyHtmlFormat !== "html"
+      || typeof body.bodyHtml !== "string"
+      || typeof body.bodyMarkdown !== "string") {
+      return null;
     }
-    if (dialog.returnValue !== "edit") {
+    return {
+      bodyFormat: "markdown",
+      bodyHtml: body.bodyHtml,
+      bodyHtmlFormat: "html",
+      bodyMarkdown: body.bodyMarkdown,
+    };
+  }
+
+  /**
+   * The note a `{ note }` envelope carries.
+   *
+   * **Throws on a malformed body, which is the path the raw read already took.** Every call site
+   * dereferenced `result.note` immediately - `renderDetail` reads `note.title` on its first line -
+   * so an absent or malformed note already produced a `TypeError` inside the same `try`. This
+   * replaces that with a named error on the same path; nothing new catches and nothing new escapes.
+   * @param {unknown} result
+   * @returns {BrowserNoteRecord}
+   */
+  function requireNoteFromEnvelope(result) {
+    const note = isResponseRecord(result) ? result.note : null;
+    if (!isNoteRecord(note)) {
+      throw new Error("The note response did not contain a note.");
+    }
+
+    return note;
+  }
+
+  /** @param {unknown} note @returns {note is Pick<BrowserNoteRecord, "note_id">} */
+  function hasNoteIdentity(note) {
+    return isResponseRecord(note) && typeof note.note_id === "string" && note.note_id.trim() !== "";
+  }
+
+  /**
+   * Archive/restore acknowledge the updated row without attaching detail integrations.
+   * Only its identity is needed to select the authoritative full detail after refresh.
+   * @param {unknown} result
+   * @returns {BrowserNoteRecord["note_id"]}
+   */
+  function requireNoteMutationId(result) {
+    const note = isResponseRecord(result) ? result.note : null;
+    if (!hasNoteIdentity(note)) {
+      throw new Error("The note update response did not contain a usable note ID.");
+    }
+    return note.note_id;
+  }
+
+  /** @param {unknown} note @returns {Pick<BrowserNoteRecord, "note_id">} */
+  function requireNoteWorkflowIdentity(note) {
+    if (!hasNoteIdentity(note)) throw new Error("A note ID is required for this workflow.");
+    return note;
+  }
+
+  /**
+   * The generic renderer does not establish a Notes record. Validate only the optional
+   * fields openEditor reads, retaining ID-only/default seeds and the original object.
+   * linked_context stays unknown in the published note contract; no inner claim is made.
+   * @param {unknown} note
+   * @returns {note is NotesEditorSeed}
+   */
+  function isNoteWorkflowEditorSeed(note) {
+    return isResponseRecord(note)
+      && ["note_id", "title", "library_bucket", "note_type", "visibility", "security_mode", "body_markdown"]
+        .every((key) => note[key] === undefined || typeof note[key] === "string")
+      && ["note_collection_id", "client_id", "project_id", "task_id", "linked_user_id"]
+        .every((key) => note[key] === undefined || note[key] === null || typeof note[key] === "string")
+      && (note.note_id === undefined || note.note_id === "" || hasNoteIdentity(note));
+  }
+
+  /** @param {unknown} note @returns {NotesEditorSeed} */
+  function requireNoteWorkflowEditorSeed(note) {
+    if (!isNoteWorkflowEditorSeed(note)) throw new Error("Invalid Notes editor workflow input.");
+    return note;
+  }
+
+  /**
+   * The pagination record a note list envelope carries, or `null`.
+   *
+   * Reconstructed field by field rather than passed through, so the returned record is built from
+   * checked values instead of asserted over an unchecked one.
+   * @param {unknown} value
+   * @returns {BrowserNotePagination | null}
+   */
+  function readNotePagination(value) {
+    if (!isResponseRecord(value)) {
+      return null;
+    }
+
+    const { hasMore, limit, nextCursor, pageSize } = value;
+    return typeof hasMore === "boolean"
+      && typeof limit === "number"
+      && typeof nextCursor === "string"
+      && typeof pageSize === "number"
+      ? { hasMore, limit, nextCursor, pageSize }
+      : null;
+  }
+
+  /**
+   * The `{ notes, pagination }` envelope `GET /api/notes` returns.
+   *
+   * **Falls back rather than throwing, because the raw read fell back**: `result.notes || []` and
+   * `result.pagination || null` were already the author's contract for a body without them. A
+   * malformed element is dropped rather than rendered, which is the one behaviour this narrowing
+   * adds and the only honest answer once elements are checked at all.
+   * @param {unknown} result
+   * @returns {BrowserNoteListEnvelope}
+   */
+  function readNoteListEnvelope(result) {
+    const envelope = isResponseRecord(result) ? result : null;
+    const notes = envelope && Array.isArray(envelope.notes) ? envelope.notes.filter(isNoteListItem) : [];
+    return { notes, pagination: readNotePagination(envelope ? envelope.pagination : null) };
+  }
+
+  /**
+   * One member of an untrusted response envelope.
+   * @param {unknown} result
+   * @param {string} member
+   * @returns {unknown}
+   */
+  function readEnvelopeMember(result, member) {
+    return isResponseRecord(result) ? result[member] : undefined;
+  }
+
+  /**
+   * Text carried through the collection normaliser unchecked.
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function collectionText(value) {
+    return typeof value === "string" ? value : "";
+  }
+
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root this page awaits its workspace-context readiness through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** A missing
+   * root failed at this property read before and still fails here, in the same expression and so
+   * inside the same `try` region. A present root that publishes no `workspaceContextReady` never
+   * failed - `await undefined` is a real state this page has always tolerated, and it still
+   * continues one microtask later exactly as it did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Notes requires the LongtailForge namespace.");
+    }
+
+    return namespace;
+  }
+
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Notes requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Notes uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderDescriptorActionMenu === "function"
+      && typeof factory.renderDescriptorLinkedRecordsPanel === "function"
+      && typeof factory.renderDescriptorModalForm === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Notes requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Notes requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Notes requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
+  /**
+   * The view factory this controller cannot run without.
+   * Acquired per call so absence fails at the existing use, not at module startup.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Notes requires LongtailForge.view.");
+    }
+    return factory;
+  }
+  const PAGE_SIZE = 12;
+  /** @type {Record<string, string>} */
+  const BUCKET_LABELS = {
+    active_work: "Active Work",
+    ongoing_area: "Ongoing Areas",
+    reference: "Reference Library",
+  };
+  const NOTE_KIND_LABELS = {
+    general: "General",
+    meeting: "Meeting",
+    research: "Research",
+    decision: "Decision",
+    procedure: "Procedure",
+    reference: "Reference",
+    idea: "Idea",
+    log: "Log",
+    client: "Legacy client",
+    project: "Legacy project",
+    task: "Legacy task",
+    ticket: "Legacy ticket",
+    user: "Legacy user",
+  };
+  const LEGACY_NOTE_KINDS = new Set(["client", "project", "task", "ticket", "user"]);
+  const COLLECTION_BUCKET_ORDER = ["active_work", "ongoing_area", "reference"];
+  const DEFAULT_NOTE_SORT = "updated_desc";
+  const NOTES_LIST_SORT_OPTIONS = [
+    ["title_asc", "Alphabetical (A-Z)"],
+    ["title_desc", "Alphabetical (Z-A)"],
+    ["created_desc", "Date Created (Newest First)"],
+    ["created_asc", "Date Created (Oldest First)"],
+    ["updated_desc", "Date Updated (Newest First)", true],
+    ["updated_asc", "Date Updated (Oldest First)"],
+    ["library_collection_updated_desc", "Library / Collection, then Date Updated"],
+    ["note_kind_updated_desc", "Note Kind, then Date Updated"],
+    ["primary_context_updated_desc", "Primary Context, then Date Updated"],
+  ];
+  const LINK_TARGET_TYPE_LABELS = {
+    workspace: "Workspace",
+    client: "Client",
+    list: "List",
+    note: "Note",
+    project: "Project",
+    task: "Task",
+    user: "User",
+  };
+  const DEFAULT_LINK_TARGET_TYPE = "project";
+  /** The Notes menu omits the backend-compatible workspace target. @type {Array<Exclude<BrowserNoteLinkTargetType, "workspace">>} */
+  const LINK_TARGET_TYPE_ORDER = ["project", "task", "note", "list", "client", "user"];
+  const LINK_CLIENT_CONTEXT_ALL = "all";
+  const LINK_CLIENT_CONTEXT_WORKSPACE = "workspace";
+  const NOTE_BULK_COLLECTION_UNCATEGORIZED = "__uncategorized";
+  const OPEN_EXTERNAL_LINKS_STORAGE_KEY = "lf_open_external_links_new_tab";
+  /**
+   * The shared renderer forwards an unknown record. Each Notes-owned adapter validates
+   * the fields its consumer needs; the factory contract remains module-neutral.
+   * @type {Partial<Record<string, (note: unknown) => unknown>>}
+   */
+  const NOTE_WORKFLOW_HANDLERS = {
+    "notes.workflow.edit": (note) => openEditor(requireNoteWorkflowEditorSeed(note)),
+    "notes.workflow.archive": (note) => archiveNote(requireNoteWorkflowIdentity(note)),
+    "notes.workflow.restore": (note) => restoreNote(requireNoteWorkflowIdentity(note)),
+  };
+  const NOTE_EDITOR_TOOLBAR_ACTIONS = Object.freeze([
+    { command: "bold", text: "B", label: "Bold" },
+    { command: "italic", text: "I", label: "Italic" },
+    { command: "underline", text: "U", label: "Underline" },
+    { command: "heading", text: "H", label: "Heading" },
+    { command: "unorderedList", icon: "list", label: "Unordered list" },
+    { command: "orderedList", text: "1.", label: "Ordered list" },
+    { command: "checklist", icon: "list-checks", label: "Checklist" },
+    { command: "link", icon: "link", label: "Link" },
+    { command: "wikiLink", text: "Wiki", label: "Wiki link" },
+    { preview: true, icon: "eye", label: "Preview" },
+  ]);
+
+  let state = {
+    activeBucket: "all",
+    /**
+     * The active tags the pickers offer.
+     *
+     * Annotated because the empty initializer infers `never[]`, which the validated catalogue
+     * `loadTags` now returns cannot be assigned to.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]}
+     */
+    availableTags: [],
+    /**
+     * What `LongtailForge.fileAttachments.mount` returned for the note view, or `null` before
+     * one is mounted. **This field is why `0.33.33.38.2.2.6.5.1` is blocked on Notes**: while it
+     * inferred as `null`, nothing the surface returns could be assigned to it.
+     * @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null}
+     */
+    attachmentController: null,
+    /**
+     * The same normalised collections, loaded again for the bulk editor.
+     * @type {BrowserNoteCollection[]}
+     */
+    bulkCollections: [],
+    /**
+     * The bulk tag dialog's mounted picker, or `null` before one is mounted and when the
+     * container is missing. Annotated because `null` alone infers the `null` type.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null}
+     */
+    bulkTagPicker: null,
+    collectionDialogMode: "create",
+    collectionEditingId: "",
+    /**
+     * Collections as `normalizeCollections` rebuilt them from `GET /api/notes/collections`.
+     * @type {BrowserNoteCollection[]}
+     */
+    collections: [],
+    /**
+     * The in-flight dialog data load, or `null` between opens. Awaited, never read.
+     * @type {Promise<unknown> | null}
+     */
+    dialogDataReady: null,
+    editingNoteId: "",
+    /**
+     * The editor's attachment panel, reset to `null` when the editor closes.
+     * @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null}
+     */
+    editorAttachmentController: null,
+    editorContextSummaries: {},
+    /** @type {NotesEditorHostContext | null} */
+    editorHostContext: null,
+    editorHostContextSettled: false,
+    /**
+     * Hydrated detail or the original partial input after a failed read; null when closed or creating.
+     * @type {NotesEditorNote | null}
+     */
+    editorNote: null,
+    /** @type {Partial<BrowserNoteLinkTarget> | null} */
+    editorSelectedTarget: null,
+    /** @type {Partial<BrowserNoteLinkTarget>[]} */
+    editorStagedTargets: [],
+    libraryManuallyChanged: false,
+    linkTargetClientContext: LINK_CLIENT_CONTEXT_ALL,
+    /**
+     * `window.setTimeout` handle for the link-target search debounce.
+     * @type {number | null}
+     */
+    linkTargetSearchTimer: null,
+    /**
+     * The current link-target page, after every element was vouched for.
+     * @type {BrowserNoteLinkTarget[]}
+     */
+    linkTargets: [],
+    /**
+     * The current page of notes, after every element was checked against the list projection.
+     * @type {BrowserNoteListItem[]}
+     */
+    notes: [],
+    /**
+     * Cursors already visited, newest last. Pushed and popped as strings.
+     * @type {string[]}
+     */
+    notesCursorStack: [],
+    notesCurrentCursor: "",
+    notesNextCursor: "",
+    /**
+     * The pagination record `readNoteListEnvelope` reconstructed, or `null` for an unpaged load.
+     * @type {BrowserNotePagination | null}
+     */
+    notesPagination: null,
+    page: 1,
+    /**
+     * The client targets offered as a primary context, from the same directory response.
+     * @type {BrowserNoteLinkTarget[]}
+     */
+    primaryContextClients: [],
+    /**
+     * The project targets offered as a primary context, from the same directory response.
+     * @type {BrowserNoteLinkTarget[]}
+     */
+    primaryContextProjects: [],
+    previewRequestId: 0,
+    settingsLoaded: false,
+    /**
+     * The note the viewer is showing, or `null` before one is selected and when the library clears it.
+     * @type {BrowserNoteRecord | null}
+     */
+    selectedNote: null,
+    /**
+     * Row IDs from checked state.notes (BrowserNoteListItem); retries use readBulkFailures' string IDs.
+     * Detail refresh uses the same published note_id member, not a fabricated selected-note record.
+     * @type {Set<BrowserNoteRecord["note_id"]>}
+     */
+    selectedNoteIds: new Set(),
+    selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
+    filesDialogNoteId: "",
+    /**
+     * The note tag editor's mounted picker, or `null`.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null}
+     */
+    tagPicker: null,
+    tagsDialogNoteId: "",
+    workspaceType: "",
+    openExternalLinksNewTab: readStoredOpenExternalLinksPreference(),
+  };
+  /** @type {import("../../src/types/browser-contracts.js").BrowserViewModalElement | null} */
+  let activeNoteViewDialog = null;
+
+  /** @type {Element | null} */
+  let statusMessage = null;
+  /** @type {Element | null} */
+  let filtersForm = null;
+  /** @type {HTMLSelectElement | null} */
+  let statusFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let visibilityFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let securityFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let typeFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let collectionFilter = null;
+  /** @type {HTMLInputElement | null} */
+  let contextFilter = null;
+  /** @type {HTMLInputElement | null} */
+  let ownerFilter = null;
+  /** @type {HTMLInputElement | null} */
+  let tagFilter = null;
+  /** @type {HTMLInputElement | null} */
+  let updatedFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let sortSelect = null;
+  /** @type {Element | null} */
+  let notesList = null;
+  /** @type {Element | null} */
+  let detailPanel = null;
+  /** @type {Element | null} */
+  let createButton = null;
+  /** @type {HTMLButtonElement | null} */
+  let prevButton = null;
+  /** @type {HTMLButtonElement | null} */
+  let nextButton = null;
+  /** @type {Element | null} */
+  let pageLabel = null;
+  /** @type {HTMLElement | null} */
+  let collectionPanel = null;
+  /** @type {HTMLSelectElement | null} */
+  let collectionLibraryFilter = null;
+  /** @type {HTMLElement | null} */
+  let collectionActionsMount = null;
+  /** @type {HTMLDialogElement | null} */
+  let dialog = null;
+  /** @type {Element | null} */
+  let form = null;
+  /** @type {HTMLElement | null} */
+  let dialogTitle = null;
+  /** @type {HTMLButtonElement | null} */
+  let notificationToggle = null;
+  /** @type {HTMLInputElement | null} */
+  let titleInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let libraryInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let collectionInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let typeInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let visibilityInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let securityInput = null;
+  /** @type {HTMLElement | null} */
+  let secureWarning = null;
+  /** @type {HTMLSelectElement | null} */
+  let contextClientInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let contextTargetTypeInput = null;
+  /** @type {HTMLInputElement | null} */
+  let contextSearchInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let contextResultsInput = null;
+  /** @type {HTMLButtonElement | null} */
+  let contextApplyButton = null;
+  /** @type {Element | null} */
+  let contextList = null;
+  /** @type {Element | null} */
+  let contextSelectedMessage = null;
+  /** @type {HTMLSelectElement | null} */
+  let clientInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let projectInput = null;
+  /** @type {HTMLElement | null} */
+  let primaryClientField = null;
+  /** @type {HTMLElement | null} */
+  let primaryProjectField = null;
+  /** @type {HTMLInputElement | null} */
+  let taskInput = null;
+  /** @type {HTMLInputElement | null} */
+  let userInput = null;
+  /** @type {Element | null} */
+  let suggestionMessage = null;
+  /** @type {HTMLDetailsElement | null} */
+  let detailsGroup = null;
+  /** @type {Element | null} */
+  let tagsDialog = null;
+  /** @type {Element | null} */
+  let tagsEditor = null;
+  /** @type {Element | null} */
+  let tagsDialogCloseButton = null;
+  /** @type {Element | null} */
+  let filesDialog = null;
+  /** @type {Element | null} */
+  let filesEditor = null;
+  /** @type {Element | null} */
+  let filesDialogCloseButton = null;
+  /** @type {HTMLElement | null} */
+  let filesSaveFirstWarning = null;
+  /** @type {HTMLButtonElement | null} */
+  let tagsToggle = null;
+  /** @type {HTMLButtonElement | null} */
+  let filesToggle = null;
+  /** @type {HTMLButtonElement | null} */
+  let copyLinkButton = null;
+  /** @type {HTMLTextAreaElement | null} */
+  let bodyInput = null;
+  /** @type {Element | null} */
+  let markdownEditor = null;
+  /** @type {HTMLButtonElement | null} */
+  let previewToggle = null;
+  /** @type {HTMLElement | null} */
+  let preview = null;
+  /** @type {HTMLElement | null} */
+  let formStatus = null;
+  /** @type {Element | null} */
+  let cancelButton = null;
+  /** @type {HTMLButtonElement | null} */
+  let saveButton = null;
+  /** @type {HTMLButtonElement | null} */
+  let saveCloseButton = null;
+  /** @type {HTMLDetailsElement | null} */
+  let bulkToolbar = null;
+  /** @type {HTMLButtonElement | null} */
+  let bulkEditButton = null;
+  /** @type {HTMLButtonElement | null} */
+  let bulkClearButton = null;
+  /** @type {HTMLDialogElement | null} */
+  let bulkDialog = null;
+  /** @type {HTMLFormElement | null} */
+  let bulkForm = null;
+  /** @type {HTMLButtonElement | null} */
+  let bulkCancelButton = null;
+  /** @type {HTMLButtonElement | null} */
+  let bulkApplyButton = null;
+  /** @type {HTMLSelectElement | null} */
+  let bulkLibraryInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let bulkCollectionInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let bulkTypeInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let bulkVisibilityInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let bulkTagActionInput = null;
+  /** @type {HTMLElement | null} */
+  let bulkTagsEditor = null;
+  /** @type {HTMLElement | null} */
+  let bulkFormStatus = null;
+  /** @type {HTMLDialogElement | null} */
+  let collectionDialog = null;
+  /** @type {HTMLFormElement | null} */
+  let collectionForm = null;
+  /** @type {HTMLElement | null} */
+  let collectionDialogTitle = null;
+  /** @type {HTMLButtonElement | null} */
+  let collectionDialogCloseButton = null;
+  /** @type {HTMLInputElement | null} */
+  let collectionTitleInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let collectionLibraryInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let collectionParentInput = null;
+  /** @type {HTMLElement | null} */
+  let collectionFormStatus = null;
+  /** @type {HTMLButtonElement | null} */
+  let collectionCancelButton = null;
+  /** @type {HTMLButtonElement | null} */
+  let collectionSaveButton = null;
+  /** @type {HTMLDialogElement | null} */
+  let collectionActionsDialog = null;
+  /** @type {HTMLElement | null} */
+  let collectionActionsDialogTitle = null;
+  /** @type {HTMLElement | null} */
+  let collectionActionsDialogBody = null;
+  /** @type {HTMLButtonElement | null} */
+  let collectionActionsDialogCloseButton = null;
+
+  /**
+   * The plain Markdown controller for the note body, or null when the body control is absent.
+   * `0.33.33.35.1.1` split this binding's declaration from its assignment and hand-wrote the
+   * shape `notesEditor.createPlainTextarea` returns; `0.33.33.38.2.2.6.5` declared that
+   * contract, so the copy is replaced by the contract itself. `undefined` is admitted because
+   * the surface is read through an optional chain and may be absent on a page that did not
+   * load the editor.
+   * @type {import("../../src/types/browser-contracts.js").NotesPlainTextareaController | null | undefined}
+   */
+  let editor = null;
+
+  const notesWorkspaceHost = document.querySelector("[data-notes-host]");
+  const isNotesWorkspaceSurface = Boolean(notesWorkspaceHost);
+
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  //
+  // The dialog-only path reads no descriptor - buildNotesViewShell() returns early without a
+  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
+  // it lazily imports this controller for a module action, and it must stay immediate.
+  if (isNotesWorkspaceSurface) {
+    initializeNotesWorkspace();
+  } else {
+    ensureNotesDialogShells();
+    cacheNotesElements();
+    bindNotesEvents();
+  }
+
+  async function initializeNotesWorkspace() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders,
+      // and initialize() below reports the failure through the surface it just built.
+    }
+    buildNotesViewShell();
+    cacheNotesElements();
+    bindNotesEvents();
+    await initialize();
+  }
+
+  /**
+   * Notes editor and collection controls remain optional during shell caching. Check their actual DOM
+   * subtype without making a missing dialog fail before its workflow is invoked.
+   * @template {HTMLElement} T
+   * @param {string} selector
+   * @param {{new(): T}} constructor
+   * @returns {T | null}
+   */
+  function findNotesControl(selector, constructor) {
+    const element = document.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
+
+  /**
+   * Narrow at the existing required access, including after an awaited refresh.
+   * Optional controls and initial shell caching keep their existing no-op behavior.
+   * @template T
+   * @param {T | null} value
+   * @returns {T}
+   */
+  function requireNotesValue(value) {
+    if (value === null) throw new TypeError("Required Notes value is unavailable.");
+    return value;
+  }
+
+  function cacheNotesElements() {
+    statusMessage = document.querySelector("[data-notes-status]");
+    filtersForm = document.querySelector("[data-notes-filters]");
+    statusFilter = findNotesControl("[data-note-filter-status]", HTMLSelectElement);
+    visibilityFilter = findNotesControl("[data-note-filter-visibility]", HTMLSelectElement);
+    securityFilter = findNotesControl("[data-note-filter-security]", HTMLSelectElement);
+    typeFilter = findNotesControl("[data-note-filter-type]", HTMLSelectElement);
+    collectionFilter = findNotesControl("[data-note-filter-collection]", HTMLSelectElement);
+    contextFilter = findNotesControl("[data-note-filter-context]", HTMLInputElement);
+    ownerFilter = findNotesControl("[data-note-filter-owner]", HTMLInputElement);
+    tagFilter = findNotesControl("[data-note-filter-tags]", HTMLInputElement);
+    updatedFilter = findNotesControl("[data-note-filter-updated]", HTMLInputElement);
+    sortSelect = findNotesControl("[data-note-sort]", HTMLSelectElement);
+    notesList = document.querySelector("[data-notes-list]");
+    detailPanel = document.querySelector("[data-note-detail]");
+    createButton = document.querySelector("[data-note-create]");
+    prevButton = findNotesControl("[data-notes-prev]", HTMLButtonElement);
+    nextButton = findNotesControl("[data-notes-next]", HTMLButtonElement);
+    pageLabel = document.querySelector("[data-notes-page]");
+    collectionPanel = findNotesControl("[data-notes-collections-panel]", HTMLElement);
+    collectionLibraryFilter = findNotesControl("[data-note-collection-library-filter]", HTMLSelectElement);
+    collectionActionsMount = findNotesControl("[data-note-collection-actions]", HTMLElement);
+    dialog = findNotesControl("[data-note-dialog]", HTMLDialogElement);
+    form = document.querySelector("[data-note-form]");
+    dialogTitle = findNotesControl("[data-note-dialog-title]", HTMLElement);
+    notificationToggle = findNotesControl("[data-note-notification-toggle]", HTMLButtonElement);
+    titleInput = findNotesControl("[data-note-title]", HTMLInputElement);
+    libraryInput = findNotesControl("[data-note-library]", HTMLSelectElement);
+    collectionInput = findNotesControl("[data-note-collection]", HTMLSelectElement);
+    typeInput = findNotesControl("[data-note-type]", HTMLSelectElement);
+    visibilityInput = findNotesControl("[data-note-visibility]", HTMLSelectElement);
+    securityInput = findNotesControl("[data-note-security]", HTMLSelectElement);
+    secureWarning = findNotesControl("[data-note-secure-warning]", HTMLElement);
+    contextClientInput = findNotesControl("[data-note-context-client]", HTMLSelectElement);
+    contextTargetTypeInput = findNotesControl("[data-note-context-target-type]", HTMLSelectElement);
+    contextSearchInput = findNotesControl("[data-note-context-search]", HTMLInputElement);
+    contextResultsInput = findNotesControl("[data-note-context-results]", HTMLSelectElement);
+    contextApplyButton = findNotesControl("[data-note-context-apply]", HTMLButtonElement);
+    contextList = document.querySelector("[data-note-context-list]");
+    contextSelectedMessage = document.querySelector("[data-note-context-selected]");
+    clientInput = findNotesControl("[data-note-client-id]", HTMLSelectElement);
+    projectInput = findNotesControl("[data-note-project-id]", HTMLSelectElement);
+    primaryClientField = findNotesControl("[data-note-primary-client-field]", HTMLElement);
+    primaryProjectField = findNotesControl("[data-note-primary-project-field]", HTMLElement);
+    taskInput = findNotesControl("[data-note-task-id]", HTMLInputElement);
+    userInput = findNotesControl("[data-note-user-id]", HTMLInputElement);
+    suggestionMessage = document.querySelector("[data-note-library-suggestion]");
+    detailsGroup = findNotesControl("[data-note-details-group]", HTMLDetailsElement);
+    tagsDialog = document.querySelector("[data-note-tags-dialog]");
+    tagsEditor = document.querySelector("[data-note-tags-editor]");
+    tagsDialogCloseButton = document.querySelector("[data-note-tags-dialog-close]");
+    filesDialog = document.querySelector("[data-note-files-dialog]");
+    filesEditor = document.querySelector("[data-note-files-editor]");
+    filesDialogCloseButton = document.querySelector("[data-note-files-dialog-close]");
+    filesSaveFirstWarning = findNotesControl("[data-note-files-save-first-warning]", HTMLElement);
+    tagsToggle = findNotesControl("[data-note-tags-toggle]", HTMLButtonElement);
+    filesToggle = findNotesControl("[data-note-files-toggle]", HTMLButtonElement);
+    copyLinkButton = findNotesControl("[data-copy-note-link]", HTMLButtonElement);
+    bodyInput = findNotesControl("[data-note-body]", HTMLTextAreaElement);
+    markdownEditor = document.querySelector("[data-note-markdown-editor]");
+    previewToggle = findNotesControl("[data-note-preview-toggle]", HTMLButtonElement);
+    preview = findNotesControl("[data-note-preview]", HTMLElement);
+    formStatus = findNotesControl("[data-note-form-status]", HTMLElement);
+    cancelButton = document.querySelector("[data-note-cancel]");
+    saveButton = findNotesControl("[data-note-save]", HTMLButtonElement);
+    saveCloseButton = findNotesControl("[data-note-save-close]", HTMLButtonElement);
+    bulkToolbar = findNotesControl("[data-note-bulk-toolbar]", HTMLDetailsElement);
+    bulkEditButton = findNotesControl("[data-note-bulk-edit]", HTMLButtonElement);
+    bulkClearButton = findNotesControl("[data-note-bulk-clear]", HTMLButtonElement);
+    bulkDialog = findNotesControl("[data-note-bulk-dialog]", HTMLDialogElement);
+    bulkForm = findNotesControl("[data-note-bulk-form]", HTMLFormElement);
+    bulkCancelButton = findNotesControl("[data-note-bulk-cancel]", HTMLButtonElement);
+    bulkApplyButton = findNotesControl("[data-note-bulk-apply]", HTMLButtonElement);
+    bulkLibraryInput = findNotesControl("[data-note-bulk-library]", HTMLSelectElement);
+    bulkCollectionInput = findNotesControl("[data-note-bulk-collection]", HTMLSelectElement);
+    bulkTypeInput = findNotesControl("[data-note-bulk-type]", HTMLSelectElement);
+    bulkVisibilityInput = findNotesControl("[data-note-bulk-visibility]", HTMLSelectElement);
+    bulkTagActionInput = findNotesControl("[data-note-bulk-tag-action]", HTMLSelectElement);
+    bulkTagsEditor = findNotesControl("[data-note-bulk-tags]", HTMLElement);
+    bulkFormStatus = findNotesControl("[data-note-bulk-form-status]", HTMLElement);
+    collectionDialog = findNotesControl("[data-note-collection-dialog]", HTMLDialogElement);
+    collectionForm = findNotesControl("[data-note-collection-form]", HTMLFormElement);
+    collectionDialogTitle = findNotesControl("[data-note-collection-dialog-title]", HTMLElement);
+    collectionDialogCloseButton = findNotesControl("[data-note-collection-dialog-close]", HTMLButtonElement);
+    collectionTitleInput = findNotesControl("[data-note-collection-title]", HTMLInputElement);
+    collectionLibraryInput = findNotesControl("[data-note-collection-library]", HTMLSelectElement);
+    collectionParentInput = findNotesControl("[data-note-collection-parent]", HTMLSelectElement);
+    collectionFormStatus = findNotesControl("[data-note-collection-form-status]", HTMLElement);
+    collectionCancelButton = findNotesControl("[data-note-collection-cancel]", HTMLButtonElement);
+    collectionSaveButton = findNotesControl("[data-note-collection-save]", HTMLButtonElement);
+    collectionActionsDialog = findNotesControl("[data-note-collection-actions-dialog]", HTMLDialogElement);
+    collectionActionsDialogTitle = findNotesControl("[data-note-collection-actions-dialog-title]", HTMLElement);
+    collectionActionsDialogBody = findNotesControl("[data-note-collection-actions-dialog-body]", HTMLElement);
+    collectionActionsDialogCloseButton = findNotesControl("[data-note-collection-actions-dialog-close]", HTMLButtonElement);
+
+    editor = requireNamespace().notesEditor?.createPlainTextarea(bodyInput);
+  }
+
+  function bindNotesEvents() {
+    createButton?.addEventListener("click", () => openEditor());
+    collectionActionsDialogCloseButton?.addEventListener("click", closeCollectionActionsDialog);
+    const collectionLibraryControl = collectionLibraryFilter;
+    const collectionControl = collectionFilter;
+    collectionLibraryControl?.addEventListener("change", () => selectBucket(collectionLibraryControl.value));
+    collectionControl?.addEventListener("change", () => selectCollection(collectionControl.value));
+    filtersForm?.addEventListener("change", () => {
+      state.page = 1;
+      state.selectedCollectionId = collectionFilter?.value || "";
+      updateCollectionPanelSelection();
+      updateUrlCollection();
+      void reloadNotesFromStart();
+    });
+    sortSelect?.addEventListener("change", () => {
+      state.page = 1;
+      void reloadNotesFromStart();
+    });
+    prevButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void loadPreviousNotesPage();
+    });
+    nextButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void loadNextNotesPage();
+    });
+    form?.addEventListener("submit", saveNote);
+    saveCloseButton?.addEventListener("click", saveAndCloseNote);
+    notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
+    cancelButton?.addEventListener("click", cancelEditor);
+    bulkEditButton?.addEventListener("click", openBulkEditor);
+    bulkClearButton?.addEventListener("click", clearBulkSelection);
+    bulkForm?.addEventListener("submit", applyBulkEdit);
+    bulkCancelButton?.addEventListener("click", closeBulkEditor);
+    bulkLibraryInput?.addEventListener("change", populateBulkCollectionOptions);
+    collectionForm?.addEventListener("submit", saveCollection);
+    collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
+    collectionCancelButton?.addEventListener("click", closeCollectionDialog);
+    collectionLibraryInput?.addEventListener("change", () => populateCollectionParentOptions());
+    libraryInput?.addEventListener("change", () => {
+      state.libraryManuallyChanged = true;
+      populateNoteCollectionOptions();
+      updateLibrarySuggestion();
+    });
+    securityInput?.addEventListener("change", updateSecureUiState);
+    previewToggle?.addEventListener("click", togglePreview);
+    bodyInput?.addEventListener("input", () => renderPreview());
+    clientInput?.addEventListener("change", handlePrimaryClientChange);
+    projectInput?.addEventListener("change", handlePrimaryProjectChange);
+    [taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
+    contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
+    contextClientInput?.addEventListener("change", handleEditorLinkClientContextChange);
+    contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
+    contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
+    document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
+    tagsToggle?.addEventListener("click", openTagsDialog);
+    tagsDialogCloseButton?.addEventListener("click", closeTagsDialog);
+    tagsDialog?.addEventListener("close", handleTagsDialogClose);
+    filesToggle?.addEventListener("click", openFilesDialog);
+    filesDialogCloseButton?.addEventListener("click", closeFilesDialog);
+    filesDialog?.addEventListener("close", handleFilesDialogClose);
+    copyLinkButton?.addEventListener("click", copyCurrentNoteLink);
+    dialog?.addEventListener("close", handleEditorDialogClose);
+  }
+
+  const notesDialogApi = Object.freeze({
+    openAdd: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "add" }, hostContext),
+    openEdit: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
+    openNoteEditor,
+    openNoteViewer,
+    openView: openNoteViewer,
+  });
+
+  // A plain publication. `0.33.33.38.2.4.4` removed a spread of the previous value: this
+  // file is the only writer, and although it is delivered two ways - a classic script on
+  // `notes.html` and a `module: true` module-action dependency elsewhere - the dependency
+  // descriptor names `notesDialog.openNoteViewer` as its readiness probe, so the loader
+  // skips a file that has already published. A second evaluation would in any case rebuild
+  // the same members from the same API.
+  const namespace = window.LongtailForge;
+
+  if (!namespace) {
+    throw new Error("Notes requires the LongtailForge namespace.");
+  }
+
+  namespace.notesDialog = Object.freeze({
+    ...notesDialogApi,
+  });
+
+  /**
+   * These three Notes-owned contributions supply the context that register(unknown)
+   * deliberately cannot. Reuse the existing receiving parameter/host contracts;
+   * this describes our openers, not a shared extensibility vocabulary or validation.
+   * createHostContext supplies cancel/complete, a result promise and status forwarding.
+   * Its refresh value is unchecked and stays unknown until the existing callable guard.
+   * @template Params
+   * @typedef {object} NotesModuleActionRegistration
+   * @property {string} actionId
+   * @property {string} id
+   * @property {string} label
+   * @property {string} mode
+   * @property {string} moduleId
+   * @property {(params?: Params, hostContext?: NotesViewerHostContext | null) => Promise<unknown>} open
+   * @property {string} recordType
+   * @property {string[]} requiredModules
+   * @property {string[]} requiredPermissions
+   * @property {string} title
+   */
+  namespace.moduleActions?.register?.({
+    actionId: "notes.add",
+    id: "notes.add",
+    label: "Add Note",
+    mode: "add",
+    moduleId: "notes",
+    /** @type {NotesModuleActionRegistration<NotesEditorOpenParams>["open"]} */
+    open: (params, hostContext) => openNoteEditor({ ...params, mode: "add" }, hostContext),
+    recordType: "note",
+    requiredModules: ["notes"],
+    requiredPermissions: ["notes.create"],
+    title: "Add Note",
+  });
+  namespace.moduleActions?.register?.({
+    actionId: "notes.edit",
+    id: "notes.edit",
+    label: "Edit Note",
+    mode: "edit",
+    moduleId: "notes",
+    /** @type {NotesModuleActionRegistration<NotesEditorOpenParams>["open"]} */
+    open: (params, hostContext) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
+    recordType: "note",
+    requiredModules: ["notes"],
+    requiredPermissions: ["notes.view"],
+    title: "Edit Note",
+  });
+  namespace.moduleActions?.register?.({
+    actionId: "notes.view",
+    id: "notes.view",
+    label: "View Note",
+    mode: "view",
+    moduleId: "notes",
+    /** @type {NotesModuleActionRegistration<NotesViewerParams>["open"]} */
+    open: (params, hostContext) => openNoteViewer(params, hostContext),
+    recordType: "note",
+    requiredModules: ["notes"],
+    requiredPermissions: ["notes.view"],
+    title: "View Note",
+  });
+
+
+  function buildNotesViewShell() {
+    const host = document.querySelector("[data-notes-host]");
+    if (!host || host.querySelector("[data-notes-list]")) {
+      return;
+    }
+    const descriptor = notesViewSurfaceDescriptor();
+    if (descriptor) {
+      registerNotesViewBehaviors();
+      // The renderer auto-renders descriptor.modals into the surface; Notes builds and owns its own
+      // dialogs (createNoteDialogShell/createCollectionDialogShell), so suppress the framework duplicates.
+      const surface = requireDescriptorRenderers().renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
+      decorateNotesDeclarativeSurface(surface);
+    }
+
+    // Notes owns its dialogs whether or not the server delivered a workspace surface, so a
+    // module action can still open the editor on a page whose surface was not delivered.
+    document.body.append(
+      createNoteDialogShell(),
+      createNoteTagsDialogShell(),
+      createNoteFilesDialogShell(),
+      createNoteBulkDialogShell(),
+      createCollectionDialogShell(),
+      createCollectionActionsDialogShell(),
+    );
+  }
+
+  function ensureNotesDialogShells() {
+    const shells = [];
+    if (!document.querySelector("[data-note-dialog]")) {
+      shells.push(createNoteDialogShell());
+    }
+    if (!document.querySelector("[data-note-tags-dialog]")) {
+      shells.push(createNoteTagsDialogShell());
+    }
+    if (!document.querySelector("[data-note-files-dialog]")) {
+      shells.push(createNoteFilesDialogShell());
+    }
+
+    if (shells.length > 0) {
+      document.body.append(...shells);
+    }
+  }
+
+  function registerNotesViewBehaviors() {
+    const view = requireView();
+    if (typeof view.registerBehavior !== "function") {
+      return;
+    }
+    requireDescriptorRenderers().registerBehavior("notes.create", () => openEditor());
+    requireDescriptorRenderers().registerBehavior("notes.sidebar.library", (/** @type {{container: HTMLElement}} */ { container }) => {
+      container.replaceChildren(createNotesLibraryChrome());
+    });
+    requireDescriptorRenderers().registerBehavior("notes.sidebar.notes-list-footer", (/** @type {{container: HTMLElement}} */ { container }) => {
+      container.replaceChildren(createNotesListSortControl(), createNotesPagination());
+    });
+    requireDescriptorRenderers().registerBehavior("notes.filters.tags", hydrateNoteTagFilterOptions);
+    Object.keys(NOTE_WORKFLOW_HANDLERS).forEach((behaviorId) => {
+      requireDescriptorRenderers().registerBehavior(behaviorId, (/** @type {{record: unknown}} */ { record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
+    });
+  }
+
+  /** @param {string} behaviorId @param {unknown} note */
+  function runNoteWorkflow(behaviorId, note) {
+    const handler = NOTE_WORKFLOW_HANDLERS[behaviorId];
+    if (!handler || !note) {
+      return undefined;
+    }
+    return handler(note);
+  }
+
+  function notesActionStripDescriptor() {
+    return notesViewSurfaceDescriptor()?.detail?.actionStrip || notesWorkflowActionStripDescriptor();
+  }
+
+  /** @returns {NonNullable<import("../../src/types/framework-contracts.js").ViewDetailDescriptor["actionStrip"]>} */
+  function notesWorkflowActionStripDescriptor() {
+    return {
+      label: "Note actions",
+      actions: [
+        { id: "edit-note", label: "Edit", role: "secondary", behavior: "notes.workflow.edit" },
+        { id: "archive-note", label: "Archive", role: "secondary", behavior: "notes.workflow.archive" },
+        { id: "restore-note", label: "Restore", role: "secondary", behavior: "notes.workflow.restore" },
+      ],
+    };
+  }
+
+  function notesLinkedRecordsDescriptor() {
+    return notesViewSurfaceDescriptor()?.detail?.linkedRecords || null;
+  }
+
+  /** @param {BrowserNoteRecord} note */
+  function createNoteActionStrip(note) {
+    const label = notesActionStripDescriptor().label || "Note actions";
+    return requireDescriptorRenderers().renderDescriptorActionMenu(detailActionButtons(note), {
+      summaryLabel: "...",
+      ariaLabel: label,
+      title: label,
+    });
+  }
+
+  /** @param {BrowserNoteRecord} note */
+  function detailActionButtons(note) {
+    const actions = notesActionStripDescriptor().actions || [];
+    const actionById = new Map(actions.map((action) => [action.id, action]));
+    const buttons = [];
+    const archived = note.status === "archived";
+
+    const editAction = actionById.get("edit-note");
+    if (editAction) {
+      const edit = noteWorkflowActionButton(editAction, note);
+      if (archived) {
+        edit.disabled = true;
+        edit.title = "Restore archived notes before editing.";
+      }
+      buttons.push(edit);
+    }
+    const toggleAction = archived ? actionById.get("restore-note") : actionById.get("archive-note");
+    if (toggleAction) {
+      buttons.push(noteWorkflowActionButton(toggleAction, note));
+    }
+    return buttons;
+  }
+
+  /** @param {import("../../src/types/framework-contracts.js").ViewActionDescriptor} action @param {BrowserNoteRecord} note */
+  function noteWorkflowActionButton(action, note) {
+    const view = requireView();
+    const button = view.createActionButton({
+      label: action.label || action.id,
+      role: action.role,
+      onClick: () => typeof action.behavior === "string" ? runNoteWorkflow(action.behavior, note) : undefined,
+    });
+    button.dataset.noteAction = action.id;
+    return button;
+  }
+
+  /**
+   * Dispatch members are caller-owned editor seeds and focus inputs. Defaults are independently
+   * normalized from unknown by normalizeNoteEditorDefaults rather than promised by this input.
+   * @typedef {Omit<NotesViewerParams, "note"> & {note?: NotesEditorNote, record?: NotesEditorNote,
+   *   noteRecord?: NotesEditorNote, mode?: unknown, actionMode?: unknown}} NotesEditorOpenParams
+   * @param {NotesEditorOpenParams} params
+   * @param {NotesViewerHostContext | null} hostContext
+   */
+  async function openNoteEditor(params = {}, hostContext = null) {
+    await prepareNoteDialogData();
+
+    const mode = normalizeNoteEditorMode(params);
+    const noteId = readNoteEditorId(params);
+    const note = params.note || params.record || params.noteRecord || (noteId ? { note_id: noteId } : null);
+
+    if (mode === "edit" && !note?.note_id) {
+      throw new Error("Note ID is required.");
+    }
+
+    const result = await openEditor(mode === "add" ? null : note, {
+      defaults: normalizeNoteEditorDefaults(params),
+      hostContext,
+      trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
+    });
+    return hostContext?.result || result;
+  }
+
+  /**
+   * The action aliases read by readNoteEditorId and the focus/parent inputs passed through
+   * by the viewer. The fetched detail, not an action parameter, supplies rendered content.
+   * @typedef {object} NotesViewerParams
+   * @property {string} [noteId]
+   * @property {string} [note_id]
+   * @property {string} [recordId]
+   * @property {string} [id]
+   * @property {Element | null} [returnFocusTo]
+   * @property {Element | null} [trigger]
+   * @property {HTMLDialogElement | null} [parent]
+   * @property {BrowserNoteRecord} [note]
+   */
+  /**
+   * Additional host members produced by module-actions.createHostContext: result settles
+   * once on cancel/complete, and setStatus forwards a message and its error flag.
+   * @typedef {NotesEditorHostContext & {
+   *   result?: Promise<unknown>,
+   *   setStatus?: (message: unknown, options: {isError?: boolean}) => unknown
+   * }} NotesViewerHostContext
+   */
+  /** @param {NotesViewerParams} params @param {NotesViewerHostContext | null} hostContext */
+  async function openNoteViewer(params = {}, hostContext = null) {
+    const api = requireApi();
+    const view = requireView();
+    const noteId = readNoteEditorId(params);
+
+    if (!noteId) {
+      throw new Error("Note ID is required.");
+    }
+
+    await requireNamespace().workspaceContextReady;
+    await loadMarkdownRenderingPreference();
+
+    if (activeNoteViewDialog?.isConnected) {
+      view.closeModal(activeNoteViewDialog, "replace");
+    }
+
+    const trigger = params.returnFocusTo || params.trigger || hostContext?.trigger || null;
+    const dialog = createNoteViewDialog(noteId);
+    const closeResult = new Promise((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+    });
+
+    dialog.addEventListener("close", () => {
+      if (activeNoteViewDialog === dialog) {
+        activeNoteViewDialog = null;
+      }
+      if (dialog.returnValue !== "edit") {
+        hostContext?.cancel?.({
+          actionId: "notes.view",
+          recordId: noteId,
+        });
+      }
+      dialog.remove();
+    }, { once: true });
+
+    document.body.appendChild(dialog);
+    activeNoteViewDialog = dialog;
+    view.showModal(dialog, { parent: params.parent || null, trigger });
+
+    try {
+      const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+      renderNoteViewDialog(dialog, requireNoteFromEnvelope(result), params, hostContext);
+    } catch (error) {
+      renderNoteViewError(dialog, error);
+      hostContext?.setStatus?.(noteViewErrorMessage(error), { isError: true });
+    }
+
+    return hostContext?.result || closeResult;
+  }
+
+  /** @param {string} noteId */
+  function createNoteViewDialog(noteId) {
+    const view = requireView();
+    /** @type {import("../../src/types/browser-contracts.js").BrowserViewModalElement | null} */
+    let dialog = null;
+    const body = view.createElement("div", {
+      className: "notes-view-body",
+      attrs: { "aria-live": "polite" },
+      dataset: { noteViewBody: "" },
+      children: [emptyText("Loading note...")],
+    });
+    const closeAction = view.createActionButton({
+      action: "notes.view.close",
+      className: "surface-modal-footer-action",
+      label: "Close",
+      role: "secondary",
+      onClick: () => view.closeModal(dialog, "close"),
+    });
+    const editAction = view.createActionButton({
+      action: "notes.view.edit",
+      className: "surface-modal-footer-action",
+      disabled: true,
+      label: "Edit",
+      role: "primary",
+    });
+
+    closeAction.dataset.noteViewAction = "close";
+    editAction.dataset.noteViewAction = "edit";
+
+    dialog = view.createModal({
+      title: "View Note",
+      className: "notes-view-dialog",
+      size: "wide",
+      body: [body],
+      actions: [closeAction, editAction],
+    });
+    dialog.dataset.noteViewDialog = "";
+    dialog.dataset.noteId = noteId;
+    return dialog;
+  }
+
+  /**
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalElement} dialog
+   * @param {BrowserNoteRecord} note
+   * @param {NotesViewerParams} params
+   * @param {NotesViewerHostContext | null} hostContext
+   */
+  function renderNoteViewDialog(dialog, note, params = {}, hostContext = null) {
+    const view = requireView();
+    // This renderer only receives checked detail records; the linked-panel id alias has no producer here.
+    const noteId = note.note_id || readNoteEditorId(params);
+    const title = note.title || "Untitled note";
+
+    dialog.dataset.noteId = noteId || "";
+    dialog.viewParts.title.textContent = title;
+
+    const meta = view.createElement("p", {
+      className: "notes-detail-meta notes-view-meta",
+      children: detailMetaItems(note),
+    });
+    const tags = view.createElement("div", {
+      className: "notes-detail-tags notes-view-tags",
+      children: [tagChips(note.tags || [])],
+    });
+    const body = view.createElement("div", { className: "notes-rendered-body notes-view-rendered-body" });
+    body.innerHTML = note.body_html || "";
+    applyExternalMarkdownLinkPreference(body);
+    if (!body.textContent.trim() && !note.body_html) {
+      body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
+    }
+
+    noteViewBodyElement(dialog)?.replaceChildren(meta, tags, body);
+
+    const editAction = noteViewEditAction(dialog);
+    // A missing edit control does not invalidate the note body already rendered.
+    if (!editAction) return;
+    editAction.disabled = note.status === "archived";
+    editAction.title = note.status === "archived"
+      ? "Restore archived notes before editing."
+      : "Edit this note";
+    editAction.addEventListener("click", () => openNoteViewEditHandoff(dialog, noteId, {
+      ...params,
+      note,
+      noteId,
+    }, hostContext), { once: true });
+  }
+
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewModalElement} dialog @param {unknown} error */
+  function renderNoteViewError(dialog, error = {}) {
+    dialog.viewParts.title.textContent = "Note unavailable";
+    noteViewBodyElement(dialog)?.replaceChildren(emptyText(noteViewErrorMessage(error)));
+    const editAction = noteViewEditAction(dialog);
+    if (!editAction) return;
+    editAction.disabled = true;
+    editAction.title = "This note cannot be edited from here.";
+  }
+
+  /** @param {ParentNode | null | undefined} dialog */
+  function noteViewBodyElement(dialog) {
+    return dialog?.querySelector("[data-note-view-body]");
+  }
+
+  /** @param {ParentNode | null | undefined} dialog */
+  function noteViewEditAction(dialog) {
+    // The Notes modal producer creates buttons. The tag lookup establishes their
+    // DOM type before button-specific state is used; an unreadable control is absent.
+    return [...(dialog?.querySelectorAll("button") || [])]
+      .find((button) => button.dataset.noteViewAction === "edit") || null;
+  }
+
+  /**
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalElement} dialog
+   * @param {string} noteId
+   * @param {NotesViewerParams} params
+   * @param {NotesViewerHostContext | null} hostContext
+   */
+  function openNoteViewEditHandoff(dialog, noteId, params = {}, hostContext = null) {
+    const view = requireView();
+    if (!noteId) {
+      return;
+    }
+
+    view.closeModal(dialog, "edit");
+    void openNoteEditor({
+      ...params,
+      mode: "edit",
+      noteId,
+      returnFocusTo: params.returnFocusTo || hostContext?.trigger || null,
+    }, hostContext).catch((error) => {
+      hostContext?.setStatus?.(safeNoteErrorMessage(error, "Note could not be opened."), { isError: true });
       hostContext?.cancel?.({
-        actionId: "notes.view",
+        actionId: "notes.edit",
         recordId: noteId,
       });
+    });
+  }
+
+  /** @param {unknown} error */
+  function noteViewErrorMessage(error = {}) {
+    if (isSecureError(error)) {
+      return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
     }
-    dialog.remove();
-  }, { once: true });
 
-  document.body.appendChild(dialog);
-  activeNoteViewDialog = dialog;
-  view.showModal(dialog, { parent: params.parent || null, trigger });
-
-  try {
-    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
-    renderNoteViewDialog(dialog, result.note, params, hostContext);
-  } catch (error) {
-    renderNoteViewError(dialog, error);
-    hostContext?.setStatus?.(noteViewErrorMessage(error), { isError: true });
+    return "Note is unavailable or you do not have access.";
   }
 
-  return hostContext?.result || closeResult;
-}
+  async function prepareNoteDialogData() {
+    if (!state.dialogDataReady) {
+      state.dialogDataReady = (async () => {
+        await requireNamespace().workspaceContextReady;
+        applyWorkspaceContext();
+        await Promise.all([loadMarkdownRenderingPreference(), loadTags(), loadCollections()]);
+      })().catch((error) => {
+        state.dialogDataReady = null;
+        throw error;
+      });
+    }
 
-function createNoteViewDialog(noteId) {
-  let dialog = null;
-  const body = view.createElement("div", {
-    className: "notes-view-body",
-    attrs: { "aria-live": "polite" },
-    dataset: { noteViewBody: "" },
-    children: [emptyText("Loading note...")],
-  });
-  const closeAction = view.createActionButton({
-    action: "notes.view.close",
-    className: "surface-modal-footer-action",
-    label: "Close",
-    role: "secondary",
-    onClick: () => view.closeModal(dialog, "close"),
-  });
-  const editAction = view.createActionButton({
-    action: "notes.view.edit",
-    className: "surface-modal-footer-action",
-    disabled: true,
-    label: "Edit",
-    role: "primary",
-  });
-
-  closeAction.dataset.noteViewAction = "close";
-  editAction.dataset.noteViewAction = "edit";
-
-  dialog = view.createModal({
-    title: "View Note",
-    className: "notes-view-dialog",
-    size: "wide",
-    body: [body],
-    actions: [closeAction, editAction],
-  });
-  dialog.dataset.noteViewDialog = "";
-  dialog.dataset.noteId = noteId;
-  return dialog;
-}
-
-function renderNoteViewDialog(dialog, note = {}, params = {}, hostContext = null) {
-  const noteId = note.note_id || note.id || readNoteEditorId(params);
-  const title = note.title || "Untitled note";
-
-  dialog.dataset.noteId = noteId || "";
-  dialog.viewParts.title.textContent = title;
-
-  const meta = view.createElement("p", {
-    className: "notes-detail-meta notes-view-meta",
-    children: detailMetaItems(note),
-  });
-  const tags = view.createElement("div", {
-    className: "notes-detail-tags notes-view-tags",
-    children: [tagChips(note.tags || [])],
-  });
-  const body = view.createElement("div", { className: "notes-rendered-body notes-view-rendered-body" });
-  body.innerHTML = note.body_html || "";
-  applyExternalMarkdownLinkPreference(body);
-  if (!body.textContent.trim() && !note.body_html) {
-    body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
+    return state.dialogDataReady;
   }
 
-  noteViewBodyElement(dialog)?.replaceChildren(meta, tags, body);
-
-  const editAction = noteViewEditAction(dialog);
-  editAction.disabled = note.status === "archived";
-  editAction.title = note.status === "archived"
-    ? "Restore archived notes before editing."
-    : "Edit this note";
-  editAction.addEventListener("click", () => openNoteViewEditHandoff(dialog, noteId, {
-    ...params,
-    note,
-    noteId,
-  }, hostContext), { once: true });
-}
-
-function renderNoteViewError(dialog, error = {}) {
-  dialog.viewParts.title.textContent = "Note unavailable";
-  noteViewBodyElement(dialog)?.replaceChildren(emptyText(noteViewErrorMessage(error)));
-  const editAction = noteViewEditAction(dialog);
-  editAction.disabled = true;
-  editAction.title = "This note cannot be edited from here.";
-}
-
-function noteViewBodyElement(dialog) {
-  return dialog?.querySelector("[data-note-view-body]");
-}
-
-function noteViewEditAction(dialog) {
-  return dialog?.querySelector("[data-note-view-action='edit']");
-}
-
-function openNoteViewEditHandoff(dialog, noteId, params = {}, hostContext = null) {
-  if (!noteId) {
-    return;
+  /** @param {Pick<NotesEditorOpenParams, "mode" | "actionMode">} [params] */
+  function normalizeNoteEditorMode(params = {}) {
+    const mode = String(params.mode || params.actionMode || "").toLowerCase();
+    return mode === "edit" ? "edit" : "add";
   }
 
-  view.closeModal(dialog, "edit");
-  void openNoteEditor({
-    ...params,
-    mode: "edit",
-    noteId,
-    returnFocusTo: params.returnFocusTo || hostContext?.trigger || null,
-  }, hostContext).catch((error) => {
-    hostContext?.setStatus?.(safeNoteErrorMessage(error, "Note could not be opened."), { isError: true });
-    hostContext?.cancel?.({
-      actionId: "notes.edit",
-      recordId: noteId,
-    });
-  });
-}
-
-function noteViewErrorMessage(error = {}) {
-  if (isSecureError(error)) {
-    return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
+  /** @param {Pick<NotesViewerParams, "noteId" | "note_id" | "recordId" | "id">} [params] */
+  function readNoteEditorId(params = {}) {
+    return params.noteId || params.note_id || params.recordId || params.id || "";
   }
 
-  return "Note is unavailable or you do not have access.";
-}
-
-async function prepareNoteDialogData() {
-  if (!state.dialogDataReady) {
-    state.dialogDataReady = (async () => {
-      await window.LongtailForge.workspaceContextReady;
-      applyWorkspaceContext();
-      await Promise.all([loadMarkdownRenderingPreference(), loadTags(), loadCollections()]);
-    })().catch((error) => {
-      state.dialogDataReady = null;
-      throw error;
-    });
+  /**
+   * A produced form seed: the keys come from the published note record, and every value
+   * is established here as a string. This is not a new response contract.
+   * @typedef {{[Key in keyof Pick<BrowserNoteRecord, "body_markdown" | "client_id" | "library_bucket" |
+   *   "note_collection_id" | "note_type" | "project_id" | "security_mode" | "title" | "visibility">]: string}} NotesEditorDefaults
+   * @param {unknown} params
+   * @returns {NotesEditorDefaults}
+   */
+  function normalizeNoteEditorDefaults(params = {}) {
+    const input = isResponseRecord(params) ? params : {};
+    const context = isResponseRecord(input.context) ? input.context : {};
+    return {
+      body_markdown: noteDefaultString(input.body_markdown) || noteDefaultString(input.bodyMarkdown) || noteDefaultString(input.body),
+      client_id: noteDefaultString(input.client_id) || noteDefaultString(input.clientId) || noteDefaultString(context.clientId),
+      library_bucket: noteDefaultString(input.library_bucket) || noteDefaultString(input.libraryBucket),
+      note_collection_id: noteDefaultString(input.note_collection_id) || noteDefaultString(input.noteCollectionId),
+      note_type: noteDefaultString(input.note_type) || noteDefaultString(input.noteType),
+      project_id: noteDefaultString(input.project_id) || noteDefaultString(input.projectId) || noteDefaultString(context.projectId),
+      security_mode: noteDefaultString(input.security_mode) || noteDefaultString(input.securityMode),
+      title: noteDefaultString(input.title),
+      visibility: noteDefaultString(input.visibility),
+    };
   }
 
-  return state.dialogDataReady;
-}
-
-function normalizeNoteEditorMode(params = {}) {
-  const mode = String(params.mode || params.actionMode || "").toLowerCase();
-  return mode === "edit" ? "edit" : "add";
-}
-
-function readNoteEditorId(params = {}) {
-  return params.noteId || params.note_id || params.recordId || params.id || "";
-}
-
-function normalizeNoteEditorDefaults(params = {}) {
-  const context = params.context || {};
-  return {
-    body_markdown: params.body_markdown || params.bodyMarkdown || params.body || "",
-    client_id: params.client_id || params.clientId || context.clientId || "",
-    library_bucket: params.library_bucket || params.libraryBucket || "",
-    note_collection_id: params.note_collection_id || params.noteCollectionId || "",
-    note_type: params.note_type || params.noteType || "",
-    project_id: params.project_id || params.projectId || context.projectId || "",
-    security_mode: params.security_mode || params.securityMode || "",
-    title: params.title || "",
-    visibility: params.visibility || "",
-  };
-}
-
-function notesViewSurfaceDescriptor() {
-  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-  const surface = surfaces.find((candidate) => candidate.id === "notes.workspace" && candidate.moduleId === "notes")
-    || fallbackNotesViewSurfaceDescriptor();
-  return scopeNotesVisibilityContributions(surface);
-}
-
-function scopeNotesVisibilityContributions(surface = {}) {
-  const workspaceType = normalizeWorkspaceType(
-    state.workspaceType || window.LongtailForge?.workspaceContext?.workspaceType || window.LongtailForge?.workspaceContext?.workspace_type || "",
-  );
-  if (!workspaceType || workspaceType === "business") {
-    return surface;
+  /** @param {unknown} value @returns {string} */
+  function noteDefaultString(value) {
+    return typeof value === "string" ? value : "";
   }
 
-  const scopeFields = (fields = []) => fields
-    .filter((field) => workspaceType !== "personal" || field.field !== "visibility")
-    .map((field) => field.field === "visibility" ? {
-      ...field,
-      options: (field.options || []).filter((option) => (Array.isArray(option) ? option[0] : option.value) !== "client_visible"),
-    } : field);
-
-  return {
-    ...surface,
-    filters: (surface.filters || [])
-      .filter((filter) => workspaceType !== "personal" || filter.field !== "visibility")
-      .map((filter) => filter.field === "visibility" ? {
-        ...filter,
-        options: (filter.options || []).filter((option) => (Array.isArray(option) ? option[0] : option.value) !== "client_visible"),
-      } : filter),
-    detail: workspaceType === "personal" && surface.detail ? {
-      ...surface.detail,
-      header: surface.detail.header ? {
-        ...surface.detail.header,
-        badges: (surface.detail.header.badges || []).filter((badge) => badge.field !== "visibility"),
-      } : surface.detail.header,
-    } : surface.detail,
-    modals: (surface.modals || []).map((modal) => ["note-editor", "note-bulk-editor"].includes(modal.id) ? {
-      ...modal,
-      fields: scopeFields(modal.fields),
-    } : modal),
-  };
-}
-
-function fallbackNotesViewSurfaceDescriptor() {
-  return {
-    id: "notes.workspace",
-    moduleId: "notes",
-    viewId: "notes",
-    layout: "slide-out-sidebar",
-    sidebarLabel: "Notes navigation",
-    pageHeader: {
-      title: "Notes",
-      primaryAction: {
-        id: "create-note",
-        label: "Create Note",
-        role: "primary",
-        behavior: "notes.create",
-      },
-    },
-    sidebarPanels: [
-      {
-        id: "notes-filters",
-        type: "filters",
-        title: "Filters",
-          open: false,
-        className: "notes-filters-panel",
-      },
-      {
-        id: "notes-library",
-        type: "navigation",
-        title: "Library",
-        behavior: "notes.sidebar.library",
-        open: true,
-        className: "notes-library-panel view-collapsible-index--unscrolled",
-        ariaLabel: "Notes Library",
-      },
-      {
-        id: "notes-list",
-        type: "index",
-        title: "Notes List",
-        open: true,
-        className: "notes-index-panel",
-        footer: {
-          id: "notes-list-footer",
-          behavior: "notes.sidebar.notes-list-footer",
-        },
-      },
-    ],
-    filters: [
-      notesDescriptorSelect("status", "Status", [["active", "Active", true], ["pinned", "Pinned"], ["archived", "Archived"], ["all", "All visible"]]),
-      notesDescriptorSelect("visibility", "Visibility", [["all", "All visible", true], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]]),
-      notesDescriptorSelect("security", "Security", [["all", "All", true], ["normal", "Normal"], ["secure", "Secure"]]),
-      notesDescriptorSelect("noteType", "Note Kind", [["all", "All kinds", true], ...Object.entries(NOTE_KIND_LABELS).filter(([value]) => !LEGACY_NOTE_KINDS.has(value)).map(([value, label]) => [value, label])]),
-      { id: "context-filter", field: "context", type: "search", label: "Context" },
-      { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
-      { id: "tags-filter", field: "tags", type: "search", label: "Tags", optionsSource: "notes.filters.tags" },
-      { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
-    ],
-    indexPanel: {
-      title: "Notes",
-      emptyState: { message: "No notes match the current filters." },
-    },
-    detail: {
-      header: { titleField: "title", metaField: "library" },
-      actionStrip: notesWorkflowActionStripDescriptor(),
-      linkedRecords: notesLinkedRecordsFallbackDescriptor(),
-      emptyState: { message: "Select a note to read its details." },
-    },
-    modals: [
-      {
-        id: "note-editor",
-        title: "Note",
-        fields: [
-          { id: "note-title", field: "title", type: "text", label: "Title", required: true },
-          { id: "note-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
-          { id: "note-collection", field: "collection", type: "select", label: "Collection", options: [["", "Uncategorized"]] },
-          { id: "note-kind", field: "noteType", type: "select", label: "Note Kind", options: [["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
-          { id: "note-visibility", field: "visibility", type: "select", label: "Visibility", options: [["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]] },
-          { id: "note-security", field: "security", type: "select", label: "Security", options: [["normal", "Normal"], ["secure", "Secure"]] },
-        ],
-        footerActions: [
-          { id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
-          { id: "save-close-note", label: "Save & Close", role: "secondary", behavior: "notes.editor.save-close" },
-          { id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
-        ],
-      },
-      {
-        id: "note-bulk-editor",
-        title: "Bulk Edit Notes",
-        fields: [
-          { id: "note-bulk-library", field: "library", type: "select", label: "Library", options: [["", "No change"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
-          { id: "note-bulk-collection", field: "collection", type: "select", label: "Collection", options: [["", "No change"], ["__uncategorized", "Uncategorized"]] },
-          { id: "note-bulk-kind", field: "noteType", type: "select", label: "Note Kind", options: [["", "No change"], ["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
-          { id: "note-bulk-visibility", field: "visibility", type: "select", label: "Visibility", options: [["", "No change"], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]] },
-          { id: "note-bulk-tag-action", field: "tagAction", type: "select", label: "Tag Action", options: [["", "No change"], ["add", "Add tags"], ["remove", "Remove tags"], ["replace", "Replace direct tags"]] },
-        ],
-        footerActions: [
-          { id: "cancel-note-bulk", label: "Cancel", role: "secondary", behavior: "notes.bulk.cancel" },
-          { id: "apply-note-bulk", label: "Apply Changes", role: "primary", behavior: "notes.bulk.apply" },
-        ],
-      },
-      {
-        id: "note-collection",
-        title: "Collection",
-        fields: [
-          { id: "collection-name", field: "title", type: "text", label: "Name", required: true },
-          { id: "collection-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
-          { id: "collection-parent", field: "parent", type: "select", label: "Parent", options: [["", "Root collection"]] },
-        ],
-        footerActions: [
-          { id: "cancel-collection", label: "Cancel", role: "secondary", behavior: "notes.collection.cancel" },
-          { id: "save-collection", label: "Save Collection", role: "primary", behavior: "notes.collection.save" },
-        ],
-      },
-    ],
-    dataSource: {
-      route: "/api/notes",
-      method: "GET",
-      recordsKey: "notes",
-      fieldBindings: { id: "note_id", title: "title" },
-    },
-  };
-}
-
-function notesDescriptorSelect(field, label, options) {
-  return { id: `${field}-filter`, field, type: "select", label, options };
-}
-
-function decorateNotesDeclarativeSurface(surface) {
-  const createAction = surface.querySelector('[data-surface-action="notes.create"], [data-surface-action="create-note"]');
-  if (createAction) {
-    createAction.dataset.noteCreate = "";
+  // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
+  // contract now - there is no local descriptor to fall back to. 0.33.33.35.1.1 made this
+  // readable by moving the shell build behind the workspace context, so an absent surface is
+  // an answer rather than a not-yet.
+  function notesViewSurfaceDescriptor() {
+    const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
+    const surface = surfaces.find(
+      /** @returns {candidate is Record<string, unknown>} */
+      (candidate) => isResponseRecord(candidate)
+        && candidate.id === "notes.workspace"
+        && candidate.moduleId === "notes",
+    ) || null;
+    return surface ? scopeNotesVisibilityContributions(surface) : null;
   }
 
-  const header = surface.querySelector(".view-page-header");
-  const status = view.createStatusMessage({ className: "notes-status-message" });
-  status.dataset.notesStatus = "";
-  header?.after(status);
+  /**
+   * @param {unknown} surface
+   * @returns {import("../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor}
+   */
+  function scopeNotesVisibilityContributions(surface = {}) {
+    // Reuse the contribution reader: projection must not declare unchecked input members.
+    const descriptor = requireView().normalizeSurfaceDescriptor(surface);
+    const workspaceType = normalizeWorkspaceType(
+      state.workspaceType || window.LongtailForge?.workspaceContext?.workspaceType || "",
+    );
+    if (!workspaceType || workspaceType === "business") {
+      return descriptor;
+    }
 
-  const filterForm = surface.querySelector("[data-view-filter-form]");
-  if (filterForm) {
-    filterForm.classList.add("notes-filters");
-    filterForm.dataset.notesFilters = "";
-  }
-  decorateNotesFilter(surface, "status", "noteFilterStatus");
-  decorateNotesFilter(surface, "visibility", "noteFilterVisibility");
-  decorateNotesFilter(surface, "security", "noteFilterSecurity");
-  decorateNotesFilter(surface, "noteType", "noteFilterType");
-  decorateNotesFilter(surface, "context", "noteFilterContext");
-  decorateNotesFilter(surface, "owner", "noteFilterOwner");
-  decorateNotesFilter(surface, "tags", "noteFilterTags");
-  decorateNotesFilter(surface, "updatedSince", "noteFilterUpdated");
+    /** @param {import("../../src/types/framework-contracts.js").ViewFieldDescriptor[]} fields */
+    const scopeFields = (fields = []) => fields
+      .filter((field) => workspaceType !== "personal" || field.field !== "visibility")
+      .map((field) => field.field === "visibility" ? {
+        ...field,
+        options: scopeNotesVisibilityOptions(field.options),
+      } : field);
+    const header = descriptor.detail?.header;
 
-  const indexPanel = surface.querySelector('[data-view-sidebar-panel="notes-list"]')
-    || surface.querySelector(".view-collapsible-index");
-  indexPanel?.classList.add("notes-index-panel");
-  const summary = indexPanel?.querySelector("summary");
-  if (summary) {
-    const summaryTitle = summary.querySelector(".view-collapsible-index-title") || summary;
-    summaryTitle.textContent = "Notes List";
-  }
-  const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
-  indexBody?.replaceChildren(createNotesListChrome());
-  const indexFooter = indexPanel?.querySelector(".view-collapsible-index-footer");
-  if (indexFooter) {
-    indexFooter.classList.add("notes-list-panel-footer");
-  }
-
-  const detail = surface.querySelector(".view-slideout-sidebar-main")
-    || surface.querySelector(".view-sidebar-detail-primary")
-    || surface.querySelector(".view-stacked-detail");
-  if (detail) {
-    detail.classList.add("notes-detail-panel");
-    detail.dataset.noteDetail = "";
-    detail.replaceChildren();
-  }
-}
-
-function decorateNotesFilter(surface, fieldName, datasetName) {
-  const wrapper = surface.querySelector(`[data-view-field="${fieldName}"]`);
-  const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
-  if (control) {
-    control.dataset[datasetName] = "";
-  }
-}
-
-async function hydrateNoteTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
-  if (!state.availableTags.length) {
-    await loadTags();
+    return {
+      ...descriptor,
+      filters: (descriptor.filters || [])
+        .filter((filter) => workspaceType !== "personal" || filter.field !== "visibility")
+        .map((filter) => filter.field === "visibility" ? {
+          ...filter,
+          options: scopeNotesVisibilityOptions(filter.options),
+        } : filter),
+      detail: workspaceType === "personal" && descriptor.detail ? {
+        ...descriptor.detail,
+        header: header ? {
+          ...header,
+          // Header entries remain opaque under the shared contribution contract. Only
+          // the visibility field is ours; other badge metadata belongs to its renderer.
+          badges: (Array.isArray(header.badges) ? header.badges : [])
+            .filter((badge) => !isResponseRecord(badge) || badge.field !== "visibility"),
+        } : header,
+      } : descriptor.detail,
+      modals: (descriptor.modals || []).map((modal) => ["note-editor", "note-bulk-editor"].includes(modal.id) ? {
+        ...modal,
+        fields: scopeFields(modal.fields),
+      } : modal),
+    };
   }
 
-  const noTagsValue = window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
-  const options = [
-    { value: noTagsValue, label: "No tags", keywords: ["none", "untagged"] },
-    ...state.availableTags.map((tag) => ({
-      value: tag.name || tag.slug || tag.tag_id || "",
-      label: tag.name || tag.slug || "Tag",
-      keywords: [tag.slug, tag.description].filter(Boolean),
-      color: tag.color,
-    })),
-  ];
+  /** @param {unknown[]} [options] */
+  function scopeNotesVisibilityOptions(options = []) {
+    // Options are intentionally unknown in the contribution contract. Do not promise
+    // a record shape merely to compare its value; preserve unrelated option metadata.
+    return options.filter((option) => (Array.isArray(option) ? option[0]
+      : isResponseRecord(option) ? option.value : undefined) !== "client_visible");
+  }
 
-  if (typeof mountSearchOptions === "function") {
-    mountSearchOptions(options, {
+  /** @param {unknown} option @returns {[string, string] | null} */
+  function readNotesVisibilityOption(option) {
+    const value = Array.isArray(option) ? option[0] : isResponseRecord(option) ? option.value : undefined;
+    const label = Array.isArray(option) ? option[1] : isResponseRecord(option) ? option.label : undefined;
+    return typeof value === "string" && typeof label === "string" ? [value, label] : null;
+  }
+
+  /**
+   * The shared renderer establishes the surface. Dataset lives on native prototypes;
+   * check its bag rather than excluding SVG/MathML hooks or asserting a descendant tag.
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewSurfaceElement} surface
+   */
+  function decorateNotesDeclarativeSurface(surface) {
+    const view = requireView();
+    const createAction = surface.querySelector('[data-surface-action="notes.create"], [data-surface-action="create-note"]');
+    if (createAction && "dataset" in createAction && isResponseRecord(createAction.dataset)) {
+      createAction.dataset.noteCreate = "";
+    }
+
+    const header = surface.querySelector(".view-page-header");
+    const status = view.createStatusMessage({ className: "notes-status-message" });
+    status.dataset.notesStatus = "";
+    header?.after(status);
+
+    const filterForm = surface.querySelector("[data-view-filter-form]");
+    if (filterForm && "dataset" in filterForm && isResponseRecord(filterForm.dataset)) {
+      filterForm.classList.add("notes-filters");
+      filterForm.dataset.notesFilters = "";
+    }
+    decorateNotesFilter(surface, "status", "noteFilterStatus");
+    decorateNotesFilter(surface, "visibility", "noteFilterVisibility");
+    decorateNotesFilter(surface, "security", "noteFilterSecurity");
+    decorateNotesFilter(surface, "noteType", "noteFilterType");
+    decorateNotesFilter(surface, "context", "noteFilterContext");
+    decorateNotesFilter(surface, "owner", "noteFilterOwner");
+    decorateNotesFilter(surface, "tags", "noteFilterTags");
+    decorateNotesFilter(surface, "updatedSince", "noteFilterUpdated");
+
+    const indexPanel = surface.querySelector('[data-view-sidebar-panel="notes-list"]')
+      || surface.querySelector(".view-collapsible-index");
+    indexPanel?.classList.add("notes-index-panel");
+    const summary = indexPanel?.querySelector("summary");
+    if (summary) {
+      const summaryTitle = summary.querySelector(".view-collapsible-index-title") || summary;
+      summaryTitle.textContent = "Notes List";
+    }
+    const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
+    indexBody?.replaceChildren(createNotesListChrome());
+    const indexFooter = indexPanel?.querySelector(".view-collapsible-index-footer");
+    if (indexFooter) {
+      indexFooter.classList.add("notes-list-panel-footer");
+    }
+
+    const detail = surface.querySelector(".view-slideout-sidebar-main")
+      || surface.querySelector(".view-sidebar-detail-primary")
+      || surface.querySelector(".view-stacked-detail");
+    if (detail && "dataset" in detail && isResponseRecord(detail.dataset)) {
+      detail.classList.add("notes-detail-panel");
+      detail.dataset.noteDetail = "";
+      detail.replaceChildren();
+    }
+  }
+
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewSurfaceElement} surface @param {string} fieldName @param {string} datasetName */
+  function decorateNotesFilter(surface, fieldName, datasetName) {
+    const wrapper = surface.querySelector(`[data-view-field="${fieldName}"]`);
+    const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+    if (control && "dataset" in control && isResponseRecord(control.dataset)) {
+      control.dataset[datasetName] = "";
+    }
+  }
+
+  /**
+   * The descriptor renderer binds the control and selected value before invoking this behavior.
+   * Both callbacks forward these options/config to the published search-options surface.
+   * @param {{mountSearchOptions?: (options: unknown[], config: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void, setOptions?: (options: unknown[], config: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void}} [context]
+   */
+  async function hydrateNoteTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
+    if (!state.availableTags.length) {
+      await loadTags();
+    }
+
+    const noTagsValue = window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
+    const options = [
+      { value: noTagsValue, label: "No tags", keywords: ["none", "untagged"] },
+      ...state.availableTags.map((tag) => ({
+        value: tag.name || tag.slug || tag.tag_id || "",
+        label: tag.name || tag.slug || "Tag",
+        keywords: [tag.slug, tag.description].filter(Boolean),
+        color: tag.color,
+      })),
+    ];
+
+    if (typeof mountSearchOptions === "function") {
+      mountSearchOptions(options, {
+        submitMode: "option-or-input",
+        minChars: 1,
+        maxResults: 10,
+        emptyMessage: "No matching tags.",
+      });
+      return undefined;
+    }
+
+    setOptions?.(options, {
       submitMode: "option-or-input",
       minChars: 1,
       maxResults: 10,
@@ -952,3730 +1823,4671 @@ async function hydrateNoteTagFilterOptions({ mountSearchOptions, setOptions } = 
     return undefined;
   }
 
-  setOptions?.(options, {
-    submitMode: "option-or-input",
-    minChars: 1,
-    maxResults: 10,
-    emptyMessage: "No matching tags.",
-  });
-  return undefined;
-}
+  function createNotesLibraryChrome() {
+    const view = requireView();
+    const wrap = view.createElement("div", { className: "notes-library-chrome" });
 
-function createNotesLibraryChrome() {
-  const wrap = view.createElement("div", { className: "notes-library-chrome" });
+    const collections = view.createElement("section", {
+      className: "notes-collections-panel",
+      attrs: { "aria-label": "Notes Collections" },
+    });
+    collections.dataset.notesCollectionsPanel = "";
 
-  const collections = view.createElement("section", {
-    className: "notes-collections-panel",
-    attrs: { "aria-label": "Notes Collections" },
-  });
-  collections.dataset.notesCollectionsPanel = "";
+    // Library remains the bucket selector. Collection actions sit beside the Collection dropdown and
+    // open a modal so the drawer does not grow a dropdown menu inside its scroll region.
+    const libraryLabel = view.createElement("label", { text: "Library" });
+    const librarySelect = view.createElement("select");
+    librarySelect.dataset.noteCollectionLibraryFilter = "";
+    [["all", "All Libraries"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"], ["archive", "Archive"]].forEach(([value, label]) => {
+      librarySelect.appendChild(notesOptionElement(value, label));
+    });
+    libraryLabel.appendChild(librarySelect);
 
-  // Library remains the bucket selector. Collection actions sit beside the Collection dropdown and
-  // open a modal so the drawer does not grow a dropdown menu inside its scroll region.
-  const libraryLabel = view.createElement("label", { text: "Library" });
-  const librarySelect = view.createElement("select");
-  librarySelect.dataset.noteCollectionLibraryFilter = "";
-  [["all", "All Libraries"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"], ["archive", "Archive"]].forEach(([value, label]) => {
-    librarySelect.appendChild(notesOptionElement(value, label));
-  });
-  libraryLabel.appendChild(librarySelect);
+    const collectionLabel = view.createElement("label", { text: "Collection" });
+    const collectionSelect = view.createElement("select");
+    collectionSelect.dataset.noteFilterCollection = "";
+    collectionSelect.appendChild(notesOptionElement("", "All collections"));
+    collectionLabel.appendChild(collectionSelect);
 
-  const collectionLabel = view.createElement("label", { text: "Collection" });
-  const collectionSelect = view.createElement("select");
-  collectionSelect.dataset.noteFilterCollection = "";
-  collectionSelect.appendChild(notesOptionElement("", "All collections"));
-  collectionLabel.appendChild(collectionSelect);
+    const collectionActions = view.createElement("span");
+    collectionActions.dataset.noteCollectionActions = "";
 
-  const collectionActions = view.createElement("span");
-  collectionActions.dataset.noteCollectionActions = "";
+    const collectionControlRow = view.createElement("div", {
+      className: "notes-collection-control-row",
+      children: [collectionLabel, collectionActions],
+    });
 
-  const collectionControlRow = view.createElement("div", {
-    className: "notes-collection-control-row",
-    children: [collectionLabel, collectionActions],
-  });
-
-  const pickerRow = view.createElement("div", {
-    className: "notes-collection-picker-row",
-    children: [libraryLabel, collectionControlRow],
-  });
-  collections.appendChild(pickerRow);
-  wrap.appendChild(collections);
-  return wrap;
-}
-
-function createNotesListChrome() {
-  const wrap = view.createElement("div", { className: "notes-index-chrome" });
-  const list = view.createElement("div", { className: "notes-list" });
-  list.dataset.notesList = "";
-  wrap.append(createNotesBulkToolbar(), list);
-
-  return wrap;
-}
-
-function createNotesBulkToolbar() {
-  if (typeof view?.createBulkActionToolbar !== "function") {
-    throw new Error("Notes bulk editing requires LongtailForge.view.createBulkActionToolbar.");
+    const pickerRow = view.createElement("div", {
+      className: "notes-collection-picker-row",
+      children: [libraryLabel, collectionControlRow],
+    });
+    collections.appendChild(pickerRow);
+    wrap.appendChild(collections);
+    return wrap;
   }
 
-  const edit = view.createActionButton({
-    label: "Edit selected notes",
-    role: "primary",
-  });
-  edit.dataset.noteBulkEdit = "";
-  edit.disabled = true;
-  const clear = view.createActionButton({
-    label: "Clear selection",
-    role: "secondary",
-  });
-  clear.dataset.noteBulkClear = "";
-  clear.disabled = true;
+  function createNotesListChrome() {
+    const view = requireView();
+    const wrap = view.createElement("div", { className: "notes-index-chrome" });
+    const list = view.createElement("div", { className: "notes-list" });
+    list.dataset.notesList = "";
+    wrap.append(createNotesBulkToolbar(), list);
 
-  return view.createBulkActionToolbar({
-    label: "Bulk Edit",
-    selectedCount: state.selectedNoteIds.size,
-    className: "notes-bulk-toolbar",
-    bodyClassName: "notes-bulk-toolbar-actions",
-    attrs: { "data-note-bulk-toolbar": "" },
-    body: [edit, clear],
-  });
-}
+    return wrap;
+  }
 
-function createNotesListSortControl() {
-  const label = view.createElement("label", { className: "notes-list-sort", text: "Sort" });
-  const select = view.createElement("select");
+  /**
+   * A control inside the bulk form. The form declares each of these fields, so a missing one is
+   * a defect rather than a state to render around.
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalFormElement} dialog
+   * @param {string} name
+   * @returns {HTMLElement}
+   */
+  /**
+   * @param {Element | null} node
+   * @returns {node is HTMLElement}
+   */
+  function isHtmlElement(node) {
+    return node !== null && "dataset" in node;
+  }
 
-  select.dataset.noteSort = "";
-  NOTES_LIST_SORT_OPTIONS.forEach(([value, optionLabel, selected]) => {
-    const option = notesOptionElement(value, optionLabel);
-    option.selected = Boolean(selected);
-    select.appendChild(option);
-  });
-  select.value = DEFAULT_NOTE_SORT;
-  label.appendChild(select);
+  /**
+   * A control inside the bulk form. The form declares each of these fields, so a missing one
+   * is a defect rather than a state to render around.
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalFormElement} dialog
+   * @param {string} name
+   * @returns {HTMLElement}
+   */
+  function bulkFormControl(dialog, name) {
+    const control = dialog.viewParts.form.querySelector(`[data-view-input="${name}"]`);
+    if (!isHtmlElement(control)) {
+      throw new Error(`Notes bulk editing requires the ${name} control.`);
+    }
+    return control;
+  }
 
-  return label;
-}
+  function createNotesBulkToolbar() {
+    const view = requireView();
+    if (typeof view?.createBulkActionToolbar !== "function") {
+      throw new Error("Notes bulk editing requires LongtailForge.view.createBulkActionToolbar.");
+    }
 
-function createNotesPagination() {
-  const pagination = view.createElement("div", { className: "notes-pagination" });
-  const prev = notesIconButton({
-    icon: "previous",
-    label: "Previous page",
-    title: "Previous page",
-  });
-  prev.disabled = true;
-  prev.dataset.notesPrev = "";
-  const pageEl = view.createElement("span", { text: "Page 1" });
-  pageEl.dataset.notesPage = "";
-  const next = notesIconButton({
-    icon: "next",
-    label: "Next page",
-    title: "Next page",
-  });
-  next.disabled = true;
-  next.dataset.notesNext = "";
-  pagination.append(prev, pageEl, next);
-  return pagination;
-}
+    const edit = view.createActionButton({
+      label: "Edit selected notes",
+      role: "primary",
+    });
+    edit.dataset.noteBulkEdit = "";
+    edit.disabled = true;
+    const clear = view.createActionButton({
+      label: "Clear selection",
+      role: "secondary",
+    });
+    clear.dataset.noteBulkClear = "";
+    clear.disabled = true;
 
-function notesIconButton(options) {
-  if (window.LongtailForge.icons?.createIconButton) {
-    return window.LongtailForge.icons.createIconButton({
-      ...options,
-      text: "",
-      iconOnly: true,
+    return view.createBulkActionToolbar({
+      label: "Bulk Edit",
+      selectedCount: state.selectedNoteIds.size,
+      className: "notes-bulk-toolbar",
+      bodyClassName: "notes-bulk-toolbar-actions",
+      attrs: { "data-note-bulk-toolbar": "" },
+      body: [edit, clear],
     });
   }
-  const button = view.createElement("button", {
-    text: options.label || options.title || "",
-    attrs: {
+
+  function createNotesListSortControl() {
+    const view = requireView();
+    const label = view.createElement("label", { className: "notes-list-sort", text: "Sort" });
+    const select = view.createElement("select");
+
+    select.dataset.noteSort = "";
+    NOTES_LIST_SORT_OPTIONS.forEach(([value, optionLabel, selected]) => {
+      const option = notesOptionElement(value, optionLabel);
+      option.selected = Boolean(selected);
+      select.appendChild(option);
+    });
+    select.value = DEFAULT_NOTE_SORT;
+    label.appendChild(select);
+
+    return label;
+  }
+
+  function createNotesPagination() {
+    const view = requireView();
+    const pagination = view.createElement("div", { className: "notes-pagination" });
+    const prev = notesIconButton({
+      icon: "previous",
+      label: "Previous page",
+      title: "Previous page",
+    });
+    prev.disabled = true;
+    prev.dataset.notesPrev = "";
+    const pageEl = view.createElement("span", { text: "Page 1" });
+    pageEl.dataset.notesPage = "";
+    const next = notesIconButton({
+      icon: "next",
+      label: "Next page",
+      title: "Next page",
+    });
+    next.disabled = true;
+    next.dataset.notesNext = "";
+    pagination.append(prev, pageEl, next);
+    return pagination;
+  }
+
+  /** @param {import("../../src/types/browser-contracts.js").BrowserIconCreateButtonOptions} options */
+  function notesIconButton(options) {
+    const view = requireView();
+    if (window.LongtailForge?.icons?.createIconButton) {
+      return window.LongtailForge.icons.createIconButton({
+        ...options,
+        text: "",
+        iconOnly: true,
+      });
+    }
+    const button = view.createElement("button", {
+      text: options.label || options.title || "",
+      attrs: {
+        type: "button",
+        "aria-label": options.label || options.title || "",
+        title: options.title || options.label || "",
+      },
+    });
+    button.classList.add("icon-button");
+    return button;
+  }
+
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewAttributeBag[string]} value @param {import("../../src/types/browser-contracts.js").BrowserViewTextValue} label */
+  function notesOptionElement(value, label) {
+    const view = requireView();
+    return view.createElement("option", { text: label, attrs: { value } });
+  }
+
+  /** @returns {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} */
+  function notesEditorModalDescriptor() {
+    return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-editor") || {};
+  }
+
+  /** @returns {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} */
+  function notesBulkEditorModalDescriptor() {
+    return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-bulk-editor") || {};
+  }
+
+  /** @returns {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} */
+  function notesCollectionModalDescriptor() {
+    return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-collection") || {};
+  }
+
+  /**
+   * The manifest supplies tuple options; the shared descriptor reader also preserves
+   * record options unchanged. The two fields: [] render overrides do not replace
+   * modal.fields. Establish the two strings consumed by Notes without discarding
+   * tuple metadata or inventing a stricter shared option contract.
+   * @param {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} modal
+   * @param {string} fieldName
+   * @returns {Array<[string, string, ...unknown[]]>}
+   */
+  function modalFieldOptions(modal, fieldName) {
+    const field = (modal.fields || []).find((entry) => entry.field === fieldName);
+    return (field?.options || []).map((entry) => {
+      const option = Array.isArray(entry) ? entry
+        : isResponseRecord(entry) ? [entry.value ?? "", entry.label ?? entry.value ?? ""] : null;
+      if (!isNoteFieldOptionPair(option)) throw new Error("Notes field options require string values and labels.");
+      return option;
+    });
+  }
+
+  /** @param {unknown} value @returns {value is [string, string, ...unknown[]]} */
+  function isNoteFieldOptionPair(value) {
+    return Array.isArray(value) && typeof value[0] === "string" && typeof value[1] === "string";
+  }
+
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewChildren} labelText @param {import("../../src/types/browser-contracts.js").BrowserViewChildren} control */
+  function noteFieldLabel(labelText, control) {
+    const view = requireView();
+    return view.createElement("label", { children: [labelText, control] });
+  }
+
+  /** @param {string} dataName @param {Partial<Pick<import("../../src/types/framework-contracts.js").ViewFieldDescriptor, "type" | "required">>} [attrs] */
+  function noteInput(dataName, attrs = {}) {
+    const view = requireView();
+    const input = view.createElement("input", { attrs: { type: attrs.type || "text", required: Boolean(attrs.required) } });
+    input.dataset[dataName] = "";
+    return input;
+  }
+
+  /** @param {string} dataName @param {Pick<import("../../src/types/framework-contracts.js").ViewFieldDescriptor, "rows">} [attrs] */
+  function noteTextarea(dataName, attrs = {}) {
+    const view = requireView();
+    const textarea = view.createElement("textarea", { attrs: { rows: attrs.rows || 10 } });
+    textarea.dataset[dataName] = "";
+    return textarea;
+  }
+
+  /** @param {string} dataName @param {unknown[][]} options */
+  function noteSelect(dataName, options) {
+    const view = requireView();
+    const select = view.createElement("select");
+    select.dataset[dataName] = "";
+    options.forEach(([value, label]) => select.appendChild(notesOptionElement(value, label)));
+    return select;
+  }
+
+  function createNoteContextPanel() {
+    const view = requireView();
+    const panel = view.createElement("details", { className: "notes-context-panel surface-modal-group" });
+    panel.appendChild(view.createElement("summary", { className: "surface-modal-section-heading", text: "Linked Context" }));
+
+    const picker = view.createLinkedContextPicker({
+      clientContexts: [],
+      clientContextLabel: "Client",
+      providers: linkTargetProviderOptions(),
+      records: [],
+      linkedItems: [],
+      emptyMessage: notesLinkedRecordsDescriptor()?.emptyState?.message || "No linked context.",
+      onClientContextChange: handleEditorLinkClientContextChange,
+      onRemove: handleEditorLinkedContextRemove,
+      showClientContext: true,
+    });
+    picker.dataset.noteContextPicker = "";
+    picker.viewParts.clientContextSelect.dataset.noteContextClient = "";
+    picker.viewParts.rows.dataset.noteContextList = "";
+    picker.viewParts.targetSelect.dataset.noteContextTargetType = "";
+    picker.viewParts.searchInput.dataset.noteContextSearch = "";
+    picker.viewParts.recordSelect.dataset.noteContextResults = "";
+    picker.viewParts.useTargetButton.dataset.noteContextApply = "";
+    panel.appendChild(picker);
+
+    ["noteTaskId", "noteUserId"].forEach((name) => {
+      const hidden = view.createElement("input", { attrs: { type: "hidden" } });
+      hidden.dataset[name] = "";
+      panel.appendChild(hidden);
+    });
+    const suggestion = view.createElement("p");
+    suggestion.dataset.noteLibrarySuggestion = "";
+    panel.appendChild(suggestion);
+    return panel;
+  }
+
+  function createPrimaryContextSection() {
+    const view = requireView();
+    const clientSelect = noteSelect("noteClientId", []);
+    const projectSelect = noteSelect("noteProjectId", []);
+    const clientField = noteFieldLabel("Client", clientSelect);
+    const projectField = noteFieldLabel("Project", projectSelect);
+    const section = view.createElement("section", {
+      className: "notes-primary-context",
+      children: [
+        view.createElement("h3", { className: "surface-modal-section-heading", text: "Primary Context" }),
+        view.createElement("div", {
+          className: "notes-form-grid",
+          children: [clientField, projectField],
+        }),
+      ],
+    });
+
+    clientField.dataset.notePrimaryClientField = "";
+    projectField.dataset.notePrimaryProjectField = "";
+    clientField.hidden = true;
+    return section;
+  }
+
+  function createNoteEditorToolbar() {
+    const view = requireView();
+    const toolbar = view.createElement("div", { className: "notes-editor-toolbar" });
+    toolbar.dataset.noteEditorToolbar = "";
+    NOTE_EDITOR_TOOLBAR_ACTIONS.forEach((action) => {
+      toolbar.appendChild(createNoteEditorToolbarButton(action));
+    });
+    return toolbar;
+  }
+
+  /** @param {(typeof NOTE_EDITOR_TOOLBAR_ACTIONS)[number]} action */
+  function createNoteEditorToolbarButton(action) {
+    const view = requireView();
+    const button = view.createActionButton({
+      ariaLabel: action.label,
+      className: "notes-editor-toolbar-button",
+      icon: action.icon,
+      iconOnly: Boolean(action.icon && !action.text),
+      label: action.label,
+      text: action.text || "",
+      title: action.label,
+    });
+
+    if (action.command) {
+      button.dataset.noteCommand = action.command;
+    }
+    if (action.preview) {
+      button.dataset.notePreviewToggle = "";
+      button.setAttribute("aria-pressed", "false");
+    }
+
+    return button;
+  }
+
+  /** @param {HTMLElement} toolbar @param {HTMLElement} bodyField @param {HTMLElement} preview */
+  function createNoteMarkdownEditorSection(toolbar, bodyField, preview) {
+    const view = requireView();
+    const body = view.createElement("div", {
+      className: "notes-markdown-editor-body",
+      children: [bodyField, preview],
+    });
+    body.dataset.noteMarkdownEditorBody = "";
+
+    const section = view.createElement("div", {
+      className: "notes-markdown-editor",
+      children: [toolbar, body],
+    });
+    section.dataset.noteMarkdownEditor = "";
+    return section;
+  }
+
+  function createNoteDialogShell() {
+    const view = requireView();
+    const modal = notesEditorModalDescriptor();
+    const cancel = view.createActionButton({
+      action: "cancel-note",
+      className: "surface-modal-footer-action",
+      icon: "close",
+      iconOnly: true,
+      label: "Cancel",
+      role: "secondary",
+      title: "Cancel",
+    });
+    cancel.dataset.noteCancel = "";
+    const save = view.createActionButton({
+      action: "save-note",
+      className: "surface-modal-footer-action",
+      icon: "save",
+      iconOnly: true,
+      label: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note",
+      role: "primary",
+      title: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note",
+      type: "submit",
+    });
+    save.dataset.noteSave = "";
+    const saveClose = view.createActionButton({
+      action: "save-close-note",
+      className: "surface-modal-footer-action",
+      icon: "save",
+      iconOnly: false,
+      label: modal.footerActions?.find((action) => action.id === "save-close-note")?.label || "Save & Close",
+      role: "secondary",
+      text: "Save & Close",
+      title: "Save and close note",
       type: "button",
-      "aria-label": options.label || options.title || "",
-      title: options.title || options.label || "",
-    },
-  });
-  button.classList.add("icon-button");
-  return button;
-}
+    });
+    saveClose.dataset.noteSaveClose = "";
 
-function notesOptionElement(value, label) {
-  return view.createElement("option", { text: label, attrs: { value } });
-}
+    // Tags and Files live behind footer utility buttons (Tasks-modal pattern) and open stacked child dialogs.
+    const tagsToggle = view.createActionButton({
+      action: "note-tags",
+      className: "surface-modal-footer-action",
+      icon: "tag",
+      iconOnly: false,
+      label: "Tags",
+      role: "utility",
+      text: "Tags",
+      title: "Tags",
+    });
+    tagsToggle.dataset.noteTagsToggle = "";
+    tagsToggle.setAttribute("aria-expanded", "false");
+    const filesToggle = view.createActionButton({
+      action: "note-files",
+      className: "surface-modal-footer-action",
+      icon: "file",
+      iconOnly: false,
+      label: "Files",
+      role: "utility",
+      text: "Files",
+      title: "Files",
+    });
+    filesToggle.dataset.noteFilesToggle = "";
+    filesToggle.setAttribute("aria-expanded", "false");
+    const copyLink = view.createActionButton({
+      action: "copy-note-link",
+      className: "surface-modal-footer-action",
+      icon: "copy",
+      iconOnly: false,
+      label: "Copy note link",
+      role: "utility",
+      text: "Copy Link",
+      title: "Copy note link",
+    });
+    copyLink.dataset.copyNoteLink = "";
+    copyLink.hidden = true;
 
-function notesEditorModalDescriptor() {
-  return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-editor") || {};
-}
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
+      title: modal.title || "Note",
+      className: "notes-editor-dialog",
+      formClassName: "notes-editor-form",
+      size: "wide",
+      fields: [],
+      actions: [cancel, saveClose, save],
+      utilityActions: [tagsToggle, filesToggle, copyLink],
+    });
+    dialog.dataset.noteDialog = "";
+    const form = dialog.viewParts.form;
+    form.dataset.noteForm = "";
+    dialog.viewParts.title.dataset.noteDialogTitle = "";
+    dialog.viewParts.body.remove();
 
-function notesBulkEditorModalDescriptor() {
-  return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-bulk-editor") || {};
-}
+    const notificationToggle = view.createActionButton({
+      action: "follow-note-notifications",
+      className: "notes-notification-toggle",
+      icon: "bell",
+      iconOnly: true,
+      label: "Follow note notifications",
+      role: "utility",
+      text: "",
+      title: "Follow note notifications",
+    });
+    notificationToggle.dataset.noteNotificationToggle = "";
+    notificationToggle.hidden = true;
+    const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, notificationToggle] });
+    heading.dataset.noteDialogHeading = "";
 
-function notesCollectionModalDescriptor() {
-  return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-collection") || {};
-}
+    const titleField = noteFieldLabel("Title", noteInput("noteTitle", { type: "text", required: true }));
+    const visibilityOptions = modalFieldOptions(modal, "visibility");
+    const selectGrid = view.createElement("div", {
+      className: "notes-form-grid",
+      children: [
+        noteFieldLabel("Library", noteSelect("noteLibrary", modalFieldOptions(modal, "library"))),
+        noteFieldLabel("Collection", noteSelect("noteCollection", modalFieldOptions(modal, "collection"))),
+        noteFieldLabel("Note Kind", noteSelect("noteType", modalFieldOptions(modal, "noteType"))),
+        visibilityOptions.length > 0
+          ? noteFieldLabel("Visibility", noteSelect("noteVisibility", visibilityOptions))
+          : null,
+        noteFieldLabel("Security", noteSelect("noteSecurity", modalFieldOptions(modal, "security"))),
+      ].filter(Boolean),
+    });
+    const primaryContext = createPrimaryContextSection();
+    // Group the note "Details" fields into a collapsible section (openEditor opens it for Add, closes for Edit).
+    const detailsGroup = view.createElement("details", {
+      className: "notes-detail-group surface-modal-group",
+      children: [view.createElement("summary", { className: "surface-modal-section-heading", text: "Note Details" }), selectGrid, primaryContext],
+    });
+    detailsGroup.dataset.noteDetailsGroup = "";
+    const secureWarning = view.createElement("p", {
+      className: "notes-secure-warning",
+      text: "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.",
+      attrs: { hidden: true },
+    });
+    secureWarning.dataset.noteSecureWarning = "";
+    const contextPanel = createNoteContextPanel();
+    const toolbar = createNoteEditorToolbar();
+    const bodyField = noteFieldLabel("Body", noteTextarea("noteBody", { rows: 14 }));
+    const preview = view.createElement("div", { className: "notes-preview", attrs: { hidden: true } });
+    preview.dataset.notePreview = "";
+    const markdownEditor = createNoteMarkdownEditorSection(toolbar, bodyField, preview);
 
-function modalFieldOptions(modal, fieldName) {
-  const field = (modal.fields || []).find((entry) => entry.field === fieldName);
-  return (field?.options || []).map((entry) => (Array.isArray(entry) ? entry : [entry.value ?? "", entry.label ?? entry.value ?? ""]));
-}
+    const formStatus = view.createElement("p", { attrs: { role: "status", "aria-live": "polite" } });
+    formStatus.dataset.noteFormStatus = "";
 
-function noteFieldLabel(labelText, control) {
-  return view.createElement("label", { children: [labelText, control] });
-}
-
-function noteInput(dataName, attrs = {}) {
-  const input = view.createElement("input", { attrs: { type: attrs.type || "text", required: Boolean(attrs.required) } });
-  input.dataset[dataName] = "";
-  return input;
-}
-
-function noteTextarea(dataName, attrs = {}) {
-  const textarea = view.createElement("textarea", { attrs: { rows: attrs.rows || 10 } });
-  textarea.dataset[dataName] = "";
-  return textarea;
-}
-
-function noteSelect(dataName, options) {
-  const select = view.createElement("select");
-  select.dataset[dataName] = "";
-  options.forEach(([value, label]) => select.appendChild(notesOptionElement(value, label)));
-  return select;
-}
-
-function createNoteContextPanel() {
-  const panel = view.createElement("details", { className: "notes-context-panel surface-modal-group" });
-  panel.appendChild(view.createElement("summary", { className: "surface-modal-section-heading", text: "Linked Context" }));
-
-  const picker = view.createLinkedContextPicker({
-    clientContexts: [],
-    clientContextLabel: "Client",
-    providers: linkTargetProviderOptions(),
-    records: [],
-    linkedItems: [],
-    emptyMessage: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
-    onClientContextChange: handleEditorLinkClientContextChange,
-    onRemove: handleEditorLinkedContextRemove,
-    showClientContext: true,
-  });
-  picker.dataset.noteContextPicker = "";
-  picker.viewParts.clientContextSelect.dataset.noteContextClient = "";
-  picker.viewParts.rows.dataset.noteContextList = "";
-  picker.viewParts.targetSelect.dataset.noteContextTargetType = "";
-  picker.viewParts.searchInput.dataset.noteContextSearch = "";
-  picker.viewParts.recordSelect.dataset.noteContextResults = "";
-  picker.viewParts.useTargetButton.dataset.noteContextApply = "";
-  panel.appendChild(picker);
-
-  ["noteTaskId", "noteUserId"].forEach((name) => {
-    const hidden = view.createElement("input", { attrs: { type: "hidden" } });
-    hidden.dataset[name] = "";
-    panel.appendChild(hidden);
-  });
-  const suggestion = view.createElement("p");
-  suggestion.dataset.noteLibrarySuggestion = "";
-  panel.appendChild(suggestion);
-  return panel;
-}
-
-function createPrimaryContextSection() {
-  const clientSelect = noteSelect("noteClientId", []);
-  const projectSelect = noteSelect("noteProjectId", []);
-  const clientField = noteFieldLabel("Client", clientSelect);
-  const projectField = noteFieldLabel("Project", projectSelect);
-  const section = view.createElement("section", {
-    className: "notes-primary-context",
-    children: [
-      view.createElement("h3", { className: "surface-modal-section-heading", text: "Primary Context" }),
-      view.createElement("div", {
-        className: "notes-form-grid",
-        children: [clientField, projectField],
-      }),
-    ],
-  });
-
-  clientField.dataset.notePrimaryClientField = "";
-  projectField.dataset.notePrimaryProjectField = "";
-  clientField.hidden = true;
-  return section;
-}
-
-function createNoteEditorToolbar() {
-  const toolbar = view.createElement("div", { className: "notes-editor-toolbar" });
-  toolbar.dataset.noteEditorToolbar = "";
-  NOTE_EDITOR_TOOLBAR_ACTIONS.forEach((action) => {
-    toolbar.appendChild(createNoteEditorToolbarButton(action));
-  });
-  return toolbar;
-}
-
-function createNoteEditorToolbarButton(action) {
-  const button = view.createActionButton({
-    ariaLabel: action.label,
-    className: "notes-editor-toolbar-button",
-    icon: action.icon,
-    iconOnly: Boolean(action.icon && !action.text),
-    label: action.label,
-    text: action.text || "",
-    title: action.label,
-  });
-
-  if (action.command) {
-    button.dataset.noteCommand = action.command;
-  }
-  if (action.preview) {
-    button.dataset.notePreviewToggle = "";
-    button.setAttribute("aria-pressed", "false");
+    const footer = dialog.viewParts.footer;
+    [heading, titleField, detailsGroup, secureWarning, contextPanel, markdownEditor, formStatus].forEach((node) => {
+      form.insertBefore(node, footer);
+    });
+    return dialog;
   }
 
-  return button;
-}
+  function createNoteBulkDialogShell() {
+    const view = requireView();
+    const modal = notesBulkEditorModalDescriptor();
+    const cancel = view.createActionButton({
+      action: "cancel-note-bulk",
+      className: "surface-modal-footer-action",
+      icon: "close",
+      iconOnly: true,
+      label: "Cancel",
+      role: "secondary",
+      title: "Cancel",
+    });
+    cancel.dataset.noteBulkCancel = "";
+    const apply = view.createActionButton({
+      action: "apply-note-bulk",
+      className: "surface-modal-footer-action",
+      label: "Apply Changes",
+      role: "primary",
+      text: "Apply Changes",
+      title: "Apply changes to selected notes",
+      type: "submit",
+    });
+    apply.dataset.noteBulkApply = "";
 
-function createNoteMarkdownEditorSection(toolbar, bodyField, preview) {
-  const body = view.createElement("div", {
-    className: "notes-markdown-editor-body",
-    children: [bodyField, preview],
-  });
-  body.dataset.noteMarkdownEditorBody = "";
-
-  const section = view.createElement("div", {
-    className: "notes-markdown-editor",
-    children: [toolbar, body],
-  });
-  section.dataset.noteMarkdownEditor = "";
-  return section;
-}
-
-function createNoteDialogShell() {
-  const modal = notesEditorModalDescriptor();
-  const cancel = view.createActionButton({
-    action: "cancel-note",
-    className: "surface-modal-footer-action",
-    icon: "close",
-    iconOnly: true,
-    label: "Cancel",
-    role: "secondary",
-    title: "Cancel",
-  });
-  cancel.dataset.noteCancel = "";
-  const save = view.createActionButton({
-    action: "save-note",
-    className: "surface-modal-footer-action",
-    icon: "save",
-    iconOnly: true,
-    label: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note",
-    role: "primary",
-    title: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note",
-    type: "submit",
-  });
-  save.dataset.noteSave = "";
-  const saveClose = view.createActionButton({
-    action: "save-close-note",
-    className: "surface-modal-footer-action",
-    icon: "save",
-    iconOnly: false,
-    label: modal.footerActions?.find((action) => action.id === "save-close-note")?.label || "Save & Close",
-    role: "secondary",
-    text: "Save & Close",
-    title: "Save and close note",
-    type: "button",
-  });
-  saveClose.dataset.noteSaveClose = "";
-
-  // Tags and Files live behind footer utility buttons (Tasks-modal pattern) and open stacked child dialogs.
-  const tagsToggle = view.createActionButton({
-    action: "note-tags",
-    className: "surface-modal-footer-action",
-    icon: "tag",
-    iconOnly: false,
-    label: "Tags",
-    role: "utility",
-    text: "Tags",
-    title: "Tags",
-  });
-  tagsToggle.dataset.noteTagsToggle = "";
-  tagsToggle.setAttribute("aria-expanded", "false");
-  const filesToggle = view.createActionButton({
-    action: "note-files",
-    className: "surface-modal-footer-action",
-    icon: "file",
-    iconOnly: false,
-    label: "Files",
-    role: "utility",
-    text: "Files",
-    title: "Files",
-  });
-  filesToggle.dataset.noteFilesToggle = "";
-  filesToggle.setAttribute("aria-expanded", "false");
-  const copyLink = view.createActionButton({
-    action: "copy-note-link",
-    className: "surface-modal-footer-action",
-    icon: "copy",
-    iconOnly: false,
-    label: "Copy note link",
-    role: "utility",
-    text: "Copy Link",
-    title: "Copy note link",
-  });
-  copyLink.dataset.copyNoteLink = "";
-  copyLink.hidden = true;
-
-  const dialog = view.renderDescriptorModalForm(modal, {
-    title: modal.title || "Note",
-    className: "notes-editor-dialog",
-    formClassName: "notes-editor-form",
-    size: "wide",
-    fields: [],
-    actions: [cancel, saveClose, save],
-    utilityActions: [tagsToggle, filesToggle, copyLink],
-  });
-  dialog.dataset.noteDialog = "";
-  const form = dialog.viewParts.form;
-  form.dataset.noteForm = "";
-  dialog.viewParts.title.dataset.noteDialogTitle = "";
-  dialog.viewParts.body.remove();
-
-  const notificationToggle = view.createActionButton({
-    action: "follow-note-notifications",
-    className: "notes-notification-toggle",
-    icon: "bell",
-    iconOnly: true,
-    label: "Follow note notifications",
-    role: "utility",
-    text: "",
-    title: "Follow note notifications",
-  });
-  notificationToggle.dataset.noteNotificationToggle = "";
-  notificationToggle.hidden = true;
-  const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, notificationToggle] });
-  heading.dataset.noteDialogHeading = "";
-
-  const titleField = noteFieldLabel("Title", noteInput("noteTitle", { type: "text", required: true }));
-  const visibilityOptions = modalFieldOptions(modal, "visibility");
-  const selectGrid = view.createElement("div", {
-    className: "notes-form-grid",
-    children: [
-      noteFieldLabel("Library", noteSelect("noteLibrary", modalFieldOptions(modal, "library"))),
-      noteFieldLabel("Collection", noteSelect("noteCollection", modalFieldOptions(modal, "collection"))),
-      noteFieldLabel("Note Kind", noteSelect("noteType", modalFieldOptions(modal, "noteType"))),
-      visibilityOptions.length > 0
-        ? noteFieldLabel("Visibility", noteSelect("noteVisibility", visibilityOptions))
-        : null,
-      noteFieldLabel("Security", noteSelect("noteSecurity", modalFieldOptions(modal, "security"))),
-    ].filter(Boolean),
-  });
-  const primaryContext = createPrimaryContextSection();
-  // Group the note "Details" fields into a collapsible section (openEditor opens it for Add, closes for Edit).
-  const detailsGroup = view.createElement("details", {
-    className: "notes-detail-group surface-modal-group",
-    children: [view.createElement("summary", { className: "surface-modal-section-heading", text: "Note Details" }), selectGrid, primaryContext],
-  });
-  detailsGroup.dataset.noteDetailsGroup = "";
-  const secureWarning = view.createElement("p", {
-    className: "notes-secure-warning",
-    text: "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.",
-    attrs: { hidden: true },
-  });
-  secureWarning.dataset.noteSecureWarning = "";
-  const contextPanel = createNoteContextPanel();
-  const toolbar = createNoteEditorToolbar();
-  const bodyField = noteFieldLabel("Body", noteTextarea("noteBody", { rows: 14 }));
-  const preview = view.createElement("div", { className: "notes-preview", attrs: { hidden: true } });
-  preview.dataset.notePreview = "";
-  const markdownEditor = createNoteMarkdownEditorSection(toolbar, bodyField, preview);
-
-  const formStatus = view.createElement("p", { attrs: { role: "status", "aria-live": "polite" } });
-  formStatus.dataset.noteFormStatus = "";
-
-  const footer = dialog.viewParts.footer;
-  [heading, titleField, detailsGroup, secureWarning, contextPanel, markdownEditor, formStatus].forEach((node) => {
-    form.insertBefore(node, footer);
-  });
-  return dialog;
-}
-
-function createNoteBulkDialogShell() {
-  const modal = notesBulkEditorModalDescriptor();
-  const cancel = view.createActionButton({
-    action: "cancel-note-bulk",
-    className: "surface-modal-footer-action",
-    icon: "close",
-    iconOnly: true,
-    label: "Cancel",
-    role: "secondary",
-    title: "Cancel",
-  });
-  cancel.dataset.noteBulkCancel = "";
-  const apply = view.createActionButton({
-    action: "apply-note-bulk",
-    className: "surface-modal-footer-action",
-    label: "Apply Changes",
-    role: "primary",
-    text: "Apply Changes",
-    title: "Apply changes to selected notes",
-    type: "submit",
-  });
-  apply.dataset.noteBulkApply = "";
-
-  const dialog = view.renderDescriptorModalForm(modal, {
-    title: modal.title || "Bulk Edit Notes",
-    className: "notes-bulk-dialog",
-    formClassName: "notes-bulk-form",
-    size: "medium",
-    actions: [cancel, apply],
-  });
-  dialog.dataset.noteBulkDialog = "";
-  dialog.viewParts.form.dataset.noteBulkForm = "";
-  dialog.viewParts.body.classList.add("notes-form-grid", "notes-bulk-grid");
-  dialog.viewParts.form.querySelector('[data-view-input="library"]').dataset.noteBulkLibrary = "";
-  dialog.viewParts.form.querySelector('[data-view-input="collection"]').dataset.noteBulkCollection = "";
-  dialog.viewParts.form.querySelector('[data-view-input="noteType"]').dataset.noteBulkType = "";
-  const bulkVisibility = dialog.viewParts.form.querySelector('[data-view-input="visibility"]');
-  if (bulkVisibility) {
-    bulkVisibility.dataset.noteBulkVisibility = "";
-  }
-  dialog.viewParts.form.querySelector('[data-view-input="tagAction"]').dataset.noteBulkTagAction = "";
-  const tagsMount = view.createElement("div", { className: "notes-bulk-tags-field" });
-  tagsMount.dataset.noteBulkTags = "";
-  dialog.viewParts.body.appendChild(tagsMount);
-  const status = view.createStatusMessage({ attrs: { "aria-live": "polite" } });
-  status.dataset.noteBulkFormStatus = "";
-  const footer = dialog.viewParts.footer;
-  dialog.viewParts.form.insertBefore(status, footer);
-  return dialog;
-}
-
-function createNoteTagsDialogShell() {
-  const tagsMount = view.createElement("div");
-  tagsMount.dataset.noteTagsEditor = "";
-  const close = view.createActionButton({ label: "Done", role: "primary" });
-  close.dataset.noteTagsDialogClose = "";
-  const dialog = view.createModal({
-    title: "Tags",
-    className: "notes-tags-dialog",
-    body: [tagsMount],
-    actions: [close],
-  });
-  dialog.dataset.noteTagsDialog = "";
-  return dialog;
-}
-
-function createNoteFilesDialogShell() {
-  const saveFirstWarning = view.createElement("p", {
-    className: "notes-files-save-first-warning",
-    text: "Save the note before adding files.",
-    attrs: { hidden: true, role: "alert", tabindex: "-1" },
-  });
-  saveFirstWarning.dataset.noteFilesSaveFirstWarning = "";
-  const filesMount = view.createElement("div");
-  filesMount.dataset.noteFilesEditor = "";
-  const close = view.createActionButton({ label: "Done", role: "primary" });
-  close.dataset.noteFilesDialogClose = "";
-  const dialog = view.createModal({
-    title: "Files",
-    className: "notes-files-dialog",
-    body: [saveFirstWarning, filesMount],
-    actions: [close],
-  });
-  dialog.dataset.noteFilesDialog = "";
-  return dialog;
-}
-
-function createCollectionDialogShell() {
-  const modal = notesCollectionModalDescriptor();
-  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
-  cancel.dataset.noteCollectionCancel = "";
-  const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-collection")?.label || "Save Collection", type: "submit", role: "primary" });
-  save.dataset.noteCollectionSave = "";
-
-  const dialog = view.renderDescriptorModalForm(modal, {
-    title: modal.title || "Collection",
-    className: "notes-collection-dialog",
-    formClassName: "notes-collection-form",
-    fields: [],
-    actions: [cancel, save],
-  });
-  dialog.dataset.noteCollectionDialog = "";
-  const form = dialog.viewParts.form;
-  form.dataset.noteCollectionForm = "";
-  dialog.viewParts.title.dataset.noteCollectionDialogTitle = "";
-  dialog.viewParts.body.remove();
-
-  const close = view.createActionButton({ label: "Close", className: "notes-dialog-close" });
-  close.dataset.noteCollectionDialogClose = "";
-  const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, close] });
-  heading.dataset.noteCollectionDialogHeading = "";
-
-  const nameField = noteFieldLabel("Name", noteInput("noteCollectionTitle", { type: "text", required: true }));
-  const grid = view.createElement("div", {
-    className: "notes-form-grid",
-    children: [
-      noteFieldLabel("Library", noteSelect("noteCollectionLibrary", modalFieldOptions(modal, "library"))),
-      noteFieldLabel("Parent", noteSelect("noteCollectionParent", modalFieldOptions(modal, "parent"))),
-    ],
-  });
-  const formStatus = view.createElement("p", { attrs: { role: "status", "aria-live": "polite" } });
-  formStatus.dataset.noteCollectionFormStatus = "";
-
-  const footer = dialog.viewParts.footer;
-  [heading, nameField, grid, formStatus].forEach((node) => form.insertBefore(node, footer));
-  return dialog;
-}
-
-function createCollectionActionsDialogShell() {
-  const body = view.createElement("div", { className: "notes-collection-actions-modal-body" });
-  body.dataset.noteCollectionActionsDialogBody = "";
-  const close = view.createActionButton({ label: "Close", role: "secondary" });
-  close.dataset.noteCollectionActionsDialogClose = "";
-  const dialog = view.createModal({
-    title: "Collection actions",
-    className: "notes-collection-actions-dialog",
-    body: [body],
-    actions: [close],
-  });
-  dialog.dataset.noteCollectionActionsDialog = "";
-  dialog.viewParts.title.dataset.noteCollectionActionsDialogTitle = "";
-  return dialog;
-}
-
-async function initialize() {
-  setStatus("Loading notes...");
-
-  try {
-    await window.LongtailForge.workspaceContextReady;
-    applyWorkspaceContext();
-    await Promise.all([loadMarkdownRenderingPreference(), loadTags(), loadCollections(), loadNotes()]);
-    renderCollections();
-    populateCollectionFilter();
-    renderNotes();
-    await openNoteFromUrl();
-    if (!state.selectedNote && !new URLSearchParams(window.location.search).get("note")) {
-      renderBlankDetailPrompt();
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
+      title: modal.title || "Bulk Edit Notes",
+      className: "notes-bulk-dialog",
+      formClassName: "notes-bulk-form",
+      size: "medium",
+      actions: [cancel, apply],
+    });
+    dialog.dataset.noteBulkDialog = "";
+    dialog.viewParts.form.dataset.noteBulkForm = "";
+    dialog.viewParts.body.classList.add("notes-form-grid", "notes-bulk-grid");
+    bulkFormControl(dialog, "library").dataset.noteBulkLibrary = "";
+    bulkFormControl(dialog, "collection").dataset.noteBulkCollection = "";
+    bulkFormControl(dialog, "noteType").dataset.noteBulkType = "";
+    const bulkVisibility = dialog.viewParts.form.querySelector('[data-view-input="visibility"]');
+    if (bulkVisibility && "dataset" in bulkVisibility && isResponseRecord(bulkVisibility.dataset)) {
+      bulkVisibility.dataset.noteBulkVisibility = "";
     }
-    setStatus("");
-  } catch (error) {
-    renderEmptyList(error.message || "Notes could not be loaded.");
-    setStatus(error.message || "Notes could not be loaded.", true);
-  }
-}
-
-function applyWorkspaceContext() {
-  const context = window.LongtailForge?.workspaceContext || {};
-  state.workspaceType = normalizeWorkspaceType(context.workspaceType || context.workspace_type || "");
-  applyWorkspaceVisibilityControls();
-  populateWorkspaceVisibilityOptions();
-  populateLinkTargetTypeSelect(contextTargetTypeInput);
-  populateLinkClientContextSelect();
-  updatePrimaryContextVisibility();
-}
-
-function applyWorkspaceVisibilityControls() {
-  const personalWorkspace = normalizeWorkspaceType(state.workspaceType) === "personal";
-  for (const control of [visibilityFilter, visibilityInput, bulkVisibilityInput]) {
-    const field = control?.closest("label, [data-view-field]");
-    if (field) {
-      field.hidden = personalWorkspace;
-      field.style.display = personalWorkspace ? "none" : "";
-    }
+    bulkFormControl(dialog, "tagAction").dataset.noteBulkTagAction = "";
+    const tagsMount = view.createElement("div", { className: "notes-bulk-tags-field" });
+    tagsMount.dataset.noteBulkTags = "";
+    dialog.viewParts.body.appendChild(tagsMount);
+    // `createStatusMessage` sets its own aria-live, defaulting to polite for a status role.
+    const status = view.createStatusMessage();
+    status.dataset.noteBulkFormStatus = "";
+    const footer = dialog.viewParts.footer;
+    dialog.viewParts.form.insertBefore(status, footer);
+    return dialog;
   }
 
-  if (visibilityFilter && !personalWorkspace) {
-    const selectedValue = visibilityFilter.value || "all";
-    const options = notesViewSurfaceDescriptor().filters
-      ?.find((filter) => filter.field === "visibility")?.options || [];
-    visibilityFilter.replaceChildren(...options.map((option) => {
-      const [value, label] = Array.isArray(option) ? option : [option.value, option.label];
-      return notesOptionElement(value, label);
-    }));
-    visibilityFilter.value = options.some((option) => (Array.isArray(option) ? option[0] : option.value) === selectedValue)
-      ? selectedValue
-      : "all";
-  }
-}
-
-async function loadNotes(cursor = state.notesCurrentCursor || "") {
-  const query = buildNotesListQuery(cursor);
-  const result = await api.getJson(`/api/notes?${query.toString()}`, { cache: "no-store" });
-  state.notes = result.notes || [];
-  state.notesPagination = result.pagination || null;
-  state.notesCurrentCursor = cursor || "";
-  state.notesNextCursor = result.pagination?.nextCursor || "";
-  syncNoteSelectionToVisibleNotes();
-}
-
-async function reloadNotesFromStart() {
-  state.page = 1;
-  state.notesCursorStack = [];
-  state.notesCurrentCursor = "";
-  state.notesNextCursor = "";
-  setStatus("Loading notes...");
-
-  try {
-    await loadNotes("");
-    renderNotes();
-    setStatus("");
-  } catch (error) {
-    renderEmptyList(error.message || "Notes could not be loaded.");
-    setStatus(error.message || "Notes could not be loaded.", true);
-  }
-}
-
-async function loadNextNotesPage() {
-  if (!state.notesNextCursor) {
-    return;
+  function createNoteTagsDialogShell() {
+    const view = requireView();
+    const tagsMount = view.createElement("div");
+    tagsMount.dataset.noteTagsEditor = "";
+    const close = view.createActionButton({ label: "Done", role: "primary" });
+    close.dataset.noteTagsDialogClose = "";
+    const dialog = view.createModal({
+      title: "Tags",
+      className: "notes-tags-dialog",
+      body: [tagsMount],
+      actions: [close],
+    });
+    dialog.dataset.noteTagsDialog = "";
+    return dialog;
   }
 
-  const nextCursor = state.notesNextCursor;
-  state.notesCursorStack.push(state.notesCurrentCursor || "");
-  state.page += 1;
-  setStatus("Loading notes...");
-
-  try {
-    await loadNotes(nextCursor);
-    renderNotes();
-    setStatus("");
-  } catch (error) {
-    state.page = Math.max(1, state.page - 1);
-    state.notesCursorStack.pop();
-    setStatus(error.message || "Notes could not be loaded.", true);
-  }
-}
-
-async function loadPreviousNotesPage() {
-  if (state.notesCursorStack.length === 0) {
-    return;
-  }
-
-  const previousCursor = state.notesCursorStack.pop() || "";
-  state.page = Math.max(1, state.page - 1);
-  setStatus("Loading notes...");
-
-  try {
-    await loadNotes(previousCursor);
-    renderNotes();
-    setStatus("");
-  } catch (error) {
-    state.page += 1;
-    state.notesCursorStack.push(previousCursor);
-    setStatus(error.message || "Notes could not be loaded.", true);
-  }
-}
-
-function buildNotesListQuery(cursor = "") {
-  const params = new URLSearchParams();
-
-  params.set("limit", String(PAGE_SIZE));
-  params.set("sort", sortSelect?.value || DEFAULT_NOTE_SORT);
-  if (cursor) {
-    params.set("cursor", cursor);
-  }
-  appendNotesQueryParam(params, "libraryBucket", activeLibraryBucketFilter());
-  appendNotesQueryParam(params, "status", activeStatusFilter());
-  if (normalizeWorkspaceType(state.workspaceType) !== "personal") {
-    appendNotesQueryParam(params, "visibility", visibilityFilter?.value, "all");
-  }
-  appendNotesQueryParam(params, "security", securityFilter?.value, "all");
-  appendNotesQueryParam(params, "noteType", typeFilter?.value, "all");
-  appendNotesQueryParam(params, "context", normalizeText(contextFilter?.value));
-  appendNotesQueryParam(params, "owner", normalizeText(ownerFilter?.value));
-  appendNotesQueryParam(params, "tags", normalizeText(tagFilter?.value));
-  appendNotesQueryParam(params, "updatedSince", updatedFilter?.value || "");
-  appendNotesQueryParam(params, "collection", state.selectedCollectionId || collectionFilter?.value || "");
-
-  return params;
-}
-
-function appendNotesQueryParam(params, key, value, ignoredValue = "") {
-  const text = normalizeText(value);
-
-  if (!text || text === ignoredValue) {
-    return;
+  function createNoteFilesDialogShell() {
+    const view = requireView();
+    const saveFirstWarning = view.createElement("p", {
+      className: "notes-files-save-first-warning",
+      text: "Save the note before adding files.",
+      attrs: { hidden: true, role: "alert", tabindex: "-1" },
+    });
+    saveFirstWarning.dataset.noteFilesSaveFirstWarning = "";
+    const filesMount = view.createElement("div");
+    filesMount.dataset.noteFilesEditor = "";
+    const close = view.createActionButton({ label: "Done", role: "primary" });
+    close.dataset.noteFilesDialogClose = "";
+    const dialog = view.createModal({
+      title: "Files",
+      className: "notes-files-dialog",
+      body: [saveFirstWarning, filesMount],
+      actions: [close],
+    });
+    dialog.dataset.noteFilesDialog = "";
+    return dialog;
   }
 
-  params.set(key, text);
-}
+  function createCollectionDialogShell() {
+    const view = requireView();
+    const modal = notesCollectionModalDescriptor();
+    const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+    cancel.dataset.noteCollectionCancel = "";
+    const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-collection")?.label || "Save Collection", type: "submit", role: "primary" });
+    save.dataset.noteCollectionSave = "";
 
-function activeLibraryBucketFilter() {
-  return ["active_work", "ongoing_area", "reference"].includes(state.activeBucket)
-    ? state.activeBucket
-    : "";
-}
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
+      title: modal.title || "Collection",
+      className: "notes-collection-dialog",
+      formClassName: "notes-collection-form",
+      fields: [],
+      actions: [cancel, save],
+    });
+    dialog.dataset.noteCollectionDialog = "";
+    const form = dialog.viewParts.form;
+    form.dataset.noteCollectionForm = "";
+    dialog.viewParts.title.dataset.noteCollectionDialogTitle = "";
+    dialog.viewParts.body.remove();
 
-function activeStatusFilter() {
-  if (state.activeBucket === "archive") {
-    return "archived";
+    const close = view.createActionButton({ label: "Close", className: "notes-dialog-close" });
+    close.dataset.noteCollectionDialogClose = "";
+    const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, close] });
+    heading.dataset.noteCollectionDialogHeading = "";
+
+    const nameField = noteFieldLabel("Name", noteInput("noteCollectionTitle", { type: "text", required: true }));
+    const grid = view.createElement("div", {
+      className: "notes-form-grid",
+      children: [
+        noteFieldLabel("Library", noteSelect("noteCollectionLibrary", modalFieldOptions(modal, "library"))),
+        noteFieldLabel("Parent", noteSelect("noteCollectionParent", modalFieldOptions(modal, "parent"))),
+      ],
+    });
+    const formStatus = view.createElement("p", { attrs: { role: "status", "aria-live": "polite" } });
+    formStatus.dataset.noteCollectionFormStatus = "";
+
+    const footer = dialog.viewParts.footer;
+    [heading, nameField, grid, formStatus].forEach((node) => form.insertBefore(node, footer));
+    return dialog;
   }
 
-  return statusFilter?.value || "active";
-}
-
-async function loadCollections() {
-  const params = new URLSearchParams();
-
-  if (state.activeBucket === "archive") {
-    params.set("includeArchived", "true");
-  }
-  if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
-    params.set("libraryBucket", state.activeBucket);
-  }
-
-  const query = params.toString();
-  const result = await api.getJson(`/api/notes/collections${query ? `?${query}` : ""}`, { cache: "no-store" });
-  state.collections = normalizeCollections(result.collections || []);
-}
-
-async function loadTags() {
-  if (!window.LongtailForge.tags) {
-    state.availableTags = [];
-    return;
+  function createCollectionActionsDialogShell() {
+    const view = requireView();
+    const body = view.createElement("div", { className: "notes-collection-actions-modal-body" });
+    body.dataset.noteCollectionActionsDialogBody = "";
+    const close = view.createActionButton({ label: "Close", role: "secondary" });
+    close.dataset.noteCollectionActionsDialogClose = "";
+    const dialog = view.createModal({
+      title: "Collection actions",
+      className: "notes-collection-actions-dialog",
+      body: [body],
+      actions: [close],
+    });
+    dialog.dataset.noteCollectionActionsDialog = "";
+    dialog.viewParts.title.dataset.noteCollectionActionsDialogTitle = "";
+    return dialog;
   }
 
-  try {
-    state.availableTags = await window.LongtailForge.tags.loadTags({ status: "active" });
-  } catch {
-    state.availableTags = [];
-  }
-}
+  async function initialize() {
+    setStatus("Loading notes...");
 
-async function selectBucket(bucket) {
-  state.activeBucket = bucket || "all";
-  state.page = 1;
-  state.notesCursorStack = [];
-  state.notesCurrentCursor = "";
-  state.notesNextCursor = "";
-  state.selectedNote = null;
-  state.selectedNoteIds.clear();
-  state.selectedCollectionId = "";
-  setStatus("Loading notes...");
-
-  try {
-    await Promise.all([loadCollections(), loadNotes()]);
-    renderCollections();
-    populateCollectionFilter();
-    renderNotes();
-    renderBlankDetailPrompt();
-    setStatus("");
-  } catch (error) {
-    renderEmptyList(error.message || "Notes could not be loaded.");
-    setStatus(error.message || "Notes could not be loaded.", true);
-  }
-}
-
-function renderNotes() {
-  const pageNotes = state.notes || [];
-
-  pageLabel.textContent = `Page ${state.page}`;
-  prevButton.disabled = state.notesCursorStack.length === 0;
-  nextButton.disabled = !state.notesNextCursor;
-
-  if (pageNotes.length === 0) {
-    renderEmptyList("No notes match the current filters.");
-    return;
-  }
-
-  notesList.replaceChildren(...pageNotes.map(noteListItem));
-  syncNotesBulkToolbar();
-}
-
-function renderCollections() {
-  if (!collectionPanel || !collectionFilter) {
-    return;
-  }
-
-  collectionPanel.hidden = false;
-
-  if (collectionLibraryFilter) {
-    collectionLibraryFilter.value = ["active_work", "ongoing_area", "reference", "archive"].includes(state.activeBucket)
-      ? state.activeBucket
-      : "all";
-  }
-  populateCollectionFilter();
-  updateCollectionPanelSelection();
-}
-
-function collectionActions(collection) {
-  const trigger = notesIconButton({
-    icon: "more",
-    label: "Collection actions",
-    title: "Collection actions",
-  });
-  trigger.classList.add("notes-collection-actions-trigger");
-  trigger.setAttribute("aria-haspopup", "dialog");
-  trigger.addEventListener("click", () => openCollectionActionsDialog(collection || null, trigger));
-  return view.createElement("span", { className: "notes-collection-actions", children: [trigger] });
-}
-
-function openCollectionActionsDialog(collection = null, trigger = null) {
-  if (!collectionActionsDialog || !collectionActionsDialogBody) {
-    return;
-  }
-
-  const canManageCollection = Boolean(collection?.note_library_collection_id) && state.activeBucket !== "archive";
-  const parentOptions = canManageCollection ? { parent: collection } : {};
-  const disabledTitle = collection?.note_library_collection_id
-    ? "Archived collections cannot be changed here."
-    : "Select a collection to use this action.";
-
-  if (collectionActionsDialogTitle) {
-    collectionActionsDialogTitle.textContent = collection?.title
-      ? `Collection actions: ${collection.title}`
-      : "Collection actions";
-  }
-
-  const create = collectionDialogAction("New collection", () => {
-    afterCollectionActionsDialogClosed(() => openCollectionDialog("create", parentOptions));
-  }, { role: "primary" });
-  const edit = collectionDialogAction("Edit", () => {
-    afterCollectionActionsDialogClosed(() => openCollectionDialog("edit", { collection }));
-  }, { disabled: !canManageCollection, title: canManageCollection ? "Rename or move collection" : disabledTitle });
-  const archive = collectionDialogAction("Archive", () => {
-    afterCollectionActionsDialogClosed(() => archiveCollection(collection));
-  }, { disabled: !canManageCollection, title: canManageCollection ? "Archive collection" : disabledTitle });
-  const remove = collectionDialogAction("Delete Empty", () => {
-    afterCollectionActionsDialogClosed(() => deleteEmptyCollection(collection));
-  }, { disabled: !canManageCollection, role: "destructive", title: canManageCollection ? "Delete empty collection" : disabledTitle });
-
-  collectionActionsDialogBody.replaceChildren(create, edit, archive, remove);
-  view.showModal(collectionActionsDialog, { trigger });
-  create.focus();
-}
-
-function closeCollectionActionsDialog() {
-  view.closeModal(collectionActionsDialog);
-}
-
-function afterCollectionActionsDialogClosed(callback) {
-  if (typeof callback !== "function") {
-    return;
-  }
-  if (!collectionActionsDialog?.open) {
-    callback();
-    return;
-  }
-
-  collectionActionsDialog.addEventListener("close", () => callback(), { once: true });
-  closeCollectionActionsDialog();
-}
-
-function collectionDialogAction(label, onClick, options = {}) {
-  return view.createActionButton({
-    label,
-    role: options.role || "secondary",
-    disabled: options.disabled,
-    title: options.title || label,
-    onClick,
-  });
-}
-
-function selectCollection(collectionId) {
-  state.selectedCollectionId = collectionId || "";
-  state.page = 1;
-  if (collectionFilter) {
-    collectionFilter.value = state.selectedCollectionId;
-  }
-  updateCollectionPanelSelection();
-  updateUrlCollection();
-  void reloadNotesFromStart();
-}
-
-function updateCollectionPanelSelection() {
-  if (collectionFilter && collectionFilter.value !== state.selectedCollectionId) {
-    collectionFilter.value = state.selectedCollectionId;
-  }
-  collectionActionsMount?.replaceChildren(collectionActions(selectedCollection()));
-}
-
-function populateCollectionFilter() {
-  if (!collectionFilter) {
-    return;
-  }
-
-  const options = collectionFilterOptions();
-  collectionFilter.replaceChildren(...options);
-  collectionFilter.value = collectionFilterHasValue(collectionFilter, state.selectedCollectionId)
-    ? state.selectedCollectionId
-    : "";
-  state.selectedCollectionId = collectionFilter.value;
-  updateCollectionPanelSelection();
-}
-
-function noteListItem(note) {
-  const row = document.createElement("div");
-  const selection = document.createElement("input");
-  const button = document.createElement("button");
-  const heading = document.createElement("span");
-  const title = document.createElement("strong");
-  const meta = document.createElement("span");
-  const footer = document.createElement("span");
-  const chipStrip = tagChips(note.tags || [], { limit: 1, showOverflow: true });
-
-  row.className = "notes-list-row";
-  selection.type = "checkbox";
-  selection.className = "notes-list-select";
-  selection.checked = state.selectedNoteIds.has(note.note_id);
-  selection.disabled = note.status === "archived";
-  selection.setAttribute("aria-label", `Select ${note.title || "Untitled note"} for bulk editing`);
-  selection.title = selection.disabled ? "Restore archived notes before editing." : "Select note for bulk editing";
-  selection.addEventListener("change", () => toggleBulkNoteSelection(note.note_id, selection.checked));
-
-  button.type = "button";
-  button.className = "notes-list-item";
-  if (isSecureNote(note)) {
-    button.classList.add("is-secure");
-  }
-  button.setAttribute("aria-pressed", String(state.selectedNote?.note_id === note.note_id));
-  button.addEventListener("click", () => selectNote(note.note_id));
-
-  heading.className = "notes-list-heading";
-  title.textContent = note.title || "Untitled note";
-  chipStrip.classList.add("notes-list-chip-strip");
-  if (isSecureNote(note)) {
-    chipStrip.prepend(statusBadge("Secure"));
-  }
-  meta.className = "notes-list-meta";
-  meta.textContent = [
-    libraryLabel(note.library_bucket),
-    collectionLabel(note.note_collection_id),
-    noteKindLabel(note.note_type),
-    formatToken(note.status),
-  ].filter(Boolean).join(" - ");
-  heading.append(title, meta);
-
-  footer.className = "notes-list-footer";
-  footer.textContent = [
-    formatToken(note.visibility),
-    formatToken(note.security_mode),
-    formatDate(note.updated_at),
-  ].filter(Boolean).join(" - ");
-
-  button.append(heading, chipStrip, footer);
-  row.append(selection, button);
-  return row;
-}
-
-function toggleBulkNoteSelection(noteId, selected) {
-  if (selected) {
-    state.selectedNoteIds.add(noteId);
-  } else {
-    state.selectedNoteIds.delete(noteId);
-  }
-  syncNotesBulkToolbar();
-}
-
-function syncNoteSelectionToVisibleNotes() {
-  const visibleEditableIds = new Set((state.notes || [])
-    .filter((note) => note.status !== "archived")
-    .map((note) => note.note_id));
-  state.selectedNoteIds = new Set([...state.selectedNoteIds].filter((noteId) => visibleEditableIds.has(noteId)));
-}
-
-function clearBulkSelection() {
-  state.selectedNoteIds.clear();
-  notesList?.querySelectorAll(".notes-list-select").forEach((input) => {
-    input.checked = false;
-  });
-  syncNotesBulkToolbar();
-}
-
-function syncNotesBulkToolbar() {
-  const selectedCount = state.selectedNoteIds.size;
-  if (bulkToolbar && selectedCount > 0) {
-    bulkToolbar.open = true;
-  }
-  const count = bulkToolbar?.viewParts?.count || bulkToolbar?.querySelector("[data-view-bulk-selection-count]");
-  if (count) {
-    count.textContent = `${selectedCount} selected`;
-    count.hidden = selectedCount === 0;
-  }
-  if (bulkEditButton) {
-    bulkEditButton.disabled = selectedCount === 0;
-  }
-  if (bulkClearButton) {
-    bulkClearButton.disabled = selectedCount === 0;
-  }
-}
-
-async function openBulkEditor() {
-  if (!bulkDialog || state.selectedNoteIds.size === 0) {
-    return;
-  }
-
-  setStatus("Loading bulk editor...");
-  try {
-    const result = await api.getJson("/api/notes/collections", { cache: "no-store" });
-    state.bulkCollections = normalizeCollections(result.collections || []);
-    bulkLibraryInput.value = "";
-    bulkTypeInput.value = "";
-    bulkTagActionInput.value = "";
-    populateBulkVisibilityOptions();
-    populateBulkCollectionOptions();
-    await mountBulkTagPicker();
-    setBulkFormStatus(`${state.selectedNoteIds.size} notes selected.`);
-    bulkApplyButton.disabled = false;
-    view.showModal(bulkDialog, { trigger: bulkEditButton });
-    bulkLibraryInput.focus();
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Notes bulk editor could not be opened.", true);
-  }
-}
-
-function closeBulkEditor() {
-  view.closeModal(bulkDialog);
-}
-
-function populateBulkCollectionOptions() {
-  if (!bulkCollectionInput) {
-    return;
-  }
-
-  const selectedLibrary = bulkLibraryInput?.value || "";
-  const previousValue = bulkCollectionInput.value || "";
-  const collections = state.bulkCollections
-    .filter((collection) => !selectedLibrary || collection.library_bucket === selectedLibrary)
-    .map((collection) => [
-      collection.note_library_collection_id,
-      selectedLibrary
-        ? collection.path_cache || collection.title || "Collection"
-        : `${libraryLabel(collection.library_bucket)}: ${collection.path_cache || collection.title || "Collection"}`,
-    ]);
-  const options = [
-    ["", "No change"],
-    [NOTE_BULK_COLLECTION_UNCATEGORIZED, "Uncategorized"],
-    ...collections,
-  ];
-  bulkCollectionInput.replaceChildren(...options.map(([value, label]) => notesOptionElement(value, label)));
-  bulkCollectionInput.value = options.some(([value]) => value === previousValue) ? previousValue : "";
-}
-
-function populateBulkVisibilityOptions() {
-  if (!bulkVisibilityInput) {
-    return;
-  }
-  bulkVisibilityInput.replaceChildren(
-    notesOptionElement("", "No change"),
-    ...workspaceVisibilityOptions().map(([value, label]) => notesOptionElement(value, label)),
-  );
-  bulkVisibilityInput.value = "";
-}
-
-async function mountBulkTagPicker() {
-  if (!bulkTagsEditor || !window.LongtailForge.tags?.mountPicker) {
-    state.bulkTagPicker = null;
-    return;
-  }
-
-  state.bulkTagPicker = await window.LongtailForge.tags.mountPicker(bulkTagsEditor, {
-    allowCreate: false,
-    label: "Tags",
-    placeholder: "Type to search tags",
-    tags: state.availableTags,
-  });
-}
-
-async function applyBulkEdit(event) {
-  event.preventDefault();
-  if (state.selectedNoteIds.size === 0) {
-    setBulkFormStatus("Select at least one note to update.", true);
-    return;
-  }
-
-  const targetIds = [...state.selectedNoteIds];
-  const changes = readBulkNoteChanges();
-  const tagAction = bulkTagActionInput?.value || "";
-  const tagIds = state.bulkTagPicker?.readTagIds?.() || [];
-  if (tagAction && tagIds.length === 0) {
-    setBulkFormStatus("Choose at least one tag for the selected tag action.", true);
-    return;
-  }
-  if (!tagAction && tagIds.length > 0) {
-    setBulkFormStatus("Choose a tag action for the selected tags.", true);
-    return;
-  }
-  if (Object.keys(changes).length === 0 && !tagAction) {
-    setBulkFormStatus("Choose at least one field to update.", true);
-    return;
-  }
-
-  bulkApplyButton.disabled = true;
-  setBulkFormStatus("Updating notes...");
-  try {
-    const results = [];
-    if (Object.keys(changes).length > 0) {
-      results.push(await api.postJson("/api/notes/bulk", {
-        noteIds: targetIds,
-        changes,
-      }));
-    }
-    if (tagAction) {
-      results.push(await api.postJson("/api/tags/bulk-assignments", {
-        action: tagAction,
-        tagIds,
-        targetIds,
-        targetType: "note",
-      }));
-    }
-
-    const updatedNoteIds = new Set(results.flatMap((result) => [
-      ...(result.notes || []).map((note) => note.note_id),
-      ...(result.changed || []).map((entry) => entry.target_id),
-    ]).filter(Boolean));
-    const failedNoteIds = new Set(results.flatMap((result) => (result.errors || [])
-      .map((error) => error.note_id || error.target_id)
-      .filter(Boolean)));
-    state.selectedNoteIds = failedNoteIds;
-    if (isNotesWorkspaceSurface) {
-      await Promise.all([loadCollections(), loadNotes()]);
+    try {
+      await requireNamespace().workspaceContextReady;
+      applyWorkspaceContext();
+      await Promise.all([loadMarkdownRenderingPreference(), loadTags(), loadCollections(), loadNotes()]);
       renderCollections();
+      populateCollectionFilter();
       renderNotes();
-      await refreshSelectedNoteAfterBulk(updatedNoteIds);
+      await openNoteFromUrl();
+      if (!state.selectedNote && !new URLSearchParams(window.location.search).get("note")) {
+        renderBlankDetailPrompt();
+      }
+      setStatus("");
+    } catch (error) {
+      renderEmptyList(requireErrors().caughtMessage(error, "Notes could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
+    }
+  }
+
+  function applyWorkspaceContext() {
+    // `buildWorkspaceContext` folds every snake_case input into its canonical member and
+    // publishes exactly one record, so `workspace_type` is a shape the publisher cannot emit.
+    // The canonical read and the final empty-string input into `normalizeWorkspaceType` stay.
+    const context = window.LongtailForge?.workspaceContext;
+    state.workspaceType = normalizeWorkspaceType(context?.workspaceType || "");
+    applyWorkspaceVisibilityControls();
+    populateWorkspaceVisibilityOptions();
+    populateLinkTargetTypeSelect(contextTargetTypeInput);
+    populateLinkClientContextSelect();
+    updatePrimaryContextVisibility();
+  }
+
+  function applyWorkspaceVisibilityControls() {
+    const personalWorkspace = normalizeWorkspaceType(state.workspaceType) === "personal";
+    for (const control of [visibilityFilter, visibilityInput, bulkVisibilityInput]) {
+      const field = control?.closest("label, [data-view-field]");
+      if (field instanceof HTMLElement) {
+        field.hidden = personalWorkspace;
+        field.style.display = personalWorkspace ? "none" : "";
+      }
     }
 
-    const fullyUpdatedCount = targetIds.filter((noteId) => !failedNoteIds.has(noteId)).length;
-    if (fullyUpdatedCount > 0) {
-      closeBulkEditor();
-      setStatus(failedNoteIds.size > 0
-        ? `Updated ${fullyUpdatedCount} notes; ${failedNoteIds.size} could not be fully updated.`
-        : `Updated ${fullyUpdatedCount} notes.`);
+    if (visibilityFilter && !personalWorkspace) {
+      const selectedValue = visibilityFilter.value || "all";
+      const options = notesViewSurfaceDescriptor()?.filters
+        ?.find((filter) => filter.field === "visibility")?.options || [];
+      const pairs = options.map(readNotesVisibilityOption).filter((option) => option !== null);
+      visibilityFilter.replaceChildren(...pairs.map(([value, label]) => {
+        return notesOptionElement(value, label);
+      }));
+      visibilityFilter.value = pairs.some(([value]) => value === selectedValue)
+        ? selectedValue
+        : "all";
+    }
+  }
+
+  async function loadNotes(cursor = state.notesCurrentCursor || "") {
+    const api = requireApi();
+    const query = buildNotesListQuery(cursor);
+    const result = await api.getJson(`/api/notes?${query.toString()}`, { cache: "no-store" });
+    const { notes, pagination } = readNoteListEnvelope(result);
+    state.notes = notes;
+    state.notesPagination = pagination;
+    state.notesCurrentCursor = cursor || "";
+    state.notesNextCursor = pagination?.nextCursor || "";
+    syncNoteSelectionToVisibleNotes();
+  }
+
+  async function reloadNotesFromStart() {
+    state.page = 1;
+    state.notesCursorStack = [];
+    state.notesCurrentCursor = "";
+    state.notesNextCursor = "";
+    setStatus("Loading notes...");
+
+    try {
+      await loadNotes("");
+      renderNotes();
+      setStatus("");
+    } catch (error) {
+      renderEmptyList(requireErrors().caughtMessage(error, "Notes could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
+    }
+  }
+
+  async function loadNextNotesPage() {
+    if (!state.notesNextCursor) {
       return;
     }
 
-    const firstError = results.flatMap((result) => result.errors || [])[0];
-    setBulkFormStatus(firstError?.message || "Selected notes could not be updated.", true);
-    bulkApplyButton.disabled = false;
-  } catch (error) {
-    setBulkFormStatus(error.message || "Selected notes could not be updated.", true);
-    bulkApplyButton.disabled = false;
-  }
-}
+    const nextCursor = state.notesNextCursor;
+    state.notesCursorStack.push(state.notesCurrentCursor || "");
+    state.page += 1;
+    setStatus("Loading notes...");
 
-function readBulkNoteChanges() {
-  const changes = {};
-  if (bulkLibraryInput?.value) {
-    changes.libraryBucket = bulkLibraryInput.value;
-  }
-  if (bulkCollectionInput?.value === NOTE_BULK_COLLECTION_UNCATEGORIZED) {
-    changes.noteCollectionId = null;
-  } else if (bulkCollectionInput?.value) {
-    changes.noteCollectionId = bulkCollectionInput.value;
-  }
-  if (bulkTypeInput?.value) {
-    changes.noteType = bulkTypeInput.value;
-  }
-  if (bulkVisibilityInput?.value) {
-    changes.visibility = bulkVisibilityInput.value;
-  }
-  return changes;
-}
-
-async function refreshSelectedNoteAfterBulk(updatedNoteIds = []) {
-  const selectedId = state.selectedNote?.note_id || "";
-  const updatedIds = updatedNoteIds instanceof Set
-    ? updatedNoteIds
-    : new Set((updatedNoteIds || []).map((note) => typeof note === "string" ? note : note?.note_id || note?.target_id).filter(Boolean));
-  if (!selectedId || !updatedIds.has(selectedId)) {
-    return;
-  }
-  const result = await api.getJson(`/api/notes/${encodeURIComponent(selectedId)}`, { cache: "no-store" });
-  state.selectedNote = result.note;
-  renderDetail(result.note);
-}
-
-function setBulkFormStatus(message, isError = false) {
-  if (!bulkFormStatus) {
-    return;
-  }
-  bulkFormStatus.textContent = message;
-  bulkFormStatus.classList.toggle("error-text", isError);
-}
-
-async function selectNote(noteId) {
-  setStatus("Loading note...");
-
-  try {
-    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
-    state.selectedNote = result.note;
-    renderDetail(result.note);
-    renderNotes();
-    closeNotesSlideOutDrawer();
-    updateUrl(noteId);
-    setStatus("");
-  } catch (error) {
-    const message = safeNoteErrorMessage(error, "Note could not be loaded.");
-    renderDetailPrompt(message, { locked: isSecureError(error) });
-    setStatus(message, true);
-  }
-}
-
-function closeNotesSlideOutDrawer() {
-  const trigger = document.querySelector("[data-view-slideout-sidebar-trigger]");
-  if (trigger?.getAttribute("aria-expanded") === "true") {
-    trigger.click();
-  }
-}
-
-function renderDetail(note) {
-  const title = view.createElement("h2", { text: note.title || "Untitled note" });
-  const titleRow = view.createElement("div", { className: "notes-detail-title-row", children: [title, createNoteActionStrip(note)] });
-  const titleRule = view.createElement("hr", { className: "notes-detail-rule" });
-  const meta = view.createElement("p", { className: "notes-detail-meta", children: detailMetaItems(note) });
-  const header = view.createElement("header", { className: "notes-detail-header", children: [titleRow, titleRule, meta] });
-  const tagsRule = view.createElement("hr", { className: "notes-detail-rule" });
-  const collectionBreadcrumb = view.createElement("p", {
-    className: "notes-collection-breadcrumb",
-    text: `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`,
-  });
-  const links = renderLinksPanel(note);
-  const files = renderFilesPanel(note);
-  const revisions = renderRevisionsPanel(note);
-
-  if (isSecureNote(note)) {
-    header.append(view.createElement("p", {
-      className: "notes-secure-warning",
-      text: note.secure_title_warning || "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.",
-    }));
-  }
-
-  const body = view.createElement("div", { className: "notes-rendered-body" });
-  body.innerHTML = note.body_html || "";
-  applyExternalMarkdownLinkPreference(body);
-  if (!body.textContent.trim() && !note.body_html) {
-    body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
-  }
-
-  const tags = view.createElement("div", { className: "notes-detail-tags", children: [tagChips(note.tags || [])] });
-
-  // Client/Project/Task/User context lives in the Linked Context panel; the metadata row carries all
-  // note-level metadata (incl. Created/Updated/Owner) so it is not duplicated here.
-  detailPanel.replaceChildren(header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions);
-  mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
-  loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
-}
-
-function renderDetailPrompt(message, options = {}) {
-  const prompt = document.createElement("p");
-
-  prompt.className = options.locked ? "notes-empty-state notes-locked-state" : "notes-empty-state";
-  if (options.sidebarHint) {
-    prompt.classList.add("notes-empty-state--sidebar-hint");
-    prompt.append("Open the ", inlineFilterIcon(), " sidebar and select a note to view here.");
-  } else {
-    prompt.textContent = message;
-  }
-  detailPanel.replaceChildren(prompt);
-}
-
-function renderBlankDetailPrompt() {
-  renderDetailPrompt("", { sidebarHint: true });
-}
-
-function inlineFilterIcon() {
-  const icon = document.createElement("span");
-  icon.className = "notes-empty-state-icon";
-  icon.setAttribute("aria-hidden", "true");
-
-  try {
-    icon.appendChild(window.LongtailForge?.icons?.createIcon("filter", { size: 16 }) || document.createTextNode(""));
-  } catch {
-    icon.textContent = "";
-  }
-
-  return icon;
-}
-
-async function openEditor(note = null, options = {}) {
-  note = await hydrateEditorNote(note);
-  const defaults = options.defaults || {};
-  state.editingNoteId = note?.note_id || "";
-  state.editorHostContext = options.hostContext || null;
-  state.editorHostContextSettled = false;
-  state.editorNote = note;
-  state.editorSelectedTarget = null;
-  state.editorStagedTargets = [];
-  state.libraryManuallyChanged = false;
-  dialogTitle.textContent = note ? "Edit Note" : "Create Note";
-  titleInput.value = note?.title || defaults.title || "";
-  libraryInput.value = note?.library_bucket || defaults.library_bucket || state.activeBucketForCreate || defaultLibraryForCreate();
-  populateNoteCollectionOptions(note?.library_bucket || libraryInput.value);
-  collectionInput.value = note?.note_collection_id || defaults.note_collection_id || "";
-  if (collectionInput.value && ![...collectionInput.options].some((option) => option.value === collectionInput.value)) {
-    collectionInput.value = "";
-  }
-  resetLegacyNoteKindOptions();
-  ensureNoteKindOption(note?.note_type);
-  typeInput.value = note?.note_type || defaults.note_type || "general";
-  populateWorkspaceVisibilityOptions(note?.visibility || defaults.visibility || "internal");
-  securityInput.value = note?.security_mode || defaults.security_mode || "normal";
-  securityInput.disabled = Boolean(note);
-  updateSecureUiState();
-  const selectedClientId = note?.client_id || defaults.client_id || "";
-  const selectedProjectId = note?.project_id || defaults.project_id || "";
-  clientInput.value = selectedClientId;
-  projectInput.value = selectedProjectId;
-  taskInput.value = note?.task_id || "";
-  userInput.value = note?.linked_user_id || "";
-  state.editorContextSummaries = note?.linked_context || {};
-  await loadPrimaryContextOptions({
-    clientId: selectedClientId,
-    projectId: selectedProjectId,
-  });
-  editor?.setValue(note?.body_markdown || defaults.body_markdown || "");
-  bodyInput.value = note?.body_markdown || defaults.body_markdown || "";
-  preview.hidden = true;
-  previewToggle.setAttribute("aria-pressed", "false");
-  updatePreviewLayoutState(false);
-  formStatus.textContent = "";
-  saveButton.disabled = false;
-  saveCloseButton.disabled = false;
-  if (copyLinkButton) {
-    copyLinkButton.hidden = !note?.note_id;
-    copyLinkButton.disabled = !note?.note_id;
-  }
-  await writeNoteNotificationFollowFields(note);
-  resetNoteEditorPanels();
-  if (detailsGroup) {
-    detailsGroup.open = !note;
-  }
-  await mountTagEditor(note);
-  mountNoteEditorFiles(note);
-  renderEditorContextSelection();
-  await loadEditorLinkTargets();
-  updateLibrarySuggestion();
-  const closeResult = new Promise((resolve) => {
-    dialog?.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
-  });
-  view.showModal(dialog, { trigger: options.trigger || options.hostContext?.trigger || null });
-  titleInput.focus();
-  return closeResult;
-}
-
-async function hydrateEditorNote(note = null) {
-  const noteId = note?.note_id || "";
-  if (!noteId) {
-    return note;
-  }
-
-  try {
-    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
-    if (state.selectedNote?.note_id === noteId) {
-      state.selectedNote = result.note;
-      renderDetail(result.note);
+    try {
+      await loadNotes(nextCursor);
+      renderNotes();
+      setStatus("");
+    } catch (error) {
+      state.page = Math.max(1, state.page - 1);
+      state.notesCursorStack.pop();
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
     }
-    return result.note;
-  } catch {
-    return note;
-  }
-}
-
-function updateSecureWarning() {
-  if (!secureWarning) {
-    return;
   }
 
-  secureWarning.hidden = !isSecureEditorMode();
-}
+  async function loadPreviousNotesPage() {
+    if (state.notesCursorStack.length === 0) {
+      return;
+    }
 
-function updateSecureUiState() {
-  const secureMode = isSecureEditorMode();
+    const previousCursor = state.notesCursorStack.pop() || "";
+    state.page = Math.max(1, state.page - 1);
+    setStatus("Loading notes...");
 
-  updateSecureWarning();
-  updateSecureVisibilityOptions(secureMode);
-  updateFilesUtilityState();
-}
-
-function updateSecureVisibilityOptions(secureMode = false) {
-  if (!visibilityInput) {
-    return;
+    try {
+      await loadNotes(previousCursor);
+      renderNotes();
+      setStatus("");
+    } catch (error) {
+      state.page += 1;
+      state.notesCursorStack.push(previousCursor);
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
+    }
   }
 
-  const clientVisibleOption = [...visibilityInput.options].find((option) => option.value === "client_visible");
-  if (!clientVisibleOption) {
-    if (visibilityInput.value === "client_visible") {
+  /**
+   * GET /api/notes forwards these string query values to normalizeListFilters and
+   * normalizeNoteListPagination. Every emitted key is read there; optional filters
+   * remain omitted instead of being declared as required response-record members.
+   * @param {string} [cursor]
+   * @returns {URLSearchParams}
+   */
+  function buildNotesListQuery(cursor = "") {
+    const params = new URLSearchParams();
+
+    params.set("limit", String(PAGE_SIZE));
+    params.set("sort", sortSelect?.value || DEFAULT_NOTE_SORT);
+    if (cursor) {
+      params.set("cursor", cursor);
+    }
+    appendNotesQueryParam(params, "libraryBucket", activeLibraryBucketFilter());
+    appendNotesQueryParam(params, "status", activeStatusFilter());
+    if (normalizeWorkspaceType(state.workspaceType) !== "personal") {
+      appendNotesQueryParam(params, "visibility", visibilityFilter?.value, "all");
+    }
+    appendNotesQueryParam(params, "security", securityFilter?.value, "all");
+    appendNotesQueryParam(params, "noteType", typeFilter?.value, "all");
+    appendNotesQueryParam(params, "context", normalizeText(contextFilter?.value));
+    appendNotesQueryParam(params, "owner", normalizeText(ownerFilter?.value));
+    appendNotesQueryParam(params, "tags", normalizeText(tagFilter?.value));
+    appendNotesQueryParam(params, "updatedSince", updatedFilter?.value || "");
+    appendNotesQueryParam(params, "collection", state.selectedCollectionId || collectionFilter?.value || "");
+
+    return params;
+  }
+
+  /** @param {URLSearchParams} params @param {string} key @param {unknown} value */
+  function appendNotesQueryParam(params, key, value, ignoredValue = "") {
+    const text = normalizeText(value);
+
+    if (!text || text === ignoredValue) {
+      return;
+    }
+
+    params.set(key, text);
+  }
+
+  function activeLibraryBucketFilter() {
+    return ["active_work", "ongoing_area", "reference"].includes(state.activeBucket)
+      ? state.activeBucket
+      : "";
+  }
+
+  function activeStatusFilter() {
+    if (state.activeBucket === "archive") {
+      return "archived";
+    }
+
+    return statusFilter?.value || "active";
+  }
+
+  async function loadCollections() {
+    const api = requireApi();
+    const params = new URLSearchParams();
+
+    if (state.activeBucket === "archive") {
+      params.set("includeArchived", "true");
+    }
+    if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
+      params.set("libraryBucket", state.activeBucket);
+    }
+
+    const query = params.toString();
+    const result = await api.getJson(`/api/notes/collections${query ? `?${query}` : ""}`, { cache: "no-store" });
+    state.collections = normalizeCollections(readEnvelopeMember(result, "collections"));
+  }
+
+  async function loadTags() {
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface) {
+      state.availableTags = [];
+      return;
+    }
+
+    try {
+      state.availableTags = await tagSurface.loadTags({ status: "active" });
+    } catch {
+      state.availableTags = [];
+    }
+  }
+
+  /**
+   * @param {string} bucket
+   */
+  async function selectBucket(bucket) {
+    state.activeBucket = bucket || "all";
+    state.page = 1;
+    state.notesCursorStack = [];
+    state.notesCurrentCursor = "";
+    state.notesNextCursor = "";
+    state.selectedNote = null;
+    state.selectedNoteIds.clear();
+    state.selectedCollectionId = "";
+    setStatus("Loading notes...");
+
+    try {
+      await Promise.all([loadCollections(), loadNotes()]);
+      renderCollections();
+      populateCollectionFilter();
+      renderNotes();
+      renderBlankDetailPrompt();
+      setStatus("");
+    } catch (error) {
+      renderEmptyList(requireErrors().caughtMessage(error, "Notes could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
+    }
+  }
+
+  function renderNotes() {
+    const pageNotes = state.notes || [];
+
+    requireNotesValue(pageLabel).textContent = `Page ${state.page}`;
+    requireNotesValue(prevButton).disabled = state.notesCursorStack.length === 0;
+    requireNotesValue(nextButton).disabled = !state.notesNextCursor;
+
+    if (pageNotes.length === 0) {
+      renderEmptyList("No notes match the current filters.");
+      return;
+    }
+
+    if (notesList) {
+      notesList.replaceChildren(...pageNotes.map(noteListItem));
+    } else {
+      requireNotesValue(notesList);
+    }
+    syncNotesBulkToolbar();
+  }
+
+  function renderCollections() {
+    if (!collectionPanel || !collectionFilter) {
+      return;
+    }
+
+    collectionPanel.hidden = false;
+
+    if (collectionLibraryFilter) {
+      collectionLibraryFilter.value = ["active_work", "ongoing_area", "reference", "archive"].includes(state.activeBucket)
+        ? state.activeBucket
+        : "all";
+    }
+    populateCollectionFilter();
+    updateCollectionPanelSelection();
+  }
+
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   */
+  function collectionActions(collection) {
+    const view = requireView();
+    const trigger = notesIconButton({
+      icon: "more",
+      label: "Collection actions",
+      title: "Collection actions",
+    });
+    trigger.classList.add("notes-collection-actions-trigger");
+    trigger.setAttribute("aria-haspopup", "dialog");
+    trigger.addEventListener("click", () => openCollectionActionsDialog(collection || null, trigger));
+    return view.createElement("span", { className: "notes-collection-actions", children: [trigger] });
+  }
+
+  /**
+   * @param {BrowserNoteCollection | null} [collection]
+   * @param {HTMLButtonElement | null} [trigger] The button that opened the dialog, so focus
+   * returns to it on close. Its one caller always supplies one.
+   */
+  function openCollectionActionsDialog(collection = null, trigger = null) {
+    const view = requireView();
+    if (!collectionActionsDialog || !collectionActionsDialogBody) {
+      return;
+    }
+
+    const canManageCollection = Boolean(collection?.note_library_collection_id) && state.activeBucket !== "archive";
+    const parentOptions = canManageCollection ? { parent: collection } : {};
+    const disabledTitle = collection?.note_library_collection_id
+      ? "Archived collections cannot be changed here."
+      : "Select a collection to use this action.";
+
+    if (collectionActionsDialogTitle) {
+      collectionActionsDialogTitle.textContent = collection?.title
+        ? `Collection actions: ${collection.title}`
+        : "Collection actions";
+    }
+
+    const create = collectionDialogAction("New collection", () => {
+      afterCollectionActionsDialogClosed(() => openCollectionDialog("create", parentOptions));
+    }, { role: "primary" });
+    const edit = collectionDialogAction("Edit", () => {
+      afterCollectionActionsDialogClosed(() => openCollectionDialog("edit", { collection }));
+    }, { disabled: !canManageCollection, title: canManageCollection ? "Rename or move collection" : disabledTitle });
+    const archive = collectionDialogAction("Archive", () => {
+      afterCollectionActionsDialogClosed(() => archiveCollection(collection));
+    }, { disabled: !canManageCollection, title: canManageCollection ? "Archive collection" : disabledTitle });
+    const remove = collectionDialogAction("Delete Empty", () => {
+      afterCollectionActionsDialogClosed(() => deleteEmptyCollection(collection));
+    }, { disabled: !canManageCollection, role: "destructive", title: canManageCollection ? "Delete empty collection" : disabledTitle });
+
+    collectionActionsDialogBody.replaceChildren(create, edit, archive, remove);
+    view.showModal(collectionActionsDialog, { trigger });
+    create.focus();
+  }
+
+  function closeCollectionActionsDialog() {
+    const view = requireView();
+    view.closeModal(collectionActionsDialog);
+  }
+
+  /**
+   * @param {() => unknown} callback
+   */
+  function afterCollectionActionsDialogClosed(callback) {
+    if (typeof callback !== "function") {
+      return;
+    }
+    if (!collectionActionsDialog?.open) {
+      callback();
+      return;
+    }
+
+    collectionActionsDialog.addEventListener("close", () => callback(), { once: true });
+    closeCollectionActionsDialog();
+  }
+
+  /**
+   * @param {string} label
+   * @param {() => unknown} onClick
+   * @param {{role?: string, disabled?: boolean, title?: string}} [options]
+   */
+  function collectionDialogAction(label, onClick, options = {}) {
+    const view = requireView();
+    return view.createActionButton({
+      label,
+      role: options.role || "secondary",
+      disabled: options.disabled,
+      title: options.title || label,
+      onClick,
+    });
+  }
+
+  /**
+   * @param {string} collectionId
+   */
+  function selectCollection(collectionId) {
+    state.selectedCollectionId = collectionId || "";
+    state.page = 1;
+    if (collectionFilter) {
+      collectionFilter.value = state.selectedCollectionId;
+    }
+    updateCollectionPanelSelection();
+    updateUrlCollection();
+    void reloadNotesFromStart();
+  }
+
+  function updateCollectionPanelSelection() {
+    if (collectionFilter && collectionFilter.value !== state.selectedCollectionId) {
+      collectionFilter.value = state.selectedCollectionId;
+    }
+    collectionActionsMount?.replaceChildren(collectionActions(selectedCollection()));
+  }
+
+  function populateCollectionFilter() {
+    if (!collectionFilter) {
+      return;
+    }
+
+    const options = collectionFilterOptions();
+    collectionFilter.replaceChildren(...options);
+    collectionFilter.value = collectionFilterHasValue(collectionFilter, state.selectedCollectionId)
+      ? state.selectedCollectionId
+      : "";
+    state.selectedCollectionId = collectionFilter.value;
+    updateCollectionPanelSelection();
+  }
+
+  /** @param {BrowserNoteListItem} note */
+  function noteListItem(note) {
+    const row = document.createElement("div");
+    const selection = document.createElement("input");
+    const button = document.createElement("button");
+    const heading = document.createElement("span");
+    const title = document.createElement("strong");
+    const meta = document.createElement("span");
+    const footer = document.createElement("span");
+    const chipStrip = tagChips(note.tags || [], { limit: 1, showOverflow: true });
+
+    row.className = "notes-list-row";
+    selection.type = "checkbox";
+    selection.className = "notes-list-select";
+    selection.checked = state.selectedNoteIds.has(note.note_id);
+    selection.disabled = note.status === "archived";
+    selection.setAttribute("aria-label", `Select ${note.title || "Untitled note"} for bulk editing`);
+    selection.title = selection.disabled ? "Restore archived notes before editing." : "Select note for bulk editing";
+    selection.addEventListener("change", () => toggleBulkNoteSelection(note.note_id, selection.checked));
+
+    button.type = "button";
+    button.className = "notes-list-item";
+    if (isSecureNote(note)) {
+      button.classList.add("is-secure");
+    }
+    button.setAttribute("aria-pressed", String(state.selectedNote?.note_id === note.note_id));
+    button.addEventListener("click", () => selectNote(note.note_id));
+
+    heading.className = "notes-list-heading";
+    title.textContent = note.title || "Untitled note";
+    chipStrip.classList.add("notes-list-chip-strip");
+    if (isSecureNote(note)) {
+      chipStrip.prepend(statusBadge("Secure"));
+    }
+    meta.className = "notes-list-meta";
+    meta.textContent = [
+      libraryLabel(note.library_bucket),
+      collectionLabel(note.note_collection_id),
+      noteKindLabel(note.note_type),
+      formatToken(note.status),
+    ].filter(Boolean).join(" - ");
+    heading.append(title, meta);
+
+    footer.className = "notes-list-footer";
+    footer.textContent = [
+      formatToken(note.visibility),
+      formatToken(note.security_mode),
+      formatDate(note.updated_at),
+    ].filter(Boolean).join(" - ");
+
+    button.append(heading, chipStrip, footer);
+    row.append(selection, button);
+    return row;
+  }
+
+  /** @param {BrowserNoteRecord["note_id"]} noteId @param {boolean} selected */
+  function toggleBulkNoteSelection(noteId, selected) {
+    if (selected) {
+      state.selectedNoteIds.add(noteId);
+    } else {
+      state.selectedNoteIds.delete(noteId);
+    }
+    syncNotesBulkToolbar();
+  }
+
+  function syncNoteSelectionToVisibleNotes() {
+    const visibleEditableIds = new Set((state.notes || [])
+      .filter((note) => note.status !== "archived")
+      .map((note) => note.note_id));
+    state.selectedNoteIds = new Set([...state.selectedNoteIds].filter((noteId) => visibleEditableIds.has(noteId)));
+  }
+
+  function clearBulkSelection() {
+    state.selectedNoteIds.clear();
+    notesList?.querySelectorAll(".notes-list-select").forEach((input) => {
+      if (input instanceof HTMLInputElement) input.checked = false;
+    });
+    syncNotesBulkToolbar();
+  }
+
+  function syncNotesBulkToolbar() {
+    const selectedCount = state.selectedNoteIds.size;
+    if (bulkToolbar && selectedCount > 0) {
+      bulkToolbar.open = true;
+    }
+    // The shared factory publishes viewParts, but this DOM lookup has not proved that expando.
+    const parts = bulkToolbar && "viewParts" in bulkToolbar ? bulkToolbar.viewParts : null;
+    const publishedCount = isResponseRecord(parts) && parts.count instanceof HTMLElement ? parts.count : null;
+    const count = publishedCount || bulkToolbar?.querySelector("[data-view-bulk-selection-count]");
+    if (count instanceof HTMLElement) {
+      count.textContent = `${selectedCount} selected`;
+      count.hidden = selectedCount === 0;
+    }
+    if (bulkEditButton) {
+      bulkEditButton.disabled = selectedCount === 0;
+    }
+    if (bulkClearButton) {
+      bulkClearButton.disabled = selectedCount === 0;
+    }
+  }
+
+  async function openBulkEditor() {
+    const api = requireApi();
+    const view = requireView();
+    if (!bulkDialog || state.selectedNoteIds.size === 0) {
+      return;
+    }
+
+    setStatus("Loading bulk editor...");
+    try {
+      const result = await api.getJson("/api/notes/collections", { cache: "no-store" });
+      state.bulkCollections = normalizeCollections(readEnvelopeMember(result, "collections"));
+      requireNotesValue(bulkLibraryInput).value = "";
+      requireNotesValue(bulkTypeInput).value = "";
+      requireNotesValue(bulkTagActionInput).value = "";
+      populateBulkVisibilityOptions();
+      populateBulkCollectionOptions();
+      await mountBulkTagPicker();
+      setBulkFormStatus(`${state.selectedNoteIds.size} notes selected.`);
+      requireNotesValue(bulkApplyButton).disabled = false;
+      view.showModal(bulkDialog, { trigger: bulkEditButton });
+      requireNotesValue(bulkLibraryInput).focus();
+      setStatus("");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Notes bulk editor could not be opened."), true);
+    }
+  }
+
+  function closeBulkEditor() {
+    const view = requireView();
+    view.closeModal(bulkDialog);
+  }
+
+  function populateBulkCollectionOptions() {
+    if (!bulkCollectionInput) {
+      return;
+    }
+
+    const selectedLibrary = bulkLibraryInput?.value || "";
+    const previousValue = bulkCollectionInput.value || "";
+    const collections = state.bulkCollections
+      .filter((collection) => !selectedLibrary || collection.library_bucket === selectedLibrary)
+      .map((collection) => [
+        collection.note_library_collection_id,
+        selectedLibrary
+          ? collection.path_cache || collection.title || "Collection"
+          : `${libraryLabel(collection.library_bucket)}: ${collection.path_cache || collection.title || "Collection"}`,
+      ]);
+    const options = [
+      ["", "No change"],
+      [NOTE_BULK_COLLECTION_UNCATEGORIZED, "Uncategorized"],
+      ...collections,
+    ];
+    bulkCollectionInput.replaceChildren(...options.map(([value, label]) => notesOptionElement(value, label)));
+    bulkCollectionInput.value = options.some(([value]) => value === previousValue) ? previousValue : "";
+  }
+
+  function populateBulkVisibilityOptions() {
+    if (!bulkVisibilityInput) {
+      return;
+    }
+    bulkVisibilityInput.replaceChildren(
+      notesOptionElement("", "No change"),
+      ...workspaceVisibilityOptions().map(([value, label]) => notesOptionElement(value, label)),
+    );
+    bulkVisibilityInput.value = "";
+  }
+
+  async function mountBulkTagPicker() {
+    if (!bulkTagsEditor) {
+      state.bulkTagPicker = null;
+      return;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.mountPicker) {
+      state.bulkTagPicker = null;
+      return;
+    }
+
+    state.bulkTagPicker = await tagSurface.mountPicker(bulkTagsEditor, {
+      allowCreate: false,
+      label: "Tags",
+      placeholder: "Type to search tags",
+      tags: state.availableTags,
+    });
+  }
+
+  /** @param {Event} event */
+  async function applyBulkEdit(event) {
+    const api = requireApi();
+    event.preventDefault();
+    if (state.selectedNoteIds.size === 0) {
+      setBulkFormStatus("Select at least one note to update.", true);
+      return;
+    }
+
+    const targetIds = [...state.selectedNoteIds];
+    const changes = readBulkNoteChanges();
+    const tagAction = bulkTagActionInput?.value || "";
+    const tagIds = state.bulkTagPicker?.readTagIds?.() || [];
+    if (tagAction && tagIds.length === 0) {
+      setBulkFormStatus("Choose at least one tag for the selected tag action.", true);
+      return;
+    }
+    if (!tagAction && tagIds.length > 0) {
+      setBulkFormStatus("Choose a tag action for the selected tags.", true);
+      return;
+    }
+    if (Object.keys(changes).length === 0 && !tagAction) {
+      setBulkFormStatus("Choose at least one field to update.", true);
+      return;
+    }
+
+    requireNotesValue(bulkApplyButton).disabled = true;
+    setBulkFormStatus("Updating notes...");
+    try {
+      const results = [];
+      if (Object.keys(changes).length > 0) {
+        results.push(await api.postJson("/api/notes/bulk", {
+          noteIds: targetIds,
+          changes,
+        }));
+      }
+      if (tagAction) {
+        results.push(await api.postJson("/api/tags/bulk-assignments", {
+          action: tagAction,
+          tagIds,
+          targetIds,
+          targetType: "note",
+        }));
+      }
+
+      const failures = results.flatMap((result) => requireErrors().readBulkFailures(result));
+      const updatedNoteIds = new Set(results.flatMap((result) => bulkChangedIds(result)));
+      const failedNoteIds = new Set(failures
+        .map((failure) => failure.note_id || failure.target_id)
+        .filter(/** @returns {noteId is string} */ (noteId) => Boolean(noteId)));
+      state.selectedNoteIds = failedNoteIds;
+      if (isNotesWorkspaceSurface) {
+        await Promise.all([loadCollections(), loadNotes()]);
+        renderCollections();
+        renderNotes();
+        await refreshSelectedNoteAfterBulk(updatedNoteIds);
+      }
+
+      const fullyUpdatedCount = targetIds.filter((noteId) => !failedNoteIds.has(noteId)).length;
+      if (fullyUpdatedCount > 0) {
+        closeBulkEditor();
+        setStatus(failedNoteIds.size > 0
+          ? `Updated ${fullyUpdatedCount} notes; ${failedNoteIds.size} could not be fully updated.`
+          : `Updated ${fullyUpdatedCount} notes.`);
+        return;
+      }
+
+      const firstError = failures[0];
+      setBulkFormStatus(firstError?.message || "Selected notes could not be updated.", true);
+      requireNotesValue(bulkApplyButton).disabled = false;
+    } catch (error) {
+      setBulkFormStatus(requireErrors().caughtMessage(error, "Selected notes could not be updated."), true);
+      requireNotesValue(bulkApplyButton).disabled = false;
+    }
+  }
+
+  /**
+   * Only select-control values establish these optional writes. No state-derived record or
+   * inferred enum is promised; null is the explicit Uncategorized sentinel conversion.
+   * @typedef {{libraryBucket?: string, noteCollectionId?: string | null, noteType?: string, visibility?: string}} NotesBulkChanges
+   * @returns {NotesBulkChanges}
+   */
+  function readBulkNoteChanges() {
+    /** @type {NotesBulkChanges} */
+    const changes = {};
+    if (bulkLibraryInput?.value) {
+      changes.libraryBucket = bulkLibraryInput.value;
+    }
+    if (bulkCollectionInput?.value === NOTE_BULK_COLLECTION_UNCATEGORIZED) {
+      changes.noteCollectionId = null;
+    } else if (bulkCollectionInput?.value) {
+      changes.noteCollectionId = bulkCollectionInput.value;
+    }
+    if (bulkTypeInput?.value) {
+      changes.noteType = bulkTypeInput.value;
+    }
+    if (bulkVisibilityInput?.value) {
+      changes.visibility = bulkVisibilityInput.value;
+    }
+    return changes;
+  }
+
+  /**
+   * The bulk caller supplies normalized IDs; retain the existing local array compatibility.
+   * @param {Set<BrowserNoteRecord["note_id"]> | Array<string | {note_id?: BrowserNoteRecord["note_id"], target_id?: string}>} updatedNoteIds
+   */
+  async function refreshSelectedNoteAfterBulk(updatedNoteIds = []) {
+    const api = requireApi();
+    const selectedId = state.selectedNote?.note_id || "";
+    const updatedIds = updatedNoteIds instanceof Set
+      ? updatedNoteIds
+      : new Set((updatedNoteIds || []).map((note) => typeof note === "string" ? note : note?.note_id || note?.target_id).filter(Boolean));
+    if (!selectedId || !updatedIds.has(selectedId)) {
+      return;
+    }
+    const result = await api.getJson(`/api/notes/${encodeURIComponent(selectedId)}`, { cache: "no-store" });
+    const note = requireNoteFromEnvelope(result);
+    state.selectedNote = note;
+    renderDetail(note);
+  }
+
+  /** @param {string} message */
+  function setBulkFormStatus(message, isError = false) {
+    if (!bulkFormStatus) {
+      return;
+    }
+    bulkFormStatus.textContent = message;
+    bulkFormStatus.classList.toggle("error-text", isError);
+  }
+
+  /**
+   * mutateNote consumes false to distinguish a completed write from a failed refresh.
+   * Other callers await completion or ignore it; acquisition still precedes the catch.
+   * @param {string} noteId
+   * @returns {Promise<boolean>}
+   */
+  async function selectNote(noteId) {
+    const api = requireApi();
+    setStatus("Loading note...");
+
+    try {
+      const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+      const note = requireNoteFromEnvelope(result);
+      state.selectedNote = note;
+      renderDetail(note);
+      renderNotes();
+      closeNotesSlideOutDrawer();
+      updateUrl(noteId);
+      setStatus("");
+      return true;
+    } catch (error) {
+      const message = safeNoteErrorMessage(error, "Note could not be loaded.");
+      renderDetailPrompt(message, { locked: isSecureError(error) });
+      setStatus(message, true);
+      return false;
+    }
+  }
+
+  function closeNotesSlideOutDrawer() {
+    const trigger = document.querySelector("[data-view-slideout-sidebar-trigger]");
+    if (trigger instanceof HTMLElement && trigger?.getAttribute("aria-expanded") === "true") {
+      trigger.click();
+    }
+  }
+
+  /** @param {BrowserNoteRecord} note */
+  function renderDetail(note) {
+    const view = requireView();
+    const title = view.createElement("h2", { text: note.title || "Untitled note" });
+    const titleRow = view.createElement("div", { className: "notes-detail-title-row", children: [title, createNoteActionStrip(note)] });
+    const titleRule = view.createElement("hr", { className: "notes-detail-rule" });
+    const meta = view.createElement("p", { className: "notes-detail-meta", children: detailMetaItems(note) });
+    const header = view.createElement("header", { className: "notes-detail-header", children: [titleRow, titleRule, meta] });
+    const tagsRule = view.createElement("hr", { className: "notes-detail-rule" });
+    const collectionBreadcrumb = view.createElement("p", {
+      className: "notes-collection-breadcrumb",
+      text: `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`,
+    });
+    const links = renderLinksPanel(note);
+    const files = renderFilesPanel(note);
+    const revisions = renderRevisionsPanel(note);
+
+    if (isSecureNote(note)) {
+      header.append(view.createElement("p", {
+        className: "notes-secure-warning",
+        text: note.secure_title_warning || "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.",
+      }));
+    }
+
+    const body = view.createElement("div", { className: "notes-rendered-body" });
+    body.innerHTML = note.body_html || "";
+    applyExternalMarkdownLinkPreference(body);
+    if (!body.textContent.trim() && !note.body_html) {
+      body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
+    }
+
+    const tags = view.createElement("div", { className: "notes-detail-tags", children: [tagChips(note.tags || [])] });
+
+    // Client/Project/Task/User context lives in the Linked Context panel; the metadata row carries all
+    // note-level metadata (incl. Created/Updated/Owner) so it is not duplicated here.
+    requireNotesValue(detailPanel).replaceChildren(...[header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions]
+      .filter((node) => node !== null && node !== undefined));
+    mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
+    loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
+  }
+
+  /** @param {unknown} message @param {{locked?: boolean, sidebarHint?: boolean}} [options] */
+  function renderDetailPrompt(message, options = {}) {
+    const prompt = document.createElement("p");
+
+    prompt.className = options.locked ? "notes-empty-state notes-locked-state" : "notes-empty-state";
+    if (options.sidebarHint) {
+      prompt.classList.add("notes-empty-state--sidebar-hint");
+      prompt.append("Open the ", inlineFilterIcon(), " sidebar and select a note to view here.");
+    } else {
+      prompt.textContent = typeof message === "string" ? message : "Note details could not be displayed.";
+    }
+    requireNotesValue(detailPanel).replaceChildren(prompt);
+  }
+
+  function renderBlankDetailPrompt() {
+    renderDetailPrompt("", { sidebarHint: true });
+  }
+
+  function inlineFilterIcon() {
+    const icon = document.createElement("span");
+    icon.className = "notes-empty-state-icon";
+    icon.setAttribute("aria-hidden", "true");
+
+    try {
+      icon.appendChild(window.LongtailForge?.icons?.createIcon("filter", { size: 16 }) || document.createTextNode(""));
+    } catch {
+      icon.textContent = "";
+    }
+
+    return icon;
+  }
+
+  /**
+   * @param {NotesEditorNote | null} [note]
+   * @param {NotesEditorOptions} [options]
+   * @returns {Promise<string>}
+   */
+  async function openEditor(note = null, options = {}) {
+    note = await hydrateEditorNote(note);
+    const view = requireView();
+    const defaults = options.defaults || {};
+    state.editingNoteId = note?.note_id || "";
+    state.editorHostContext = options.hostContext || null;
+    state.editorHostContextSettled = false;
+    state.editorNote = note;
+    state.editorSelectedTarget = null;
+    state.editorStagedTargets = [];
+    state.libraryManuallyChanged = false;
+    requireNotesValue(dialogTitle).textContent = note ? "Edit Note" : "Create Note";
+    requireNotesValue(titleInput).value = note?.title || defaults.title || "";
+    requireNotesValue(libraryInput).value = note?.library_bucket || defaults.library_bucket || defaultLibraryForCreate();
+    populateNoteCollectionOptions(note?.library_bucket || requireNotesValue(libraryInput).value);
+    requireNotesValue(collectionInput).value = note?.note_collection_id || defaults.note_collection_id || "";
+    if (requireNotesValue(collectionInput).value && ![...requireNotesValue(collectionInput).options].some((option) => option.value === requireNotesValue(collectionInput).value)) {
+      requireNotesValue(collectionInput).value = "";
+    }
+    resetLegacyNoteKindOptions();
+    ensureNoteKindOption(note?.note_type);
+    requireNotesValue(typeInput).value = note?.note_type || defaults.note_type || "general";
+    populateWorkspaceVisibilityOptions(note?.visibility || defaults.visibility || "internal");
+    requireNotesValue(securityInput).value = note?.security_mode || defaults.security_mode || "normal";
+    requireNotesValue(securityInput).disabled = Boolean(note);
+    updateSecureUiState();
+    const selectedClientId = note?.client_id || defaults.client_id || "";
+    const selectedProjectId = note?.project_id || defaults.project_id || "";
+    requireNotesValue(clientInput).value = selectedClientId;
+    requireNotesValue(projectInput).value = selectedProjectId;
+    requireNotesValue(taskInput).value = note?.task_id || "";
+    requireNotesValue(userInput).value = note?.linked_user_id || "";
+    state.editorContextSummaries = note?.linked_context || {};
+    await loadPrimaryContextOptions({
+      clientId: selectedClientId,
+      projectId: selectedProjectId,
+    });
+    editor?.setValue(note?.body_markdown || defaults.body_markdown || "");
+    requireNotesValue(bodyInput).value = note?.body_markdown || defaults.body_markdown || "";
+    requireNotesValue(preview).hidden = true;
+    requireNotesValue(previewToggle).setAttribute("aria-pressed", "false");
+    updatePreviewLayoutState(false);
+    requireNotesValue(formStatus).textContent = "";
+    requireNotesValue(saveButton).disabled = false;
+    requireNotesValue(saveCloseButton).disabled = false;
+    if (copyLinkButton) {
+      copyLinkButton.hidden = !note?.note_id;
+      copyLinkButton.disabled = !note?.note_id;
+    }
+    await writeNoteNotificationFollowFields(note);
+    resetNoteEditorPanels();
+    if (detailsGroup) {
+      detailsGroup.open = !note;
+    }
+    await mountTagEditor(note);
+    mountNoteEditorFiles(note);
+    renderEditorContextSelection();
+    await loadEditorLinkTargets();
+    updateLibrarySuggestion();
+    const openDialog = dialog;
+    /** @type {Promise<string>} */
+    const closeResult = new Promise((resolve) => {
+      openDialog?.addEventListener("close", () => resolve(openDialog.returnValue || "closed"), { once: true });
+    });
+    view.showModal(dialog, { trigger: options.trigger || options.hostContext?.trigger || null });
+    requireNotesValue(titleInput).focus();
+    return closeResult;
+  }
+
+  /**
+   * @param {NotesEditorNote | null} [note]
+   * @returns {Promise<NotesEditorNote | null>}
+   */
+  async function hydrateEditorNote(note = null) {
+    const api = requireApi();
+    const noteId = note?.note_id || "";
+    if (!noteId) {
+      return note;
+    }
+
+    try {
+      const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+      const hydrated = requireNoteFromEnvelope(result);
+      if (state.selectedNote?.note_id === noteId) {
+        state.selectedNote = hydrated;
+        renderDetail(hydrated);
+      }
+      return hydrated;
+    } catch {
+      return note;
+    }
+  }
+
+  function updateSecureWarning() {
+    if (!secureWarning) {
+      return;
+    }
+
+    secureWarning.hidden = !isSecureEditorMode();
+  }
+
+  function updateSecureUiState() {
+    const secureMode = isSecureEditorMode();
+
+    updateSecureWarning();
+    updateSecureVisibilityOptions(secureMode);
+    updateFilesUtilityState();
+  }
+
+  /**
+   * @param {boolean} [secureMode]
+   */
+  function updateSecureVisibilityOptions(secureMode = false) {
+    if (!visibilityInput) {
+      return;
+    }
+
+    const clientVisibleOption = [...visibilityInput.options].find((option) => option.value === "client_visible");
+    if (!clientVisibleOption) {
+      if (visibilityInput.value === "client_visible") {
+        visibilityInput.value = "internal";
+      }
+      return;
+    }
+
+    clientVisibleOption.disabled = secureMode;
+    clientVisibleOption.hidden = secureMode;
+    if (secureMode && visibilityInput.value === "client_visible") {
       visibilityInput.value = "internal";
     }
-    return;
   }
 
-  clientVisibleOption.disabled = secureMode;
-  clientVisibleOption.hidden = secureMode;
-  if (secureMode && visibilityInput.value === "client_visible") {
-    visibilityInput.value = "internal";
+  /**
+   * @param {string} [selectedValue]
+   */
+  function populateWorkspaceVisibilityOptions(selectedValue = visibilityInput?.value || "internal") {
+    if (!visibilityInput) {
+      return;
+    }
+
+    const options = workspaceVisibilityOptions();
+    visibilityInput.replaceChildren(...options.map(([value, label]) => notesOptionElement(value, label)));
+    visibilityInput.value = options.some(([value]) => value === selectedValue) ? selectedValue : "internal";
+    updateSecureVisibilityOptions(isSecureEditorMode());
   }
-}
 
-function populateWorkspaceVisibilityOptions(selectedValue = visibilityInput?.value || "internal") {
-  if (!visibilityInput) {
-    return;
+  /**
+   * Notes-owned manifest visibility entries are string value/label pairs; the
+   * workspace projection only filters them and preserves trailing option metadata.
+   * @returns {Array<[string, string, ...unknown[]]>}
+   */
+  function workspaceVisibilityOptions() {
+    if (normalizeWorkspaceType(state.workspaceType) === "personal") {
+      return [];
+    }
+    return modalFieldOptions(notesEditorModalDescriptor(), "visibility")
+      .filter(([value]) => value !== "client_visible" || usesBusinessScope());
   }
 
-  const options = workspaceVisibilityOptions();
-  visibilityInput.replaceChildren(...options.map(([value, label]) => notesOptionElement(value, label)));
-  visibilityInput.value = options.some(([value]) => value === selectedValue) ? selectedValue : "internal";
-  updateSecureVisibilityOptions(isSecureEditorMode());
-}
-
-function workspaceVisibilityOptions() {
-  if (normalizeWorkspaceType(state.workspaceType) === "personal") {
-    return [];
+  /**
+   * @param {{cancelHost?: boolean, returnValue?: string}} [options]
+   */
+  function closeEditor(options = {}) {
+    const view = requireView();
+    if (options.cancelHost) {
+      cancelNoteEditorHostContext({
+        actionId: state.editingNoteId ? "notes.edit" : "notes.add",
+        recordId: state.editingNoteId || "",
+      });
+    }
+    state.editorNote = null;
+    state.editorSelectedTarget = null;
+    state.editorStagedTargets = [];
+    state.filesDialogNoteId = "";
+    state.tagsDialogNoteId = "";
+    if (copyLinkButton) {
+      copyLinkButton.hidden = true;
+      copyLinkButton.disabled = true;
+    }
+    resetNoteNotificationFollowFields();
+    view.closeModal(dialog, options.returnValue || "");
   }
-  return modalFieldOptions(notesEditorModalDescriptor(), "visibility")
-    .filter(([value]) => value !== "client_visible" || usesBusinessScope());
-}
 
-function closeEditor(options = {}) {
-  if (options.cancelHost) {
+  function cancelEditor() {
+    closeEditor({ cancelHost: true, returnValue: "cancel" });
+  }
+
+  function handleEditorDialogClose() {
     cancelNoteEditorHostContext({
       actionId: state.editingNoteId ? "notes.edit" : "notes.add",
       recordId: state.editingNoteId || "",
     });
   }
-  state.editorNote = null;
-  state.editorSelectedTarget = null;
-  state.editorStagedTargets = [];
-  state.filesDialogNoteId = "";
-  state.tagsDialogNoteId = "";
-  if (copyLinkButton) {
-    copyLinkButton.hidden = true;
-    copyLinkButton.disabled = true;
-  }
-  resetNoteNotificationFollowFields();
-  view.closeModal(dialog, options.returnValue || "");
-}
 
-function cancelEditor() {
-  closeEditor({ cancelHost: true, returnValue: "cancel" });
-}
+  function completeNoteEditorHostContext(detail = {}) {
+    if (!state.editorHostContext || state.editorHostContextSettled) {
+      return;
+    }
 
-function handleEditorDialogClose() {
-  cancelNoteEditorHostContext({
-    actionId: state.editingNoteId ? "notes.edit" : "notes.add",
-    recordId: state.editingNoteId || "",
-  });
-}
-
-function completeNoteEditorHostContext(detail = {}) {
-  if (!state.editorHostContext || state.editorHostContextSettled) {
-    return;
+    state.editorHostContextSettled = true;
+    state.editorHostContext.complete?.(detail);
+    state.editorHostContext = null;
   }
 
-  state.editorHostContextSettled = true;
-  state.editorHostContext.complete?.(detail);
-  state.editorHostContext = null;
-}
+  function cancelNoteEditorHostContext(detail = {}) {
+    if (!state.editorHostContext || state.editorHostContextSettled) {
+      return;
+    }
 
-function cancelNoteEditorHostContext(detail = {}) {
-  if (!state.editorHostContext || state.editorHostContextSettled) {
-    return;
+    state.editorHostContextSettled = true;
+    state.editorHostContext.cancel?.(detail);
+    state.editorHostContext = null;
   }
 
-  state.editorHostContextSettled = true;
-  state.editorHostContext.cancel?.(detail);
-  state.editorHostContext = null;
-}
+  async function copyCurrentNoteLink() {
+    const noteId = state.editingNoteId || state.editorNote?.note_id || "";
+    if (!noteId) {
+      setEditorFormStatus("Save the note before copying a link.", true);
+      return;
+    }
 
-async function copyCurrentNoteLink() {
-  const noteId = state.editingNoteId || state.editorNote?.note_id || "";
-  if (!noteId) {
-    setEditorFormStatus("Save the note before copying a link.", true);
-    return;
+    const url = new window.URL("notes.html", window.location.href);
+    url.searchParams.set("note", noteId);
+
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setEditorFormStatus("Note link copied.");
+    } catch {
+      setEditorFormStatus(url.toString());
+    }
   }
 
-  const url = new window.URL("notes.html", window.location.href);
-  url.searchParams.set("note", noteId);
+  /** @param {NotesEditorNote | null} note */
+  async function writeNoteNotificationFollowFields(note) {
+    if (!notificationToggle) {
+      return;
+    }
 
-  try {
-    await navigator.clipboard.writeText(url.toString());
-    setEditorFormStatus("Note link copied.");
-  } catch {
-    setEditorFormStatus(url.toString());
-  }
-}
+    const noteId = note?.note_id || "";
+    const canEmitNotifications = !isSecureNote(note);
+    const subscriptions = window.LongtailForge?.notificationSubscriptions;
+    const canToggleNotifications = Boolean(noteId && canEmitNotifications && subscriptions?.noteTarget);
+    writeNoteNotificationFollowState(false);
+    notificationToggle.hidden = !canToggleNotifications;
+    notificationToggle.disabled = !canToggleNotifications;
 
-async function writeNoteNotificationFollowFields(note) {
-  if (!notificationToggle) {
-    return;
-  }
+    if (!subscriptions || !canToggleNotifications) {
+      notificationToggle.title = noteId ? "Note notifications unavailable" : "Save the note before following notifications";
+      notificationToggle.setAttribute("aria-label", notificationToggle.title);
+      return;
+    }
 
-  const noteId = note?.note_id || "";
-  const canEmitNotifications = !isSecureNote(note);
-  const subscriptions = window.LongtailForge?.notificationSubscriptions;
-  const canToggleNotifications = Boolean(noteId && canEmitNotifications && subscriptions?.noteTarget);
-  writeNoteNotificationFollowState(false);
-  notificationToggle.hidden = !canToggleNotifications;
-  notificationToggle.disabled = !canToggleNotifications;
-
-  if (!canToggleNotifications) {
-    notificationToggle.title = noteId ? "Note notifications unavailable" : "Save the note before following notifications";
-    notificationToggle.setAttribute("aria-label", notificationToggle.title);
-    return;
-  }
-
-  notificationToggle.disabled = true;
-  notificationToggle.title = "Checking notification follow state";
-  notificationToggle.setAttribute("aria-label", "Checking notification follow state");
-
-  try {
-    const result = await subscriptions.readStatus(subscriptions.noteTarget(noteId));
-    writeNoteNotificationFollowState(result.isFollowing === true);
-  } catch {
     notificationToggle.disabled = true;
-    notificationToggle.title = "Notification follow state unavailable";
-    notificationToggle.setAttribute("aria-label", "Notification follow state unavailable");
-  }
-}
+    notificationToggle.title = "Checking notification follow state";
+    notificationToggle.setAttribute("aria-label", "Checking notification follow state");
 
-async function toggleNoteNotificationFollow() {
-  const noteId = state.editingNoteId || state.editorNote?.note_id || "";
-  const subscriptions = window.LongtailForge?.notificationSubscriptions;
-  if (!noteId || !subscriptions?.noteTarget || !notificationToggle) {
-    return;
-  }
-
-  const isFollowing = notificationToggle.dataset.isFollowing === "true";
-  notificationToggle.disabled = true;
-  notificationToggle.title = isFollowing ? "Unfollowing note notifications" : "Following note notifications";
-  notificationToggle.setAttribute("aria-label", isFollowing ? "Unfollowing note notifications" : "Following note notifications");
-  setEditorFormStatus(isFollowing ? "Unfollowing note notifications..." : "Following note notifications...");
-
-  try {
-    const target = subscriptions.noteTarget(noteId);
-    const result = isFollowing
-      ? await subscriptions.unfollow(target)
-      : await subscriptions.follow(target);
-
-    writeNoteNotificationFollowState(result.isFollowing === true);
-    setEditorFormStatus(result.isFollowing ? "Note notifications followed." : "Note notifications unfollowed.");
-  } catch (error) {
-    writeNoteNotificationFollowState(isFollowing);
-    setEditorFormStatus(error.message || "Notification follow change failed.", true);
-  }
-}
-
-function writeNoteNotificationFollowState(isFollowing) {
-  if (!notificationToggle) {
-    return;
-  }
-
-  const label = isFollowing ? "Unfollow note notifications" : "Follow note notifications";
-  notificationToggle.dataset.isFollowing = String(isFollowing);
-  notificationToggle.classList.toggle("is-following", isFollowing);
-  notificationToggle.disabled = false;
-  notificationToggle.title = label;
-  notificationToggle.setAttribute("aria-label", label);
-  notificationToggle.setAttribute("aria-pressed", String(isFollowing));
-}
-
-function resetNoteNotificationFollowFields() {
-  if (!notificationToggle) {
-    return;
-  }
-
-  writeNoteNotificationFollowState(false);
-  notificationToggle.hidden = true;
-  notificationToggle.disabled = true;
-}
-
-function setEditorFormStatus(message, isError = false) {
-  if (!formStatus) {
-    setStatus(message, isError);
-    return;
-  }
-
-  formStatus.textContent = message;
-  formStatus.classList.toggle("error-text", isError);
-}
-
-async function saveNote(event) {
-  event.preventDefault();
-  const wasCreating = !state.editingNoteId;
-  try {
-    await saveNoteForm({ closeOnSuccess: !wasCreating });
-  } catch {
-    // saveNoteForm reports validation and route errors through the modal status.
-  }
-}
-
-async function saveAndCloseNote(event) {
-  event?.preventDefault();
-  try {
-    await saveNoteForm({ closeOnSuccess: true });
-  } catch {
-    // saveNoteForm reports validation and route errors through the modal status.
-  }
-}
-
-async function saveNoteForm({ closeOnSuccess = true } = {}) {
-  saveButton.disabled = true;
-  saveCloseButton.disabled = true;
-  setEditorFormStatus("Saving note...");
-  const wasEditing = Boolean(state.editingNoteId);
-
-  try {
-    const payload = readEditorPayload();
-    const result = state.editingNoteId
-      ? await api.putJson(`/api/notes/${encodeURIComponent(state.editingNoteId)}`, payload)
-      : await api.postJson("/api/notes", payload);
-    if (isNotesWorkspaceSurface) {
-      await Promise.all([loadCollections(), loadNotes()]);
-    } else {
-      await loadCollections();
+    try {
+      const result = await subscriptions.readStatus(subscriptions.noteTarget(noteId));
+      writeNoteNotificationFollowState(result.isFollowing === true);
+    } catch {
+      notificationToggle.disabled = true;
+      notificationToggle.title = "Notification follow state unavailable";
+      notificationToggle.setAttribute("aria-label", "Notification follow state unavailable");
     }
-    if (typeof state.editorHostContext?.refresh === "function") {
-      await state.editorHostContext.refresh(result);
+  }
+
+  async function toggleNoteNotificationFollow() {
+    const noteId = state.editingNoteId || state.editorNote?.note_id || "";
+    const subscriptions = window.LongtailForge?.notificationSubscriptions;
+    if (!noteId || !subscriptions?.noteTarget || !notificationToggle) {
+      return;
     }
-    if (!wasEditing) {
-      await transitionCreatedNoteToEdit(result.note);
+
+    const isFollowing = notificationToggle.dataset.isFollowing === "true";
+    notificationToggle.disabled = true;
+    notificationToggle.title = isFollowing ? "Unfollowing note notifications" : "Following note notifications";
+    notificationToggle.setAttribute("aria-label", isFollowing ? "Unfollowing note notifications" : "Following note notifications");
+    setEditorFormStatus(isFollowing ? "Unfollowing note notifications..." : "Following note notifications...");
+
+    try {
+      const target = subscriptions.noteTarget(noteId);
+      const result = isFollowing
+        ? await subscriptions.unfollow(target)
+        : await subscriptions.follow(target);
+
+      writeNoteNotificationFollowState(result.isFollowing === true);
+      setEditorFormStatus(result.isFollowing ? "Note notifications followed." : "Note notifications unfollowed.");
+    } catch (error) {
+      writeNoteNotificationFollowState(isFollowing);
+      setEditorFormStatus(requireErrors().caughtMessage(error, "Notification follow change failed."), true);
     }
-    if (isNotesWorkspaceSurface) {
-      state.selectedNote = result.note;
-      renderNotes();
-      renderDetail(result.note);
-      updateUrl(result.note.note_id);
+  }
+
+  /** @param {import("../../src/types/browser-contracts.js").BrowserNotificationSubscriptionResult["isFollowing"]} isFollowing */
+  function writeNoteNotificationFollowState(isFollowing) {
+    if (!notificationToggle) {
+      return;
     }
-    if (closeOnSuccess) {
-      completeNoteEditorHostContext({
-        actionId: wasEditing ? "notes.edit" : "notes.add",
-        recordId: result.note?.note_id || "",
-        title: result.note?.title || payload.title || "",
-      });
-      closeEditor({ returnValue: "complete" });
+
+    const label = isFollowing ? "Unfollow note notifications" : "Follow note notifications";
+    notificationToggle.dataset.isFollowing = String(isFollowing);
+    notificationToggle.classList.toggle("is-following", isFollowing);
+    notificationToggle.disabled = false;
+    notificationToggle.title = label;
+    notificationToggle.setAttribute("aria-label", label);
+    notificationToggle.setAttribute("aria-pressed", String(isFollowing));
+  }
+
+  function resetNoteNotificationFollowFields() {
+    if (!notificationToggle) {
+      return;
+    }
+
+    writeNoteNotificationFollowState(false);
+    notificationToggle.hidden = true;
+    notificationToggle.disabled = true;
+  }
+
+  /** @param {string} message */
+  function setEditorFormStatus(message, isError = false) {
+    if (!formStatus) {
+      setStatus(message, isError);
+      return;
+    }
+
+    formStatus.textContent = message;
+    formStatus.classList.toggle("error-text", isError);
+  }
+
+  /** @param {Event} event @returns {Promise<void>} */
+  async function saveNote(event) {
+    event.preventDefault();
+    const wasCreating = !state.editingNoteId;
+    try {
+      await saveNoteForm({ closeOnSuccess: !wasCreating });
+    } catch {
+      // saveNoteForm reports validation and route errors through the modal status.
+    }
+  }
+
+  /** @param {Event | null} [event] */
+  async function saveAndCloseNote(event) {
+    event?.preventDefault();
+    try {
+      await saveNoteForm({ closeOnSuccess: true });
+    } catch {
+      // saveNoteForm reports validation and route errors through the modal status.
+    }
+  }
+
+  async function saveNoteForm({ closeOnSuccess = true } = {}) {
+    const api = requireApi();
+    requireNotesValue(saveButton).disabled = true;
+    requireNotesValue(saveCloseButton).disabled = true;
+    setEditorFormStatus("Saving note...");
+    const wasEditing = Boolean(state.editingNoteId);
+
+    try {
+      const payload = readEditorPayload();
+      const result = state.editingNoteId
+        ? await api.putJson(`/api/notes/${encodeURIComponent(state.editingNoteId)}`, payload)
+        : await api.postJson("/api/notes", payload);
       if (isNotesWorkspaceSurface) {
-        await selectNote(result.note.note_id);
+        await Promise.all([loadCollections(), loadNotes()]);
+      } else {
+        await loadCollections();
       }
-      setEditorFormStatus("");
+      if (typeof state.editorHostContext?.refresh === "function") {
+        await state.editorHostContext.refresh(result);
+      }
+      const savedNote = requireNoteFromEnvelope(result);
+      if (!wasEditing) {
+        await transitionCreatedNoteToEdit(savedNote);
+      }
+      if (isNotesWorkspaceSurface) {
+        state.selectedNote = savedNote;
+        renderNotes();
+        renderDetail(savedNote);
+        updateUrl(savedNote.note_id);
+      }
+      if (closeOnSuccess) {
+        completeNoteEditorHostContext({
+          actionId: wasEditing ? "notes.edit" : "notes.add",
+          recordId: savedNote.note_id,
+          title: savedNote.title || payload.title || "",
+        });
+        closeEditor({ returnValue: "complete" });
+        if (isNotesWorkspaceSurface) {
+          await selectNote(savedNote.note_id);
+        }
+        setEditorFormStatus("");
+        return result;
+      }
+      if (!wasEditing) {
+        setEditorFormStatus("Note saved. Continue editing or choose Save & Close.");
+      } else {
+        setEditorFormStatus("Note saved.");
+      }
+      requireNotesValue(saveButton).disabled = false;
+      requireNotesValue(saveCloseButton).disabled = false;
       return result;
+    } catch (error) {
+      setEditorFormStatus(safeNoteErrorMessage(error, "Note could not be saved."), true);
+      requireNotesValue(saveButton).disabled = false;
+      requireNotesValue(saveCloseButton).disabled = false;
+      throw error;
     }
-    if (!wasEditing) {
-      setEditorFormStatus("Note saved. Continue editing or choose Save & Close.");
-    } else {
-      setEditorFormStatus("Note saved.");
+  }
+
+  /** @param {BrowserNoteRecord | null} [note] */
+  async function transitionCreatedNoteToEdit(note) {
+    if (!note?.note_id) {
+      return;
     }
-    saveButton.disabled = false;
-    saveCloseButton.disabled = false;
-    return result;
-  } catch (error) {
-    setEditorFormStatus(safeNoteErrorMessage(error, "Note could not be saved."), true);
-    saveButton.disabled = false;
-    saveCloseButton.disabled = false;
-    throw error;
-  }
-}
 
-async function transitionCreatedNoteToEdit(note) {
-  if (!note?.note_id) {
-    return;
-  }
-
-  state.editingNoteId = note.note_id;
-  state.editorNote = note;
-  state.editorContextSummaries = note.linked_context || state.editorContextSummaries;
-  state.editorStagedTargets = [];
-  dialogTitle.textContent = "Edit Note";
-  securityInput.disabled = true;
-  if (copyLinkButton) {
-    copyLinkButton.hidden = false;
-    copyLinkButton.disabled = false;
-  }
-  await writeNoteNotificationFollowFields(note);
-  await mountTagEditor(note);
-  mountNoteEditorFiles(note);
-  renderEditorContextSelection();
-}
-
-function readEditorPayload() {
-  return {
-    title: titleInput.value,
-    body_markdown: editor?.getValue() || bodyInput.value,
-    library_bucket: libraryInput.value,
-    noteCollectionId: collectionInput.value || null,
-    note_type: typeInput.value,
-    ...(normalizeWorkspaceType(state.workspaceType) === "personal" ? {} : { visibility: readEditorVisibility() }),
-    security_mode: securityInput.value,
-    tagIds: state.tagPicker?.readTagIds?.() || [],
-    client_id: usesBusinessScope() ? normalizeText(clientInput.value) || null : null,
-    project_id: normalizeText(projectInput.value) || null,
-    task_id: null,
-    linked_user_id: normalizeText(userInput.value) || null,
-    links: !state.editingNoteId ? stagedLinkPayloads() : [],
-  };
-}
-
-function readEditorVisibility() {
-  return !usesBusinessScope() && visibilityInput?.value === "client_visible"
-    ? "internal"
-    : visibilityInput?.value || "internal";
-}
-
-async function loadPrimaryContextOptions(selected = {}) {
-  updatePrimaryContextVisibility();
-  const selectedProjectId = selected.projectId || projectInput?.value || "";
-  const selectedClientId = selected.clientId || clientInput?.value || "";
-
-  if (clientInput) {
-    clientInput.disabled = true;
-  }
-  if (projectInput) {
-    projectInput.disabled = true;
+    state.editingNoteId = note.note_id;
+    state.editorNote = note;
+    state.editorContextSummaries = note.linked_context || state.editorContextSummaries;
+    state.editorStagedTargets = [];
+    requireNotesValue(dialogTitle).textContent = "Edit Note";
+    requireNotesValue(securityInput).disabled = true;
+    if (copyLinkButton) {
+      copyLinkButton.hidden = false;
+      copyLinkButton.disabled = false;
+    }
+    await writeNoteNotificationFollowFields(note);
+    await mountTagEditor(note);
+    mountNoteEditorFiles(note);
+    renderEditorContextSelection();
   }
 
-  try {
-    const [clients, projects] = await Promise.all([
-      usesBusinessScope() ? fetchLinkTargets({ targetType: "client", limit: 50 }) : Promise.resolve([]),
-      fetchLinkTargets({ targetType: "project", limit: 50 }),
-    ]);
-    state.primaryContextClients = clients.filter(isActivePrimaryClientTarget);
-    state.primaryContextProjects = projects;
-    populateLinkClientContextSelect();
+  function readEditorPayload() {
+    return {
+      title: requireNotesValue(titleInput).value,
+      body_markdown: editor?.getValue() || requireNotesValue(bodyInput).value,
+      library_bucket: requireNotesValue(libraryInput).value,
+      noteCollectionId: requireNotesValue(collectionInput).value || null,
+      note_type: requireNotesValue(typeInput).value,
+      ...(normalizeWorkspaceType(state.workspaceType) === "personal" ? {} : { visibility: readEditorVisibility() }),
+      security_mode: requireNotesValue(securityInput).value,
+      tagIds: state.tagPicker?.readTagIds?.() || [],
+      client_id: usesBusinessScope() ? normalizeText(requireNotesValue(clientInput).value) || null : null,
+      project_id: normalizeText(requireNotesValue(projectInput).value) || null,
+      task_id: null,
+      linked_user_id: normalizeText(requireNotesValue(userInput).value) || null,
+      links: !state.editingNoteId ? stagedLinkPayloads() : [],
+    };
+  }
 
-    const selectedProject = findPrimaryContextProject(selectedProjectId) || primaryContextSummaryForSelection("project", selectedProjectId);
-    const derivedClientId = usesBusinessScope() ? selectedProject?.clientId || selectedClientId || "" : "";
-    populatePrimaryClientOptions(derivedClientId);
-    populatePrimaryProjectOptions(selectedProjectId);
-  } catch {
-    state.primaryContextClients = [];
-    state.primaryContextProjects = [];
-    populateLinkClientContextSelect();
-    populatePrimaryClientOptions("");
-    populatePrimaryProjectOptions("");
-  } finally {
+  function readEditorVisibility() {
+    return !usesBusinessScope() && visibilityInput?.value === "client_visible"
+      ? "internal"
+      : visibilityInput?.value || "internal";
+  }
+
+  /** @param {Pick<NotesLinkTargetInput, "clientId" | "projectId">} [selected] */
+  async function loadPrimaryContextOptions(selected = {}) {
+    updatePrimaryContextVisibility();
+    const selectedProjectId = selected.projectId || projectInput?.value || "";
+    const selectedClientId = selected.clientId || clientInput?.value || "";
+
     if (clientInput) {
-      clientInput.disabled = !usesBusinessScope();
+      clientInput.disabled = true;
     }
     if (projectInput) {
-      projectInput.disabled = false;
+      projectInput.disabled = true;
     }
-  }
-}
 
-function updatePrimaryContextVisibility() {
-  const clientAvailable = usesBusinessScope();
-  if (primaryClientField) {
-    primaryClientField.hidden = !clientAvailable;
-    primaryClientField.style.display = clientAvailable ? "" : "none";
-  }
-  if (primaryProjectField) {
-    primaryProjectField.hidden = false;
-  }
-  if (clientInput) {
-    clientInput.disabled = !clientAvailable;
-  }
-  if (!clientAvailable && clientInput) {
-    clientInput.value = "";
-  }
-}
+    try {
+      const [clients, projects] = await Promise.all([
+        usesBusinessScope() ? fetchLinkTargets({ targetType: "client", limit: 50 }) : Promise.resolve([]),
+        fetchLinkTargets({ targetType: "project", limit: 50 }),
+      ]);
+      state.primaryContextClients = clients.filter(isActivePrimaryClientTarget);
+      state.primaryContextProjects = projects;
+      populateLinkClientContextSelect();
 
-function populatePrimaryClientOptions(selectedClientId = clientInput?.value || "") {
-  if (!clientInput) {
-    return;
-  }
-
-  const options = [new window.Option("No client", "")];
-  state.primaryContextClients.forEach((client) => {
-    options.push(new window.Option(primaryClientOptionLabel(client), client.clientId || client.targetId || ""));
-  });
-  if (usesBusinessScope() && selectedClientId && !optionListHasValue(options, selectedClientId)) {
-    options.push(primaryClientFallbackOption(selectedClientId));
-  }
-  clientInput.replaceChildren(...options);
-  clientInput.value = usesBusinessScope() && options.some((option) => option.value === selectedClientId) ? selectedClientId : "";
-}
-
-function populatePrimaryProjectOptions(selectedProjectId = projectInput?.value || "") {
-  if (!projectInput) {
-    return;
-  }
-
-  const selectedClientId = usesBusinessScope() ? clientInput?.value || "" : "";
-  const projects = state.primaryContextProjects
-    .filter((project) => !selectedClientId || project.clientId === selectedClientId);
-  const options = [
-    new window.Option("No project", ""),
-    ...projects.map((project) => new window.Option(primaryProjectOptionLabel(project), project.projectId || project.targetId || "")),
-  ];
-  if (selectedProjectId && !optionListHasValue(options, selectedProjectId)) {
-    options.push(primaryProjectFallbackOption(selectedProjectId));
-  }
-
-  projectInput.replaceChildren(...options);
-  projectInput.value = options.some((option) => option.value === selectedProjectId) ? selectedProjectId : "";
-}
-
-function optionListHasValue(options = [], value = "") {
-  return options.some((option) => option.value === value);
-}
-
-function primaryClientFallbackOption(selectedClientId = "") {
-  const summary = primaryContextSummaryForSelection("client", selectedClientId);
-  const option = new window.Option(summary.label ? primaryClientOptionLabel(summary) : unavailableTargetLabel("client"), selectedClientId);
-  const status = normalizeText(summary.status).toLowerCase();
-
-  option.dataset.primaryContextFallback = "";
-  option.disabled = Boolean(status && status !== "active");
-  return option;
-}
-
-function primaryProjectFallbackOption(selectedProjectId = "") {
-  const summary = primaryContextSummaryForSelection("project", selectedProjectId);
-  const option = new window.Option(summary.label
-    ? primaryProjectOptionLabel({ ...summary, projectId: selectedProjectId, targetId: selectedProjectId })
-    : unavailableTargetLabel("project"), selectedProjectId);
-
-  option.dataset.primaryContextFallback = "";
-  return option;
-}
-
-function primaryContextSummaryForSelection(targetType, selectedId = "") {
-  const summary = state.editorContextSummaries?.[targetType] || {};
-
-  if (!summary || typeof summary !== "object") {
-    return {};
-  }
-
-  const summaryIds = [
-    summary.targetId,
-    summary.target_id,
-    targetType === "client" ? summary.clientId : summary.projectId,
-    targetType === "client" ? summary.client_id : summary.project_id,
-  ].filter(Boolean);
-
-  return !selectedId || summaryIds.length === 0 || summaryIds.includes(selectedId) ? summary : {};
-}
-
-function handlePrimaryClientChange() {
-  if (!usesBusinessScope() && clientInput) {
-    clientInput.value = "";
-  }
-  if (projectInput) {
-    projectInput.value = "";
-  }
-  populatePrimaryProjectOptions("");
-  renderEditorContextPanel();
-  updateLibrarySuggestion();
-}
-
-function handlePrimaryProjectChange() {
-  const project = findPrimaryContextProject(projectInput?.value || "");
-
-  if (usesBusinessScope() && clientInput) {
-    clientInput.value = project?.clientId || "";
-    populatePrimaryProjectOptions(projectInput?.value || "");
-  }
-  renderEditorContextPanel();
-  updateLibrarySuggestion();
-}
-
-function findPrimaryContextProject(projectId) {
-  return state.primaryContextProjects.find((project) => (project.projectId || project.targetId || "") === projectId) || null;
-}
-
-function primaryClientOptionLabel(client = {}) {
-  return providerDisplayLabel(client.displayLabel, client.display_label) ||
-    normalizeText(client.label) ||
-    unavailableTargetLabel("client");
-}
-
-function isActivePrimaryClientTarget(client = {}) {
-  return normalizeText(client.status).toLowerCase() === "active";
-}
-
-function primaryProjectOptionLabel(project = {}) {
-  const providerLabel = providerDisplayLabel(project.displayLabel, project.display_label);
-  if (providerLabel) {
-    return providerLabel;
-  }
-
-  const projectName = project.label || unavailableTargetLabel("project");
-  if (!usesBusinessScope()) {
-    return projectName;
-  }
-  const contextName = project.clientName || project.client_name || project.workspaceName || project.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName || "Workspace";
-  return `${projectName} - ${contextName}`;
-}
-
-function queueEditorLinkTargetSearch() {
-  window.clearTimeout(state.linkTargetSearchTimer);
-  state.linkTargetSearchTimer = window.setTimeout(() => loadEditorLinkTargets(), 180);
-}
-
-async function loadEditorLinkTargets() {
-  if (!contextResultsInput) {
-    return;
-  }
-
-  contextResultsInput.disabled = true;
-  replaceLinkTargetOptions([{ value: "", label: "Loading records...", disabled: true }]);
-
-  try {
-    const targets = await fetchLinkTargets({
-      ...readLinkTargetClientContext(),
-      targetType: contextTargetTypeInput?.value || defaultLinkTargetType(),
-      search: contextSearchInput?.value || "",
-      limit: 40,
-    });
-    state.linkTargets = targets;
-    populateLinkTargetSelect(contextResultsInput, targets);
-  } catch {
-    state.linkTargets = [];
-    replaceLinkTargetOptions([{ value: "", label: "No records available", disabled: true }]);
-  } finally {
-    contextResultsInput.disabled = false;
-  }
-}
-
-async function fetchLinkTargets({ targetType = "all", search = "", limit = 20, clientScope = LINK_CLIENT_CONTEXT_ALL, clientId = "" } = {}) {
-  const params = new URLSearchParams({
-    targetType,
-    limit: String(limit),
-  });
-
-  if (usesBusinessScope()) {
-    if (clientScope === LINK_CLIENT_CONTEXT_WORKSPACE) {
-      params.set("clientScope", LINK_CLIENT_CONTEXT_WORKSPACE);
-    } else if (clientScope === "client" && clientId) {
-      params.set("clientScope", "client");
-      params.set("clientId", clientId);
+      const selectedProject = findPrimaryContextProject(selectedProjectId) || primaryContextSummaryForSelection("project", selectedProjectId);
+      const derivedClientId = usesBusinessScope() ? selectedProject?.clientId || selectedClientId || "" : "";
+      populatePrimaryClientOptions(derivedClientId);
+      populatePrimaryProjectOptions(selectedProjectId);
+    } catch {
+      state.primaryContextClients = [];
+      state.primaryContextProjects = [];
+      populateLinkClientContextSelect();
+      populatePrimaryClientOptions("");
+      populatePrimaryProjectOptions("");
+    } finally {
+      if (clientInput) {
+        clientInput.disabled = !usesBusinessScope();
+      }
+      if (projectInput) {
+        projectInput.disabled = false;
+      }
     }
   }
 
-  if (search.trim()) {
-    params.set("q", search.trim());
+  function updatePrimaryContextVisibility() {
+    const clientAvailable = usesBusinessScope();
+    if (primaryClientField) {
+      primaryClientField.hidden = !clientAvailable;
+      primaryClientField.style.display = clientAvailable ? "" : "none";
+    }
+    if (primaryProjectField) {
+      primaryProjectField.hidden = false;
+    }
+    if (clientInput) {
+      clientInput.disabled = !clientAvailable;
+    }
+    if (!clientAvailable && clientInput) {
+      clientInput.value = "";
+    }
   }
 
-  const result = await api.getJson(`/api/notes/link-targets?${params.toString()}`, { cache: "no-store" });
-  return result.targets || [];
-}
-
-function populateLinkTargetSelect(select, targets = []) {
-  const records = targets.map((target) => ({
-    ...pickerRecordFromTarget(target),
-    selected: false,
-  }));
-  replaceLinkTargetOptions(records, select);
-
-  [...(select?.options || [])].forEach((option, index) => {
-    const target = targets[index];
-    if (!target) {
+  function populatePrimaryClientOptions(selectedClientId = clientInput?.value || "") {
+    if (!clientInput) {
       return;
     }
-    option.dataset.target = JSON.stringify(target);
-  });
-}
 
-function populateLinkTargetTypeSelect(select) {
-  if (!select) {
-    return;
-  }
-
-  const selectedValue = availableLinkTargetTypes().includes(select.value) ? select.value : defaultLinkTargetType();
-  const options = availableLinkTargetTypes().map((targetType) => {
-    const option = document.createElement("option");
-    option.value = targetType;
-    option.textContent = LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType);
-    return option;
-  });
-  select.replaceChildren(...options);
-  select.value = selectedValue;
-}
-
-function handleEditorLinkClientContextChange() {
-  state.linkTargetClientContext = normalizeText(contextClientInput?.value) || LINK_CLIENT_CONTEXT_ALL;
-  void loadEditorLinkTargets();
-}
-
-function populateLinkClientContextSelect(selectedValue = state.linkTargetClientContext || LINK_CLIENT_CONTEXT_ALL) {
-  const parts = editorContextPickerParts();
-  const select = contextClientInput || parts.clientContextSelect;
-  const setClientContexts = typeof parts.setClientContexts === "function"
-    ? parts.setClientContexts
-    : null;
-
-  if (!select && !setClientContexts) {
-    return;
-  }
-
-  if (!usesBusinessScope()) {
-    state.linkTargetClientContext = LINK_CLIENT_CONTEXT_ALL;
-    if (setClientContexts) {
-      setClientContexts([]);
-    } else if (select) {
-      select.replaceChildren();
-      select.disabled = true;
+    const options = [new window.Option("No client", "")];
+    state.primaryContextClients.forEach((client) => {
+      options.push(new window.Option(primaryClientOptionLabel(client), client.clientId || client.targetId || ""));
+    });
+    if (usesBusinessScope() && selectedClientId && !optionListHasValue(options, selectedClientId)) {
+      options.push(primaryClientFallbackOption(selectedClientId));
     }
-    return;
+    clientInput.replaceChildren(...options);
+    clientInput.value = usesBusinessScope() && options.some((option) => option.value === selectedClientId) ? selectedClientId : "";
   }
 
-  const options = linkTargetClientContextOptions();
-  const normalizedSelectedValue = normalizeText(selectedValue) || LINK_CLIENT_CONTEXT_ALL;
-  const nextValue = options.some((option) => option.value === normalizedSelectedValue)
-    ? normalizedSelectedValue
-    : LINK_CLIENT_CONTEXT_ALL;
-  const selectableOptions = options.map((option) => ({
-    ...option,
-    selected: option.value === nextValue,
-  }));
+  function populatePrimaryProjectOptions(selectedProjectId = projectInput?.value || "") {
+    if (!projectInput) {
+      return;
+    }
 
-  state.linkTargetClientContext = nextValue;
-  if (setClientContexts) {
-    setClientContexts(selectableOptions);
-  } else if (select) {
-    select.replaceChildren(...selectableOptions.map((option) => new window.Option(option.label, option.value, false, option.selected)));
-  }
-  if (select) {
-    select.value = nextValue;
-    select.disabled = false;
-  }
-}
+    const selectedClientId = usesBusinessScope() ? clientInput?.value || "" : "";
+    const projects = state.primaryContextProjects
+      .filter((project) => !selectedClientId || project.clientId === selectedClientId);
+    const options = [
+      new window.Option("No project", ""),
+      ...projects.map((project) => new window.Option(primaryProjectOptionLabel(project), project.projectId || project.targetId || "")),
+    ];
+    if (selectedProjectId && !optionListHasValue(options, selectedProjectId)) {
+      options.push(primaryProjectFallbackOption(selectedProjectId));
+    }
 
-function linkTargetClientContextOptions() {
-  if (!usesBusinessScope()) {
-    return [];
+    projectInput.replaceChildren(...options);
+    projectInput.value = options.some((option) => option.value === selectedProjectId) ? selectedProjectId : "";
   }
 
-  return [
-    { value: LINK_CLIENT_CONTEXT_ALL, label: "All Clients" },
-    { value: LINK_CLIENT_CONTEXT_WORKSPACE, label: linkTargetWorkspaceClientLabel() },
-    ...state.primaryContextClients.map((client) => ({
-      value: client.clientId || client.targetId || "",
-      label: primaryClientOptionLabel(client),
-    })).filter((option) => option.value),
-  ];
-}
+  /** @param {readonly HTMLOptionElement[]} [options] */
+  function optionListHasValue(options = [], value = "") {
+    return options.some((option) => option.value === value);
+  }
 
-function linkTargetWorkspaceClientLabel() {
-  return normalizeText(window.LongtailForge?.workspaceContext?.workspaceName) || "Workspace";
-}
+  function primaryClientFallbackOption(selectedClientId = "") {
+    const summary = primaryContextSummaryForSelection("client", selectedClientId);
+    const option = new window.Option(summary.label ? primaryClientOptionLabel(summary) : unavailableTargetLabel("client"), selectedClientId);
+    const status = normalizeText(summary.status).toLowerCase();
 
-function readLinkTargetClientContext() {
-  const value = normalizeText(contextClientInput?.value || state.linkTargetClientContext || LINK_CLIENT_CONTEXT_ALL);
+    option.dataset.primaryContextFallback = "";
+    option.disabled = Boolean(status && status !== "active");
+    return option;
+  }
 
-  if (!usesBusinessScope()) {
+  function primaryProjectFallbackOption(selectedProjectId = "") {
+    const summary = primaryContextSummaryForSelection("project", selectedProjectId);
+    const option = new window.Option(summary.label
+      ? primaryProjectOptionLabel({ ...summary, projectId: selectedProjectId, targetId: selectedProjectId })
+      : unavailableTargetLabel("project"), selectedProjectId);
+
+    option.dataset.primaryContextFallback = "";
+    return option;
+  }
+
+  /**
+   * Saved links come from decorateNoteLinks, not the picker directory. Its camelCase
+   * projection and legacy snake_case rows both reach this editor. Unsupported saved
+   * target types remain readable/removable; this is not a contract for new writes.
+   * Only consumed text is declared. Extra decorator metadata remains unmodelled.
+   * @typedef {Partial<Record<"moduleId" | "module_id" | "targetType" | "target_type" | "targetId" | "target_id" | "noteLinkId" | "note_link_id" | "label" | "displayLabel" | "display_label" | "secondaryLabel" | "secondary_label" | "sourceUrl" | "source_url" | "clientId" | "client_id" | "projectId" | "project_id" | "clientName" | "client_name" | "projectName" | "project_name" | "workspaceName" | "workspace_name", string>>} NotesDecoratedLink
+   * @typedef {Pick<NotesDecoratedLink, "moduleId" | "module_id" | "targetType" | "target_type" | "targetId" | "target_id">} NotesSavedLinkIdentity
+   */
+
+  /** @param {unknown} value @returns {value is NotesDecoratedLink} */
+  function isNotesDecoratedLink(value) {
+    return isResponseRecord(value) && [
+      "moduleId", "module_id", "targetType", "target_type", "targetId", "target_id",
+      "noteLinkId", "note_link_id", "label", "displayLabel", "display_label",
+      "secondaryLabel", "secondary_label", "sourceUrl", "source_url",
+      "clientId", "client_id", "projectId", "project_id", "clientName", "client_name",
+      "projectName", "project_name", "workspaceName", "workspace_name",
+    ].every((key) => value[key] === undefined || (Object.hasOwn(value, key) && typeof value[key] === "string"));
+  }
+
+  /**
+   * readLinkedContextSummary and setTaskCreatedPrimaryContextSummaries own this bag.
+   * The latter retains an unchecked status, so status stays unknown until normalized.
+   * Neither an inherited table entry nor an unreadable summary supplies a label.
+   * @param {string} targetType
+   * @returns {Omit<NotesDecoratedLink, "targetType" | "target_type"> & { status?: unknown }}
+   */
+  function readEditorContextSummary(targetType) {
+    /** @type {unknown} */
+    const summaries = state.editorContextSummaries;
+    const summary = isResponseRecord(summaries) && Object.hasOwn(summaries, targetType) ? summaries[targetType] : null;
+    return isNotesDecoratedLink(summary) ? summary : {};
+  }
+
+  /** @param {string} targetType */
+  function primaryContextSummaryForSelection(targetType, selectedId = "") {
+    const summary = readEditorContextSummary(targetType);
+
+    const summaryIds = [
+      summary.targetId,
+      summary.target_id,
+      targetType === "client" ? summary.clientId : summary.projectId,
+      targetType === "client" ? summary.client_id : summary.project_id,
+    ].filter(Boolean);
+
+    return !selectedId || summaryIds.length === 0 || summaryIds.includes(selectedId) ? summary : {};
+  }
+
+  function handlePrimaryClientChange() {
+    if (!usesBusinessScope() && clientInput) {
+      clientInput.value = "";
+    }
+    if (projectInput) {
+      projectInput.value = "";
+    }
+    populatePrimaryProjectOptions("");
+    renderEditorContextPanel();
+    updateLibrarySuggestion();
+  }
+
+  function handlePrimaryProjectChange() {
+    const project = findPrimaryContextProject(projectInput?.value || "");
+
+    if (usesBusinessScope() && clientInput) {
+      clientInput.value = project?.clientId || "";
+      populatePrimaryProjectOptions(projectInput?.value || "");
+    }
+    renderEditorContextPanel();
+    updateLibrarySuggestion();
+  }
+
+  /** @param {BrowserNoteLinkTarget["projectId"]} projectId */
+  function findPrimaryContextProject(projectId) {
+    return state.primaryContextProjects.find((project) => (project.projectId || project.targetId || "") === projectId) || null;
+  }
+
+  /** @param {NotesLinkTargetInput} client */
+  function primaryClientOptionLabel(client = {}) {
+    return providerDisplayLabel(client.displayLabel, client.display_label) ||
+      normalizeText(client.label) ||
+      unavailableTargetLabel("client");
+  }
+
+  /**
+   * readNoteLinkTargets owns response validation; it retains provider status without
+   * checking it. Keep that extra member unknown at this consumer's normalization.
+   * @param {Partial<BrowserNoteLinkTarget> & { status?: unknown }} [client]
+   */
+  function isActivePrimaryClientTarget(client = {}) {
+    return normalizeText(client.status).toLowerCase() === "active";
+  }
+
+  /** @param {NotesLinkTargetInput} project */
+  function primaryProjectOptionLabel(project = {}) {
+    const providerLabel = providerDisplayLabel(project.displayLabel, project.display_label);
+    if (providerLabel) {
+      return providerLabel;
+    }
+
+    const projectName = project.label || unavailableTargetLabel("project");
+    if (!usesBusinessScope()) {
+      return projectName;
+    }
+    const contextName = project.clientName || project.client_name || project.workspaceName || project.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName || "Workspace";
+    return `${projectName} - ${contextName}`;
+  }
+
+  function queueEditorLinkTargetSearch() {
+    window.clearTimeout(state.linkTargetSearchTimer ?? undefined);
+    state.linkTargetSearchTimer = window.setTimeout(() => loadEditorLinkTargets(), 180);
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTarget} BrowserNoteLinkTarget */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTargetType} BrowserNoteLinkTargetType */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTargetDirectory} BrowserNoteLinkTargetDirectory */
+
+  /**
+   * The closed legacy spellings this local picker already reads, with the same member types
+   * as their published twins. This compatibility input is not a response contract.
+   * @typedef {object} NotesLegacyLinkTargetFields
+   * @property {BrowserNoteLinkTarget["moduleId"]} [module_id]
+   * @property {BrowserNoteLinkTarget["targetType"]} [target_type]
+   * @property {BrowserNoteLinkTarget["targetId"]} [target_id]
+   * @property {BrowserNoteLinkTarget["displayLabel"]} [display_label]
+   * @property {BrowserNoteLinkTarget["secondaryLabel"]} [secondary_label]
+   * @property {BrowserNoteLinkTarget["sortKey"]} [sort_key]
+   * @property {BrowserNoteLinkTarget["sourceUrl"]} [source_url]
+   * @property {BrowserNoteLinkTarget["fullLabel"]} [full_label]
+   * @property {BrowserNoteLinkTarget["ariaLabel"]} [aria_label]
+   * @property {BrowserNoteLinkTarget["isAvailable"]} [is_available]
+   * @property {BrowserNoteLinkTarget["clientName"]} [client_name]
+   * @property {BrowserNoteLinkTarget["projectName"]} [project_name]
+   * @property {BrowserNoteLinkTarget["workspaceName"]} [workspace_name]
+   */
+  /** @typedef {Partial<BrowserNoteLinkTarget> & NotesLegacyLinkTargetFields} NotesLinkTargetInput */
+
+  /**
+   * Task-created context also accepts direct context IDs from the caller. The legacy status
+   * is passed through unchanged, not vouched for by the link-target directory.
+   * @typedef {NotesLinkTargetInput & {
+   *   client_id?: BrowserNoteLinkTarget["clientId"],
+   *   project_id?: BrowserNoteLinkTarget["projectId"],
+   *   clientStatus?: unknown,
+   *   client_status?: unknown
+   * }} NotesTaskPrimaryContextInput
+   */
+
+  /** What this picker says when the directory answered something it could not read. */
+  const LINK_TARGET_LOAD_FAILURE = "Link targets could not be loaded.";
+
+  /** The seven types `LINK_TARGET_TYPES` closes the directory over. @type {readonly BrowserNoteLinkTargetType[]} */
+  const NOTE_LINK_TARGET_TYPES = Object.freeze([
+    "client", "list", "note", "project", "task", "user", "workspace",
+  ]);
+
+  /**
+   * The members both link-target shapers write unconditionally and this picker reads.
+   *
+   * Deliberately not the full record: six more are written by both producers and read by
+   * neither, and promising those would freeze a mixed-provider shape this child does not own.
+   */
+  const NOTE_LINK_TARGET_TEXT = Object.freeze([
+    "ariaLabel", "clientId", "clientName", "displayLabel", "fullLabel", "label", "moduleId",
+    "projectId", "projectName", "secondaryLabel", "sortKey", "sourceUrl", "subtitle",
+    "suggestedLibraryBucket", "title", "workspaceName",
+  ]);
+
+  /**
+   * One link target, checked for the members the picker relies on and nothing more.
+   *
+   * `targetId` must carry text because the editor submits it as the linked record's id and
+   * stages the option under it; an empty one is an option that cannot be chosen. Every other
+   * string may legitimately be `""` - the shapers default rather than omit - so they are
+   * checked for being text, not for being filled.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteLinkTarget}
+   */
+  function isNoteLinkTarget(value) {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return false;
+    }
+
+    const target = /** @type {Record<string, unknown>} */ (value);
+
+    return NOTE_LINK_TARGET_TYPES.some((word) => word === target.targetType)
+      && typeof target.targetId === "string"
+      && target.targetId !== ""
+      && typeof target.isAvailable === "boolean"
+      && NOTE_LINK_TARGET_TEXT.every((key) => typeof target[key] === "string");
+  }
+
+  /**
+   * The link-target directory, or `null` when the body is not one this producer sends.
+   *
+   * **The producer's own array is answered, not a rebuilt one.** Both shapers write more than
+   * this contract promises, and the picker carries whole targets into its staged editor state,
+   * so rebuilding to the promised minimum would silently drop context a later save still
+   * reads. The type surface is narrow; the runtime object stays exactly as it arrived.
+   *
+   * One unreadable element refuses the whole directory rather than being filtered out of it.
+   * Every target in this response has already been produced, permission-shaped and sorted, so
+   * a malformed element is evidence the body is not this producer's - not a candidate that
+   * happens to be unusable. A quietly shorter picker is indistinguishable from a search that
+   * matched fewer records.
+   * @param {unknown} body
+   * @returns {BrowserNoteLinkTarget[] | null}
+   */
+  function readNoteLinkTargets(body) {
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return null;
+    }
+
+    const targets = /** @type {Record<string, unknown>} */ (body).targets;
+
+    if (!Array.isArray(targets)) {
+      return null;
+    }
+
+    return targets.every(isNoteLinkTarget)
+      ? /** @type {BrowserNoteLinkTarget[]} */ (targets)
+      : null;
+  }
+
+  /**
+   * What the picker should say when a target load failed.
+   *
+   * A directory this page could not read is **not** a search that matched nothing, so the
+   * refusal keeps its own words. Every other failure still reads as it always has: this child
+   * owns the response boundary, not the page's network messaging.
+   * @param {unknown} error
+   * @returns {string}
+   */
+  function linkTargetLoadFailureLabel(error) {
+    return error instanceof Error && error.message === LINK_TARGET_LOAD_FAILURE
+      ? LINK_TARGET_LOAD_FAILURE
+      : "No records available";
+  }
+
+  async function loadEditorLinkTargets() {
+    if (!contextResultsInput) {
+      return;
+    }
+
+    contextResultsInput.disabled = true;
+    replaceLinkTargetOptions([{ value: "", label: "Loading records...", disabled: true }]);
+
+    try {
+      /** @type {BrowserNoteLinkTargetDirectory["targets"]} */
+      const targets = await fetchLinkTargets({
+        ...readLinkTargetClientContext(),
+        targetType: contextTargetTypeInput?.value || defaultLinkTargetType(),
+        search: contextSearchInput?.value || "",
+        limit: 40,
+      });
+      state.linkTargets = targets;
+      populateLinkTargetSelect(contextResultsInput, targets);
+    } catch (error) {
+      state.linkTargets = [];
+      replaceLinkTargetOptions([{ value: "", label: linkTargetLoadFailureLabel(error), disabled: true }]);
+    } finally {
+      contextResultsInput.disabled = false;
+    }
+  }
+
+  async function fetchLinkTargets({ targetType = "all", search = "", limit = 20, clientScope = LINK_CLIENT_CONTEXT_ALL, clientId = "" } = {}) {
+    const api = requireApi();
+    const params = new URLSearchParams({
+      targetType,
+      limit: String(limit),
+    });
+
+    if (usesBusinessScope()) {
+      if (clientScope === LINK_CLIENT_CONTEXT_WORKSPACE) {
+        params.set("clientScope", LINK_CLIENT_CONTEXT_WORKSPACE);
+      } else if (clientScope === "client" && clientId) {
+        params.set("clientScope", "client");
+        params.set("clientId", clientId);
+      }
+    }
+
+    if (search.trim()) {
+      params.set("q", search.trim());
+    }
+
+    const targets = readNoteLinkTargets(
+      await api.getJson(`/api/notes/link-targets?${params.toString()}`, { cache: "no-store" }),
+    );
+
+    if (!targets) {
+      throw new Error(LINK_TARGET_LOAD_FAILURE);
+    }
+
+    return targets;
+  }
+
+  /** @param {HTMLSelectElement | null} select @param {BrowserNoteLinkTarget[]} targets */
+  function populateLinkTargetSelect(select, targets = []) {
+    const records = targets.map((target) => ({
+      ...pickerRecordFromTarget(target),
+      selected: false,
+    }));
+    replaceLinkTargetOptions(records, select);
+
+    [...(select?.options || [])].forEach((option, index) => {
+      const target = targets[index];
+      if (!target) {
+        return;
+      }
+      option.dataset.target = JSON.stringify(target);
+    });
+  }
+
+  /** @param {HTMLSelectElement | null} select */
+  function populateLinkTargetTypeSelect(select) {
+    if (!select) {
+      return;
+    }
+
+    const selectedValue = availableLinkTargetTypes().some((targetType) => targetType === select.value) ? select.value : defaultLinkTargetType();
+    const options = availableLinkTargetTypes().map((targetType) => {
+      const option = document.createElement("option");
+      option.value = targetType;
+      option.textContent = LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType);
+      return option;
+    });
+    select.replaceChildren(...options);
+    select.value = selectedValue;
+  }
+
+  function handleEditorLinkClientContextChange() {
+    state.linkTargetClientContext = normalizeText(contextClientInput?.value) || LINK_CLIENT_CONTEXT_ALL;
+    void loadEditorLinkTargets();
+  }
+
+  function populateLinkClientContextSelect(selectedValue = state.linkTargetClientContext || LINK_CLIENT_CONTEXT_ALL) {
+    const parts = editorContextPickerParts();
+    const select = contextClientInput || parts.clientContextSelect;
+    const setClientContexts = typeof parts.setClientContexts === "function"
+      ? parts.setClientContexts
+      : null;
+
+    if (!select && !setClientContexts) {
+      return;
+    }
+
+    if (!usesBusinessScope()) {
+      state.linkTargetClientContext = LINK_CLIENT_CONTEXT_ALL;
+      if (setClientContexts) {
+        setClientContexts([]);
+      } else if (select) {
+        select.replaceChildren();
+        select.disabled = true;
+      }
+      return;
+    }
+
+    const options = linkTargetClientContextOptions();
+    const normalizedSelectedValue = normalizeText(selectedValue) || LINK_CLIENT_CONTEXT_ALL;
+    const nextValue = options.some((option) => option.value === normalizedSelectedValue)
+      ? normalizedSelectedValue
+      : LINK_CLIENT_CONTEXT_ALL;
+    const selectableOptions = options.map((option) => ({
+      ...option,
+      selected: option.value === nextValue,
+    }));
+
+    state.linkTargetClientContext = nextValue;
+    if (setClientContexts) {
+      setClientContexts(selectableOptions);
+    } else if (select) {
+      select.replaceChildren(...selectableOptions.map((option) => new window.Option(option.label, option.value, false, option.selected)));
+    }
+    if (select) {
+      select.value = nextValue;
+      select.disabled = false;
+    }
+  }
+
+  function linkTargetClientContextOptions() {
+    if (!usesBusinessScope()) {
+      return [];
+    }
+
+    return [
+      { value: LINK_CLIENT_CONTEXT_ALL, label: "All Clients" },
+      { value: LINK_CLIENT_CONTEXT_WORKSPACE, label: linkTargetWorkspaceClientLabel() },
+      ...state.primaryContextClients.map((client) => ({
+        value: client.clientId || client.targetId || "",
+        label: primaryClientOptionLabel(client),
+      })).filter((option) => option.value),
+    ];
+  }
+
+  function linkTargetWorkspaceClientLabel() {
+    return normalizeText(window.LongtailForge?.workspaceContext?.workspaceName) || "Workspace";
+  }
+
+  function readLinkTargetClientContext() {
+    const value = normalizeText(contextClientInput?.value || state.linkTargetClientContext || LINK_CLIENT_CONTEXT_ALL);
+
+    if (!usesBusinessScope()) {
+      return { clientScope: LINK_CLIENT_CONTEXT_ALL, clientId: "" };
+    }
+    if (value === LINK_CLIENT_CONTEXT_WORKSPACE) {
+      return { clientScope: LINK_CLIENT_CONTEXT_WORKSPACE, clientId: "" };
+    }
+    if (value && value !== LINK_CLIENT_CONTEXT_ALL) {
+      return { clientScope: "client", clientId: value };
+    }
     return { clientScope: LINK_CLIENT_CONTEXT_ALL, clientId: "" };
   }
-  if (value === LINK_CLIENT_CONTEXT_WORKSPACE) {
-    return { clientScope: LINK_CLIENT_CONTEXT_WORKSPACE, clientId: "" };
-  }
-  if (value && value !== LINK_CLIENT_CONTEXT_ALL) {
-    return { clientScope: "client", clientId: value };
-  }
-  return { clientScope: LINK_CLIENT_CONTEXT_ALL, clientId: "" };
-}
 
-function availableLinkTargetTypes() {
-  return LINK_TARGET_TYPE_ORDER.filter((targetType) => targetType !== "client" || usesBusinessScope());
-}
-
-function defaultLinkTargetType() {
-  const available = availableLinkTargetTypes();
-  return available.includes(DEFAULT_LINK_TARGET_TYPE)
-    ? DEFAULT_LINK_TARGET_TYPE
-    : available[0] || "project";
-}
-
-function linkTargetProviderOptions() {
-  return availableLinkTargetTypes().map((targetType) => ({
-    moduleId: {
-      client: "client-projects",
-      list: "lists",
-      note: "notes",
-      project: "client-projects",
-      task: "tasks",
-      user: "users",
-    }[targetType] || "",
-    targetType,
-    label: LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType),
-  }));
-}
-
-function replaceLinkTargetOptions(records = [], select = contextResultsInput) {
-  const parts = select === contextResultsInput ? editorContextPickerParts() : {};
-  if (select === contextResultsInput && typeof parts.setRecords === "function") {
-    parts.setRecords(records);
-    return;
-  }
-  const options = records.map((record) => {
-    const option = new window.Option(record.displayLabel || record.label || "No records found", record.targetId || record.value || "");
-    option.disabled = Boolean(record.disabled);
-    const title = record.ariaLabel || record.title || record.fullLabel || record.displayLabel || record.label || "";
-    if (title) {
-      option.title = title;
-      option.setAttribute("aria-label", title);
-    }
-    return option;
-  });
-  select?.replaceChildren(...options);
-}
-
-function pickerRecordFromTarget(target = {}) {
-  return {
-    moduleId: target.moduleId || target.module_id || "",
-    targetType: target.targetType || target.target_type || "",
-    targetId: target.targetId || target.target_id || "",
-    displayLabel: targetPickerDisplayLabel(target),
-    secondaryLabel: targetPickerSecondaryLabel(target),
-    sortKey: target.sortKey || target.sort_key || "",
-    sourceUrl: target.sourceUrl || target.source_url || "",
-    title: target.title || "",
-    fullLabel: target.fullLabel || target.full_label || "",
-    ariaLabel: target.ariaLabel || target.aria_label || target.title || target.fullLabel || target.full_label || "",
-    isAvailable: target.isAvailable !== false && target.is_available !== false,
-  };
-}
-
-function targetPickerDisplayLabel(target = {}) {
-  const targetType = target.targetType || target.target_type || "";
-  const providerLabel = providerDisplayLabel(target.displayLabel, target.display_label);
-  if (providerLabel) {
-    return providerLabel;
+  function availableLinkTargetTypes() {
+    return LINK_TARGET_TYPE_ORDER.filter((targetType) => targetType !== "client" || usesBusinessScope());
   }
 
-  const label = target.label || unavailableTargetLabel(targetType);
-  if (targetType === "project") {
-    return primaryProjectOptionLabel({ ...target, label });
+  function defaultLinkTargetType() {
+    const available = availableLinkTargetTypes();
+    return available.includes(DEFAULT_LINK_TARGET_TYPE)
+      ? DEFAULT_LINK_TARGET_TYPE
+      : available[0] || "project";
   }
 
-  return label;
-}
-
-function targetPickerSecondaryLabel(target = {}) {
-  if (Object.hasOwn(target, "secondaryLabel") || Object.hasOwn(target, "secondary_label")) {
-    return target.secondaryLabel ?? target.secondary_label ?? "";
-  }
-
-  if (!usesBusinessScope()) {
-    return "";
-  }
-
-  const targetType = target.targetType || target.target_type || "";
-  if (targetType === "project") {
-    return "";
-  }
-
-  if (targetType === "task") {
-    return target.clientName || target.client_name || target.projectName || target.project_name || target.workspaceName || target.workspace_name || "";
-  }
-
-  return "";
-}
-
-function readSelectedLinkTarget(select) {
-  const option = select?.selectedOptions?.[0];
-
-  if (!option?.dataset?.target) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(option.dataset.target);
-  } catch {
-    return null;
-  }
-}
-
-async function applyEditorLinkTarget() {
-  const target = readSelectedLinkTarget(contextResultsInput);
-
-  if (!target?.targetType || !target.targetId) {
-    state.editorSelectedTarget = null;
-    renderEditorContextSelection();
-    return;
-  }
-
-  if (state.editingNoteId) {
-    await addEditorNoteLink(target);
-    return;
-  }
-
-  stageEditorLinkTarget(target);
-  renderEditorContextSelection(target);
-  updateLibrarySuggestion({ preferredSuggestion: target.suggestedLibraryBucket });
-}
-
-function linkPayloadFromTarget(target = {}) {
-  return {
-    moduleId: target.moduleId,
-    targetType: target.targetType,
-    targetId: target.targetId,
-  };
-}
-
-function stagedLinkPayloads() {
-  const seen = new Set();
-  const links = [];
-
-  for (const target of state.editorStagedTargets || []) {
-    const targetKey = editorLinkTargetKey(target);
-    if (!targetKey || seen.has(targetKey)) {
-      continue;
-    }
-    seen.add(targetKey);
-    links.push(linkPayloadFromTarget(target));
-  }
-
-  return links;
-}
-
-function noteHasLink(note = {}, target = {}) {
-  return (note.links || []).some((link) => editorLinkTargetMatches(link, target));
-}
-
-function editorLinkTargetKey(target = {}) {
-  const targetType = target.targetType || target.target_type || "";
-  const targetId = target.targetId || target.target_id || "";
-
-  if (!targetType || !targetId) {
-    return "";
-  }
-
-  return `${target.moduleId || target.module_id || ""}:${targetType}:${targetId}`;
-}
-
-function editorLinkTargetMatches(link = {}, target = {}) {
-  const linkModuleId = link.moduleId || link.module_id || "";
-  const targetModuleId = target.moduleId || target.module_id || "";
-  const linkTargetType = link.targetType || link.target_type || "";
-  const targetType = target.targetType || target.target_type || "";
-  const linkTargetId = link.targetId || link.target_id || "";
-  const targetId = target.targetId || target.target_id || "";
-
-  return linkTargetType === targetType &&
-    linkTargetId === targetId &&
-    (!linkModuleId || !targetModuleId || linkModuleId === targetModuleId);
-}
-
-function stagedTargetExists(target = {}) {
-  return (state.editorStagedTargets || []).some((stagedTarget) => editorLinkTargetMatches(stagedTarget, target));
-}
-
-function stageEditorLinkTarget(target = {}) {
-  if (!target.targetType || !target.targetId) {
-    return;
-  }
-  if (stagedTargetExists(target)) {
-    state.editorSelectedTarget = target;
-    renderEditorContextSelection(target);
-    formStatus.textContent = "Linked context is already staged.";
-    return;
-  }
-
-  state.editorStagedTargets = [...(state.editorStagedTargets || []), target];
-  state.editorSelectedTarget = target;
-  formStatus.textContent = "";
-  renderEditorContextSelection(target);
-}
-
-function removeEditorStagedTarget(target = {}) {
-  state.editorStagedTargets = (state.editorStagedTargets || [])
-    .filter((stagedTarget) => !editorLinkTargetMatches(stagedTarget, target));
-  if (editorLinkTargetMatches(state.editorSelectedTarget || {}, target)) {
-    state.editorSelectedTarget = null;
-  }
-  renderEditorContextSelection();
-  updateLibrarySuggestion();
-}
-
-function renderEditorContextSelection(target = null) {
-  renderEditorContextPanel();
-  if (!contextSelectedMessage) {
-    return;
-  }
-
-  const linked = [];
-  if (target?.targetType === "workspace") {
-    linked.push(`Workspace: ${target.label || "Workspace"}`);
-  } else if (target?.targetType) {
-    linked.push(`${contextTypeLabel(target.targetType)}: ${target.label || unavailableTargetLabel(target.targetType)}`);
-  } else {
-    if (userInput.value) {
-      linked.push(`User: ${contextSummaryLabel("user")}`);
-    }
-  }
-
-  contextSelectedMessage.textContent = linked.length > 0
-    ? `Linked context: ${linked.join(" / ")}`
-    : "No linked context selected.";
-}
-
-function contextSummaryLabel(targetType) {
-  return state.editorContextSummaries?.[targetType]?.label || unavailableTargetLabel(targetType);
-}
-
-function renderEditorContextPanel() {
-  if (!contextList) {
-    return;
-  }
-
-  const items = [
-    editorPrimaryContextItem(),
-    ...editorLinkedContextRows(),
-  ];
-  const parts = editorContextPickerParts();
-
-  if (typeof parts.setLinkedItems === "function") {
-    parts.setLinkedItems(items);
-    return;
-  }
-
-  contextList.replaceChildren(...items.map((item) => view.createElement("div", {
-    className: ["notes-link-item", item.className],
-    text: [item.displayLabel, item.secondaryLabel, item.hintLabel].filter(Boolean).join(" - "),
-  })));
-}
-
-function editorContextPickerParts() {
-  return contextList?.closest("[data-note-context-picker]")?.viewParts || {};
-}
-
-function editorPrimaryContextItem() {
-  return {
-    className: "notes-primary-context-row",
-    displayLabel: "Primary Context",
-    hintLabel: "Edit in Note Details",
-    removable: false,
-    secondaryLabel: editorPrimaryContextSummary(),
-    targetId: "",
-    targetType: "primary-context",
-  };
-}
-
-function editorPrimaryContextSummary() {
-  const parts = [];
-
-  if (usesBusinessScope() && clientInput?.value) {
-    parts.push(`Client: ${selectedOptionText(clientInput, unavailableTargetLabel("client"))}`);
-  }
-  if (projectInput?.value) {
-    parts.push(`Project: ${selectedOptionText(projectInput, unavailableTargetLabel("project"))}`);
-  }
-
-  return parts.length > 0
-    ? parts.join(" / ")
-    : "No primary context selected.";
-}
-
-function editorLinkedContextRows() {
-  const note = state.editorNote || {};
-  const rows = (note.links || []).map((link) => editorLinkedContextItem(note, link));
-
-  for (const target of state.editorStagedTargets || []) {
-    if (!noteHasLink(note, target)) {
-      rows.push(editorStagedTargetItem(target));
-    }
-  }
-
-  return rows;
-}
-
-function editorLinkedContextItem(note, link) {
-  const targetType = link.targetType || link.target_type || "";
-
-  return {
-    displayLabel: targetPickerDisplayLabel({
-      ...link,
+  function linkTargetProviderOptions() {
+    return availableLinkTargetTypes().map((targetType) => ({
+      moduleId: {
+        client: "client-projects",
+        list: "lists",
+        note: "notes",
+        project: "client-projects",
+        task: "tasks",
+        user: "users",
+      }[targetType] || "",
       targetType,
-    }),
-    link,
-    moduleId: link.moduleId || link.module_id || "",
-    removable: note.status !== "archived",
-    secondaryLabel: targetPickerSecondaryLabel({
-      ...link,
-      targetType,
-    }),
-    sourceUrl: link.sourceUrl || link.source_url || "",
-    targetId: link.targetId || link.target_id || "",
-    targetType,
-  };
-}
-
-function editorStagedTargetItem(target = {}) {
-  return {
-    ...pickerRecordFromTarget(target),
-    target,
-  };
-}
-
-function handleEditorLinkedContextRemove(item = {}) {
-  if (item.link) {
-    removeEditorNoteLink(state.editorNote || {}, item.link);
-  } else if (item.target) {
-    removeEditorStagedTarget(item.target);
-  }
-}
-
-function selectedOptionText(select, fallback) {
-  const selected = [...(select?.options || [])].find((option) => option.value === select.value);
-  return normalizeText(selected?.textContent) || fallback;
-}
-
-async function removeEditorNoteLink(note, link) {
-  const noteId = note?.note_id || state.editingNoteId;
-  const noteLinkId = link.noteLinkId || link.note_link_id;
-
-  if (!noteId || !noteLinkId) {
-    return;
+      label: LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType),
+    }));
   }
 
-  formStatus.textContent = "Removing linked context...";
-  try {
-    await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
-    await refreshEditorNote(noteId);
-    formStatus.textContent = "";
-  } catch (error) {
-    formStatus.textContent = safeNoteErrorMessage(error, "Linked context could not be removed.");
-  }
-}
-
-async function addEditorNoteLink(target = {}) {
-  const noteId = state.editingNoteId;
-
-  if (!noteId || !target.targetType || !target.targetId) {
-    return;
-  }
-  if (noteHasLink(state.editorNote || {}, target)) {
-    state.editorSelectedTarget = null;
-    renderEditorContextSelection();
-    formStatus.textContent = "Linked context is already added.";
-    return;
-  }
-
-  formStatus.textContent = "Adding linked context...";
-  if (contextApplyButton) {
-    contextApplyButton.disabled = true;
-  }
-
-  try {
-    await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links`, linkPayloadFromTarget(target));
-    state.editorSelectedTarget = null;
-    await refreshEditorNote(noteId);
-    formStatus.textContent = "";
-  } catch (error) {
-    formStatus.textContent = safeNoteErrorMessage(error, "Linked context could not be added.");
-  } finally {
-    if (contextApplyButton) {
-      contextApplyButton.disabled = false;
-    }
-  }
-}
-
-async function refreshEditorNote(noteId) {
-  const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
-
-  state.editorNote = result.note;
-  if (state.selectedNote?.note_id === noteId) {
-    state.selectedNote = result.note;
-    renderDetail(result.note);
-  }
-  await loadNotes();
-  renderNotes();
-  renderEditorContextSelection();
-  return result.note;
-}
-
-function contextTypeLabel(targetType) {
-  return LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType || "context");
-}
-
-function unavailableTargetLabel(targetType = "") {
-  return {
-    client: "Unavailable client",
-    project: "Unavailable project",
-    task: "Unavailable task",
-    note: "Unavailable note",
-    list: "Unavailable list",
-  }[targetType] || "Unavailable linked context";
-}
-
-function handleEditorCommand(event) {
-  const command = event.target?.dataset?.noteCommand;
-
-  if (!command) {
-    return;
-  }
-
-  editor?.applyCommand(command);
-  void renderPreview();
-}
-
-function togglePreview() {
-  const pressed = previewToggle.getAttribute("aria-pressed") === "true";
-  const visible = !pressed;
-  previewToggle.setAttribute("aria-pressed", String(visible));
-  preview.hidden = !visible;
-  updatePreviewLayoutState(visible);
-  if (visible) {
-    void renderPreview();
-  }
-}
-
-function updatePreviewLayoutState(visible) {
-  markdownEditor?.classList.toggle("is-preview-visible", visible);
-}
-
-async function renderPreview() {
-  if (preview.hidden) {
-    return;
-  }
-
-  const markdown = editor?.getValue() || bodyInput.value;
-  const requestId = state.previewRequestId + 1;
-  state.previewRequestId = requestId;
-  preview.textContent = "Loading preview...";
-
-  try {
-    const result = await api.postJson("/api/notes/preview", { body_markdown: markdown });
-    if (requestId !== state.previewRequestId) {
+  /**
+   * The record adapter's output or the local loading/failure option literals.
+   * This is a local option input, not a new directory response contract.
+   * @param {Array<Partial<ReturnType<typeof pickerRecordFromTarget>> & Partial<Pick<HTMLOptionElement, "value" | "label" | "disabled">>>} records
+   * @param {HTMLSelectElement | null} select
+   */
+  function replaceLinkTargetOptions(records = [], select = contextResultsInput) {
+    const parts = select === contextResultsInput ? editorContextPickerParts() : {};
+    if (select === contextResultsInput && typeof parts.setRecords === "function") {
+      parts.setRecords(records);
       return;
     }
-    preview.innerHTML = result.bodyHtml || "";
-    applyExternalMarkdownLinkPreference(preview);
-    if (!preview.textContent.trim()) {
-      preview.replaceChildren(emptyPreviewNode());
+    const options = records.map((record) => {
+      const option = new window.Option(record.displayLabel || record.label || "No records found", record.targetId || record.value || "");
+      option.disabled = Boolean(record.disabled);
+      const title = record.ariaLabel || record.title || record.fullLabel || record.displayLabel || record.label || "";
+      if (title) {
+        option.title = title;
+        option.setAttribute("aria-label", title);
+      }
+      return option;
+    });
+    select?.replaceChildren(...options);
+  }
+
+  /**
+   * Published target fields and their closed legacy spellings carried by this local adapter.
+   * @param {NotesLinkTargetInput} target
+   */
+  function pickerRecordFromTarget(target = {}) {
+    return {
+      moduleId: target.moduleId || target.module_id || "",
+      targetType: target.targetType || target.target_type || "",
+      targetId: target.targetId || target.target_id || "",
+      displayLabel: targetPickerDisplayLabel(target),
+      secondaryLabel: targetPickerSecondaryLabel(target),
+      sortKey: target.sortKey || target.sort_key || "",
+      sourceUrl: target.sourceUrl || target.source_url || "",
+      title: target.title || "",
+      fullLabel: target.fullLabel || target.full_label || "",
+      ariaLabel: target.ariaLabel || target.aria_label || target.title || target.fullLabel || target.full_label || "",
+      isAvailable: target.isAvailable !== false && target.is_available !== false,
+    };
+  }
+
+  /** @param {NotesLinkTargetInput} target */
+  function targetPickerDisplayLabel(target = {}) {
+    const targetType = target.targetType || target.target_type || "";
+    const providerLabel = providerDisplayLabel(target.displayLabel, target.display_label);
+    if (providerLabel) {
+      return providerLabel;
     }
-  } catch (error) {
-    if (requestId !== state.previewRequestId) {
-      return;
+
+    const label = target.label || unavailableTargetLabel(targetType);
+    if (targetType === "project") {
+      return primaryProjectOptionLabel({ ...target, label });
     }
-    preview.textContent = safeNoteErrorMessage(error, "Preview could not be rendered.");
+
+    return label;
   }
-}
 
-async function archiveNote(note) {
-  await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/archive`);
-}
-
-async function restoreNote(note) {
-  await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/restore`);
-}
-
-function openCollectionDialog(mode, options = {}) {
-  const collection = options.collection || null;
-  const parent = options.parent || null;
-  const libraryBucket = collection?.library_bucket || parent?.library_bucket || defaultLibraryForCreate();
-
-  state.collectionDialogMode = mode || "create";
-  state.collectionEditingId = collection?.note_library_collection_id || "";
-  collectionDialogTitle.textContent = collection ? "Edit Collection" : "Create Collection";
-  collectionTitleInput.value = collection?.title || "";
-  collectionLibraryInput.value = libraryBucket;
-  collectionLibraryInput.disabled = Boolean(collection);
-  populateCollectionParentOptions(collection, parent);
-  collectionFormStatus.textContent = "";
-  collectionSaveButton.disabled = false;
-  view.showModal(collectionDialog, { parent: null });
-  collectionTitleInput.focus();
-}
-
-function closeCollectionDialog() {
-  view.closeModal(collectionDialog);
-  if (collectionLibraryInput) {
-    collectionLibraryInput.disabled = false;
-  }
-}
-
-async function saveCollection(event) {
-  event.preventDefault();
-  collectionSaveButton.disabled = true;
-  collectionFormStatus.textContent = "Saving collection...";
-
-  const payload = {
-    title: collectionTitleInput.value,
-    libraryBucket: collectionLibraryInput.value,
-    parentCollectionId: collectionParentInput.value || null,
-  };
-
-  try {
-    if (state.collectionDialogMode === "edit" && state.collectionEditingId) {
-      await api.putJson(`/api/notes/collections/${encodeURIComponent(state.collectionEditingId)}`, payload);
-    } else {
-      await api.postJson("/api/notes/collections", payload);
+  /** @param {NotesLinkTargetInput} target */
+  function targetPickerSecondaryLabel(target = {}) {
+    if (Object.hasOwn(target, "secondaryLabel") || Object.hasOwn(target, "secondary_label")) {
+      return target.secondaryLabel ?? target.secondary_label ?? "";
     }
-    await refreshCollectionUi();
-    closeCollectionDialog();
-    setStatus("");
-  } catch (error) {
-    collectionFormStatus.textContent = error.message || "Collection could not be saved.";
-    collectionSaveButton.disabled = false;
-  }
-}
 
-async function archiveCollection(collection) {
-  const confirmed = await window.LongtailForge.modal.confirm({
-    title: "Archive collection",
-    message: `Archive "${collection.title}"? Notes stay in the collection and are not archived.`,
-    confirmLabel: "Archive",
-  });
+    if (!usesBusinessScope()) {
+      return "";
+    }
 
-  if (!confirmed) {
-    return;
+    const targetType = target.targetType || target.target_type || "";
+    if (targetType === "project") {
+      return "";
+    }
+
+    if (targetType === "task") {
+      return target.clientName || target.client_name || target.projectName || target.project_name || target.workspaceName || target.workspace_name || "";
+    }
+
+    return "";
   }
 
-  await mutateCollection(`/api/notes/collections/${encodeURIComponent(collection.note_library_collection_id)}/archive`);
-}
+  /** @param {HTMLSelectElement | null} select @returns {BrowserNoteLinkTarget | null} */
+  function readSelectedLinkTarget(select) {
+    const option = select?.selectedOptions?.[0];
 
-async function deleteEmptyCollection(collection) {
-  const confirmed = await window.LongtailForge.modal.confirm({
-    title: "Delete empty collection",
-    message: `Delete "${collection.title}" if it has no notes and no active child collections?`,
-    confirmLabel: "Delete Empty",
-    danger: true,
-  });
+    if (!option?.dataset?.target) {
+      return null;
+    }
 
-  if (!confirmed) {
-    return;
-  }
-
-  await mutateCollection(`/api/notes/collections/${encodeURIComponent(collection.note_library_collection_id)}/delete-empty`);
-}
-
-async function mutateCollection(url) {
-  setStatus("Saving collection...");
-
-  try {
-    await api.postJson(url, {});
-    await refreshCollectionUi();
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Collection could not be updated.", true);
-  }
-}
-
-async function refreshCollectionUi() {
-  await Promise.all([loadCollections(), loadNotes()]);
-  renderCollections();
-  populateCollectionFilter();
-  populateNoteCollectionOptions();
-  renderNotes();
-  if (state.selectedNote?.note_id) {
-    await selectNote(state.selectedNote.note_id);
-  }
-}
-
-function renderLinksPanel(note) {
-  const descriptor = notesLinkedRecordsDescriptor();
-  const locked = note.status === "archived";
-  const typeField = noteFieldLabel("Type", noteSelect("noteLinkTargetType", []));
-  const searchField = noteFieldLabel("Search records", noteInput("noteLinkSearch", { type: "search" }));
-  const resultsField = noteFieldLabel("Record", noteSelect("noteLinkResults", []));
-  const targetType = typeField.querySelector("select");
-  const targetSearch = searchField.querySelector("input");
-  const targetResults = resultsField.querySelector("select");
-  let searchTimer = null;
-
-  populateLinkTargetTypeSelect(targetType);
-  targetSearch.placeholder = linkedRecordsField(descriptor, "target_search").placeholder || "Search records";
-  targetResults.required = true;
-
-  const addAction = descriptor.actions?.find((action) => action.id === "add-link") || {};
-  const add = view.createActionButton({
-    icon: "add",
-    iconOnly: true,
-    label: addAction.label || "Add Link",
-    title: addAction.label || "Add Link",
-    type: "submit",
-    role: addAction.role || "primary",
-    action: addAction.behavior || addAction.id,
-  });
-  add.dataset.noteLinkAdd = "";
-
-  const section = view.renderDescriptorLinkedRecordsPanel(descriptor, {
-    className: "notes-links-panel",
-    collapsible: true,
-    open: false,
-    recordsClassName: "notes-link-list",
-    formClassName: "notes-link-form view-field-grid surface-modal-section-body",
-    formDataset: { noteLinkForm: "", noteId: note.note_id },
-    formFields: [typeField, searchField, resultsField],
-    formActions: [add],
-    locked,
-    emptyClassName: "notes-empty-state",
-  });
-  section.dataset.noteLinksPanel = "";
-  section.querySelector(".notes-link-list")?.replaceChildren(...linkRecordNodes(note));
-
-  const form = section.querySelector("[data-note-link-form]");
-  const loadTargets = async () => {
-    targetResults.disabled = true;
-    targetResults.replaceChildren(new window.Option("Loading records...", ""));
     try {
-      populateLinkTargetSelect(targetResults, await fetchLinkTargets({
-        targetType: targetType.value,
-        search: targetSearch.value,
-        limit: 40,
-      }));
+      /** @type {unknown} */
+      const target = JSON.parse(option.dataset.target);
+      return isNoteLinkTarget(target) ? target : null;
     } catch {
-      targetResults.replaceChildren(new window.Option("No records available", ""));
-    } finally {
-      targetResults.disabled = false;
+      return null;
     }
-  };
-  targetType.addEventListener("change", loadTargets);
-  targetSearch.addEventListener("input", () => {
-    window.clearTimeout(searchTimer);
-    searchTimer = window.setTimeout(loadTargets, 180);
-  });
-  form?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const target = readSelectedLinkTarget(targetResults);
-    if (!target) {
+  }
+
+  async function applyEditorLinkTarget() {
+    const target = readSelectedLinkTarget(contextResultsInput);
+
+    if (!target?.targetType || !target.targetId) {
+      state.editorSelectedTarget = null;
+      renderEditorContextSelection();
       return;
     }
-    await addNoteLink(note, {
+
+    if (state.editingNoteId) {
+      await addEditorNoteLink(target);
+      return;
+    }
+
+    stageEditorLinkTarget(target);
+    renderEditorContextSelection(target);
+    updateLibrarySuggestion({ preferredSuggestion: target.suggestedLibraryBucket });
+  }
+
+  /** @param {Partial<Pick<BrowserNoteLinkTarget, "moduleId" | "targetType" | "targetId">>} [target] */
+  function linkPayloadFromTarget(target = {}) {
+    return {
+      moduleId: target.moduleId,
       targetType: target.targetType,
       targetId: target.targetId,
-      moduleId: target.moduleId,
-    });
-  });
-  loadTargets();
-
-  return section;
-}
-
-function linkedRecordsField(descriptor, fieldName) {
-  return descriptor.fields?.find((field) => field.field === fieldName) || {};
-}
-
-function linkRecordNodes(note) {
-  const primaryContext = notePrimaryContextItem(note);
-  const links = note.links || [];
-  const items = [
-    primaryContext,
-    ...links.map((link) => linkItem(note, link)),
-  ].filter(Boolean);
-
-  if (items.length === 0) {
-    return [view.createElement("p", {
-      className: "notes-empty-state",
-      text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
-    })];
-  }
-  return items;
-}
-
-function notePrimaryContextItem(note = {}) {
-  const summary = notePrimaryContextSummary(note);
-
-  if (!summary) {
-    return null;
+    };
   }
 
-  const title = view.createElement("strong", { text: "Primary Context" });
-  const subtitle = view.createElement("small", { text: summary });
-  const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
+  function stagedLinkPayloads() {
+    const seen = new Set();
+    const links = [];
 
-  return view.createElement("div", {
-    className: "notes-link-item notes-primary-context-row",
-    children: [label],
-  });
-}
-
-function notePrimaryContextSummary(note = {}) {
-  const context = note.linked_context || {};
-  const parts = [];
-
-  if (usesBusinessScope() && (note.client_id || context.client)) {
-    parts.push(`Client: ${context.client?.label || unavailableTargetLabel("client")}`);
-  }
-  if (note.project_id || context.project) {
-    parts.push(`Project: ${context.project?.label || unavailableTargetLabel("project")}`);
-  }
-
-  return parts.join(" / ");
-}
-
-function linkItem(note, link) {
-  const sourceUrl = link.sourceUrl || link.source_url || "";
-  const targetType = link.targetType || link.target_type || "";
-  const title = view.createElement(sourceUrl ? "a" : "strong", {
-    text: link.label || "Unavailable linked context",
-    attrs: sourceUrl ? { href: sourceUrl } : {},
-  });
-  const subtitle = view.createElement("small", {
-    text: link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType)),
-  });
-  const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
-  const remove = view.createActionButton({ icon: "delete", iconOnly: true, label: "Remove", title: "Remove", role: "secondary", onClick: () => removeNoteLink(note, link) });
-  remove.dataset.noteLinkRemove = "";
-  remove.hidden = note.status === "archived";
-  return view.createElement("div", { className: "notes-link-item", children: [label, remove] });
-}
-
-async function addNoteLink(note, payload) {
-  await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links`, payload);
-  await selectNote(note.note_id);
-}
-
-async function removeNoteLink(note, link) {
-  const noteLinkId = link.noteLinkId || link.note_link_id;
-  await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
-  await selectNote(note.note_id);
-}
-
-function renderFilesPanel(note = {}) {
-  // Collapsible (collapsed by default), boxed to match the Linked Context and Revisions sections
-  // (`notes-detail-section`). The embedded file-attachments component drops its own surface chrome and
-  // redundant heading inside this panel (see `.notes-files-panel` CSS) so there is a single outer box.
-  const summary = view.createElement("summary", { text: "Files" });
-  if (isSecureNote(note)) {
-    return view.createElement("details", {
-      className: "notes-detail-section notes-files-panel",
-      children: [summary, lockedNotice("Secure notes do not allow framework file attachments yet.")],
-    });
-  }
-  const mount = view.createElement("div");
-  mount.dataset.noteFilesMount = "";
-  return view.createElement("details", { className: "notes-detail-section notes-files-panel", children: [summary, mount] });
-}
-
-function mountFilesPanel(note, mount) {
-  if (!mount || isSecureNote(note) || !window.LongtailForge.fileAttachments) {
-    return;
-  }
-
-  state.attachmentController?.destroy?.();
-  state.attachmentController = window.LongtailForge.fileAttachments.mount(mount, {
-    acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
-    canRemove: note.status !== "archived",
-    canUpload: note.status !== "archived",
-    clientId: note.client_id || "",
-    moduleId: "notes",
-    projectId: note.project_id || "",
-    saveFirstMessage: "Save the note before adding files.",
-    targetId: note.note_id,
-    targetType: "note",
-    title: "Files",
-    visibility: fileVisibilityForNote(note),
-  });
-}
-
-function fileVisibilityForNote(note) {
-  if (note.visibility === "client_visible") {
-    return "client";
-  }
-  if (note.visibility === "private") {
-    return "private";
-  }
-  return "workspace";
-}
-
-function renderRevisionsPanel(note) {
-  const summary = view.createElement("summary", { text: "Revisions" });
-  const list = view.createElement("div", { text: "Loading revisions..." });
-
-  list.dataset.noteRevisionsList = "";
-  if (note.status === "archived") {
-    list.dataset.archived = "true";
-  }
-  return view.createElement("details", {
-    className: "notes-detail-section notes-revisions-panel",
-    children: [summary, list],
-  });
-}
-
-async function loadRevisions(note, list) {
-  if (!list) {
-    return;
-  }
-
-  try {
-    const result = await api.getJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions`, { cache: "no-store" });
-    const revisions = result.revisions || [];
-    list.replaceChildren(...(revisions.length ? revisions.map((revision) => revisionItem(note, revision)) : [emptyText("No revisions.")]));
-  } catch (error) {
-    list.replaceChildren(emptyText(safeNoteErrorMessage(error, "Revisions could not be loaded.")));
-  }
-}
-
-function revisionItem(note, revision) {
-  const item = document.createElement("article");
-  const title = document.createElement("strong");
-  const meta = document.createElement("p");
-  const excerpt = document.createElement("p");
-  const restore = document.createElement("button");
-
-  item.className = "notes-revision-item";
-  title.textContent = Number(revision.revision_number) === 1 ? "Original" : `Revision ${revision.revision_number}`;
-  meta.textContent = [
-    revision.change_summary,
-    formatToken(revision.library_bucket),
-    normalizeWorkspaceType(state.workspaceType) === "personal" ? "" : formatToken(revision.visibility),
-    formatToken(revision.security_mode),
-    formatDate(revision.created_at),
-  ].filter(Boolean).join(" - ");
-  excerpt.textContent = isSecureNote(revision) ? "Secure revision body hidden from history." : revision.body_excerpt || revision.title || "";
-  restore.type = "button";
-  restore.textContent = "Restore";
-  restore.hidden = note.status === "archived";
-  if (isSecureNote(note)) {
-    restore.title = "Secure revision restore re-encrypts the restored body.";
-  }
-  restore.addEventListener("click", async () => {
-    try {
-      await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions/${encodeURIComponent(revision.note_revision_id)}/restore`, {});
-      await selectNote(note.note_id);
-    } catch (error) {
-      setStatus(safeNoteErrorMessage(error, "Revision could not be restored."), true);
+    for (const target of state.editorStagedTargets || []) {
+      const targetKey = editorLinkTargetKey(target);
+      if (!targetKey || seen.has(targetKey)) {
+        continue;
+      }
+      seen.add(targetKey);
+      links.push(linkPayloadFromTarget(target));
     }
-  });
-  item.append(title, meta, excerpt, restore);
-  return item;
-}
 
-async function mountTagEditor(note) {
-  if (!tagsEditor || !window.LongtailForge.tags) {
-    tagsToggle && (tagsToggle.hidden = !window.LongtailForge.tags);
-    return;
+    return links;
   }
 
-  tagsToggle.hidden = false;
-  state.tagsDialogNoteId = note?.note_id || "";
-  state.tagPicker = await window.LongtailForge.tags.mountPicker(tagsEditor, {
-    allowCreate: true,
-    label: "Tags",
-    selectedTags: note?.tags || [],
-    tags: state.availableTags,
-  });
-}
-
-function mountNoteEditorFiles(note) {
-  const filesAvailable = Boolean(filesEditor) && Boolean(window.LongtailForge.fileAttachments);
-  const secure = isSecureNote(note) || (!note?.note_id && isSecureEditorMode());
-
-  updateFilesUtilityState(note);
-
-  state.editorAttachmentController?.destroy?.();
-  state.editorAttachmentController = null;
-  state.filesDialogNoteId = note?.note_id || "";
-  if (filesSaveFirstWarning) {
-    filesSaveFirstWarning.hidden = Boolean(note?.note_id);
-  }
-  if (!filesAvailable || secure || !note?.note_id) {
-    filesEditor?.replaceChildren?.();
-    return;
+  /** @param {NotesEditorNote} note @param {NotesSavedLinkIdentity} target */
+  function noteHasLink(note = {}, target = {}) {
+    return (note.links || []).some((link) => isNotesDecoratedLink(link) && editorLinkTargetMatches(link, target));
   }
 
-  state.editorAttachmentController = window.LongtailForge.fileAttachments.mount(filesEditor, {
-    acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
-    canRemove: Boolean(note?.note_id) && note?.status !== "archived",
-    canUpload: Boolean(note?.note_id) && note?.status !== "archived",
-    clientId: note?.client_id || "",
-    moduleId: "notes",
-    projectId: note?.project_id || "",
-    saveFirstMessage: "Save the note before adding files.",
-    targetId: note?.note_id || "",
-    targetType: "note",
-    title: "Files",
-    visibility: fileVisibilityForNote(note || {}),
-  });
-}
+  /** @param {NotesLinkTargetInput} target */
+  function editorLinkTargetKey(target = {}) {
+    const targetType = target.targetType || target.target_type || "";
+    const targetId = target.targetId || target.target_id || "";
 
-function updateFilesUtilityState(note = state.editorNote) {
-  if (!filesToggle) {
-    return;
+    if (!targetType || !targetId) {
+      return "";
+    }
+
+    return `${target.moduleId || target.module_id || ""}:${targetType}:${targetId}`;
   }
 
-  const filesAvailable = Boolean(filesDialog) && Boolean(filesEditor) && Boolean(window.LongtailForge.fileAttachments);
-  const secure = isSecureNote(note) || (!note?.note_id && isSecureEditorMode());
-  filesToggle.hidden = secure || !filesAvailable;
-  if (filesToggle.hidden) {
-    filesToggle.setAttribute("aria-expanded", "false");
+  /** @param {NotesSavedLinkIdentity} link @param {NotesSavedLinkIdentity} target */
+  function editorLinkTargetMatches(link = {}, target = {}) {
+    const linkModuleId = link.moduleId || link.module_id || "";
+    const targetModuleId = target.moduleId || target.module_id || "";
+    const linkTargetType = link.targetType || link.target_type || "";
+    const targetType = target.targetType || target.target_type || "";
+    const linkTargetId = link.targetId || link.target_id || "";
+    const targetId = target.targetId || target.target_id || "";
+
+    return linkTargetType === targetType &&
+      linkTargetId === targetId &&
+      (!linkModuleId || !targetModuleId || linkModuleId === targetModuleId);
+  }
+
+  function stagedTargetExists(target = {}) {
+    return (state.editorStagedTargets || []).some((stagedTarget) => editorLinkTargetMatches(stagedTarget, target));
+  }
+
+  /** @param {Partial<BrowserNoteLinkTarget>} target */
+  function stageEditorLinkTarget(target = {}) {
+    if (!target.targetType || !target.targetId) {
+      return;
+    }
+    if (stagedTargetExists(target)) {
+      state.editorSelectedTarget = target;
+      renderEditorContextSelection(target);
+      requireNotesValue(formStatus).textContent = "Linked context is already staged.";
+      return;
+    }
+
+    state.editorStagedTargets = [...(state.editorStagedTargets || []), target];
+    state.editorSelectedTarget = target;
+    requireNotesValue(formStatus).textContent = "";
+    renderEditorContextSelection(target);
+  }
+
+  function removeEditorStagedTarget(target = {}) {
+    state.editorStagedTargets = (state.editorStagedTargets || [])
+      .filter((stagedTarget) => !editorLinkTargetMatches(stagedTarget, target));
+    if (editorLinkTargetMatches(state.editorSelectedTarget || {}, target)) {
+      state.editorSelectedTarget = null;
+    }
+    renderEditorContextSelection();
+    updateLibrarySuggestion();
+  }
+
+  /** @param {Partial<BrowserNoteLinkTarget> | null} target */
+  function renderEditorContextSelection(target = null) {
+    renderEditorContextPanel();
+    if (!contextSelectedMessage) {
+      return;
+    }
+
+    const linked = [];
+    if (target?.targetType === "workspace") {
+      linked.push(`Workspace: ${target.label || "Workspace"}`);
+    } else if (target?.targetType) {
+      linked.push(`${contextTypeLabel(target.targetType)}: ${target.label || unavailableTargetLabel(target.targetType)}`);
+    } else {
+      if (requireNotesValue(userInput).value) {
+        linked.push(`User: ${contextSummaryLabel("user")}`);
+      }
+    }
+
+    contextSelectedMessage.textContent = linked.length > 0
+      ? `Linked context: ${linked.join(" / ")}`
+      : "No linked context selected.";
+  }
+
+  /** @param {string} targetType */
+  function contextSummaryLabel(targetType) {
+    return readEditorContextSummary(targetType).label || unavailableTargetLabel(targetType);
+  }
+
+  function renderEditorContextPanel() {
+    const view = requireView();
+    if (!contextList) {
+      return;
+    }
+
+    const items = [
+      editorPrimaryContextItem(),
+      ...editorLinkedContextRows(),
+    ];
+    const parts = editorContextPickerParts();
+
+    if (typeof parts.setLinkedItems === "function") {
+      parts.setLinkedItems(items);
+      return;
+    }
+
+    contextList.replaceChildren(...items.map((item) => view.createElement("div", {
+      className: ["notes-link-item", "className" in item ? item.className : undefined],
+      text: [item.displayLabel, item.secondaryLabel, "hintLabel" in item ? item.hintLabel : undefined].filter(Boolean).join(" - "),
+    })));
+  }
+
+  /** @typedef {Partial<Pick<import("../../src/types/browser-contracts.js").BrowserViewLinkedContextPickerParts, "clientContextSelect" | "setClientContexts" | "setRecords" | "setLinkedItems">>} NotesContextPickerParts */
+
+  /**
+   * createLinkedContextPicker publishes these controls and closure methods. An absent
+   * or unreadable parts bag uses the existing plain-control fallback, not a failed editor.
+   * @param {unknown} value
+   * @returns {value is NotesContextPickerParts}
+   */
+  function isNotesContextPickerParts(value) {
+    return isResponseRecord(value)
+      && (value.clientContextSelect === undefined || value.clientContextSelect instanceof HTMLSelectElement)
+      && (value.setClientContexts === undefined || typeof value.setClientContexts === "function")
+      && (value.setRecords === undefined || typeof value.setRecords === "function")
+      && (value.setLinkedItems === undefined || typeof value.setLinkedItems === "function");
+  }
+
+  /** @returns {NotesContextPickerParts} */
+  function editorContextPickerParts() {
+    const picker = contextList?.closest("[data-note-context-picker]");
+    const parts = picker && "viewParts" in picker ? picker.viewParts : null;
+    return isNotesContextPickerParts(parts) ? parts : {};
+  }
+
+  function editorPrimaryContextItem() {
+    return {
+      className: "notes-primary-context-row",
+      displayLabel: "Primary Context",
+      hintLabel: "Edit in Note Details",
+      removable: false,
+      secondaryLabel: editorPrimaryContextSummary(),
+      targetId: "",
+      targetType: "primary-context",
+    };
+  }
+
+  function editorPrimaryContextSummary() {
+    const parts = [];
+
+    if (usesBusinessScope() && clientInput?.value) {
+      parts.push(`Client: ${selectedOptionText(clientInput, unavailableTargetLabel("client"))}`);
+    }
+    if (projectInput?.value) {
+      parts.push(`Project: ${selectedOptionText(projectInput, unavailableTargetLabel("project"))}`);
+    }
+
+    return parts.length > 0
+      ? parts.join(" / ")
+      : "No primary context selected.";
+  }
+
+  function editorLinkedContextRows() {
+    const note = state.editorNote || {};
+    /** @type {Array<NonNullable<ReturnType<typeof editorLinkedContextItem>> | ReturnType<typeof editorStagedTargetItem>>} */
+    const rows = (note.links || []).map((link) => editorLinkedContextItem(note, link)).filter((row) => row !== null);
+
+    for (const target of state.editorStagedTargets || []) {
+      if (!noteHasLink(note, target)) {
+        rows.push(editorStagedTargetItem(target));
+      }
+    }
+
+    return rows;
+  }
+
+  /** @param {NotesEditorNote} note @param {unknown} link */
+  function editorLinkedContextItem(note, link) {
+    if (!isNotesDecoratedLink(link)) return null;
+    const targetType = link.targetType || link.target_type || "";
+    // Only known types receive picker-specific label formatting. Unknown saved types
+    // keep their original identity and the existing generic/unavailable presentation.
+    const displayType = isKnownContextTargetType(targetType) ? targetType : undefined;
+
+    return {
+      displayLabel: targetPickerDisplayLabel({
+        ...link,
+        targetType: displayType,
+        target_type: undefined,
+      }),
+      link,
+      moduleId: link.moduleId || link.module_id || "",
+      removable: !("status" in note) || note.status !== "archived",
+      secondaryLabel: targetPickerSecondaryLabel({
+        ...link,
+        targetType: displayType,
+        target_type: undefined,
+      }),
+      sourceUrl: link.sourceUrl || link.source_url || "",
+      targetId: link.targetId || link.target_id || "",
+      targetType,
+    };
+  }
+
+  function editorStagedTargetItem(target = {}) {
+    return {
+      ...pickerRecordFromTarget(target),
+      target,
+    };
+  }
+
+  /**
+   * The picker shallow-copies row metadata while preserving `link` and `target` references.
+   * Their producers are `editorLinkedContextItem` (checked saved rows) and `editorStagedTargetItem`.
+   * Keep both payloads unknown here: their removal/matching owners read their members.
+   * @param {{link?: unknown, target?: unknown}} [item]
+   */
+  function handleEditorLinkedContextRemove(item = {}) {
+    if (item.link) {
+      removeEditorNoteLink(state.editorNote || {}, item.link);
+    } else if (item.target) {
+      removeEditorStagedTarget(item.target);
+    }
+  }
+
+  /** @param {HTMLSelectElement | null | undefined} select @param {string} fallback */
+  function selectedOptionText(select, fallback) {
+    const selected = [...(select?.options || [])].find((option) => option.value === select?.value);
+    return normalizeText(selected?.textContent) || fallback;
+  }
+
+  /** @param {NotesEditorNote | null | undefined} note @param {unknown} link */
+  async function removeEditorNoteLink(note, link) {
+    const api = requireApi();
+    const noteId = note?.note_id || state.editingNoteId;
+    // Removal needs only the row identity; unreadable display metadata cannot block it.
+    const noteLinkId = isResponseRecord(link)
+      ? (Object.hasOwn(link, "noteLinkId") && typeof link.noteLinkId === "string" && link.noteLinkId)
+        || (Object.hasOwn(link, "note_link_id") && typeof link.note_link_id === "string" && link.note_link_id)
+      : "";
+
+    if (!noteId || !noteLinkId) {
+      return;
+    }
+
+    requireNotesValue(formStatus).textContent = "Removing linked context...";
+    try {
+      await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
+      await refreshEditorNote(noteId);
+      requireNotesValue(formStatus).textContent = "";
+    } catch (error) {
+      requireNotesValue(formStatus).textContent = safeNoteErrorMessage(error, "Linked context could not be removed.");
+    }
+  }
+
+  /** @param {Partial<BrowserNoteLinkTarget>} target */
+  async function addEditorNoteLink(target = {}) {
+    const api = requireApi();
+    const noteId = state.editingNoteId;
+
+    if (!noteId || !target.targetType || !target.targetId) {
+      return;
+    }
+    if (noteHasLink(state.editorNote || {}, target)) {
+      state.editorSelectedTarget = null;
+      renderEditorContextSelection();
+      requireNotesValue(formStatus).textContent = "Linked context is already added.";
+      return;
+    }
+
+    requireNotesValue(formStatus).textContent = "Adding linked context...";
+    if (contextApplyButton) {
+      contextApplyButton.disabled = true;
+    }
+
+    try {
+      await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links`, linkPayloadFromTarget(target));
+      state.editorSelectedTarget = null;
+      await refreshEditorNote(noteId);
+      requireNotesValue(formStatus).textContent = "";
+    } catch (error) {
+      requireNotesValue(formStatus).textContent = safeNoteErrorMessage(error, "Linked context could not be added.");
+    } finally {
+      if (contextApplyButton) {
+        contextApplyButton.disabled = false;
+      }
+    }
+  }
+
+  /** @param {BrowserNoteRecord["note_id"]} noteId */
+  async function refreshEditorNote(noteId) {
+    const api = requireApi();
+    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+    const refreshed = requireNoteFromEnvelope(result);
+
+    state.editorNote = refreshed;
+    if (state.selectedNote?.note_id === noteId) {
+      state.selectedNote = refreshed;
+      renderDetail(refreshed);
+    }
+    await loadNotes();
+    renderNotes();
+    renderEditorContextSelection();
+    return refreshed;
+  }
+
+  /** @param {string} value @returns {value is keyof typeof LINK_TARGET_TYPE_LABELS} */
+  function isKnownContextTargetType(value) {
+    return Object.hasOwn(LINK_TARGET_TYPE_LABELS, value);
+  }
+
+  /**
+   * Directory targets have a closed vocabulary; the URL editor also forwards strings.
+   * Keep that wider local input and check membership in the Notes-owned label literal.
+   * @param {string} targetType
+   */
+  function contextTypeLabel(targetType) {
+    return isKnownContextTargetType(targetType) ? LINK_TARGET_TYPE_LABELS[targetType] : formatToken(targetType || "context");
+  }
+
+  function unavailableTargetLabel(targetType = "") {
+    return {
+      client: "Unavailable client",
+      project: "Unavailable project",
+      task: "Unavailable task",
+      note: "Unavailable note",
+      list: "Unavailable list",
+    }[targetType] || "Unavailable linked context";
+  }
+
+  /** @param {Event} event */
+  function handleEditorCommand(event) {
+    const target = event.target;
+    const toolbar = event.currentTarget;
+    if (!(target instanceof Element) || !(toolbar instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-note-command]");
+    if (!(button instanceof HTMLButtonElement)
+        || button.closest("[data-note-editor-toolbar]") !== toolbar
+        || button.disabled) {
+      return;
+    }
+    const command = button.dataset.noteCommand;
+
+    if (!command) {
+      return;
+    }
+
+    editor?.applyCommand(command);
+    void renderPreview();
+  }
+
+  function togglePreview() {
+    const pressed = requireNotesValue(previewToggle).getAttribute("aria-pressed") === "true";
+    const visible = !pressed;
+    requireNotesValue(previewToggle).setAttribute("aria-pressed", String(visible));
+    if (preview) {
+      preview.hidden = !visible;
+    } else {
+      requireNotesValue(preview);
+    }
+    updatePreviewLayoutState(visible);
+    if (visible) {
+      void renderPreview();
+    }
+  }
+
+  /** @param {boolean} visible */
+  function updatePreviewLayoutState(visible) {
+    markdownEditor?.classList.toggle("is-preview-visible", visible);
+  }
+
+  async function renderPreview() {
+    const api = requireApi();
+    if (requireNotesValue(preview).hidden) {
+      return;
+    }
+
+    const markdown = editor?.getValue() || requireNotesValue(bodyInput).value;
+    const requestId = state.previewRequestId + 1;
+    state.previewRequestId = requestId;
+    requireNotesValue(preview).textContent = "Loading preview...";
+
+    try {
+      const rendered = readMarkdownPreview(await api.postJson("/api/notes/preview", { body_markdown: markdown }));
+      if (requestId !== state.previewRequestId) {
+        return;
+      }
+      if (!rendered) {
+        throw new Error("The Markdown preview could not be read.");
+      }
+      if (preview) {
+        preview.innerHTML = rendered.bodyHtml;
+      } else {
+        requireNotesValue(preview);
+      }
+      applyExternalMarkdownLinkPreference(preview);
+      if (!requireNotesValue(preview).textContent.trim()) {
+        requireNotesValue(preview).replaceChildren(emptyPreviewNode());
+      }
+    } catch (error) {
+      if (requestId !== state.previewRequestId) {
+        return;
+      }
+      requireNotesValue(preview).textContent = safeNoteErrorMessage(error, "Preview could not be rendered.");
+    }
+  }
+
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note */
+  async function archiveNote(note) {
+    await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/archive`);
+  }
+
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note */
+  async function restoreNote(note) {
+    await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/restore`);
+  }
+
+  /**
+   * @param {string} mode
+   * @param {{collection?: BrowserNoteCollection | null, parent?: BrowserNoteCollection | null}} [options]
+   */
+  function openCollectionDialog(mode, options = {}) {
+    const view = requireView();
+    const collection = options.collection || null;
+    const parent = options.parent || null;
+    const libraryBucket = collection?.library_bucket || parent?.library_bucket || defaultLibraryForCreate();
+
+    state.collectionDialogMode = mode || "create";
+    state.collectionEditingId = collection?.note_library_collection_id || "";
+    requireNotesValue(collectionDialogTitle).textContent = collection ? "Edit Collection" : "Create Collection";
+    requireNotesValue(collectionTitleInput).value = collection?.title || "";
+    requireNotesValue(collectionLibraryInput).value = libraryBucket;
+    requireNotesValue(collectionLibraryInput).disabled = Boolean(collection);
+    populateCollectionParentOptions(collection, parent);
+    requireNotesValue(collectionFormStatus).textContent = "";
+    requireNotesValue(collectionSaveButton).disabled = false;
+    view.showModal(collectionDialog, { parent: null });
+    requireNotesValue(collectionTitleInput).focus();
+  }
+
+  function closeCollectionDialog() {
+    const view = requireView();
+    view.closeModal(collectionDialog);
+    if (collectionLibraryInput) {
+      collectionLibraryInput.disabled = false;
+    }
+  }
+
+  /**
+   * @param {Event} event
+   */
+  async function saveCollection(event) {
+    const api = requireApi();
+    event.preventDefault();
+    requireNotesValue(collectionSaveButton).disabled = true;
+    requireNotesValue(collectionFormStatus).textContent = "Saving collection...";
+
+    const payload = {
+      title: requireNotesValue(collectionTitleInput).value,
+      libraryBucket: requireNotesValue(collectionLibraryInput).value,
+      parentCollectionId: requireNotesValue(collectionParentInput).value || null,
+    };
+
+    try {
+      if (state.collectionDialogMode === "edit" && state.collectionEditingId) {
+        await api.putJson(`/api/notes/collections/${encodeURIComponent(state.collectionEditingId)}`, payload);
+      } else {
+        await api.postJson("/api/notes/collections", payload);
+      }
+      await refreshCollectionUi();
+      closeCollectionDialog();
+      setStatus("");
+    } catch (error) {
+      requireNotesValue(collectionFormStatus).textContent = requireErrors().caughtMessage(error, "Collection could not be saved.");
+      requireNotesValue(collectionSaveButton).disabled = false;
+    }
+  }
+
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   */
+  async function archiveCollection(collection) {
+    const confirmed = await requireModalDialogs().confirm({
+      title: "Archive collection",
+      message: `Archive "${requireNotesValue(collection).title}"? Notes stay in the collection and are not archived.`,
+      confirmLabel: "Archive",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireNotesValue(collection).note_library_collection_id)}/archive`);
+  }
+
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   */
+  async function deleteEmptyCollection(collection) {
+    const confirmed = await requireModalDialogs().confirm({
+      title: "Delete empty collection",
+      message: `Delete "${requireNotesValue(collection).title}" if it has no notes and no active child collections?`,
+      confirmLabel: "Delete Empty",
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireNotesValue(collection).note_library_collection_id)}/delete-empty`);
+  }
+
+  /**
+   * @param {string} url
+   */
+  async function mutateCollection(url) {
+    const api = requireApi();
+    setStatus("Saving collection...");
+
+    try {
+      await api.postJson(url, {});
+      await refreshCollectionUi();
+      setStatus("");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "Collection could not be updated."), true);
+    }
+  }
+
+  async function refreshCollectionUi() {
+    await Promise.all([loadCollections(), loadNotes()]);
+    renderCollections();
+    populateCollectionFilter();
+    populateNoteCollectionOptions();
+    renderNotes();
+    if (state.selectedNote?.note_id) {
+      await selectNote(state.selectedNote.note_id);
+    }
+  }
+
+  /** @param {BrowserNoteRecord} note */
+  function renderLinksPanel(note) {
+    const view = requireView();
+    const descriptor = notesLinkedRecordsDescriptor();
+    if (!descriptor) {
+      return null;
+    }
+
+    const locked = note.status === "archived";
+    const targetType = noteSelect("noteLinkTargetType", []);
+    const targetSearch = noteInput("noteLinkSearch", { type: "search" });
+    const targetResults = noteSelect("noteLinkResults", []);
+    const typeField = noteFieldLabel("Type", targetType);
+    const searchField = noteFieldLabel("Search records", targetSearch);
+    const resultsField = noteFieldLabel("Record", targetResults);
+    /** @type {number | null} */
+    let searchTimer = null;
+
+    populateLinkTargetTypeSelect(targetType);
+    targetSearch.placeholder = linkedRecordsField(descriptor, "target_search").placeholder || "Search records";
+    targetResults.required = true;
+
+    /** @type {Partial<import("../../src/types/framework-contracts.js").ViewActionDescriptor>} */
+    const addAction = descriptor.actions?.find((action) => action.id === "add-link") || {};
+    const add = view.createActionButton({
+      icon: "add",
+      iconOnly: true,
+      label: addAction.label || "Add Link",
+      title: addAction.label || "Add Link",
+      type: "submit",
+      role: addAction.role || "primary",
+      action: addAction.behavior || addAction.id,
+    });
+    add.dataset.noteLinkAdd = "";
+
+    const section = requireDescriptorRenderers().renderDescriptorLinkedRecordsPanel(descriptor, {
+      className: "notes-links-panel",
+      collapsible: true,
+      open: false,
+      recordsClassName: "notes-link-list",
+      formClassName: "notes-link-form view-field-grid surface-modal-section-body",
+      formDataset: { noteLinkForm: "", noteId: note.note_id },
+      formFields: [typeField, searchField, resultsField],
+      formActions: [add],
+      locked,
+      emptyClassName: "notes-empty-state",
+    });
+    section.dataset.noteLinksPanel = "";
+    section.querySelector(".notes-link-list")?.replaceChildren(...linkRecordNodes(note));
+
+    const form = section.querySelector("[data-note-link-form]");
+    let queryVersion = 0;
+    let queryReady = () => false;
+    let submitting = false;
+    const readReadyTarget = () => {
+      if (locked || submitting || !queryReady() || targetResults.disabled) return null;
+      const target = readSelectedLinkTarget(targetResults);
+      return target?.targetId && target.targetType === targetType.value ? target : null;
+    };
+    const syncAdd = () => { add.disabled = !readReadyTarget(); };
+    const invalidateQuery = () => {
+      queryVersion += 1;
+      queryReady = () => false;
+      targetResults.disabled = true;
+      targetResults.replaceChildren(new window.Option("Loading records...", ""));
+      syncAdd();
+    };
+    const loadTargets = async () => {
+      const version = queryVersion;
+      const requestedType = targetType.value;
+      const requestedSearch = targetSearch.value;
+      const isCurrentQuery = () => version === queryVersion
+        && requestedType === targetType.value && requestedSearch === targetSearch.value;
+      try {
+        const targets = await fetchLinkTargets({ targetType: requestedType, search: requestedSearch, limit: 40 });
+        if (!isCurrentQuery()) return;
+        populateLinkTargetSelect(targetResults, targets);
+        queryReady = isCurrentQuery;
+      } catch {
+        if (!isCurrentQuery()) return;
+        targetResults.replaceChildren(new window.Option("No records available", ""));
+      } finally {
+        if (isCurrentQuery()) {
+          targetResults.disabled = false;
+          syncAdd();
+        }
+      }
+    };
+    targetType.addEventListener("change", () => {
+      window.clearTimeout(searchTimer ?? undefined);
+      invalidateQuery();
+      loadTargets();
+    });
+    targetSearch.addEventListener("input", () => {
+      window.clearTimeout(searchTimer ?? undefined);
+      invalidateQuery();
+      searchTimer = window.setTimeout(loadTargets, 180);
+    });
+    targetResults.addEventListener("change", syncAdd);
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const target = readReadyTarget();
+      if (!target) return;
+      submitting = true;
+      syncAdd();
+      try {
+        await addNoteLink(note, {
+          targetType: target.targetType,
+          targetId: target.targetId,
+          moduleId: target.moduleId,
+        });
+      } finally {
+        submitting = false;
+        syncAdd();
+      }
+    });
+    invalidateQuery();
+    loadTargets();
+
+    return section;
+  }
+
+  /**
+   * @param {import("../../src/types/framework-contracts.js").ViewLinkedRecordsDescriptor} descriptor
+   * @param {string} fieldName
+   * @returns {Partial<import("../../src/types/framework-contracts.js").ViewFieldDescriptor>}
+   */
+  function linkedRecordsField(descriptor, fieldName) {
+    return descriptor.fields?.find((field) => field.field === fieldName) || {};
+  }
+
+  /** @param {BrowserNoteRecord} note */
+  function linkRecordNodes(note) {
+    const view = requireView();
+    const primaryContext = notePrimaryContextItem(note);
+    const links = note.links || [];
+    const items = [
+      primaryContext,
+      ...links.map((link) => linkItem(note, link)),
+    ].filter((item) => item !== null);
+
+    if (items.length === 0) {
+      return [view.createElement("p", {
+        className: "notes-empty-state",
+        text: notesLinkedRecordsDescriptor()?.emptyState?.message || "No linked context.",
+      })];
+    }
+    return items;
+  }
+
+  function notePrimaryContextItem(note = {}) {
+    const view = requireView();
+    const summary = notePrimaryContextSummary(note);
+
+    if (!summary) {
+      return null;
+    }
+
+    const title = view.createElement("strong", { text: "Primary Context" });
+    const subtitle = view.createElement("small", { text: summary });
+    const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
+
+    return view.createElement("div", {
+      className: "notes-link-item notes-primary-context-row",
+      children: [label],
+    });
+  }
+
+  /**
+   * readLinkedContextSummary produces these labels, independently of the picker directory.
+   * No claim is made about the other opaque linked_context members.
+   * @param {unknown} value
+   * @returns {value is Partial<Pick<BrowserNoteLinkTarget, "label">>}
+   */
+  function isNoteContextLabel(value) {
+    return isResponseRecord(value) && (value.label === undefined || typeof value.label === "string");
+  }
+
+  /** @param {Partial<Pick<BrowserNoteRecord, "linked_context" | "client_id" | "project_id">>} [note] */
+  function notePrimaryContextSummary(note = {}) {
+    const context = note.linked_context || {};
+    if (!isResponseRecord(context)
+      || (context.client != null && !isNoteContextLabel(context.client))
+      || (context.project != null && !isNoteContextLabel(context.project))) {
+      return "";
+    }
+    const parts = [];
+
+    if (usesBusinessScope() && (note.client_id || context.client)) {
+      parts.push(`Client: ${context.client?.label || unavailableTargetLabel("client")}`);
+    }
+    if (note.project_id || context.project) {
+      parts.push(`Project: ${context.project?.label || unavailableTargetLabel("project")}`);
+    }
+
+    return parts.join(" / ");
+  }
+
+  /**
+   * Stored links come from decorateNoteLinks/shapeSafeNoteLink, not the picker directory.
+   * Check only the display and removal members this row consumes; retain the original record.
+   * @param {unknown} value
+   * @returns {value is Pick<import("../../src/types/notes-domain-contracts.js").NotesServiceTarget, "sourceUrl" | "source_url" | "targetType" | "target_type" | "label" | "subtitle" | "noteLinkId" | "note_link_id">}
+   */
+  function isNoteLinkDisplay(value) {
+    return isResponseRecord(value)
+      && ["sourceUrl", "source_url", "targetType", "target_type", "label", "subtitle", "noteLinkId", "note_link_id"]
+        .every((key) => value[key] === undefined || typeof value[key] === "string");
+  }
+
+  /** @param {BrowserNoteRecord} note @param {unknown} link */
+  function linkItem(note, link) {
+    const view = requireView();
+    if (!isNoteLinkDisplay(link)) return null;
+    const sourceUrl = link.sourceUrl || link.source_url || "";
+    const targetType = link.targetType || link.target_type || "";
+    /** @type {Readonly<Partial<Record<string, string>>>} */
+    const typeLabels = LINK_TARGET_TYPE_LABELS;
+    const title = view.createElement(sourceUrl ? "a" : "strong", {
+      text: link.label || "Unavailable linked context",
+      attrs: sourceUrl ? { href: sourceUrl } : {},
+    });
+    const subtitle = view.createElement("small", {
+      text: link.subtitle || (typeLabels[targetType] || formatToken(targetType)),
+    });
+    const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
+    const remove = view.createActionButton({ icon: "delete", iconOnly: true, label: "Remove", title: "Remove", role: "secondary", onClick: () => removeNoteLink(note, link) });
+    remove.dataset.noteLinkRemove = "";
+    remove.hidden = note.status === "archived";
+    return view.createElement("div", { className: "notes-link-item", children: [label, remove] });
+  }
+
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note @param {unknown} payload */
+  async function addNoteLink(note, payload) {
+    const api = requireApi();
+    await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links`, payload);
+    await selectNote(note.note_id);
+  }
+
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note @param {Pick<import("../../src/types/notes-domain-contracts.js").NotesServiceTarget, "noteLinkId" | "note_link_id">} link */
+  async function removeNoteLink(note, link) {
+    const api = requireApi();
+    const noteLinkId = link.noteLinkId || link.note_link_id;
+    await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(String(noteLinkId))}/remove`, {});
+    await selectNote(note.note_id);
+  }
+
+  function renderFilesPanel(note = {}) {
+    const view = requireView();
+    // Collapsible (collapsed by default), boxed to match the Linked Context and Revisions sections
+    // (`notes-detail-section`). The embedded file-attachments component drops its own surface chrome and
+    // redundant heading inside this panel (see `.notes-files-panel` CSS) so there is a single outer box.
+    const summary = view.createElement("summary", { text: "Files" });
+    if (isSecureNote(note)) {
+      return view.createElement("details", {
+        className: "notes-detail-section notes-files-panel",
+        children: [summary, lockedNotice("Secure notes do not allow framework file attachments yet.")],
+      });
+    }
+    const mount = view.createElement("div");
+    mount.dataset.noteFilesMount = "";
+    return view.createElement("details", { className: "notes-detail-section notes-files-panel", children: [summary, mount] });
+  }
+
+  /** @param {BrowserNoteRecord} note @param {Element | null} [mount] */
+  function mountFilesPanel(note, mount) {
+    if (!mount || isSecureNote(note)) {
+      return;
+    }
+
+    const fileAttachments = requireNamespace().fileAttachments;
+
+    if (!fileAttachments) {
+      return;
+    }
+
+    state.attachmentController?.destroy?.();
+    state.attachmentController = fileAttachments.mount(mount, {
+      acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
+      canRemove: note.status !== "archived",
+      canUpload: note.status !== "archived",
+      clientId: note.client_id || "",
+      moduleId: "notes",
+      projectId: note.project_id || "",
+      saveFirstMessage: "Save the note before adding files.",
+      targetId: note.note_id,
+      targetType: "note",
+      title: "Files",
+      visibility: fileVisibilityForNote(note),
+    });
+  }
+
+  /** @param {Partial<Pick<BrowserNoteRecord, "visibility">>} note */
+  function fileVisibilityForNote(note) {
+    if (note.visibility === "client_visible") {
+      return "client";
+    }
+    if (note.visibility === "private") {
+      return "private";
+    }
+    return "workspace";
+  }
+
+  /** @param {BrowserNoteRecord} note */
+  function renderRevisionsPanel(note) {
+    const view = requireView();
+    const summary = view.createElement("summary", { text: "Revisions" });
+    const list = view.createElement("div", { text: "Loading revisions..." });
+
+    list.dataset.noteRevisionsList = "";
+    if (note.status === "archived") {
+      list.dataset.archived = "true";
+    }
+    return view.createElement("details", {
+      className: "notes-detail-section notes-revisions-panel",
+      children: [summary, list],
+    });
+  }
+
+  /**
+   * The two security modes a revision may carry.
+   *
+   * Closed because the column's `CHECK` constraint admits exactly this pair and `NoteSecurityMode`
+   * declares the same one - and because the browser branches on it to decide whether a revision
+   * body is shown.
+   * @type {readonly BrowserNoteEffectiveSecurityMode[]}
+   */
+  const NOTE_REVISION_SECURITY_MODES = Object.freeze(["normal", "secure"]);
+
+  /** The revision columns `note_revisions` declares `NOT NULL` and this panel reads as text. */
+  const REQUIRED_REVISION_COLUMNS = Object.freeze(["created_at", "library_bucket", "note_revision_id", "title", "visibility"]);
+
+  /** The revision columns it declares nullable. */
+  const NULLABLE_REVISION_COLUMNS = Object.freeze(["body_excerpt", "change_summary"]);
+
+  /**
+   * The encrypted storage columns `stripSecureStorageFields` removes from **every** revision.
+   *
+   * Their absence is the contract, so it is checked rather than assumed. A listed revision that
+   * carries any one of them did not come through the shaper this endpoint uses.
+   */
+  const FORBIDDEN_REVISION_STORAGE_COLUMNS = Object.freeze([
+    "secure_payload", "secure_payload_version", "encrypted_data_key", "encryption_key_version",
+    "encryption_algorithm", "key_wrapping_algorithm", "encryption_nonce", "encryption_auth_tag",
+    "key_wrapping_nonce", "key_wrapping_auth_tag", "encrypted_at",
+  ]);
+
+  /** What a **secure** revision additionally loses when it is listed with `includeBody: false`. */
+  const FORBIDDEN_SECURE_REVISION_BODY_MEMBERS = Object.freeze(["body_markdown", "secure_body_decrypted"]);
+
+  /** @param {unknown} value @param {readonly string[]} members @returns {boolean} */
+  function hasNoMembers(value, members) {
+    return isResponseRecord(value) && members.every((member) => !Object.hasOwn(value, member));
+  }
+
+  /**
+   * One revision as the history list sends it.
+   *
+   * **The secure branch is enforced, not trusted.** `shapeRevisionForBrowser` nulls
+   * `body_excerpt` and deletes the two body members for a secure revision listed without a body;
+   * a listed revision that says it is secure and still carries either of them, or an excerpt, is
+   * not one this producer shaped, and the panel would print it as history.
+   *
+   * A **normal** revision is not required to have shed `body_markdown` - the shaper does not
+   * delete it there - so nothing is promised about it and nothing is stripped from it.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteRevisionSummary}
+   */
+  function isNoteRevisionSummary(value) {
+    if (!isResponseRecord(value)
+      || !hasTextColumns(value, REQUIRED_REVISION_COLUMNS)
+      || !hasNullableTextColumns(value, NULLABLE_REVISION_COLUMNS)
+      || !hasNoMembers(value, FORBIDDEN_REVISION_STORAGE_COLUMNS)
+      || value.note_revision_id === ""
+      || typeof value.revision_number !== "number"
+      || !Number.isInteger(value.revision_number)
+      || !NOTE_REVISION_SECURITY_MODES.some((mode) => mode === value.security_mode)) {
+      return false;
+    }
+
+    if (value.security_mode !== "secure") {
+      return true;
+    }
+
+    return value.body_excerpt === null && hasNoMembers(value, FORBIDDEN_SECURE_REVISION_BODY_MEMBERS);
+  }
+
+  /**
+   * The revision history of a note, or `null` when the body is not one this producer sent.
+   *
+   * **One malformed revision refuses the whole list.** This is a note's authoritative history,
+   * not an advisory picker: a shortened history rendered as a complete one tells the viewer that
+   * edits they made never happened. The raw read this replaced went further still, defaulting an
+   * unreadable response to an empty array and rendering it as **"No revisions."**
+   *
+   * An empty list is a real answer and stays one - `visibleRevisionSnapshots` deliberately
+   * returns `[]` for a note whose only snapshot is its original.
+   *
+   * **The producer's own array and revision objects are answered**, so the metadata, actor and
+   * import columns a revision carries survive unpromised rather than being rebuilt away.
+   * @param {unknown} body
+   * @returns {BrowserNoteRevisionSummary[] | null}
+   */
+  function readNoteRevisions(body) {
+    if (!isResponseRecord(body)
+      || !Array.isArray(body.revisions)
+      || !body.revisions.every(isNoteRevisionSummary)) {
+      return null;
+    }
+
+    return /** @type {BrowserNoteRevisionSummary[]} */ (body.revisions);
+  }
+
+  /** @param {BrowserNoteRecord} note @param {Element | null} list */
+  async function loadRevisions(note, list) {
+    const api = requireApi();
+    if (!list) {
+      return;
+    }
+
+    try {
+      let incomplete = false;
+      // This display projection drops only rejected rows and announces omissions.
+      // The strict history reader still validates the envelope and all retained rows.
+      const revisions = readNoteRevisions(await api.getJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions`, { cache: "no-store" }).then((body) => {
+        if (!isResponseRecord(body) || !Array.isArray(body.revisions)) return body;
+        const readable = body.revisions.filter(isNoteRevisionSummary);
+        if (readable.length === body.revisions.length) return body;
+        incomplete = true;
+        return { ...body, revisions: readable };
+      }));
+
+      if (!revisions) {
+        throw new Error("The revision history could not be read.");
+      }
+
+      const items = revisions.map((revision) => revisionItem(note, revision)).filter((item) => item !== null);
+      if (incomplete) items.push(emptyText("Some revisions could not be read. History is incomplete."));
+      else if (items.length === 0) items.push(emptyText("No revisions."));
+      list.replaceChildren(...items);
+    } catch (error) {
+      list.replaceChildren(emptyText(safeNoteErrorMessage(error, "Revisions could not be loaded.")));
+    }
+  }
+
+  /** @param {BrowserNoteRecord} note @param {unknown} revision */
+  function revisionItem(note, revision) {
+    const api = requireApi();
+    if (!isNoteRevisionSummary(revision)) return null;
+    const item = document.createElement("article");
+    const title = document.createElement("strong");
+    const meta = document.createElement("p");
+    const excerpt = document.createElement("p");
+    const restore = document.createElement("button");
+
+    item.className = "notes-revision-item";
+    title.textContent = Number(revision.revision_number) === 1 ? "Original" : `Revision ${revision.revision_number}`;
+    meta.textContent = [
+      revision.change_summary,
+      formatToken(revision.library_bucket),
+      normalizeWorkspaceType(state.workspaceType) === "personal" ? "" : formatToken(revision.visibility),
+      formatToken(revision.security_mode),
+      formatDate(revision.created_at),
+    ].filter(Boolean).join(" - ");
+    excerpt.textContent = isSecureNote(revision) ? "Secure revision body hidden from history." : revision.body_excerpt || revision.title || "";
+    restore.type = "button";
+    restore.textContent = "Restore";
+    restore.hidden = note.status === "archived";
+    if (isSecureNote(note)) {
+      restore.title = "Secure revision restore re-encrypts the restored body.";
+    }
+    restore.addEventListener("click", async () => {
+      try {
+        await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions/${encodeURIComponent(revision.note_revision_id)}/restore`, {});
+        await selectNote(note.note_id);
+      } catch (error) {
+        setStatus(safeNoteErrorMessage(error, "Revision could not be restored."), true);
+      }
+    });
+    item.append(title, meta, excerpt, restore);
+    return item;
+  }
+
+  /**
+   * Editor hydration can retain an ID-only seed on failure. Only a full checked note supplies
+   * tags, whose elements remain unknown and are normalized by the published picker itself.
+   * @param {(NotesEditorNote & Partial<Pick<BrowserNoteRecord, "tags">>) | null} note
+   */
+  async function mountTagEditor(note) {
+    // Captured above the guard because the guard reads the surface on **both** of its paths:
+    // the `tagsToggle` branch reads it again when `tagsEditor` is absent.
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagsEditor || !tagSurface) {
+      tagsToggle && (tagsToggle.hidden = !tagSurface);
+      return;
+    }
+
+    if (tagsToggle) {
+      tagsToggle.hidden = false;
+    } else {
+      requireNotesValue(tagsToggle);
+    }
+    state.tagsDialogNoteId = note?.note_id || "";
+    state.tagPicker = await tagSurface.mountPicker(tagsEditor, {
+      allowCreate: true,
+      label: "Tags",
+      selectedTags: note?.tags || [],
+      tags: state.availableTags,
+    });
+  }
+
+  /**
+   * A failed editor hydration can retain a seed: its writer does not establish status.
+   * Keep that member unknown here; the existing archived comparison claims no string type.
+   * @param {(NotesEditorNote & {status?: unknown}) | null} [note]
+   */
+  function mountNoteEditorFiles(note) {
+    // Read once and test the binding rather than a boolean derived from it: `!filesAvailable`
+    // is exactly `!filesEditor || !fileAttachments`, but a boolean cannot narrow the surface
+    // for the `mount` call below the guard. Same condition, same order, same early return.
+    const fileAttachments = requireNamespace().fileAttachments;
+    const secure = isSecureNote(note) || (!note?.note_id && isSecureEditorMode());
+
+    updateFilesUtilityState(note);
+
+    state.editorAttachmentController?.destroy?.();
+    state.editorAttachmentController = null;
+    state.filesDialogNoteId = note?.note_id || "";
+    if (filesSaveFirstWarning) {
+      filesSaveFirstWarning.hidden = Boolean(note?.note_id);
+    }
+    if (!filesEditor || !fileAttachments || secure || !note?.note_id) {
+      filesEditor?.replaceChildren?.();
+      return;
+    }
+
+    state.editorAttachmentController = fileAttachments.mount(filesEditor, {
+      acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
+      canRemove: Boolean(note?.note_id) && note?.status !== "archived",
+      canUpload: Boolean(note?.note_id) && note?.status !== "archived",
+      clientId: note?.client_id || "",
+      moduleId: "notes",
+      projectId: note?.project_id || "",
+      saveFirstMessage: "Save the note before adding files.",
+      targetId: note?.note_id || "",
+      targetType: "note",
+      title: "Files",
+      visibility: fileVisibilityForNote(note || {}),
+    });
+  }
+
+  function updateFilesUtilityState(note = state.editorNote) {
+    if (!filesToggle) {
+      return;
+    }
+
+    const filesAvailable = Boolean(filesDialog) && Boolean(filesEditor) && Boolean(requireNamespace().fileAttachments);
+    const secure = isSecureNote(note) || (!note?.note_id && isSecureEditorMode());
+    filesToggle.hidden = secure || !filesAvailable;
+    if (filesToggle.hidden) {
+      filesToggle.setAttribute("aria-expanded", "false");
+      closeFilesDialog();
+    }
+  }
+
+  function resetNoteEditorPanels() {
+    tagsToggle?.setAttribute("aria-expanded", "false");
+    filesToggle?.setAttribute("aria-expanded", "false");
+    closeTagsDialog();
     closeFilesDialog();
   }
-}
 
-function resetNoteEditorPanels() {
-  tagsToggle?.setAttribute("aria-expanded", "false");
-  filesToggle?.setAttribute("aria-expanded", "false");
-  closeTagsDialog();
-  closeFilesDialog();
-}
+  function openTagsDialog() {
+    const view = requireView();
+    if (!tagsDialog) {
+      return;
+    }
 
-function openTagsDialog() {
-  if (!tagsDialog) {
-    return;
+    closeFilesDialog();
+    tagsToggle?.setAttribute("aria-expanded", "true");
+    view.showModal(tagsDialog, { parent: dialog, trigger: tagsToggle });
+    const input = tagsDialog.querySelector("[data-tag-picker-input]");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+    }
   }
 
-  closeFilesDialog();
-  tagsToggle?.setAttribute("aria-expanded", "true");
-  view.showModal(tagsDialog, { parent: dialog, trigger: tagsToggle });
-  tagsDialog.querySelector("[data-tag-picker-input]")?.focus();
-}
+  function closeTagsDialog() {
+    const view = requireView();
+    if (!tagsDialog) {
+      return;
+    }
 
-function closeTagsDialog() {
-  if (!tagsDialog) {
-    return;
+    view.closeModal(tagsDialog);
   }
 
-  view.closeModal(tagsDialog);
-}
-
-function handleTagsDialogClose() {
-  tagsToggle?.setAttribute("aria-expanded", "false");
-}
-
-function openFilesDialog() {
-  if (!filesDialog || filesToggle?.hidden) {
-    return;
+  function handleTagsDialogClose() {
+    tagsToggle?.setAttribute("aria-expanded", "false");
   }
 
-  closeTagsDialog();
-  filesToggle?.setAttribute("aria-expanded", "true");
-  view.showModal(filesDialog, { parent: dialog, trigger: filesToggle });
-  const focusTarget = state.filesDialogNoteId
-    ? filesDialog.querySelector("[data-file-attachment-input]")
-    : filesDialog.querySelector("[data-note-files-save-first-warning]");
-  focusTarget?.focus();
-}
+  function openFilesDialog() {
+    const view = requireView();
+    if (!filesDialog || filesToggle?.hidden) {
+      return;
+    }
 
-function closeFilesDialog() {
-  if (!filesDialog) {
-    return;
+    closeTagsDialog();
+    filesToggle?.setAttribute("aria-expanded", "true");
+    view.showModal(filesDialog, { parent: dialog, trigger: filesToggle });
+    const candidate = state.filesDialogNoteId
+      ? filesDialog.querySelector("[data-file-attachment-input]")
+      : filesDialog.querySelector("[data-note-files-save-first-warning]");
+    // An absent or unreadable focus field must not refuse the already-open Files utility.
+    const focusTarget = candidate instanceof HTMLElement ? candidate : null;
+    focusTarget?.focus();
   }
 
-  view.closeModal(filesDialog);
-}
+  function closeFilesDialog() {
+    const view = requireView();
+    if (!filesDialog) {
+      return;
+    }
 
-function handleFilesDialogClose() {
-  filesToggle?.setAttribute("aria-expanded", "false");
-}
-
-async function mutateNote(url) {
-  setStatus("Saving note...");
-
-  try {
-    const result = await api.postJson(url, {});
-    await Promise.all([loadCollections(), loadNotes()]);
-    await selectNote(result.note.note_id);
-    setStatus("");
-  } catch (error) {
-    setStatus(safeNoteErrorMessage(error, "Note could not be updated."), true);
-  }
-}
-
-function updateLibrarySuggestion(options = {}) {
-  const suggestion = options.preferredSuggestion || deriveSuggestedLibraryBucket();
-  const current = libraryInput.value;
-
-  suggestionMessage.textContent = `Suggested Library: ${libraryLabel(suggestion)}`;
-  if (!state.libraryManuallyChanged && !state.editingNoteId && current !== suggestion && current === defaultLibraryForCreate()) {
-    libraryInput.value = suggestion;
-    populateNoteCollectionOptions(suggestion);
-  }
-}
-
-function deriveSuggestedLibraryBucket() {
-  if (taskInput.value) {
-    return "active_work";
+    view.closeModal(filesDialog);
   }
 
-  if (clientInput.value || projectInput.value || userInput.value) {
-    return "ongoing_area";
+  function handleFilesDialogClose() {
+    filesToggle?.setAttribute("aria-expanded", "false");
   }
 
-  return "reference";
-}
+  /** @param {string} url @returns {Promise<void>} */
+  async function mutateNote(url) {
+    const api = requireApi();
+    setStatus("Saving note...");
+    let writeCompleted = false;
 
-function defaultLibraryForCreate() {
-  return ["active_work", "ongoing_area", "reference"].includes(state.activeBucket)
-    ? state.activeBucket
-    : "reference";
-}
-
-function renderEmptyList(message) {
-  const empty = document.createElement("p");
-
-  empty.className = "notes-empty-state";
-  empty.textContent = message;
-  notesList.replaceChildren(empty);
-  syncNotesBulkToolbar();
-}
-
-async function openNoteFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const noteId = params.get("note");
-  if (noteId) {
-    await selectNote(noteId);
-    return;
+    try {
+      const result = await api.postJson(url, {});
+      writeCompleted = true;
+      await Promise.all([loadCollections(), loadNotes()]);
+      const selected = await selectNote(requireNoteMutationId(result));
+      if (!selected) {
+        setStatus("Note was updated, but its details could not be refreshed. Reload Notes to check its current state.", true);
+        return;
+      }
+      setStatus("");
+    } catch (error) {
+      setStatus(writeCompleted
+        ? "Note was updated, but its current state could not be refreshed. Reload Notes to check it."
+        : `${safeNoteErrorMessage(error, "Note update could not be confirmed.")} Reload Notes to check its current state.`, true);
+    }
   }
 
-  const targetType = params.get("targetType") || params.get("target_type");
-  const targetId = params.get("targetId") || params.get("target_id");
-  if (targetType && targetId) {
-    await openEditorForLinkedTarget({
-      clientId: params.get("clientId") || params.get("client_id") || "",
-      libraryBucket: params.get("libraryBucket") || params.get("library_bucket") || "",
-      moduleId: params.get("moduleId") || params.get("module_id") || "",
-      noteKind: params.get("noteKind") || params.get("note_kind") || "",
-      projectId: params.get("projectId") || params.get("project_id") || "",
-      targetId,
+  /**
+   * Called with a DOM Event, no options, or a preferred suggestion from a linked target.
+   * `readSelectedLinkTarget` now checks its directory record; this boundary also accepts
+   * DOM Events and absent options. Check the resulting scalar for all three callers.
+   * @param {object} [options]
+   */
+  function updateLibrarySuggestion(options = {}) {
+    const suggestion = ("preferredSuggestion" in options ? options.preferredSuggestion : undefined) || deriveSuggestedLibraryBucket();
+    if (typeof suggestion !== "string") {
+      throw new TypeError("Invalid Notes library suggestion.");
+    }
+    const current = requireNotesValue(libraryInput).value;
+
+    requireNotesValue(suggestionMessage).textContent = `Suggested Library: ${libraryLabel(suggestion)}`;
+    if (!state.libraryManuallyChanged && !state.editingNoteId && current !== suggestion && current === defaultLibraryForCreate()) {
+      requireNotesValue(libraryInput).value = suggestion;
+      populateNoteCollectionOptions(suggestion);
+    }
+  }
+
+  function deriveSuggestedLibraryBucket() {
+    if (requireNotesValue(taskInput).value) {
+      return "active_work";
+    }
+
+    if (requireNotesValue(clientInput).value || requireNotesValue(projectInput).value || requireNotesValue(userInput).value) {
+      return "ongoing_area";
+    }
+
+    return "reference";
+  }
+
+  function defaultLibraryForCreate() {
+    return ["active_work", "ongoing_area", "reference"].includes(state.activeBucket)
+      ? state.activeBucket
+      : "reference";
+  }
+
+  /** @param {string} message */
+  function renderEmptyList(message) {
+    const empty = document.createElement("p");
+
+    empty.className = "notes-empty-state";
+    empty.textContent = message;
+    requireNotesValue(notesList).replaceChildren(empty);
+    syncNotesBulkToolbar();
+  }
+
+  async function openNoteFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const noteId = params.get("note");
+    if (noteId) {
+      await selectNote(noteId);
+      return;
+    }
+
+    const targetType = params.get("targetType") || params.get("target_type");
+    const targetId = params.get("targetId") || params.get("target_id");
+    if (targetType && targetId) {
+      await openEditorForLinkedTarget({
+        clientId: params.get("clientId") || params.get("client_id") || "",
+        libraryBucket: params.get("libraryBucket") || params.get("library_bucket") || "",
+        moduleId: params.get("moduleId") || params.get("module_id") || "",
+        noteKind: params.get("noteKind") || params.get("note_kind") || "",
+        projectId: params.get("projectId") || params.get("project_id") || "",
+        targetId,
+        targetType,
+      });
+    }
+  }
+
+  /**
+   * openNoteFromUrl supplies strings from URLSearchParams, not a checked directory row.
+   * @param {{clientId: string, libraryBucket: string, moduleId: string, noteKind: string, projectId: string, targetId: string, targetType: string}} input
+   */
+  async function openEditorForLinkedTarget(input) {
+    if (contextTargetTypeInput) {
+      contextTargetTypeInput.value = input.targetType;
+    }
+    if (contextSearchInput) {
+      contextSearchInput.value = input.targetId;
+    }
+    await openEditor();
+    // A URL may name an unsupported type. Refuse that new link, leaving the editor
+    // lifecycle intact; saved unsupported links still have their soft-read path.
+    const targetType = input.targetType;
+    if (!isKnownContextTargetType(targetType)) return;
+    const target = { ...input, targetType };
+    const matchedTarget = state.linkTargets.find((item) => item.targetType === target.targetType && item.targetId === target.targetId) || {
+      clientId: target.clientId,
+      moduleId: target.moduleId,
+      projectId: target.projectId,
+      targetId: target.targetId,
       targetType,
+      // The previous fallback read answered undefined. Keep that answer, allowing
+      // updateLibrarySuggestion to derive its normal suggestion from editor inputs.
+      suggestedLibraryBucket: undefined,
+    };
+    await applyTaskCreatedPrimaryContext(target, matchedTarget);
+    stageEditorLinkTarget(matchedTarget);
+    if (target.noteKind && typeInput) {
+      ensureNoteKindOption(target.noteKind);
+      typeInput.value = target.noteKind;
+    } else if (target.targetType === "task" && typeInput) {
+      typeInput.value = "log";
+    }
+    if (target.libraryBucket && libraryInput) {
+      libraryInput.value = target.libraryBucket;
+      populateNoteCollectionOptions(target.libraryBucket);
+    } else if (target.targetType === "task" && libraryInput) {
+      libraryInput.value = "active_work";
+      populateNoteCollectionOptions("active_work");
+    }
+    renderEditorContextSelection(matchedTarget);
+    updateLibrarySuggestion({ preferredSuggestion: matchedTarget.suggestedLibraryBucket });
+  }
+
+  /** @param {NotesTaskPrimaryContextInput} target @param {NotesTaskPrimaryContextInput} matchedTarget */
+  async function applyTaskCreatedPrimaryContext(target = {}, matchedTarget = {}) {
+    const targetType = target.targetType || target.target_type || "";
+
+    if (targetType !== "task") {
+      return;
+    }
+
+    const clientId = normalizeText(target.clientId || target.client_id || matchedTarget.clientId || matchedTarget.client_id);
+    const projectId = normalizeText(target.projectId || target.project_id || matchedTarget.projectId || matchedTarget.project_id);
+
+    if (!clientId && !projectId) {
+      return;
+    }
+
+    setTaskCreatedPrimaryContextSummaries({ ...matchedTarget, ...target, clientId, projectId });
+    await loadPrimaryContextOptions({ clientId, projectId });
+    if (usesBusinessScope() && clientInput) {
+      clientInput.value = clientId;
+    }
+    if (projectInput) {
+      projectInput.value = projectId;
+    }
+    renderEditorContextPanel();
+  }
+
+  /** @param {NotesTaskPrimaryContextInput} target */
+  function setTaskCreatedPrimaryContextSummaries(target = {}) {
+    const clientId = normalizeText(target.clientId || target.client_id);
+    const projectId = normalizeText(target.projectId || target.project_id);
+    const clientName = normalizeText(target.clientName || target.client_name);
+    const projectName = normalizeText(target.projectName || target.project_name);
+    const workspaceName = normalizeText(target.workspaceName || target.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName);
+
+    state.editorContextSummaries = {
+      ...(state.editorContextSummaries || {}),
+      ...(clientId ? {
+        client: {
+          clientId,
+          label: clientName || unavailableTargetLabel("client"),
+          status: target.clientStatus || target.client_status || "",
+          targetId: clientId,
+          targetType: "client",
+        },
+      } : {}),
+      ...(projectId ? {
+        project: {
+          clientId,
+          clientName,
+          label: projectName || unavailableTargetLabel("project"),
+          projectId,
+          targetId: projectId,
+          targetType: "project",
+          workspaceName,
+        },
+      } : {}),
+    };
+  }
+
+  /** @param {BrowserNoteRecord["note_id"]} noteId */
+  function updateUrl(noteId) {
+    const url = new window.URL(window.location.href);
+    url.searchParams.set("note", noteId);
+    if (state.selectedCollectionId) {
+      url.searchParams.set("collection", state.selectedCollectionId);
+    } else {
+      url.searchParams.delete("collection");
+    }
+    window.history.replaceState({}, "", url);
+  }
+
+  function updateUrlCollection() {
+    const url = new window.URL(window.location.href);
+
+    if (state.selectedCollectionId) {
+      url.searchParams.set("collection", state.selectedCollectionId);
+    } else {
+      url.searchParams.delete("collection");
+    }
+
+    window.history.replaceState({}, "", url);
+  }
+
+  /**
+   * The local literal establishes every own label. Wire note_type is only a string,
+   * so unknown tokens keep their formatted fallback rather than claiming a known key.
+   * @param {string} value
+   * @returns {value is keyof typeof NOTE_KIND_LABELS}
+   */
+  function isKnownNoteKind(value) {
+    return Object.hasOwn(NOTE_KIND_LABELS, value);
+  }
+
+  /** @param {BrowserNoteRecord["note_type"]} value */
+  function noteKindLabel(value) {
+    return isKnownNoteKind(value) ? NOTE_KIND_LABELS[value] : formatToken(value);
+  }
+
+  /** @param {unknown} value */
+  function ensureNoteKindOption(value) {
+    const noteKind = normalizeText(value);
+
+    if (!typeInput || !noteKind || !LEGACY_NOTE_KINDS.has(noteKind)) {
+      return;
+    }
+    if ([...typeInput.options].some((option) => option.value === noteKind)) {
+      return;
+    }
+
+    const option = createOption(noteKind, noteKindLabel(noteKind));
+
+    option.dataset.legacyNoteKind = "true";
+    typeInput.append(option);
+  }
+
+  function resetLegacyNoteKindOptions() {
+    typeInput?.querySelectorAll("[data-legacy-note-kind='true']").forEach((option) => option.remove());
+  }
+
+  /**
+   * @param {string} value
+   */
+  function libraryLabel(value) {
+    return BUCKET_LABELS[value] || formatToken(value);
+  }
+
+  /**
+   * Normalise the collection read model into the shape this page holds.
+   *
+   * **Already a total normaliser before `0.33.33.38.4.2`, and that is why it is the narrowing.** It
+   * array-guards, rebuilds seven fields with defaults, drops any entry without an id, and sorts.
+   * The only change is that its input is now declared `unknown` and its entries are checked to be
+   * records before the spread, so what it returns is a named contract rather than an inferred array
+   * of whatever the wire happened to send.
+   * @param {unknown} collections
+   * @returns {BrowserNoteCollection[]}
+   */
+  function normalizeCollections(collections) {
+    return (Array.isArray(collections) ? collections : [])
+      .filter(isResponseRecord)
+      .map(/** @returns {BrowserNoteCollection} */ (collection) => ({
+        ...collection,
+        note_library_collection_id: collectionText(collection.note_library_collection_id) || collectionText(collection.id),
+        parent_collection_id: collectionText(collection.parent_collection_id),
+        library_bucket: collectionText(collection.library_bucket) || "reference",
+        title: collectionText(collection.title) || collectionText(collection.name) || "Collection",
+        depth: Number(collection.depth || 0),
+        accessibleNoteCount: Number(collection.accessibleNoteCount || collection.accessible_note_count || 0),
+        directAccessibleNoteCount: Number(collection.directAccessibleNoteCount || collection.direct_accessible_note_count || 0),
+      }))
+      .filter((collection) => collection.note_library_collection_id)
+      .sort((left, right) => (
+        compareText(left.library_bucket, right.library_bucket) ||
+        compareText(left.path_cache, right.path_cache) ||
+        compareText(left.title, right.title)
+      ));
+  }
+
+  function collectionsForActiveBucket() {
+    if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
+      return state.collections.filter((collection) => collection.library_bucket === state.activeBucket);
+    }
+
+    return state.collections.filter((collection) => collection.status !== "deleted");
+  }
+
+  /**
+   * @param {BrowserNoteCollection[]} collections
+   */
+  function groupCollectionsByBucket(collections) {
+    /** @type {Map<string, BrowserNoteCollection[]>} */
+    const groups = new Map();
+
+    for (const collection of collections) {
+      const bucket = collection.library_bucket || "reference";
+      groups.set(bucket, [...(groups.get(bucket) || []), collection]);
+    }
+
+    return [...groups.entries()].sort((left, right) => bucketSortValue(left[0]) - bucketSortValue(right[0]));
+  }
+
+  /**
+   * @param {BrowserNoteCollection[]} collections
+   */
+  function groupCollectionsByParent(collections) {
+    /** @type {Map<string, BrowserNoteCollection[]>} */
+    const groups = new Map();
+
+    for (const collection of collections) {
+      const parentId = collection.parent_collection_id || "";
+      groups.set(parentId, [...(groups.get(parentId) || []), collection]);
+    }
+
+    for (const [parentId, children] of groups.entries()) {
+      groups.set(parentId, children.sort((left, right) => compareText(left.title, right.title)));
+    }
+
+    return groups;
+  }
+
+  function selectedCollection() {
+    if (!state.selectedCollectionId || state.selectedCollectionId === "__uncategorized") {
+      return null;
+    }
+
+    return state.collections.find((collection) => collection.note_library_collection_id === state.selectedCollectionId) || null;
+  }
+
+  function collectionFilterOptions() {
+    /** @type {(HTMLOptionElement | HTMLOptGroupElement)[]} */
+    const controls = [
+      createOption("", "All collections"),
+      createOption("__uncategorized", "Uncategorized"),
+    ];
+    const visibleCollections = collectionsForActiveBucket().filter((collection) => collection.status !== "deleted");
+    const groupedCollections = groupCollectionsByBucket(visibleCollections);
+
+    for (const [bucket, collections] of groupedCollections) {
+      const bucketOptions = hierarchicalCollectionOptions(collections);
+
+      if (bucketOptions.length === 0) {
+        continue;
+      }
+
+      if (state.activeBucket === "all" || state.activeBucket === "archive") {
+        const group = document.createElement("optgroup");
+        group.label = libraryLabel(bucket);
+        group.append(...bucketOptions);
+        controls.push(group);
+      } else {
+        controls.push(...bucketOptions);
+      }
+    }
+
+    return controls;
+  }
+
+  /**
+   * @param {BrowserNoteCollection[]} [collections]
+   */
+  function hierarchicalCollectionOptions(collections = []) {
+    const byParent = groupCollectionsByParent(collections);
+
+    /**
+     * @param {BrowserNoteCollection} collection
+     * @param {number} [depth]
+     * @returns {HTMLOptionElement[]}
+     */
+    function optionsForCollection(collection, depth = 0) {
+      const option = createOption(
+        collection.note_library_collection_id,
+        collectionSelectLabel(collection, depth),
+      );
+      const children = (byParent.get(collection.note_library_collection_id) || [])
+        .flatMap((child) => optionsForCollection(child, depth + 1));
+
+      return [option, ...children];
+    }
+
+    return (byParent.get("") || []).flatMap((collection) => optionsForCollection(collection, 0));
+  }
+
+  /**
+   * @param {BrowserNoteCollection} collection
+   * @param {number} [depth]
+   */
+  function collectionSelectLabel(collection, depth = 0) {
+    return `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${collection.title || "Collection"}`;
+  }
+
+  /**
+   * @param {HTMLSelectElement | null} select
+   * @param {string} value
+   */
+  function collectionFilterHasValue(select, value) {
+    return [...(select?.querySelectorAll("option") || [])].some((option) => option.value === value);
+  }
+
+  /**
+   * @param {string} bucket
+   */
+  function bucketSortValue(bucket) {
+    const index = COLLECTION_BUCKET_ORDER.indexOf(bucket);
+    return index === -1 ? COLLECTION_BUCKET_ORDER.length : index;
+  }
+
+  /**
+   * @param {string | null | undefined} collectionId
+   */
+  function collectionLabel(collectionId) {
+    if (!collectionId) {
+      return "";
+    }
+
+    const collection = state.collections.find((item) => item.note_library_collection_id === collectionId);
+    return collection?.path_cache || collection?.title || "Archived or unavailable collection";
+  }
+
+  /**
+   * @param {BrowserNoteCollection} collection
+   */
+  function collectionOptionLabel(collection) {
+    const depth = Math.max(0, Number(collection.depth || 0));
+    const prefix = depth > 0 ? `${"  ".repeat(depth)}- ` : "";
+    return `${prefix}${collection.path_cache || collection.title || "Collection"}`;
+  }
+
+  function populateNoteCollectionOptions(libraryBucket = libraryInput?.value || defaultLibraryForCreate()) {
+    if (!collectionInput) {
+      return;
+    }
+
+    const previousValue = collectionInput.value;
+    const options = [
+      createOption("", "Uncategorized"),
+      ...state.collections
+        .filter((collection) => collection.library_bucket === libraryBucket && collection.status !== "archived")
+        .map((collection) => createOption(collection.note_library_collection_id, collectionOptionLabel(collection))),
+    ];
+
+    collectionInput.replaceChildren(...options);
+    collectionInput.value = options.some((option) => option.value === previousValue) ? previousValue : "";
+  }
+
+  /**
+   * @param {BrowserNoteCollection | null} [currentCollection]
+   * @param {BrowserNoteCollection | null} [preferredParent]
+   */
+  function populateCollectionParentOptions(currentCollection = null, preferredParent = null) {
+    const parentInput = collectionParentInput;
+    if (!parentInput) {
+      return;
+    }
+
+    const libraryBucket = collectionLibraryInput?.value || currentCollection?.library_bucket || defaultLibraryForCreate();
+    const excludedIds = new Set([currentCollection?.note_library_collection_id, ...collectionDescendantIds(currentCollection)]);
+    const options = [
+      createOption("", "Root collection"),
+      ...state.collections
+        .filter((collection) => (
+          collection.library_bucket === libraryBucket &&
+          collection.status !== "archived" &&
+          !excludedIds.has(collection.note_library_collection_id)
+        ))
+        .map((collection) => createOption(collection.note_library_collection_id, collectionOptionLabel(collection))),
+    ];
+
+    parentInput.replaceChildren(...options);
+    parentInput.value = preferredParent?.note_library_collection_id ||
+      currentCollection?.parent_collection_id ||
+      "";
+    if (![...parentInput.options].some((option) => option.value === parentInput.value)) {
+      parentInput.value = "";
+    }
+  }
+
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   * @returns {string[]}
+   */
+  function collectionDescendantIds(collection) {
+    if (!collection) {
+      return [];
+    }
+
+    const descendants = [];
+    const byParent = groupCollectionsByParent(state.collections);
+    const stack = [...(byParent.get(collection.note_library_collection_id) || [])];
+
+    while (stack.length > 0) {
+      const next = stack.shift();
+      if (!next) break;
+      descendants.push(next.note_library_collection_id);
+      stack.push(...(byParent.get(next.note_library_collection_id) || []));
+    }
+
+    return descendants;
+  }
+
+  /**
+   * Both viewer and inline-detail paths receive requireNoteFromEnvelope's BrowserNoteRecord.
+   * Every caller supplies that record; no second record or empty detail is promised.
+   * @param {BrowserNoteRecord} note
+   */
+  function detailMetaItems(note) {
+    const items = [
+      ["Library", libraryLabel(note.library_bucket)],
+      ["Note Kind", noteKindLabel(note.note_type)],
+      ["Status", formatToken(note.status)],
+      ["Visibility", normalizeWorkspaceType(state.workspaceType) === "personal" ? "" : formatToken(note.visibility)],
+      ["Security", formatToken(note.security_mode)],
+      ["Ticket", note.ticket_id],
+      ["Created", formatDate(note.created_at)],
+      ["Updated", formatDate(note.updated_at)],
+      ["Owner", note.owner_display_name || "Unavailable owner"],
+    ].filter(([, value]) => value);
+
+    return items.flatMap(([label, value], index) => {
+      const item = document.createElement("span");
+      const nodes = [];
+
+      item.textContent = value;
+      item.title = `${label}: ${value}`;
+      item.setAttribute("aria-label", `${label}: ${value}`);
+      nodes.push(item);
+      if (index < items.length - 1) {
+        nodes.push(document.createTextNode(" - "));
+      }
+      return nodes;
     });
   }
-}
 
-async function openEditorForLinkedTarget(target) {
-  if (contextTargetTypeInput) {
-    contextTargetTypeInput.value = target.targetType;
-  }
-  if (contextSearchInput) {
-    contextSearchInput.value = target.targetId;
-  }
-  await openEditor();
-  const matchedTarget = state.linkTargets.find((item) => item.targetType === target.targetType && item.targetId === target.targetId) || {
-    clientId: target.clientId,
-    moduleId: target.moduleId,
-    projectId: target.projectId,
-    targetId: target.targetId,
-    targetType: target.targetType,
-  };
-  await applyTaskCreatedPrimaryContext(target, matchedTarget);
-  stageEditorLinkTarget(matchedTarget);
-  if (target.noteKind && typeInput) {
-    ensureNoteKindOption(target.noteKind);
-    typeInput.value = target.noteKind;
-  } else if (target.targetType === "task" && typeInput) {
-    typeInput.value = "log";
-  }
-  if (target.libraryBucket && libraryInput) {
-    libraryInput.value = target.libraryBucket;
-    populateNoteCollectionOptions(target.libraryBucket);
-  } else if (target.targetType === "task" && libraryInput) {
-    libraryInput.value = "active_work";
-    populateNoteCollectionOptions("active_work");
-  }
-  renderEditorContextSelection(matchedTarget);
-  updateLibrarySuggestion({ preferredSuggestion: matchedTarget.suggestedLibraryBucket });
-}
-
-async function applyTaskCreatedPrimaryContext(target = {}, matchedTarget = {}) {
-  const targetType = target.targetType || target.target_type || "";
-
-  if (targetType !== "task") {
-    return;
+  function usesBusinessScope() {
+    return normalizeWorkspaceType(state.workspaceType) === "business" && workspaceHasClientTools();
   }
 
-  const clientId = normalizeText(target.clientId || target.client_id || matchedTarget.clientId || matchedTarget.client_id);
-  const projectId = normalizeText(target.projectId || target.project_id || matchedTarget.projectId || matchedTarget.project_id);
-
-  if (!clientId && !projectId) {
-    return;
+  function normalizeWorkspaceType(value = "") {
+    const normalized = normalizeText(value).toLowerCase();
+    return ["business", "family", "personal"].includes(normalized) ? normalized : "";
   }
 
-  setTaskCreatedPrimaryContextSummaries({ ...matchedTarget, ...target, clientId, projectId });
-  await loadPrimaryContextOptions({ clientId, projectId });
-  if (usesBusinessScope() && clientInput) {
-    clientInput.value = clientId;
-  }
-  if (projectInput) {
-    projectInput.value = projectId;
-  }
-  renderEditorContextPanel();
-}
-
-function setTaskCreatedPrimaryContextSummaries(target = {}) {
-  const clientId = normalizeText(target.clientId || target.client_id);
-  const projectId = normalizeText(target.projectId || target.project_id);
-  const clientName = normalizeText(target.clientName || target.client_name);
-  const projectName = normalizeText(target.projectName || target.project_name);
-  const workspaceName = normalizeText(target.workspaceName || target.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName);
-
-  state.editorContextSummaries = {
-    ...(state.editorContextSummaries || {}),
-    ...(clientId ? {
-      client: {
-        clientId,
-        label: clientName || unavailableTargetLabel("client"),
-        status: target.clientStatus || target.client_status || "",
-        targetId: clientId,
-        targetType: "client",
-      },
-    } : {}),
-    ...(projectId ? {
-      project: {
-        clientId,
-        clientName,
-        label: projectName || unavailableTargetLabel("project"),
-        projectId,
-        targetId: projectId,
-        targetType: "project",
-        workspaceName,
-      },
-    } : {}),
-  };
-}
-
-function updateUrl(noteId) {
-  const url = new window.URL(window.location.href);
-  url.searchParams.set("note", noteId);
-  if (state.selectedCollectionId) {
-    url.searchParams.set("collection", state.selectedCollectionId);
-  } else {
-    url.searchParams.delete("collection");
-  }
-  window.history.replaceState({}, "", url);
-}
-
-function updateUrlCollection() {
-  const url = new window.URL(window.location.href);
-
-  if (state.selectedCollectionId) {
-    url.searchParams.set("collection", state.selectedCollectionId);
-  } else {
-    url.searchParams.delete("collection");
+  function workspaceHasClientTools() {
+    // `availableTools` lives inside `workspaceCapabilities`, which the publisher proves is a
+    // record and nothing more - so the nested read stays optional and `Array.isArray` still has
+    // work to do. The flat top-level alias is a shape the publisher cannot emit.
+    const context = window.LongtailForge?.workspaceContext;
+    const tools = context?.workspaceCapabilities?.availableTools || [];
+    return Array.isArray(tools) && tools.includes("clients_projects");
   }
 
-  window.history.replaceState({}, "", url);
-}
+  /** @param {string} message */
+  function emptyText(message) {
+    const empty = document.createElement("p");
 
-function noteKindLabel(value) {
-  return NOTE_KIND_LABELS[value] || formatToken(value);
-}
-
-function ensureNoteKindOption(value) {
-  const noteKind = normalizeText(value);
-
-  if (!typeInput || !noteKind || !LEGACY_NOTE_KINDS.has(noteKind)) {
-    return;
-  }
-  if ([...typeInput.options].some((option) => option.value === noteKind)) {
-    return;
+    empty.className = "notes-empty-state";
+    empty.textContent = message;
+    return empty;
   }
 
-  const option = createOption(noteKind, noteKindLabel(noteKind));
+  /** @param {string} message */
+  function lockedNotice(message) {
+    const notice = document.createElement("p");
 
-  option.dataset.legacyNoteKind = "true";
-  typeInput.append(option);
-}
-
-function resetLegacyNoteKindOptions() {
-  typeInput?.querySelectorAll("[data-legacy-note-kind='true']").forEach((option) => option.remove());
-}
-
-function libraryLabel(value) {
-  return BUCKET_LABELS[value] || formatToken(value);
-}
-
-function normalizeCollections(collections) {
-  return (Array.isArray(collections) ? collections : [])
-    .map((collection) => ({
-      ...collection,
-      note_library_collection_id: collection.note_library_collection_id || collection.id || "",
-      parent_collection_id: collection.parent_collection_id || "",
-      library_bucket: collection.library_bucket || "reference",
-      title: collection.title || collection.name || "Collection",
-      depth: Number(collection.depth || 0),
-      accessibleNoteCount: Number(collection.accessibleNoteCount || collection.accessible_note_count || 0),
-      directAccessibleNoteCount: Number(collection.directAccessibleNoteCount || collection.direct_accessible_note_count || 0),
-    }))
-    .filter((collection) => collection.note_library_collection_id)
-    .sort((left, right) => (
-      compareText(left.library_bucket, right.library_bucket) ||
-      compareText(left.path_cache, right.path_cache) ||
-      compareText(left.title, right.title)
-    ));
-}
-
-function collectionsForActiveBucket() {
-  if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
-    return state.collections.filter((collection) => collection.library_bucket === state.activeBucket);
+    notice.className = "notes-locked-state";
+    notice.textContent = message;
+    return notice;
   }
 
-  return state.collections.filter((collection) => collection.status !== "deleted");
-}
+  /** @param {string} label */
+  function statusBadge(label) {
+    const badge = document.createElement("span");
 
-function groupCollectionsByBucket(collections) {
-  const groups = new Map();
-
-  for (const collection of collections) {
-    const bucket = collection.library_bucket || "reference";
-    groups.set(bucket, [...(groups.get(bucket) || []), collection]);
+    badge.className = "notes-status-badge";
+    badge.textContent = label;
+    return badge;
   }
 
-  return [...groups.entries()].sort((left, right) => bucketSortValue(left[0]) - bucketSortValue(right[0]));
-}
+  /**
+   * Note readers establish the array, not a catalogue record for each assignment. Keep those
+   * elements unknown here; the display reads only color/name/slug and the DOM coerces to text.
+   * @param {BrowserNoteRecord["tags"]} [tags]
+   * @param {{limit?: number, showOverflow?: boolean}} [options]
+   */
+  function tagChips(tags = [], options = {}) {
+    const wrapper = document.createElement("span");
+    const normalizedTags = Array.isArray(tags) ? tags : [];
+    const limit = typeof options.limit === "number" && Number.isInteger(options.limit) && options.limit >= 0 ? options.limit : normalizedTags.length;
+    const visibleTags = normalizedTags.slice(0, limit);
+    const hiddenCount = Math.max(0, normalizedTags.length - visibleTags.length);
 
-function groupCollectionsByParent(collections) {
-  const groups = new Map();
-
-  for (const collection of collections) {
-    const parentId = collection.parent_collection_id || "";
-    groups.set(parentId, [...(groups.get(parentId) || []), collection]);
-  }
-
-  for (const [parentId, children] of groups.entries()) {
-    groups.set(parentId, children.sort((left, right) => compareText(left.title, right.title)));
-  }
-
-  return groups;
-}
-
-function selectedCollection() {
-  if (!state.selectedCollectionId || state.selectedCollectionId === "__uncategorized") {
-    return null;
-  }
-
-  return state.collections.find((collection) => collection.note_library_collection_id === state.selectedCollectionId) || null;
-}
-
-function collectionFilterOptions() {
-  const controls = [
-    createOption("", "All collections"),
-    createOption("__uncategorized", "Uncategorized"),
-  ];
-  const visibleCollections = collectionsForActiveBucket().filter((collection) => collection.status !== "deleted");
-  const groupedCollections = groupCollectionsByBucket(visibleCollections);
-
-  for (const [bucket, collections] of groupedCollections) {
-    const bucketOptions = hierarchicalCollectionOptions(collections);
-
-    if (bucketOptions.length === 0) {
-      continue;
+    wrapper.className = "notes-tag-list";
+    if (normalizedTags.length === 0) {
+      wrapper.textContent = "No tags";
+      return wrapper;
     }
 
-    if (state.activeBucket === "all" || state.activeBucket === "archive") {
-      const group = document.createElement("optgroup");
-      group.label = libraryLabel(bucket);
-      group.append(...bucketOptions);
-      controls.push(group);
-    } else {
-      controls.push(...bucketOptions);
+    visibleTags.forEach((tag) => {
+      // Keep the original null-member failure. Other values retain property lookup/fallback
+      // behavior without claiming that an unchecked assignment is a catalogue record.
+      if (tag === null || tag === undefined) {
+        throw new TypeError("Invalid Notes tag.");
+      }
+      const fields = typeof tag === "object" || typeof tag === "function" ? tag : {};
+      const color = "color" in fields ? fields.color : undefined;
+      const name = "name" in fields ? fields.name : undefined;
+      const slug = "slug" in fields ? fields.slug : undefined;
+      const chip = document.createElement("span");
+      const swatch = document.createElement("span");
+      const label = document.createElement("span");
+
+      chip.className = "tag-chip";
+      swatch.className = "tag-chip-swatch";
+      swatch.style.backgroundColor = String(color || "#64748b");
+      swatch.setAttribute("aria-hidden", "true");
+      label.textContent = String(name || slug || "Tag");
+      chip.append(swatch, label);
+      wrapper.append(chip);
+    });
+
+    if (options.showOverflow && hiddenCount > 0) {
+      const overflow = document.createElement("span");
+
+      overflow.className = "tag-chip notes-tag-overflow";
+      overflow.textContent = "...";
+      overflow.title = `${hiddenCount} more ${hiddenCount === 1 ? "tag" : "tags"}`;
+      wrapper.append(overflow);
     }
-  }
 
-  return controls;
-}
-
-function hierarchicalCollectionOptions(collections = []) {
-  const byParent = groupCollectionsByParent(collections);
-
-  function optionsForCollection(collection, depth = 0) {
-    const option = createOption(
-      collection.note_library_collection_id,
-      collectionSelectLabel(collection, depth),
-    );
-    const children = (byParent.get(collection.note_library_collection_id) || [])
-      .flatMap((child) => optionsForCollection(child, depth + 1));
-
-    return [option, ...children];
-  }
-
-  return (byParent.get("") || []).flatMap((collection) => optionsForCollection(collection, 0));
-}
-
-function collectionSelectLabel(collection, depth = 0) {
-  return `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${collection.title || "Collection"}`;
-}
-
-function collectionFilterHasValue(select, value) {
-  return [...(select?.querySelectorAll("option") || [])].some((option) => option.value === value);
-}
-
-function bucketSortValue(bucket) {
-  const index = COLLECTION_BUCKET_ORDER.indexOf(bucket);
-  return index === -1 ? COLLECTION_BUCKET_ORDER.length : index;
-}
-
-function collectionLabel(collectionId) {
-  if (!collectionId) {
-    return "";
-  }
-
-  const collection = state.collections.find((item) => item.note_library_collection_id === collectionId);
-  return collection?.path_cache || collection?.title || "Archived or unavailable collection";
-}
-
-function collectionOptionLabel(collection) {
-  const depth = Math.max(0, Number(collection.depth || 0));
-  const prefix = depth > 0 ? `${"  ".repeat(depth)}- ` : "";
-  return `${prefix}${collection.path_cache || collection.title || "Collection"}`;
-}
-
-function populateNoteCollectionOptions(libraryBucket = libraryInput?.value || defaultLibraryForCreate()) {
-  if (!collectionInput) {
-    return;
-  }
-
-  const previousValue = collectionInput.value;
-  const options = [
-    createOption("", "Uncategorized"),
-    ...state.collections
-      .filter((collection) => collection.library_bucket === libraryBucket && collection.status !== "archived")
-      .map((collection) => createOption(collection.note_library_collection_id, collectionOptionLabel(collection))),
-  ];
-
-  collectionInput.replaceChildren(...options);
-  collectionInput.value = options.some((option) => option.value === previousValue) ? previousValue : "";
-}
-
-function populateCollectionParentOptions(currentCollection = null, preferredParent = null) {
-  if (!collectionParentInput) {
-    return;
-  }
-
-  const libraryBucket = collectionLibraryInput?.value || currentCollection?.library_bucket || defaultLibraryForCreate();
-  const excludedIds = new Set([currentCollection?.note_library_collection_id, ...collectionDescendantIds(currentCollection)]);
-  const options = [
-    createOption("", "Root collection"),
-    ...state.collections
-      .filter((collection) => (
-        collection.library_bucket === libraryBucket &&
-        collection.status !== "archived" &&
-        !excludedIds.has(collection.note_library_collection_id)
-      ))
-      .map((collection) => createOption(collection.note_library_collection_id, collectionOptionLabel(collection))),
-  ];
-
-  collectionParentInput.replaceChildren(...options);
-  collectionParentInput.value = preferredParent?.note_library_collection_id ||
-    currentCollection?.parent_collection_id ||
-    "";
-  if (![...collectionParentInput.options].some((option) => option.value === collectionParentInput.value)) {
-    collectionParentInput.value = "";
-  }
-}
-
-function collectionDescendantIds(collection) {
-  if (!collection) {
-    return [];
-  }
-
-  const descendants = [];
-  const byParent = groupCollectionsByParent(state.collections);
-  const stack = [...(byParent.get(collection.note_library_collection_id) || [])];
-
-  while (stack.length > 0) {
-    const next = stack.shift();
-    descendants.push(next.note_library_collection_id);
-    stack.push(...(byParent.get(next.note_library_collection_id) || []));
-  }
-
-  return descendants;
-}
-
-function detailMetaItems(note = {}) {
-  const items = [
-    ["Library", libraryLabel(note.library_bucket)],
-    ["Note Kind", noteKindLabel(note.note_type)],
-    ["Status", formatToken(note.status)],
-    ["Visibility", normalizeWorkspaceType(state.workspaceType) === "personal" ? "" : formatToken(note.visibility)],
-    ["Security", formatToken(note.security_mode)],
-    ["Ticket", note.ticket_id],
-    ["Created", formatDate(note.created_at)],
-    ["Updated", formatDate(note.updated_at)],
-    ["Owner", note.owner_display_name || "Unavailable owner"],
-  ].filter(([, value]) => value);
-
-  return items.flatMap(([label, value], index) => {
-    const item = document.createElement("span");
-    const nodes = [];
-
-    item.textContent = value;
-    item.title = `${label}: ${value}`;
-    item.setAttribute("aria-label", `${label}: ${value}`);
-    nodes.push(item);
-    if (index < items.length - 1) {
-      nodes.push(document.createTextNode(" - "));
-    }
-    return nodes;
-  });
-}
-
-function usesBusinessScope() {
-  return normalizeWorkspaceType(state.workspaceType) === "business" && workspaceHasClientTools();
-}
-
-function normalizeWorkspaceType(value = "") {
-  const normalized = normalizeText(value).toLowerCase();
-  return ["business", "family", "personal"].includes(normalized) ? normalized : "";
-}
-
-function workspaceHasClientTools() {
-  const context = window.LongtailForge?.workspaceContext || {};
-  const tools = context.workspaceCapabilities?.availableTools || context.availableTools || [];
-  return Array.isArray(tools) && tools.includes("clients_projects");
-}
-
-function emptyText(message) {
-  const empty = document.createElement("p");
-
-  empty.className = "notes-empty-state";
-  empty.textContent = message;
-  return empty;
-}
-
-function lockedNotice(message) {
-  const notice = document.createElement("p");
-
-  notice.className = "notes-locked-state";
-  notice.textContent = message;
-  return notice;
-}
-
-function statusBadge(label) {
-  const badge = document.createElement("span");
-
-  badge.className = "notes-status-badge";
-  badge.textContent = label;
-  return badge;
-}
-
-function tagChips(tags = [], options = {}) {
-  const wrapper = document.createElement("span");
-  const normalizedTags = Array.isArray(tags) ? tags : [];
-  const limit = Number.isInteger(options.limit) && options.limit >= 0 ? options.limit : normalizedTags.length;
-  const visibleTags = normalizedTags.slice(0, limit);
-  const hiddenCount = Math.max(0, normalizedTags.length - visibleTags.length);
-
-  wrapper.className = "notes-tag-list";
-  if (normalizedTags.length === 0) {
-    wrapper.textContent = "No tags";
     return wrapper;
   }
 
-  visibleTags.forEach((tag) => {
-    const chip = document.createElement("span");
-    const swatch = document.createElement("span");
-    const label = document.createElement("span");
-
-    chip.className = "tag-chip";
-    swatch.className = "tag-chip-swatch";
-    swatch.style.backgroundColor = tag.color || "#64748b";
-    swatch.setAttribute("aria-hidden", "true");
-    label.textContent = tag.name || tag.slug || "Tag";
-    chip.append(swatch, label);
-    wrapper.append(chip);
-  });
-
-  if (options.showOverflow && hiddenCount > 0) {
-    const overflow = document.createElement("span");
-
-    overflow.className = "tag-chip notes-tag-overflow";
-    overflow.textContent = "...";
-    overflow.title = `${hiddenCount} more ${hiddenCount === 1 ? "tag" : "tags"}`;
-    wrapper.append(overflow);
+  function emptyPreviewNode() {
+    const empty = document.createElement("p");
+    empty.textContent = "No preview.";
+    return empty;
   }
 
-  return wrapper;
-}
+  /**
+   * The one preference this page reads from `GET /api/user/settings`, or `null`.
+   *
+   * **This is a structural one-member read of a richer exact producer.** `usersService.readSettings`
+   * reconstructs fourteen members and `BrowserUserSettings` declares every one of them, but this
+   * page consumes exactly one scalar. Validating that scalar does not entitle this reader to claim
+   * it checked the other thirteen, so it answers the boolean rather than the body, and the full
+   * User Settings reader stays where it belongs - on the page that owns that estate.
+   *
+   * **`=== true` is not a check.** The raw read the page used to make turned a missing member, a
+   * string `"false"` and an error body alike into a valid `false` preference, and then wrote that
+   * fabricated `false` over the viewer's cached preference. The member has to *be* a boolean before
+   * either of its values means anything: `normalizeBooleanPreference` guarantees the producer sends
+   * one, so anything else is a body this page did not ask for.
+   * @param {unknown} body
+   * @returns {boolean | null}
+   */
+  function readOpenExternalLinksNewTab(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
 
-function emptyPreviewNode() {
-  const empty = document.createElement("p");
-  empty.textContent = "No preview.";
-  return empty;
-}
-
-async function loadMarkdownRenderingPreference() {
-  try {
-    const settings = await api.getJson("/api/user/settings", { cache: "no-store" });
-    state.openExternalLinksNewTab = settings.openExternalLinksNewTab === true;
-    state.settingsLoaded = true;
-    storeOpenExternalLinksPreference(state.openExternalLinksNewTab);
-  } catch {
-    state.settingsLoaded = false;
+    return typeof body.openExternalLinksNewTab === "boolean" ? body.openExternalLinksNewTab : null;
   }
-}
 
-function applyExternalMarkdownLinkPreference(container) {
-  if (!container) {
-    return;
+  async function loadMarkdownRenderingPreference() {
+    const api = requireApi();
+    try {
+      const preference = readOpenExternalLinksNewTab(await api.getJson("/api/user/settings", { cache: "no-store" }));
+
+      if (preference === null) {
+        throw new Error("The external-link preference could not be read.");
+      }
+
+      state.openExternalLinksNewTab = preference;
+      state.settingsLoaded = true;
+      storeOpenExternalLinksPreference(state.openExternalLinksNewTab);
+    } catch {
+      state.settingsLoaded = false;
+    }
   }
 
-  container.querySelectorAll("a[href]").forEach((anchor) => {
-    if (!isAbsoluteHttpUrl(anchor.getAttribute("href"))) {
+  /** @param {Element | null | undefined} container */
+  function applyExternalMarkdownLinkPreference(container) {
+    if (!container) {
       return;
     }
 
-    if (state.openExternalLinksNewTab) {
-      anchor.setAttribute("target", "_blank");
-      anchor.setAttribute("rel", "noopener noreferrer");
-    } else {
-      anchor.removeAttribute("target");
-      anchor.removeAttribute("rel");
-    }
-  });
-}
+    container.querySelectorAll("a[href]").forEach((anchor) => {
+      if (!isAbsoluteHttpUrl(anchor.getAttribute("href"))) {
+        return;
+      }
 
-function isAbsoluteHttpUrl(value = "") {
-  try {
-    const parsed = new window.URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
+      if (state.openExternalLinksNewTab) {
+        anchor.setAttribute("target", "_blank");
+        anchor.setAttribute("rel", "noopener noreferrer");
+      } else {
+        anchor.removeAttribute("target");
+        anchor.removeAttribute("rel");
+      }
+    });
   }
-}
 
-function readStoredOpenExternalLinksPreference() {
-  return window.localStorage.getItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY) === "true";
-}
+  /** The sole caller reads a nullable DOM attribute. @param {string | null} value */
+  function isAbsoluteHttpUrl(value = "") {
+    if (value === null) return false;
+    try {
+      const parsed = new window.URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
 
-function storeOpenExternalLinksPreference(value) {
-  window.localStorage.setItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY, value ? "true" : "false");
-}
+  function readStoredOpenExternalLinksPreference() {
+    return window.localStorage.getItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY) === "true";
+  }
 
-function formatDate(value) {
-  if (!value) {
+  /** @param {boolean} value */
+  function storeOpenExternalLinksPreference(value) {
+    window.localStorage.setItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY, value ? "true" : "false");
+  }
+
+  /** @param {BrowserNoteRecord["updated_at"] | null | undefined} value */
+  function formatDate(value) {
+    if (!value) {
+      return "";
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  /**
+   * @param {unknown} value
+   */
+  function formatToken(value) {
+    return String(value || "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  /** @param {unknown} value */
+  function normalizeText(value) {
+    return String(value || "").trim();
+  }
+
+  /** @param {...unknown} values */
+  function providerDisplayLabel(...values) {
+    for (const value of values) {
+      if (value === null || value === undefined) {
+        continue;
+      }
+
+      const label = String(value);
+      if (label.trim()) {
+        return label;
+      }
+    }
+
     return "";
   }
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
-}
-
-function formatToken(value) {
-  return String(value || "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function normalizeText(value) {
-  return String(value || "").trim();
-}
-
-function providerDisplayLabel(...values) {
-  for (const value of values) {
-    if (value === null || value === undefined) {
-      continue;
-    }
-
-    const label = String(value);
-    if (label.trim()) {
-      return label;
-    }
+  /**
+   * BrowserNoteRecord declares the stored mode, but not the repository's effective
+   * projection. That extra wire member stays unknown here; exact equality already
+   * answers the question without asserting a shape or changing the runtime read.
+   * @param {(Partial<Pick<BrowserNoteRecord, "security_mode">> & {effective_security_mode?: unknown}) | null | undefined} note
+   */
+  function isSecureNote(note) {
+    return note?.effective_security_mode === "secure" || note?.security_mode === "secure";
   }
 
-  return "";
-}
-
-function isSecureNote(note) {
-  return note?.effective_security_mode === "secure" || note?.security_mode === "secure";
-}
-
-function isSecureEditorMode() {
-  return securityInput?.value === "secure";
-}
-
-function isSecureError(error = {}) {
-  return /secure|decrypt|encrypt|cipher|crypto|key|nonce|auth|authenticate|unsupported state|payload/i.test(String(error?.message || error || ""));
-}
-
-function safeNoteErrorMessage(error = {}, fallback = "Note action failed.") {
-  if (isSecureError(error)) {
-    return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
+  function isSecureEditorMode() {
+    return securityInput?.value === "secure";
   }
 
-  return error?.message || fallback;
-}
+  /** @param {unknown} [error] @returns {boolean} */
+  function isSecureError(error = {}) {
+    const caught = error !== null && (typeof error === "object" || typeof error === "function") ? error : {};
+    const message = "message" in caught ? caught.message : undefined;
+    return /secure|decrypt|encrypt|cipher|crypto|key|nonce|auth|authenticate|unsupported state|payload/i.test(String(message || error || ""));
+  }
 
-function compareText(left, right) {
-  return String(left || "").localeCompare(String(right || ""));
-}
+  /** @param {unknown} [error] @param {string} [fallback] @returns {string} */
+  function safeNoteErrorMessage(error = {}, fallback = "Note action failed.") {
+    if (isSecureError(error)) {
+      return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
+    }
 
-function createOption(value, label) {
-  const option = document.createElement("option");
+    const caught = error !== null && (typeof error === "object" || typeof error === "function") ? error : {};
+    const message = "message" in caught ? caught.message : undefined;
+    return typeof message === "string" && message ? message : fallback;
+  }
 
-  option.value = value;
-  option.textContent = label;
-  return option;
-}
+  /**
+   * @param {unknown} left
+   * @param {unknown} right
+   */
+  function compareText(left, right) {
+    return String(left || "").localeCompare(String(right || ""));
+  }
 
-function setStatus(message, isError = false) {
-  statusMessage.textContent = message;
-  statusMessage.classList.toggle("error-text", isError);
-}
+  /**
+   * @param {string} value
+   * @param {string} label
+   */
+  function createOption(value, label) {
+    const option = document.createElement("option");
+
+    option.value = value;
+    option.textContent = label;
+    return option;
+  }
+
+  /** @param {string} message */
+  function setStatus(message, isError = false) {
+    requireNotesValue(statusMessage).textContent = message;
+    requireNotesValue(statusMessage).classList.toggle("error-text", isError);
+  }
+})();

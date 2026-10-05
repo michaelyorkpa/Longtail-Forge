@@ -1,9 +1,10 @@
-// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
+import { indexSearchReference } from "../../core/search/record-indexer.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 
 /** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRecord} TimeEntryRecord */
 
 const TIME_ENTRIES_SEARCH_INDEXER_ID = "time-tracking.time-entries";
 
@@ -12,27 +13,15 @@ function registerTimeTrackingSearchIndexers() {
 }
 
 /** @param {SearchReference} reference */
-async function indexTimeEntryRecord({ workspaceId, recordId }) {
-  if (!recordId) {
-    const entries = await timeEntriesRepository.readAll(workspaceId);
-    const documents = [];
-
-    for (const entry of entries) {
-      documents.push(await timeEntryToSearchDocument(entry));
-    }
-
-    return { documents };
-  }
-
-  const entry = await timeEntriesRepository.readById(workspaceId, recordId);
-
-  if (!entry) {
-    return null;
-  }
-
-  return timeEntryToSearchDocument(entry);
+async function indexTimeEntryRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: (workspaceId) => timeEntriesRepository.readAll(workspaceId),
+    readOne: (workspaceId, recordId) => timeEntriesRepository.readById(workspaceId, recordId),
+    toDocument: timeEntryToSearchDocument,
+  });
 }
 
+/** @param {TimeEntryRecord} entry */
 async function timeEntryToSearchDocument(entry) {
   const tagsText = await readSearchTagsText({
     workspaceId: entry.workspace_id,

@@ -45,6 +45,7 @@ assert.deepEqual(taskPlan.commands, ["npm run test:regressions:tasks"]);
 assert.equal(taskPlan.mode, "focused");
 assert.match(formatChangedRegressionPlan(taskPlan), /Tasks-owned path -> tasks/);
 
+/** @type {string[]} */
 const taskExecutions = [];
 const taskResult = executeChangedRegressionPlan(taskPlan, {
   runCommand(command) {
@@ -55,13 +56,13 @@ const taskResult = executeChangedRegressionPlan(taskPlan, {
 assert.equal(taskResult.status, 0);
 assert.deepEqual(taskExecutions, ["npm run test:regressions:tasks"], "one-module changes should run only their selected area");
 
-for (const [filePath, expectedAreas] of [
+for (const [filePath, expectedAreas] of /** @type {readonly (readonly [string, readonly string[]])[]} */ ([
   ["public/js/shared/view-builder.js", ["framework", "views"]],
   ["src/db/migrations/070_example.sql", ["database"]],
   ["src/core/version.js", ["framework", "release"]],
   ["src/modules/files/files.routes.js", ["files"]],
   ["src/routes/permissions.routes.js", ["permissions"]],
-]) {
+])) {
   const suggestion = suggestRegressionsForPaths([filePath]);
   const plan = createChangedRegressionPlan([filePath]);
   assert.deepEqual(plan.areas, suggestion.areas, `${filePath} execution and suggestion areas should agree`);

@@ -1,0 +1,274 @@
+import assert from "node:assert/strict";
+import vm from "node:vm";
+
+import { createFakeBrowserContext } from "../../test-support/fake-dom.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+// Consolidated under views.current-static-contracts by 0.33.33.9.
+const { readText } = createProjectTextReader();
+
+const builder = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
+const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
+const responseRecords = readText("public/js/shared/view-response-records.js");
+const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
+const staticService = readText("src/services/static.service.js");
+
+// 0.33.33.35.2 moved descriptor data binding into LongtailForge.viewDataBinding. These
+// assertions follow the behaviour to the file that now owns it rather than to a new filename:
+// the renderer's remaining obligation is to route through the published contract and to hand
+// it the shared api client, which is asserted immediately below.
+assert.match(viewDataBindingSource, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "Data binding should fetch dataSource routes through the supplied api client");
+assert.match(viewDataBindingSource, /appendFilterQuery\(dataSource\.route \|\| "", descriptor\.filters, filterValues\)/, "Data binding should derive the fetch route from the descriptor dataSource route");
+assert.match(viewDataBindingSource, /bindRecord\(record, dataSource\.fieldBindings \|\| \{\}\)/, "Data binding should map records through descriptor fieldBindings");
+assert.match(viewDataBindingSource, /responseRecords\.read\(body, dataSource\.recordsKey\)/, "Data binding should select response records through the checked declared-key adapter");
+assert.doesNotMatch(viewDataBindingSource, /extractRecords|Object\.values\(body\)|\["records", "items", "data"/, "Data binding should not guess response envelope keys");
+
+// Neither file may reach past the shared api client.
+assert.doesNotMatch(renderer, /\bfetch\(/, "Renderer should not bypass shared api-client with direct fetch");
+assert.doesNotMatch(viewDataBindingSource, /\bfetch\(/, "Data binding should not bypass the supplied api client with direct fetch");
+
+// The renderer keeps acquisition: it resolves the api client and hands it over.
+assert.match(
+  renderer,
+  /requireDataBinding\(\)\s*\n?\s*\.loadBoundRecords\(descriptor, state\.filterValues, requireApiClient\(\)\)/,
+  "Renderer should load bound records through the published data-binding contract with the shared api client",
+);
+
+// Data binding carries no descriptor authority: 0.33.33.35.1.2 made the server descriptor the
+// only source of truth, and an extracted renderer helper must not become a second one.
+assert.doesNotMatch(
+  viewDataBindingSource,
+  /sidebarPanels|pageHeader|sidebarLabel:|layout: "/,
+  "Data binding must not carry descriptor structure or default shell shapes",
+);
+assert.match(renderer, /Object\.defineProperty\(surface, "refresh"/, "Rendered surfaces should expose a descriptor-driven refresh path");
+assert.match(staticService, /app-shell-bootstrap\.js[\s\S]*view-surface-descriptor\.js[\s\S]*view-response-records\.js/, "The checked descriptor and response adapters should load before page assets");
+
+const adapterContext = vm.createContext({ window: { LongtailForge: {} } });
+vm.runInContext(responseRecords, adapterContext, { filename: "view-response-records.js" });
+const readResponseRecords = adapterContext.window.LongtailForge.viewResponseRecords.read;
+assert.deepEqual(
+  plain(readResponseRecords({ records: [{ id: "compatibility" }], samples: [{ id: "declared" }] }, "samples")),
+  [{ id: "declared" }],
+  "A declared response key should win over compatibility candidates",
+);
+assert.deepEqual(plain(readResponseRecords({ records: [{ id: "legacy" }] })), [{ id: "legacy" }], "Legacy descriptor envelopes should retain the measured compatibility fallback");
+assert.deepEqual(plain(readResponseRecords([{ id: "array" }], "records")), [{ id: "array" }], "Top-level array responses should remain compatible");
+assert.deepEqual(plain(readResponseRecords({ resultSet: [{ id: "first-array" }] })), [{ id: "first-array" }], "Unknown legacy envelope keys should retain the first-array fallback");
+
+const context = createFakeBrowserContext({ responses: [
+  {
+    records: [{ record_id: "compatibility-decoy", name: "Wrong envelope" }],
+    samples: [
+      {
+        record_id: "sample-1",
+        name: "Alpha",
+        state: "Active",
+        owner: "Sam",
+        stats: { count: 2 },
+        children: [
+          { title: "First item", description: "Ready" },
+        ],
+      },
+    ],
+  },
+  { records: [{ record_id: "compatibility-decoy" }], samples: [] },
+], iconButton: { iconClass: false, iconOnlyText: true } });
+vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
+vm.runInNewContext(builder, context, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, context, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, context, { filename: "view-data-binding.js" });
+vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
+
+/** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * A rendered data-bound surface: fake-DOM anatomy plus the renderer-owned
+ * refresh path and bound view state this contract inspects.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown>, viewState: { records: Record<string, unknown>[], selectedRecord: unknown } }} DataBoundSurface
+ */
+/**
+ * The published `LongtailForge.view` data-binding entry point under test.
+ * @typedef {{ renderSurface: (descriptor: object, host: FakeNode) => DataBoundSurface }} DataBindingViewSurface
+ */
+/**
+ * The index panel of the renderer fixture below. `initialSelection` and
+ * `collapseOnSelect` are declared here because the no-initial-selection variant
+ * adds them to the same panel.
+ * @typedef {{ title: string, itemTitleField: string, itemSubtitleField: string, itemMetaFields: string[], emptyState: { title: string }, initialSelection?: string, collapseOnSelect?: boolean }} FixtureIndexPanel
+ */
+/**
+ * The detail region of the renderer fixture below. The base fixture binds
+ * record fields; the no-initial-selection variant replaces it with a static
+ * empty-selection prompt, so both field sets are declared optional.
+ * @typedef {{ header: { titleField?: string, metaField?: string, badges?: { field: string }[], title?: string, description?: string }, summaryPanels?: { title: string, items: { label: string, field: string }[] }[], itemForm?: { fields: { field: string, type: string, label: string }[] }, itemRows?: { itemsField: string, itemTitleField: string, itemSubtitleField: string, emptyState: { title: string } }, emptyState?: { title: string, message: string } }} FixtureDetail
+ */
+/**
+ * The renderer fixture descriptor. It is a fixture rather than a bundled
+ * surface, so it declares only what this contract feeds the renderer.
+ * @typedef {{ id: string, layout: string, pageHeader: { title: string, description: string }, indexPanel: FixtureIndexPanel, table: { columns: { field: string, label: string }[], emptyState: { title: string } }, detail: FixtureDetail, dataSource: { route: string, recordsKey: string, fieldBindings: Record<string, string> } }} FixtureDescriptor
+ */
+
+const host = context.document.createElement("main");
+const surface = /** @type {DataBindingViewSurface} */ (context.window.LongtailForge.view).renderSurface(descriptor(), host);
+assert.equal(typeof surface.refresh, "function", "Rendered surfaces should expose refresh()");
+assert.match(surface.textContent, /Loading records/, "Initial data-bound render should show a loading status");
+
+await surface.refresh();
+assert.equal(context.window.LongtailForge.api.calls[0], "/api/sample-records", "Renderer should request the descriptor dataSource route");
+assert.equal(surface.viewState.records[0].id, "sample-1", "Field bindings should map source IDs onto descriptor IDs");
+assert.equal(surface.viewState.records[0].title, "Alpha", "Field bindings should map source names onto descriptor titles");
+assert.match(surface.textContent, /Alpha/, "Bound table/detail/index text should render mapped title values");
+assert.match(surface.textContent, /Active/, "Bound table/detail/badge text should render mapped status values");
+assert.match(surface.textContent, /Sam/, "Bound detail metadata should render mapped owner values");
+assert.match(surface.textContent, /2/, "Bound summary panels should render nested mapped values");
+assert.match(surface.textContent, /First item/, "Bound item collections should render nested item rows");
+
+await surface.refresh();
+assert.match(surface.textContent, /No sample records/, "Empty responses should render descriptor empty states");
+
+const errorContext = createFakeBrowserContext({ responses: [new Error("Data unavailable")], iconButton: { iconClass: false, iconOnlyText: true } });
+vm.runInNewContext(surfaceDescriptor, errorContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, errorContext, { filename: "view-modal-stack.js" });
+vm.runInNewContext(builder, errorContext, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, errorContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, errorContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, errorContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, errorContext, { filename: "view-data-binding.js" });
+vm.runInNewContext(renderer, errorContext, { filename: "view-renderer.js" });
+const errorHost = errorContext.document.createElement("main");
+const errorSurface = /** @type {DataBindingViewSurface} */ (errorContext.window.LongtailForge.view).renderSurface(descriptor(), errorHost);
+await errorSurface.refresh();
+assert.match(errorSurface.textContent, /Data unavailable/, "Renderer should render framework-owned error states");
+
+const noSelectionContext = createFakeBrowserContext({ responses: [
+  {
+    samples: [
+      {
+        record_id: "sample-2",
+        name: "Beta",
+        state: "Active",
+      },
+    ],
+  },
+], iconButton: { iconClass: false, iconOnlyText: true } });
+vm.runInNewContext(surfaceDescriptor, noSelectionContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, noSelectionContext, { filename: "view-modal-stack.js" });
+vm.runInNewContext(builder, noSelectionContext, { filename: "view-builder.js" });
+vm.runInNewContext(responseRecords, noSelectionContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, noSelectionContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, noSelectionContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, noSelectionContext, { filename: "view-data-binding.js" });
+vm.runInNewContext(renderer, noSelectionContext, { filename: "view-renderer.js" });
+const noSelectionHost = noSelectionContext.document.createElement("main");
+const noSelectionSurface = /** @type {DataBindingViewSurface} */ (noSelectionContext.window.LongtailForge.view).renderSurface(noInitialSelectionDescriptor(), noSelectionHost);
+await noSelectionSurface.refresh();
+assert.equal(noSelectionSurface.viewState.selectedRecord, null, "Descriptors should be able to start with a blank detail selection");
+assert.match(noSelectionSurface.textContent, /Choose a sample/, "Blank detail surfaces should keep descriptor guidance visible");
+
+console.log("View renderer data binding regression passed.");
+
+/** @returns {FixtureDescriptor} */
+function descriptor() {
+  return {
+    id: "sample-data-bound",
+    layout: "table-page",
+    pageHeader: {
+      title: "Samples",
+      description: "Data-bound samples.",
+    },
+    indexPanel: {
+      title: "Sample index",
+      itemTitleField: "title",
+      itemSubtitleField: "status",
+      itemMetaFields: ["meta"],
+      emptyState: {
+        title: "No sample records",
+      },
+    },
+    table: {
+      columns: [
+        { field: "title", label: "Title" },
+        { field: "status", label: "Status" },
+      ],
+      emptyState: {
+        title: "No sample records",
+      },
+    },
+    detail: {
+      header: {
+        titleField: "title",
+        metaField: "meta",
+        badges: [{ field: "status" }],
+      },
+      summaryPanels: [
+        {
+          title: "Summary",
+          items: [{ label: "Items", field: "itemCount" }],
+        },
+      ],
+      itemForm: {
+        fields: [
+          { field: "title", type: "text", label: "Title" },
+          { field: "status", type: "text", label: "Status" },
+        ],
+      },
+      itemRows: {
+        itemsField: "items",
+        itemTitleField: "title",
+        itemSubtitleField: "description",
+        emptyState: {
+          title: "No items",
+        },
+      },
+    },
+    dataSource: {
+      route: "/api/sample-records",
+      recordsKey: "samples",
+      fieldBindings: {
+        id: "record_id",
+        title: "name",
+        status: "state",
+        meta: "owner",
+        itemCount: "stats.count",
+        items: "children",
+      },
+    },
+  };
+}
+
+/** @returns {FixtureDescriptor} */
+function noInitialSelectionDescriptor() {
+  const next = descriptor();
+  next.indexPanel = {
+    ...next.indexPanel,
+    initialSelection: "none",
+    collapseOnSelect: true,
+  };
+  next.detail = {
+    header: {
+      title: "Choose a sample",
+      description: "Select a sample to inspect it.",
+    },
+    emptyState: {
+      title: "Choose a sample",
+      message: "Select a sample to inspect it.",
+    },
+  };
+  return next;
+}
+
+/** @param {unknown} value @returns {unknown} */
+function plain(value) {
+  return JSON.parse(JSON.stringify(value));
+}

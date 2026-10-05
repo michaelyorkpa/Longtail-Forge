@@ -1,31 +1,367 @@
 (function attachTaskDialog(global) {
+  // 0.33.33.37 moved status legality into LongtailForge.taskLifecycleLegality. DOM state
+  // updating stays here: it is this dialog's responsibility, not duplication.
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
   const namespace = global.LongtailForge || {};
-  const api = namespace.api;
-  const modal = namespace.modal;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
+
+  /**
+   * The shared single-task narrowing surface.
+   *
+   * `shared/task-records.js` is installed by the framework script block on every page, so this
+   * read fails exactly where the raw `result.task` read failed before.
+   * @returns {BrowserTaskRecords}
+   */
+  function requireTaskRecords() {
+    const taskRecords = window.LongtailForge?.taskRecords;
+    if (!taskRecords) {
+      throw new Error("LongtailForge.taskRecords is unavailable.");
+    }
+
+    return taskRecords;
+  }
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("Task dialog requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Acquired per call
+   * rather than once at module scope, so a missing surface still fails at exactly the moment it
+   * failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = namespace?.modal;
+    if (!dialogs) {
+      throw new Error("Task dialog requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
   const pageController = namespace.pageController;
 
-  let context = null;
-  let fileAttachmentsController = null;
-  let notesPanelController = null;
-  let tagPicker = null;
-  let recurrenceDraft = defaultRecurrenceDraft();
-  let taskTimers = [];
-  let taskTimerIntervalId = null;
-  let currentTask = null;
-  let currentTaskId = "";
-  let currentParentTaskId = "";
-  let dialog = null;
-  let recurrenceDialog = null;
-  let tagsDialog = null;
-  let filesDialog = null;
-  let form = null;
-  let fields = {};
-  let currentTaskEditorRequest = null;
-  let initialTaskFormSnapshot = null;
-  let previousTaskEditorStatus = "open";
-  let activeBlockCapture = null;
-  const TASK_COMPLETE_VISIBLE_STATUSES = new Set(["open", "in_progress", "blocked"]);
+  /**
+   * The page-controller helper this dialog's option builders cannot run without.
+   *
+   * **Checked at use, not at capture, because the capture never threw.** `pageController` is
+   * bound during module evaluation, when the shared script may not have run yet; reading an
+   * absent member there produced `undefined` and only the first method call failed. This checks
+   * that same captured binding at that same first call, so the moment of failure is unchanged.
+   *
+   * **The captured binding is deliberately not re-read.** Re-reading `namespace.pageController`
+   * per call would give this dialog a live dependency it has never had, and a helper published
+   * after module evaluation would silently start working. That is a different lifetime, not a
+   * narrowing.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    if (!pageController) {
+      throw new Error("Task dialog requires LongtailForge.pageController.");
+    }
+    return pageController;
+  }
 
+  /**
+   * Required controls are checked at their first dereference, not at lookup.
+   * @template T
+   * @param {T | null | undefined} value
+   * @returns {T}
+   */
+  function requireTaskControl(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("Task dialog control is unavailable.");
+    }
+    return value;
+  }
+
+  /**
+   * Preserve assignment ordering and native setter coercion: evaluate the value before
+   * refusing a missing receiver, and leave inherited setters on their original object.
+   * @param {Element | null | undefined} control
+   * @param {keyof HTMLElement | keyof HTMLInputElement | keyof HTMLSelectElement | keyof HTMLTextAreaElement | keyof HTMLDetailsElement} member
+   * @param {unknown} value
+   */
+  function writeTaskControl(control, member, value) {
+    Reflect.set(requireTaskControl(control), member, value);
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLButtonElement} */
+  function requireTaskIconButton(control) {
+    /** @param {Element | null | undefined} value @returns {value is HTMLButtonElement} */
+    function isButton(value) {
+      return Boolean(value && value.nodeType === 1 && String(value.tagName || "").toLowerCase() === "button");
+    }
+    if (!isButton(control)) {
+      throw new Error("decorateButton requires a button element.");
+    }
+    return control;
+  }
+
+  /**
+   * Dataset is inherited on native controls, including SVG controls.
+   * @param {Element | null} element
+   * @returns {Record<string, unknown>}
+   */
+  function requireTaskControlDataset(element) {
+    /** @param {unknown} value @returns {value is Record<string, unknown>} */
+    function isDataset(value) {
+      return value !== null && (typeof value === "object" || typeof value === "function");
+    }
+    const control = requireTaskControl(element);
+    const dataset = "dataset" in control ? control.dataset : undefined;
+    if (isDataset(dataset)) {
+      return dataset;
+    }
+    throw new TypeError("Task dialog control dataset is unavailable.");
+  }
+
+  /** @param {Element | null} element */
+  function taskDialogCloseReason(element) {
+    const control = requireTaskControl(element);
+    const value = "returnValue" in control ? control.returnValue : undefined;
+    if (!value) {
+      return "closed";
+    }
+    if (typeof value === "string") {
+      return value;
+    }
+    throw new TypeError("Task dialog close reason must be text.");
+  }
+
+  /** @param {Element | null | undefined} element */
+  function focusTaskControl(element) {
+    if (element === null || element === undefined) {
+      return;
+    }
+    if ("focus" in element && typeof element.focus === "function") {
+      element.focus();
+      return;
+    }
+    throw new TypeError("Task dialog control cannot receive focus.");
+  }
+
+  /**
+   * Open host members stay opaque. The tag catalog is the local caller precondition:
+   * configure defaults it to [], and both in-repo loaders return the shared catalog or [].
+   * Optional because the host-only open writer can start without configure.
+   * This declaration does not validate or rewrite the host spread.
+   * @typedef {Record<string, unknown> & {tagOptions?: unknown[]}} TaskDialogContext
+   */
+  /** @type {TaskDialogContext | null} */
+  let context = null;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null} */
+  let fileAttachmentsController = null;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null} */
+  let notesPanelController = null;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null} */
+  let tagPicker = null;
+  /** @type {{enabled: unknown, frequency: unknown, interval: number, endDate: unknown}} */
+  let recurrenceDraft = defaultRecurrenceDraft();
+  /** @type {unknown[]} Validated list rows and opaque context/mutation writers share this slot. */
+  let taskTimers = [];
+  /** @type {ReturnType<typeof global.setInterval> | null} */
+  let taskTimerIntervalId = null;
+  /**
+   * The editor request accepts caller seeds with the published detail members optional.
+   * This seed precondition does not describe raw completion state, which stays opaque.
+   * @typedef {Partial<NonNullable<ReturnType<import("../../src/types/browser-contracts.js").BrowserTaskRecords["readTaskDetail"]>>>} TaskDialogRecord
+   */
+  /**
+   * Read an opaque detail projection with the same boxing and inherited-member behavior
+   * as ordinary property access. This does not validate or claim a wire member's type.
+   * Nullish required rows still throw; optional projections pass their existing fallback.
+   * @param {unknown} value @returns {Record<string, unknown>}
+   */
+  function taskProjectionFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("Task detail projection is unavailable.");
+    }
+    /** @type {Record<string, unknown>} */
+    const fields = Object(value);
+    return fields;
+  }
+
+  /** @param {unknown} value */
+  function optionalTaskProjectionFields(value) {
+    return value === null || value === undefined ? undefined : taskProjectionFields(value);
+  }
+
+  /**
+   * Invoke an opaque collection operation at its existing consumption point.
+   * The result stays unknown: a callable member does not establish its output.
+   * @param {unknown} collection @param {string} name @param {unknown[]} args
+   * @returns {unknown}
+   */
+  function callTaskContextCollection(collection, name, args) {
+    const method = taskProjectionFields(collection)[name];
+    if (typeof method !== "function") {
+      throw new TypeError(`Task context collection ${name} is not callable.`);
+    }
+    return Reflect.apply(method, collection, args);
+  }
+
+  /**
+   * Materialize only the iterable result that the select-option spread already consumed.
+   * Keep iterator/next receivers, lookup counts, and abrupt completion order intact.
+   * @param {unknown} value @returns {unknown[]}
+   */
+  function taskContextOptionItems(value) {
+    const object = taskProjectionFields(value);
+    /** @type {unknown} */
+    const iteratorMethod = Reflect.get(object, Symbol.iterator);
+    if (typeof iteratorMethod !== "function") throw new TypeError("Task options are not iterable.");
+    /** @type {unknown} */
+    const iterator = Reflect.apply(iteratorMethod, value, []);
+    if (iterator === null || (typeof iterator !== "object" && typeof iterator !== "function")) {
+      throw new TypeError("Task option iterator is not an object.");
+    }
+    const next = taskProjectionFields(iterator).next;
+    /** @type {unknown[]} */
+    const items = [];
+    while (true) {
+      if (typeof next !== "function") throw new TypeError("Task option iterator next is not callable.");
+      /** @type {unknown} */
+      const step = Reflect.apply(next, iterator, []);
+      if (step === null || (typeof step !== "object" && typeof step !== "function")) {
+        throw new TypeError("Task option iterator result is not an object.");
+      }
+      const fields = taskProjectionFields(step);
+      if (fields.done) return items;
+      items.push(fields.value);
+    }
+  }
+
+  /** Raw completion responses retain their value and identity; readers establish members at use. @type {unknown} */
+  let currentTask = null;
+  /** @type {unknown} */
+  let currentTaskId = "";
+  /** @type {unknown} The parent selector may be supplied by a host. */
+  let currentParentTaskId = "";
+  /** @type {Element | null} */
+  let dialog = null;
+  /** @type {Element | null} */
+  let recurrenceDialog = null;
+  /** @type {Element | null} */
+  let tagsDialog = null;
+  /** @type {Element | null} */
+  let filesDialog = null;
+  /** @type {Element | null} */
+  let form = null;
+  /**
+   * Capture HTML handles without claiming control subtypes; optional matches stay nullable.
+   * @typedef {Object} TaskDialogFields
+   * @property {HTMLElement | null} [assignees]
+   * @property {HTMLElement | null} [block]
+   * @property {HTMLElement | null} [cancel]
+   * @property {HTMLElement | null} [client]
+   * @property {HTMLElement | null} [checklistAdd]
+   * @property {HTMLElement | null} [checklistField]
+   * @property {HTMLElement | null} [checklistInput]
+   * @property {HTMLElement | null} [checklistList]
+   * @property {HTMLElement | null} [checklistStatus]
+   * @property {HTMLElement | null} [complete]
+   * @property {HTMLElement | null} [copyLink]
+   * @property {HTMLElement | null} [description]
+   * @property {HTMLElement | null} [dueDate]
+   * @property {HTMLElement | null} [dueTime]
+   * @property {HTMLElement | null} [estimate]
+   * @property {HTMLElement | null} [effectiveReminders]
+   * @property {HTMLElement | null} [fileContainer]
+   * @property {HTMLElement | null} [fileDialogClose]
+   * @property {HTMLElement | null} [fileToggle]
+   * @property {HTMLElement | null} [notesContainer]
+   * @property {HTMLElement | null} [notesPanel]
+   * @property {HTMLElement | null} [priority]
+   * @property {HTMLElement | null} [project]
+   * @property {HTMLElement | null} [parentTask]
+   * @property {HTMLElement | null} [recurrenceDetails]
+   * @property {HTMLElement | null} [recurrenceContinuity]
+   * @property {HTMLElement | null} [recurrenceSkipCurrent]
+   * @property {HTMLElement | null} [recurrenceField]
+   * @property {HTMLElement | null} [recurrenceSummary]
+   * @property {HTMLElement | null} [recurring]
+   * @property {HTMLElement | null} [reminderDateOnlyDays1]
+   * @property {HTMLElement | null} [reminderDateOnlyDays2]
+   * @property {HTMLElement | null} [reminderDateOnlyDays2Enabled]
+   * @property {HTMLElement | null} [reminderDateTimeHours1]
+   * @property {HTMLElement | null} [reminderDateTimeHours2]
+   * @property {HTMLElement | null} [reminderDateTimeHours2Enabled]
+   * @property {HTMLElement | null} [reminderOverride]
+   * @property {HTMLElement | null} [reminderOverrideFields]
+   * @property {HTMLElement | null} [status]
+   * @property {HTMLElement | null} [tagContainer]
+   * @property {HTMLElement | null} [tagDialogClose]
+   * @property {HTMLElement | null} [tagToggle]
+   * @property {HTMLElement | null} [taskDetailsPanel]
+   * @property {HTMLElement | null} [notificationToggle]
+   * @property {HTMLElement | null} [blockedReason]
+   * @property {HTMLElement | null} [blockedReasonField]
+   * @property {HTMLElement | null} [continuityRow]
+   * @property {HTMLElement | null} [metadataRibbon]
+   * @property {HTMLElement | null} [nextAction]
+   * @property {HTMLElement | null} [resumeNote]
+   * @property {HTMLElement | null} [save]
+   * @property {HTMLElement | null} [saveClose]
+   * @property {HTMLElement | null} [timerDisplay]
+   * @property {HTMLElement | null} [timerField]
+   * @property {HTMLElement | null} [timerFinalize]
+   * @property {HTMLElement | null} [timerPause]
+   * @property {HTMLElement | null} [timerReset]
+   * @property {HTMLElement | null} [timerStart]
+   * @property {HTMLElement | null} [timerStatus]
+   * @property {HTMLElement | null} [title]
+   * @property {HTMLElement | null} [titleInput]
+   * @property {HTMLElement | null} [workbenchOpen]
+   * @property {{cancel: HTMLElement | null, endDate: HTMLElement | null, form: HTMLElement | null, frequency: HTMLElement | null, interval: HTMLElement | null}} [recurrence]
+   */
+  /** @type {TaskDialogFields} */
+  let fields = {};
+  /** @typedef {ReturnType<typeof normalizeTaskEditorRequest> & {materializationRefreshPending?: boolean}} TaskEditorRequest */
+  /** @type {TaskEditorRequest | null} */
+  let currentTaskEditorRequest = null;
+  /** @type {ReturnType<typeof taskFormSnapshot> | null} */
+  let initialTaskFormSnapshot = null;
+  /** @type {unknown} Preserve the host control value until the consuming comparison or write. */
+  let previousTaskEditorStatus = "open";
+  /** @type {ReturnType<typeof performBlockCapture> | null} */
+  let activeBlockCapture = null;
+
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
+      throw new Error("Task Dialog requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   function configure(options = {}) {
     context = {
       currentUserId: "",
@@ -46,7 +382,14 @@
     return taskDialogApi;
   }
 
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function openTaskEditor(params = {}, hostContext = null) {
+    const api = requireApi();
+    /** @type {TaskEditorRequest} */
     const request = normalizeTaskEditorRequest(params, hostContext);
     currentTaskEditorRequest = request;
 
@@ -57,7 +400,7 @@
           instanceDate: request.instanceDate,
           templateId: request.templateId,
         });
-        request.task = materializationResult?.task || null;
+        request.task = optionalTaskProjectionFields(materializationResult)?.task || null;
         request.taskId = request.task?.task_id || "";
         request.needsStandaloneContext = true;
         request.materializationRefreshPending = true;
@@ -78,8 +421,8 @@
         if (request.taskId && request.mode === "edit") {
           // The caller may have handed us a list-row payload (checklistProgress but no
           // checklistItems). Refresh the single task detail so the editor renders items.
-          const detail = await api.getJson(`/api/tasks/${encodeURIComponent(request.taskId)}`, { cache: "no-store" });
-          request.task = detail?.task || request.task;
+          const detail = await api.getJson(`/api/tasks/${encodeURIComponent(`${request.taskId}`)}`, { cache: "no-store" });
+          request.task = optionalTaskProjectionFields(detail)?.task || request.task;
         }
       }
 
@@ -115,6 +458,11 @@
     return openTaskEditor({ ...params, mode: "edit" }, hostContext);
   }
 
+  /**
+   * Task seeds use the same local record precondition as currentTask; other host values stay opaque.
+   * @param {Record<string, unknown> & {task?: TaskDialogRecord | null}} [params]
+   * @param {unknown} [hostContext]
+   */
   function normalizeTaskEditorRequest(params = {}, hostContext = null) {
     const mode = normalizeTaskEditorMode(params);
     const duplicate = params.duplicate === true || mode === "duplicate";
@@ -124,7 +472,7 @@
     const instanceDate = String(params.instanceDate || params.instance_date || "").trim();
     const hasPlannedOccurrence = Boolean(templateId && instanceDate);
     const defaults = normalizeTaskEditorDefaults(params);
-    const returnFocusTo = params.returnFocusTo || params.trigger || hostContext?.trigger || document.activeElement || null;
+    const returnFocusTo = params.returnFocusTo || params.trigger || optionalTaskProjectionFields(hostContext)?.trigger || document.activeElement || null;
     const needsTaskFetch = Boolean(taskId) && !task && (mode === "edit" || duplicate);
 
     if (mode === "edit" && !task && !taskId && !hasPlannedOccurrence) {
@@ -150,6 +498,7 @@
     };
   }
 
+  /** @param {Record<string, unknown>} [params] */
   function normalizeTaskEditorMode(params = {}) {
     const explicitMode = String(params.mode || params.action || "").toLowerCase();
     if (["add", "create", "new"].includes(explicitMode)) {
@@ -167,9 +516,10 @@
     return params.task || params.taskId || params.task_id || params.recordId || params.id ? "edit" : "add";
   }
 
+  /** @param {unknown} value */
   function normalizeTaskEditorFocusTarget(value) {
     const normalized = String(value || "").trim().toLowerCase().replace(/-/g, "_");
-    return {
+    const aliases = {
       assign: "assignees",
       assignee: "assignees",
       assignees: "assignees",
@@ -189,14 +539,25 @@
       recurrence: "recurrence",
       recurring: "recurrence",
       timer: "timer",
-    }[normalized] || "";
+    };
+    // Only authored aliases identify controls; inherited object names use the title fallback.
+    return Object.entries(aliases).find(([key]) => key === normalized)?.[1] || "";
   }
 
+  /** @param {Record<string, unknown>} [params] */
   function normalizeTaskEditorDefaults(params = {}) {
-    const sourceContext = params.context || params.sourceContext || {};
+    /**
+     * Object boxes primitives and leaves objects intact, matching property access/spread.
+     * Values remain opaque: these are host defaults, not a validated task response.
+     * @param {unknown} value @returns {Record<string, unknown>}
+     */
+    function inputFields(value) {
+      return Object(value);
+    }
+    const sourceContext = inputFields(params.context || params.sourceContext || {});
     const defaults = {
-      ...(sourceContext.defaults || {}),
-      ...(params.defaults || {}),
+      ...inputFields(sourceContext.defaults || {}),
+      ...inputFields(params.defaults || {}),
     };
     for (const key of [
       "blockedReason",
@@ -229,35 +590,54 @@
     return defaults;
   }
 
+  /** @param {{hostContext?: unknown, taskId?: unknown, params?: unknown}} [options] */
   async function prepareStandaloneContext({ hostContext = null, taskId = "" } = {}) {
+    const api = requireApi();
     await namespace.workspaceContextReady;
     await namespace.timezones?.loadSessionTimezone?.();
     const [taskResult, tasksResult, timersResult, tagOptions] = await Promise.all([
-      taskId ? api.getJson(`/api/tasks/${encodeURIComponent(taskId)}`, { cache: "no-store" }) : Promise.resolve(null),
+      taskId ? api.getJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}`, { cache: "no-store" }) : Promise.resolve(null),
       api.getJson("/api/tasks", { cache: "no-store" }),
       loadTaskTimers(),
       loadTagOptions(),
     ]);
-    const source = taskResult || tasksResult || {};
-    const task = taskResult?.task || null;
+    const taskBody = isReadableJsonObject(taskResult) ? taskResult : null;
+    const listBody = isReadableJsonObject(tasksResult) ? tasksResult : null;
+    /** @type {Record<string, unknown>} */
+    const noBootstrapBody = {};
+    const source = taskBody || listBody || noBootstrapBody;
+    const task = taskBody?.task || null;
 
     return {
       currentUserId: source.currentUserId || readCurrentUserId(),
       hostContext,
       options: source.options || defaultTaskOptions(),
-      setStatus: (message, options = {}) => hostContext?.setStatus?.(message, options),
+      setStatus: (/** @type {unknown} */ message, options = {}) => {
+        const callback = optionalTaskProjectionFields(hostContext)?.setStatus;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task host setStatus is not callable.");
+        return Reflect.apply(callback, hostContext, [message, options]);
+      },
       tagOptions,
       task,
-      taskTimers: timersResult.timers || [],
-      tasks: tasksResult?.tasks || (task ? [task] : source.tasks || []),
+      taskTimers: requireTaskRecords().readTaskTimers(timersResult),
+      tasks: listBody?.tasks || (task ? [task] : source.tasks || []),
     };
   }
 
+  /**
+   * @param {Partial<Pick<TaskEditorRequest, "task" | "duplicate" | "defaults" | "focusNotes" | "focusTarget" | "promptBlockedReason" | "returnFocusTo">> & {hostContext?: unknown}} [options]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, focusTarget = "", hostContext = null, promptBlockedReason = false, returnFocusTo = null } = {}) {
     ensureDialog();
     const isDuplicate = duplicate === true;
-    const statusDefault = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "";
-    const priorityDefault = taskDefaultPriorities().includes(defaults.priority) ? defaults.priority : "";
+    /** @type {readonly unknown[]} */
+    const statuses = taskDefaultStatuses();
+    const statusDefault = statuses.includes(defaults.status) ? defaults.status : "";
+    /** @type {readonly unknown[]} */
+    const priorities = taskDefaultPriorities();
+    const priorityDefault = priorities.includes(defaults.priority) ? defaults.priority : "";
 
     currentTask = isDuplicate ? null : task;
     currentTaskId = isDuplicate ? "" : task?.task_id || "";
@@ -268,40 +648,40 @@
       hostContext: hostContext || context?.hostContext || null,
     };
 
-    fields.title.textContent = isDuplicate ? "Duplicate Task" : task ? "Edit Task" : "Add Task";
-    fields.copyLink.hidden = !task || isDuplicate;
+    writeTaskControl(fields.title, "textContent", isDuplicate ? "Duplicate Task" : task ? "Edit Task" : "Add Task");
+    writeTaskControl(fields.copyLink, "hidden", !task || isDuplicate);
     // Workbench handoff only works for a persisted task: hidden on the create
     // and duplicate dialogs. Workbench itself is an unconditional framework
     // surface for every authenticated user, so no extra reachability gate.
-    fields.workbenchOpen.hidden = !currentTaskId;
-    fields.titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || defaults.title || "";
-    fields.status.value = isDuplicate ? "open" : statusDefault || task?.status || "open";
-    previousTaskEditorStatus = isDuplicate ? "open" : task?.status || fields.status.value || "open";
-    fields.priority.value = task?.priority || priorityDefault || "normal";
-    fields.estimate.value = task?.estimate_minutes ?? defaults.estimateMinutes ?? defaults.estimate_minutes ?? "";
+    writeTaskControl(fields.workbenchOpen, "hidden", !currentTaskId);
+    writeTaskControl(fields.titleInput, "value", isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || defaults.title || "");
+    writeTaskControl(fields.status, "value", isDuplicate ? "open" : statusDefault || task?.status || "open");
+    previousTaskEditorStatus = isDuplicate ? "open" : task?.status || taskProjectionFields(requireTaskControl(fields.status)).value || "open";
+    writeTaskControl(fields.priority, "value", task?.priority || priorityDefault || "normal");
+    writeTaskControl(fields.estimate, "value", task?.estimate_minutes ?? defaults.estimateMinutes ?? defaults.estimate_minutes ?? "");
     const selectedClientId = task ? task.client_id || "" : defaults.clientId || defaults.client_id || "";
     const selectedProjectId = task?.project_id || defaults.projectId || defaults.project_id || "";
     ensureClientOption(selectedClientId, task);
-    fields.client.value = selectedClientId;
+    writeTaskControl(fields.client, "value", selectedClientId);
     populateProjectInput(selectedProjectId, task, { allowFallback: true });
     syncClientFromSelectedProject();
     if (!task && !statusDefault && !priorityDefault) {
       applySelectedProjectTaskDefaults();
     }
-    fields.dueDate.value = task?.due_date || defaults.dueDate || defaults.due_date || "";
-    fields.dueTime.value = task?.due_time || defaults.dueTime || defaults.due_time || "";
-    fields.nextAction.value = task?.next_action || defaults.nextAction || defaults.next_action || "";
-    fields.blockedReason.value = defaults.blockedReason || defaults.blocked_reason || task?.blocked_reason || "";
-    fields.resumeNote.value = task?.resume_note || defaults.resumeNote || defaults.resume_note || "";
-    fields.description.value = task?.description || defaults.description || "";
-    fields.taskDetailsPanel.open = !task || isDuplicate;
+    writeTaskControl(fields.dueDate, "value", task?.due_date || defaults.dueDate || defaults.due_date || "");
+    writeTaskControl(fields.dueTime, "value", task?.due_time || defaults.dueTime || defaults.due_time || "");
+    writeTaskControl(fields.nextAction, "value", task?.next_action || defaults.nextAction || defaults.next_action || "");
+    writeTaskControl(fields.blockedReason, "value", defaults.blockedReason || defaults.blocked_reason || task?.blocked_reason || "");
+    writeTaskControl(fields.resumeNote, "value", task?.resume_note || defaults.resumeNote || defaults.resume_note || "");
+    writeTaskControl(fields.description, "value", task?.description || defaults.description || "");
+    writeTaskControl(fields.taskDetailsPanel, "open", !task || isDuplicate);
     closeTaskUtilityDialogs();
     updateBlockedReasonState();
     await writeParentTaskFields(isDuplicate ? null : task);
     writeTaskCompletionFields(isDuplicate ? null : task);
     writeTaskMetadataRibbon(isDuplicate ? null : task);
     writeChecklistFields(isDuplicate ? null : task);
-    selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
+    selectAssignees(optionalTaskProjectionFields(task)?.assignee_ids || (task ? [] : [currentUserId()]));
     writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
     writeRecurrenceContinuity(isDuplicate ? null : task?.recurrenceContinuity);
     writeRecurrenceRecovery(isDuplicate ? null : task?.recurrenceRecovery);
@@ -324,8 +704,8 @@
         trigger: returnFocusTo,
       });
     }
-    return new Promise((resolve) => {
-      dialog.addEventListener("close", () => {
+    return new Promise((resolve, reject) => {
+      requireTaskControl(dialog).addEventListener("close", () => {
         closeTaskUtilityDialogs();
         clearTaskTimerInterval();
         fileAttachmentsController?.destroy?.();
@@ -334,7 +714,11 @@
         notesPanelController = null;
         restoreTaskEditorFocus(returnFocusTo);
         currentTaskEditorRequest = null;
-        resolve(dialog.returnValue || "closed");
+        try {
+          resolve(taskDialogCloseReason(dialog));
+        } catch (error) {
+          reject(error);
+        }
       }, { once: true });
     });
   }
@@ -351,13 +735,14 @@
         includeFiles: !filesDialog,
         includeRecurrence: !recurrenceDialog,
         includeTags: !tagsDialog,
-      }));
+      }).filter((element) => element !== null && element !== undefined));
       dialog = document.querySelector("[data-task-dialog]");
       recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
       tagsDialog = document.querySelector("[data-task-tags-dialog]");
       filesDialog = document.querySelector("[data-task-files-dialog]");
     }
 
+    dialog = requireTaskControl(dialog);
     form = dialog.querySelector("[data-task-form]");
     fields = {
       assignees: dialog.querySelector("[data-task-assignees]"),
@@ -423,6 +808,7 @@
       titleInput: dialog.querySelector("[data-task-title]"),
       workbenchOpen: dialog.querySelector("[data-task-workbench-open]"),
     };
+    recurrenceDialog = requireTaskControl(recurrenceDialog);
     fields.recurrence = {
       cancel: recurrenceDialog.querySelector("[data-task-recurrence-cancel]"),
       endDate: recurrenceDialog.querySelector("[data-task-recurrence-end-date]"),
@@ -434,19 +820,27 @@
     bindRecurrenceDialogEvents();
     bindTaskUtilityDialogEvents();
 
-    if (form.dataset.taskDialogBound === "true") {
+    if (requireTaskControlDataset(form).taskDialogBound === "true") {
       return;
     }
 
-    form.dataset.taskDialogBound = "true";
-    form.addEventListener("submit", saveTask);
+    requireTaskControlDataset(form).taskDialogBound = "true";
+    requireTaskControl(form).addEventListener("submit", saveTask);
     fields.cancel?.addEventListener("click", () => {
-      context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
+      const host = context?.hostContext;
+      const callback = optionalTaskProjectionFields(host)?.cancel;
+      if (callback !== null && callback !== undefined) {
+        const args = [{ actionId: currentTaskId ? "tasks.edit" : "tasks.add" }];
+        if (typeof callback !== "function") {
+          throw new TypeError("Task host cancel is not callable.");
+        }
+        Reflect.apply(callback, host, args);
+      }
       closeTaskModal(dialog, "cancel");
     });
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
     fields.client?.addEventListener("change", () => {
-      populateProjectInput(fields.project.value);
+      populateProjectInput(taskProjectionFields(requireTaskControl(fields.project)).value);
       refreshParentTaskOptions();
     });
     fields.project?.addEventListener("change", () => {
@@ -484,8 +878,20 @@
     fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
     fields.notificationToggle?.addEventListener("click", toggleTaskNotificationFollow);
     fields.workbenchOpen?.addEventListener("click", openTaskInWorkbench);
-    fields.notesContainer?.addEventListener("notes-linked-panel:link", () => context?.onNotesChanged?.());
-    fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => context?.onNotesChanged?.());
+    fields.notesContainer?.addEventListener("notes-linked-panel:link", () => {
+      const owner = context;
+      const callback = owner?.onNotesChanged;
+      if (callback === null || callback === undefined) return undefined;
+      if (typeof callback !== "function") throw new TypeError("Task notes callback is not callable.");
+      return Reflect.apply(callback, owner, []);
+    });
+    fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => {
+      const owner = context;
+      const callback = owner?.onNotesChanged;
+      if (callback === null || callback === undefined) return undefined;
+      if (typeof callback !== "function") throw new TypeError("Task notes callback is not callable.");
+      return Reflect.apply(callback, owner, []);
+    });
   }
 
   function decorateTaskDialogControls() {
@@ -495,19 +901,19 @@
       return;
     }
 
-    icons.decorateButton(fields.timerStart, { icon: "start", label: "Start task timer", text: "Start", iconOnly: false });
-    icons.decorateButton(fields.timerPause, { icon: "pause", label: "Pause task timer", text: "Pause", iconOnly: false });
-    icons.decorateButton(fields.timerFinalize, { icon: "save", label: "Save task timer as time", text: "Save Time", iconOnly: false });
-    icons.decorateButton(fields.timerReset, { icon: "restore", label: "Reset task timer", text: "Reset", iconOnly: false, variant: "danger" });
-    icons.decorateButton(fields.notificationToggle, { icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true });
-    icons.decorateButton(fields.workbenchOpen, { icon: "anvil", label: "Open in Workbench", text: "", title: "Open in Workbench", iconOnly: true });
-    icons.decorateButton(fields.tagToggle, { icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false });
-    icons.decorateButton(fields.fileToggle, { icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false });
-    icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false });
-    icons.decorateButton(fields.complete, { icon: "complete", label: "Complete task", text: "", title: "Complete task", iconOnly: true });
-    icons.decorateButton(fields.cancel, { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
-    icons.decorateButton(fields.save, { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
-    icons.decorateButton(fields.saveClose, { icon: "save", label: "Save and close task", text: "Save & Close", title: "Save and close task", iconOnly: false });
+    icons.decorateButton(requireTaskIconButton(fields.timerStart), { icon: "start", label: "Start task timer", text: "Start", iconOnly: false });
+    icons.decorateButton(requireTaskIconButton(fields.timerPause), { icon: "pause", label: "Pause task timer", text: "Pause", iconOnly: false });
+    icons.decorateButton(requireTaskIconButton(fields.timerFinalize), { icon: "save", label: "Save task timer as time", text: "Save Time", iconOnly: false });
+    icons.decorateButton(requireTaskIconButton(fields.timerReset), { icon: "restore", label: "Reset task timer", text: "Reset", iconOnly: false, variant: "danger" });
+    icons.decorateButton(requireTaskIconButton(fields.notificationToggle), { icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true });
+    icons.decorateButton(requireTaskIconButton(fields.workbenchOpen), { icon: "anvil", label: "Open in Workbench", text: "", title: "Open in Workbench", iconOnly: true });
+    icons.decorateButton(requireTaskIconButton(fields.tagToggle), { icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false });
+    icons.decorateButton(requireTaskIconButton(fields.fileToggle), { icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false });
+    icons.decorateButton(requireTaskIconButton(fields.copyLink), { icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false });
+    icons.decorateButton(requireTaskIconButton(fields.complete), { icon: "complete", label: "Complete task", text: "", title: "Complete task", iconOnly: true });
+    icons.decorateButton(requireTaskIconButton(fields.cancel), { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
+    icons.decorateButton(requireTaskIconButton(fields.save), { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
+    icons.decorateButton(requireTaskIconButton(fields.saveClose), { icon: "save", label: "Save and close task", text: "Save & Close", title: "Save and close task", iconOnly: false });
   }
 
   function bindRecurrenceDialogEvents() {
@@ -521,14 +927,14 @@
   }
 
   function bindTaskUtilityDialogEvents() {
-    if (tagsDialog && tagsDialog.dataset.taskTagsDialogBound !== "true") {
-      tagsDialog.dataset.taskTagsDialogBound = "true";
+    if (tagsDialog && requireTaskControlDataset(tagsDialog).taskTagsDialogBound !== "true") {
+      requireTaskControlDataset(tagsDialog).taskTagsDialogBound = "true";
       fields.tagDialogClose?.addEventListener("click", closeTaskTagsDialog);
       tagsDialog.addEventListener("close", handleTaskTagsDialogClose);
     }
 
-    if (filesDialog && filesDialog.dataset.taskFilesDialogBound !== "true") {
-      filesDialog.dataset.taskFilesDialogBound = "true";
+    if (filesDialog && requireTaskControlDataset(filesDialog).taskFilesDialogBound !== "true") {
+      requireTaskControlDataset(filesDialog).taskFilesDialogBound = "true";
       fields.fileDialogClose?.addEventListener("click", closeTaskFilesDialog);
       filesDialog.addEventListener("close", handleTaskFilesDialogClose);
     }
@@ -539,56 +945,64 @@
       return;
     }
 
-    const options = context?.options || defaultTaskOptions();
+    const options = taskProjectionFields(context?.options || defaultTaskOptions());
     const hasClientScope = usesClientScope();
 
-    dialog.querySelectorAll("[data-client-workspace-control]").forEach((element) => {
-      element.hidden = !hasClientScope;
+    requireTaskControl(dialog).querySelectorAll("[data-client-workspace-control]").forEach((element) => {
+      Reflect.set(element, "hidden", !hasClientScope);
     });
 
     replaceOptions(fields.client, hasClientScope
       ? [
         option("", workspaceProjectsLabel()),
-        ...(options.clients || []).map((client) => option(client.id, optionLabel(client))),
+        ...taskContextOptionItems(callTaskContextCollection(options.clients || [], "map", [
+          (/** @type {unknown} */ client) => option(taskProjectionFields(client).id, optionLabel(client)),
+        ])),
       ]
       : [option("", "No client")]);
-    populateProjectInput(fields.project?.value || "");
+    populateProjectInput(optionalTaskProjectionFields(fields.project)?.value || "");
     replaceOptions(
       fields.assignees,
-      (options.users || []).map((user) => option(user.user_id, displayUser(user))),
+      callTaskContextCollection(options.users || [], "map", [
+        (/** @type {unknown} */ user) => option(taskProjectionFields(user).user_id, displayUser(user)),
+      ]),
     );
   }
 
+  /** @param {unknown} [selectedProjectId] @param {unknown} [sourceTask] */
   function populateProjectInput(selectedProjectId = "", sourceTask = currentTask, { allowFallback = false } = {}) {
-    const selectedClientId = usesClientScope() ? fields.client?.value || "" : "";
-    const projects = (context?.options?.projects || []).filter((project) =>
-      !usesClientScope() || (project.client_id || "") === selectedClientId,
-    );
+    const selectedClientId = usesClientScope() ? optionalTaskProjectionFields(fields.client)?.value || "" : "";
+    const projects = callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "filter", [
+      (/** @type {unknown} */ project) => !usesClientScope() || (taskProjectionFields(project).client_id || "") === selectedClientId,
+    ]);
     const projectOptions = [
       option("", "No project"),
-      ...projects.map((project) => option(project.id, optionLabel(project))),
+      ...taskContextOptionItems(callTaskContextCollection(projects, "map", [
+        (/** @type {unknown} */ project) => option(taskProjectionFields(project).id, optionLabel(project)),
+      ])),
     ];
 
     if (allowFallback && selectedProjectId && !optionListHasValue(projectOptions, selectedProjectId)) {
-      const fallback = option(selectedProjectId, projectFallbackLabel(sourceTask, selectedProjectId));
+      const fallback = option(selectedProjectId, projectFallbackLabel(sourceTask));
       fallback.dataset.contextFallback = "project";
       projectOptions.push(fallback);
     }
 
     replaceOptions(fields.project, projectOptions);
 
-    if (optionListHasValue([...fields.project.options], selectedProjectId)) {
-      fields.project.value = selectedProjectId;
+    if (optionListHasValue([...taskContextOptionItems(taskProjectionFields(requireTaskControl(fields.project)).options)], selectedProjectId)) {
+      writeTaskControl(fields.project, "value", selectedProjectId);
     }
     writeTaskMetadataRibbon();
   }
 
+  /** @param {unknown} [selectedClientId] @param {unknown} [sourceTask] */
   function ensureClientOption(selectedClientId = "", sourceTask = currentTask) {
-    if (!fields.client || !usesClientScope() || !selectedClientId || optionListHasValue([...fields.client.options], selectedClientId)) {
+    if (!fields.client || !usesClientScope() || !selectedClientId || optionListHasValue([...taskContextOptionItems(taskProjectionFields(fields.client).options)], selectedClientId)) {
       return;
     }
 
-    const fallback = option(selectedClientId, clientFallbackLabel(sourceTask, selectedClientId));
+    const fallback = option(selectedClientId, clientFallbackLabel(sourceTask));
     fallback.dataset.contextFallback = "client";
     fields.client.appendChild(fallback);
   }
@@ -599,32 +1013,35 @@
       return;
     }
 
-    if (!fields.project?.value) {
+    if (!optionalTaskProjectionFields(fields.project)?.value) {
       writeTaskMetadataRibbon();
       return;
     }
 
-    const project = findProjectOption(fields.project.value);
+    const project = findProjectOption(taskProjectionFields(fields.project).value);
     if (!project) {
       writeTaskMetadataRibbon();
       return;
     }
 
-    const derivedClientId = project.client_id || "";
-    if (fields.client.value !== derivedClientId) {
+    const derivedClientId = taskProjectionFields(project).client_id || "";
+    if (taskProjectionFields(fields.client).value !== derivedClientId) {
       ensureClientOption(derivedClientId, {
         client_id: derivedClientId,
-        client_name: project.client_name || project.clientName || "",
+        client_name: taskProjectionFields(project).client_name || taskProjectionFields(project).clientName || "",
       });
-      fields.client.value = derivedClientId;
-      populateProjectInput(fields.project.value);
+      writeTaskControl(fields.client, "value", derivedClientId);
+      populateProjectInput(taskProjectionFields(fields.project).value);
     } else {
       writeTaskMetadataRibbon();
     }
   }
 
+  /** @param {unknown} [projectId] */
   function findProjectOption(projectId = "") {
-    return (context?.options?.projects || []).find((project) => project.id === projectId) || null;
+    return callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "find", [
+      (/** @type {unknown} */ project) => taskProjectionFields(project).id === projectId,
+    ]) || null;
   }
 
   function workspaceProjectsLabel() {
@@ -640,14 +1057,21 @@
       return;
     }
 
-    const project = (context?.options?.projects || []).find((item) => item.id === fields.project?.value);
-    const defaults = project?.taskDefaults || {};
+    const project = callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "find", [
+      (/** @type {unknown} */ item) => taskProjectionFields(item).id === optionalTaskProjectionFields(fields.project)?.value,
+    ]);
+    const defaults = taskProjectionFields(optionalTaskProjectionFields(project)?.taskDefaults || {});
 
-    fields.status.value = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "open";
-    fields.priority.value = taskDefaultPriorities().includes(defaults.priority) ? defaults.priority : "normal";
+    /** @type {readonly unknown[]} */
+    const statuses = taskDefaultStatuses();
+    writeTaskControl(fields.status, "value", statuses.includes(defaults.status) ? defaults.status : "open");
+    /** @type {readonly unknown[]} */
+    const priorities = taskDefaultPriorities();
+    writeTaskControl(fields.priority, "value", priorities.includes(defaults.priority) ? defaults.priority : "normal");
     writeTaskMetadataRibbon();
   }
 
+  /** @param {Event} event */
   async function saveTask(event) {
     event.preventDefault();
     try {
@@ -657,6 +1081,7 @@
     }
   }
 
+  /** @param {Event} [event] */
   async function saveAndCloseTask(event) {
     event?.preventDefault();
     try {
@@ -667,12 +1092,16 @@
   }
 
   async function saveTaskForm({ closeOnSuccess = true, statusMessage = "" } = {}) {
+    const modal = requireModalDialogs();
+    const api = requireApi();
     const payload = readTaskFormPayload();
-    const editingTask = currentTask || (context?.tasks || []).find((task) => task.task_id === currentTaskId);
+    const editingTask = currentTask || callTaskContextCollection(context?.tasks || [], "find", [
+      (/** @type {unknown} */ task) => taskProjectionFields(task).task_id === currentTaskId,
+    ]);
     const wasEditing = Boolean(currentTaskId);
     const formChanges = taskFormChangeState(payload);
 
-    if (editingTask?.recurrence_template_id && formChanges.recurrenceTemplateChanged) {
+    if (optionalTaskProjectionFields(editingTask)?.recurrence_template_id && formChanges.recurrenceTemplateChanged) {
       const applyFuture = await modal.confirm({
         title: "Update recurring task",
         message: "Apply these changes to all future tasks in this recurrence?",
@@ -686,36 +1115,53 @@
 
     try {
       const result = wasEditing
-        ? await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}`, payload)
+        ? await api.putJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}`, payload)
         : await api.postJson("/api/tasks", payload);
-      await syncParentTaskRelationship(result.task?.task_id || "");
-      currentTask = result.task;
-      currentTaskId = result.task?.task_id || "";
+      const savedTask = requireTaskRecords().readTaskDetail(result);
+      await syncParentTaskRelationship(savedTask?.task_id || "");
+      currentTask = savedTask;
+      currentTaskId = savedTask?.task_id || "";
       rememberTaskInContext(currentTask);
-      if (currentTask?.status === "blocked") {
+      if (optionalTaskProjectionFields(currentTask)?.status === "blocked") {
         await refreshTaskTimers();
       }
       updateCompleteTaskActionState();
       updateBlockTaskActionState();
       if (!wasEditing) {
-        await transitionCreatedTaskToEdit(result.task);
+        await transitionCreatedTaskToEdit(savedTask);
       }
       initialTaskFormSnapshot = taskFormSnapshot(payload);
       await notifyTaskEditorSaved(result);
       if (closeOnSuccess) {
-        const completedBySave = wasEditing && editingTask?.status !== "complete" && result.task?.status === "complete";
+        const completedBySave = wasEditing && optionalTaskProjectionFields(editingTask)?.status !== "complete" && savedTask?.status === "complete";
         if (completedBySave) {
           applyTaskCompletionResult(result);
           setTaskCompletionStatus(result);
-          context?.hostContext?.complete?.(taskCompletionHostDetail(result));
+          const host = context?.hostContext;
+          const callback = optionalTaskProjectionFields(host)?.complete;
+          if (callback !== null && callback !== undefined) {
+            const args = [taskCompletionHostDetail(result)];
+            if (typeof callback !== "function") {
+              throw new TypeError("Task host complete is not callable.");
+            }
+            Reflect.apply(callback, host, args);
+          }
           closeTaskModal(dialog, "complete");
           return result;
         }
-        context?.hostContext?.complete?.({
+        const host = context?.hostContext;
+        const callback = optionalTaskProjectionFields(host)?.complete;
+        if (callback !== null && callback !== undefined) {
+          const args = [{
           actionId: wasEditing ? "tasks.edit" : "tasks.add",
-          recordId: result.task?.task_id || "",
-          title: result.task?.title || "",
-        });
+          recordId: savedTask?.task_id || "",
+          title: savedTask?.title || "",
+        }];
+          if (typeof callback !== "function") {
+            throw new TypeError("Task host complete is not callable.");
+          }
+          Reflect.apply(callback, host, args);
+        }
         closeTaskModal(dialog, "complete");
         setStatus("");
       }
@@ -724,19 +1170,20 @@
       }
       return result;
     } catch (error) {
-      setStatus(error.message || "Task was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task was not saved."), { isError: true });
       throw error;
     }
   }
 
+  /** @param {TaskDialogRecord | null} task */
   async function transitionCreatedTaskToEdit(task) {
     if (!task?.task_id) {
       return;
     }
 
-    fields.title.textContent = "Edit Task";
-    fields.copyLink.hidden = false;
-    fields.workbenchOpen.hidden = false;
+    writeTaskControl(fields.title, "textContent", "Edit Task");
+    writeTaskControl(fields.copyLink, "hidden", false);
+    writeTaskControl(fields.workbenchOpen, "hidden", false);
     updateBlockTaskActionState();
     currentTaskEditorRequest = currentTaskEditorRequest
       ? { ...currentTaskEditorRequest, mode: "edit", task, taskId: task.task_id }
@@ -749,7 +1196,9 @@
     await writeTaskNotificationFollowFields(task);
   }
 
+  /** @param {Event} [event] */
   async function saveAndCompleteTask(event) {
+    const api = requireApi();
     event?.preventDefault();
     if (!canCompleteCurrentTask()) {
       setStatus("Task cannot be completed from this state.", { isError: true });
@@ -758,7 +1207,7 @@
     }
 
     if (fields.complete) {
-      fields.complete.disabled = true;
+      writeTaskControl(fields.complete, "disabled", true);
     }
 
     try {
@@ -768,73 +1217,92 @@
           statusMessage: "Saving task before completion...",
         });
       }
-      const taskId = currentTask?.task_id || currentTaskId;
+      const taskId = optionalTaskProjectionFields(currentTask)?.task_id || currentTaskId;
       setStatus("Completing task...");
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(taskId)}/complete`, {});
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/complete`, {});
       applyTaskCompletionResult(result);
       await notifyTaskEditorSaved(result);
       setTaskCompletionStatus(result);
-      context?.hostContext?.complete?.(taskCompletionHostDetail(result));
+      const host = context?.hostContext;
+      const callback = optionalTaskProjectionFields(host)?.complete;
+      if (callback !== null && callback !== undefined) {
+        const args = [taskCompletionHostDetail(result)];
+        if (typeof callback !== "function") {
+          throw new TypeError("Task host complete is not callable.");
+        }
+        Reflect.apply(callback, host, args);
+      }
       closeTaskModal(dialog, "complete");
     } catch (error) {
-      setStatus(error.message || "Task was not completed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task was not completed."), { isError: true });
       updateCompleteTaskActionState();
     }
   }
 
+  /** Evaluate the assigned value before refusing a nullish receiver, as assignment does.
+   * @param {unknown} task @param {unknown} continuity
+   */
+  function writeTaskCompletionContinuity(task, continuity) {
+    Reflect.set(taskProjectionFields(task), "recurrenceContinuity", continuity, task);
+  }
+
+  /** @param {unknown} [result] */
   function applyTaskCompletionResult(result = {}) {
-    if (!result.task) {
+    if (!taskProjectionFields(result).task) {
       return;
     }
 
-    currentTask = result.task;
-    currentTask.recurrenceContinuity = result.recurrenceContinuity || currentTask.recurrenceContinuity || null;
-    currentTaskId = result.task.task_id || currentTaskId;
+    currentTask = taskProjectionFields(result).task;
+    writeTaskCompletionContinuity(currentTask, taskProjectionFields(result).recurrenceContinuity || taskProjectionFields(currentTask).recurrenceContinuity || null);
+    currentTaskId = taskProjectionFields(taskProjectionFields(result).task).task_id || currentTaskId;
     rememberTaskInContext(currentTask);
     syncTaskStatusField(currentTask);
     updateBlockedReasonState();
     writeTaskCompletionFields(currentTask);
     writeTaskMetadataRibbon(currentTask);
-    writeRecurrenceContinuity(currentTask.recurrenceContinuity);
+    writeRecurrenceContinuity(taskProjectionFields(currentTask).recurrenceContinuity);
     writeTaskTimerFields(currentTask);
     updateCompleteTaskActionState();
   }
 
+  /** @param {unknown} [result] */
   function taskCompletionHostDetail(result = {}) {
     return {
       actionId: "tasks.complete",
-      createdTask: result.createdTask
+      createdTask: taskProjectionFields(result).createdTask
         ? {
-            task_id: result.createdTask.task_id || "",
-            title: result.createdTask.title || "",
+            task_id: taskProjectionFields(taskProjectionFields(result).createdTask).task_id || "",
+            title: taskProjectionFields(taskProjectionFields(result).createdTask).title || "",
           }
         : null,
-      recordId: result.task?.task_id || currentTaskId || "",
-      recurrenceQueued: result.recurrenceJob?.queued === true,
-      recurrenceContinuity: result.recurrenceContinuity || null,
+      recordId: optionalTaskProjectionFields(taskProjectionFields(result).task)?.task_id || currentTaskId || "",
+      recurrenceQueued: optionalTaskProjectionFields(taskProjectionFields(result).recurrenceJob)?.queued === true,
+      recurrenceContinuity: taskProjectionFields(result).recurrenceContinuity || null,
       taskLifecycleAction: "complete",
-      title: result.task?.title || currentTask?.title || "",
+      title: optionalTaskProjectionFields(taskProjectionFields(result).task)?.title || optionalTaskProjectionFields(currentTask)?.title || "",
     };
   }
 
+  /** @param {unknown} [result] */
   function setTaskCompletionStatus(result = {}) {
-    const continuityMessage = recurrenceContinuityMessage(result.recurrenceContinuity);
+    const continuityMessage = recurrenceContinuityMessage(taskProjectionFields(result).recurrenceContinuity);
     setStatus(continuityMessage || "Task completed.");
   }
 
+  /** @param {unknown} task */
   async function writeParentTaskFields(task) {
     if (!fields.parentTask) {
       return;
     }
 
-    currentParentTaskId = task?.task_id ? await readCurrentParentTaskId(task.task_id) : "";
+    currentParentTaskId = optionalTaskProjectionFields(task)?.task_id ? await readCurrentParentTaskId(taskProjectionFields(task).task_id) : "";
     replaceOptions(fields.parentTask, [
       option("", "No parent task"),
-      ...parentTaskOptions(task?.task_id || "").map((candidate) => option(candidate.task_id, candidate.optionLabel || candidate.title)),
+      ...parentTaskOptions(optionalTaskProjectionFields(task)?.task_id || "").map((candidate) => option(candidate.task_id, candidate.optionLabel || candidate.title)),
     ]);
-    fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === currentParentTaskId)
+    writeTaskControl(fields.parentTask, "value", [...taskContextOptionItems(taskProjectionFields(fields.parentTask).options)].some((item) => taskProjectionFields(item).value === currentParentTaskId)
       ? currentParentTaskId
-      : "";
+      : "");
   }
 
   function refreshParentTaskOptions() {
@@ -842,109 +1310,237 @@
       return;
     }
 
-    const previousValue = fields.parentTask.value;
+    const previousValue = taskProjectionFields(fields.parentTask).value;
     replaceOptions(fields.parentTask, [
       option("", "No parent task"),
       ...parentTaskOptions(currentTaskId).map((candidate) => option(candidate.task_id, candidate.optionLabel || candidate.title)),
     ]);
-    fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === previousValue)
+    writeTaskControl(fields.parentTask, "value", [...taskContextOptionItems(taskProjectionFields(fields.parentTask).options)].some((item) => taskProjectionFields(item).value === previousValue)
       ? previousValue
-      : "";
+      : "");
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRelationship} BrowserTaskRelationship */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRelationshipDirection} BrowserTaskRelationshipDirection */
+
+  /** The two directions the producer writes from one comparison. @type {readonly BrowserTaskRelationshipDirection[]} */
+  const TASK_RELATIONSHIP_DIRECTIONS = Object.freeze(["child", "parent"]);
+
+  /** The relationship members the producer always writes as text. */
+  const TASK_RELATIONSHIP_TEXT_MEMBERS = Object.freeze([
+    "child_task_id", "created_at", "parent_task_id", "related_task_id",
+    "task_relationship_id", "updated_at",
+  ]);
+
+  /** The related-task summary members it always writes as text. */
+  const RELATED_TASK_TEXT_MEMBERS = Object.freeze([
+    "client_id", "client_name", "project_id", "project_name", "status", "task_id", "title", "url",
+  ]);
+
+  /**
+   * A JSON value this dialog can read members off.
+   *
+   * It serves the relationship reads it was written for and the standalone bootstrap, whose four
+   * requests resolve through one `Promise.all`: TypeScript widens that tuple's heterogeneous
+   * elements to `{}`, which was masked while the tag load answered `any`. The check the bootstrap
+   * needed was already here, so it is reused and renamed rather than written twice.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isReadableJsonObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasTaskRelationshipText(value, keys) {
+    return keys.every((key) => typeof value[key] === "string");
+  }
+
+  /**
+   * The related-task summary, as `taskRelationshipTaskSummary` reconstructs it.
+   *
+   * `estimate_minutes` is the only member the task record itself allows to be null, so it is
+   * the only one checked as nullable here.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isRelatedTaskSummary(value) {
+    return isReadableJsonObject(value)
+      && hasTaskRelationshipText(value, RELATED_TASK_TEXT_MEMBERS)
+      && (value.estimate_minutes === null || typeof value.estimate_minutes === "number");
+  }
+
+  /**
+   * One relationship as `readableRelationshipsForTask` builds it.
+   *
+   * The readability flag and the summary are checked against each other rather than
+   * separately. The producer writes the summary only when its `tasks.view` check passed and
+   * the related task exists, and writes the flag from that same check - so a row claiming the
+   * related task was unreadable while carrying its title, client and project is one where a
+   * withheld task's details arrived anyway, and this refuses it.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskRelationship}
+   */
+  function isTaskRelationship(value) {
+    if (!isReadableJsonObject(value)
+      || !hasTaskRelationshipText(value, TASK_RELATIONSHIP_TEXT_MEMBERS)
+      || typeof value.is_blocking !== "boolean"
+      || !TASK_RELATIONSHIP_DIRECTIONS.some((word) => word === value.direction)) {
+      return false;
+    }
+
+    return value.related_task_readable === true
+      ? isRelatedTaskSummary(value.related_task)
+      : value.related_task_readable === false && value.related_task === null;
+  }
+
+  /**
+   * The relationship list, or `null` when the body is not one this producer sends.
+   *
+   * `relationshipSummary` is not read: it is a different producer's record, and this reader
+   * refusing a body over a member nothing on this path uses would be inventing a contract for
+   * it. The array and its elements are what the caller relies on, and every element is
+   * checked - an array whose container is right and whose contents are not is the shape a
+   * length check alone would wave through.
+   * @param {unknown} body
+   * @returns {BrowserTaskRelationship[] | null}
+   */
+  function readTaskRelationships(body) {
+    if (!isReadableJsonObject(body) || !Array.isArray(body.relationships)) {
+      return null;
+    }
+
+    const relationships = body.relationships.filter(isTaskRelationship);
+
+    return relationships.length === body.relationships.length ? relationships : null;
+  }
+
+  /** @param {unknown} taskId */
   async function readCurrentParentTaskId(taskId) {
+    const api = requireApi();
     try {
-      const result = await api.getJson(`/api/tasks/${encodeURIComponent(taskId)}/relationships`, { cache: "no-store" });
-      const parent = (result.relationships || []).find((relationship) => relationship.direction === "parent");
+      const relationships = readTaskRelationships(
+        await api.getJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/relationships`, { cache: "no-store" }),
+      );
+
+      if (!relationships) {
+        throw new Error("The task relationship list could not be read.");
+      }
+
+      const parent = relationships.find((relationship) => relationship.direction === "parent");
       return parent?.parent_task_id || parent?.related_task?.task_id || "";
     } catch {
       return "";
     }
   }
 
+  /** @param {unknown} taskId */
   function parentTaskOptions(taskId) {
-    const selectedClientId = fields.client?.value === "all" ? "" : fields.client?.value || "";
-    const selectedProjectId = fields.project?.value || "";
+    const selectedClientId = optionalTaskProjectionFields(fields.client)?.value === "all" ? "" : optionalTaskProjectionFields(fields.client)?.value || "";
+    const selectedProjectId = optionalTaskProjectionFields(fields.project)?.value || "";
 
-    const candidates = (context?.tasks || [])
-      .filter((task) => task?.task_id && task.task_id !== taskId)
-      .filter((task) => taskId || !["complete", "archived"].includes(task.status))
-      .filter((task) => !selectedClientId || !task.client_id || task.client_id === selectedClientId)
-      .filter((task) => !selectedProjectId || !task.project_id || task.project_id === selectedProjectId);
+    let candidates = callTaskContextCollection(context?.tasks || [], "filter", [
+      (/** @type {unknown} */ task) => optionalTaskProjectionFields(task)?.task_id && taskProjectionFields(task).task_id !== taskId,
+    ]);
+    candidates = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => taskId || !requireTaskLifecycleLegality().isTerminalStatus(taskProjectionFields(task).status),
+    ]);
+    candidates = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => !selectedClientId || !taskProjectionFields(task).client_id || taskProjectionFields(task).client_id === selectedClientId,
+    ]);
+    candidates = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => !selectedProjectId || !taskProjectionFields(task).project_id || taskProjectionFields(task).project_id === selectedProjectId,
+    ]);
 
-    const byId = new Map(candidates.map((task) => [task.task_id, task]));
+    // The native Map constructor, not a declaration over the host collection, consumes entries.
+    /** @type {Map<unknown, unknown>} */
+    const byId = Reflect.construct(Map, [callTaskContextCollection(candidates, "map", [
+      (/** @type {unknown} */ task) => [taskProjectionFields(task).task_id, task],
+    ])]);
+    /** @type {Map<unknown, unknown[]>} */
     const childrenByParent = new Map();
-    candidates.forEach((task) => {
-      const parentId = task.parent_task_id || task.parentTask?.task_id || task.parent_task?.task_id || "";
+    callTaskContextCollection(candidates, "forEach", [(/** @type {unknown} */ task) => {
+      const parentId = taskProjectionFields(task).parent_task_id || optionalTaskProjectionFields(taskProjectionFields(task).parentTask)?.task_id || optionalTaskProjectionFields(taskProjectionFields(task).parent_task)?.task_id || "";
       const key = byId.has(parentId) ? parentId : "";
       if (!childrenByParent.has(key)) {
         childrenByParent.set(key, []);
       }
-      childrenByParent.get(key).push(task);
-    });
-    const compareByTitle = (left, right) => String(left?.title || "").localeCompare(String(right?.title || ""), undefined, { sensitivity: "base" });
+      requireTaskControl(childrenByParent.get(key)).push(task);
+    }]);
+    const compareByTitle = (/** @type {unknown} */ left, /** @type {unknown} */ right) => String(optionalTaskProjectionFields(left)?.title || "").localeCompare(String(optionalTaskProjectionFields(right)?.title || ""), undefined, { sensitivity: "base" });
     childrenByParent.forEach((children) => children.sort(compareByTitle));
+    /** @type {Array<Record<string, unknown> & {optionLabel: string}>} */
     const ordered = [];
     const visited = new Set();
-    const appendBranch = (task, depth) => {
-      if (!task?.task_id || visited.has(task.task_id)) {
+    const appendBranch = (/** @type {unknown} */ task, /** @type {number} */ depth) => {
+      if (!optionalTaskProjectionFields(task)?.task_id || visited.has(taskProjectionFields(task).task_id)) {
         return;
       }
-      visited.add(task.task_id);
+      visited.add(taskProjectionFields(task).task_id);
       ordered.push({
-        ...task,
-        optionLabel: `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${task.title || "Untitled Task"}`,
+        ...taskProjectionFields(task),
+        optionLabel: `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${taskProjectionFields(task).title || "Untitled Task"}`,
       });
-      (childrenByParent.get(task.task_id) || []).forEach((child) => appendBranch(child, depth + 1));
+      (childrenByParent.get(taskProjectionFields(task).task_id) || []).forEach((child) => appendBranch(child, depth + 1));
     };
     (childrenByParent.get("") || []).forEach((task) => appendBranch(task, 0));
-    candidates.filter((task) => !visited.has(task.task_id)).sort(compareByTitle).forEach((task) => appendBranch(task, 0));
+    const remaining = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => !visited.has(taskProjectionFields(task).task_id),
+    ]);
+    const sorted = callTaskContextCollection(remaining, "sort", [compareByTitle]);
+    callTaskContextCollection(sorted, "forEach", [(/** @type {unknown} */ task) => appendBranch(task, 0)]);
     return ordered;
   }
 
   function applySelectedParentTaskInheritance() {
-    const parentTaskId = fields.parentTask?.value || "";
-    const parentTask = (context?.tasks || []).find((task) => task.task_id === parentTaskId);
+    const parentTaskId = optionalTaskProjectionFields(fields.parentTask)?.value || "";
+    const parentTask = callTaskContextCollection(context?.tasks || [], "find", [
+      (/** @type {unknown} */ task) => taskProjectionFields(task).task_id === parentTaskId,
+    ]);
 
     if (!parentTask) {
       return;
     }
 
-    fields.dueDate.value = parentTask.due_date || "";
-    fields.dueTime.value = parentTask.due_time || "";
-    fields.priority.value = taskDefaultPriorities().includes(parentTask.priority) ? parentTask.priority : "normal";
+    writeTaskControl(fields.dueDate, "value", taskProjectionFields(parentTask).due_date || "");
+    writeTaskControl(fields.dueTime, "value", taskProjectionFields(parentTask).due_time || "");
+    /** @type {readonly unknown[]} */
+    const priorities = taskDefaultPriorities();
+    writeTaskControl(fields.priority, "value", priorities.includes(taskProjectionFields(parentTask).priority) ? taskProjectionFields(parentTask).priority : "normal");
 
-    if (usesClientScope() && !fields.client.value && parentTask.client_id) {
-      ensureClientOption(parentTask.client_id, parentTask);
-      fields.client.value = parentTask.client_id;
-      populateProjectInput(fields.project.value);
+    if (usesClientScope() && !taskProjectionFields(requireTaskControl(fields.client)).value && taskProjectionFields(parentTask).client_id) {
+      ensureClientOption(taskProjectionFields(parentTask).client_id, parentTask);
+      writeTaskControl(fields.client, "value", taskProjectionFields(parentTask).client_id);
+      populateProjectInput(taskProjectionFields(requireTaskControl(fields.project)).value);
     }
 
-    if (!fields.project.value && parentTask.project_id) {
-      populateProjectInput(parentTask.project_id, parentTask, { allowFallback: true });
+    if (!taskProjectionFields(requireTaskControl(fields.project)).value && taskProjectionFields(parentTask).project_id) {
+      populateProjectInput(taskProjectionFields(parentTask).project_id, parentTask, { allowFallback: true });
       syncClientFromSelectedProject();
     } else {
       writeTaskMetadataRibbon();
     }
   }
 
+  /** @param {unknown} taskId */
   async function syncParentTaskRelationship(taskId) {
+    const api = requireApi();
     if (!taskId || !fields.parentTask) {
       return;
     }
 
-    const nextParentTaskId = fields.parentTask.value || "";
+    const nextParentTaskId = taskProjectionFields(fields.parentTask).value || "";
 
     if (nextParentTaskId === currentParentTaskId) {
       return;
     }
 
     if (currentParentTaskId) {
-      await api.deleteJson(`/api/tasks/${encodeURIComponent(currentParentTaskId)}/children/${encodeURIComponent(taskId)}`);
+      await api.deleteJson(`/api/tasks/${encodeURIComponent(`${currentParentTaskId}`)}/children/${encodeURIComponent(`${taskId}`)}`);
     }
 
     if (nextParentTaskId) {
-      await api.postJson(`/api/tasks/${encodeURIComponent(nextParentTaskId)}/children`, {
+      await api.postJson(`/api/tasks/${encodeURIComponent(`${nextParentTaskId}`)}/children`, {
         child_task_id: taskId,
         is_blocking: false,
       });
@@ -955,21 +1551,21 @@
 
   function readTaskFormPayload() {
     return {
-      title: fields.titleInput.value,
-      status: fields.status.value,
-      priority: fields.priority.value,
-      estimate_minutes: fields.estimate.value === "" ? null : Number(fields.estimate.value),
-      client_id: usesClientScope() ? fields.client.value : "",
-      project_id: fields.project.value,
-      due_date: fields.dueDate.value,
-      due_time: fields.dueTime.value,
-      next_action: fields.nextAction.value,
-      blocked_reason: fields.blockedReason.value,
-      resume_note: fields.resumeNote.value,
-      description: fields.description.value,
-      assignee_ids: [...fields.assignees.selectedOptions].map((selected) => selected.value),
+      title: taskProjectionFields(requireTaskControl(fields.titleInput)).value,
+      status: taskProjectionFields(requireTaskControl(fields.status)).value,
+      priority: taskProjectionFields(requireTaskControl(fields.priority)).value,
+      estimate_minutes: taskProjectionFields(requireTaskControl(fields.estimate)).value === "" ? null : Number(taskProjectionFields(requireTaskControl(fields.estimate)).value),
+      client_id: usesClientScope() ? taskProjectionFields(requireTaskControl(fields.client)).value : "",
+      project_id: taskProjectionFields(requireTaskControl(fields.project)).value,
+      due_date: taskProjectionFields(requireTaskControl(fields.dueDate)).value,
+      due_time: taskProjectionFields(requireTaskControl(fields.dueTime)).value,
+      next_action: taskProjectionFields(requireTaskControl(fields.nextAction)).value,
+      blocked_reason: taskProjectionFields(requireTaskControl(fields.blockedReason)).value,
+      resume_note: taskProjectionFields(requireTaskControl(fields.resumeNote)).value,
+      description: taskProjectionFields(requireTaskControl(fields.description)).value,
+      assignee_ids: [...taskContextOptionItems(taskProjectionFields(requireTaskControl(fields.assignees)).selectedOptions)].map((selected) => taskProjectionFields(selected).value),
       recurrence: readRecurrencePayload(),
-      reminderOverrideEnabled: fields.reminderOverride.checked,
+      reminderOverrideEnabled: taskProjectionFields(requireTaskControl(fields.reminderOverride)).checked,
       reminderPolicy: readReminderPolicy(),
       tagIds: readTaskTagIds(),
     };
@@ -981,7 +1577,7 @@
     if (!initialTaskFormSnapshot) {
       return {
         hasChanges: true,
-        recurrenceTemplateChanged: Boolean(currentTask?.recurrence_template_id),
+        recurrenceTemplateChanged: Boolean(optionalTaskProjectionFields(currentTask)?.recurrence_template_id),
       };
     }
 
@@ -996,12 +1592,12 @@
     const normalized = {
       ...payload,
       assignee_ids: [...(payload.assignee_ids || [])].sort(),
-      parent_task_id: fields.parentTask?.value || "",
+      parent_task_id: optionalTaskProjectionFields(fields.parentTask)?.value || "",
       recurrence: {
         enabled: recurrence.enabled === true,
         endDate: recurrence.endDate || "",
         frequency: recurrence.frequency || "WEEKLY",
-        interval: Number.parseInt(recurrence.interval, 10) || 1,
+        interval: Number.parseInt(`${recurrence.interval}`, 10) || 1,
       },
       tagIds: [...(payload.tagIds || [])].sort(),
     };
@@ -1024,6 +1620,7 @@
     };
   }
 
+  /** @param {unknown[]} tags */
   async function mountTaskTagPicker(tags) {
     tagPicker = null;
     if (!fields.tagContainer || !namespace.tags?.mountPicker) {
@@ -1043,11 +1640,12 @@
     }
     fields.tagContainer.hidden = false;
     tagPicker = await namespace.tags.mountPicker(fields.tagContainer, {
-      tags: context.tagOptions || [],
+      tags: requireTaskControl(context).tagOptions || [],
       selectedTags: tags,
     });
   }
 
+  /** @param {unknown} task */
   function mountTaskFileAttachments(task) {
     fileAttachmentsController?.destroy?.();
     fileAttachmentsController = null;
@@ -1066,26 +1664,45 @@
     }
     fileAttachmentsController = namespace.fileAttachments.mount(fields.fileContainer, {
       acceptedCategories: ["document", "image", "pdf", "text", "other"],
-      canRemove: Boolean(task?.task_id),
-      canUpload: Boolean(task?.task_id),
-      clientId: task?.client_id || fields.client?.value || "",
+      canRemove: Boolean(optionalTaskProjectionFields(task)?.task_id),
+      canUpload: Boolean(optionalTaskProjectionFields(task)?.task_id),
+      clientId: optionalTaskProjectionFields(task)?.client_id || optionalTaskProjectionFields(fields.client)?.value || "",
       emptyMessage: "No files attached to this task.",
       moduleId: "tasks",
-      projectId: task?.project_id || fields.project?.value || "",
+      projectId: optionalTaskProjectionFields(task)?.project_id || optionalTaskProjectionFields(fields.project)?.value || "",
       saveFirstMessage: "Save the task before adding files.",
-      targetId: task?.task_id || "",
+      targetId: optionalTaskProjectionFields(task)?.task_id || "",
       targetType: "task",
       title: "Task Files",
       visibility: "private",
-      onAttachmentAdded: (detail) => context?.onAttachmentsChanged?.(detail),
-      onAttachmentRemoved: (detail) => context?.onAttachmentsChanged?.(detail),
-      onRefresh: (detail) => context?.onAttachmentsRefreshed?.(detail),
-      onUploadFailed: ({ error } = {}) => setStatus(error?.message || "Task file upload failed.", { isError: true }),
+      onAttachmentAdded: (detail) => {
+        const owner = context;
+        const callback = owner?.onAttachmentsChanged;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task attachment callback is not callable.");
+        return Reflect.apply(callback, owner, [detail]);
+      },
+      onAttachmentRemoved: (detail) => {
+        const owner = context;
+        const callback = owner?.onAttachmentsChanged;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task attachment callback is not callable.");
+        return Reflect.apply(callback, owner, [detail]);
+      },
+      onRefresh: (detail) => {
+        const owner = context;
+        const callback = owner?.onAttachmentsRefreshed;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task attachment callback is not callable.");
+        return Reflect.apply(callback, owner, [detail]);
+      },
+      onUploadFailed: ({ error } = {}) => setStatus(optionalTaskProjectionFields(error)?.message || "Task file upload failed.", { isError: true }),
       onUploadStarted: () => setStatus("Uploading task file..."),
       onUploadCompleted: () => setStatus("Task file uploaded."),
     });
   }
 
+  /** @param {unknown} task @param {{focus?: unknown}} [options] */
   function mountTaskNotesPanel(task, options = {}) {
     notesPanelController?.destroy?.();
     notesPanelController = null;
@@ -1100,16 +1717,16 @@
 
     if (fields.notesPanel) {
       fields.notesPanel.hidden = false;
-      fields.notesPanel.open = options.focus === true;
+      writeTaskControl(fields.notesPanel, "open", options.focus === true);
     }
 
     notesPanelController = namespace.notesLinkedPanel.mount(fields.notesContainer, {
-      clientId: task?.client_id || fields.client?.value || "",
+      clientId: optionalTaskProjectionFields(task)?.client_id || optionalTaskProjectionFields(fields.client)?.value || "",
       moduleId: "tasks",
-      projectId: task?.project_id || fields.project?.value || "",
-      readonly: task?.status === "archived",
+      projectId: optionalTaskProjectionFields(task)?.project_id || optionalTaskProjectionFields(fields.project)?.value || "",
+      readonly: optionalTaskProjectionFields(task)?.status === "archived",
       saveFirstMessage: "Save the task before adding notes.",
-      targetId: task?.task_id || "",
+      targetId: optionalTaskProjectionFields(task)?.task_id || "",
       targetType: "task",
       title: "Task Notes",
     });
@@ -1123,30 +1740,37 @@
     return tagPicker?.readTagIds?.() || [];
   }
 
+  /** @param {unknown} task */
   async function writeTaskNotificationFollowFields(task) {
     if (!fields.notificationToggle) {
       return;
     }
 
-    const taskId = task?.task_id || "";
+    const taskId = optionalTaskProjectionFields(task)?.task_id || "";
     const canToggleNotifications = Boolean(taskId && namespace.notificationSubscriptions);
     writeNotificationFollowState(false);
     fields.notificationToggle.hidden = !canToggleNotifications;
-    fields.notificationToggle.disabled = !canToggleNotifications;
+    writeTaskControl(fields.notificationToggle, "disabled", !canToggleNotifications);
 
-    if (!canToggleNotifications) {
+    if (!namespace.notificationSubscriptions || !canToggleNotifications) {
       return;
     }
 
-    fields.notificationToggle.disabled = true;
+    writeTaskControl(fields.notificationToggle, "disabled", true);
     fields.notificationToggle.title = "Checking notification follow state";
     fields.notificationToggle.setAttribute("aria-label", "Checking notification follow state");
 
     try {
-      const result = await namespace.notificationSubscriptions.readStatus(namespace.notificationSubscriptions.taskTarget(taskId));
+      const statusOwner = namespace.notificationSubscriptions;
+      const readStatus = statusOwner.readStatus;
+      const targetOwner = namespace.notificationSubscriptions;
+      /** @type {unknown} */
+      const target = Reflect.apply(targetOwner.taskTarget, targetOwner, [taskId]);
+      /** @type {Awaited<ReturnType<typeof readStatus>>} */
+      const result = await Reflect.apply(readStatus, statusOwner, [target]);
       writeNotificationFollowState(result.isFollowing === true);
     } catch {
-      fields.notificationToggle.disabled = true;
+      writeTaskControl(fields.notificationToggle, "disabled", true);
       fields.notificationToggle.title = "Notification follow state unavailable";
       fields.notificationToggle.setAttribute("aria-label", "Notification follow state unavailable");
     }
@@ -1160,7 +1784,7 @@
     closeTaskFilesDialog();
     fields.tagToggle?.setAttribute("aria-expanded", "true");
     showTaskModal(tagsDialog, { parent: dialog, trigger: fields.tagToggle });
-    tagsDialog.querySelector("[data-tag-picker-input]")?.focus();
+    focusTaskControl(tagsDialog.querySelector("[data-tag-picker-input]"));
   }
 
   function closeTaskTagsDialog() {
@@ -1186,7 +1810,7 @@
     const focusTarget = currentTaskId
       ? filesDialog.querySelector("[data-file-attachment-input]")
       : fields.fileDialogClose;
-    focusTarget?.focus();
+    focusTaskControl(focusTarget);
   }
 
   function closeTaskFilesDialog() {
@@ -1214,13 +1838,16 @@
     }
 
     const isFollowing = fields.notificationToggle.dataset.isFollowing === "true";
-    fields.notificationToggle.disabled = true;
+    writeTaskControl(fields.notificationToggle, "disabled", true);
     fields.notificationToggle.title = isFollowing ? "Unfollowing task notifications" : "Following task notifications";
     fields.notificationToggle.setAttribute("aria-label", isFollowing ? "Unfollowing task notifications" : "Following task notifications");
     setStatus(isFollowing ? "Unfollowing task notifications..." : "Following task notifications...");
 
     try {
-      const target = namespace.notificationSubscriptions.taskTarget(currentTaskId);
+      const subscriptions = namespace.notificationSubscriptions;
+      // The raw completion id is forwarded unchanged; no request-target shape is claimed here.
+      /** @type {unknown} */
+      const target = Reflect.apply(subscriptions.taskTarget, subscriptions, [currentTaskId]);
       const result = isFollowing
         ? await namespace.notificationSubscriptions.unfollow(target)
         : await namespace.notificationSubscriptions.follow(target);
@@ -1229,10 +1856,11 @@
       setStatus(result.isFollowing ? "Task notifications followed." : "Task notifications unfollowed.");
     } catch (error) {
       writeNotificationFollowState(isFollowing);
-      setStatus(error.message || "Notification follow change failed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Notification follow change failed."), { isError: true });
     }
   }
 
+  /** @param {boolean} isFollowing */
   function writeNotificationFollowState(isFollowing) {
     if (!fields.notificationToggle) {
       return;
@@ -1241,7 +1869,7 @@
     const label = isFollowing ? "Unfollow task notifications" : "Follow task notifications";
     fields.notificationToggle.dataset.isFollowing = String(isFollowing);
     fields.notificationToggle.classList.toggle("is-following", isFollowing);
-    fields.notificationToggle.disabled = false;
+    writeTaskControl(fields.notificationToggle, "disabled", false);
     fields.notificationToggle.title = label;
     fields.notificationToggle.setAttribute("aria-label", label);
     fields.notificationToggle.setAttribute("aria-pressed", String(isFollowing));
@@ -1260,6 +1888,7 @@
   }
 
   async function loadTaskTimers() {
+    const api = requireApi();
     try {
       return await api.getJson("/api/tasks/timers", { cache: "no-store" });
     } catch {
@@ -1269,43 +1898,47 @@
 
   async function refreshTaskTimers() {
     const result = await loadTaskTimers();
-    taskTimers = Array.isArray(result.timers) ? result.timers : [];
-    context.taskTimers = taskTimers;
+    taskTimers = requireTaskRecords().readTaskTimers(result);
+    requireTaskControl(context).taskTimers = taskTimers;
     writeTaskTimerFields(currentTask);
   }
 
+  /** @param {"running" | "paused"} timerStatus */
   async function saveTaskTimer(timerStatus) {
+    const api = requireApi();
     const task = currentTask;
 
     if (!task) {
       return;
     }
 
-    const timer = currentTaskTimer(task.task_id);
+    const timer = currentTaskTimer(taskProjectionFields(task).task_id);
     const elapsedSeconds = readTaskTimerElapsedSeconds(timer);
 
     setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
 
     try {
-      const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`, {
-        active_task_timer_id: timer?.active_task_timer_id || "",
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskProjectionFields(task).task_id}`)}/timer`, {
+        active_task_timer_id: optionalTaskProjectionFields(timer)?.active_task_timer_id || "",
         timer_status: timerStatus,
         accumulated_elapsed_seconds: elapsedSeconds,
         last_active_start_time: new Date().toISOString(),
       });
       applyTaskTimerMutationResult(result, task);
       if (timerStatus === "paused") {
-        offerTaskResumeNote(result.task || task);
+        offerTaskResumeNote(requireTaskRecords().readTask(result) || task);
       }
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Task timer was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer was not saved."), { isError: true });
     }
   }
 
+  /** @param {Event} [event] */
   async function finalizeTaskTimer(event) {
+    const api = requireApi();
     const task = currentTask;
-    const timer = task ? currentTaskTimer(task.task_id) : null;
+    const timer = task ? currentTaskTimer(taskProjectionFields(task).task_id) : null;
 
     if (!task || !timer) {
       return;
@@ -1316,20 +1949,22 @@
     setStatus("Saving task timer...");
 
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer/finalize`, {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskProjectionFields(task).task_id}`)}/timer/finalize`, {
         duration_seconds: durationSeconds,
         end_time: new Date().toISOString(),
       });
-      removeTaskTimer(task.task_id);
+      removeTaskTimer(taskProjectionFields(task).task_id);
       applyTaskTimerMutationResult(result, task);
-      offerTaskResumeNote(result.task || task, event?.currentTarget || null);
+      offerTaskResumeNote(requireTaskRecords().readTask(result) || task, event?.currentTarget || null);
       setStatus("Task time saved.");
     } catch (error) {
-      setStatus(error.message || "Task time was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task time was not saved."), { isError: true });
     }
   }
 
   async function resetTaskTimer() {
+    const modal = requireModalDialogs();
+    const api = requireApi();
     const task = currentTask;
 
     if (!task) {
@@ -1338,7 +1973,7 @@
 
     const confirmed = await modal.confirm({
       title: "Reset task timer",
-      message: `Reset the timer for "${task.title}"?`,
+      message: `Reset the timer for "${taskProjectionFields(task).title}"?`,
       confirmLabel: "Reset",
       danger: true,
     });
@@ -1348,26 +1983,27 @@
     }
 
     try {
-      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`);
-      removeTaskTimer(task.task_id);
+      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(`${taskProjectionFields(task).task_id}`)}/timer`);
+      removeTaskTimer(taskProjectionFields(task).task_id);
       applyTaskTimerMutationResult(result, task);
       setStatus("Task timer reset.");
     } catch (error) {
-      setStatus(error.message || "Task timer was not reset.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer was not reset."), { isError: true });
     }
   }
 
+  /** @param {unknown} result */
   function applyTaskTimerMutationResult(result, fallbackTask = currentTask) {
-    if (result?.timer) {
-      upsertTaskTimer(result.timer);
+    if (optionalTaskProjectionFields(result)?.timer) {
+      upsertTaskTimer(taskProjectionFields(result).timer);
     }
 
-    if (result?.task) {
+    if (optionalTaskProjectionFields(result)?.task) {
       currentTask = {
-        ...(currentTask || {}),
-        ...result.task,
+        ...taskProjectionFields(currentTask || {}),
+        ...optionalTaskProjectionFields(taskProjectionFields(result).task),
       };
-      currentTaskId = result.task.task_id || currentTaskId;
+      currentTaskId = taskProjectionFields(taskProjectionFields(result).task).task_id || currentTaskId;
       rememberTaskInContext(currentTask);
       syncTaskStatusField(currentTask);
       updateBlockedReasonState();
@@ -1383,36 +2019,47 @@
     return fallbackTask;
   }
 
+  /** @param {unknown} task */
   function syncTaskStatusField(task) {
-    if (!fields.status || !task?.status) {
+    if (!fields.status || !optionalTaskProjectionFields(task)?.status) {
       return;
     }
 
-    if ([...fields.status.options].some((item) => item.value === task.status)) {
-      fields.status.value = task.status;
-      previousTaskEditorStatus = task.status;
+    if ([...taskContextOptionItems(taskProjectionFields(fields.status).options)].some((item) => taskProjectionFields(item).value === taskProjectionFields(task).status)) {
+      writeTaskControl(fields.status, "value", taskProjectionFields(task).status);
+      previousTaskEditorStatus = taskProjectionFields(task).status;
     }
     updateCompleteTaskActionState();
     updateBlockTaskActionState();
   }
 
-  function offerTaskResumeNote(task, trigger = null) {
+  /** @param {unknown} task */
+  function offerTaskResumeNote(task, /** @type {unknown} */ trigger = null) {
     void namespace.taskResumeNoteCapture?.offer({
       task,
       parent: dialog,
       trigger,
-      onSaved(updatedTask) {
-        if (updatedTask?.task_id === currentTask?.task_id) {
+      onSaved(/** @type {unknown} */ updatedTask) {
+        if (optionalTaskProjectionFields(updatedTask)?.task_id === optionalTaskProjectionFields(currentTask)?.task_id) {
           applyTaskTimerMutationResult({ task: updatedTask }, currentTask);
           if (fields.resumeNote) {
-            fields.resumeNote.value = updatedTask.resume_note || "";
+            writeTaskControl(fields.resumeNote, "value", taskProjectionFields(updatedTask).resume_note || "");
           }
         }
       },
-      onError(error) {
-        setStatus(error.message || "Resume note could not be saved.", { isError: true });
+      onError(/** @type {unknown} */ error) {
+        setStatus(taskProjectionFields(error).message || "Resume note could not be saved.", { isError: true });
       },
     });
+  }
+
+  /** @returns {BrowserTaskLifecycleLegality} */
+  function requireTaskLifecycleLegality() {
+    const legality = window.LongtailForge?.taskLifecycleLegality;
+    if (typeof legality?.isTerminalStatus !== "function") {
+      throw new Error("Task actions require LongtailForge.taskLifecycleLegality.");
+    }
+    return legality;
   }
 
   function updateCompleteTaskActionState() {
@@ -1422,7 +2069,7 @@
 
     const visible = canCompleteCurrentTask();
     fields.complete.hidden = !visible;
-    fields.complete.disabled = !visible;
+    writeTaskControl(fields.complete, "disabled", !visible);
   }
 
   function updateBlockTaskActionState() {
@@ -1430,15 +2077,14 @@
       return;
     }
 
-    const status = fields.status?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || optionalTaskProjectionFields(currentTask)?.status || "";
     const isBlocked = status === "blocked";
     const visible = Boolean(
       currentTaskId &&
-      !["complete", "archived"].includes(status) &&
-      hasTaskEditPermission(),
+      !requireTaskLifecycleLegality().isTerminalStatus(status),
     );
     const label = isBlocked ? "Resume task" : "Block task";
-    namespace.icons?.decorateButton?.(fields.block, {
+    namespace.icons?.decorateButton?.(requireTaskIconButton(fields.block), {
       icon: isBlocked ? "start" : "pause",
       iconOnly: true,
       label,
@@ -1447,60 +2093,24 @@
     });
     fields.block.dataset.taskBlockMode = isBlocked ? "resume" : "block";
     fields.block.hidden = !visible;
-    fields.block.disabled = !visible;
+    writeTaskControl(fields.block, "disabled", !visible);
   }
 
   function canCompleteCurrentTask() {
-    const status = fields.status?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || optionalTaskProjectionFields(currentTask)?.status || "";
     return Boolean(
       currentTaskId &&
-      TASK_COMPLETE_VISIBLE_STATUSES.has(status) &&
-      hasTaskCompletePermission(),
+      requireTaskLifecycleLegality().canCompleteStatus(status),
     );
   }
 
-  function hasTaskCompletePermission() {
-    const permissions = taskDialogWorkspacePermissionSet();
-    return !permissions || permissions.has("tasks.complete");
-  }
-
-  function hasTaskEditPermission() {
-    const permissions = taskDialogWorkspacePermissionSet();
-    if (!permissions) {
-      return true;
-    }
-    if (permissions.has("tasks.edit_all")) {
-      return true;
-    }
-    if (!permissions.has("tasks.edit_own")) {
-      return false;
-    }
-
-    const userId = currentUserId();
-    return Boolean(userId && (
-      currentTask?.created_by_user_id === userId ||
-      (currentTask?.assignee_ids || []).includes(userId)
-    ));
-  }
-
-  function taskDialogWorkspacePermissionSet() {
-    const rawPermissions = namespace.workspaceContext?.permissionIds ||
-      namespace.workspaceContext?.permissions;
-    if (!Array.isArray(rawPermissions)) {
-      return null;
-    }
-
-    return new Set(rawPermissions
-      .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
-      .filter(Boolean));
-  }
-
+  /** @param {unknown} task */
   function rememberTaskInContext(task) {
-    if (!task?.task_id || !Array.isArray(context?.tasks)) {
+    if (!optionalTaskProjectionFields(task)?.task_id || !Array.isArray(context?.tasks)) {
       return;
     }
 
-    const existingIndex = context.tasks.findIndex((item) => item.task_id === task.task_id);
+    const existingIndex = context.tasks.findIndex((item) => item.task_id === taskProjectionFields(task).task_id);
     if (existingIndex >= 0) {
       context.tasks.splice(existingIndex, 1, task);
       return;
@@ -1509,6 +2119,7 @@
     context.tasks.unshift(task);
   }
 
+  /** @param {unknown} task */
   function writeTaskTimerFields(task) {
     clearTaskTimerInterval();
 
@@ -1516,54 +2127,55 @@
       return;
     }
 
-    const options = context?.options || defaultTaskOptions();
+    const options = taskProjectionFields(context?.options || defaultTaskOptions());
     const timerSurfaceAvailable = options.taskTimersEnabled !== false && options.timeTrackingEnabled !== false;
     const eligible = Boolean(
-      task?.task_id &&
-      task.project_id &&
-      task.status !== "complete" &&
-      task.status !== "archived" &&
+      optionalTaskProjectionFields(task)?.task_id &&
+      taskProjectionFields(task).project_id &&
+      taskProjectionFields(task).status !== "complete" &&
+      taskProjectionFields(task).status !== "archived" &&
       options.taskTimersEnabled !== false &&
       options.timeTrackingEnabled !== false,
     );
-    const timer = task ? currentTaskTimer(task.task_id) : null;
+    const timer = task ? currentTaskTimer(taskProjectionFields(task).task_id) : null;
 
-    fields.timerField.hidden = !task?.task_id || !timerSurfaceAvailable;
-    fields.timerStart.disabled = !eligible || timer?.timer_status === "running";
-    fields.timerPause.disabled = !eligible || timer?.timer_status !== "running";
-    fields.timerFinalize.disabled = !eligible || !timer;
-    fields.timerReset.disabled = !timer;
+    fields.timerField.hidden = !optionalTaskProjectionFields(task)?.task_id || !timerSurfaceAvailable;
+    writeTaskControl(fields.timerStart, "disabled", !eligible || optionalTaskProjectionFields(timer)?.timer_status === "running");
+    writeTaskControl(fields.timerPause, "disabled", !eligible || optionalTaskProjectionFields(timer)?.timer_status !== "running");
+    writeTaskControl(fields.timerFinalize, "disabled", !eligible || !timer);
+    writeTaskControl(fields.timerReset, "disabled", !timer);
 
     if (!timerSurfaceAvailable) {
-      fields.timerStatus.textContent = "";
+      writeTaskControl(fields.timerStatus, "textContent", "");
       updateTaskTimerDisplay(timer);
       return;
     }
 
-    if (!task?.task_id) {
-      fields.timerStatus.textContent = "Save the task before using a task timer.";
+    if (!optionalTaskProjectionFields(task)?.task_id) {
+      writeTaskControl(fields.timerStatus, "textContent", "Save the task before using a task timer.");
     } else if (!eligible) {
-      fields.timerStatus.textContent = readTaskTimerIneligibleReason(task);
-    } else if (timer?.timer_status === "running") {
-      fields.timerStatus.textContent = "Running.";
+      writeTaskControl(fields.timerStatus, "textContent", readTaskTimerIneligibleReason(task));
+    } else if (optionalTaskProjectionFields(timer)?.timer_status === "running") {
+      writeTaskControl(fields.timerStatus, "textContent", "Running.");
     } else if (timer) {
-      fields.timerStatus.textContent = "Paused.";
+      writeTaskControl(fields.timerStatus, "textContent", "Paused.");
     } else {
-      fields.timerStatus.textContent = "No active timer.";
+      writeTaskControl(fields.timerStatus, "textContent", "No active timer.");
     }
 
     updateTaskTimerDisplay(timer);
-    if (timer?.timer_status === "running") {
+    if (optionalTaskProjectionFields(timer)?.timer_status === "running") {
       taskTimerIntervalId = global.setInterval(() => updateTaskTimerDisplay(timer), 1000);
     }
   }
 
   async function addChecklistItem() {
+    const api = requireApi();
     if (!currentTaskId || !fields.checklistInput) {
       return;
     }
 
-    const label = fields.checklistInput.value.trim();
+    const label = callTaskContextCollection(taskProjectionFields(fields.checklistInput).value, "trim", []);
     if (!label) {
       fields.checklistInput.focus();
       return;
@@ -1572,15 +2184,16 @@
     setStatus("Adding checklist item...");
 
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist`, { label });
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist`, { label });
       applyChecklistResult(result);
-      fields.checklistInput.value = "";
+      writeTaskControl(fields.checklistInput, "value", "");
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist item was not added.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not added."), { isError: true });
     }
   }
 
+  /** @param {KeyboardEvent} event */
   async function handleChecklistInputKeydown(event) {
     if (event.key !== "Enter" || event.isComposing) {
       return;
@@ -1590,14 +2203,15 @@
     await addChecklistItem();
   }
 
+  /** @param {KeyboardEvent} event */
   async function handleChecklistListKeydown(event) {
-    const input = event.target.closest("[data-task-checklist-label]");
+    const input = callTaskContextCollection(event.target, "closest", ["[data-task-checklist-label]"]);
     if (!input || event.key !== "Enter" || event.isComposing) {
       return;
     }
 
-    const row = input.closest("[data-task-checklist-item]");
-    const itemId = row?.dataset.taskChecklistItem || "";
+    const row = callTaskContextCollection(input, "closest", ["[data-task-checklist-item]"]);
+    const itemId = (row == null ? undefined : taskProjectionFields(taskProjectionFields(row).dataset).taskChecklistItem) || "";
     if (!row || !itemId) {
       return;
     }
@@ -1606,38 +2220,42 @@
     await saveChecklistItemLabel(row, itemId);
   }
 
+  /** @param {Event} event */
   async function handleChecklistChange(event) {
-    const checkbox = event.target.closest("[data-task-checklist-toggle]");
+    const api = requireApi();
+    const checkbox = callTaskContextCollection(event.target, "closest", ["[data-task-checklist-toggle]"]);
     if (!checkbox || !currentTaskId) {
       return;
     }
 
-    const itemId = checkbox.closest("[data-task-checklist-item]")?.dataset.taskChecklistItem || "";
+    const row = callTaskContextCollection(checkbox, "closest", ["[data-task-checklist-item]"]);
+    const itemId = (row == null ? undefined : taskProjectionFields(taskProjectionFields(row).dataset).taskChecklistItem) || "";
     if (!itemId) {
       return;
     }
 
-    const action = checkbox.checked ? "check" : "uncheck";
-    setStatus(checkbox.checked ? "Checking item..." : "Unchecking item...");
+    const action = taskProjectionFields(checkbox).checked ? "check" : "uncheck";
+    setStatus(taskProjectionFields(checkbox).checked ? "Checking item..." : "Unchecking item...");
 
     try {
-      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}/${action}`, {}));
+      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/${encodeURIComponent(`${itemId}`)}/${action}`, {}));
       setStatus("");
     } catch (error) {
-      checkbox.checked = !checkbox.checked;
-      setStatus(error.message || "Checklist item was not updated.", { isError: true });
+      Reflect.set(taskProjectionFields(checkbox), "checked", !taskProjectionFields(checkbox).checked);
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not updated."), { isError: true });
     }
   }
 
+  /** @param {Event} event */
   async function handleChecklistClick(event) {
-    const button = event.target.closest("[data-task-checklist-action]");
+    const button = callTaskContextCollection(event.target, "closest", ["[data-task-checklist-action]"]);
     if (!button || !currentTaskId) {
       return;
     }
 
-    const row = button.closest("[data-task-checklist-item]");
-    const itemId = row?.dataset.taskChecklistItem || "";
-    const action = button.dataset.taskChecklistAction;
+    const row = callTaskContextCollection(button, "closest", ["[data-task-checklist-item]"]);
+    const itemId = (row == null ? undefined : taskProjectionFields(taskProjectionFields(row).dataset).taskChecklistItem) || "";
+    const action = taskProjectionFields(taskProjectionFields(button).dataset).taskChecklistAction;
 
     if (!itemId) {
       return;
@@ -1652,27 +2270,36 @@
     }
   }
 
+  /** @param {unknown} row @param {unknown} itemId */
   async function saveChecklistItemLabel(row, itemId) {
-    const input = row.querySelector("[data-task-checklist-label]");
-    const label = input?.value.trim() || "";
+    const api = requireApi();
+    const input = callTaskContextCollection(row, "querySelector", ["[data-task-checklist-label]"]);
+    const label = (input == null ? undefined : callTaskContextCollection(taskProjectionFields(input).value, "trim", [])) || "";
 
     if (!label) {
-      input?.focus();
+      if (input != null) {
+        const focus = taskProjectionFields(input).focus;
+        if (typeof focus !== "function") throw new TypeError("Task checklist label cannot receive focus.");
+        Reflect.apply(focus, input, []);
+      }
       return;
     }
 
     setStatus("Saving checklist item...");
 
     try {
-      applyChecklistResult(await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`, { label }));
+      applyChecklistResult(await api.putJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/${encodeURIComponent(`${itemId}`)}`, { label }));
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist item was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not saved."), { isError: true });
     }
   }
 
+  /** @param {unknown} row @param {unknown} itemId */
   async function deleteChecklistItem(row, itemId) {
-    const label = row.querySelector("[data-task-checklist-label]")?.value || "this checklist item";
+    const modal = requireModalDialogs();
+    const api = requireApi();
+    const label = optionalTaskProjectionFields(callTaskContextCollection(row, "querySelector", ["[data-task-checklist-label]"]))?.value || "this checklist item";
     const confirmed = await modal.confirm({
       title: "Remove checklist item",
       message: `Remove "${label}" from this task?`,
@@ -1687,16 +2314,18 @@
     setStatus("Removing checklist item...");
 
     try {
-      applyChecklistResult(await api.deleteJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`));
+      applyChecklistResult(await api.deleteJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/${encodeURIComponent(`${itemId}`)}`));
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist item was not removed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not removed."), { isError: true });
     }
   }
 
+  /** @param {unknown} itemId @param {string} direction */
   async function moveChecklistItem(itemId, direction) {
-    const items = [...(currentTask?.checklistItems || [])];
-    const index = items.findIndex((item) => item.task_checklist_item_id === itemId);
+    const api = requireApi();
+    const items = taskContextOptionItems(optionalTaskProjectionFields(currentTask)?.checklistItems || []);
+    const index = items.findIndex((item) => taskProjectionFields(item).task_checklist_item_id === itemId);
     const nextIndex = direction === "up" ? index - 1 : index + 1;
 
     if (index < 0 || nextIndex < 0 || nextIndex >= items.length) {
@@ -1708,31 +2337,32 @@
     setStatus("Reordering checklist...");
 
     try {
-      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/reorder`, {
-        item_ids: items.map((candidate) => candidate.task_checklist_item_id),
+      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/reorder`, {
+        item_ids: items.map((candidate) => taskProjectionFields(candidate).task_checklist_item_id),
       }));
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist was not reordered.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist was not reordered."), { isError: true });
     }
   }
 
+  /** @param {unknown} result */
   function applyChecklistResult(result) {
-    if (result?.task) {
-      currentTask = result.task;
-      currentTaskId = result.task.task_id || currentTaskId;
+    if (optionalTaskProjectionFields(result)?.task) {
+      currentTask = taskProjectionFields(result).task;
+      currentTaskId = taskProjectionFields(taskProjectionFields(result).task).task_id || currentTaskId;
       rememberTaskInContext(currentTask);
     } else if (currentTask) {
       currentTask = {
-        ...currentTask,
-        checklistItems: result?.items || currentTask.checklistItems || [],
-        checklistProgress: result?.checklistProgress || currentTask.checklistProgress,
+        ...taskProjectionFields(currentTask),
+        checklistItems: optionalTaskProjectionFields(result)?.items || taskProjectionFields(currentTask).checklistItems || [],
+        checklistProgress: optionalTaskProjectionFields(result)?.checklistProgress || taskProjectionFields(currentTask).checklistProgress,
       };
     }
 
     writeChecklistFields(currentTask);
 
-    if (result?.task) {
+    if (optionalTaskProjectionFields(result)?.task) {
       syncTaskStatusField(currentTask);
       updateBlockedReasonState();
       writeTaskMetadataRibbon(currentTask);
@@ -1743,6 +2373,7 @@
     }
   }
 
+  /** @param {unknown} result */
   async function notifyTaskEditorSaved(result) {
     if (currentTaskEditorRequest) {
       currentTaskEditorRequest.materializationRefreshPending = false;
@@ -1750,7 +2381,7 @@
     const configuredCallback = context?.onSaved;
     const requestCallback = currentTaskEditorRequest?.onSaved;
     const requestRefresh = currentTaskEditorRequest?.refresh;
-    const hostRefresh = context?.hostContext?.refresh;
+    const hostRefresh = optionalTaskProjectionFields(context?.hostContext)?.refresh;
 
     if (typeof configuredCallback === "function") {
       await configuredCallback(result);
@@ -1766,6 +2397,7 @@
     }
   }
 
+  /** @param {TaskEditorRequest} request @param {unknown} result */
   async function refreshMaterializedTaskRequest(request, result) {
     if (typeof request?.onSaved === "function") {
       await request.onSaved(result);
@@ -1775,14 +2407,18 @@
     }
   }
 
+  /** @param {unknown} target */
   function restoreTaskEditorFocus(target) {
-    if (target && target.isConnected && typeof target.focus === "function") {
-      target.focus();
+    if (target && taskProjectionFields(target).isConnected && typeof taskProjectionFields(target).focus === "function") {
+      const focus = taskProjectionFields(target).focus;
+      if (typeof focus !== "function") throw new TypeError("Task return-focus target is not callable.");
+      Reflect.apply(focus, target, []);
     }
   }
 
+  /** @param {unknown} task */
   function readTaskTimerIneligibleReason(task) {
-    const options = context?.options || defaultTaskOptions();
+    const options = taskProjectionFields(context?.options || defaultTaskOptions());
 
     if (options.taskTimersEnabled === false) {
       return "Task timers are disabled.";
@@ -1792,26 +2428,28 @@
       return "Time Tracking is disabled.";
     }
 
-    if (!task.project_id) {
+    if (!taskProjectionFields(task).project_id) {
       return "Task timers require a project-linked task.";
     }
 
-    if (task.status === "complete" || task.status === "archived") {
+    if (taskProjectionFields(task).status === "complete" || taskProjectionFields(task).status === "archived") {
       return "Completed and archived tasks cannot use task timers.";
     }
 
     return "Task timer unavailable.";
   }
 
+  /** @param {unknown} taskId */
   function currentTaskTimer(taskId) {
-    return taskTimers.find((timer) => timer.task_id === taskId);
+    return taskTimers.find((timer) => taskProjectionFields(timer).task_id === taskId);
   }
 
+  /** @param {unknown} timer */
   function upsertTaskTimer(timer) {
-    const existingIndex = taskTimers.findIndex((item) => item.task_id === timer.task_id);
+    const existingIndex = taskTimers.findIndex((item) => taskProjectionFields(item).task_id === taskProjectionFields(timer).task_id);
     taskTimers = taskTimers.map((item) =>
-      item.timer_status === "running" && item.task_id !== timer.task_id
-        ? { ...item, timer_status: "paused", last_active_start_time: null }
+      taskProjectionFields(item).timer_status === "running" && taskProjectionFields(item).task_id !== taskProjectionFields(timer).task_id
+        ? { ...optionalTaskProjectionFields(item), timer_status: "paused", last_active_start_time: null }
         : item,
     );
 
@@ -1820,12 +2458,13 @@
     } else {
       taskTimers.push(timer);
     }
-    context.taskTimers = taskTimers;
+    requireTaskControl(context).taskTimers = taskTimers;
   }
 
+  /** @param {unknown} taskId */
   function removeTaskTimer(taskId) {
-    taskTimers = taskTimers.filter((timer) => timer.task_id !== taskId);
-    context.taskTimers = taskTimers;
+    taskTimers = taskTimers.filter((timer) => taskProjectionFields(timer).task_id !== taskId);
+    requireTaskControl(context).taskTimers = taskTimers;
   }
 
   function clearTaskTimerInterval() {
@@ -1835,24 +2474,31 @@
     }
   }
 
+  /** @param {unknown} timer */
   function updateTaskTimerDisplay(timer) {
-    fields.timerDisplay.textContent = formatDuration(readTaskTimerElapsedSeconds(timer));
+    writeTaskControl(fields.timerDisplay, "textContent", formatDuration(readTaskTimerElapsedSeconds(timer)));
   }
 
+  /** @param {unknown} timer */
   function readTaskTimerElapsedSeconds(timer) {
     if (!timer) {
       return 0;
     }
 
-    const baseSeconds = Number.parseInt(timer.accumulated_elapsed_seconds, 10) || 0;
-    if (timer.timer_status !== "running" || !timer.last_active_start_time) {
+    const baseSeconds = Number.parseInt(`${taskProjectionFields(timer).accumulated_elapsed_seconds}`, 10) || 0;
+    if (taskProjectionFields(timer).timer_status !== "running" || !taskProjectionFields(timer).last_active_start_time) {
       return baseSeconds;
     }
 
-    const startedAt = new Date(timer.last_active_start_time).getTime();
+    /** @type {Date} */
+    const startedAtDate = Reflect.construct(Date, [
+      taskProjectionFields(timer).last_active_start_time,
+    ]);
+    const startedAt = startedAtDate.getTime();
     return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   }
 
+  /** @param {number} totalSeconds */
   function formatDuration(totalSeconds) {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -1860,45 +2506,50 @@
     return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
   }
 
+  /** @param {unknown} assigneeIds */
   function selectAssignees(assigneeIds) {
-    const selectedIds = new Set(assigneeIds);
+    const selectedIds = new Set(assigneeIds == null ? undefined : taskContextOptionItems(assigneeIds));
 
-    [...fields.assignees.options].forEach((item) => {
-      item.selected = selectedIds.has(item.value);
+    [...taskContextOptionItems(taskProjectionFields(requireTaskControl(fields.assignees)).options)].forEach((item) => {
+      const option = taskProjectionFields(item);
+      option.selected = selectedIds.has(option.value);
     });
   }
 
   function openRecurrenceDialog() {
-    fields.recurrence.frequency.value = recurrenceDraft.frequency || "WEEKLY";
-    fields.recurrence.interval.value = String(recurrenceDraft.interval || 1);
-    fields.recurrence.endDate.value = recurrenceDraft.endDate || "";
+    writeTaskControl(requireTaskControl(fields.recurrence).frequency, "value", recurrenceDraft.frequency || "WEEKLY");
+    writeTaskControl(requireTaskControl(fields.recurrence).interval, "value", String(recurrenceDraft.interval || 1));
+    writeTaskControl(requireTaskControl(fields.recurrence).endDate, "value", recurrenceDraft.endDate || "");
 
     showTaskModal(recurrenceDialog, { parent: dialog, trigger: fields.recurrenceDetails });
   }
 
+  /** @param {Event} event */
   function saveRecurrenceDraft(event) {
     event.preventDefault();
     recurrenceDraft = {
-      enabled: fields.recurring.checked,
-      frequency: fields.recurrence.frequency.value || "WEEKLY",
-      interval: readPositiveInteger(fields.recurrence.interval, 1),
-      endDate: fields.recurrence.endDate.value || "",
+      enabled: taskProjectionFields(requireTaskControl(fields.recurring)).checked,
+      frequency: taskProjectionFields(requireTaskControl(requireTaskControl(fields.recurrence).frequency)).value || "WEEKLY",
+      interval: readPositiveInteger(requireTaskControl(fields.recurrence).interval, 1),
+      endDate: taskProjectionFields(requireTaskControl(requireTaskControl(fields.recurrence).endDate)).value || "",
     };
     updateRecurrenceState();
     closeTaskModal(recurrenceDialog, "saved");
   }
 
+  /** @param {unknown} [details] */
   function writeRecurrenceFields(details = {}) {
+    const detail = optionalTaskProjectionFields(details);
     const parsed = {
       ...defaultRecurrenceDraft(),
-      enabled: Boolean(details?.enabled),
-      frequency: details?.frequency || "WEEKLY",
-      interval: Number.parseInt(details?.interval, 10) || 1,
-      endDate: details?.endDate || details?.end_date || "",
+      enabled: Boolean(detail?.enabled),
+      frequency: detail?.frequency || "WEEKLY",
+      interval: Number.parseInt(`${detail?.interval}`, 10) || 1,
+      endDate: detail?.endDate || detail?.end_date || "",
     };
 
     recurrenceDraft = parsed;
-    fields.recurring.checked = parsed.enabled;
+    writeTaskControl(fields.recurring, "checked", parsed.enabled);
     updateRecurrenceState();
   }
 
@@ -1907,30 +2558,35 @@
       return;
     }
 
-    fields.recurrenceDetails.disabled = !fields.recurring.checked;
-    fields.recurrenceSummary.textContent = fields.recurring.checked
+    writeTaskControl(fields.recurrenceDetails, "disabled", !taskProjectionFields(fields.recurring).checked);
+    writeTaskControl(fields.recurrenceSummary, "textContent", taskProjectionFields(fields.recurring).checked
       ? formatRecurrenceSummary(recurrenceDraft)
-      : "Not recurring.";
+      : "Not recurring.");
   }
 
+  /** @param {unknown} continuity */
   function writeRecurrenceContinuity(continuity) {
     renderRecurrenceContinuity(fields.recurrenceContinuity, continuity);
   }
 
+  /** @param {unknown} recovery */
   function writeRecurrenceRecovery(recovery) {
     if (!fields.recurrenceSkipCurrent) {
       return;
     }
-    fields.recurrenceSkipCurrent.hidden = !recovery?.available;
-    fields.recurrenceSkipCurrent.disabled = recovery?.blockedByActiveTimer === true;
-    fields.recurrenceSkipCurrent.title = recovery?.blockedByActiveTimer
+    fields.recurrenceSkipCurrent.hidden = !optionalTaskProjectionFields(recovery)?.available;
+    writeTaskControl(fields.recurrenceSkipCurrent, "disabled", optionalTaskProjectionFields(recovery)?.blockedByActiveTimer === true);
+    fields.recurrenceSkipCurrent.title = optionalTaskProjectionFields(recovery)?.blockedByActiveTimer
       ? "Stop or save active timers on earlier tasks first."
       : "Complete earlier active instances and keep the next occurrence that has not passed.";
   }
 
+  /** @param {Event} [event] */
   async function skipRecurrenceToCurrent(event) {
+    const modal = requireModalDialogs();
+    const api = requireApi();
     event?.preventDefault();
-    const recovery = currentTask?.recurrenceRecovery;
+    const recovery = optionalTaskProjectionFields(optionalTaskProjectionFields(currentTask)?.recurrenceRecovery);
     if (!currentTaskId || !recovery?.available || recovery.blockedByActiveTimer) {
       return;
     }
@@ -1948,17 +2604,26 @@
       return;
     }
 
-    fields.recurrenceSkipCurrent.disabled = true;
+    writeTaskControl(fields.recurrenceSkipCurrent, "disabled", true);
     setStatus("Recovering recurring task...");
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/skip-to-current`, {});
-      const targetTaskId = result.targetTask?.task_id || "";
-      context?.hostContext?.complete?.({
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/skip-to-current`, {});
+      const skipTarget = requireTaskRecords().readSkipToCurrentTarget(result);
+      const targetTaskId = skipTarget?.task_id || "";
+      const host = context?.hostContext;
+      const callback = optionalTaskProjectionFields(host)?.complete;
+      if (callback !== null && callback !== undefined) {
+        const args = [{
         actionId: "tasks.skip-to-current",
         recordId: targetTaskId || currentTaskId,
         taskLifecycleAction: "skip-to-current",
-        title: result.targetTask?.title || currentTask?.title || "",
-      });
+        title: skipTarget?.title || optionalTaskProjectionFields(currentTask)?.title || "",
+      }];
+        if (typeof callback !== "function") {
+          throw new TypeError("Task host complete is not callable.");
+        }
+        Reflect.apply(callback, host, args);
+      }
       closeTaskModal(dialog, "complete");
       if (targetTaskId) {
         global.setTimeout(() => {
@@ -1966,59 +2631,81 @@
         }, 0);
       }
     } catch (error) {
-      setStatus(error.message || "The recurring task could not be recovered.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "The recurring task could not be recovered."), { isError: true });
       writeRecurrenceRecovery(recovery);
     }
   }
 
+  /** @param {unknown} [continuity] */
   function recurrenceContinuityMessage(continuity = {}) {
-    if (!continuity?.isRecurring) {
+    const detail = optionalTaskProjectionFields(continuity);
+    if (!detail?.isRecurring) {
       return "";
     }
 
-    if (continuity.status === "ended") {
+    if (detail.status === "ended") {
       return "Task completed. Recurring series ended.";
     }
 
-    const scheduled = continuity.nextScheduledDate
-      ? `Next scheduled ${continuity.nextScheduledDate}`
+    const scheduled = detail.nextScheduledDate
+      ? `Next scheduled ${detail.nextScheduledDate}`
       : "Recurring follow-up";
 
-    if (continuity.status === "available" && continuity.nextTask) {
+    if (detail.status === "available" && detail.nextTask) {
       return `Task completed. ${scheduled}.`;
     }
-    if (continuity.status === "handoff_failed") {
+    if (detail.status === "handoff_failed") {
       return `Task completed. ${scheduled}; automatic recovery is pending.`;
     }
     return `Task completed. ${scheduled} (creating now).`;
   }
 
+  /** @param {unknown} [container] @param {unknown} [continuity] */
   function renderRecurrenceContinuity(container, continuity = {}) {
     if (!container) {
       return;
     }
 
     const message = recurrenceContinuityMessage(continuity);
-    container.replaceChildren();
-    container.hidden = !message;
+    const target = taskProjectionFields(container);
+    const replaceChildren = target.replaceChildren;
+    if (typeof replaceChildren !== "function") {
+      throw new TypeError("Task continuity container replaceChildren is not callable.");
+    }
+    Reflect.apply(replaceChildren, container, []);
+    target.hidden = !message;
     if (!message) {
       return;
     }
 
-    container.append(document.createTextNode(message));
-    if (continuity.status === "available" && continuity.nextTask?.url) {
+    const appendMessage = target.append;
+    const messageNode = document.createTextNode(message);
+    if (typeof appendMessage !== "function") {
+      throw new TypeError("Task continuity container append is not callable.");
+    }
+    Reflect.apply(appendMessage, container, [messageNode]);
+    const detail = taskProjectionFields(continuity);
+    if (detail.status === "available" && optionalTaskProjectionFields(detail.nextTask)?.url) {
       const link = document.createElement("a");
       link.className = "button button-secondary button-compact";
-      link.href = continuity.nextTask.url;
+      Reflect.set(link, "href", taskProjectionFields(detail.nextTask).url);
       link.textContent = "Open next task";
-      container.append(document.createTextNode(" "), link);
+      const appendLink = target.append;
+      const space = document.createTextNode(" ");
+      if (typeof appendLink !== "function") {
+        throw new TypeError("Task continuity container append is not callable.");
+      }
+      Reflect.apply(appendLink, container, [space, link]);
     }
   }
 
+  /** @param {unknown} [taskId] @param {unknown} [options] */
   async function pollRecurrenceContinuity(taskId, options = {}) {
-    const attempts = Math.max(1, Number.parseInt(options.attempts, 10) || 7);
-    const delayMs = Math.max(100, Number.parseInt(options.delayMs, 10) || 1500);
-    let continuity = options.initialContinuity || null;
+    const api = requireApi();
+    const settings = taskProjectionFields(options);
+    const attempts = Math.max(1, Number.parseInt(`${settings.attempts}`, 10) || 7);
+    const delayMs = Math.max(100, Number.parseInt(`${settings.delayMs}`, 10) || 1500);
+    let continuity = settings.initialContinuity || null;
 
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       if (attempt > 0) {
@@ -2026,14 +2713,19 @@
       }
 
       const result = await api.getJson(
-        `/api/tasks/${encodeURIComponent(taskId)}/recurrence-continuity`,
+        `/api/tasks/${encodeURIComponent(`${taskId}`)}/recurrence-continuity`,
         { cache: "no-store" },
       );
-      continuity = result?.recurrenceContinuity || continuity;
-      if (typeof options.onUpdate === "function") {
-        await options.onUpdate(continuity, attempt);
+      continuity = optionalTaskProjectionFields(result)?.recurrenceContinuity || continuity;
+      if (typeof settings.onUpdate === "function") {
+        const onUpdate = settings.onUpdate;
+        if (typeof onUpdate !== "function") {
+          throw new TypeError("Task continuity onUpdate is not callable.");
+        }
+        await Reflect.apply(onUpdate, options, [continuity, attempt]);
       }
-      if (["available", "ended"].includes(continuity?.status)) {
+      const status = optionalTaskProjectionFields(continuity)?.status;
+      if (status === "available" || status === "ended") {
         break;
       }
     }
@@ -2043,7 +2735,7 @@
 
   function readRecurrencePayload() {
     return {
-      enabled: Boolean(fields.recurring.checked),
+      enabled: Boolean(taskProjectionFields(requireTaskControl(fields.recurring)).checked),
       applyTo: "instance",
       frequency: recurrenceDraft.frequency || "WEEKLY",
       interval: recurrenceDraft.interval || 1,
@@ -2060,14 +2752,16 @@
     };
   }
 
+  /** @param {typeof recurrenceDraft} recurrence */
   function formatRecurrenceSummary(recurrence) {
-    const interval = Number.parseInt(recurrence.interval, 10) || 1;
+    const interval = Number.parseInt(`${recurrence.interval}`, 10) || 1;
     const frequency = String(recurrence.frequency || "WEEKLY").toUpperCase();
     const cadence = recurrenceCadenceLabel(frequency, interval);
 
     return recurrence.endDate ? `${cadence} until ${recurrence.endDate}.` : `${cadence}.`;
   }
 
+  /** @param {string} frequency @param {number} interval */
   function recurrenceCadenceLabel(frequency, interval) {
     if (frequency === "WEEKDAYS") {
       return interval === 1 ? "Every weekday" : `Every ${interval} weekdays`;
@@ -2077,69 +2771,76 @@
       return interval === 1 ? "Every weekend day" : `Every ${interval} weekend days`;
     }
 
-    const unit = {
+    /** @type {Record<string, unknown>} */
+    const units = {
       DAILY: "day",
       WEEKLY: "week",
       MONTHLY: "month",
-    }[frequency] || "week";
+    };
+    const unit = units[frequency] || "week";
 
     return interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
   }
 
+  /** @param {unknown} [details] */
   function writeReminderFields(details = {}) {
-    const policySource = details?.overrideEnabled
-      ? details?.taskPolicy
-      : details?.effectivePolicy?.offsets;
+    const detail = optionalTaskProjectionFields(details);
+    const policySource = detail?.overrideEnabled
+      ? detail?.taskPolicy
+      : optionalTaskProjectionFields(detail?.effectivePolicy)?.offsets;
     const taskPolicy = normalizeReminderPolicy(policySource || {});
-    const effectivePolicy = normalizeReminderPolicy(details?.effectivePolicy?.offsets || {});
+    const effectivePolicy = normalizeReminderPolicy(optionalTaskProjectionFields(detail?.effectivePolicy)?.offsets || {});
     const timedHours = taskPolicy.dateTime.map((minutes) => Math.round(minutes / 60));
     const dateOnlyDays = taskPolicy.dateOnly.map((minutes) => Math.round(minutes / 1440));
 
-    fields.reminderOverride.checked = Boolean(details?.overrideEnabled);
-    fields.reminderDateTimeHours1.value = String(timedHours[0] || 2);
-    fields.reminderDateTimeHours2.value = String(timedHours[1] || 24);
-    fields.reminderDateTimeHours2Enabled.checked = timedHours.length > 1;
-    fields.reminderDateOnlyDays1.value = String(dateOnlyDays[0] || 3);
-    fields.reminderDateOnlyDays2.value = String(dateOnlyDays[1] || 1);
-    fields.reminderDateOnlyDays2Enabled.checked = dateOnlyDays.length > 1;
-    fields.effectiveReminders.textContent = `Effective: timed ${formatOffsetList(effectivePolicy.dateTime, "hours")}; date-only ${formatOffsetList(effectivePolicy.dateOnly, "days")}.`;
+    writeTaskControl(fields.reminderOverride, "checked", Boolean(detail?.overrideEnabled));
+    writeTaskControl(fields.reminderDateTimeHours1, "value", String(timedHours[0] || 2));
+    writeTaskControl(fields.reminderDateTimeHours2, "value", String(timedHours[1] || 24));
+    writeTaskControl(fields.reminderDateTimeHours2Enabled, "checked", timedHours.length > 1);
+    writeTaskControl(fields.reminderDateOnlyDays1, "value", String(dateOnlyDays[0] || 3));
+    writeTaskControl(fields.reminderDateOnlyDays2, "value", String(dateOnlyDays[1] || 1));
+    writeTaskControl(fields.reminderDateOnlyDays2Enabled, "checked", dateOnlyDays.length > 1);
+    writeTaskControl(fields.effectiveReminders, "textContent", `Effective: timed ${formatOffsetList(effectivePolicy.dateTime, "hours")}; date-only ${formatOffsetList(effectivePolicy.dateOnly, "days")}.`);
     updateReminderOverrideState();
     updateSecondaryReminderState();
   }
 
   function updateReminderOverrideState() {
-    fields.reminderOverrideFields.hidden = !fields.reminderOverride.checked;
+    writeTaskControl(fields.reminderOverrideFields, "hidden", !taskProjectionFields(requireTaskControl(fields.reminderOverride)).checked);
   }
 
   function updateSecondaryReminderState() {
-    fields.reminderDateTimeHours2.disabled = !fields.reminderDateTimeHours2Enabled.checked;
-    fields.reminderDateOnlyDays2.disabled = !fields.reminderDateOnlyDays2Enabled.checked;
+    writeTaskControl(fields.reminderDateTimeHours2, "disabled", !taskProjectionFields(requireTaskControl(fields.reminderDateTimeHours2Enabled)).checked);
+    writeTaskControl(fields.reminderDateOnlyDays2, "disabled", !taskProjectionFields(requireTaskControl(fields.reminderDateOnlyDays2Enabled)).checked);
   }
 
   function readReminderPolicy() {
     return {
       dateTime: [
         readPositiveInteger(fields.reminderDateTimeHours1, 2) * 60,
-        ...(fields.reminderDateTimeHours2Enabled.checked
+        ...(taskProjectionFields(requireTaskControl(fields.reminderDateTimeHours2Enabled)).checked
           ? [readPositiveInteger(fields.reminderDateTimeHours2, 24) * 60]
           : []),
       ],
       dateOnly: [
         readPositiveInteger(fields.reminderDateOnlyDays1, 3) * 1440,
-        ...(fields.reminderDateOnlyDays2Enabled.checked
+        ...(taskProjectionFields(requireTaskControl(fields.reminderDateOnlyDays2Enabled)).checked
           ? [readPositiveInteger(fields.reminderDateOnlyDays2, 1) * 1440]
           : []),
       ],
     };
   }
 
+  /** @param {unknown} [policy] */
   function normalizeReminderPolicy(policy = {}) {
+    const offsets = taskProjectionFields(policy);
     return {
-      dateTime: normalizeOffsetList(policy.dateTime || policy.date_time, [120, 1440]),
-      dateOnly: normalizeOffsetList(policy.dateOnly || policy.date_only, [4320, 1440]),
+      dateTime: normalizeOffsetList(offsets.dateTime || offsets.date_time, [120, 1440]),
+      dateOnly: normalizeOffsetList(offsets.dateOnly || offsets.date_only, [4320, 1440]),
     };
   }
 
+  /** @param {unknown} values @param {readonly number[]} fallback */
   function normalizeOffsetList(values, fallback) {
     const offsets = (Array.isArray(values) ? values : [])
       .map((value) => Number.parseInt(value, 10))
@@ -2149,10 +2850,12 @@
     return offsets.length > 0 ? offsets : [...fallback];
   }
 
+  /** @param {Element | null | undefined} input @param {number} fallback */
   function readPositiveInteger(input, fallback) {
-    return Math.max(1, Number.parseInt(input?.value, 10) || fallback);
+    return Math.max(1, Number.parseInt(`${optionalTaskProjectionFields(input)?.value}`, 10) || fallback);
   }
 
+  /** @param {readonly number[]} offsets @param {string} unit */
   function formatOffsetList(offsets, unit) {
     const divisor = unit === "days" ? 1440 : 60;
     const label = unit === "days" ? "d" : "h";
@@ -2173,13 +2876,14 @@
     }
 
     const url = new global.URL("workbench.html", global.location.href);
-    url.searchParams.set("taskId", currentTaskId);
+    url.searchParams.set("taskId", `${currentTaskId}`);
     global.location.assign(url.toString());
   }
 
+  /** @param {unknown} task */
   async function copyTaskLink(task) {
     const url = new global.URL("tasks.html", global.location.href);
-    url.searchParams.set("task", task.task_id);
+    url.searchParams.set("task", `${taskProjectionFields(task).task_id}`);
 
     try {
       await navigator.clipboard.writeText(url.toString());
@@ -2189,45 +2893,52 @@
     }
   }
 
+  /** @param {Element | null | undefined} select @param {unknown} options */
   function replaceOptions(select, options) {
     if (!select) {
       return;
     }
 
-    const previousValues = [...select.selectedOptions].map((item) => item.value);
-    select.replaceChildren(...options);
+    const previousValues = taskContextOptionItems(taskProjectionFields(select).selectedOptions).map((item) => taskProjectionFields(item).value);
+    const replaceChildren = select.replaceChildren;
+    Reflect.apply(replaceChildren, select, taskContextOptionItems(options));
 
-    if (select.multiple) {
-      [...select.options].forEach((item) => {
-        item.selected = previousValues.includes(item.value);
+    if (taskProjectionFields(select).multiple) {
+      taskContextOptionItems(taskProjectionFields(select).options).forEach((item) => {
+        Reflect.set(taskProjectionFields(item), "selected", previousValues.includes(taskProjectionFields(item).value));
       });
       return;
     }
 
-    if ([...select.options].some((item) => item.value === previousValues[0])) {
-      select.value = previousValues[0];
+    if (taskContextOptionItems(taskProjectionFields(select).options).some((item) => taskProjectionFields(item).value === previousValues[0])) {
+      Reflect.set(select, "value", previousValues[0]);
     }
   }
 
+  /** @param {unknown} value @param {unknown} label */
   function option(value, label) {
-    return pageController.createOption(value, label);
+    return requirePageController().createOption(value, label);
   }
 
+  /** @param {unknown} record */
   function optionLabel(record) {
-    return record?.optionLabel || record?.display_label || record?.displayName || record?.name || record?.title || "";
+    return optionalTaskProjectionFields(record)?.optionLabel || optionalTaskProjectionFields(record)?.display_label || optionalTaskProjectionFields(record)?.displayName || optionalTaskProjectionFields(record)?.name || optionalTaskProjectionFields(record)?.title || "";
   }
 
-  function optionListHasValue(options = [], value = "") {
-    return options.some((item) => item.value === value);
+  /** @param {unknown} [value] */
+  function optionListHasValue(/** @type {unknown[]} */ options = [], value = "") {
+    return options.some((item) => taskProjectionFields(item).value === value);
   }
 
+  /** @param {unknown} sourceTask */
   function clientFallbackLabel(sourceTask = null) {
-    return sourceTask?.client_name || sourceTask?.clientName || "Unavailable client";
+    return optionalTaskProjectionFields(sourceTask)?.client_name || optionalTaskProjectionFields(sourceTask)?.clientName || "Unavailable client";
   }
 
+  /** @param {unknown} sourceTask */
   function projectFallbackLabel(sourceTask = null) {
-    const projectName = sourceTask?.project_name || sourceTask?.projectName || "";
-    const clientName = sourceTask?.client_name || sourceTask?.clientName || "";
+    const projectName = optionalTaskProjectionFields(sourceTask)?.project_name || optionalTaskProjectionFields(sourceTask)?.projectName || "";
+    const clientName = optionalTaskProjectionFields(sourceTask)?.client_name || optionalTaskProjectionFields(sourceTask)?.clientName || "";
 
     if (projectName && usesClientScope() && clientName) {
       return `${projectName} - ${clientName}`;
@@ -2236,15 +2947,16 @@
     return projectName || "Unavailable project";
   }
 
+  /** @param {unknown} user */
   function displayUser(user) {
-    const displayName = String(user.displayName || user.display_name || user.username || user.user_id || "").trim();
-    const email = String(user.username || user.email || "").trim();
+    const displayName = String(taskProjectionFields(user).displayName || taskProjectionFields(user).display_name || taskProjectionFields(user).username || taskProjectionFields(user).user_id || "").trim();
+    const email = String(taskProjectionFields(user).username || taskProjectionFields(user).email || "").trim();
 
     if (displayName && email && displayName !== email) {
       return `${displayName} (${email})`;
     }
 
-    return displayName || email || user.user_id;
+    return displayName || email || taskProjectionFields(user).user_id;
   }
 
   function taskDefaultStatuses() {
@@ -2260,22 +2972,32 @@
   }
 
   function readCurrentUserId() {
-    return namespace.workspaceContext?.userId || namespace.workspaceContext?.user_id || "";
+    return namespace.workspaceContext?.userId || "";
   }
 
   function usesClientScope() {
-    return (context?.options || defaultTaskOptions()).workspaceType === "business";
+    return taskProjectionFields(context?.options || defaultTaskOptions()).workspaceType === "business";
   }
 
+  /** @param {unknown} message */
   function setStatus(message, options = {}) {
     if (typeof context?.setStatus === "function") {
       context.setStatus(message, options);
       return;
     }
 
-    context?.hostContext?.setStatus?.(message, options);
+    const host = context?.hostContext;
+    const callback = optionalTaskProjectionFields(host)?.setStatus;
+    if (callback !== null && callback !== undefined) {
+      const args = [message, options];
+      if (typeof callback !== "function") {
+        throw new TypeError("Task host setStatus is not callable.");
+      }
+      Reflect.apply(callback, host, args);
+    }
   }
 
+  /** @param {unknown} target */
   function focusTaskEditorTarget(target) {
     const focusTarget = normalizeTaskEditorFocusTarget(target);
     const targetMap = {
@@ -2299,16 +3021,16 @@
 
     if (focusTarget === "notes") {
       fields.notesPanel?.scrollIntoView?.({ block: "nearest" });
-      fields.titleInput.focus();
+      requireTaskControl(fields.titleInput).focus();
       return;
     }
 
-    const panel = panelMap[focusTarget];
+    const panel = Object.entries(panelMap).find(([key]) => key === focusTarget)?.[1];
     if (panel && "open" in panel) {
       panel.open = true;
     }
 
-    const targetElement = targetMap[focusTarget] || fields.titleInput;
+    const targetElement = Object.entries(targetMap).find(([key]) => key === focusTarget)?.[1] || fields.titleInput;
     targetElement?.scrollIntoView?.({ block: "nearest" });
     targetElement?.focus?.();
   }
@@ -2318,19 +3040,20 @@
       return;
     }
 
-    const isBlocked = fields.status?.value === "blocked";
+    const isBlocked = optionalTaskProjectionFields(fields.status)?.value === "blocked";
     fields.blockedReasonField.hidden = !isBlocked;
-    fields.blockedReason.disabled = !isBlocked;
-    fields.blockedReason.required = isBlocked;
+    writeTaskControl(fields.blockedReason, "disabled", !isBlocked);
+    writeTaskControl(fields.blockedReason, "required", isBlocked);
     fields.continuityRow?.classList.toggle("is-blocked", isBlocked);
 
-    if (isBlocked && !fields.blockedReason.value.trim() && document.activeElement === fields.status) {
+    if (isBlocked && !callTaskContextCollection(taskProjectionFields(fields.blockedReason).value, "trim", []) && document.activeElement === fields.status) {
       fields.blockedReason.focus();
     }
   }
 
+  /** @param {Event} event */
   async function handleTaskStatusChange(event) {
-    const nextStatus = fields.status?.value || "";
+    const nextStatus = optionalTaskProjectionFields(fields.status)?.value || "";
     updateBlockedReasonState();
     writeTaskMetadataRibbon();
     updateCompleteTaskActionState();
@@ -2347,8 +3070,9 @@
     });
   }
 
+  /** @param {Event} event */
   async function handleBlockResumeAction(event) {
-    const status = fields.status?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || optionalTaskProjectionFields(currentTask)?.status || "";
     if (status === "blocked") {
       await resumeBlockedTask();
       return;
@@ -2360,10 +3084,10 @@
   }
 
   async function resumeBlockedTask() {
-    const previousReason = fields.blockedReason?.value || currentTask?.blocked_reason || "";
+    const previousReason = optionalTaskProjectionFields(fields.blockedReason)?.value || optionalTaskProjectionFields(currentTask)?.blocked_reason || "";
 
-    fields.status.value = "in_progress";
-    fields.blockedReason.value = "";
+    writeTaskControl(fields.status, "value", "in_progress");
+    writeTaskControl(fields.blockedReason, "value", "");
     updateBlockedReasonState();
     writeTaskMetadataRibbon();
     updateCompleteTaskActionState();
@@ -2378,8 +3102,8 @@
       setStatus("Task resumed.");
       return true;
     } catch {
-      fields.status.value = "blocked";
-      fields.blockedReason.value = previousReason;
+      writeTaskControl(fields.status, "value", "blocked");
+      writeTaskControl(fields.blockedReason, "value", previousReason);
       previousTaskEditorStatus = "blocked";
       updateBlockedReasonState();
       writeTaskMetadataRibbon();
@@ -2402,10 +3126,10 @@
 
   async function performBlockCapture({ statusBefore = "open", trigger = null } = {}) {
     const priorStatus = statusBefore && statusBefore !== "blocked" ? statusBefore : "open";
-    const previousReason = fields.blockedReason?.value || "";
-    let blockedReason = previousReason.trim();
+    const previousReason = optionalTaskProjectionFields(fields.blockedReason)?.value || "";
+    let blockedReason = callTaskContextCollection(previousReason, "trim", []);
 
-    fields.status.value = "blocked";
+    writeTaskControl(fields.status, "value", "blocked");
     updateBlockedReasonState();
     writeTaskMetadataRibbon();
     updateCompleteTaskActionState();
@@ -2425,8 +3149,8 @@
         trigger,
       });
       if (!result.confirmed) {
-        fields.status.value = priorStatus;
-        fields.blockedReason.value = previousReason;
+        writeTaskControl(fields.status, "value", priorStatus);
+        writeTaskControl(fields.blockedReason, "value", previousReason);
         previousTaskEditorStatus = priorStatus;
         updateBlockedReasonState();
         writeTaskMetadataRibbon();
@@ -2436,7 +3160,7 @@
         return false;
       }
       blockedReason = result.value;
-      fields.blockedReason.value = blockedReason;
+      writeTaskControl(fields.blockedReason, "value", blockedReason);
     }
 
     try {
@@ -2457,38 +3181,48 @@
     }
   }
 
+  /** @param {unknown} task */
   function writeChecklistFields(task) {
     if (!fields?.checklistField || !fields?.checklistList || !fields?.checklistStatus) {
       return;
     }
 
-    const canUseChecklist = Boolean(task?.task_id);
-    const items = task?.checklistItems || [];
-    const progress = task?.checklistProgress || checklistProgress(items);
+    const canUseChecklist = Boolean(optionalTaskProjectionFields(task)?.task_id);
+    const items = optionalTaskProjectionFields(task)?.checklistItems || [];
+    const progress = optionalTaskProjectionFields(task)?.checklistProgress || checklistProgress(items);
 
-    fields.checklistInput.disabled = !canUseChecklist;
-    fields.checklistAdd.disabled = !canUseChecklist;
+    writeTaskControl(fields.checklistInput, "disabled", !canUseChecklist);
+    writeTaskControl(fields.checklistAdd, "disabled", !canUseChecklist);
     fields.checklistStatus.textContent = canUseChecklist
       ? formatChecklistProgress(progress)
       : "Save the task before adding checklist items.";
-    fields.checklistList.replaceChildren(...items.map((item, index) => checklistItemRow(item, index, items.length)));
-    fields.checklistField.open = items.length > 0;
+    const list = fields.checklistList;
+    const replaceChildren = list.replaceChildren;
+    // Native arrays supply numeric indices/length; opaque host maps retain their original arguments.
+    const rows = callTaskContextCollection(items, "map", [
+      (/** @type {unknown} */ item, /** @type {number} */ index) => Reflect.apply(checklistItemRow, undefined, [item, index, taskProjectionFields(items).length]),
+    ]);
+    Reflect.apply(replaceChildren, list, taskContextOptionItems(rows));
+    // Keep the native comparison, including coercion, on an opaque host length.
+    const hasItems = (/** @type {number} */ length) => length > 0;
+    writeTaskControl(fields.checklistField, "open", Reflect.apply(hasItems, undefined, [taskProjectionFields(items).length]));
   }
 
+  /** @param {unknown} item @param {number} index @param {number} totalItems */
   function checklistItemRow(item, index, totalItems) {
     const row = document.createElement("div");
     row.className = "task-checklist-item";
-    row.dataset.taskChecklistItem = item.task_checklist_item_id;
+    Reflect.set(row.dataset, "taskChecklistItem", taskProjectionFields(item).task_checklist_item_id);
 
     const toggle = document.createElement("input");
     toggle.type = "checkbox";
-    toggle.checked = Boolean(item.is_checked);
+    toggle.checked = Boolean(taskProjectionFields(item).is_checked);
     toggle.dataset.taskChecklistToggle = "true";
-    toggle.setAttribute("aria-label", `Mark ${item.label} complete`);
+    toggle.setAttribute("aria-label", `Mark ${taskProjectionFields(item).label} complete`);
 
     const label = document.createElement("input");
     label.type = "text";
-    label.value = item.label || "";
+    Reflect.set(label, "value", taskProjectionFields(item).label || "");
     label.maxLength = 240;
     label.dataset.taskChecklistLabel = "true";
     label.setAttribute("aria-label", "Checklist item label");
@@ -2504,6 +3238,7 @@
     return row;
   }
 
+  /** @param {"delete" | "down" | "save" | "up"} action @param {string} label */
   function checklistActionButton(action, label) {
     if (!namespace.icons?.createIconButton) {
       throw new Error("Task checklist actions require LongtailForge.icons.createIconButton.");
@@ -2523,6 +3258,7 @@
     return button;
   }
 
+  /** The four literal action producers above establish this vocabulary. @param {"delete" | "down" | "save" | "up"} action */
   function checklistActionIcon(action) {
     return {
       delete: "delete",
@@ -2532,28 +3268,32 @@
     }[action] || "more";
   }
 
+  /** @param {unknown} progress */
   function formatChecklistProgress(progress) {
-    const total = Number(progress?.total_count) || 0;
-    const completed = Number(progress?.completed_count) || 0;
-    const nextLabel = progress?.next_incomplete_item_label || "";
+    const total = Number(optionalTaskProjectionFields(progress)?.total_count) || 0;
+    const completed = Number(optionalTaskProjectionFields(progress)?.completed_count) || 0;
+    const nextLabel = optionalTaskProjectionFields(progress)?.next_incomplete_item_label || "";
     const base = `${completed} / ${total} complete`;
 
     return nextLabel ? `${base}. Next: ${nextLabel}` : base;
   }
 
+  /** @param {unknown} [items] */
   function checklistProgress(items = []) {
+    /** @type {unknown[]} */
     const activeItems = Array.isArray(items) ? items : [];
-    const completed = activeItems.filter((item) => item.is_checked).length;
-    const next = activeItems.find((item) => !item.is_checked);
+    const completed = activeItems.filter((item) => taskProjectionFields(item).is_checked).length;
+    const next = activeItems.find((item) => !taskProjectionFields(item).is_checked);
 
     return {
       total_count: activeItems.length,
       completed_count: completed,
-      next_incomplete_item_label: next?.label || "",
+      next_incomplete_item_label: optionalTaskProjectionFields(next)?.label || "",
     };
   }
 
-  function writeTaskCompletionFields() {
+  /** @param {unknown} [_task] The existing callers pass a task; this projection still reads current state. */
+  function writeTaskCompletionFields(_task) {
     if (!fields?.metadataRibbon) {
       return;
     }
@@ -2565,22 +3305,23 @@
     }
   }
 
+  /** @param {unknown} [task] The change listener also supplies its Event unchanged. */
   function writeTaskMetadataRibbon(task = currentTask) {
     if (!fields?.metadataRibbon) {
       return;
     }
 
     const completionSeconds = hasCompletedTaskMetrics(task)
-      ? task?.completionMetrics?.duration_seconds
+      ? optionalTaskProjectionFields(optionalTaskProjectionFields(task)?.completionMetrics)?.duration_seconds
       : null;
     const badges = [
-      { label: "Status", value: selectedText(fields.status) || formatToken(fields.status?.value) },
-      { label: "Priority", value: selectedText(fields.priority) || formatToken(fields.priority?.value) },
-      fields.estimate?.value !== "" ? { label: "Estimate", value: formatEstimateMinutes(fields.estimate.value) } : null,
+      { label: "Status", value: selectedText(fields.status) || formatToken(optionalTaskProjectionFields(fields.status)?.value) },
+      { label: "Priority", value: selectedText(fields.priority) || formatToken(optionalTaskProjectionFields(fields.priority)?.value) },
+      optionalTaskProjectionFields(fields.estimate)?.value !== "" ? { label: "Estimate", value: formatEstimateMinutes(taskProjectionFields(requireTaskControl(fields.estimate)).value) } : null,
       usesClientScope() ? { label: "Client", value: selectedText(fields.client) || "No client" } : null,
       { label: "Project", value: selectedText(fields.project) || "No project" },
-      fields.dueDate?.value ? { label: "Due Date", value: fields.dueDate.value } : null,
-      fields.dueTime?.value ? { label: "Due Time", value: fields.dueTime.value } : null,
+      optionalTaskProjectionFields(fields.dueDate)?.value ? { label: "Due Date", value: taskProjectionFields(fields.dueDate).value } : null,
+      optionalTaskProjectionFields(fields.dueTime)?.value ? { label: "Due Time", value: taskProjectionFields(fields.dueTime).value } : null,
       completionSeconds !== null && completionSeconds !== undefined && Number.isFinite(Number(completionSeconds))
         ? { label: "TTC", value: formatDaysDuration(Number(completionSeconds)), className: "is-completion" }
         : null,
@@ -2595,26 +3336,32 @@
     fields.metadataRibbon.replaceChildren(...Array.from(ribbon.children));
   }
 
+  /** @param {{label: string, value: unknown, className?: string} | null} badge */
   function createMetadataBadge(badge) {
     return {
-      className: ["task-metadata-chip", badge.className],
+      className: ["task-metadata-chip", requireTaskControl(badge).className],
       focusable: true,
-      label: badge.label,
-      value: badge.value,
-      title: `${badge.label}: ${badge.value}`,
+      label: requireTaskControl(badge).label,
+      value: requireTaskControl(badge).value,
+      title: `${requireTaskControl(badge).label}: ${requireTaskControl(badge).value}`,
     };
   }
 
+  /** @param {Element | null | undefined} select */
   function selectedText(select) {
-    return select?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const selected = optionalTaskProjectionFields(optionalTaskProjectionFields(select)?.selectedOptions)?.[0];
+    const text = optionalTaskProjectionFields(selected)?.textContent;
+    return (text === null || text === undefined ? undefined : callTaskContextCollection(text, "trim", [])) || "";
   }
 
+  /** @param {unknown} task */
   function hasCompletedTaskMetrics(task) {
-    return fields.status?.value === "complete" &&
-      task?.status === "complete" &&
-      Boolean(task?.completed_at || task?.completionMetrics?.completed_at);
+    return optionalTaskProjectionFields(fields.status)?.value === "complete" &&
+      optionalTaskProjectionFields(task)?.status === "complete" &&
+      Boolean(optionalTaskProjectionFields(task)?.completed_at || optionalTaskProjectionFields(optionalTaskProjectionFields(task)?.completionMetrics)?.completed_at);
   }
 
+  /** @param {unknown} [value] */
   function formatToken(value = "") {
     return String(value || "")
       .split("_")
@@ -2623,6 +3370,7 @@
       .join(" ");
   }
 
+  /** @param {unknown} totalSeconds */
   function formatDaysDuration(totalSeconds) {
     const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
     const days = Math.floor(seconds / 86400);
@@ -2633,6 +3381,7 @@
     return `${days}:${hours}:${minutes}:${remainder}`;
   }
 
+  /** @param {unknown} value */
   function formatEstimateMinutes(value) {
     const minutes = Math.max(0, Number(value) || 0);
     const hours = Math.floor(minutes / 60);
@@ -2654,6 +3403,9 @@
     };
   }
 
+  /**
+   * @param {{includeEditor?: unknown, includeRecurrence?: unknown, includeTags?: unknown, includeFiles?: unknown}} [options]
+   */
   function createTaskDialogElements(options = {}) {
     const includeEditor = options.includeEditor !== false;
     const includeRecurrence = options.includeRecurrence !== false;
@@ -2787,18 +3539,39 @@
     return dialog;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewElementOptions} BrowserViewElementOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`. Ten of the
+   * eighteen builder pages do not, so `renderDescriptorModalForm` is genuinely partial on the
+   * shared factory type and this predicate earns the narrowing rather than asserting it.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.renderDescriptorModalForm === "function";
+  }
+
   function requireTaskDialogView() {
     const view = namespace.view;
     if (!view?.renderDescriptorModalForm || !view?.createModal || !view?.createModalForm || !view?.showModal || !view?.closeModal || !view?.createActionButton || !view?.createElement || !view?.createDetailBadgeRow) {
       throw new Error("Task dialog requires LongtailForge.view modal helpers.");
     }
+    if (!hasDescriptorRenderers(view)) {
+      throw new Error("Task dialog requires LongtailForge.view.renderDescriptorModalForm.");
+    }
     return view;
   }
 
+  /** @param {unknown} targetDialog @param {import("../../src/types/browser-contracts.js").BrowserModalStackOptions} [options] */
   function showTaskModal(targetDialog, options = {}) {
     requireTaskDialogView().showModal(targetDialog, options);
   }
 
+  /** @param {unknown} targetDialog */
   function closeTaskModal(targetDialog, value = "") {
     requireTaskDialogView().closeModal(targetDialog, value);
   }
@@ -2831,6 +3604,7 @@
     };
   }
 
+  /** @param {ReturnType<typeof taskEditorModalDescriptor>} descriptor */
   function taskEditorUtilityActions(descriptor) {
     const view = requireTaskDialogView();
     return descriptor.utilityActions.map((action) => {
@@ -2857,6 +3631,9 @@
     });
   }
 
+  /**
+   * @param {{footerActions: readonly (ReturnType<typeof taskEditorModalDescriptor>["footerActions"][number] & Pick<BrowserViewActionButtonOptions, "iconOnly" | "text" | "title">)[]}} descriptor
+   */
   function taskEditorCommitActions(descriptor) {
     const view = requireTaskDialogView();
     return descriptor.footerActions.map((action) => {
@@ -2901,6 +3678,7 @@
     ];
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorTitleField(view) {
     return taskEditorLabel(view, "Title", view.createElement("input", {
       attrs: {
@@ -2911,6 +3689,7 @@
     }), { className: "task-title-field" });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorMetadataRibbon(view) {
     return view.createElement("div", {
       className: ["task-metadata-ribbon", "view-detail-badges", "surface-chip-row"],
@@ -2921,6 +3700,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorDetailsSection(view) {
     return view.createElement("details", {
       className: ["task-details-field", "surface-modal-group"],
@@ -2981,6 +3761,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorChecklistSection(view) {
     return view.createElement("details", {
       className: ["task-checklist-field", "surface-modal-group"],
@@ -3012,6 +3793,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorChecklistAddButton(view) {
     const button = view.createActionButton({
       className: "task-checklist-add-button",
@@ -3026,6 +3808,7 @@
     return button;
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorRecurrenceSection(view) {
     return view.createElement("details", {
       className: ["task-recurrence-field", "surface-modal-group", "surface-divider-top"],
@@ -3057,6 +3840,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorTimerSection(view) {
     return view.createElement("section", {
       className: ["task-timer-field", "surface-modal-group"],
@@ -3087,6 +3871,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorReminderSection(view) {
     return view.createElement("details", {
       className: ["task-reminder-field", "surface-modal-group", "surface-divider-top"],
@@ -3137,6 +3922,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorNotesSection(view) {
     return view.createElement("details", {
       className: ["task-notes-field", "surface-modal-group", "surface-divider-top"],
@@ -3151,6 +3937,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {string} tagName
+   * @param {BrowserViewElementOptions["text"]} text
+   */
   function taskEditorSectionHeading(view, tagName, text) {
     return view.createElement(tagName, {
       className: "surface-modal-section-heading",
@@ -3158,6 +3949,12 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {BrowserViewElementOptions["children"]} controls
+   * @param {Pick<BrowserViewElementOptions, "className" | "attrs" | "hidden">} [options]
+   */
   function taskEditorLabel(view, label, controls, options = {}) {
     return view.createElement("label", {
       className: options.className,
@@ -3167,6 +3964,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   */
   function taskEditorInlineCheckbox(view, label, attrs = {}) {
     return view.createElement("label", {
       className: "inline-option",
@@ -3177,6 +3979,12 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {ReturnType<typeof taskEditorInput>} control
+   * @param {BrowserViewElementOptions["attrs"]} enableAttrs
+   */
   function taskEditorOptionalReminderField(view, label, control, enableAttrs) {
     return view.createElement("div", {
       className: "task-reminder-offset-field",
@@ -3196,6 +4004,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorContinuitySection(view) {
     return view.createElement("section", {
       className: ["task-continuity-row", "surface-modal-group"],
@@ -3228,6 +4037,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   * @param {readonly (readonly [unknown, unknown])[]} [options]
+   */
   function taskEditorSelect(view, attrs = {}, options = []) {
     return view.createElement("select", {
       attrs,
@@ -3238,6 +4052,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {unknown} type
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   */
   function taskEditorInput(view, type, attrs = {}) {
     return view.createElement("input", {
       attrs: {
@@ -3247,10 +4066,16 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view @param {BrowserViewElementOptions["attrs"]} [attrs] */
   function taskEditorTextarea(view, attrs = {}) {
     return view.createElement("textarea", { attrs });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   */
   function taskEditorButton(view, label, attrs = {}) {
     return view.createElement("button", {
       attrs: {
@@ -3348,6 +4173,7 @@
     ];
   }
 
+  /** @param {ReturnType<typeof taskRecurrenceModalDescriptor>} descriptor */
   function taskRecurrenceActions(descriptor) {
     const view = requireTaskDialogView();
     return descriptor.footerActions.map((action) => {
@@ -3379,7 +4205,8 @@
 
   namespace.tasksDialog = taskDialogApi;
 
-  namespace.moduleActions?.register?.({
+  /** @type {Record<string, unknown> & {open: (params: Parameters<typeof openTaskEditor>[0], hostContext: unknown) => ReturnType<typeof openTaskEditor>}} */
+  const addTaskAction = {
     actionId: "tasks.add",
     id: "tasks.add",
     label: "Add Task",
@@ -3391,8 +4218,10 @@
     requiredPermissions: ["tasks.create"],
     requiredWorkspaceCapabilities: ["projects", "clients_projects"],
     title: "Add Task",
-  });
-  namespace.moduleActions?.register?.({
+  };
+  namespace.moduleActions?.register?.(addTaskAction);
+  /** @type {Record<string, unknown> & {open: (params: Parameters<typeof openTaskEditor>[0], hostContext: unknown) => ReturnType<typeof openTaskEditor>}} */
+  const editTaskAction = {
     actionId: "tasks.edit",
     id: "tasks.edit",
     label: "Edit Task",
@@ -3404,7 +4233,8 @@
     requiredPermissions: ["tasks.view"],
     requiredWorkspaceCapabilities: ["projects", "clients_projects"],
     title: "Edit Task",
-  });
+  };
+  namespace.moduleActions?.register?.(editTaskAction);
 
   global.LongtailForge = namespace;
 }(window));

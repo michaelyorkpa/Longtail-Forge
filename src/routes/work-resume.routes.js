@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { workCandidateService } from "../services/work-candidate.service.js";
 import { workResumeStateService } from "../services/work-resume-state.service.js";

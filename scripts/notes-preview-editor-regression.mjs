@@ -3,6 +3,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-preview-editor-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-preview-editor.db");
@@ -13,8 +16,8 @@ const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/in
 
 try {
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertServerPreview(session);
   await assertStaticBrowserContract();
@@ -26,6 +29,15 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** The textarea stand-in the editor commands operate on. */
+/** @typedef {{ dataset: Record<string, string>, dispatches: unknown[], listeners: Record<string, (event: unknown) => void>, selectionEnd: number, selectionStart: number, value: string, addEventListener: (type: string, handler: (event: unknown) => void) => void, dispatchEvent: (event: unknown) => boolean, focus: () => void }} EditorTextarea */
+/** The keyboard event the editor reads; `prevented` is the harness's record of the call. */
+/** @typedef {{ key: string, shiftKey: boolean, prevented: boolean, preventDefault: () => void }} EditorKeyEvent */
+/** The subset of the installed editor helper this owner drives. */
+/** @typedef {{ applyCommand: (textarea: EditorTextarea, command: string) => void, handleKeydown: (event: EditorKeyEvent, textarea: EditorTextarea) => void }} NotesEditorApi */
+
+/** @param {NotesSession} session */
 async function assertServerPreview(session) {
   const markdown = [
     "# Preview Heading",
@@ -74,7 +86,7 @@ async function assertStaticBrowserContract() {
   assert.match(notesHtml, /js\/shared\/icons\.js/);
   assert.match(notesHtml, /js\/shared\/notes-editor\.js/);
   assert.match(notesHtml, /js\/notes\.js/);
-  assert.match(notesJs, /const markdownEditor = document\.querySelector\("\[data-note-markdown-editor\]"\);/);
+  assert.match(notesJs, /markdownEditor = document\.querySelector\("\[data-note-markdown-editor\]"\);/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);
   assert.match(notesJs, /bodyInput\?\.addEventListener\("input", \(\) => renderPreview\(\)\)/);
@@ -93,7 +105,10 @@ async function assertStaticBrowserContract() {
   assert.doesNotMatch(notesJs, /function markdownPreviewNodes/);
   assert.doesNotMatch(notesJs, /paragraph\.startsWith\("# "\)/);
   assert.match(notesEditorJs, /continueListMarker/);
-  assert.match(notesEditorJs, /event\.key === "Enter"/);
+  // `0.33.33.39.39` reads the key through `editorMember`, which is the member access it replaced;
+  // the claim - Enter is the key that continues a list marker - is unchanged, and the cases below
+  // execute it.
+  assert.match(notesEditorJs, /editorMember\(event, "key"\) === "Enter"/);
   assertToolbarToggleDoesNotMoveMarkup(notesJs);
   assert.match(css, /\.notes-markdown-editor\s*\{[\s\S]*display:\s*grid;[\s\S]*width:\s*100%;[\s\S]*\}/, "Markdown editor shell should keep toolbar and body in a stable full-width stack");
   assert.match(css, /\.notes-markdown-editor-body\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*width:\s*100%;[\s\S]*\}/, "Markdown editor body should default to a one-column full-width editor when preview is off");
@@ -115,8 +130,12 @@ async function assertStaticBrowserContract() {
   );
 }
 
+/** @param {string} notesJs */
 function assertToolbarToggleDoesNotMoveMarkup(notesJs) {
-  const togglePreviewSource = notesJs.match(/function togglePreview\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  // Cut through the published helper rather than a hand-written regex. The previous
+  // pattern ended the region at a closing brace in column 0, which stopped being this
+  // function's own brace the moment `0.33.33.33.6` scoped `notes.js` inside a closure.
+  const togglePreviewSource = extractFunctionBlock(notesJs, "togglePreview");
 
   assert.match(togglePreviewSource, /preview\.hidden = !visible;/, "Preview toggle should continue toggling preview visibility");
   assert.match(togglePreviewSource, /updatePreviewLayoutState\(visible\);/, "Preview toggle should update only the editor layout state");
@@ -126,9 +145,11 @@ function assertToolbarToggleDoesNotMoveMarkup(notesJs) {
 
 async function assertEditorKeyboardBehavior() {
   const source = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-editor.js"), "utf8");
+  /** @type {{ LongtailForge: { notesEditor?: NotesEditorApi }, Event: new (type: string, options?: { bubbles?: boolean }) => { type: string, bubbles: boolean } }} */
   const windowStub = {
     LongtailForge: {},
     Event: class Event {
+      /** @param {string} type @param {{ bubbles?: boolean }} [options] */
       constructor(type, options = {}) {
         this.type = type;
         this.bubbles = Boolean(options.bubbles);
@@ -137,6 +158,7 @@ async function assertEditorKeyboardBehavior() {
   };
   vm.runInNewContext(source, { window: windowStub });
   const editorApi = windowStub.LongtailForge.notesEditor;
+  assert.ok(editorApi, "the notes editor helper should install itself on the window namespace");
 
   const unorderedInsert = createTextarea("", 0, 0);
   editorApi.applyCommand(unorderedInsert, "unorderedList");
@@ -191,6 +213,7 @@ async function assertEditorKeyboardBehavior() {
   assert.equal(event.prevented, false);
 }
 
+/** @param {string} value @param {number} [selectionStart] @param {number} [selectionEnd] @returns {EditorTextarea} */
 function createTextarea(value, selectionStart = 0, selectionEnd = selectionStart) {
   return {
     dataset: {},
@@ -199,9 +222,11 @@ function createTextarea(value, selectionStart = 0, selectionEnd = selectionStart
     selectionEnd,
     selectionStart,
     value,
+    /** @param {string} type @param {(event: unknown) => void} handler */
     addEventListener(type, handler) {
       this.listeners[type] = handler;
     },
+    /** @param {unknown} event */
     dispatchEvent(event) {
       this.dispatches.push(event);
       return true;
@@ -210,6 +235,7 @@ function createTextarea(value, selectionStart = 0, selectionEnd = selectionStart
   };
 }
 
+/** @param {string} key @param {{ shiftKey?: boolean }} [options] @returns {EditorKeyEvent} */
 function keyEvent(key, options = {}) {
   return {
     key,
@@ -221,6 +247,7 @@ function keyEvent(key, options = {}) {
   };
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -229,10 +256,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -242,15 +271,10 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "UTC",
-    protected_user: true,
-  };
+    workspace_id: workspaceId,
+  });
 }

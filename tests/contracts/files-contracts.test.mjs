@@ -91,6 +91,7 @@ describe("CreateFileSchema", () => {
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);
+      if (!(error instanceof AppError)) throw error;
       expect(error.statusCode).toBe(400);
     }
   });
@@ -212,6 +213,7 @@ describe("FilePreviewRequestSchema", () => {
         expect.unreachable("should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(AppError);
+        if (!(error instanceof AppError)) throw error;
         expect(error.statusCode).toBe(404);
         expect(error.message).toBe("Attachment not found.");
       }
@@ -232,6 +234,7 @@ describe("FileStorageAdapterConfigSchema", () => {
       s3: { bucket: "bucket", region: "us-east-1", endpoint: "", accessKeyId: "", secretAccessKey: "" },
     });
     expect(parsed.provider).toBe("s3");
+    if (!parsed.s3) throw new Error("S3 config should be present.");
     expect(parsed.s3.bucket).toBe("bucket");
   });
 
@@ -241,6 +244,7 @@ describe("FileStorageAdapterConfigSchema", () => {
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);
+      if (!(error instanceof AppError)) throw error;
       expect(error.statusCode).toBe(500);
     }
   });

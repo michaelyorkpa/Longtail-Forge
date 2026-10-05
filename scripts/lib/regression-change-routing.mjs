@@ -2,6 +2,12 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 
+/** @typedef {{ areas: readonly string[], fullCheck: boolean, patterns: readonly RegExp[], reason: string }} RouteRule */
+/** @typedef {{ areas: readonly string[], fullCheck: boolean, path: string, reason: string }} RoutingMatch */
+/** @typedef {{ paths: readonly string[], status: string }} ChangedPathEntry */
+/** @typedef {{ regressions?: readonly { area: string, path: string }[] }} RegisteredRegressionManifest */
+
+/** @type {Readonly<Record<string, string>>} */
 const AREA_COMMANDS = Object.freeze({
   framework: "npm run test:regressions:framework",
   views: "npm run test:regressions:views",
@@ -165,6 +171,13 @@ const ROUTE_RULES = Object.freeze([
   ], ["docs"], "documentation-owned path", { fullCheck: false }),
 ]);
 
+/**
+ * @param {readonly RegExp[]} patterns
+ * @param {readonly string[]} areas
+ * @param {string} reason
+ * @param {{ fullCheck?: boolean }} [options]
+ * @returns {Readonly<RouteRule>}
+ */
 function route(patterns, areas, reason, { fullCheck } = {}) {
   return Object.freeze({
     areas: Object.freeze(areas),
@@ -174,6 +187,10 @@ function route(patterns, areas, reason, { fullCheck } = {}) {
   });
 }
 
+/**
+ * @param {unknown} filePath
+ * @returns {string}
+ */
 function normalizeChangedPath(filePath) {
   return String(filePath || "")
     .trim()
@@ -181,33 +198,53 @@ function normalizeChangedPath(filePath) {
     .replace(/^\.\//, "");
 }
 
+/**
+ * @param {{ cwd?: string }} [options]
+ * @returns {readonly string[]}
+ */
 function collectChangedPaths({ cwd = process.cwd() } = {}) {
   return collectChangedChangeSet({ cwd }).paths;
 }
 
+/**
+ * @param {{ cwd?: string }} [options]
+ */
 function collectChangedChangeSet({ cwd = process.cwd() } = {}) {
   const baseSha = String(process.env.LTF_REGRESSION_BASE_SHA || "").trim();
   if (baseSha && !/^[a-f0-9]{40}$/i.test(baseSha)) {
     throw new Error("LTF_REGRESSION_BASE_SHA must be a full 40-character commit SHA.");
   }
-  const trackedEntries = parseNameStatusDiff(baseSha
-    ? runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", `${baseSha}...HEAD`, "--"], cwd)
-    : runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", "HEAD", "--"], cwd));
+  // A committed range alone misses a tracked file that is edited but not yet committed, so the
+  // working tree's own changes against `HEAD` are collected with or without a base
+  // (`0.33.33.25.11`). Untracked files were always included.
+  const rangeEntries = baseSha
+    ? parseNameStatusDiff(runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", `${baseSha}...HEAD`, "--"], cwd))
+    : [];
+  const workingTreeEntries = parseNameStatusDiff(runGitText(["diff", "--name-status", "-z", "--find-renames", "--diff-filter=ACMRD", "HEAD", "--"], cwd));
+  const trackedEntries = Object.freeze([...rangeEntries, ...workingTreeEntries]);
   const tracked = trackedEntries.flatMap(({ paths }) => paths);
   const untracked = runGit(["ls-files", "--others", "--exclude-standard"], cwd);
   const paths = Object.freeze([...new Set([...tracked, ...untracked].map(normalizeChangedPath).filter(Boolean))].sort());
   const versionBookkeepingPaths = inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked });
-  return Object.freeze({ entries: trackedEntries, paths, versionBookkeepingPaths });
+  return Object.freeze({ baseSha: baseSha || null, entries: trackedEntries, paths, versionBookkeepingPaths });
 }
 
+/**
+ * @returns {Map<string, string>}
+ */
 function loadRegisteredRegressionAreas() {
-  const manifest = JSON.parse(readFileSync(new URL("../regression-coverage-manifest.json", import.meta.url), "utf8"));
+  const manifest = /** @type {RegisteredRegressionManifest} */ (JSON.parse(readFileSync(new URL("../regression-coverage-manifest.json", import.meta.url), "utf8")));
   return new Map((manifest.regressions || []).map(({ area, path }) => [normalizeChangedPath(path), area]));
 }
 
+/**
+ * @param {string} [output]
+ * @returns {readonly Readonly<ChangedPathEntry>[]}
+ */
 function parseNameStatusDiff(output = "") {
   const tokens = String(output).split("\0");
   if (tokens.at(-1) === "") tokens.pop();
+  /** @type {Readonly<ChangedPathEntry>[]} */
   const entries = [];
 
   for (let index = 0; index < tokens.length;) {
@@ -227,6 +264,11 @@ function parseNameStatusDiff(output = "") {
   return Object.freeze(entries);
 }
 
+/**
+ * @param {readonly string[]} args
+ * @param {string} cwd
+ * @returns {string[]}
+ */
 function runGit(args, cwd) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -235,10 +277,16 @@ function runGit(args, cwd) {
   return String(result.stdout || "").split(/\r?\n/).filter(Boolean);
 }
 
+/**
+ * @param {readonly unknown[]} [filePaths]
+ * @param {{ versionBookkeepingPaths?: readonly string[] }} [options]
+ */
 function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = [] } = {}) {
   const paths = [...new Set(filePaths.map(normalizeChangedPath).filter(Boolean))].sort();
   const versionBookkeeping = new Set(versionBookkeepingPaths.map(normalizeChangedPath));
+  /** @type {Set<string>} */
   const areas = new Set();
+  /** @type {Readonly<RoutingMatch>[]} */
   const matches = [];
 
   for (const filePath of paths) {
@@ -291,7 +339,12 @@ function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = 
   const commands = Object.keys(AREA_COMMANDS)
     .filter((area) => areas.has(area))
     .map((area) => AREA_COMMANDS[area]);
-  const fallback = paths.length > 0 && commands.length === 0;
+  // The fallback is per path (`0.33.33.25.11`). It used to fire only when nothing routed, so a
+  // bookkeeping path that always routes - `ROADMAP.md` to `release` - left an unrouted source file
+  // beside it with focused coverage and no units, lint or area regressions. Any path no route
+  // claims now escalates the whole plan to the full gate.
+  const unroutedPaths = paths.filter((filePath) => !matches.some((match) => match.path === filePath));
+  const fallback = unroutedPaths.length > 0;
   const fullCheckRecommended = fallback || matches.some((match) => match.fullCheck);
 
   return Object.freeze({
@@ -302,9 +355,14 @@ function suggestRegressionsForPaths(filePaths = [], { versionBookkeepingPaths = 
     matches: Object.freeze(matches),
     paths: Object.freeze(paths),
     releaseGate: "npm run check",
+    unroutedPaths: Object.freeze(unroutedPaths),
   });
 }
 
+/**
+ * @param {{ baseSha: string, cwd: string, paths: readonly string[], untracked: readonly string[] }} options
+ * @returns {readonly string[]}
+ */
 function inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked }) {
   const packagePaths = ["package.json", "package-lock.json"];
   if (!packagePaths.every((filePath) => paths.includes(filePath)) || packagePaths.some((filePath) => untracked.includes(filePath))) {
@@ -323,23 +381,47 @@ function inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked }) {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isJsonRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * @param {unknown} before
+ * @param {unknown} after
+ * @param {string} filePath
+ * @returns {boolean}
+ */
 function isApplicationVersionOnlyChange(before, after, filePath) {
-  const normalizedBefore = JSON.parse(JSON.stringify(before));
-  const normalizedAfter = JSON.parse(JSON.stringify(after));
+  if (!isJsonRecord(before) || !isJsonRecord(after)) return false;
+  const normalizedBefore = structuredClone(before);
+  const normalizedAfter = structuredClone(after);
   const beforeVersion = normalizedBefore.version;
   const afterVersion = normalizedAfter.version;
   if (!beforeVersion || !afterVersion || beforeVersion === afterVersion) return false;
   normalizedBefore.version = "<application-version>";
   normalizedAfter.version = "<application-version>";
   if (filePath === "package-lock.json") {
-    if (!normalizedBefore.packages?.[""] || !normalizedAfter.packages?.[""]) return false;
-    if (normalizedBefore.packages[""].version !== beforeVersion || normalizedAfter.packages[""].version !== afterVersion) return false;
-    normalizedBefore.packages[""].version = "<application-version>";
-    normalizedAfter.packages[""].version = "<application-version>";
+    const beforePackages = isJsonRecord(normalizedBefore.packages) ? normalizedBefore.packages : null;
+    const afterPackages = isJsonRecord(normalizedAfter.packages) ? normalizedAfter.packages : null;
+    const beforeRoot = beforePackages && isJsonRecord(beforePackages[""]) ? beforePackages[""] : null;
+    const afterRoot = afterPackages && isJsonRecord(afterPackages[""]) ? afterPackages[""] : null;
+    if (!beforeRoot || !afterRoot) return false;
+    if (beforeRoot.version !== beforeVersion || afterRoot.version !== afterVersion) return false;
+    beforeRoot.version = "<application-version>";
+    afterRoot.version = "<application-version>";
   }
   return isDeepStrictEqual(normalizedBefore, normalizedAfter);
 }
 
+/**
+ * @param {readonly string[]} args
+ * @param {string} cwd
+ * @returns {string}
+ */
 function runGitText(args, cwd) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (result.status !== 0) throw new Error(String(result.stderr || result.stdout).trim());

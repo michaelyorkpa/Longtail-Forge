@@ -22,28 +22,41 @@ import {
 import { runStartupActions, STARTUP_LIFECYCLES } from "./startup-coordinator.js";
 import { verifyWorkerSchemaReady } from "./startup-readiness.js";
 
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupAction} DatabaseStartupAction */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupContext} DatabaseStartupContext */
+/** @typedef {import("../types/database-contracts.js").DatabaseHealth} DatabaseHealth */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupOptions} DatabaseStartupOptions */
+/** @typedef {import("../types/database-contracts.js").DatabaseStartupPhaseEvent} DatabaseStartupPhaseEvent */
+
 export {
   createBulkValuesBindings,
 } from "./parameter-bindings.js";
 
+/** @param {DatabaseStartupOptions} [options] @returns {Promise<DatabaseHealth>} */
 async function initializeDatabase(options = {}) {
   return ensureDatabase(options);
 }
 
+/** @param {DatabaseStartupOptions} [options] @returns {Promise<DatabaseHealth>} */
 async function ensureDatabase(options = {}) {
   await materializeVerifiedRegressionBaseline({
     databaseFile: config.databaseFile,
     databaseProvider: config.databaseProvider,
   });
+  /** @type {DatabaseStartupContext} */
   const context = {};
   await runStartupActions(createDatabaseStartupActions(), {
     context,
     now: options.now,
     report: options.report,
   });
+  if (!context.databaseHealth) {
+    throw new Error("Database startup completed without a health result.");
+  }
   return context.databaseHealth;
 }
 
+/** @returns {DatabaseStartupAction[]} */
 function createDatabaseStartupActions() {
   return [
     {
@@ -64,16 +77,22 @@ function createDatabaseStartupActions() {
   ];
 }
 
+/** @param {DatabaseStartupOptions} [options] @returns {Promise<DatabaseHealth>} */
 async function initializeWorkerDatabase(options = {}) {
+  /** @type {DatabaseStartupContext} */
   const context = {};
   await runStartupActions(createWorkerStartupActions(), {
     context,
     now: options.now,
     report: options.report,
   });
+  if (!context.databaseHealth) {
+    throw new Error("Worker database startup completed without a health result.");
+  }
   return context.databaseHealth;
 }
 
+/** @returns {DatabaseStartupAction[]} */
 function createWorkerStartupActions() {
   return [
     {
@@ -93,6 +112,7 @@ function createWorkerStartupActions() {
   ];
 }
 
+/** @param {DatabaseStartupPhaseEvent} event */
 function formatStartupPhase(event) {
   return [
     "[startup-phase]",

@@ -1,9 +1,11 @@
-// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
+import { indexSearchReference } from "../../core/search/record-indexer.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { listsRepository } from "./lists.repo.js";
 
 /** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsRecord} ListsRecord */
+/** @typedef {import("../../types/lists-domain-contracts.js").ListsSearchDocument} ListsSearchDocument */
 
 const LISTS_SEARCH_INDEXER_ID = "lists.records";
 
@@ -12,32 +14,31 @@ function registerListsSearchIndexers() {
 }
 
 /** @param {SearchReference} reference */
-async function indexListRecord({ workspaceId, recordId }) {
-  if (!recordId) {
-    const lists = await listsRepository.list(workspaceId, { includeDeleted: false });
-    const documents = [];
+async function indexListRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: (workspaceId) => listsRepository.list(workspaceId, { includeDeleted: false }),
+    readOne: readIndexableList,
+    toDocument: listToSearchDocument,
+  });
+}
 
-    for (const list of lists) {
-      documents.push(await listToSearchDocument(list));
-    }
-
-    return { documents };
-  }
-
-  const list = /** @type {Record<string, any> | null} */ (
-    await listsRepository.readById(workspaceId, recordId)
-  );
+/**
+ * Lists indexes only a live list: a deleted one answers no record, and so has no document.
+ * @param {string} workspaceId @param {string} recordId
+ */
+async function readIndexableList(workspaceId, recordId) {
+  const list = await listsRepository.readById(workspaceId, recordId);
 
   if (!list || list.status === "deleted") {
     return null;
   }
 
-  return listToSearchDocument(list);
+  return list;
 }
 
-/** @param {Record<string, any>} list */
-async function listToSearchDocument(list = {}) {
-  const [rawItems, rawLinks, tagsText] = await Promise.all([
+/** @param {ListsRecord} list @returns {Promise<ListsSearchDocument>} */
+async function listToSearchDocument(list) {
+  const [items, links, tagsText] = await Promise.all([
     listsRepository.listItems(list.workspace_id, list.list_id),
     listsRepository.listLinks(list.workspace_id, list.list_id),
     readSearchTagsText({
@@ -46,8 +47,6 @@ async function listToSearchDocument(list = {}) {
       targetId: list.list_id,
     }),
   ]);
-  const items = /** @type {Record<string, any>[]} */ (rawItems);
-  const links = /** @type {Record<string, any>[]} */ (rawLinks);
   const itemText = items
     .map((item) => [
       item.item_name,

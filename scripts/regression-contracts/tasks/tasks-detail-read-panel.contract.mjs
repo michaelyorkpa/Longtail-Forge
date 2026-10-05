@@ -1,0 +1,57 @@
+import assert from "node:assert/strict";
+
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
+// Consolidated under tasks.current-static-contracts by 0.33.33.10.
+const { readText } = createProjectTextReader();
+
+const tasksModule = readText("src/modules/tasks/module.js");
+const tasksScript = readText("public/js/tasks.js");
+const taskDialogScript = readText("public/js/task-dialog.js");
+const viewBuilder = readText("public/js/shared/view-builder.js");
+const tasksView = readText("views/protected/tasks.html");
+const workbenchView = readText("views/protected/workbench.html");
+const tasksDocs = readText("docs/tasks-module.md");
+const viewContract = readText("docs/view-building-contract.md");
+
+assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
+
+const detailBadgeHelper = extractFunctionSpan(viewBuilder, "createDetailBadgeRow");
+const detailHeaderHelper = extractFunctionSpan(viewBuilder, "createDetailHeader");
+const normalizeDetailBadges = extractFunctionSpan(viewBuilder, "normalizeDetailBadges");
+const metadataWriter = extractFunctionSpan(taskDialogScript, "writeTaskMetadataRibbon");
+const metadataBadge = extractFunctionSpan(taskDialogScript, "createMetadataBadge");
+const requireView = extractFunctionSpan(taskDialogScript, "requireTaskDialogView");
+const metadataRibbonField = extractFunctionSpan(taskDialogScript, "taskEditorMetadataRibbon");
+const taskRow = extractFunctionSpan(tasksScript, "createTaskRow");
+
+assert.match(detailBadgeHelper, /className:\s*\["view-detail-badges",\s*"surface-chip-row",\s*options\.className\]/, "Framework should own reusable detail badge row anatomy");
+assert.match(normalizeDetailBadges, /className:\s*"surface-chip"|createDetailBadge\(badge\)/, "Detail badge rows should normalize badges into shared surface chips");
+assert.match(detailHeaderHelper, /createDetailBadgeRow\(\{ badges:\s*options\.badges \}\)/, "Detail headers should reuse the shared detail badge row helper");
+assert.match(viewBuilder, /createDetailBadgeRow,/, "LongtailForge.view should expose createDetailBadgeRow");
+
+assert.match(requireView, /createDetailBadgeRow/, "Task dialog should require the framework detail badge helper");
+assert.match(metadataRibbonField, /className: \["task-metadata-ribbon", "view-detail-badges", "surface-chip-row"\][\s\S]*"data-task-metadata-ribbon": ""[\s\S]*"aria-label": "Task summary"/, "Task modal metadata placeholder should use shared detail badge classes");
+assert.match(metadataWriter, /requireTaskDialogView\(\)\.createDetailBadgeRow\(\{[\s\S]*ariaLabel:\s*"Task summary"[\s\S]*className:\s*"task-metadata-ribbon"[\s\S]*badges:\s*badges\.map\(createMetadataBadge\)/, "Task detail metadata should render through the shared detail badge row primitive");
+assert.doesNotMatch(metadataWriter, /document\.createElement\("span"\)/, "Task detail metadata should not rebuild badge DOM by hand");
+assert.match(metadataBadge, /className:\s*\["task-metadata-chip",\s*requireTaskControl\(badge\)\.className\][\s\S]*focusable:\s*true/, "Task metadata badges should preserve compact styling and keyboard focus");
+
+for (const label of ["Status", "Priority", "Client", "Project", "Due Date", "Due Time", "TTC"]) {
+  assert.match(metadataWriter, new RegExp(`label:\\s*"${label}"`), `Task metadata should still include ${label}`);
+}
+
+assert.match(metadataWriter, /selectedText\(fields\.client\) \|\| "No client"/, "Task metadata should use readable Client labels or a safe fallback");
+assert.match(metadataWriter, /selectedText\(fields\.project\) \|\| "No project"/, "Task metadata should use readable Project labels or a safe fallback");
+assert.doesNotMatch(`${metadataWriter}\n${metadataBadge}`, /\b(?:task|client|project|workspace|assignee)_id\b|assignee_ids/, "Task metadata badges should not surface raw ids in normal UI");
+
+// 0.33.33.35.1.2: the client-side fallback this line read has been deleted. It duplicated the
+// manifest assertion immediately below, which is where the region shape is actually owned.
+assert.match(tasksModule, /id:\s*"tasks\.workspace"[\s\S]*layout:\s*"slide-out-sidebar"[\s\S]*id:\s*"tasks-main-list"[\s\S]*ariaLabel:\s*"Task list"/, "Tasks manifest surface should keep the task list as the primary view");
+assert.match(taskRow, /titleButton\.addEventListener\("click", \(\) => openTaskDialog\(task\)\)/, "Task row titles should still open the canonical modal detail/editor");
+assert.doesNotMatch(tasksView, /data-task-detail-column|data-task-read-panel|task-detail-column/, "Tasks host should not add a persistent task detail column");
+
+assert.match(tasksView, /js\/shared\/view-builder\.js[\s\S]*js\/task-dialog\.js[\s\S]*js\/tasks\.js/, "Tasks host should advance cache keys for the touched view helper and task dialog assets");
+assert.match(workbenchView, /js\/shared\/view-builder\.js/, "Workbench host should keep the shared view helper static for the lazy Task dialog");
+assert.match(tasksDocs, /0\.33\.5\.18\.10\.3[\s\S]*detail badge row/, "Tasks docs should document the task detail/read metadata cleanup");
+assert.match(viewContract, /createDetailBadgeRow/, "View-building contract should document the detail badge row primitive");
+
+console.log("Tasks detail/read panel regression passed.");

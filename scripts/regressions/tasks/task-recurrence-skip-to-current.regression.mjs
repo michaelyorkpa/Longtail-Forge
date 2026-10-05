@@ -12,6 +12,11 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { mock } from "node:test";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 mock.timers.enable({
   apis: ["Date"],
@@ -46,6 +51,7 @@ try {
   mock.timers.reset();
 }
 
+/** @param {TasksSession} session */
 async function assertBoundarySemantics(session) {
   const dateOnly = recurrenceTemplateShape({ due_time: "" });
   assert.equal(
@@ -88,6 +94,7 @@ async function assertBoundarySemantics(session) {
   );
 }
 
+/** @param {TasksSession} session */
 async function assertRecoveryConverges(session) {
   const source = await createDailySeries(session, "Recover daily series");
   await taskRecurrenceRepository.replaceTemplateChecklist(
@@ -130,21 +137,23 @@ async function assertRecoveryConverges(session) {
   assert.equal(result.skippedOccurrenceCount, 1);
   assert.equal(result.retainedTargetCount, 1);
   assert.equal(result.unchangedHistoryCount, 1);
+  assert.ok(result.targetTask, "recovery should retain the current target task");
   assert.equal(result.targetTask.recurrence_instance_date, "2026-08-03");
   assert.deepEqual(result.targetTask.checklistItems.map((item) => item.label), ["Retained context"]);
-  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id)).status, "complete");
-  assert.equal((await tasksRepository.readById(session.workspace_id, july31.task_id)).status, "complete");
-  assert.equal((await tasksRepository.readById(session.workspace_id, august1.task_id)).status, "archived");
+  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id))?.status, "complete");
+  assert.equal((await tasksRepository.readById(session.workspace_id, july31.task_id))?.status, "complete");
+  assert.equal((await tasksRepository.readById(session.workspace_id, august1.task_id))?.status, "archived");
   assert.equal(await instanceCount(session, source.recurrence_template_id, "2026-08-02"), 0);
   assert.equal(await instanceCount(session, source.recurrence_template_id, "2026-08-03"), 1);
 
   const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, source.recurrence_template_id);
+  assert.ok(template, "recovered recurrence template should remain readable");
   assert.equal(template.recovery_checkpoint_date, "2026-08-03");
   const calendar = await tasksService.calendarWindow(session, { start: "2026-07-30", end: "2026-08-04" });
-  assert.ok(!calendar.tasks.some((task) => task.virtual && task.instanceDate < "2026-08-03"));
+  assert.ok(!calendar.tasks.some((task) => task.virtual && String(task.instanceDate || "") < "2026-08-03"));
   await assert.rejects(
     tasksService.skipToCurrent(result.targetTask.task_id, session, { now: new Date("2026-08-03T12:00:00.000Z") }),
-    (error) => error.statusCode === 409 && /already current/.test(error.message),
+    (error) => rejectionStatus(error) === 409 && /already current/.test(rejectionMessage(error)),
   );
   assert.equal(await instanceCount(session, source.recurrence_template_id, "2026-08-03"), 1);
 
@@ -153,9 +162,13 @@ SELECT metadata_json FROM audit_logs
 WHERE workspace_id = ? AND action = 'task_completed' AND record_id IN (?, ?);
 `, [session.workspace_id, source.task_id, july31.task_id]);
   assert.equal(audits.length, 2);
-  assert.ok(audits.every((row) => JSON.parse(row.metadata_json).recurrence_recovery === "skip_to_current"));
+  assert.ok(audits.every((row) => requireJsonRecord(
+    JSON.parse(String(row.metadata_json)),
+    "recurrence recovery audit metadata",
+  ).recurrence_recovery === "skip_to_current"));
 }
 
+/** @param {TasksSession} session */
 async function assertConcurrentRecoveryConverges(session) {
   const source = await createDailySeries(session, "Concurrent recovery series");
   const results = await Promise.all(Array.from({ length: 6 }, () => tasksService.skipToCurrent(
@@ -168,6 +181,7 @@ async function assertConcurrentRecoveryConverges(session) {
   assert.equal(results.reduce((total, result) => total + result.completedTaskCount, 0), 1);
 }
 
+/** @param {TasksSession} session */
 async function assertEndedSeriesRecovery(session) {
   const source = (await tasksService.create({
     title: "Ended recovery series",
@@ -180,10 +194,11 @@ async function assertEndedSeriesRecovery(session) {
   });
   assert.equal(result.seriesEnded, true);
   assert.equal(result.targetTask, null);
-  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id)).status, "complete");
+  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id))?.status, "complete");
   assert.equal(await instanceCount(session, source.recurrence_template_id, "2026-08-03"), 0);
 }
 
+/** @param {TasksSession} session */
 async function assertPermissionPreflight(session) {
   const source = await createDailySeries(session, "Permission recovery series");
   await assert.rejects(
@@ -192,18 +207,19 @@ async function assertPermissionPreflight(session) {
       user_id: "user-without-task-permissions",
       username: "no-task-permissions@example.test",
     }, { now: new Date("2026-08-03T12:00:00.000Z") }),
-    (error) => error.statusCode === 403 && /permission/.test(error.message),
+    (error) => rejectionStatus(error) === 403 && /permission/.test(rejectionMessage(error)),
   );
-  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id)).status, "open");
+  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id))?.status, "open");
   await assert.rejects(
     tasksService.skipToCurrent(source.task_id, { ...session, workspace_id: "different-workspace" }, {
       now: new Date("2026-08-03T12:00:00.000Z"),
     }),
-    (error) => [403, 404].includes(error.statusCode),
+    (error) => [403, 404].includes(rejectionStatus(error)),
   );
-  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id)).status, "open");
+  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id))?.status, "open");
 }
 
+/** @param {TasksSession} session */
 async function assertTimerPreflight(session) {
   const source = await createDailySeries(session, "Timer recovery series");
   const now = new Date().toISOString();
@@ -215,14 +231,16 @@ INSERT INTO active_work_timers (
 `, ["skip-current-timer", session.workspace_id, session.user_id, source.task_id, source.title, now, now]);
 
   const detail = (await tasksService.read(source.task_id, session)).task;
+  assert.ok(detail.recurrenceRecovery, "timer-blocked recurrence should expose recovery state");
   assert.equal(detail.recurrenceRecovery.available, true);
   assert.equal(detail.recurrenceRecovery.blockedByActiveTimer, true);
   await assert.rejects(
     tasksService.skipToCurrent(source.task_id, session, { now: new Date("2026-08-03T12:00:00.000Z") }),
-    (error) => error.statusCode === 409 && /timers/.test(error.message),
+    (error) => rejectionStatus(error) === 409 && /timers/.test(rejectionMessage(error)),
   );
-  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id)).status, "open");
+  assert.equal((await tasksRepository.readById(session.workspace_id, source.task_id))?.status, "open");
   const template = await taskRecurrenceRepository.readTemplateById(session.workspace_id, source.recurrence_template_id);
+  assert.ok(template, "timer-blocked recurrence template should remain readable");
   assert.equal(template.recovery_checkpoint_date, "");
 }
 
@@ -238,6 +256,7 @@ async function assertBrowserAndRouteContracts() {
   assert.match(migration, /recovery_checkpoint_date/);
 }
 
+/** @param {TasksSession} session @param {string} title */
 async function createDailySeries(session, title) {
   return (await tasksService.create({
     title,
@@ -247,6 +266,7 @@ async function createDailySeries(session, title) {
   }, session)).task;
 }
 
+/** @param {Record<string, unknown>} [overrides] */
 function recurrenceTemplateShape(overrides = {}) {
   return {
     recurrence_anchor_date: "2026-07-30",
@@ -256,6 +276,7 @@ function recurrenceTemplateShape(overrides = {}) {
   };
 }
 
+/** @param {TasksSession} session @param {string} templateId @param {string} instanceDate @returns {Promise<number>} */
 async function instanceCount(session, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count FROM tasks
@@ -276,13 +297,27 @@ SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, u
 FROM users WHERE users.protected_user = 'yes' LIMIT 1;
 `);
   const user = rows[0];
-  assert.ok(user);
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
+}
+
+/**
+ * Read the HTTP status a rejected service call carries, proving the value
+ * really is an error object first. A rejection without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

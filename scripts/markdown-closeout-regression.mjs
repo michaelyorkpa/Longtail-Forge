@@ -1,8 +1,8 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: read } = createProjectTextReader();
 
-const root = process.cwd();
 const roadmap = await read("ROADMAP.md");
 const changelog = await read("CHANGELOG.md");
 const moduleContract = await read("docs/module-contract.md");
@@ -10,7 +10,6 @@ const moduleDevelopment = await read("docs/module-development.md");
 const notesModule = await read("docs/notes-module.md");
 const markdownContract = await read("docs/markdown-platform-contract.md");
 const notesHelp = await read("help/modules/notes/markdown.md");
-
 
 assert.doesNotMatch(
   roadmap,
@@ -65,11 +64,3 @@ assert.match(markdownContract, /0\.33\.5\.17\.6 closes the branch with current d
 assert.doesNotMatch(notesHelp, /WYSIWYG|Knowledge Base publishing|future roadmap/i, "Notes Markdown Help should stay current-state and not promise future behavior");
 
 console.log("Markdown closeout regression passed.");
-
-async function read(filePath) {
-  return fs.readFile(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -25,6 +26,12 @@ import {
   ROLE_CREDENTIALS_FILE_ENV,
   SANITIZED_DEMO_ROLE_FIXTURES,
 } from "../../lib/sanitized-demo-role-fixtures.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
+
+/** @typedef {typeof import("../../../src/db/index.js")} DatabaseModule */
+/** @typedef {{ user_id: string, workspace_id: string }} SeededSession */
 
 if (process.argv.includes("--exercise-seeded-task-timers")) {
   await exerciseSeededTaskTimers();
@@ -109,8 +116,8 @@ try {
 
   const database = new Database(path.join(firstDir, "longtail-forge.db"), { readonly: true });
   try {
-    const earliestWorkspace = database.prepare("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at, workspace_id LIMIT 1").get();
-    const operator = database.prepare("SELECT home_workspace_id, username FROM users WHERE protected_user = 'yes' LIMIT 1").get();
+    const earliestWorkspace = /** @type {{ workspace_id: string, workspace_type: string }} */ (database.prepare("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at, workspace_id LIMIT 1").get());
+    const operator = /** @type {{ home_workspace_id: string, username: string }} */ (database.prepare("SELECT home_workspace_id, username FROM users WHERE protected_user = 'yes' LIMIT 1").get());
     assert.equal(earliestWorkspace.workspace_type, "business", "startup must retain the Business bootstrap workspace as the deterministic first workspace");
     assert.equal(operator.home_workspace_id, earliestWorkspace.workspace_id, "startup super-admin lookup must remain anchored to the operator's Business workspace");
     assert.equal(operator.username, operatorUsername, "explicit process configuration must win when the seed CLI loads the root .env");
@@ -121,7 +128,8 @@ try {
     assert.ok(taskStates.some((row) => row.due_date === null));
     assert.ok(taskStates.some((row) => row.recurrence_template_id));
     assert.ok(taskStates.some((row) => row.next_action && row.resume_note));
-    const taskTimers = database.prepare(`
+    /** @typedef {Record<string, unknown> & { timer_status: string, task_title: string, source_metadata_json: string }} SeededTaskTimerRow */
+    const taskTimers = /** @type {SeededTaskTimerRow[]} */ (database.prepare(`
       SELECT
         active_work_timers.*,
         tasks.title AS task_title,
@@ -145,7 +153,7 @@ try {
       WHERE active_work_timers.source_module_id = 'tasks'
         AND active_work_timers.source_type = 'task'
       ORDER BY tasks.title
-    `).all();
+    `).all());
     assert.equal(taskTimers.length, 2, "both seeded timers should join to their Task, user, workspace, and readable context");
     for (const timer of taskTimers) {
       assert.ok(["running", "paused"].includes(timer.timer_status), "seeded Task timers must use canonical status tokens");
@@ -159,12 +167,16 @@ try {
       assert.equal(timer.description, timer.task_title);
       assert.equal(timer.source_url, `tasks.html?task=${timer.source_id}`);
       assert.equal(Boolean(timer.last_active_start_time), timer.timer_status === "running");
-      const metadata = JSON.parse(timer.source_metadata_json);
+      /** @type {{ fake?: unknown, taskTimerStatusTransition?: { movedTaskToInProgress?: unknown, previousStatus?: unknown } }} */
+      const metadata = requireJsonRecord(JSON.parse(timer.source_metadata_json), "seeded timer source_metadata_json");
       assert.equal(metadata.fake, true);
       assert.equal(typeof metadata.taskTimerStatusTransition?.movedTaskToInProgress, "boolean");
-      assert.ok(["open", "in_progress"].includes(metadata.taskTimerStatusTransition?.previousStatus));
+      assert.ok(["open", "in_progress"].includes(String(metadata.taskTimerStatusTransition?.previousStatus)));
     }
-    const runningTransition = JSON.parse(taskTimers.find((timer) => timer.task_title === "Validate POS receipt layout").source_metadata_json).taskTimerStatusTransition;
+    const runningTransition = /** @type {{ taskTimerStatusTransition: unknown }} */ (requireJsonRecord(
+      JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Validate POS receipt layout")).source_metadata_json),
+      "running timer source_metadata_json",
+    )).taskTimerStatusTransition;
     assert.deepEqual(runningTransition, {
       movedTaskToInProgress: true,
       movedTaskFromOpen: true,
@@ -172,7 +184,10 @@ try {
       previousBlockedReason: "",
       previousStatus: "open",
     });
-    const pausedTransition = JSON.parse(taskTimers.find((timer) => timer.task_title === "Fix mobile checkout overlap").source_metadata_json).taskTimerStatusTransition;
+    const pausedTransition = /** @type {{ taskTimerStatusTransition: unknown }} */ (requireJsonRecord(
+      JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Fix mobile checkout overlap")).source_metadata_json),
+      "paused timer source_metadata_json",
+    )).taskTimerStatusTransition;
     assert.deepEqual(pausedTransition, {
       movedTaskToInProgress: false,
       movedTaskFromOpen: false,
@@ -180,10 +195,10 @@ try {
       previousBlockedReason: "",
       previousStatus: "in_progress",
     });
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND username NOT LIKE 'role-%@example.test' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!").count, 0);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get().count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
-    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get()).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'no' AND username NOT LIKE 'role-%@example.test' AND (user_status != 'inactive' OR password != ?)").get("!development-persona-login-disabled!")).count, 0);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM search_index_fts").get()).count, first.counts.search_index, "the backend Search index must materialize every canonical seed document");
+    assert.ok(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get()).count > 0, "the fictional checkout scenario must be discoverable through SQLite FTS");
     assert.deepEqual(database.prepare("SELECT extension FROM files ORDER BY storage_key").all(), [{ extension: ".md" }, { extension: ".txt" }], "seeded Files must retain the canonical dotted extension used by preview classification");
     assertSeedIdentifierCompatibility(database, earliestWorkspace, operator);
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
@@ -206,12 +221,14 @@ try {
   assert.equal(reset.status, 0, reset.stderr || reset.stdout);
   await assert.rejects(fs.access(firstDir));
 
-  const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
+  const packageJson = requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8")));
+  const packageScripts = packageJson.scripts;
+  assert.ok(packageScripts, "package.json should publish its scripts map");
   for (const command of ["dev:data:seed", "dev:data:reset", "demo:data:seed", "demo:data:reset"]) {
-    assert.ok(packageJson.scripts[command], `${command} should be independently runnable`);
+    assert.ok(packageScripts[command], `${command} should be independently runnable`);
   }
-  assert.match(packageJson.scripts["demo:data:seed"], /sanitized-demo/);
-  assert.match(packageJson.scripts["dev:data:seed"], /--role-fixtures local-sanitized-demo/);
+  assert.match(packageScripts["demo:data:seed"], /sanitized-demo/);
+  assert.match(packageScripts["dev:data:seed"], /--role-fixtures local-sanitized-demo/);
   const demoTarget = resolveSeedTarget({ profile: "sanitized-demo", environment: "development", dataDir: path.join(root, "sanitized-demo", "preview") });
   assert.equal(demoTarget.marker, "sanitized-demo");
   const fixtureEnv = {
@@ -224,6 +241,7 @@ try {
     mode: LOCAL_ROLE_FIXTURE_MODE,
     target: { profile: "development" },
   });
+  assert.ok(developmentFixtures, "the local sanitized-demo mode should resolve its role fixtures");
   assert.equal(developmentFixtures.usesBootstrapSuperAdmin, false);
   await assert.rejects(
     loadSanitizedDemoRoleFixtures({
@@ -334,7 +352,7 @@ try {
   assert.match(credentialSource, /validatePassword/);
   assert.match(credentialSource, /Every sanitized-demo role password must be unique/);
   assert.match(gitignore, /^\.local\/$/m);
-  assert.match(packageJson.scripts["demo:data:seed"], /--role-fixtures local-sanitized-demo/);
+  assert.match(packageScripts["demo:data:seed"], /--role-fixtures local-sanitized-demo/);
 
   console.log("Development and sanitized demo data regression passed.");
 } finally {
@@ -342,20 +360,24 @@ try {
   await fs.rm(root, { recursive: true, force: true });
 }
 
+/** @param {InstanceType<typeof Database>} database @param {{ workspace_id: string }} earliestWorkspace @param {{ username: string }} operator */
 function assertSeedIdentifierCompatibility(database, earliestWorkspace, operator) {
   assertUuidVersion(earliestWorkspace.workspace_id, 7, "fresh bootstrap workspace");
-  const operatorId = database.prepare("SELECT user_id FROM users WHERE username = ?").get(operator.username).user_id;
+  const operatorId = requireRow(database.prepare("SELECT user_id FROM users WHERE username = ?").get(operator.username), "seeded operator").user_id;
   assertUuidVersion(operatorId, 7, "fresh bootstrap operator");
 
-  const client = database.prepare("SELECT id, workspace_id FROM clients ORDER BY name LIMIT 1").get();
-  const project = database.prepare("SELECT id, client_id FROM projects WHERE client_id = ? ORDER BY name LIMIT 1").get(client.id);
-  const taskId = database.prepare("SELECT task_id FROM tasks ORDER BY title LIMIT 1").get().task_id;
+  /** @type {{ id: string, workspace_id: string }} */
+  const client = requireRow(database.prepare("SELECT id, workspace_id FROM clients ORDER BY name LIMIT 1").get(), "seeded client");
+  /** @type {{ client_id: string, id: string }} */
+  const project = requireRow(database.prepare("SELECT id, client_id FROM projects WHERE client_id = ? ORDER BY name LIMIT 1").get(client.id), "seeded project");
+  const taskId = requireRow(database.prepare("SELECT task_id FROM tasks ORDER BY title LIMIT 1").get(), "seeded task").task_id;
+  /** @type {Array<[unknown, string]>} */
   const representativeIds = [
     [client.id, "deterministic development Client"],
     [project.id, "deterministic development Project"],
     [taskId, "deterministic development Task"],
-    [database.prepare("SELECT note_id FROM notes ORDER BY title LIMIT 1").get().note_id, "deterministic development Note"],
-    [database.prepare("SELECT list_id FROM lists ORDER BY title LIMIT 1").get().list_id, "deterministic development List"],
+    [requireRow(database.prepare("SELECT note_id FROM notes ORDER BY title LIMIT 1").get(), "seeded note").note_id, "deterministic development Note"],
+    [requireRow(database.prepare("SELECT list_id FROM lists ORDER BY title LIMIT 1").get(), "seeded list").list_id, "deterministic development List"],
   ];
   representativeIds.forEach(([value, label]) => assertUuidVersion(value, 4, label));
   assert.equal(project.client_id, client.id, "deterministic UUIDv4 seed relationships must remain intact beneath a UUIDv7 bootstrap workspace");
@@ -363,20 +385,24 @@ function assertSeedIdentifierCompatibility(database, earliestWorkspace, operator
   assert.deepEqual(indexedTask, { record_id: taskId }, "Search must retain the deterministic seed Task UUIDv4 byte-for-byte");
 }
 
+/** @param {unknown} value @param {number} version @param {string} label */
 function assertUuidVersion(value, version, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(version), `${label} should use UUIDv${version}`);
 }
 
+/** @param {string} dataDir @param {string} operatorPassword @param {string} [profile] @param {string} [username] @param {string} [credentialsFile] */
 function runSeed(dataDir, operatorPassword, profile = "development", username = operatorUsername, credentialsFile) {
   const args = ["seed", "--profile", profile, "--environment", "development", "--data-dir", dataDir];
   args.push("--role-fixtures", LOCAL_ROLE_FIXTURE_MODE);
   const result = spawnCli(args, operatorPassword, username, credentialsFile);
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, String(result.stderr || result.stdout || result.error));
   return JSON.parse(result.stdout.slice(result.stdout.indexOf("{")));
 }
 
+/** @param {string[]} args @param {string} operatorPassword @param {string} [username] @param {string} [credentialsFile] */
 function spawnCli(args, operatorPassword, username = operatorUsername, credentialsFile) {
+  /** @type {NodeJS.ProcessEnv} */
   const env = {
     ...process.env,
     LONGTAIL_ENV: "development",
@@ -397,6 +423,7 @@ function spawnCli(args, operatorPassword, username = operatorUsername, credentia
   });
 }
 
+/** @param {string} file @param {string} prefix @param {Record<string, string>} [overrides] */
 async function writeRoleCredentials(file, prefix, overrides = {}) {
   const passwords = Object.fromEntries(SANITIZED_DEMO_ROLE_FIXTURES.map((fixture, index) => [
     fixture.roleId,
@@ -405,20 +432,28 @@ async function writeRoleCredentials(file, prefix, overrides = {}) {
   await fs.writeFile(file, `${JSON.stringify({ version: 1, passwords }, null, 2)}\n`, "utf8");
 }
 
+/** @param {string} prefix @param {number} index */
 function rolePassword(prefix, index) {
   return `Q${index}a!${prefix}-Private-92746zZ`;
 }
 
+/** @param {string} dataDir @param {string} credentialsFile @param {string[]} [expectedExtraActiveUsernames] */
 async function verifyRoleFixtureDatabase(dataDir, credentialsFile, expectedExtraActiveUsernames = []) {
-  const credentialDocument = JSON.parse(await fs.readFile(credentialsFile, "utf8"));
+  // The passwords map is the only field this owner consumes, and
+  // requireJsonRecord proves only the top level, so the map is proven as well.
+  /** @type {{ passwords?: unknown }} */
+  const credentialDocument = requireJsonRecord(JSON.parse(await fs.readFile(credentialsFile, "utf8")), "role credentials document");
+  const rolePasswords = requireJsonRecord(credentialDocument.passwords, "role credentials passwords");
   const database = new Database(path.join(dataDir, "longtail-forge.db"), { readonly: true });
   try {
-    const activeUsers = database.prepare(`
+    // The columns are named by the SELECT directly above, so the row shape is
+    // read off the query rather than assumed.
+    const activeUsers = /** @type {Array<{ password: string, protected_user: string, user_id: string, username: string }>} */ (database.prepare(`
 SELECT user_id, username, password, protected_user
 FROM users
 WHERE user_status = 'active'
 ORDER BY username;
-`).all();
+`).all());
     assert.equal(activeUsers.length, SANITIZED_DEMO_ROLE_FIXTURES.length + expectedExtraActiveUsernames.length);
     assert.deepEqual(
       activeUsers.filter((row) => !expectedExtraActiveUsernames.includes(row.username)).map((row) => row.username),
@@ -432,7 +467,7 @@ ORDER BY username;
       const user = activeUsers.find((row) => row.username === fixture.username);
       assert.ok(user, `${fixture.roleId} fixture user should exist`);
       assert.equal(
-        (await verifyPassword(credentialDocument.passwords[fixture.roleId], user.password)).matches,
+        (await verifyPassword(rolePasswords[fixture.roleId], user.password)).matches,
         true,
       );
       assert.equal(user.protected_user, fixture.roleId === "super_admin" ? "yes" : "no");
@@ -479,27 +514,27 @@ WHERE user_workspaces.user_id = ?;
     }
 
     assert.equal(
-      database.prepare(`
+      /** @type {{ count: number }} */ (database.prepare(`
 SELECT COUNT(*) AS count
 FROM users
 WHERE protected_user = 'no'
   AND username NOT LIKE 'role-%@example.test'
   AND (user_status != 'inactive' OR password != '!development-persona-login-disabled!');
-`).get().count,
+`).get()).count,
       0,
       "ordinary fictional personas must remain inactive",
     );
     assert.equal(
-      database.prepare("SELECT COUNT(*) AS count FROM users WHERE username LIKE 'role-%@example.test' AND alt_email IS NOT NULL AND alt_email != ''").get().count,
+      /** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM users WHERE username LIKE 'role-%@example.test' AND alt_email IS NOT NULL AND alt_email != ''").get()).count,
       0,
       "active role fixtures must not reuse realistic alternate addresses",
     );
     assert.equal(
-      database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get().count,
+      /** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL").get()).count,
       0,
     );
-    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM files").get().count >= 2);
-    assert.ok(database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get().count > 0);
+    assert.ok(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM files").get()).count >= 2);
+    assert.ok(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM search_index_fts WHERE search_index_fts MATCH 'checkout'").get()).count > 0);
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);
   } finally {
@@ -507,7 +542,9 @@ WHERE protected_user = 'no'
   }
 }
 
+/** @param {string} dataDir @param {string} operatorPassword */
 function runSeededTimerLifecycle(dataDir, operatorPassword) {
+  /** @type {NodeJS.ProcessEnv} */
   const childEnv = {
     ...process.env,
     LONGTAIL_DATA_DIR: dataDir,
@@ -523,7 +560,7 @@ function runSeededTimerLifecycle(dataDir, operatorPassword) {
     encoding: "utf8",
     env: childEnv,
   });
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, String(result.stderr || result.stdout || result.error));
 }
 
 async function exerciseSeededTaskTimers() {
@@ -556,17 +593,10 @@ ORDER BY tasks.title;
 
     const sessionUser = seededRows[0];
     assert.ok(seededRows.every((row) => row.user_id === sessionUser.user_id && row.workspace_id === sessionUser.workspace_id));
-    const session = {
-      home_workspace_id: sessionUser.home_workspace_id,
-      ip: "127.0.0.1",
-      timezone: sessionUser.timezone || "America/New_York",
-      user_id: sessionUser.user_id,
-      username: sessionUser.username,
-      workspace_id: sessionUser.workspace_id,
-    };
+    const session = workspaceSessionFixture(sessionUser);
     const byTitle = new Map(seededRows.map((row) => [row.title, row]));
-    const runningTask = byTitle.get("Validate POS receipt layout");
-    const pausedTask = byTitle.get("Fix mobile checkout overlap");
+    const runningTask = /** @type {{ task_id: string }} */ (byTitle.get("Validate POS receipt layout"));
+    const pausedTask = /** @type {{ task_id: string }} */ (byTitle.get("Fix mobile checkout overlap"));
 
     const started = await taskTimersService.save(runningTask.task_id, {
       accumulated_elapsed_seconds: 780,
@@ -646,6 +676,12 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   }
 }
 
+/**
+ * @param {DatabaseModule["querySql"]} querySql
+ * @param {DatabaseModule["sqlText"]} sqlText
+ * @param {SeededSession} session
+ * @param {string} taskId
+ */
 async function readSeededSourceTimerCount(querySql, sqlText, session, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count

@@ -1,0 +1,94 @@
+import assert from "node:assert/strict";
+
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
+const helper = readText("public/js/shared/file-attachments.js");
+const filesScript = readText("public/js/files.js");
+const filePreviewScript = readText("public/js/shared/file-preview.js");
+const styles = readText("public/css/longtail-forge.css");
+const notesHtml = readText("views/protected/notes.html");
+const tasksHtml = readText("views/protected/tasks.html");
+const workbenchHtml = readText("views/protected/workbench.html");
+const viewContract = readText("docs/view-building-contract.md");
+
+const uploadControls = extractFunctionSpan(helper, "uploadControls");
+assert.match(uploadControls, /const view = global\.LongtailForge\?\.view/, "Attachment helper should lazily read the view helper because host pages load it later");
+assert.match(uploadControls, /createAttachmentElement\(view, "form"[\s\S]*attrs:\s*\{\s*"aria-label": "Upload files"\s*\}/, "Upload form should expose an accessible upload label");
+assert.match(uploadControls, /createAttachmentElement\(view, "div"[\s\S]*className: "file-attachment-dropzone"[\s\S]*dropZone\.tabIndex = 0/, "Dropzone should remain keyboard-focusable");
+assert.match(uploadControls, /text: acceptedFileHint\(options\.acceptedCategories\)/, "Upload shell should render an accepted-file hint from Files-owned categories");
+assert.match(uploadControls, /input\.multiple = true/, "Upload input should preserve multi-file selection");
+assert.match(uploadControls, /accept: acceptedExtensions\(options\.acceptedCategories\)\.join\(","\)/, "Upload input should keep accepted extensions Files-owned");
+assert.match(uploadControls, /await uploadFiles\(container, state, \[\.\.\.input\.files\]\)/, "Submit should keep using the Files-owned upload handler");
+assert.match(uploadControls, /event\.dataTransfer\?\.files[\s\S]*await uploadFiles\(container, state, files\)/, "Drop should preserve drag/drop multi-file upload");
+assert.match(uploadControls, /form\.append\(createUploadShell\(state, view, \[dropZone, hint, controlRow, results\]\)\)/, "Upload controls should render through the shared shell placement");
+
+const createUploadShell = extractFunctionSpan(helper, "createUploadShell");
+assert.match(createUploadShell, /view\?\.createListShell/, "Upload shell should use the shared list shell when available");
+assert.match(createUploadShell, /className: "file-attachment-upload-shell"/, "Upload shell should use a stable Files upload shell class");
+assert.match(createUploadShell, /"data-file-upload-shell": ""/, "Upload shell should expose a stable data hook");
+assert.match(createUploadShell, /statusMessage: uploadStatusMessage\(state\)/, "Upload shell should route progress/status through shared shell status");
+assert.match(createUploadShell, /"data-file-upload-status": ""/, "Upload status should expose a stable data hook");
+assert.match(createUploadShell, /return createAttachmentElement\(view, "div"[\s\S]*file-attachment-upload-shell[\s\S]*fileUploadShell/, "Upload shell should use the centralized attachment element fallback when the shared list shell is unavailable");
+
+const createUploadButton = extractFunctionSpan(helper, "createUploadButton");
+assert.match(createUploadButton, /view\?\.createActionButton/, "Upload button should use the shared action button when available");
+assert.match(createUploadButton, /action: "files\.upload"[\s\S]*role: "primary"[\s\S]*type: "submit"/, "Shared upload button should keep an explicit action id, role, and submit type");
+assert.match(createUploadButton, /createAttachmentElement\(view, "button"[\s\S]*type: "submit"[\s\S]*button\.disabled = state\.isUploading/, "Upload button should keep a centralized native fallback button");
+
+const uploadResultList = extractFunctionSpan(helper, "uploadResultList");
+assert.match(uploadResultList, /"data-file-upload-results": ""|fileUploadResults: ""/, "Per-file upload results should expose a stable data hook");
+assert.match(uploadResultList, /state\.uploadResults\.map\(\(result\) => createUploadResultItem\(view, result\)\)/, "Per-file upload results should remain visible after batch uploads");
+const uploadResultItemCopy = extractFunctionSpan(helper, "createUploadResultItem");
+assert.match(uploadResultItemCopy, /uploaded\./, "Upload results should show a success row");
+assert.match(uploadResultItemCopy, /Upload failed\./, "Upload results should show a failure row");
+
+const uploadStatusMessage = extractFunctionSpan(helper, "uploadStatusMessage");
+assert.match(uploadStatusMessage, /state\.isUploading[\s\S]*Uploading files/, "Upload status should show progress while uploading");
+assert.match(uploadStatusMessage, /state\.error[\s\S]*return state\.error/, "Upload status should surface rejected upload states");
+assert.match(uploadStatusMessage, /state\.uploadResults\.length > 0[\s\S]*failed > 0[\s\S]*uploaded, \$\{failed\} failed/, "Upload status should summarize partial failures");
+assert.match(uploadStatusMessage, /Select files to upload/, "Upload status should have an idle instruction");
+
+const uploadFiles = extractFunctionSpan(helper, "uploadFiles");
+assert.match(uploadFiles, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/, "Uploads should prefer the streamed multipart batch route");
+assert.doesNotMatch(uploadFiles, /readFileBase64|contentBase64|\/api\/files\/batch/, "Upload helper should no longer require base64 JSON for normal browser uploads");
+const buildUploadForm = extractFunctionSpan(helper, "buildUploadForm");
+[
+  "appendFormField(form, \"moduleId\", options.moduleId)",
+  "appendFormField(form, \"targetType\", options.targetType)",
+  "appendFormField(form, \"targetId\", options.targetId)",
+  "appendFormField(form, \"clientId\", options.clientId)",
+  "appendFormField(form, \"projectId\", options.projectId)",
+  "appendFormField(form, \"visibility\", options.visibility)",
+  "form.append(\"files\", file, file.name)",
+].forEach((snippet) => {
+  assert.ok(buildUploadForm.includes(snippet), `Upload form should preserve ${snippet}`);
+});
+["uploadStarted", "uploadCompleted", "attachmentAdded", "uploadFailed"].forEach((eventName) => {
+  assert.match(uploadFiles, new RegExp(`"${eventName}"`), `Upload flow should still emit ${eventName}`);
+});
+
+assert.match(extractFunctionSpan(helper, "postMultipartJson"), /fetch\(url[\s\S]*body: form[\s\S]*method: "POST"/, "Multipart upload posting should keep browser upload transport Files-owned");
+assert.doesNotMatch(helper, /FileReader|function readFileBase64/, "Attachment helper should not require FileReader for normal uploads");
+assert.match(extractFunctionSpan(helper, "acceptedFileHint"), /acceptedExtensions\(categories\)\.join\(", "\)/, "Accepted-file hint should derive from the existing extension map");
+
+assert.doesNotMatch(extractFunctionSpan(filesScript, "openFileEditor"), /file-attachment-upload|createUploadShell|\/api\/files\/upload\/batch|\/api\/files\/batch/, "File Context modal should not gain upload UI");
+assert.doesNotMatch(extractFunctionSpan(filePreviewScript, "openFilePreview"), /file-attachment-upload|createUploadShell|\/api\/files\/upload\/batch|\/api\/files\/batch/, "Files Preview modal should not gain upload UI");
+
+assert.match(styles, /\.file-attachment-upload-shell\s*\{[\s\S]*gap:\s*10px/, "Upload shell should have explicit spacing on top of the shared list shell");
+assert.match(styles, /\.file-attachment-upload-status\s*\{[\s\S]*color:\s*var\(--color-muted\)[\s\S]*font-size:\s*13px/, "Upload shell status should use the shared subdued visual language");
+assert.match(styles, /\.file-attachment-upload-hint\s*\{[\s\S]*color:\s*var\(--color-muted\)[\s\S]*font-size:\s*13px/, "Accepted-file hint should be readable but quiet");
+assert.match(styles, /\.file-attachment-upload-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*wrap/, "Upload action row should wrap safely on narrow widths");
+assert.match(styles, /\.file-attachment-upload-results\s*\{[\s\S]*display:\s*grid/, "Upload result rows should remain grouped and readable");
+
+assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference the shared stylesheet for upload shell changes");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Notes should reference the attachment helper");
+assert.match(tasksHtml, /css\/longtail-forge\.css/, "Tasks should reference the shared stylesheet for upload shell changes");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the attachment helper");
+assert.match(workbenchHtml, /css\/longtail-forge\.css/, "Workbench should reference the shared stylesheet for upload shell changes");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the attachment helper");
+
+assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View-building contract should document the Files upload-shell slice");
+
+console.log("Files upload shell regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

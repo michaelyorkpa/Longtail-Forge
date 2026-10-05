@@ -1,4 +1,3 @@
-// @ts-check
 import { appVersion } from "./version.js";
 import { URLSearchParams } from "node:url";
 
@@ -6,6 +5,9 @@ const assetVersion = appVersion;
 const LOCAL_ASSET_EXTENSION = /\.(?:css|js)$/i;
 const EXTERNAL_URL_PREFIX = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
 
+/**
+ * @param {string} assetUrl
+ */
 function withAssetVersion(assetUrl, version = assetVersion) {
   const value = String(assetUrl || "").trim();
   const normalizedVersion = String(version || "").trim();
@@ -29,6 +31,9 @@ function withAssetVersion(assetUrl, version = assetVersion) {
   return `${pathname}?${search.toString()}${hash}`;
 }
 
+/**
+ * @param {string} contents
+ */
 function decorateHtmlAssetUrls(contents, version = assetVersion) {
   return String(contents || "").replace(
     /\b(src|href)=(['"])([^'"]+)\2/gi,
@@ -41,6 +46,9 @@ function decorateHtmlAssetUrls(contents, version = assetVersion) {
   );
 }
 
+/**
+ * @param {string} contents
+ */
 function injectAssetVersionBootstrap(contents, version = assetVersion) {
   const normalizedVersion = String(version || "").trim();
   const decorated = String(contents || "");
@@ -57,6 +65,9 @@ function injectAssetVersionBootstrap(contents, version = assetVersion) {
   return decorated.replace(/(<head\b[^>]*>)/i, `$1\n    ${metadata}\n    ${bootstrap}`);
 }
 
+/**
+ * @param {string} value
+ */
 function escapeHtmlAttribute(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")

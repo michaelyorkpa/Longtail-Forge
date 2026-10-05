@@ -34,10 +34,34 @@ await assertLoginCannotEvadeIpLimit();
 await assertSearchLimit();
 await assertForwardingAndCorrelationTrust();
 await assertHostnameCannotSplitBucket();
+await assertIpv6ClientKeys();
 await assertBodyLimitsAndRedaction();
 
 await databaseFixture.cleanup();
 console.log("Public demo perimeter regression passed.");
+
+/** The security events and operational warnings this perimeter records. */
+/** @typedef {{ metadata: { request_id: string, scope: string, window_seconds: number } }} PerimeterSecurityEvent */
+/** @typedef {{ event: string, fields: Record<string, unknown> | undefined }} PerimeterLogEntry */
+
+/**
+ * The refusal envelope the perimeter renders. The fixture resolves a parsed
+ * body only for JSON responses and always keeps the raw text alongside it.
+ * @typedef {{ error: { code: string, message: string, requestId: string } }} PerimeterResponseBody
+ */
+
+/** @typedef {{ body: PerimeterResponseBody, headers: import("node:http").IncomingHttpHeaders, status: number | undefined, text: string }} PerimeterResponse */
+
+/** Per-run overrides the server harness accepts. */
+/**
+ * @typedef {{
+ *   demoEnabled?: boolean,
+ *   events?: PerimeterSecurityEvent[],
+ *   logs?: PerimeterLogEntry[],
+ *   settings?: Record<string, unknown>,
+ *   trustedProxies?: string[],
+ * }} PerimeterServerOptions
+ */
 
 async function assertStandardModeUnchanged() {
   await withServer({ demoEnabled: false, settings: { ...DEFAULT_SETTINGS, clientRequestLimit: 1, globalRequestLimit: 1 } }, async (origin) => {
@@ -47,7 +71,9 @@ async function assertStandardModeUnchanged() {
 }
 
 async function assertClientThresholdAndRecovery() {
+  /** @type {PerimeterSecurityEvent[]} */
   const events = [];
+  /** @type {PerimeterLogEntry[]} */
   const logs = [];
   await withServer({
     events,
@@ -128,7 +154,7 @@ async function assertForwardingAndCorrelationTrust() {
     const trusted = await request(origin, "/api/read", { headers: { "x-forwarded-for": "203.0.113.40", "x-request-id": trustedId } });
     assert.equal(trusted.headers["x-request-id"], trustedId, "the configured edge should own the cross-layer request ID");
     const invalid = await request(origin, "/api/read", { headers: { "x-forwarded-for": "203.0.113.41", "x-request-id": "submitted-content" } });
-    assert.match(invalid.headers["x-request-id"], /^[0-9a-f-]{36}$/i);
+    assert.match(/** @type {string} */ (invalid.headers["x-request-id"]), /^[0-9a-f-]{36}$/i);
     assert.notEqual(invalid.headers["x-request-id"], "submitted-content");
   });
 }
@@ -149,8 +175,41 @@ async function assertHostnameCannotSplitBucket() {
   });
 }
 
+// `0.33.33.49`: the client limit keys an address through express-rate-limit's
+// `ipKeyGenerator`, which parses it with `ip-address`. An IPv4 client must share
+// one bucket in every IPv4-mapped IPv6 spelling, and native IPv6 clients must
+// share one bucket per /56, so a change in either library can neither split one
+// client's capacity across spellings nor merge separate networks.
+async function assertIpv6ClientKeys() {
+  await withServer({
+    settings: { ...DEFAULT_SETTINGS, clientRequestLimit: 2, windowSeconds: 30 },
+    trustedProxies: ["127.0.0.1/32", "::1/128"],
+  }, async (origin) => {
+    /** @param {string} forwardedFor */
+    const read = (forwardedFor) => request(origin, "/api/read", { headers: { "x-forwarded-for": forwardedFor } });
+
+    assert.equal((await read("203.0.113.70")).status, 200);
+    assert.equal((await read("::ffff:203.0.113.70")).status, 200);
+    const mappedBlocked = await read("::ffff:cb00:7146");
+    assert.equal(mappedBlocked.status, 429, "an IPv4 client in any IPv4-mapped IPv6 spelling must share its IPv4 bucket");
+    // express-rate-limit 8.7.0 reworked the `Retry-After` path; the refusal must still carry the
+    // window's remaining seconds and the draft-8 policy and state of the client limit it hit.
+    const retryAfter = Number(mappedBlocked.headers["retry-after"]);
+    assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= 30, `Retry-After should count the remaining window seconds (got ${mappedBlocked.headers["retry-after"]})`);
+    assert.match(String(mappedBlocked.headers["ratelimit-policy"]), /"2-in-30sec"; q=2; w=30;/, "the refusal should publish the client limit's draft-8 policy");
+    assert.match(String(mappedBlocked.headers.ratelimit), /"2-in-30sec"; r=0; t=\d+/, "the refusal should report the exhausted client limit");
+
+    assert.equal((await read("2001:db8:1234:5600::1")).status, 200);
+    assert.equal((await read("2001:db8:1234:56ff::2")).status, 200);
+    assert.equal((await read("2001:db8:1234:5600::3")).status, 429, "native IPv6 clients in one /56 must share one client bucket");
+    assert.equal((await read("2001:db8:1234:5700::1")).status, 200, "a different /56 must keep its own client capacity");
+  });
+}
+
 async function assertBodyLimitsAndRedaction() {
+  /** @type {PerimeterSecurityEvent[]} */
   const events = [];
+  /** @type {PerimeterLogEntry[]} */
   const logs = [];
   await withServer({ events, logs }, async (origin) => {
     const oversized = await request(origin, "/api/parse", {
@@ -185,6 +244,7 @@ async function assertBodyLimitsAndRedaction() {
   });
 }
 
+/** @param {PerimeterServerOptions} options @param {(origin: string) => Promise<void>} run @returns {Promise<void>} */
 async function withServer(options, run) {
   const events = options.events || [];
   const logs = options.logs || [];
@@ -193,36 +253,42 @@ async function withServer(options, run) {
   app.use(attachRequestContext);
   app.use(...createPublicDemoPerimeterMiddlewares({
     demoEnabled: options.demoEnabled ?? true,
-    logger: { warn: (event, fields) => logs.push({ event, fields }) },
-    recordSecurityEvent: async (event) => events.push(event),
+    logger: { warn: /** @type {(event: unknown, fields?: Record<string, unknown>) => void} */ ((event, fields) => { logs.push({ event: String(event), fields }); }) },
+    recordSecurityEvent: async (/** @type {Record<string, unknown>} */ event) => events.push(/** @type {PerimeterSecurityEvent} */ (/** @type {unknown} */ (event))),
     settings: { ...DEFAULT_SETTINGS, ...(options.settings || {}) },
   }));
-  app.all("/healthz", (_request, response) => response.status(200).json({ status: "ok" }));
-  app.all("/api/parse", async (request, response, next) => {
+  app.all("/healthz", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((_request, response) => response.status(200).json({ status: "ok" })));
+  app.all("/api/parse", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ (async (request, response, next) => {
     try {
       response.status(200).json(await readJsonBody(request));
     } catch (error) {
       next(error);
     }
-  });
-  app.all("/api/*splat", (_request, response) => response.status(200).json({ ok: true }));
+  }));
+  app.all("/api/*splat", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((_request, response) => response.status(200).json({ ok: true })));
   app.use(createErrorHandler({ logger: { error: () => {} } }));
 
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
   try {
-    await run(`http://127.0.0.1:${server.address().port}`);
+    await run(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
   } finally {
-    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => server.close((/** @type {Error | undefined} */ error) => error ? reject(error) : resolve())));
   }
 }
 
+/**
+ * @param {string} origin
+ * @param {string} pathName
+ * @param {{ body?: unknown, headers?: Record<string, string | number>, method?: string }} [options]
+ * @returns {Promise<PerimeterResponse>}
+ */
 function request(origin, pathName, options = {}) {
   return new Promise((resolve, reject) => {
     const target = new URL(pathName, origin);
     const body = options.body === undefined ? null : String(options.body);
-    const headers = { ...(options.headers || {}) };
+    const headers = /** @type {Record<string, string | number>} */ ({ ...(options.headers || {}) });
     if (body !== null && !Object.hasOwn(headers, "content-length")) {
       headers["content-length"] = Buffer.byteLength(body);
     }
@@ -230,6 +296,7 @@ function request(origin, pathName, options = {}) {
       headers,
       method: options.method || "GET",
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {

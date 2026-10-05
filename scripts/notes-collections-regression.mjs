@@ -3,6 +3,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { owningProgram } from "./test-support/typecheck-ownership.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-collections-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-collections.db");
@@ -22,8 +25,8 @@ try {
   activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertManifestAndSchema();
   await assertCollectionService(session);
@@ -38,8 +41,19 @@ try {
 }
 
 async function assertManifestAndSchema() {
+  const [collectionServiceSource, notesServiceSource, collectionContractsSource] = await Promise.all([
+    fs.readFile(new URL("../src/modules/notes/notes-collections.service.js", import.meta.url), "utf8"),
+    fs.readFile(new URL("../src/modules/notes/notes.service.js", import.meta.url), "utf8"),
+    fs.readFile(new URL("../src/types/notes-collections-contracts.d.ts", import.meta.url), "utf8"),
+  ]);
   const notesModule = modulesService.getModule("notes");
-  assert.equal(notesModule.version, appVersion, [
+  assert.ok(notesModule, "the Notes module should be registered");
+  assert.equal(notesModule.version, appVersion);
+  // Restored from 0.33.6.13z. The version check and this schema check were
+  // collapsed into one `assert.equal` at 0.33.6.14a, which passed the column
+  // list where the message belongs -- so note_library_collections has had no
+  // column verification since.
+  await assertColumns("note_library_collections", [
     "path_cache",
     "depth",
     "collection_source",
@@ -55,8 +69,18 @@ WHERE type = 'table'
   AND name = 'note_collections';
 `);
   assert.deepEqual(tables, [], "0.33.1.5 must extend note_library_collections instead of creating note_collections");
+
+  assert.equal(owningProgram("src/modules/notes/notes-collections.service.js"), "server-tests", "the extracted collection aggregate must stay strict-clean in the full-strict program");
+  assert.match(collectionServiceSource, /function createNotesCollectionsService[\s\S]*listCollections[\s\S]*bulkManageCatalogs[\s\S]*resolveListFilter/);
+  assert.match(notesServiceSource, /notesCollectionsService\.listCollections[\s\S]*notesCollectionsService\.createCollection/);
+  assert.doesNotMatch(notesServiceSource, /function (buildCollectionTree|collectionDescendants|shapeCatalogSettingsRow|normalizeCollectionPayload)/);
+  assert.match(collectionContractsSource, /interface NoteCollectionRecord[\s\S]*interface NoteCollectionReadModel[\s\S]*interface NotesCollectionsService/);
+  assert.match(collectionContractsSource, /collectionId: string, session: WorkspaceRequestSession/);
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+
+/** @param {NotesSession} session */
 async function assertCollectionService(session) {
   const root = await notesService.createCollection({
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
@@ -126,6 +150,8 @@ async function assertCollectionService(session) {
   });
   const countedRoot = countedTree.collections.find((collection) => collection.note_library_collection_id === otherRoot.collection.note_library_collection_id);
   const countedChild = countedTree.collections.find((collection) => collection.note_library_collection_id === moved.collection.note_library_collection_id);
+  assert.ok(countedRoot, "Parent collection should remain in the permission-safe read model");
+  assert.ok(countedChild, "Child collection should remain in the permission-safe read model");
   assert.equal(countedRoot.accessibleNoteCount, 1, "Parent collection counts should include permission-safe child notes");
   assert.equal(countedRoot.directAccessibleNoteCount, 0, "Parent direct count should stay separate from rolled-up totals");
   assert.equal(countedChild.accessibleNoteCount, 1);
@@ -178,6 +204,7 @@ async function assertCollectionService(session) {
   assert.equal(deleted.collection.status, "deleted");
 }
 
+/** @param {NotesSession} session */
 async function assertImportMapping(session) {
   const mapped = await notesService.ensureCollectionsForImportPath(session, {
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
@@ -199,6 +226,7 @@ async function assertImportMapping(session) {
   assert.equal(mappedAgain.collection.note_library_collection_id, mapped.collection.note_library_collection_id);
 }
 
+/** @param {NotesSession} session */
 async function assertSearchFiltering(session) {
   const collection = await notesService.createCollection({
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
@@ -243,6 +271,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   });
 }
 
+/** @param {string} tableName @param {readonly string[]} expectedColumns */
 async function assertColumns(tableName, expectedColumns) {
   const rows = await querySql(`PRAGMA table_info(${tableName});`);
   const columns = new Set(rows.map((row) => row.name));
@@ -252,6 +281,7 @@ async function assertColumns(tableName, expectedColumns) {
   }
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -260,10 +290,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -273,17 +305,14 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {() => Promise<unknown>} fn @param {RegExp} pattern */
 async function assertRejectsWithMessage(fn, pattern) {
   await assert.rejects(async () => {
     await fn();

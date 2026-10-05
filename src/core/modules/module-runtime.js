@@ -1,5 +1,6 @@
-// @ts-check
 import { listModuleEntries } from "./registry.js";
+
+/** @typedef {import("../../types/framework-contracts.js").ModuleStartupTask} ModuleStartupTask */
 
 const RUNTIME_KINDS = new Set(["app", "worker"]);
 const activatedRuntimes = new Set();
@@ -18,6 +19,7 @@ function activateModuleRuntime(runtime) {
     return;
   }
 
+  /** @type {ModuleStartupTask[]} */
   const startupTasks = [];
   for (const catalogEntry of listModuleEntries()) {
     const moduleId = catalogEntry.moduleEntry.manifest.id;
@@ -69,6 +71,10 @@ async function runModuleStartupTasks(runtime, options = {}) {
   }
 }
 
+/**
+ * @param {ModuleStartupTask} task
+ * @param {Pick<Console, "log" | "warn">} logger
+ */
 async function runStartupTask(task, logger) {
   try {
     const result = await task.run();
@@ -82,6 +88,10 @@ async function runStartupTask(task, logger) {
   }
 }
 
+/**
+ * @param {string} moduleId
+ * @param {ModuleStartupTask} task
+ */
 function validateStartupTask(moduleId, task) {
   if (!task || typeof task !== "object") {
     throw new Error(`Bundled module '${moduleId}' startup task must be an object.`);
@@ -100,6 +110,7 @@ function validateStartupTask(moduleId, task) {
   });
 }
 
+/** @param {"app" | "worker"} runtime @param {ModuleStartupTask[]} tasks */
 function assertUniqueStartupTaskIds(runtime, tasks) {
   const seen = new Set();
   for (const task of tasks) {
@@ -110,6 +121,7 @@ function assertUniqueStartupTaskIds(runtime, tasks) {
   }
 }
 
+/** @param {"app" | "worker"} runtime */
 function assertRuntime(runtime) {
   if (!RUNTIME_KINDS.has(runtime)) {
     throw new Error(`Unknown module runtime '${runtime}'.`);

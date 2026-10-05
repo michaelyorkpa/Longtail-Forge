@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test";
 const TASK_ID = "mobile-layout-task";
 
 test("mobile Task Focus and Other Active Timers keep chips with their records", { tag: "@mobile" }, async ({ page }) => {
+  /** @type {string[]} */
   const consoleErrors = [];
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -24,6 +25,12 @@ test("mobile Task Focus and Other Active Timers keep chips with their records", 
 
   const taskCopyBox = await taskCopy.boundingBox();
   const taskBadgeBox = await taskBadges.boundingBox();
+  if (!taskCopyBox) {
+    throw new Error("Task Focus heading copy bounding box was missing");
+  }
+  if (!taskBadgeBox) {
+    throw new Error("Task Focus badges bounding box was missing");
+  }
   expect(taskBadgeBox.y).toBeGreaterThanOrEqual(taskCopyBox.y + taskCopyBox.height - 1);
   expect(Math.abs(taskBadgeBox.x - taskCopyBox.x)).toBeLessThanOrEqual(2);
 
@@ -39,6 +46,15 @@ test("mobile Task Focus and Other Active Timers keep chips with their records", 
     const cardBox = await card.boundingBox();
     const titleBox = await title.boundingBox();
     const badgeBox = await badges.boundingBox();
+    if (!cardBox) {
+      throw new Error(`Timer card ${index} bounding box was missing`);
+    }
+    if (!titleBox) {
+      throw new Error(`Timer card ${index} title bounding box was missing`);
+    }
+    if (!badgeBox) {
+      throw new Error(`Timer card ${index} badges bounding box was missing`);
+    }
     await expect(badges.locator(".workbench-badge")).toHaveCount(2);
     expect(badgeBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height - 1);
     expect(badgeBox.x).toBeGreaterThanOrEqual(cardBox.x);
@@ -46,9 +62,12 @@ test("mobile Task Focus and Other Active Timers keep chips with their records", 
   }
 
   const overflow = await page.evaluate(() => ({
-    clientWidth: document.scrollingElement.clientWidth,
-    scrollWidth: document.scrollingElement.scrollWidth,
+    clientWidth: document.scrollingElement?.clientWidth,
+    scrollWidth: document.scrollingElement?.scrollWidth,
   }));
+  if (overflow.clientWidth === undefined || overflow.scrollWidth === undefined) {
+    throw new Error("document.scrollingElement was missing");
+  }
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
   expect(consoleErrors).toEqual([]);
 });
@@ -62,16 +81,29 @@ test("desktop keeps Task Focus and timer badges in their compact side positions"
   await expect(taskSummary.locator(".workbench-task-focus-badges")).toBeVisible();
   const taskCopyBox = await taskSummary.locator(".workbench-task-focus-heading-copy").boundingBox();
   const taskBadgeBox = await taskSummary.locator(".workbench-task-focus-badges").boundingBox();
+  if (!taskCopyBox) {
+    throw new Error("Task Focus heading copy bounding box was missing");
+  }
+  if (!taskBadgeBox) {
+    throw new Error("Task Focus badges bounding box was missing");
+  }
   expect(taskBadgeBox.x).toBeGreaterThan(taskCopyBox.x);
 
   const firstTimer = page.locator('[data-workbench-card="active-work-timers"] .workbench-timer-card').first();
   await expect(firstTimer).toBeVisible();
   const titleBox = await firstTimer.locator(".workbench-timer-title").boundingBox();
   const badgeBox = await firstTimer.locator("summary .workbench-card-meta").boundingBox();
+  if (!titleBox) {
+    throw new Error("Timer title bounding box was missing");
+  }
+  if (!badgeBox) {
+    throw new Error("Timer badges bounding box was missing");
+  }
   expect(Math.abs(badgeBox.y - titleBox.y)).toBeLessThan(titleBox.height + 2);
   expect(badgeBox.x).toBeGreaterThan(titleBox.x);
 });
 
+/** @param {import("@playwright/test").Page} page */
 async function stubWorkbenchLayoutData(page) {
   await page.route("**/api/active-timers/all", async (route) => {
     await route.fulfill({
@@ -134,6 +166,7 @@ async function stubWorkbenchLayoutData(page) {
   });
 }
 
+/** @param {{ active_timer_id: string, description: string, project_name: string, source_label: string, timer_slot: string, timer_status: string }} overrides */
 function timerFixture(overrides) {
   return {
     accumulated_elapsed_seconds: 845,

@@ -1,9 +1,9 @@
-// @ts-check
-
 import { Router } from "express";
 import { requireApiKey } from "../middleware/require-api-key.js";
+import { publicApiData, publicApiList } from "../core/public-api-responses.js";
 import { publicApiService } from "../services/public-api.service.js";
 import { apiKeyAsyncRoute as asyncRoute, readJsonBody } from "../utils/http.js";
+
 
 const publicApiRoutes = Router();
 
@@ -55,22 +55,5 @@ publicApiRoutes.put("/api/v1/projects/:projectId", requireApiKey("projects:write
 publicApiRoutes.delete("/api/v1/projects/:projectId", requireApiKey("projects:write"), asyncRoute(async (request, response) => {
   response.status(200).json(publicApiData(await publicApiService.archiveProject(request.apiSession, request.params.projectId), request.apiSession));
 }));
-
-function publicApiData(data, context) {
-  return {
-    apiVersion: "v1",
-    workspace_id: context.workspace_id,
-    data,
-  };
-}
-
-function publicApiList(result, context) {
-  return {
-    apiVersion: "v1",
-    workspace_id: context.workspace_id,
-    data: result.data,
-    pagination: result.pagination,
-  };
-}
 
 export { publicApiRoutes };

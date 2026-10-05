@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const root = process.cwd();
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notifications-preferences-subscriptions-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notifications-preferences-subscriptions-conversion.db");
@@ -16,8 +19,6 @@ const notificationsRepoSource = readText("src/repositories/notifications.repo.js
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { notificationsRepository } = await import("../src/repositories/notifications.repo.js");
@@ -101,19 +102,19 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| notifications\.repo \| Converted \| 0 \| 0 \| 25 \| 25 \|/, "audit inventory should mark notifications repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.22 Notifications Preferences and Subscriptions Conversion[\s\S]*`notifications\.repo` is fully converted[\s\S]*487 runtime literal-helper invocations[\s\S]*103 direct interpolated SQL operation sites[\s\S]*256 existing bound operation sites/, "audit docs should record the Notifications preferences/subscriptions conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.22[\s\S]*Notification preferences, display preferences, workspace defaults, follow subscriptions, and subscription write paths in `notifications\.repo` are converted[\s\S]*487 remaining helper invocations/, "database docs should record the concrete Notifications preferences/subscriptions conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.22 - Conversion wave: Notification preferences and subscriptions[\s\S]*- \[x\] Convert notification user preferences[\s\S]*- \[x\] Preserve per-user preferences[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.22 - [\s\S]*Notification preferences and subscriptions conversion[\s\S]*487 helper invocations[\s\S]*103 direct interpolated operation sites[\s\S]*256 bound operation sites/, "changelog should record the Notifications preferences/subscriptions conversion burndown");
   }
 
+/** @param {string} functionName */
 function assertConvertedFunction(functionName) {
-  const block = functionBlock(notificationsRepoSource, functionName);
+  const block = extractFunctionBlock(notificationsRepoSource, functionName);
   assert.match(block, /\b(?:db|transaction)\.(?:query|get|run|transaction)\(`/u, `${functionName} should use the provider-neutral db facade`);
   assert.match(block, /:[A-Za-z][A-Za-z0-9_]*|subscriptionTargetParams|subscriptionWriteParams|notificationDisplayPreferenceParams/u, `${functionName} should use named params`);
   assert.doesNotMatch(block, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, `${functionName} should not use literal SQL helpers after conversion`);
 }
 
+/** @param {string} functionName @param {readonly RegExp[]} patterns */
 function assertFunctionUsesPatterns(functionName, patterns) {
-  const block = functionBlock(notificationsRepoSource, functionName);
+  const block = extractFunctionBlock(notificationsRepoSource, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -134,11 +135,12 @@ LIMIT 1;
   assert.ok(user?.user_id, "fresh database should include a protected user");
 
   return {
-    userId: user.user_id,
-    workspaceId: workspace.workspace_id,
+    userId: String(user.user_id),
+    workspaceId: String(workspace.workspace_id),
   };
 }
 
+/** @param {{ userId: string, workspaceId: string }} identity */
 async function assertNotificationPreferencesAndSubscriptionsRuntime({ userId, workspaceId }) {
   assert.deepEqual(await notificationsRepository.readUserPreferences(workspaceId, userId), [], "fresh user preferences should start empty");
   assert.equal(await notificationsRepository.readUserDisplayPreferences(workspaceId, userId), null, "fresh display preferences should start empty");
@@ -163,9 +165,11 @@ async function assertNotificationPreferencesAndSubscriptionsRuntime({ userId, wo
 
   await notificationsRepository.saveUserDisplayPreferences(workspaceId, userId, { grouping_mode: "record_type" });
   let displayPreferences = await notificationsRepository.readUserDisplayPreferences(workspaceId, userId);
+  assert.ok(displayPreferences, "reading display preferences should return the persisted row");
   assert.equal(displayPreferences.groupingMode, "record_type", "display preferences should persist grouping mode");
   await notificationsRepository.saveUserDisplayPreferences(workspaceId, userId, { grouping_mode: "notification_type" });
   displayPreferences = await notificationsRepository.readUserDisplayPreferences(workspaceId, userId);
+  assert.ok(displayPreferences, "re-reading display preferences should return the persisted row");
   assert.equal(displayPreferences.groupingMode, "notification_type", "display preference upsert should update grouping mode");
 
   await notificationsRepository.saveWorkspaceDefaults(workspaceId, [
@@ -203,20 +207,25 @@ async function assertNotificationPreferencesAndSubscriptionsRuntime({ userId, wo
 
   assert.equal(await notificationsRepository.readSubscription(workspaceId, userId, eventTarget), null, "fresh subscription target should start empty");
   const followed = await notificationsRepository.saveSubscription(workspaceId, userId, eventTarget);
+  assert.ok(followed, "following a target should return the persisted subscription");
   assert.equal(followed.status, "active", "saveSubscription should create an active subscription");
   assert.equal(followed.event_type, "task.updated", "event-specific subscriptions should preserve event type");
 
   const followedAgain = await notificationsRepository.saveSubscription(workspaceId, userId, eventTarget);
+  assert.ok(followedAgain, "following an already-followed target should return its subscription");
   assert.equal(followedAgain.notification_subscription_id, followed.notification_subscription_id, "subscription upsert should keep the original subscription ID");
 
   const unfollowed = await notificationsRepository.removeSubscription(workspaceId, userId, eventTarget);
+  assert.ok(unfollowed, "unfollowing a target should return the persisted subscription");
   assert.equal(unfollowed.status, "inactive", "removeSubscription should mark the subscription inactive");
 
   const refollowed = await notificationsRepository.saveSubscription(workspaceId, userId, eventTarget);
+  assert.ok(refollowed, "refollowing a target should return the persisted subscription");
   assert.equal(refollowed.notification_subscription_id, followed.notification_subscription_id, "re-follow should reactivate the existing subscription row");
   assert.equal(refollowed.status, "active", "re-follow should restore active status");
 
   const general = await notificationsRepository.saveSubscription(workspaceId, userId, generalTarget);
+  assert.ok(general, "reading general preferences should return the persisted row");
   assert.equal(general.status, "active", "general target subscription should save as active");
   assert.equal(general.event_type, "", "general target subscription should read as an empty event type");
 
@@ -250,30 +259,4 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
-}
-
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`(?:async\\s+)?function ${functionName}\\s*\\([^)]*\\)\\s*\\{`);
-  const match = pattern.exec(source);
-  assert.ok(match, `${functionName} should exist`);
-
-  const bodyStart = match.index + match[0].lastIndexOf("{");
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(match.index, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract function ${functionName}`);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

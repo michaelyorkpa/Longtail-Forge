@@ -1,23 +1,41 @@
 import { expect, test } from "@playwright/test";
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} path
+ * @param {Record<string, unknown>} data
+ * @param {string} label
+ */
 async function createRecord(request, path, data, label) {
   const response = await request.post(path, { data });
   expect(response.status(), `${label} should be created`).toBe(201);
   return response.json();
 }
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} taskId
+ */
 async function readTask(request, taskId) {
   const response = await request.get(`/api/tasks/${encodeURIComponent(taskId)}`);
   expect(response.status()).toBe(200);
   return (await response.json()).task;
 }
 
+/**
+ * @param {import("@playwright/test").APIRequestContext} request
+ * @param {string} taskId
+ */
 async function readTaskTimer(request, taskId) {
   const response = await request.get("/api/tasks/timers");
   expect(response.status()).toBe(200);
-  return (await response.json()).timers.find((timer) => timer.task_id === taskId);
+  return (await response.json()).timers.find((/** @type {{ last_active_start_time: string | null, task_id: string, timer_status: string }} */ timer) => timer.task_id === taskId);
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string} taskId
+ */
 async function openTaskEditor(page, taskId) {
   await page.goto(`/tasks.html?task=${encodeURIComponent(taskId)}`);
   const dialog = page.locator("dialog[data-task-dialog][open]");

@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} PickerSession */
+/** @typedef {import("../src/types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTarget */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-linked-context-client-project-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-context-client-project.db");
@@ -33,16 +37,19 @@ try {
 async function assertBrowserUsesProviderLabels() {
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
+  const providerJs = await fs.readFile(path.join(process.cwd(), "src/modules/client-projects/link-target.provider.js"), "utf8");
 
   assert.match(notesJs, /function primaryClientOptionLabel\(client = \{\}\)[\s\S]*providerDisplayLabel\(client\.displayLabel, client\.display_label\)/, "Primary Context client options should prefer provider display labels without trimming hierarchy indentation");
   assert.match(notesJs, /function primaryProjectOptionLabel\(project = \{\}\)[\s\S]*const providerLabel = providerDisplayLabel\(project\.displayLabel, project\.display_label\)[\s\S]*return providerLabel;/, "Primary Context project options should prefer provider display labels");
   assert.match(notesJs, /function targetPickerDisplayLabel\(target = \{\}\)[\s\S]*const providerLabel = providerDisplayLabel\(target\.displayLabel, target\.display_label\)[\s\S]*return providerLabel;/, "Linked Context picker options should render provider display labels directly");
   assert.match(notesJs, /function providerDisplayLabel\(\.\.\.values\)[\s\S]*if \(label\.trim\(\)\)[\s\S]*return label;/, "Provider display labels should be presence-checked without trimming provider-owned text");
   assert.doesNotMatch(notesJs, /return contextName \? `\$\{label\} \(\$\{contextName\}\)` : label;/, "Business project picker fallback should no longer use parenthesized browser-built labels");
-  assert.match(notesServiceJs, /clientsService\.listClients\(session,[\s\S]*include_depth: true,[\s\S]*shape: "flat"[\s\S]*status: "All"/, "Notes Client targets should consume Clients/Projects-owned hierarchy ordering");
+  assert.match(notesServiceJs, /linkTargetDirectory\.list/, "Notes should consume provider-owned target labels through the directory");
+  assert.match(providerJs, /clientsService\.listClients\(session,[\s\S]*include_depth: true,[\s\S]*shape: "flat"[\s\S]*status: "All"/, "Clients/Projects provider should own client hierarchy ordering");
   assert.doesNotMatch(notesServiceJs, /filterReadableClients\(session, await clientsRepository\.readAll\(session\.workspace_id\)\)/, "Notes should not bypass Clients/Projects-owned client target ordering");
 }
 
+/** @param {PickerSession} session */
 async function assertBusinessClientTargets(session) {
   await setWorkspaceType(session.workspace_id, "business");
   const suffix = randomUUID().slice(0, 8);
@@ -99,6 +106,7 @@ async function assertBusinessClientTargets(session) {
   }
 }
 
+/** @param {PickerSession} session @param {{ workspace_id: string, workspace_name: unknown }} workspace */
 async function assertBusinessProjectTargets(session, workspace) {
   await setWorkspaceType(session.workspace_id, "business");
   const suffix = randomUUID().slice(0, 8);
@@ -174,6 +182,7 @@ async function assertBusinessProjectTargets(session, workspace) {
   }
 }
 
+/** @param {PickerSession} session */
 async function assertFamilyProjectTargets(session) {
   await setWorkspaceType(session.workspace_id, "family");
   const suffix = randomUUID().slice(0, 8);
@@ -212,12 +221,14 @@ async function assertFamilyProjectTargets(session) {
   }
 }
 
+/** @param {string | undefined} displayLabel @param {string} targetId */
 function assertCleanDisplayLabel(displayLabel, targetId) {
   assert.ok(displayLabel, "display label should be present");
   assert.doesNotMatch(displayLabel, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, "display label should not expose raw UUIDs");
   assert.equal(displayLabel.includes(targetId), false, "display label should not echo the target id");
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -226,12 +237,16 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name: unknown }>} */
 async function readWorkspace() {
-  const rows = await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;"), "the workspace fixture");
+  return {
+    workspace_id: fixtureString(row.workspace_id, "the workspace fixture id"),
+    workspace_name: row.workspace_name,
+  };
 }
 
+/** @param {string} workspaceId @returns {Promise<PickerSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -242,13 +257,7 @@ LIMIT 1;
 `);
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
-  return {
-    display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, workspace_id: workspaceId });
 }
 
 async function assertIntegrity() {

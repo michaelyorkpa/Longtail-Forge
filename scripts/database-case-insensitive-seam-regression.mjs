@@ -1,25 +1,27 @@
+import { escapeRegExp, extractFunctionBlock } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const dialectContractVersion = "0.33.6.14a";
-const caseInsensitiveSliceVersion = "0.33.5.27.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-case-insensitive-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-case-insensitive-seams.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Case-Insensitive-Seams-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepoSource = readText("src/repositories/files.repo.js");
 
 const {
   closeDatabase,
@@ -49,7 +51,7 @@ function assertStaticContract() {
   assert.match(sqliteDialectSource, /escapeLikePattern/, "SQLite dialect seams should expose LIKE pattern escaping");
   assert.match(sqliteDialectSource, /likePattern/, "SQLite dialect seams should expose pattern construction");
 
-  const proofPath = functionBlock(filesServiceSource, "readAttachableTargetOptionRows");
+  const proofPath = extractFunctionBlock(filesRepoSource, "readAttachableTargetOptionRows");
   assert.match(proofPath, /db\.query\(`/, "Files attachable target options should use the bound database API");
   assert.match(proofPath, /db\.dialect\.comparison\.containsNoCase/, "Files attachable target search should use the case-insensitive comparison seam");
   assert.match(proofPath, /db\.dialect\.comparison\.likePattern/, "Files attachable target search should use the dialect LIKE pattern helper");
@@ -59,13 +61,11 @@ function assertStaticContract() {
   assert.doesNotMatch(proofPath, /LIMIT \$\{sqlInteger\(limit\)\}/, "converted proof path should bind the limit value");
   assert.doesNotMatch(filesServiceSource, /function sqlLikePattern/, "Files service should not keep a second local LIKE escaping helper for the proof path");
 
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.4 - Case-insensitive comparison and ordering seams[\s\S]*- \[x\] Implement provider-neutral helpers[\s\S]*- \[x\] Convert one proof read\/filter path[\s\S]*- \[x\] Add focused regressions/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.4[\s\S]*case-insensitive[\s\S]*`db\.dialect\.comparison\.containsNoCase\(\.\.\.\)`[\s\S]*LIKE pattern/, "database docs should describe the case-insensitive comparison seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.4 Case-Insensitive Comparison and Ordering Seams[\s\S]*`services\/files\.service` attachable-target option read/, "audit docs should record the converted proof path");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(caseInsensitiveSliceVersion)} - [\\s\\S]*case-insensitive comparison and ordering seams[\\s\\S]*Files attachable-target option`), "changelog should record the case-insensitive seam slice");
 }
 
-async function assertComparisonHelpers(dialect) {
+async function assertComparisonHelpers(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE case_insensitive_seam_records (
   id TEXT PRIMARY KEY,
@@ -89,7 +89,7 @@ VALUES
   assert.equal(dialect.comparison.likePattern("Beta", { mode: "exact" }), "Beta");
   assert.equal(dialect.comparison.containsNoCase("label", ":pattern"), "label LIKE :pattern COLLATE NOCASE ESCAPE '\\'");
   assert.throws(
-    () => dialect.comparison.likePattern("alpha", { mode: "unknown" }),
+    () => dialect.comparison.likePattern("alpha", { mode: /** @type {never} */ ("unknown") }),
     /Invalid LIKE pattern mode/,
     "LIKE pattern helper should reject non-allowlisted match modes",
   );
@@ -120,20 +120,21 @@ ORDER BY ${dialect.comparison.orderByNoCase("label", "ASC")}, id;
 }
 
 async function assertAttachableTargetOptionProofPath() {
-  const admin = await db.get(`
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireRow(await db.get(`
 SELECT user_id, username, display_name, home_workspace_id, active_workspace_id, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
-`);
+`), "admin");
   assert.ok(admin, "fresh database should have a protected admin user");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const literalTaskId = randomUUID();
   const broadTaskId = randomUUID();
   const now = "2026-07-05T15:30:00.000Z";
-  const session = {
+  const session = workspaceSessionFixture({
     active_workspace_id: workspaceId,
     display_name: admin.display_name,
     home_workspace_id: workspaceId,
@@ -141,7 +142,7 @@ LIMIT 1;
     user_id: admin.user_id,
     username: admin.username,
     workspace_id: workspaceId,
-  };
+  });
 
   await db.run(`
 INSERT INTO tasks (
@@ -234,39 +235,4 @@ VALUES (
 async function assertIntegrity() {
   const row = await db.get("PRAGMA integrity_check;");
   assert.equal(row?.integrity_check, "ok", "case-insensitive seam regression database should pass integrity check");
-}
-
-function functionBlock(source, functionName) {
-  const marker = `function ${functionName}`;
-  let start = source.indexOf(marker);
-  if (start < 0) {
-    start = source.indexOf(`async ${marker}`);
-  }
-  assert.notEqual(start, -1, `Could not find ${functionName} in source.`);
-
-  const braceStart = source.indexOf("{", start);
-  assert.notEqual(braceStart, -1, `Could not find ${functionName} body.`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse ${functionName} body.`);
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

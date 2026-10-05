@@ -1,0 +1,15 @@
+/** @typedef {import("./contracts.js").ScaffoldRecord} ScaffoldRecord */
+
+// This scaffold has no storage or fabricated records. Add module-owned persistence here.
+/** @param {string} workspaceId @returns {Promise<ScaffoldRecord[]>} */
+async function readAll(workspaceId) {
+  void workspaceId;
+  return [];
+}
+/** @param {string} workspaceId @param {string} recordId @returns {Promise<ScaffoldRecord | null>} */
+async function readOne(workspaceId, recordId) {
+  void workspaceId;
+  void recordId;
+  return null;
+}
+export const recordsRepository = { readAll, readOne };

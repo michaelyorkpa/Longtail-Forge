@@ -1,5 +1,3 @@
-// @ts-check
-
 (function attachViewSurfaceDescriptor(global) {
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptorAdapter} BrowserViewSurfaceDescriptorAdapterContract */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} BrowserViewSurfaceDescriptorContract */
@@ -349,6 +347,7 @@
     }
     if (spec.kind === "string-map") {
       const record = requireRecord(value, path);
+      /** @type {Record<string, string>} */
       const projected = {};
       for (const [key, entry] of Object.entries(record)) {
         if (typeof entry !== "string" || (spec.nonEmpty && entry.trim() === "")) {

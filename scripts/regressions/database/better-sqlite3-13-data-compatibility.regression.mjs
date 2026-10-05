@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "database",
   tier: "release-gate",
   tags: ["adapter", "backup", "baseline-bypass", "bindings", "concurrency", "migration", "recovery", "sqlite"],
-  description: "Proves better-sqlite3 13.0.1 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
+  description: "Proves better-sqlite3 13.0.3 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
   runMode: "isolated-database",
 });
 
@@ -37,11 +37,12 @@ const {
 
 let adapterOpen = false;
 let writerA;
+/** @type {InstanceType<typeof Database> | undefined} */
 let writerB;
 let reopened;
 
 try {
-  assert.equal(driverPackage.version, "13.0.1", "the data-compatibility checkpoint should run under the qualified native driver");
+  assert.equal(driverPackage.version, "13.0.3", "the data-compatibility checkpoint should run under the qualified native driver");
 
   const health = await initializeDatabase();
   adapterOpen = true;
@@ -135,6 +136,7 @@ CREATE TABLE adapter_transaction_probe (
 
   writerA = new Database(databaseFile, { fileMustExist: true });
   writerB = new Database(databaseFile, { fileMustExist: true });
+  assert.ok(writerB, "the second native writer should open");
   for (const connection of [writerA, writerB]) {
     connection.pragma("foreign_keys = ON");
     connection.pragma("journal_mode = WAL");
@@ -161,13 +163,14 @@ CREATE VIRTUAL TABLE native_fts USING fts5(title, body);
   writerA.prepare("INSERT INTO native_concurrency_probe (id, label) VALUES (?, ?);")
     .run(1, "uncommitted writer");
   assert.equal(
-    writerB.prepare("SELECT COUNT(*) AS count FROM native_concurrency_probe;").get().count,
+    /** @type {{ count: number }} */ (writerB.prepare("SELECT COUNT(*) AS count FROM native_concurrency_probe;").get()).count,
     0,
     "a WAL reader should continue against the committed snapshot while another connection writes",
   );
   const blockedAt = performance.now();
+  const blockedWriter = writerB;
   assert.throws(
-    () => writerB.prepare("INSERT INTO native_concurrency_probe (id, label) VALUES (?, ?);")
+    () => blockedWriter.prepare("INSERT INTO native_concurrency_probe (id, label) VALUES (?, ?);")
       .run(2, "blocked writer"),
     /database is locked/,
     "a competing writer should honor the configured busy timeout and fail without corruption",
@@ -176,11 +179,11 @@ CREATE VIRTUAL TABLE native_fts USING fts5(title, body);
   writerA.exec("COMMIT;");
 
   const blob = Buffer.from("better-sqlite3-13-blob", "utf8");
-  const returned = writerB.prepare(`
+  const returned = /** @type {{ id: number, label: string, payload: Buffer }} */ (writerB.prepare(`
 INSERT INTO native_concurrency_probe (id, label, payload)
 VALUES (@id, @label, @payload)
 RETURNING id, label, payload;
-`).get({ id: 2, label: "named binding", payload: blob });
+`).get({ id: 2, label: "named binding", payload: blob }));
   assert.equal(returned.id, 2);
   assert.equal(returned.label, "named binding");
   assert.equal(Buffer.isBuffer(returned.payload), true);
@@ -205,19 +208,19 @@ RETURNING id, label, payload;
   writerB.prepare("INSERT INTO native_parent (parent_id) VALUES (?);").run("rolled-back-parent");
   writerB.exec("ROLLBACK;");
   assert.equal(
-    writerB.prepare("SELECT COUNT(*) AS count FROM native_parent WHERE parent_id = ?;")
-      .get("rolled-back-parent").count,
+    /** @type {{ count: number }} */ (writerB.prepare("SELECT COUNT(*) AS count FROM native_parent WHERE parent_id = ?;")
+      .get("rolled-back-parent")).count,
     0,
     "a native rollback should not persist its write",
   );
 
   writerB.prepare("INSERT INTO native_fts (title, body) VALUES (?, ?);")
     .run("Recovery proof", "SQLite FTS5 bm25 remains available after the native driver upgrade.");
-  const searchRow = writerB.prepare(`
+  const searchRow = /** @type {{ title: string, score: number }} */ (writerB.prepare(`
 SELECT title, bm25(native_fts) AS score
 FROM native_fts
 WHERE native_fts MATCH ?;
-`).get("recovery");
+`).get("recovery"));
   assert.equal(searchRow.title, "Recovery proof");
   assert.equal(Number.isFinite(searchRow.score), true);
 
@@ -228,17 +231,17 @@ WHERE native_fts MATCH ?;
 
   reopened = new Database(databaseFile, { fileMustExist: true });
   reopened.pragma("foreign_keys = ON");
-  const checkpoint = reopened.pragma("wal_checkpoint(TRUNCATE)")[0];
+  const checkpoint = /** @type {{ busy: number }[]} */ (reopened.pragma("wal_checkpoint(TRUNCATE)"))[0];
   assert.equal(checkpoint.busy, 0, "WAL checkpoint after close/reopen should have no blocked readers or writers");
   assert.equal(
-    reopened.prepare("SELECT COUNT(*) AS count FROM native_concurrency_probe;").get().count,
+    /** @type {{ count: number }} */ (reopened.prepare("SELECT COUNT(*) AS count FROM native_concurrency_probe;").get()).count,
     2,
     "committed rows should persist after WAL checkpoint and reopen",
   );
-  assert.equal(reopened.pragma("integrity_check")[0].integrity_check, "ok");
+  assert.equal(/** @type {{ integrity_check: string }[]} */ (reopened.pragma("integrity_check"))[0].integrity_check, "ok");
   assert.deepEqual(reopened.pragma("foreign_key_check"), []);
 
-  console.log("better-sqlite3 13.0.1 data compatibility regression passed: integrity=ok foreign_key_violations=0.");
+  console.log("better-sqlite3 13.0.3 data compatibility regression passed: integrity=ok foreign_key_violations=0.");
 } finally {
   if (adapterOpen) {
     await closeDatabase().catch(() => {});

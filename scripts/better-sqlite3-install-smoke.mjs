@@ -1,15 +1,18 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { requirePackageLock, requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 import Database from "better-sqlite3";
 
+/** @typedef {{ glibcVersionRuntime?: string }} ReportHeader */
+
 const root = process.cwd();
 const require = createRequire(import.meta.url);
-const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
-const packageLock = JSON.parse(await fs.readFile(path.join(root, "package-lock.json"), "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")));
+const packageLock = requirePackageLock(JSON.parse(await fs.readFile(path.join(root, "package-lock.json"), "utf8")));
 const driverPackage = require("better-sqlite3/package.json");
 const driverRoot = path.dirname(require.resolve("better-sqlite3/package.json"));
 const selectedPlatformTarget = resolveSelectedPlatformTarget();
@@ -23,10 +26,10 @@ let database = null;
 try {
   assert.equal(packageJson.engines?.node, ">=24.7 <25", "package.json should declare the Node 24.7+ runtime range required by built-in Argon2id");
   assert.equal(packageLock.packages?.[""]?.engines?.node, packageJson.engines.node, "package-lock root package should mirror the supported Node runtime range");
-  assert.equal(packageJson.dependencies?.["better-sqlite3"], "13.0.1", "package.json should pin the selected better-sqlite3 release exactly");
+  assert.equal(packageJson.dependencies?.["better-sqlite3"], "13.0.3", "package.json should pin the selected better-sqlite3 release exactly");
   assert.equal(packageLock.packages?.[""]?.dependencies?.["better-sqlite3"], packageJson.dependencies["better-sqlite3"], "package-lock root package should mirror the better-sqlite3 pin");
   assert.equal(packageLock.packages?.["node_modules/better-sqlite3"]?.version, driverPackage.version, "package-lock should capture the installed better-sqlite3 release");
-  assert.equal(driverPackage.version, "13.0.1", "the selected better-sqlite3 release should remain explicit");
+  assert.equal(driverPackage.version, "13.0.3", "the selected better-sqlite3 release should remain explicit");
   assert.equal(driverPackage.engines?.node, ">=22", "better-sqlite3 should document the selected release's Node engine range");
   assert.equal(
     packageLock.packages?.["node_modules/better-sqlite3"]?.dependencies?.["node-addon-api"],
@@ -43,11 +46,11 @@ try {
   );
 
   database = new Database(databaseFile);
-  const sqliteVersion = database.prepare("SELECT sqlite_version() AS sqlite_version;").get().sqlite_version;
+  const sqliteVersion = /** @type {{ sqlite_version: string }} */ (database.prepare("SELECT sqlite_version() AS sqlite_version;").get()).sqlite_version;
   const compileOptions = database.prepare("PRAGMA compile_options;").all()
     .map((row) => row.compile_options);
 
-  assert.equal(sqliteVersion, "3.53.3", "better-sqlite3 should bundle the qualified SQLite release");
+  assert.equal(sqliteVersion, "3.53.4", "better-sqlite3 should bundle the qualified SQLite release");
   for (const requiredOption of ["DEFAULT_FOREIGN_KEYS", "ENABLE_FTS5", "THREADSAFE=2"]) {
     assert.ok(compileOptions.includes(requiredOption), `better-sqlite3's bundled SQLite should include ${requiredOption}`);
   }
@@ -121,7 +124,10 @@ RETURNING id, label;
 
 function resolveSelectedPlatformTarget() {
   if (process.platform === "linux") {
-    const isMusl = !process.report.getReport().header.glibcVersionRuntime;
+    // Keep the original truthiness test: an empty or absent glibc runtime
+    // means musl, and a missing header still throws exactly as before.
+    const report = /** @type {{ header: { glibcVersionRuntime?: string } }} */ (process.report.getReport());
+    const isMusl = !report.header.glibcVersionRuntime;
     return `${isMusl ? "linuxmusl" : "linux"}-${process.arch}`;
   }
 

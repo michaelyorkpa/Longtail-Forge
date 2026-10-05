@@ -60,5 +60,8 @@ test("desktop Workbench keeps the Inspector as its unchanged side column", { tag
 
   const mainColumnBox = await page.locator(".workbench-main-column").boundingBox();
   const inspectorBox = await inspector.boundingBox();
+  if (!mainColumnBox || !inspectorBox) {
+    throw new Error("bounding box missing for the Workbench main column or the Inspector");
+  }
   expect(inspectorBox.x).toBeGreaterThan(mainColumnBox.x + mainColumnBox.width - 2);
 });

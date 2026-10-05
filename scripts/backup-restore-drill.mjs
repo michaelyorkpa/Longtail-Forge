@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
@@ -16,6 +17,36 @@ import {
   inspectBackup,
   restoreBackup,
 } from "./lib/backup-archive.mjs";
+
+/**
+ * An open better-sqlite3 handle on a drill database.
+ * @typedef {InstanceType<typeof Database>} DatabaseHandle
+ */
+
+/**
+ * The spawned application server process, with piped stdout and stderr.
+ * @typedef {import("node:child_process").ChildProcessByStdio<null, import("node:stream").Readable, import("node:stream").Readable>} DrillServerProcess
+ */
+
+/**
+ * A running drill server: its process, its bound port, and its captured output.
+ * @typedef {object} DrillServer
+ * @property {DrillServerProcess} child
+ * @property {number} port
+ * @property {() => string} output
+ */
+
+/**
+ * One operator audit-log line appended by the backup archive library.
+ * @typedef {object} OperatorAuditEntry
+ * @property {string} action
+ * @property {string} [errorCode]
+ */
+
+/**
+ * One recovery-created audit identity row.
+ * @typedef {{ audit_id: string }} RecoveryAuditRow
+ */
 
 const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-backup-restore-drill-"));
 const dataDir = path.join(workspace, "live-data");
@@ -169,16 +200,16 @@ try {
   assert.equal(await pathExists(thirdPreRestoreBackupPath), false, "tampered archive must not begin destructive restore");
   await assertRestoredState(originalMarker, originalFile);
 
-  const auditEntries = (await fs.readFile(auditLogPath, "utf8")).trim().split(/\r?\n/).map(JSON.parse);
+  const auditEntries = (await fs.readFile(auditLogPath, "utf8")).trim().split(/\r?\n/).map(/** @type {(line: string) => OperatorAuditEntry} */ (JSON.parse));
   assert.ok(auditEntries.some((entry) => entry.action === "backup_created"));
   assert.ok(auditEntries.some((entry) => entry.action === "backup_restored"));
   assert.ok(auditEntries.some((entry) => entry.action === "backup_restore_failed" && entry.errorCode === "checksum_validation"));
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
-    const recoveryAuditRows = database.prepare("SELECT audit_id FROM audit_logs WHERE action = 'instance_backup_restored';").all();
+    const recoveryAuditRows = /** @type {RecoveryAuditRow[]} */ (database.prepare("SELECT audit_id FROM audit_logs WHERE action = 'instance_backup_restored';").all());
     assert.ok(recoveryAuditRows.length > 0);
     recoveryAuditRows.forEach((row) => assertUuidVersion(row.audit_id, 7, "recovery-created audit identity"));
-    assert.equal(database.prepare("SELECT file_id FROM files WHERE storage_key = ?;").get(storageKey).file_id, legacyFileId, "restore must preserve an existing UUIDv4 record identifier byte-for-byte");
+    assert.equal(/** @type {{ file_id: string }} */ (database.prepare("SELECT file_id FROM files WHERE storage_key = ?;").get(storageKey)).file_id, legacyFileId, "restore must preserve an existing UUIDv4 record identifier byte-for-byte");
     assertIdentifierSnapshot(database);
   } finally {
     database.close();
@@ -198,7 +229,7 @@ async function seedRepresentativeState() {
   await fs.writeFile(filePath, originalFile, "utf8");
   const database = new Database(databaseFile, { fileMustExist: true });
   try {
-    const workspaceId = database.prepare("SELECT workspace_id AS workspaceId FROM workspaces ORDER BY workspace_id LIMIT 1;").get().workspaceId;
+    const workspaceId = /** @type {{ workspaceId: string }} */ (database.prepare("SELECT workspace_id AS workspaceId FROM workspaces ORDER BY workspace_id LIMIT 1;").get()).workspaceId;
     identifierWorkspaceId = workspaceId;
     assertUuidVersion(identifierWorkspaceId, 7, "fresh backup fixture workspace identity");
     const now = new Date().toISOString();
@@ -270,13 +301,17 @@ async function mutateLiveState() {
   await fs.writeFile(resolveStorageFile(), mutatedFile, "utf8");
 }
 
+/**
+ * @param {string} expectedMarker
+ * @param {string} expectedFile
+ */
 async function assertRestoredState(expectedMarker, expectedFile) {
   const database = new Database(databaseFile, { fileMustExist: true, readonly: true });
   try {
-    assert.equal(database.pragma("integrity_check")[0].integrity_check, "ok");
+    assert.equal(/** @type {{ integrity_check: string }[]} */ (database.pragma("integrity_check"))[0].integrity_check, "ok");
     assert.deepEqual(database.pragma("foreign_key_check"), []);
-    assert.equal(database.prepare("SELECT setting_value AS value FROM app_settings WHERE setting_key = ?;").get(markerKey).value, expectedMarker);
-    assert.equal(database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get().count, 1);
+    assert.equal(/** @type {{ value: string }} */ (database.prepare("SELECT setting_value AS value FROM app_settings WHERE setting_key = ?;").get(markerKey)).value, expectedMarker);
+    assert.equal(/** @type {{ count: number }} */ (database.prepare("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure';").get()).count, 1);
     assertIdentifierSnapshot(database);
   } finally {
     database.close();
@@ -284,6 +319,10 @@ async function assertRestoredState(expectedMarker, expectedFile) {
   assert.equal(await fs.readFile(resolveStorageFile(), "utf8"), expectedFile);
 }
 
+/**
+ * @param {string} sourceArchive
+ * @param {string} outputArchive
+ */
 async function createTamperedArchive(sourceArchive, outputArchive) {
   const tamperWorkspace = await fs.mkdtemp(path.join(workspace, "tamper-"));
   try {
@@ -297,11 +336,20 @@ async function createTamperedArchive(sourceArchive, outputArchive) {
   }
 }
 
+/**
+ * @param {string} archivePath
+ * @param {string} directoryPath
+ */
 function relativeTarDirectoryOperand(archivePath, directoryPath) {
   const relativePath = path.relative(path.dirname(path.resolve(archivePath)), path.resolve(directoryPath)) || ".";
   return relativePath.split(path.sep).join("/");
 }
 
+/**
+ * @param {string} archivePath
+ * @param {string} flags
+ * @param {string[]} [trailingArgs]
+ */
 function runTar(archivePath, flags, trailingArgs = []) {
   return runLocalTarArchiveCommand({
     archivePath,
@@ -312,6 +360,7 @@ function runTar(archivePath, flags, trailingArgs = []) {
   });
 }
 
+/** @param {DatabaseHandle} database */
 function assertIdentifierSnapshot(database) {
   assert.deepEqual(
     database.prepare("SELECT id, workspace_id FROM clients WHERE id = ?;").get(legacyClientId),
@@ -343,11 +392,17 @@ function assertIdentifierSnapshot(database) {
   }, "whole-instance recovery must preserve IDs embedded in audit URLs and JSON metadata byte-for-byte");
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} expectedVersion
+ * @param {string} label
+ */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
+/** @returns {Promise<DrillServer>} */
 async function startServer() {
   const port = await findAvailablePort();
   const child = spawn(process.execPath, ["server.js"], {
@@ -368,6 +423,7 @@ async function startServer() {
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+  /** @type {string[]} */
   const chunks = [];
   child.stdout.on("data", (chunk) => chunks.push(String(chunk)));
   child.stderr.on("data", (chunk) => chunks.push(String(chunk)));
@@ -375,6 +431,7 @@ async function startServer() {
   return { child, port, output: () => chunks.join("") };
 }
 
+/** @param {DrillServer} active */
 async function stopServer(active) {
   if (active.child.exitCode !== null) return;
   active.child.kill("SIGTERM");
@@ -384,11 +441,19 @@ async function stopServer(active) {
   ]);
 }
 
+/** @param {number} port */
 async function verifyRuntime(port) {
   assert.deepEqual(await requestJson(port, "/readyz"), { status: "ready" });
-  assert.equal((await requestJson(port, "/api/app-info")).version, packageJson.version);
+  assert.equal(requireJsonRecord(await requestJson(port, "/api/app-info"), "the app-info response").version, packageJson.version);
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @param {DrillServerProcess} child
+ * @param {() => string} output
+ * @returns {Promise<unknown>}
+ */
 async function waitForJson(port, pathname, child, output) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
@@ -402,27 +467,34 @@ async function waitForJson(port, pathname, child, output) {
   throw new Error(`Timed out waiting for ${pathname}.\n${output()}`);
 }
 
+/**
+ * @param {number} port
+ * @param {string} pathname
+ * @returns {Promise<unknown>} the parsed body, left open for the caller to prove
+ */
 function requestJson(port, pathname) {
   return new Promise((resolve, reject) => {
     const request = httpGet(`http://127.0.0.1:${port}${pathname}`, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
       response.once("end", () => {
         if (response.statusCode !== 200) return reject(new Error(`${pathname} returned ${response.statusCode}.`));
-        try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8"))); } catch (error) { reject(error); }
+        try { resolve(/** @type {unknown} */ (JSON.parse(Buffer.concat(chunks).toString("utf8")))); } catch (error) { reject(error); }
       });
     });
     request.once("error", reject);
   });
 }
 
+/** @returns {Promise<number>} */
 async function findAvailablePort() {
   return await new Promise((resolve, reject) => {
     const listener = net.createServer();
     listener.once("error", reject);
     listener.listen(0, "127.0.0.1", () => {
-      const address = listener.address();
+      const address = /** @type {import("node:net").AddressInfo} */ (listener.address());
       listener.close((error) => error ? reject(error) : resolve(address.port));
     });
   });
@@ -432,10 +504,12 @@ function resolveStorageFile() {
   return path.join(filesRoot, ...storageKey.split("/"));
 }
 
+/** @param {string} value */
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/** @param {string} targetPath */
 async function pathExists(targetPath) {
   try { await fs.access(targetPath); return true; } catch { return false; }
 }

@@ -15,6 +15,15 @@ const AUDIT_DEFAULT_PAGE_SIZE = 50;
 const AUDIT_MAX_PAGE_SIZE = 500;
 const AUDIT_EXPORT_MAX_PAGE_SIZE = 1000;
 
+/** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../repositories/audit-logs.repo.js").AuditLogRow} AuditLogRow */
+/** @typedef {{ selectedWorkspaceId: string, workspaceIds: string[] }} AuditWorkspaceScope */
+/** @typedef {{ workspaceId?: unknown, workspace_id?: unknown, actorUserId?: unknown, changeType?: unknown, dateFrom?: unknown, dateTo?: unknown, limit?: unknown, offset?: unknown, cursor?: unknown, clientId?: unknown, client_id?: unknown, projectId?: unknown, project_id?: unknown, recordType?: unknown, timezone?: unknown }} AuditFilters */
+/** @typedef {{ maxPageSize?: number, securityOnly?: boolean }} AuditListOptions */
+/** @typedef {{ recordType: string, moduleId: string, label: string, description: string }} AuditRecordTypeDefinition */
+/** @typedef {{ workspace_id?: string | null, timezone?: string, user_id?: string, username?: string, ip_address?: string | null }} AuditEventSession */
+/** @typedef {{ workspaceId?: string, session?: AuditEventSession | null, action?: unknown, changeType?: unknown, recordType?: unknown, allowUnknownRecordType?: boolean, force?: boolean, auditId?: unknown, createdAt?: unknown, actorUserId?: unknown, actorUserName?: unknown, recordId?: unknown, recordLabel?: unknown, recordUrl?: unknown, previousValue?: unknown, newValue?: unknown, metadata?: unknown, ipAddress?: unknown } & Record<string, unknown>} AuditEvent */
+
 const CHANGE_TYPES = new Set([
   "create",
   "update",
@@ -43,6 +52,7 @@ const RECORD_TYPES = new Set([
   "security_event",
 ]);
 
+/** @param {AuditEvent} event */
 async function record(event) {
   const workspaceId = event.workspaceId || event.session?.workspace_id || "";
   const action = String(event.action || "").trim();
@@ -64,7 +74,7 @@ async function record(event) {
   const entry = {
     audit_id: event.auditId || createRecordId(),
     workspace_id: workspaceId,
-    created_at: normalizeUtcIso(event.createdAt, event.session?.timezone),
+    created_at: normalizeUtcIso(normalizeAuditDateInput(event.createdAt), event.session && "timezone" in event.session ? event.session.timezone : undefined),
     actor_user_id: event.actorUserId ?? event.session?.user_id ?? null,
     actor_user_name: event.actorUserName ?? event.session?.username ?? null,
     action,
@@ -76,7 +86,7 @@ async function record(event) {
     previous_value_json: stringifyNullableJson(event.previousValue),
     new_value_json: stringifyNullableJson(event.newValue),
     metadata_json: stringifyNullableJson(event.metadata),
-    ip_address: nullableString(event.ipAddress || event.session?.ip_address),
+    ip_address: nullableString(event.ipAddress || (event.session && "ip_address" in event.session ? event.session.ip_address : "")),
   };
 
   await auditLogsRepository.create(entry);
@@ -84,6 +94,8 @@ async function record(event) {
 }
 
 function listAuditRecordTypes() {
+  const moduleRecordTypes = /** @type {AuditRecordTypeDefinition[]} */ (modulesService.listModuleAuditRecordTypes());
+  /** @type {AuditRecordTypeDefinition[]} */
   const recordTypes = [
     ...[...RECORD_TYPES].map((recordType) => ({
       recordType,
@@ -91,7 +103,7 @@ function listAuditRecordTypes() {
       label: titleize(recordType),
       description: `Framework audit record type ${recordType}.`,
     })),
-    ...modulesService.listModuleAuditRecordTypes(),
+    ...moduleRecordTypes,
   ];
 
   return [...recordTypes.reduce((byRecordType, recordType) => {
@@ -105,6 +117,7 @@ function listAuditChangeTypes() {
   return [...CHANGE_TYPES].sort();
 }
 
+/** @param {WorkspaceRequestSession} session @param {AuditFilters} [filters] @param {AuditListOptions} [options] */
 async function list(session, filters = {}, options = {}) {
   const workspaceScope = await resolveAuditWorkspaceScope(session, filters.workspaceId || filters.workspace_id);
   await Promise.all(workspaceScope.workspaceIds.map(async (workspaceId) => {
@@ -155,6 +168,7 @@ async function list(session, filters = {}, options = {}) {
   };
 }
 
+/** @param {WorkspaceRequestSession} session @param {AuditFilters} [filters] @param {AuditListOptions} [options] */
 async function listSecurityEvents(session, filters = {}, options = {}) {
   return list(session, filters, {
     ...options,
@@ -162,16 +176,19 @@ async function listSecurityEvents(session, filters = {}, options = {}) {
   });
 }
 
+/** @param {WorkspaceRequestSession} session @param {AuditFilters} [filters] */
 async function exportCsv(session, filters = {}) {
   assertPublicDemoCapabilityAllowed("exports.audit");
   return exportCsvForList(list, session, filters);
 }
 
+/** @param {WorkspaceRequestSession} session @param {AuditFilters} [filters] */
 async function exportSecurityEventsCsv(session, filters = {}) {
   assertPublicDemoCapabilityAllowed("exports.audit");
   return exportCsvForList(listSecurityEvents, session, filters);
 }
 
+/** @param {(session: WorkspaceRequestSession, filters?: AuditFilters, options?: AuditListOptions) => Promise<{ auditLogs: AuditLogRow[] }>} listFunction @param {WorkspaceRequestSession} session @param {AuditFilters} filters */
 async function exportCsvForList(listFunction, session, filters) {
   const result = await listFunction(session, {
     ...filters,
@@ -195,13 +212,18 @@ async function exportCsvForList(listFunction, session, filters) {
   return `${headers.join(",")}\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string | number} retentionDays
+ */
 async function cleanupExpired(workspaceId, retentionDays) {
-  const days = Number.parseInt(retentionDays, 10) || 30;
+  const days = Number.parseInt(String(retentionDays), 10) || 30;
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
   await auditLogsRepository.removeBefore(workspaceId, cutoff);
 }
 
+/** @param {WorkspaceRequestSession} session @param {unknown} requestedWorkspaceId @returns {Promise<AuditWorkspaceScope>} */
 async function resolveAuditWorkspaceScope(session, requestedWorkspaceId) {
   const workspaceId = nullableString(requestedWorkspaceId) || session.workspace_id;
 
@@ -235,6 +257,7 @@ async function readAuditWorkspaceOptions() {
   ];
 }
 
+/** @param {AuditFilters} filters */
 function normalizeFilters(filters) {
   return {
     actorUserId: nullableString(filters.actorUserId),
@@ -251,6 +274,9 @@ function normalizeFilters(filters) {
   };
 }
 
+/**
+ * @param {import("../types/http-contracts.js").PermissionSession} session
+ */
 async function readAccessibleAuditWorkspaceIds(session) {
   if (await permissionsService.isSuperAdmin(session)) {
     return (await userWorkspacesRepository.readAllWorkspaces()).map((workspace) => workspace.workspace_id);
@@ -261,18 +287,23 @@ async function readAccessibleAuditWorkspaceIds(session) {
     .map((membership) => membership.workspace_id);
 }
 
+/** @param {AuditWorkspaceScope} workspaceScope */
 async function readClientOptionsForScope(workspaceScope) {
   const options = await Promise.all(workspaceScope.workspaceIds.map(readClientOptions));
 
   return options.flat();
 }
 
+/** @param {AuditWorkspaceScope} workspaceScope */
 async function readProjectOptionsForScope(workspaceScope) {
   const options = await Promise.all(workspaceScope.workspaceIds.map(readProjectOptions));
 
   return options.flat();
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function readClientOptions(workspaceId) {
   const settings = await settingsRepository.readWorkspaceSettings(workspaceId);
 
@@ -288,6 +319,7 @@ async function readClientOptions(workspaceId) {
     }));
 }
 
+/** @param {string} workspaceId */
 async function readProjectOptions(workspaceId) {
   return (await projectsRepository.readAll(workspaceId))
     .filter((project) => !isArchivedOption(project))
@@ -297,10 +329,12 @@ async function readProjectOptions(workspaceId) {
     }));
 }
 
+/** @param {{ status?: unknown }} record */
 function isArchivedOption(record) {
   return ["inactive", "archived", "completed"].includes(String(record?.status || "").trim().toLowerCase());
 }
 
+/** @param {unknown} value @param {unknown} timezone @param {"start" | "end"} edge */
 function normalizeDateBound(value, timezone, edge) {
   const text = nullableString(value);
 
@@ -309,12 +343,13 @@ function normalizeDateBound(value, timezone, edge) {
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return localDateBoundToUtcIso(text, timezone, edge);
+    return localDateBoundToUtcIso(text, typeof timezone === "string" ? timezone : undefined, edge);
   }
 
-  return normalizeUtcIso(text, timezone);
+  return normalizeUtcIso(text, typeof timezone === "string" ? timezone : undefined);
 }
 
+/** @param {unknown} value */
 function csvValue(value) {
   const text = String(value ?? "");
 
@@ -325,12 +360,16 @@ function csvValue(value) {
   return text;
 }
 
+/**
+ * @param {string} workspaceId
+ */
 async function readAuditSettings(workspaceId) {
   const settings = await settingsRepository.readWorkspaceSettings(workspaceId);
 
   return settings.audit;
 }
 
+/** @param {unknown} value */
 function normalizeChangeType(value) {
   const normalized = String(value || "").trim();
 
@@ -341,6 +380,7 @@ function normalizeChangeType(value) {
   return normalized;
 }
 
+/** @param {unknown} value @param {{ allowUnknown?: boolean }} [options] */
 function normalizeRecordType(value, options = {}) {
   const normalized = String(value || "").trim();
 
@@ -360,12 +400,23 @@ function normalizeRecordType(value, options = {}) {
 }
 
 function eventRecordTypes() {
+  const moduleRecordTypes = /** @type {AuditRecordTypeDefinition[]} */ (modulesService.listModuleAuditRecordTypes());
   return new Set([
     ...RECORD_TYPES,
-    ...modulesService.listModuleAuditRecordTypes().map((recordType) => recordType.recordType),
+    ...moduleRecordTypes.map((recordType) => recordType.recordType),
   ]);
 }
 
+/** @param {unknown} value @returns {string | number | undefined} */
+function normalizeAuditDateInput(value) {
+  return typeof value === "string" || typeof value === "number"
+    ? value
+    : undefined;
+}
+
+/**
+ * @param {string} value
+ */
 function titleize(value) {
   return String(value || "")
     .split("_")
@@ -374,6 +425,9 @@ function titleize(value) {
     .join(" ");
 }
 
+/**
+ * @param {unknown} value
+ */
 function nullableString(value) {
   if (value === null || value === undefined) {
     return null;
@@ -383,6 +437,9 @@ function nullableString(value) {
   return text || null;
 }
 
+/**
+ * @param {unknown} value
+ */
 function stringifyNullableJson(value) {
   if (value === null || value === undefined) {
     return null;

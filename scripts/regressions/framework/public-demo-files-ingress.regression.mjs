@@ -7,12 +7,15 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 import { getPublicDemoCapability } from "../../../src/core/public-demo-capabilities.js";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+const { readTextAsync: read } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("public-demo-files-ingress");
 try {
@@ -78,6 +81,7 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {boolean} demoEnabled */
 function runProbe(demoEnabled) {
   const result = spawnSync(process.execPath, [
     "scripts/test-support/public-demo-files-ingress-probe.mjs",
@@ -88,7 +92,7 @@ function runProbe(demoEnabled) {
     env: demoEnabled ? demoEnvironment() : standardEnvironment(),
     timeout: 60_000,
   });
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, result.stderr || result.stdout || String(result.error || ""));
 }
 
 function demoEnvironment() {
@@ -135,6 +139,7 @@ async function readBrowserSources() {
   ].sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 
+/** @param {string} directory @param {string[]} extensions @returns {Promise<Array<{ relativePath: string, source: string }>>} */
 async function readSourceFiles(directory, extensions) {
   const files = await listFiles(directory, extensions);
   return Promise.all(files.map(async (filePath) => ({
@@ -143,8 +148,10 @@ async function readSourceFiles(directory, extensions) {
   })));
 }
 
+/** @param {string} directory @param {string[]} extensions @returns {Promise<string[]>} */
 async function listFiles(directory, extensions) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
+  /** @type {string[]} */
   const files = [];
   for (const entry of entries) {
     const entryPath = path.join(directory, entry.name);
@@ -152,12 +159,4 @@ async function listFiles(directory, extensions) {
     if (entry.isFile() && extensions.some((extension) => entry.name.endsWith(extension))) files.push(entryPath);
   }
   return files.sort();
-}
-
-function read(filePath) {
-  return fs.readFile(path.resolve(filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

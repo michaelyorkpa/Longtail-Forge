@@ -22,10 +22,16 @@ const FILE_LIFECYCLE_EVENT_SET = new Set(FILE_LIFECYCLE_EVENTS);
 const FILE_STATUS_SET = new Set(FILE_STATUSES);
 const FILE_SCAN_STATUS_SET = new Set(FILE_SCAN_STATUSES);
 
+/** @typedef {{ workspace_id?: string | null, user_id?: string }} FileLifecycleSession */
+/** @typedef {{ metadata?: unknown, workspaceId?: string, workspace_id?: string, session?: FileLifecycleSession | null, fileId?: string, file_id?: string, attachmentId?: string, file_attachment_id?: string, moduleId?: string, module_id?: string, targetType?: string, target_type?: string, targetId?: string, target_id?: string, actorUserId?: string, actor_user_id?: string, status?: string, scanStatus?: string, scan_status?: string, reason?: string }} FileLifecyclePayload */
+/** @typedef {string | number | boolean | null | (string | number | boolean)[]} FileLifecycleMetadataValue */
+
+/** @param {unknown} eventName */
 function isFileLifecycleEvent(eventName) {
   return FILE_LIFECYCLE_EVENT_SET.has(String(eventName || "").trim());
 }
 
+/** @param {FileLifecyclePayload} [payload] */
 function sanitizeFileLifecyclePayload(payload = {}) {
   const safeMetadata = sanitizeMetadata(payload.metadata);
 
@@ -44,6 +50,7 @@ function sanitizeFileLifecyclePayload(payload = {}) {
   };
 }
 
+/** @param {unknown} metadata @returns {Record<string, FileLifecycleMetadataValue>} */
 function sanitizeMetadata(metadata) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     return {};
@@ -56,6 +63,7 @@ function sanitizeMetadata(metadata) {
   );
 }
 
+/** @param {unknown} value @returns {value is FileLifecycleMetadataValue} */
 function isSafeMetadataValue(value) {
   if (value === null) {
     return true;

@@ -11,8 +11,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-direct-task-completion-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "direct-task-completion.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
@@ -97,21 +99,21 @@ try {
 }
 
 function assertStaticCompletionContract() {
-  const saveAndComplete = functionBody(taskDialogSource, "saveAndCompleteTask");
-  const saveTaskForm = functionBody(taskDialogSource, "saveTaskForm");
-  const changeState = functionBody(taskDialogSource, "taskFormChangeState");
-  const formSnapshot = functionBody(taskDialogSource, "taskFormSnapshot");
-  const tasksCompletion = functionBody(tasksBrowserSource, "postTaskAction");
-  const workbenchCompletion = functionBody(workbenchSource, "completeFocusedTask");
+  const saveAndComplete = extractFunctionBody(taskDialogSource, "saveAndCompleteTask");
+  const saveTaskForm = extractFunctionBody(taskDialogSource, "saveTaskForm");
+  const changeState = extractFunctionBody(taskDialogSource, "taskFormChangeState");
+  const formSnapshot = extractFunctionBody(taskDialogSource, "taskFormSnapshot");
+  const tasksCompletion = extractFunctionBody(tasksBrowserSource, "postTaskAction");
+  const workbenchCompletion = extractFunctionBody(workbenchSource, "completeFocusedTask");
 
   assert.match(
     saveAndComplete,
-    /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\([\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`/,
+    /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\([\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/complete`/,
     "editor completion should save only real pending form changes before the dedicated completion call",
   );
   assert.match(
     saveAndComplete,
-    /notifyTaskEditorSaved\(result\)[\s\S]*hostContext\?\.complete\?\.\(taskCompletionHostDetail\(result\)\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
+    /notifyTaskEditorSaved\(result\)[\s\S]*const host = context\?\.hostContext;[\s\S]*const callback = optionalTaskProjectionFields\(host\)\?\.complete;[\s\S]*callback !== null && callback !== undefined[\s\S]*const args = \[taskCompletionHostDetail\(result\)\];[\s\S]*typeof callback !== "function"[\s\S]*Reflect\.apply\(callback, host, args\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
     "editor completion should refresh its host, report lifecycle detail, and close",
   );
   assert.doesNotMatch(taskDialogSource, /offerCompletionNextAction|pendingTaskCompletionDetail/);
@@ -119,7 +121,7 @@ function assertStaticCompletionContract() {
 
   assert.match(
     saveTaskForm,
-    /editingTask\?\.recurrence_template_id && formChanges\.recurrenceTemplateChanged[\s\S]*title: "Update recurring task"/,
+    /optionalTaskProjectionFields\(editingTask\)\?\.recurrence_template_id && formChanges\.recurrenceTemplateChanged[\s\S]*title: "Update recurring task"/,
     "the recurrence scope question should require an actual template-backed form change",
   );
   assert.match(
@@ -128,8 +130,8 @@ function assertStaticCompletionContract() {
     "dirty-state comparison should separate any pending edit from recurrence-template changes",
   );
   assert.match(
-    functionBody(taskDialogSource, "readTaskFormPayload"),
-    /next_action: fields\.nextAction\.value/,
+    extractFunctionBody(taskDialogSource, "readTaskFormPayload"),
+    /next_action: taskProjectionFields\(requireTaskControl\(fields\.nextAction\)\)\.value/,
     "Next Action should remain an ordinary editable Task field",
   );
   assert.doesNotMatch(
@@ -162,39 +164,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
-}
-
-async function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
-}
-
-function functionBody(source, name) {
-  const syncStart = source.indexOf(`function ${name}(`);
-  const asyncStart = source.indexOf(`async function ${name}(`);
-  const start = syncStart >= 0 ? syncStart : asyncStart;
-  assert.notEqual(start, -1, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
+  return workspaceSessionFixture(user);
 }

@@ -1,0 +1,66 @@
+import { test, expect } from "./support/isolated-workspace.mjs";
+
+test("Workbench focus controls retain selection, recommendation cycling and panel transitions", async ({ isolatedWorkspace }, testInfo) => {
+  const { page, api } = isolatedWorkspace;
+  const clientResponse = await api.post("/api/clients", { data: { name: "Handle Client" } });
+  expect(clientResponse.status(), await clientResponse.text()).toBe(201);
+  const clientId = (await clientResponse.json()).client.id;
+  const projectResponse = await api.post(`/api/clients/${clientId}/projects`, { data: { name: "Handle Project" } });
+  expect(projectResponse.status(), await projectResponse.text()).toBe(201);
+  const projectId = (await projectResponse.json()).project.id;
+  for (const title of ["First handle task", "Second handle task"]) {
+    const response = await api.post("/api/tasks", { data: { title, client_id: clientId, project_id: projectId } });
+    expect(response.status(), await response.text()).toBe(201);
+  }
+  /** @type {string[]} */ const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/workbench.html");
+  const client = page.getByRole("combobox", { name: "Client focus filter" });
+  const project = page.getByRole("combobox", { name: "Project focus filter" });
+  await expect(client.locator("option", { hasText: "Handle Client" })).toHaveCount(1);
+  const clientLoaded = page.waitForResponse(response => response.url().includes("/api/workbench/focus-candidates?") && new URL(response.url()).searchParams.get("clientId") === clientId);
+  await client.selectOption(clientId); await clientLoaded;
+  await expect(project.locator("option", { hasText: "Handle Project" })).toHaveCount(1);
+  const projectLoaded = page.waitForResponse(response => response.url().includes("/api/workbench/focus-candidates?") && new URL(response.url()).searchParams.get("projectId") === projectId);
+  await project.selectOption(projectId); await projectLoaded;
+  await expect(project).toHaveValue(projectId); await expect(client).toHaveValue(clientId);
+  const mode = page.locator('[data-workbench-focus-mode="project-focus"]');
+  await mode.click(); await expect(mode).toHaveAttribute("aria-pressed", "true");
+  const card = page.locator("[data-workbench-recommended-card]");
+  await expect(card).toBeVisible();
+  await expect(card).toHaveAttribute("data-workbench-recommended-window-size", "2");
+  const firstTitle = await card.locator("h2,h3").first().textContent();
+  const cycle = page.locator("[data-workbench-recommended-cycle-controls]");
+  await cycle.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(card.locator("h2,h3").first()).not.toHaveText(firstTitle || "");
+  await cycle.getByRole("button", { name: "Previous", exact: true }).click();
+  await expect(card.locator("h2,h3").first()).toHaveText(firstTitle || "");
+  await page.reload();
+  await expect(client).toHaveValue(clientId); await expect(project).toHaveValue(projectId);
+  await expect(mode).toHaveAttribute("aria-pressed", "true");
+  await card.getByRole("button", { name: "Focus task", exact: true }).click();
+  await expect(page.locator("[data-workbench-task-focus-summary]")).toBeVisible();
+  await expect(page.locator(".workbench-focus-panel")).toBeHidden();
+  await expect(page.locator(".workbench-recommended-panel")).toBeHidden();
+  const change = page.getByRole("button", { name: "Change Focus", exact: true });
+  await expect(change).toBeEnabled(); await change.click();
+  const capture = page.getByRole("dialog", { name: "Add resume note?" });
+  await expect(capture).toBeVisible();
+  await capture.getByRole("button", { name: "No", exact: true }).click();
+  await expect(capture).toBeHidden();
+  await expect(page.locator(".workbench-focus-panel")).toBeVisible();
+  await expect(card).toBeVisible(); await expect(mode).toBeFocused();
+  await expect(change).toBeDisabled();
+  await expect(project).toHaveValue(projectId);
+  const timers = page.locator('[data-workbench-card="active-work-timers"]');
+  await expect(timers.locator("[data-workbench-timer-count]")).toHaveText("0");
+  // The section is still open from Task Focus; first activation closes it.
+  await expect(timers.locator("[data-workbench-timer-list]")).toBeVisible();
+  await timers.locator("summary").click();
+  await expect(timers.locator("[data-workbench-timer-list]")).toBeHidden();
+  await timers.locator("summary").click();
+  await expect(timers.locator("[data-workbench-timer-list]")).toBeVisible();
+  await expect(timers.locator("[data-workbench-timer-list]")).not.toBeEmpty();
+  expect(errors).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("focus-handles.png"), fullPage: true });
+});

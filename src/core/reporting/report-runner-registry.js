@@ -1,5 +1,3 @@
-// @ts-check
-
 const REPORT_RUNNER_ID_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 
 /** @type {Map<string, import("../../types/framework-contracts.js").ReportRunner>} */
@@ -32,6 +30,7 @@ function registerReportRunner(runnerId, runner, options = {}) {
   };
 }
 
+/** @param {string} runnerId */
 function getReportRunner(runnerId) {
   return runnersById.get(normalizeReportRunnerId(runnerId)) || null;
 }
@@ -44,6 +43,9 @@ function clearReportRunnersForTests() {
   runnersById.clear();
 }
 
+/**
+ * @param {string} runnerId
+ */
 function normalizeReportRunnerId(runnerId) {
   const normalizedRunnerId = String(runnerId || "").trim();
 

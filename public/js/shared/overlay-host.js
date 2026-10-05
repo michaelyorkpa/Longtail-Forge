@@ -1,7 +1,60 @@
 (function attachOverlayHost(global) {
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserOverlayController} BrowserOverlayController */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserOverlayHandle} BrowserOverlayHandle */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserOverlayHost} BrowserOverlayHost */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserOverlayHostOptions} BrowserOverlayHostOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserOverlayRegistration} BrowserOverlayRegistration */
+
+  /**
+   * One host's shared registry entry.
+   *
+   * Keyed by the host element, so two controllers over the same host reach the same overlays and
+   * the same single active slot - which is what makes "one open overlay per host" true across
+   * separate `create` calls.
+   * @typedef {{ active: BrowserOverlayHandle | null, host: Element, overlays: Map<string, BrowserOverlayHandle> }} OverlayHostState
+   */
+
   const root = global.LongtailForge || {};
+  /** @type {WeakMap<Element, OverlayHostState>} */
   const registry = new WeakMap();
 
+  /**
+   * Whether a value can be focused, without assuming which element class it is.
+   *
+   * `document.activeElement` is an `Element`, and `focus` lives on `HTMLElement`, `SVGElement`
+   * and `MathMLElement` rather than on `Element` itself. This is the same test the writer already
+   * made, expressed so the compiler can follow it.
+   * @param {Element | null | undefined} value
+   * @returns {value is Element & { focus: () => void }}
+   */
+  function canFocus(value) {
+    return value !== null && value !== undefined && "focus" in value && typeof value.focus === "function";
+  }
+
+  /**
+   * An event target as a node, or `null`.
+   *
+   * `Element.contains` accepts `Node | null` and answers `false` for `null`, which is exactly what
+   * a non-node target produced before. Narrowed rather than cast: an `EventTarget` is not a `Node`.
+   * @param {EventTarget | null} value @returns {Node | null}
+   */
+  function nodeTarget(value) {
+    return value instanceof Node ? value : null;
+  }
+
+  /**
+   * An element's `offsetParent`, or `undefined` where the property does not exist.
+   *
+   * **Preserves the original visibility test exactly.** `offsetParent` is an `HTMLElement`
+   * property; on an SVG element the old read produced `undefined`, which is not `null`, so such
+   * elements passed the filter. They still do.
+   * @param {Element} element @returns {Element | null | undefined}
+   */
+  function offsetParentOf(element) {
+    return element instanceof HTMLElement ? element.offsetParent : undefined;
+  }
+
+  /** @param {BrowserOverlayHostOptions} [options] @returns {BrowserOverlayController} */
   function create(options = {}) {
     const host = options.host;
 
@@ -11,6 +64,7 @@
 
     let state = registry.get(host);
     if (!state) {
+      /** @type {OverlayHostState} */
       state = {
         active: null,
         host,
@@ -27,6 +81,10 @@
     };
   }
 
+  /**
+   * @param {OverlayHostState} state @param {BrowserOverlayRegistration} [options]
+   * @returns {BrowserOverlayHandle}
+   */
   function registerOverlay(state, options = {}) {
     const name = String(options.name || "").trim();
     const panel = options.panel;
@@ -52,8 +110,12 @@
     trigger.setAttribute("aria-expanded", "false");
     trigger.setAttribute("aria-controls", ensurePanelId(panel, name));
 
+    // Built in one step so `close` is a function from the moment the record exists. The arrow
+    // closes over `overlay` and is never called before this statement completes, so this is the
+    // same object with the same close behaviour the two-step assignment produced.
+    /** @type {BrowserOverlayHandle} */
     const overlay = {
-      close: null,
+      close: () => closeOverlay(state, overlay, { returnFocus: true }),
       host: state.host,
       name,
       panel,
@@ -62,11 +124,11 @@
       trigger,
     };
 
-    overlay.close = () => closeOverlay(state, overlay, { returnFocus: true });
     state.overlays.set(name, overlay);
     return overlay;
   }
 
+  /** @param {OverlayHostState} state @param {string} name @returns {void} */
   function toggleOverlay(state, name) {
     const overlay = state.overlays.get(name);
 
@@ -82,6 +144,7 @@
     openOverlay(state, overlay);
   }
 
+  /** @param {OverlayHostState} state @param {BrowserOverlayHandle} overlay */
   function openOverlay(state, overlay) {
     closeActive(state);
 
@@ -105,12 +168,17 @@
     focusFirst(overlay.panel);
   }
 
+  /** @param {OverlayHostState} state @returns {void} */
   function closeActive(state) {
     if (state.active) {
       closeOverlay(state, state.active, { returnFocus: false });
     }
   }
 
+  /**
+   * @param {OverlayHostState} state @param {BrowserOverlayHandle} overlay
+   * @param {{ returnFocus: boolean }} options
+   */
   function closeOverlay(state, overlay, { returnFocus }) {
     overlay.abortController?.abort();
     overlay.abortController = null;
@@ -126,11 +194,15 @@
       state.active = null;
     }
 
-    if (returnFocus && overlay.previousFocus && typeof overlay.previousFocus.focus === "function") {
+    if (returnFocus && canFocus(overlay.previousFocus)) {
       overlay.previousFocus.focus();
     }
   }
 
+  /**
+   * @param {KeyboardEvent} event @param {OverlayHostState} state
+   * @param {BrowserOverlayHandle} overlay
+   */
   function handleKeydown(event, state, overlay) {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -143,8 +215,12 @@
     }
   }
 
+  /**
+   * @param {PointerEvent} event @param {OverlayHostState} state
+   * @param {BrowserOverlayHandle} overlay
+   */
   function handlePointerDown(event, state, overlay) {
-    const target = event.target;
+    const target = nodeTarget(event.target);
 
     if (overlay.panel.contains(target) || overlay.trigger.contains(target)) {
       return;
@@ -153,6 +229,7 @@
     closeOverlay(state, overlay, { returnFocus: false });
   }
 
+  /** @param {KeyboardEvent} event @param {HTMLElement} panel */
   function trapFocus(event, panel) {
     const focusables = focusableElements(panel);
 
@@ -174,11 +251,19 @@
     }
   }
 
+  /** @param {HTMLElement} panel */
   function focusFirst(panel) {
     const focusTarget = focusableElements(panel)[0] || panel;
     focusTarget.focus();
   }
 
+  /**
+   * The focusable descendants, in document order.
+   *
+   * The `.filter(canFocus)` is a narrowing rather than a change of set: every selector here
+   * matches an element class that carries `focus`, so nothing the query can return is dropped.
+   * @param {HTMLElement} panel @returns {Array<Element & { focus: () => void }>}
+   */
   function focusableElements(panel) {
     return [...panel.querySelectorAll([
       "a[href]",
@@ -187,9 +272,12 @@
       "select:not([disabled])",
       "textarea:not([disabled])",
       "[tabindex]:not([tabindex='-1'])",
-    ].join(","))].filter((element) => element.offsetParent !== null || element === document.activeElement);
+    ].join(","))]
+      .filter((element) => offsetParentOf(element) !== null || element === document.activeElement)
+      .filter(canFocus);
   }
 
+  /** @param {BrowserOverlayHandle} overlay */
   function positionOverlay(overlay) {
     if (global.matchMedia?.("(max-width: 700px)")?.matches) {
       overlay.panel.classList.add("surface-overlay-panel--bottom-sheet");
@@ -211,6 +299,7 @@
     overlay.panel.style.setProperty("--overlay-anchor-width", `${Math.max(280, Math.round(triggerRect.width))}px`);
   }
 
+  /** @param {HTMLElement} panel @param {string} name @returns {string} */
   function ensurePanelId(panel, name) {
     if (!panel.id) {
       panel.id = `overlay-panel-${name}-${Date.now()}`;
@@ -218,8 +307,16 @@
     return panel.id;
   }
 
-  root.overlayHost = {
+  /**
+   * The published hook, annotated on the literal so the compiler checks membership in both
+   * directions: a missing method fails, a second one fails as an unknown property, and a changed
+   * signature fails. Left unfrozen, because it always has been.
+   * @type {BrowserOverlayHost}
+   */
+  const overlayHostApi = {
     create,
   };
+
+  root.overlayHost = overlayHostApi;
   global.LongtailForge = root;
 }(window));

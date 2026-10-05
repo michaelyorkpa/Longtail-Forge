@@ -16,6 +16,10 @@ import { searchIndexSyncService } from "../../services/search-index-sync.service
 import { searchService } from "../../services/search.service.js";
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 import {
+  NoteCatalogSecurityTransitionSchema,
+  parseNotesEdgePayload,
+} from "./notes.contracts.js";
+import {
   CATALOG_SECURITY_POLICIES,
   CATALOG_SECURITY_TRANSITION_STATES,
   resolveNoteEffectiveSecurity,
@@ -30,6 +34,32 @@ import {
   safeSecurePlaceholders,
 } from "./secure-crypto.js";
 
+/** @typedef {import("../../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityAction} CatalogSecurityAction */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityActorSession} CatalogSecurityActorSession */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityAuditContext} CatalogSecurityAuditContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityAuditMetadata} CatalogSecurityAuditMetadata */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityBlocker} CatalogSecurityBlocker */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityBlockerOptions} CatalogSecurityBlockerOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityJobContext} CatalogSecurityJobContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityJobSession} CatalogSecurityJobSession */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityPayload} CatalogSecurityPayload */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityProcessOptions} CatalogSecurityProcessOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityProcessResult} CatalogSecurityProcessResult */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityPublicPreflight} CatalogSecurityPublicPreflight */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityQuery} CatalogSecurityQuery */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityService} CatalogSecurityService */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityStartOptions} CatalogSecurityStartOptions */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityStartResult} CatalogSecurityStartResult */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityTransitionClaim} CatalogSecurityTransitionClaim */
+/** @typedef {import("../../types/notes-domain-contracts.js").CatalogSecurityTransitionContext} CatalogSecurityTransitionContext */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteCollectionStoredRecord} NoteCollectionStoredRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NotePersistenceInput} NotePersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRecord} NoteRecord */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionPersistenceInput} NoteRevisionPersistenceInput */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteRevisionRecord} NoteRevisionRecord */
+/** @typedef {import("../../types/notes-collections-contracts.js").NoteCollectionRecord} NoteCollectionRecord */
+
 const NOTES_MODULE_ID = "notes";
 const CATALOG_SECURITY_JOB_TYPE = "notes.catalog-security";
 const CATALOG_SECURITY_JOB_PRIORITY = 40;
@@ -42,6 +72,7 @@ const TRANSITION_ACTIONS = Object.freeze({
 });
 let catalogSecurityJobHandlerRegistered = false;
 
+/** @param {{ replace?: boolean }} [options] */
 function registerCatalogSecurityJobHandler(options = {}) {
   if (catalogSecurityJobHandlerRegistered && !options.replace && getJobHandler(CATALOG_SECURITY_JOB_TYPE)) {
     return;
@@ -51,6 +82,7 @@ function registerCatalogSecurityJobHandler(options = {}) {
   catalogSecurityJobHandlerRegistered = true;
 }
 
+/** @param {string} collectionId @param {CatalogSecurityQuery} query @param {WorkspaceRequestSession} session */
 async function preflight(collectionId, query = {}, session) {
   assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
@@ -59,22 +91,27 @@ async function preflight(collectionId, query = {}, session) {
   return { preflight: publicPreflight(context) };
 }
 
-async function enable(collectionId, payload = {}, session) {
+/** @param {string} collectionId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
+async function enable(collectionId, rawPayload, session) {
   assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
+  const payload = parseNotesEdgePayload(NoteCatalogSecurityTransitionSchema, rawPayload);
   return startTransition(collectionId, TRANSITION_ACTIONS.ENABLE, payload, session);
 }
 
-async function remove(collectionId, payload = {}, session) {
+/** @param {string} collectionId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
+async function remove(collectionId, rawPayload, session) {
   assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   const context = await buildTransitionContext(session.workspace_id, collectionId, TRANSITION_ACTIONS.REMOVE);
+  const payload = parseNotesEdgePayload(NoteCatalogSecurityTransitionSchema, rawPayload);
   assertDowngradeConfirmation(payload, context);
   await reauthenticateCurrentUser(payload, session);
   return startTransition(collectionId, TRANSITION_ACTIONS.REMOVE, payload, session, { context });
 }
 
-async function retry(collectionId, payload = {}, session) {
+/** @param {string} collectionId @param {unknown} rawPayload @param {WorkspaceRequestSession} session */
+async function retry(collectionId, rawPayload, session) {
   assertPublicDemoCapabilityAllowed("secure_notes.catalog_security");
   await assertTransitionPermissions(session);
   const collection = await readCollectionOrThrow(session.workspace_id, collectionId);
@@ -84,6 +121,7 @@ async function retry(collectionId, payload = {}, session) {
 
   const action = normalizeAction(collection.security_transition_action);
   const context = await buildTransitionContext(session.workspace_id, collectionId, action);
+  const payload = parseNotesEdgePayload(NoteCatalogSecurityTransitionSchema, rawPayload);
   if (action === TRANSITION_ACTIONS.REMOVE) {
     assertDowngradeConfirmation(payload, context);
     await reauthenticateCurrentUser(payload, session);
@@ -94,6 +132,7 @@ async function retry(collectionId, payload = {}, session) {
   });
 }
 
+/** @param {string} collectionId @param {CatalogSecurityAction} action @param {CatalogSecurityPayload} payload @param {WorkspaceRequestSession} session @param {CatalogSecurityStartOptions} [options] @returns {Promise<CatalogSecurityStartResult>} */
 async function startTransition(collectionId, action, payload, session, options = {}) {
   const context = options.context || await buildTransitionContext(session.workspace_id, collectionId, action);
   assertTransitionCanStart(context, action);
@@ -167,7 +206,9 @@ async function startTransition(collectionId, action, payload, session, options =
   };
 }
 
-async function handleCatalogSecurityJob({ payload = {} }) {
+/** @param {CatalogSecurityJobContext} [context] @returns {Promise<CatalogSecurityProcessResult>} */
+async function handleCatalogSecurityJob({ payload = {} } = {}) {
+  /** @type {CatalogSecurityTransitionClaim} */
   const claim = {
     action: normalizeAction(payload.action),
     actorUserId: normalizedText(payload.actorUserId || payload.actor_user_id),
@@ -184,8 +225,10 @@ async function handleCatalogSecurityJob({ payload = {} }) {
   });
 }
 
+/** @param {CatalogSecurityTransitionClaim} claim @param {CatalogSecurityProcessOptions} [options] @returns {Promise<CatalogSecurityProcessResult>} */
 async function processTransition(claim, options = {}) {
   const session = options.session || jobSession(claim);
+  /** @type {CatalogSecurityTransitionContext | undefined} */
   let context;
   try {
     context = await buildTransitionContext(claim.workspaceId, claim.collectionId, claim.action);
@@ -261,6 +304,7 @@ async function processTransition(claim, options = {}) {
   }
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {CatalogSecurityAction} action @returns {Promise<CatalogSecurityTransitionContext>} */
 async function buildTransitionContext(workspaceId, collectionId, action) {
   const collection = await readCollectionOrThrow(workspaceId, collectionId);
   if (collection.status === "deleted") {
@@ -326,6 +370,7 @@ async function buildTransitionContext(workspaceId, collectionId, action) {
   };
 }
 
+/** @param {CatalogSecurityAction} action @param {NoteRecord[]} notes @param {NoteRevisionRecord[]} revisions @param {CatalogSecurityBlockerOptions} [options] @returns {CatalogSecurityBlocker[]} */
 function transitionBlockers(action, notes, revisions, options = {}) {
   if (action === TRANSITION_ACTIONS.ENABLE) {
     const placeholderNoteCount = notes.filter((note) => note.security_mode === "secure" && !hasEncryptedSecurePayload(note)).length;
@@ -346,6 +391,7 @@ function transitionBlockers(action, notes, revisions, options = {}) {
     : [];
 }
 
+/** @param {CatalogSecurityTransitionContext} context @param {CatalogSecurityAction} action */
 function assertTransitionCanStart(context, action) {
   const expectedPolicy = action === TRANSITION_ACTIONS.ENABLE ? "normal" : "secure";
   if (context.collection.security_policy !== expectedPolicy) {
@@ -361,6 +407,7 @@ function assertTransitionCanStart(context, action) {
   }
 }
 
+/** @param {CatalogSecurityPayload} payload @param {CatalogSecurityTransitionContext} context */
 function assertDowngradeConfirmation(payload, context) {
   const confirmedCatalogId = normalizedText(payload.confirmCatalogId || payload.confirm_catalog_id);
   const confirmedCount = optionalInteger(payload.confirmAffectedNoteCount ?? payload.confirm_affected_note_count);
@@ -374,6 +421,7 @@ function assertDowngradeConfirmation(payload, context) {
   }
 }
 
+/** @param {WorkspaceRequestSession} session */
 async function assertTransitionPermissions(session) {
   if (!await modulesService.canWriteModule(session.workspace_id, NOTES_MODULE_ID)) {
     throw new AppError("This module is disabled for this workspace.", 403);
@@ -388,6 +436,7 @@ async function assertTransitionPermissions(session) {
   });
 }
 
+/** @param {CatalogSecurityPayload} payload @param {WorkspaceRequestSession} session */
 async function reauthenticateCurrentUser(payload, session) {
   const currentPassword = String(payload.currentPassword || payload.current_password || "");
   if (!currentPassword) {
@@ -409,7 +458,8 @@ async function reauthenticateCurrentUser(payload, session) {
   if (attempt.blocked) {
     throw new AppError(AUTHENTICATION_THROTTLE_MESSAGE, 429);
   }
-  if (!user || !attempt.value?.matches) {
+  const verificationMatches = "value" in attempt && passwordVerificationMatches(attempt.value);
+  if (!user || !verificationMatches) {
     const failure = await authenticationThrottle.recordSensitiveAction(throttleContext);
     await emitAuthenticationThrottleLockout(throttleContext, failure);
     if (failure.blocked) {
@@ -420,6 +470,12 @@ async function reauthenticateCurrentUser(payload, session) {
   await authenticationThrottle.reset(throttleContext);
 }
 
+/** @param {unknown} value */
+function passwordVerificationMatches(value) {
+  return Boolean(value && typeof value === "object" && "matches" in value && value.matches === true);
+}
+
+/** @param {NoteRecord} note @param {CatalogSecurityAction} action @param {string | null} actorUserId @returns {NotePersistenceInput & { note_id: string }} */
 function transformNote(note, action, actorUserId) {
   const now = new Date().toISOString();
   if (action === TRANSITION_ACTIONS.ENABLE) {
@@ -446,6 +502,7 @@ function transformNote(note, action, actorUserId) {
   };
 }
 
+/** @param {NoteRevisionRecord} revision @param {CatalogSecurityAction} action @returns {NoteRevisionPersistenceInput & { note_revision_id: string }} */
 function transformRevision(revision, action) {
   if (action === TRANSITION_ACTIONS.ENABLE) {
     if (hasEncryptedSecurePayload(revision)) return revision;
@@ -467,6 +524,7 @@ function transformRevision(revision, action) {
   };
 }
 
+/** @returns {import("../../types/notes-domain-contracts.js").SecureNoteEncryptedFields} */
 function clearSecureFields() {
   return {
     secure_payload: null,
@@ -483,6 +541,7 @@ function clearSecureFields() {
   };
 }
 
+/** @param {string} workspaceId @param {NoteRecord[]} notes */
 async function removeSearchDocuments(workspaceId, notes) {
   for (const note of notes) {
     const result = await searchService.removeSearchDocument({
@@ -497,6 +556,7 @@ async function removeSearchDocuments(workspaceId, notes) {
   }
 }
 
+/** @param {string} workspaceId @param {NoteRecord[]} notes */
 async function queueSearchReindex(workspaceId, notes) {
   for (const note of notes) {
     await searchIndexSyncService.reindexRecord({
@@ -509,6 +569,7 @@ async function queueSearchReindex(workspaceId, notes) {
   }
 }
 
+/** @param {CatalogSecurityActorSession | undefined} session @param {CatalogSecurityTransitionClaim} claim @param {CatalogSecurityTransitionContext | undefined} context @param {unknown} error */
 async function markTransitionFailed(session, claim, context, error) {
   if (!claim?.workspaceId || !claim?.collectionId || !claim?.transitionVersion) return;
   const failed = await notesRepository.failCatalogSecurityTransition(claim.workspaceId, claim.collectionId, {
@@ -525,9 +586,13 @@ async function markTransitionFailed(session, claim, context, error) {
   }
 }
 
+/** @param {CatalogSecurityActorSession} session @param {string} actionName @param {NoteCollectionRecord | NoteCollectionStoredRecord} collection @param {CatalogSecurityAuditContext} [context] @param {CatalogSecurityAuditMetadata} [metadata] */
 async function recordTransitionAudit(session, actionName, collection, context = {}, metadata = {}) {
+  const auditSession = "timezone" in session ? session : null;
   await auditService.record({
-    session,
+    session: auditSession,
+    workspaceId: session.workspace_id,
+    actorUserId: session.user_id,
     action: actionName,
     changeType: "update",
     recordType: "note_library",
@@ -555,6 +620,7 @@ async function recordTransitionAudit(session, actionName, collection, context = 
   });
 }
 
+/** @param {CatalogSecurityTransitionContext} context @returns {CatalogSecurityPublicPreflight} */
 function publicPreflight(context) {
   return {
     action: context.action,
@@ -574,13 +640,17 @@ function publicPreflight(context) {
   };
 }
 
+/** @param {NoteCollectionRecord} root @param {NoteCollectionRecord[]} collections @returns {NoteCollectionRecord[]} */
 function collectionDescendants(root, collections) {
+  /** @type {Map<string, NoteCollectionRecord[]>} */
   const byParent = new Map();
   for (const collection of collections) {
     const parentId = collection.parent_collection_id || "";
-    if (!byParent.has(parentId)) byParent.set(parentId, []);
-    byParent.get(parentId).push(collection);
+    const siblings = byParent.get(parentId);
+    if (siblings) siblings.push(collection);
+    else byParent.set(parentId, [collection]);
   }
+  /** @type {NoteCollectionRecord[]} */
   const descendants = [];
   const visited = new Set([root.note_library_collection_id]);
   const stack = [...(byParent.get(root.note_library_collection_id) || [])];
@@ -594,15 +664,17 @@ function collectionDescendants(root, collections) {
   return descendants;
 }
 
+/** @param {string} workspaceId @param {unknown} collectionId @returns {Promise<NoteCollectionRecord>} */
 async function readCollectionOrThrow(workspaceId, collectionId) {
   const collection = await notesRepository.readCollectionById(workspaceId, requiredText(collectionId, "Catalog ID is required."));
   if (!collection) throw new AppError("Note catalog not found.", 404);
   return collection;
 }
 
+/** @param {NoteCollectionRecord} collection @returns {CatalogSecurityTransitionClaim} */
 function transitionClaim(collection) {
   return {
-    action: collection.security_transition_action,
+    action: normalizeAction(collection.security_transition_action),
     actorUserId: collection.security_transition_actor_user_id,
     collectionId: collection.note_library_collection_id,
     transitionVersion: Number(collection.security_transition_version),
@@ -610,10 +682,12 @@ function transitionClaim(collection) {
   };
 }
 
+/** @param {string} workspaceId @param {string} collectionId @param {number} transitionVersion */
 function catalogSecurityDedupeKey(workspaceId, collectionId, transitionVersion) {
   return ["notes", "catalog-security", workspaceId, collectionId, transitionVersion].join(":");
 }
 
+/** @param {CatalogSecurityTransitionClaim} claim @returns {CatalogSecurityJobSession} */
 function jobSession(claim) {
   return {
     user_id: claim.actorUserId || null,
@@ -621,15 +695,18 @@ function jobSession(claim) {
   };
 }
 
+/** @param {unknown} value @returns {CatalogSecurityAction} */
 function normalizeAction(value) {
   const action = normalizedText(value);
-  if (!Object.values(TRANSITION_ACTIONS).includes(action)) {
+  if (action !== TRANSITION_ACTIONS.ENABLE && action !== TRANSITION_ACTIONS.REMOVE) {
     throw new AppError("Catalog security action must be enable or remove.", 400);
   }
   return action;
 }
 
+/** @template Value @param {Value[]} values @param {number} size @returns {Value[][]} */
 function chunk(values, size) {
+  /** @type {Value[][]} */
   const chunks = [];
   for (let index = 0; index < values.length; index += size) {
     chunks.push(values.slice(index, index + size));
@@ -637,35 +714,48 @@ function chunk(values, size) {
   return chunks;
 }
 
+/** @param {unknown} value */
 function optionalInteger(value) {
   if (value === undefined || value === null || value === "") return null;
   const number = Number(value);
   return Number.isInteger(number) && number >= 0 ? number : null;
 }
 
+/** @param {unknown} value @param {string} message */
 function requiredPositiveInteger(value, message) {
   const number = Number(value);
   if (!Number.isInteger(number) || number < 1) throw new Error(message);
   return number;
 }
 
+/** @param {unknown} value @param {string} message */
 function requiredText(value, message) {
   const text = normalizedText(value);
   if (!text) throw new AppError(message, 400);
   return text;
 }
 
+/** @param {unknown} value */
 function normalizedText(value) {
   return String(value || "").trim();
 }
 
+/** @param {unknown} error */
 function safeErrorCode(error) {
-  return normalizedText(error?.code || error?.details?.code || "catalog_security_transition_failed")
+  let candidate = "catalog_security_transition_failed";
+  if (error && typeof error === "object") {
+    if ("code" in error && error.code) candidate = normalizedText(error.code);
+    else if ("details" in error && error.details && typeof error.details === "object" && "code" in error.details && error.details.code) {
+      candidate = normalizedText(error.details.code);
+    }
+  }
+  return normalizedText(candidate)
     .toLowerCase()
     .replace(/[^a-z0-9._-]/g, "_")
     .slice(0, 120) || "catalog_security_transition_failed";
 }
 
+/** @type {CatalogSecurityService} */
 export const catalogSecurityService = {
   enable,
   handleCatalogSecurityJob,

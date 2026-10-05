@@ -1,5 +1,55 @@
 const LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT = "linked-context-target.v1";
 
+/**
+ * @typedef {object} LinkedContextTargetInput
+ * @property {unknown} [moduleId]
+ * @property {unknown} [module_id]
+ * @property {unknown} [targetType]
+ * @property {unknown} [target_type]
+ * @property {unknown} [targetId]
+ * @property {unknown} [target_id]
+ * @property {unknown} [displayLabel]
+ * @property {unknown} [display_label]
+ * @property {unknown} [secondaryLabel]
+ * @property {unknown} [secondary_label]
+ * @property {unknown} [sortKey]
+ * @property {unknown} [sort_key]
+ * @property {unknown} [sourceUrl]
+ * @property {unknown} [source_url]
+ * @property {unknown} [clientId]
+ * @property {unknown} [client_id]
+ * @property {unknown} [projectId]
+ * @property {unknown} [project_id]
+ * @property {unknown} [workspaceId]
+ * @property {unknown} [workspace_id]
+ * @property {unknown} [isAvailable]
+ * @property {unknown} [is_available]
+ * @property {unknown} [primaryContextHints]
+ * @property {unknown} [primary_context_hints]
+ */
+
+/**
+ * @typedef {object} LinkedContextProviderDefaults
+ * @property {unknown} [moduleId]
+ * @property {unknown} [targetType]
+ */
+
+/**
+ * @typedef {object} LinkedContextTarget
+ * @property {string} moduleId
+ * @property {string} targetType
+ * @property {string} targetId
+ * @property {string} displayLabel
+ * @property {string} secondaryLabel
+ * @property {string} sortKey
+ * @property {string} sourceUrl
+ * @property {string} clientId
+ * @property {string} projectId
+ * @property {string} workspaceId
+ * @property {boolean} isAvailable
+ * @property {Record<string, string>} [primaryContextHints]
+ */
+
 const LINKED_CONTEXT_TARGET_RESPONSE_FIELDS = Object.freeze([
   "moduleId",
   "targetType",
@@ -15,6 +65,7 @@ const LINKED_CONTEXT_TARGET_RESPONSE_FIELDS = Object.freeze([
   "primaryContextHints",
 ]);
 
+/** @type {readonly (keyof LinkedContextTarget)[]} */
 const LINKED_CONTEXT_TARGET_REQUIRED_FIELDS = Object.freeze([
   "moduleId",
   "targetType",
@@ -29,6 +80,7 @@ const LINKED_CONTEXT_TARGET_REQUIRED_FIELDS = Object.freeze([
   "isAvailable",
 ]);
 
+/** @type {readonly ("displayLabel"|"secondaryLabel")[]} */
 const SAFE_LABEL_FIELDS = Object.freeze([
   "displayLabel",
   "secondaryLabel",
@@ -37,7 +89,13 @@ const SAFE_LABEL_FIELDS = Object.freeze([
 const RAW_IDENTIFIER_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RAW_IDENTIFIER_TOKEN_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
 
+/**
+ * @param {LinkedContextTargetInput} [target]
+ * @param {LinkedContextProviderDefaults} [provider]
+ * @returns {LinkedContextTarget}
+ */
 function normalizeLinkedContextTarget(target = {}, provider = {}) {
+  /** @type {LinkedContextTarget} */
   const normalized = {
     moduleId: textValue(target.moduleId ?? target.module_id ?? provider.moduleId),
     targetType: textValue(target.targetType ?? target.target_type ?? provider.targetType),
@@ -49,18 +107,22 @@ function normalizeLinkedContextTarget(target = {}, provider = {}) {
     clientId: textValue(target.clientId ?? target.client_id),
     projectId: textValue(target.projectId ?? target.project_id),
     workspaceId: textValue(target.workspaceId ?? target.workspace_id),
-    isAvailable: target.isAvailable ?? target.is_available ?? true,
+    isAvailable: /** @type {boolean} */ (target.isAvailable ?? target.is_available ?? true),
   };
 
   if (target.primaryContextHints !== undefined || target.primary_context_hints !== undefined) {
-    normalized.primaryContextHints = normalizePrimaryContextHints(
+    normalized.primaryContextHints = /** @type {Record<string, string>} */ (normalizePrimaryContextHints(
       target.primaryContextHints ?? target.primary_context_hints,
-    );
+    ));
   }
 
   return normalized;
 }
 
+/**
+ * @param {LinkedContextTargetInput} [target]
+ * @param {LinkedContextProviderDefaults} [provider]
+ */
 function validateLinkedContextTarget(target = {}, provider = {}) {
   const normalized = normalizeLinkedContextTarget(target, provider);
   const errors = [];
@@ -81,7 +143,9 @@ function validateLinkedContextTarget(target = {}, provider = {}) {
     }
   }
 
-  for (const fieldName of ["moduleId", "targetType", "targetId", "displayLabel", "sortKey", "workspaceId"]) {
+  /** @type {readonly (keyof LinkedContextTarget)[]} */
+  const requiredTextFields = ["moduleId", "targetType", "targetId", "displayLabel", "sortKey", "workspaceId"];
+  for (const fieldName of requiredTextFields) {
     if (!normalized[fieldName]) {
       errors.push(`${fieldName} must not be empty.`);
     }
@@ -119,6 +183,10 @@ function validateLinkedContextTarget(target = {}, provider = {}) {
   };
 }
 
+/**
+ * @param {LinkedContextTargetInput} [target]
+ * @param {LinkedContextProviderDefaults} [provider]
+ */
 function assertLinkedContextTargetContract(target = {}, provider = {}) {
   const result = validateLinkedContextTarget(target, provider);
   if (!result.ok) {
@@ -128,6 +196,7 @@ function assertLinkedContextTargetContract(target = {}, provider = {}) {
   return result.target;
 }
 
+/** @param {unknown} value */
 function normalizePrimaryContextHints(value) {
   if (!isPlainObject(value)) {
     return value;
@@ -138,6 +207,10 @@ function normalizePrimaryContextHints(value) {
   );
 }
 
+/**
+ * @param {string} value
+ * @param {LinkedContextTarget} target
+ */
 function matchesHiddenIdentifier(value, target) {
   const normalizedValue = value.toLowerCase();
   return [
@@ -148,15 +221,21 @@ function matchesHiddenIdentifier(value, target) {
   ].filter(Boolean).some((identifier) => normalizedValue === String(identifier).toLowerCase());
 }
 
+/** @param {unknown} value */
 function looksLikeRawIdentifier(value) {
   const text = textValue(value);
   return RAW_IDENTIFIER_PATTERN.test(text) || RAW_IDENTIFIER_TOKEN_PATTERN.test(text);
 }
 
+/** @param {unknown} value */
 function textValue(value) {
   return String(value ?? "").trim();
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }

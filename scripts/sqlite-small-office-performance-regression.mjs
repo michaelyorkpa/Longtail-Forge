@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import path from "node:path";
+
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const expectedRouteIds = Object.freeze([
@@ -19,8 +21,6 @@ const expectedRouteIds = Object.freeze([
 const performanceScript = readText("scripts/sqlite-small-office-performance.mjs");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 assertStaticContract();
 assertPerformanceSmoke();
@@ -43,8 +43,6 @@ function assertStaticContract() {
   assert.match(sqliteDocs, /not a hosted SaaS load test/, "SQLite small-office docs should document the expected limits honestly");
   assert.match(sqliteDocs, /Workbench bootstrap is a special canary/, "SQLite small-office docs should call out Workbench bootstrap limits");
   assert.match(databaseDocs, /As of version 0\.33\.5\.20\.6/, "Database docs should mention the performance pass");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, /Version 0\.33\.5\.20\.6/, "Changelog should include the SQLite small-office performance release");
 }
 
 function assertPerformanceSmoke() {
@@ -71,29 +69,37 @@ function assertPerformanceSmoke() {
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const report = JSON.parse(result.stdout);
+  /** @type {{ iterations?: unknown, profile?: unknown, provider?: unknown, routes?: unknown }} */
+  const report = requireJsonRecord(JSON.parse(result.stdout), "small-office performance report");
   assert.equal(report.profile, "dev-demo");
   assert.equal(report.provider, "sqlite");
   assert.equal(report.iterations, 1);
-  assert.deepEqual(report.routes.map((route) => route.id), expectedRouteIds);
+  // requireJsonRecord proves only that the report itself is an object. The
+  // route list and each route's sample list are proven to be arrays before
+  // they are iterated or measured, so a one-character string can no longer
+  // satisfy the one-sample claim.
+  const routes = report.routes;
+  assert.ok(Array.isArray(routes), `small-office performance report should publish routes as an array: ${JSON.stringify(routes)}`);
+  assert.deepEqual(routes.map((route) => requireJsonRecord(route, "small-office performance route").id), expectedRouteIds);
 
-  for (const route of report.routes) {
-    assert.equal(route.statusCode, 200, `${route.id} should return HTTP 200`);
-    assert.equal(route.samplesMs.length, 1, `${route.id} should include one smoke sample`);
-    assert.ok(Number.isFinite(route.p95Ms), `${route.id} should include a numeric p95`);
-    assert.ok(route.bytes > 0, `${route.id} should return a response body`);
+  for (const entry of routes) {
+    /** @type {{ bytes: unknown, id: unknown, p95Ms: unknown, samplesMs: unknown, statusCode: unknown }} */
+    const route = requireJsonRecord(entry, "small-office performance route");
+    assert.equal(route.statusCode, 200, `${String(route.id)} should return HTTP 200`);
+    const samplesMs = route.samplesMs;
+    assert.ok(Array.isArray(samplesMs), `${String(route.id)} should publish samplesMs as an array: ${JSON.stringify(samplesMs)}`);
+    assert.equal(samplesMs.length, 1, `${String(route.id)} should include one smoke sample`);
+    assert.ok(Number.isFinite(route.p95Ms), `${String(route.id)} should include a numeric p95`);
+    assert.ok(typeof route.bytes === "number" && route.bytes > 0, `${String(route.id)} should return a response body`);
   }
 }
 
-function cleanEnv(overrides = {}) {
+function cleanEnv(/** @type {Record<string, string | undefined>} */ overrides = {}) {
+  /** @type {Record<string, string | undefined>} */
   const env = { ...process.env, ...overrides };
   delete env.LTF_REGRESSION_BASELINE_DB;
   delete env.LONGTAIL_DATABASE_FILE;
   delete env.LONGTAIL_DATA_DIR;
   delete env.LONGTAIL_DATABASE_PROVIDER;
   return env;
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

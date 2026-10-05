@@ -19,15 +19,17 @@ import {
 import { runRegressionBucketsFailFast } from "./test-support/regression-bucket-orchestrator.mjs";
 import { filterRegressionBuckets } from "./lib/regression-runner-options.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_COMMANDS, REGRESSION_ENTRIES } from "./regression-suite.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readTextAsync: readProjectFile } = createProjectTextReader();
 
 const runner = await readProjectFile("scripts/run-regressions.mjs");
 const bucketOrchestratorSupport = await readProjectFile("scripts/test-support/regression-bucket-orchestrator.mjs");
 const runnerSchedulerSupport = await readProjectFile("scripts/test-support/regression-runner-scheduler.mjs");
 const databaseFixtureSupport = await readProjectFile("scripts/test-support/database-fixture.mjs");
 const sourceScanSupport = await readProjectFile("scripts/test-support/source-scan.mjs");
-const parameterBindingAudit = await readProjectFile("scripts/parameter-binding-audit-regression.mjs");
-const interpolationGuardrail = await readProjectFile("scripts/interpolation-enforcement-guardrail-regression.mjs");
-const dialectGuardrail = await readProjectFile("scripts/dialect-enforcement-guardrail-regression.mjs");
+const parameterBindingAudit = await readProjectFile("scripts/regression-contracts/database/parameter-binding-audit.contract.mjs");
+const interpolationGuardrail = await readProjectFile("scripts/regression-contracts/database/interpolation-enforcement-guardrail.contract.mjs");
+const dialectGuardrail = await readProjectFile("scripts/regression-contracts/database/dialect-enforcement-guardrail.contract.mjs");
 const discoverySupport = await readProjectFile("scripts/lib/regression-discovery.mjs");
 const metadataSupport = await readProjectFile("scripts/lib/regression-metadata.mjs");
 const runnerOptionsSupport = await readProjectFile("scripts/lib/regression-runner-options.mjs");
@@ -134,9 +136,9 @@ assert.match(runner, /printRegressionList/);
 assert.match(runner, /printDryRun/);
 assert.match(sourceScanSupport, /function readRuntimeSourceEntries/, "source-scan support should own runtime source entry reads");
 assert.match(sourceScanSupport, /function extractCallExpression/, "source-scan support should own shared call-expression parsing");
-assert.match(parameterBindingAudit, /from "\.\/test-support\/source-scan\.mjs"/, "parameter-binding audit should consume shared source-scan support");
-assert.match(interpolationGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "interpolation guardrail should consume shared source-scan support");
-assert.match(dialectGuardrail, /from "\.\/test-support\/source-scan\.mjs"/, "dialect guardrail should consume shared source-scan support");
+assert.match(parameterBindingAudit, /from "\.\.\/\.\.\/test-support\/source-scan\.mjs"/, "parameter-binding audit should consume shared source-scan support");
+assert.match(interpolationGuardrail, /from "\.\.\/\.\.\/test-support\/source-scan\.mjs"/, "interpolation guardrail should consume shared source-scan support");
+assert.match(dialectGuardrail, /from "\.\.\/\.\.\/test-support\/source-scan\.mjs"/, "dialect guardrail should consume shared source-scan support");
 assert.match(runnerSchedulerSupport, /AUTO_ISOLATED_PARALLELISM_CAP = 6/, "isolated auto-tuning should keep a conservative cap");
 assert.match(runnerSchedulerSupport, /AUTO_STATIC_PARALLELISM_CAP = 8/, "static auto-tuning should keep a conservative host-aware cap");
 
@@ -235,6 +237,7 @@ assert.deepEqual(
   "parallel scheduling should preserve stable script indexes for isolated fixture envs",
 );
 
+/** @type {string[]} */
 const scheduledAfterFailure = [];
 const failureResults = await runLimitedItems(["fail", "already-running", "must-not-start"], 2, async (script) => {
   scheduledAfterFailure.push(script);
@@ -257,7 +260,9 @@ assert.deepEqual(
 );
 
 assert.equal(ISOLATED_RETRY_LIMIT, 1, "isolated flakes should receive exactly one bounded retry");
+/** @type {string[]} */
 const recoveryInvocations = [];
+/** @type {string[]} */
 const retryNotifications = [];
 let activeRetries = 0;
 let maxActiveRetries = 0;
@@ -305,6 +310,7 @@ assert.ok(
   "unscheduled isolated scripts should resume only after the failed script recovers",
 );
 
+/** @type {string[]} */
 const persistentInvocations = [];
 const persistentResults = await runIsolatedItemsWithRetry(
   ["always-fails", "must-not-start"],
@@ -335,13 +341,18 @@ const seededBucketOrder = [
   { name: "isolated file storage regressions" },
   { name: "isolated database regressions" },
 ];
+/** @type {string[]} */
 const seededScheduledBuckets = [];
 const seededStaticFailure = await runRegressionBucketsFailFast(seededBucketOrder, async (bucket) => {
   seededScheduledBuckets.push(bucket.name);
   if (bucket.name === "static/source regressions") {
-    const failure = new Error("seeded static failure");
-    failure.results = [{ bucketName: bucket.name, exitCode: 1, script: "seeded-static-regression.mjs" }];
-    throw failure;
+    // runRegressionBucketsFailFast reads `results` off a thrown error; the
+    // orchestrator publishes that shape as BucketRunError. Object.assign builds
+    // it without a cast, so the seeded failure really is what the production
+    // path consumes.
+    throw Object.assign(new Error("seeded static failure"), {
+      results: [{ bucketName: bucket.name, exitCode: 1, script: "seeded-static-regression.mjs" }],
+    });
   }
   return [{ bucketName: bucket.name, exitCode: 0, script: `${bucket.name}.mjs` }];
 });
@@ -363,6 +374,7 @@ assert.deepEqual(
 
 console.log("Regression runner regression passed.");
 
+/** @param {string} name */
 function bucketByName(name) {
   const bucket = REGRESSION_BUCKETS.find((entry) => entry.name === name);
 
@@ -370,10 +382,7 @@ function bucketByName(name) {
   return bucket;
 }
 
-function readProjectFile(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
-}
-
+/** @param {number} milliseconds @returns {Promise<void>} */
 function delay(milliseconds) {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);

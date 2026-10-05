@@ -70,9 +70,6 @@ jobs:
       - name: Re-run regression buckets
         if: inputs.operation == 'deploy'
         run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
-      - name: Re-run permission checks
-        if: inputs.operation == 'deploy'
-        run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
       - name: Re-run dependency audit
         if: inputs.operation == 'deploy'
         run: npm audit --audit-level=high

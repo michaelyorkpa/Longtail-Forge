@@ -1,0 +1,173 @@
+// Baseline 097ac0cc6342c7d80e4fa9fe42e4a1b35d46eeb9; exact lifted bodies for read-order comparison.
+function workbenchInspectorCandidates() {
+    const seen = new Set();
+    const candidates = [];
+
+    for (const candidate of recommendedOverflowCandidates()) {
+      const key = inspectorCandidateKey(candidate);
+
+      if (!key || seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      candidates.push(candidate);
+
+      if (candidates.length >= WORKBENCH_INSPECTOR_LIMIT) {
+        break;
+      }
+    }
+
+    return candidates;
+  }
+
+function createWorkbenchInspectorItem(candidate) {
+    const workbenchViewHelpers = requireView();
+    const title = inspectorCandidateTitle(candidate);
+    const context = inspectorCandidateContext(candidate);
+    const openMode = resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_FOCUS_SELECTION
+      ? "candidate-primary"
+      : "context-open";
+    const titleButton = workbenchViewHelpers.createElement("button", {
+      className: "workbench-inspector-title",
+      attrs: {
+        "aria-label": `${candidateActionLabel(candidate)}: ${title}`,
+        type: "button",
+      },
+      dataset: {
+        workbenchInspectorOpen: candidate.recordType || candidate.moduleId || "work",
+        workbenchInspectorOpenMode: openMode,
+      },
+      text: title,
+    });
+    const badges = candidateBadges(candidate);
+
+    titleButton.disabled = !candidateCanOpen(candidate);
+    titleButton.addEventListener("click", (event) => openCandidate(candidate, event.currentTarget, { mode: openMode }));
+
+    return workbenchViewHelpers.createElement("article", {
+      className: "workbench-inspector-item",
+      dataset: {
+        workbenchInspectorItem: "",
+        workbenchInspectorCurrent: "false",
+      },
+      children: [
+        titleButton,
+        workbenchViewHelpers.createElement("p", {
+          className: "workbench-inspector-context",
+          text: context,
+        }),
+        badges.length > 0
+          ? workbenchViewHelpers.createElement("div", {
+              className: "workbench-inspector-badges",
+              children: badges,
+            })
+          : null,
+      ].filter(Boolean),
+    });
+  }
+
+function candidateBadges(candidate) {
+    return [
+      candidate.moduleId ? badge(formatToken(candidate.moduleId), candidate.moduleId) : null,
+      candidate.status ? badge(formatToken(candidate.status), candidate.status) : null,
+      candidate.priority ? badge(formatToken(candidate.priority), candidate.priority) : null,
+      candidate.dueAt ? badge(`Due ${formatCandidateDate(candidate.dueAt)}`, "due") : null,
+    ].filter(Boolean);
+  }
+
+function candidateActionLabel(candidate) {
+    if (candidateTaskId(candidate)) {
+      return "Focus task";
+    }
+
+    if (isManualTimerCandidate(candidate)) {
+      return "Continue in Time Tracking";
+    }
+
+    if (candidateModuleAction(candidate)) {
+      return candidate.primaryAction?.label || "Open work";
+    }
+
+    if (candidate.sourceUrl || candidate.primaryAction?.href) {
+      return "Open work";
+    }
+
+    return candidate.primaryAction?.label || "Review";
+  }
+
+function candidateCanOpen(candidate = {}) {
+    return Boolean(candidateTaskId(candidate)
+      || candidateModuleAction(candidate)
+      || isManualTimerCandidate(candidate)
+      || candidate.sourceUrl
+      || candidate.primaryAction?.href);
+  }
+
+function candidateModuleAction(candidate = {}) {
+    const primaryAction = candidate.primaryAction || {};
+    if (primaryAction.type === "module-action" && primaryAction.id && candidate.moduleId && candidate.recordId) {
+      return {
+        actionId: primaryAction.id,
+        moduleId: candidate.moduleId,
+        moduleLabel: formatToken(candidate.moduleId) || "Work",
+        params: primaryAction.params || {},
+        recordId: candidate.recordId,
+        recordParam: "recordId",
+      };
+    }
+
+    if (candidate.moduleId === "notes" && candidate.recordType === "note" && candidate.recordId) {
+      return {
+        actionId: "notes.view",
+        moduleId: "notes",
+        moduleLabel: "Note",
+        recordId: candidate.recordId,
+        recordParam: "noteId",
+      };
+    }
+
+    if (candidate.moduleId === "lists" && candidate.recordType === "list" && candidate.recordId) {
+      return {
+        actionId: "lists.edit",
+        moduleId: "lists",
+        moduleLabel: "List",
+        recordId: candidate.recordId,
+        recordParam: "listId",
+      };
+    }
+
+    return null;
+  }
+
+function isManualTimerCandidate(candidate = {}) {
+    return candidate.moduleId === "time-tracking"
+      && candidate.recordType === "active_work_timer"
+      && (candidate.metadata?.source_type || "manual") === "manual";
+  }
+
+function inspectorCandidateTitle(candidate = {}) {
+    const title = String(candidate.title || "").trim();
+
+    if (title && !looksLikeRawId(title)) {
+      return title;
+    }
+
+    const label = formatToken(candidate.recordType || candidate.moduleId || "work");
+    return label ? `${label} context` : "Work context";
+  }
+
+function inspectorCandidateContext(candidate = {}) {
+    const context = String(candidate.contextLabel || "").trim();
+
+    if (context && !looksLikeRawId(context)) {
+      return context;
+    }
+
+    const reason = String(candidate.reason || candidate.nextAction || "").trim();
+    if (reason && !looksLikeRawId(reason)) {
+      return reason;
+    }
+
+    return "Ready to review.";
+  }

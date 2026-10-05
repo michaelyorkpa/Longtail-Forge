@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "tasks",
   tier: "focused",
   tags: ["options", "pagination", "performance", "permissions", "workbench"],
-  description: "Proves the task list pipeline keeps options opt-in with a dedicated options endpoint, bounds workbench items in SQL, drops per-row reminder details and duplicated work-item serialization, pushes due windows into the repository, and preserves permission filtering through the precomputed evaluator.",
+  description: "Proves the typed canonical filter/sort engine boundary, opt-in list options, bounded SQL workbench paging, lean projection serialization, due-window pushdown, and permission filtering through one precomputed evaluator.",
   runMode: "isolated-database",
 });
 
@@ -13,6 +13,8 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-list-pipeline-"));
@@ -20,6 +22,8 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "task-list-pipeline.db")
 process.env.SUPER_ADMIN_PASSWORD = "Task-List-Pipeline-Test-123!";
 
 const tasksServiceSource = readFileSync(path.join(root, "src/modules/tasks/tasks.service.js"), "utf8");
+const taskListEngineSource = readFileSync(path.join(root, "src/modules/tasks/task-list-engine.js"), "utf8");
+const tasksRepositorySource = readFileSync(path.join(root, "src/modules/tasks/tasks.repo.js"), "utf8");
 const tasksModuleSource = readFileSync(path.join(root, "src/modules/tasks/module.js"), "utf8");
 const resumeProducersSource = readFileSync(path.join(root, "src/services/work-resume-state-initial-producers.js"), "utf8");
 
@@ -42,7 +46,23 @@ try {
     "list projections must not read reminder details per row",
   );
   assert.match(tasksModuleSource, /listRoute: "\/api\/tasks\/options"/, "the Tasks workbench card should consume the cacheable options route");
+  // The lightweight core read is the pipeline contract this owner protects.
+  // Until 0.33.33.32.10.1 the session reached it through an inline
+  // TaskServerSession assertion, and this guard pinned that assertion text.
+  // The resolver context now publishes the workspace-scoped session, so the
+  // boundary is the contract rather than a cast, and the guard proves the
+  // lightweight read plus the scope proof that must precede it.
   assert.match(resumeProducersSource, /tasksService\.readCore\(recordId, session\)/, "the resume-state read check should use the lightweight core read");
+  assert.match(
+    resumeProducersSource,
+    /async function taskReadResolver\(\{ recordId, session, workspaceId \}\)[\s\S]*?isWorkspaceScopedSession\(session, workspaceId\)[\s\S]*?tasksService\.readCore/,
+    "the resume-state read check should prove its workspace scope before the Tasks read",
+  );
+  assert.match(tasksServiceSource, /createTaskListFilterContext[\s\S]*visibleTaskListCandidates[\s\S]*taskMatchesCanonicalQuery/, "the Tasks orchestrator should consume the typed filter engine boundary");
+  assert.doesNotMatch(tasksServiceSource, /function (?:taskMatchesCanonicalQuery|sortCanonicalTasks|normalizeTaskListPagination)\b/, "the Tasks orchestrator must not re-own extracted filter, sort, or paging decisions");
+  assert.equal(owningProgram("src/modules/tasks/task-list-engine.js"), "server-tests", "the filter engine must remain strict-clean in its checked program");
+  assert.match(taskListEngineSource, /function createTaskListFilterContext[\s\S]*function taskMatchesCanonicalQuery[\s\S]*function sortCanonicalTasks/, "the checked engine should own normalization, filtering, and stable sorting");
+  assert.match(tasksRepositorySource, /normalizeTaskListSort[\s\S]*taskStatusFilterOverridesActiveScope/, "the repository SQL projection should consume the engine's canonical sort and active-scope normalization");
 
   await initializeDatabase();
   const session = await readSeedSession();
@@ -205,16 +225,14 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} clientId
+ * @returns {Promise<import("../../../src/types/http-contracts.js").WorkspaceRequestSession>}
+ */
 async function createClientScopedSession(workspaceId, clientId) {
   const userId = randomUUID();
   const now = "2026-01-01T00:00:00.000Z";
@@ -231,8 +249,11 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(workspaceId)}, ${sqlText(userId)}, '
 `);
 
   return {
+    active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: "America/New_York",
     user_id: userId,
     username: `pipeline-limited-${userId}@example.test`,

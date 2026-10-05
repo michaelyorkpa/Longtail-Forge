@@ -39,7 +39,7 @@ async function discoverModuleDirectoryNames() {
         names.push(entry.name);
       }
     } catch (error) {
-      if (error.code !== "ENOENT") {
+      if (/** @type {NodeJS.ErrnoException} */ (error).code !== "ENOENT") {
         throw error;
       }
     }
@@ -48,6 +48,7 @@ async function discoverModuleDirectoryNames() {
   return names.sort((left, right) => left.localeCompare(right));
 }
 
+/** @param {readonly string[]} directoryNames */
 function renderCatalog(directoryNames) {
   const imports = directoryNames.map((directoryName, index) => (
     `import { moduleEntry as moduleEntry${index} } from "../../modules/${directoryName}/module.js";`
@@ -73,7 +74,7 @@ async function readCurrentCatalog() {
   try {
     return await fs.readFile(catalogPath, "utf8");
   } catch (error) {
-    if (error.code === "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") {
       return "";
     }
     throw error;

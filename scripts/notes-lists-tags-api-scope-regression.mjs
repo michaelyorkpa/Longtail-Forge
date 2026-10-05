@@ -3,6 +3,17 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ApiScopeSession */
+/** @typedef {{ body: unknown, status: number }} ApiResponse */
+/** @typedef {{ note_id?: string, id?: string, list_id?: string, body_markdown?: unknown, links?: unknown[], items?: unknown[], list?: Record<string, unknown>, note?: unknown, client?: unknown }} ApiScopeRecord */
+/** @typedef {{ data: ApiScopeRecord }} ApiDataEnvelope */
+/** @typedef {{ data: ApiScopeRecord[] }} ApiDataListEnvelope */
+/** @typedef {{ data: ApiScopeRecord[], apiVersion: unknown }} ApiVersionedListEnvelope */
+/** @typedef {{ error: { message?: unknown, code?: unknown } }} ApiErrorEnvelope */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-lists-tags-api-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-lists-tags-api.db");
@@ -17,6 +28,7 @@ const { clientsService } = await import("../src/modules/client-projects/clients.
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { listsService } = await import("../src/modules/lists/lists.service.js");
 
+/** @type {import("node:http").Server | undefined} */
 let server;
 
 const FETCH_BLOCKED_PORTS = new Set([
@@ -35,19 +47,21 @@ try {
   await assertApiScopeVisibility(session);
 
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
   await assertNotesListsPublicReads(session, baseUrl);
   await assertIntegrity();
 
   console.log("Notes/Lists tag inheritance and API scope regression passed.");
 } finally {
   if (server) {
-    await new Promise((resolve) => server.close(resolve));
+    const listening = server;
+    await new Promise((resolve) => listening.close(resolve));
   }
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {ApiScopeSession} session */
 async function assertNotesInheritClientProjectTags(session) {
   const clientTag = await tagsService.create(session, {
     color: "#2563eb",
@@ -110,6 +124,7 @@ async function assertNotesInheritClientProjectTags(session) {
   );
 }
 
+/** @param {ApiScopeSession} session @param {string} noteId @param {string} tagId @param {{ ruleId: string, sourceTargetId: string, sourceTargetType: string }} expected */
 async function assertPropagatedTag(session, noteId, tagId, expected) {
   const assignments = await tagsService.listAssignments(session, {
     targetId: noteId,
@@ -124,6 +139,7 @@ async function assertPropagatedTag(session, noteId, tagId, expected) {
   assert.equal(assignments.directTags.some((tag) => tag.tag_id === tagId), false);
 }
 
+/** @param {ApiScopeSession} session */
 async function assertApiScopeVisibility(session) {
   await setWorkspaceType(session.workspace_id, "business");
   const businessScopes = await scopeIds(session.workspace_id);
@@ -147,6 +163,7 @@ async function assertApiScopeVisibility(session) {
   await setModuleStatus(session.workspace_id, "notes", "enabled");
 }
 
+/** @param {ApiScopeSession} session @param {string} baseUrl */
 async function assertNotesListsPublicReads(session, baseUrl) {
   const note = (await notesService.create({
     body_markdown: "Public note read body.",
@@ -166,37 +183,50 @@ async function assertNotesListsPublicReads(session, baseUrl) {
   }, session);
 
   const notesList = await apiRequest(baseUrl, "/api/v1/notes", { rawKey: fullKey.rawKey });
+  /** @type {ApiVersionedListEnvelope} */
+  const notesListPayload = readPayload(notesList, ["data"], "notesList");
   assert.equal(notesList.status, 200);
-  assert.equal(notesList.body.apiVersion, "v1");
-  assert.ok(notesList.body.data.some((entry) => entry.note_id === note.note_id));
-  assert.equal(Object.hasOwn(notesList.body.data[0], "body_html"), false);
+  assert.equal(notesListPayload.apiVersion, "v1");
+  assert.ok(notesListPayload.data.some((entry) => entry.note_id === note.note_id));
+  assert.equal(Object.hasOwn(notesListPayload.data[0], "body_html"), false);
 
   const noteRead = await apiRequest(baseUrl, `/api/v1/notes/${encodeURIComponent(note.note_id)}`, { rawKey: fullKey.rawKey });
+  /** @type {ApiDataEnvelope} */
+  const noteReadPayload = readPayload(noteRead, ["data"], "noteRead");
   assert.equal(noteRead.status, 200);
-  assert.equal(noteRead.body.data.note_id, note.note_id);
-  assert.equal(noteRead.body.data.body_markdown, "Public note read body.");
+  assert.equal(noteReadPayload.data.note_id, note.note_id);
+  assert.equal(noteReadPayload.data.body_markdown, "Public note read body.");
 
   const listsList = await apiRequest(baseUrl, "/api/v1/lists", { rawKey: fullKey.rawKey });
+  /** @type {ApiDataListEnvelope} */
+  const listsListPayload = readPayload(listsList, ["data"], "listsList");
   assert.equal(listsList.status, 200);
-  assert.ok(listsList.body.data.some((entry) => entry.list_id === list.list_id));
+  assert.ok(listsListPayload.data.some((entry) => entry.list_id === list.list_id));
 
   const listRead = await apiRequest(baseUrl, `/api/v1/lists/${encodeURIComponent(list.list_id)}`, { rawKey: fullKey.rawKey });
+  /** @type {ApiDataEnvelope} */
+  const listReadPayload = readPayload(listRead, ["data"], "listRead");
   assert.equal(listRead.status, 200);
-  assert.equal(listRead.body.data.list.list_id, list.list_id);
-  assert.ok(Array.isArray(listRead.body.data.items));
-  assert.ok(Array.isArray(listRead.body.data.links));
+  assert.ok(listReadPayload.data.list, "the list read should answer a list record");
+  assert.equal(listReadPayload.data.list.list_id, list.list_id);
+  assert.ok(Array.isArray(listReadPayload.data.items));
+  assert.ok(Array.isArray(listReadPayload.data.links));
 
   const underscopedList = await apiRequest(baseUrl, "/api/v1/lists", { rawKey: notesOnlyKey.rawKey });
+  /** @type {ApiErrorEnvelope} */
+  const underscopedListPayload = readPayload(underscopedList, ["error"], "underscopedList");
   assert.equal(underscopedList.status, 403);
-  assert.equal(underscopedList.body.error.code, "scope_required");
+  assert.equal(underscopedListPayload.error.code, "scope_required");
 }
 
+/** @param {string} workspaceId */
 async function scopeIds(workspaceId) {
   return (await modulesService.listAvailableApiScopes(workspaceId))
     .map((scope) => scope.id)
     .sort();
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -205,6 +235,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @param {string} workspaceId @param {string} moduleId @param {string} status */
 async function setModuleStatus(workspaceId, moduleId, status) {
   await runSql(`
 UPDATE workspace_modules
@@ -215,6 +246,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/** @param {string} baseUrl @param {string} route @param {{ rawKey?: string }} [options] @returns {Promise<ApiResponse>} */
 async function apiRequest(baseUrl, route, { rawKey } = {}) {
   const response = await fetch(`${baseUrl}${route}`, {
     headers: rawKey ? { authorization: `Bearer ${rawKey}` } : {},
@@ -227,10 +259,11 @@ async function apiRequest(baseUrl, route, { rawKey } = {}) {
   };
 }
 
+/** @param {import("express").Application} app @returns {Promise<import("node:http").Server>} */
 async function listen(app) {
   for (let attempt = 0; attempt < 25; attempt += 1) {
     const nextServer = await listenOnEphemeralPort(app);
-    const port = nextServer.address()?.port;
+    const port = listenerPort(nextServer);
 
     if (!FETCH_BLOCKED_PORTS.has(port)) {
       return nextServer;
@@ -242,6 +275,14 @@ async function listen(app) {
   throw new Error("Unable to find an ephemeral port accepted by fetch.");
 }
 
+/** @param {import("node:http").Server} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the API scope fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {import("express").Application} app @returns {Promise<import("node:http").Server>} */
 async function listenOnEphemeralPort(app) {
   return new Promise((resolve, reject) => {
     const nextServer = app.listen(0, "127.0.0.1", () => resolve(nextServer));
@@ -264,12 +305,6 @@ ORDER BY users.user_id, workspaces.workspace_id
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user fixture is required");
-  return {
-    display_name: rows[0].display_name || rows[0].username,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  const row = requireFirstRow(rows, "protected user fixture is required");
+  return workspaceSessionFixture({ ...row, display_name: row.display_name || row.username });
 }

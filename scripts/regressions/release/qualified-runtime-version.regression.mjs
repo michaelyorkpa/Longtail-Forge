@@ -12,6 +12,7 @@ import fs from "node:fs/promises";
 import { appVersion, qualifyAppVersion } from "../../../src/core/version.js";
 import { createConfig } from "../../../src/config.js";
 
+/** @param {string} filePath */
 const read = (filePath) => fs.readFile(filePath, "utf8");
 const [appInfo, appShell, diagnostics, splash, footer, artifactBuilder, deploy, hostHelper, nightly, main, manualPreview, manualRelease] = await Promise.all([
   read("src/routes/app-info.routes.js"),

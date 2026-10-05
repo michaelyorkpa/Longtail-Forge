@@ -8,17 +8,17 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import Database from "better-sqlite3";
-import {
-  captureCanonicalWorkspaceInventory,
-  assertCanonicalWorkspaceInventoryUnchanged,
-} from "../../test-support/canonical-workspace-inventory.mjs";
+import { captureCanonicalWorkspaceInventory, assertCanonicalWorkspaceInventoryUnchanged } from "../../test-support/canonical-workspace-inventory.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+const { readText } = createProjectTextReader();
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-cleanup-isolation-"));
@@ -64,13 +64,12 @@ function assertStaticContracts() {
     "scripts/search-index-sync-regression.mjs",
     "scripts/search-lifecycle-regression.mjs",
     "scripts/search-rebuild-regression.mjs",
-    "scripts/static-contract-closeout-regression.mjs",
     "scripts/version-literal-guardrail-regression.mjs",
     "scripts/view-descriptor-manifest-regression.mjs",
     "scripts/view-descriptor-reference-regression.mjs",
     "scripts/view-shared-capabilities-regression.mjs",
     "scripts/regressions/framework/asset-cache-version.regression.mjs",
-    "scripts/regressions/views/dashboard-calendar-embed.regression.mjs",
+    "scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs",
   ]) {
     const source = readText(script);
     assert.match(source, /createDisposableDatabaseFixture/, `${script} should select a disposable database`);
@@ -78,6 +77,7 @@ function assertStaticContracts() {
   }
 }
 
+/** @param {string} targetDatabase @param {string} targetBackup */
 async function assertDryRunAndApply(targetDatabase, targetBackup) {
   const before = readWorkspaceState(targetDatabase);
   const dryRun = await runNode([
@@ -85,15 +85,25 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     "--database",
     targetDatabase,
   ]);
-  const dryRunReport = JSON.parse(dryRun.stdout);
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations?: unknown, foreignKeyViolations?: unknown, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  const dryRunReport = requireJsonRecord(JSON.parse(dryRun.stdout), "cleanup dry-run report");
+  assert.ok(dryRunReport.plan, "dryRunReport should publish its plan");
 
   assert.equal(dryRun.exitCode, 0, dryRun.stderr);
   assert.equal(dryRunReport.action, "dry-run");
   assert.equal(dryRunReport.plan.retainedWorkspaceCount, 4);
   assert.equal(dryRunReport.plan.removalWorkspaceCount, 2);
   assert.deepEqual(dryRunReport.plan.orphanWorkspaceScopes, ["orphan-navigation-workspace"]);
-  assert.equal(dryRunReport.plan.blockingForeignKeyViolations.length, 1);
-  assert.equal(dryRunReport.plan.foreignKeyViolations[0].repairableByAuthorizedRoleCleanup, true);
+  // requireJsonRecord proves only that the report itself is an object, so the
+  // plan's two violation lists are proven to be arrays before one is measured
+  // and the other indexed. A one-character string would otherwise satisfy the
+  // blocking-violation count.
+  const blockingViolations = dryRunReport.plan.blockingForeignKeyViolations;
+  assert.ok(Array.isArray(blockingViolations), `dry-run plan should publish blockingForeignKeyViolations as an array: ${JSON.stringify(blockingViolations)}`);
+  assert.equal(blockingViolations.length, 1);
+  const foreignKeyViolations = dryRunReport.plan.foreignKeyViolations;
+  assert.ok(Array.isArray(foreignKeyViolations), `dry-run plan should publish foreignKeyViolations as an array: ${JSON.stringify(foreignKeyViolations)}`);
+  assert.equal(requireJsonRecord(foreignKeyViolations[0], "dry-run first foreign key violation").repairableByAuthorizedRoleCleanup, true);
   assert.deepEqual(readWorkspaceState(targetDatabase), before, "dry-run must not change the database");
 
   const missingBackup = await runNode([
@@ -129,7 +139,10 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     targetBackup,
     "--repair-dangling-retained-role-assignments",
   ]);
-  const appliedReport = JSON.parse(applied.stdout);
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations?: unknown, foreignKeyViolations?: unknown, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  const appliedReport = requireJsonRecord(JSON.parse(applied.stdout), "cleanup applied report");
+  assert.ok(appliedReport.result, "appliedReport should publish its result");
+  assert.ok(appliedReport.backup, "appliedReport should publish its backup");
 
   assert.equal(applied.exitCode, 0, applied.stderr);
   assert.equal(appliedReport.backup.verified, true);
@@ -147,7 +160,9 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     "--database",
     targetDatabase,
   ]);
-  const rerunReport = JSON.parse(rerun.stdout);
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations?: unknown, foreignKeyViolations?: unknown, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  const rerunReport = requireJsonRecord(JSON.parse(rerun.stdout), "cleanup rerun report");
+  assert.ok(rerunReport.plan, "rerunReport should publish its plan");
   assert.equal(rerun.exitCode, 0, rerun.stderr);
   assert.equal(rerunReport.plan.removalWorkspaceCount, 0);
   assert.deepEqual(rerunReport.plan.orphanWorkspaceScopes, []);
@@ -189,6 +204,7 @@ async function assertRepresentativeDirectRunsPreserveCanonicalInventory() {
   assertCanonicalWorkspaceInventoryUnchanged(before, after);
 }
 
+/** @param {string} targetDatabase */
 async function createFixtureDatabase(targetDatabase) {
   const database = new Database(targetDatabase);
 
@@ -216,6 +232,7 @@ VALUES ('orphan-navigation-workspace', 'tasks', 'enabled', ?, NULL, ?);
   }
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedCoreRows(database) {
   database.prepare(`
 INSERT INTO modules (module_id, name, description, category, status, version, created_at, updated_at)
@@ -227,6 +244,7 @@ VALUES ('workspace_admin', 'Workspace Admin', '', 'workspace', 1);
 `).run();
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedRetainedRows(database) {
   for (const workspace of [
     ["york-family", "York Family", "family", "michael-user"],
@@ -234,7 +252,7 @@ function seedRetainedRows(database) {
     ["personal-michael", "Personal", "personal", "michael-user"],
     ["raymond-tec", "Raymond Tec", "business", "support-user"],
   ]) {
-    insertWorkspace(database, ...workspace);
+    insertWorkspace(database, ...(/** @type {[string, string, string, string]} */ (workspace)));
   }
   insertUser(database, "michael-user", "michaelyork@raymondtec.com", "raymond-tec");
   insertUser(database, "support-user", "support@raymondtec.com", "raymond-tec");
@@ -252,6 +270,7 @@ VALUES ('retained-role', 'raymond-tec', 'michael-user', 'workspace_admin', 'work
 `).run(now(), now());
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedRemovalRows(database) {
   insertWorkspace(database, "fixture-workspace", "Regression Fixture Workspace", "business", "fixture-user");
   insertUser(database, "fixture-user", "fixture@example.test", "fixture-workspace");
@@ -264,6 +283,7 @@ VALUES ('fixture-workspace', 'tasks', 'enabled', ?, NULL, ?);
 `).run(now(), now());
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} workspaceId @param {string} name @param {string} workspaceType @param {string} ownerUserId */
 function insertWorkspace(database, workspaceId, name, workspaceType, ownerUserId) {
   database.prepare(`
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at)
@@ -271,6 +291,7 @@ VALUES (?, ?, 'Active', ?, ?, ?, ?);
 `).run(workspaceId, name, workspaceType, ownerUserId, now(), now());
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} userId @param {string} username @param {string} workspaceId */
 function insertUser(database, userId, username, workspaceId) {
   database.prepare(`
 INSERT INTO users (
@@ -281,6 +302,7 @@ VALUES (?, ?, ?, ?, NULL, 'America/New_York', 'fixture-password', 'light', 'acti
 `).run(userId, workspaceId, username, username, workspaceId);
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} membershipId @param {string} userId @param {string} workspaceId */
 function insertMembership(database, membershipId, userId, workspaceId) {
   database.prepare(`
 INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
@@ -288,6 +310,7 @@ VALUES (?, ?, ?, 'active', ?, ?);
 `).run(membershipId, userId, workspaceId, now(), now());
 }
 
+/** @param {string} targetDatabase */
 function readWorkspaceState(targetDatabase) {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
@@ -301,6 +324,7 @@ function readWorkspaceState(targetDatabase) {
   }
 }
 
+/** @param {string} targetDatabase */
 function readWorkspaceNames(targetDatabase) {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
@@ -310,15 +334,17 @@ function readWorkspaceNames(targetDatabase) {
   }
 }
 
+/** @param {string} targetDatabase */
 function readForeignKeyViolations(targetDatabase) {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
-    return database.pragma("foreign_key_check");
+    return /** @type {unknown[]} */ (database.pragma("foreign_key_check"));
   } finally {
     database.close();
   }
 }
 
+/** @param {string[]} args @param {{ env?: NodeJS.ProcessEnv }} [options] */
 function runNode(args, options = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, args, {
@@ -334,10 +360,6 @@ function runNode(args, options = {}) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("close", (exitCode) => resolve({ exitCode, stderr, stdout }));
   });
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
 }
 
 function now() {

@@ -1,4 +1,3 @@
-// @ts-check
 import { clientsRoutes } from "./clients.routes.js";
 import { registerClientProjectsSearchIndexers } from "./search-indexers.js";
 import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
@@ -43,10 +42,7 @@ const clientProjectsModule = {
   browserApiRoutes: [clientsRoutes],
   publicApiRoutes: [],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     { label: "Projects", href: "projects.html", requiredPermissions: ["projects.manage"] },
     { label: "Clients", href: "clients.html", parent: "projects.html", requiredPermissions: ["clients.manage"] },
@@ -404,7 +400,6 @@ const clientProjectsModule = {
       },
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "clients-projects-script",

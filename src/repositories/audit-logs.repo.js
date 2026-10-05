@@ -1,5 +1,3 @@
-// @ts-check
-
 import { db } from "../core/database.js";
 
 /** @typedef {import("../types/database-contracts.js").DatabaseNamedParameterInput} DatabaseNamedParameterInput */

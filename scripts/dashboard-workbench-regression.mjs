@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const fixture = await createDisposableDatabaseFixture("dashboard-workbench-regression");
 const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
@@ -362,14 +364,22 @@ assert.match(
   /createPageHeader\(\{[\s\S]*title: "Dashboard"/,
   "dashboard browser script must build the page header through LongtailForge.view",
 );
+// `0.33.33.38.1`: the previous pattern ran `[\s\S]*` from the call to the next mention of
+// `dashboardStatus`, which the later `dashboardStatus.hidden` assignment satisfied on its own -
+// so it would have kept passing with no status message built here at all. It now asserts the
+// construct it names: the status box is built by the view factory and held in `dashboardStatus`.
 assert.match(
   files.dashboard,
-  /createStatusMessage\(\{[\s\S]*dashboardStatus/,
+  /dashboardStatus = dashboardView\.createStatusMessage\(/,
   "dashboard browser script must build dashboard status through LongtailForge.view",
 );
+// `0.33.33.44.28` indexes the registry by the coerced identifier, which is the lookup a property
+// access already performed - the key a contribution reaches for is unchanged, including the
+// `"undefined"` one an absent `renderer` asks for, which `registerPanelRenderer` can never write.
+// The claim here is unchanged: the panel is still rendered from the contribution's own metadata.
 assert.match(
   files.dashboard,
-  /renderRegisteredDashboardPanels[\s\S]*dashboardPanels[\s\S]*dashboardPanelRenderers\[contribution\.renderer\]/,
+  /renderRegisteredDashboardPanels[\s\S]*dashboardPanels[\s\S]*dashboardPanelRenderers\[String\(contribution\.renderer\)\]/,
   "dashboard browser script must render panels from contribution metadata",
 );
 assert.match(
@@ -407,14 +417,18 @@ assert.match(
   /dashboard-region-body--\$\{regionId\}/,
   "dashboard browser script must mark region bodies for module overview grid styling",
 );
+// `0.33.33.44.28` reads each snapshot branch through `dashboardRecord`, which answers nothing for
+// a member that is not a record - the same fallback the optional chain reached, since a branch
+// that is not a record carries no `emptyState` either. Both claims below are unchanged: each
+// region still draws its own quiet state from its own branch of the snapshot.
 assert.match(
   files.dashboard,
-  /renderModuleOverviewEmptyState[\s\S]*dashboardData\?\.moduleOverview\?\.emptyState/,
+  /renderModuleOverviewEmptyState[\s\S]*dashboardRecord\(dashboardRecord\(dashboardData\?\.moduleOverview\)\?\.emptyState\)/,
   "dashboard browser script must render a quiet Module Overview empty state for sparse workspaces",
 );
 assert.match(
   files.dashboard,
-  /renderRecentActivityState[\s\S]*dashboardData\?\.recentActivity[\s\S]*dashboard-recent-activity-empty/,
+  /renderRecentActivityState[\s\S]*dashboardRecord\(dashboardData\?\.recentActivity\)[\s\S]*dashboard-recent-activity-empty/,
   "dashboard browser script must render the Recent Activity region as a quiet deferred state when no safe rows exist",
 );
 assert.match(
@@ -540,7 +554,7 @@ assert.match(
 );
 assert.match(
   files.workbench,
-  /workbenchCardDataLoaders[\s\S]*loadWorkbenchSourceData[\s\S]*card\.listRoute/,
+  /workbenchCardDataLoaders[\s\S]*loadWorkbenchSourceData[\s\S]*readWorkbenchCardRoute\(card\)[\s\S]*workbenchCardField\(card, "listRoute"\)/,
   "workbench browser script must load card data from contributed list routes",
 );
 assert.match(
@@ -709,10 +723,6 @@ const { closeDatabase } = await import("../src/db/provider.js");
 await closeDatabase();
 await fixture.cleanup();
 
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
 function scanUnexpectedFrameworkCoupling() {
   const allowedFiles = new Set([
     "src/core/app.js",
@@ -745,6 +755,7 @@ function scanUnexpectedFrameworkCoupling() {
     .sort();
 }
 
+/** @param {string} relativeDirectory @returns {string[]} */
 function listProjectFiles(relativeDirectory) {
   const absoluteDirectory = join(projectRoot, relativeDirectory);
   const entries = [];

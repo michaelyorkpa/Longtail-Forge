@@ -4,6 +4,9 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 test("public footer links expose neutral Terms, Privacy, and exact Corresponding Source", async ({ page }) => {
   const loginResponse = await page.goto("/login.html");
+  if (!loginResponse) {
+    throw new Error("page.goto(\"/login.html\") returned no response");
+  }
   expect(loginResponse.status()).toBe(200);
 
   const footer = page.locator(".site-footer");

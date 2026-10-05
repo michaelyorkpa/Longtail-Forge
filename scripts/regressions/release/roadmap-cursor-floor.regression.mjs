@@ -133,6 +133,10 @@ assert.deepEqual(
 
 console.log(`Roadmap cursor floor guardrail passed: live cursor ${liveCursor}, floors monotonic or explicitly archived out of order, no exact pins outside the helper.`);
 
+/**
+ * @param {string} directory
+ * @returns {string[]}
+ */
 function walkMjsFiles(directory) {
   const files = [];
   for (const entry of readdirSync(directory)) {

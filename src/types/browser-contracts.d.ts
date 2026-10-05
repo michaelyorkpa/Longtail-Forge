@@ -7,6 +7,22 @@ export interface BrowserAppShellBootstrapAdapter {
   normalize(value: unknown): AppShellBootstrap;
 }
 
+/**
+ * What one app-shell bootstrap pass resolves to.
+ *
+ * **Three completion forms, and none of them is optional to describe.** `loadAppShellBootstrap`
+ * resolves the context it built on success, `undefined` when a `401` sends the browser to the login
+ * page through a bare `return`, and `null` when its catch path falls back to the settings and
+ * session endpoints. A caller that awaits this is synchronising, not fetching a record.
+ *
+ * **This is the transient refresh result, not the stored workspace context.** The object arm is a
+ * record of unknown-valued members because nothing has validated it at this point: the app-shell
+ * adapter's own `workspaceContext` is an open record, and the canonical stored shape is
+ * `0.33.33.38.4.15`'s to define. Naming this for the refresh rather than for the context is
+ * deliberate - the two are different values with different lifetimes.
+ */
+export type BrowserAppShellRefreshResult = Record<string, unknown> | null | undefined;
+
 export interface BrowserApiErrorDetails {
   code: string;
   message: string;
@@ -21,7 +37,105 @@ export interface BrowserApiError extends Error {
   status: number;
 }
 
+/**
+ * One failure a bulk action reports inside an otherwise successful response.
+ *
+ * **Four producers, one failure record, and that was measured rather than assumed.**
+ * `POST /api/notes/bulk`, `POST /api/tags/bulk-assignments`,
+ * `POST /api/notes/settings/catalogs/bulk` and `POST /api/tasks/bulk` each loop over their targets
+ * and push a constructed object into an `errors` array when one target fails. **What they do not
+ * share is the success half**: the four envelopes carry `notes`, `changed`, `catalogs` and `tasks`
+ * respectively, and only one of them carries `affectedCount`. `0.33.33.38.4.11`'s planning called
+ * this a `{ affectedCount, changed, errors }` envelope; **no producer emits that shape**, and the
+ * contract below is the part that is genuinely shared.
+ *
+ * **`message` is required because all four construct it with a fallback**, so a failure always
+ * carries text. `status` is optional because three producers set it from the caught error and the
+ * catalog producer does not.
+ *
+ * **The identity keys are optional across producers, not within one.** Each producer sets exactly
+ * one - `note_id`, `target_id`, `catalogId`, `task_id` - and this is one contract rather than four
+ * because **the consumer already treats them as one type**: `notes.js` flattens the note and tag
+ * producers' failures into a single list and reads `error.note_id || error.target_id` off the
+ * result. Splitting the record would describe a distinction its only merging consumer does not make.
+ */
+export interface BrowserBulkActionFailure {
+  /** Always constructed with a fallback, so never absent and never empty. */
+  message: string;
+  /** Set by the note, tag and task producers; the catalog producer omits it. */
+  status?: number;
+  /** The catalog producer's identity key. */
+  catalogId?: string;
+  /** The note producer's identity key. */
+  note_id?: string;
+  /** The tag producer's identity key. */
+  target_id?: string;
+  /** Set alongside `target_id` by the tag producer. */
+  target_type?: string;
+  /** The task producer's identity key. */
+  task_id?: string;
+}
+
+/** What a bulk tag assignment did to each target, closed by the normaliser that throws otherwise. */
+export type BrowserTagBulkAction = "add" | "remove" | "replace";
+
+/**
+ * What `POST /api/tags/bulk-assignments` resolves to.
+ *
+ * **Six members from one literal, and the failure half was already published.** `bulkAssign`
+ * ends in a single `return`, so this is one exact contract; its `errors` reuse
+ * `BrowserBulkActionFailure`, which `0.33.33.38.4.11` named after tracing this very route
+ * alongside three others. That child typed the failures every bulk producer shares and left
+ * each producer's own success payload to its owner - this is the tag producer's.
+ *
+ * The two counts are `results.length` and `errors.length`, so they are always finite
+ * non-negative integers and never absent; the consumer's `Number(...) || 0` guarded a body it
+ * had no other reason to distrust.
+ *
+ * `changed` stays `unknown[]`: its elements are what `applyBulkTagAction` answers per target,
+ * a vocabulary belonging to the tag-assignment producer rather than to this envelope, and no
+ * browser consumer reads into them.
+ */
+export interface BrowserTagBulkAssignmentResult {
+  action: BrowserTagBulkAction;
+  /** One entry per target that changed; the tag-assignment producer owns their shape. */
+  changed: unknown[];
+  /** `changed.length`, so always a finite count. */
+  changed_count: number;
+  errors: BrowserBulkActionFailure[];
+  /** `errors.length`, so always a finite count. */
+  skipped_count: number;
+  /** The caller's own target vocabulary, trimmed and required non-empty by the service. */
+  target_type: string;
+}
+
 export interface BrowserErrorContract {
+  /**
+   * The failures a *successful* bulk-action body reports.
+   *
+   * **Not `read`, and the difference is the point.** `read` interprets an error envelope from a
+   * response that failed; this reads the `errors` array a bulk action carries when it succeeded
+   * for some targets and not others. **Element validation, not container validation**: an entry
+   * without a string `message` is not a failure this contract can describe, so it is dropped
+   * rather than counted.
+   */
+  readBulkFailures(body: unknown): BrowserBulkActionFailure[];
+  /**
+   * Narrow a caught value to the message it carries, falling back when it carries none.
+   *
+   * **This is the narrowing contract for the caught-value boundary**, published by
+   * `0.33.33.38.4.1`. A `catch` binding is `unknown` for a reason no declaration can remove:
+   * anything can be thrown. The estate's 131 `error.message || "..."` sites were reading through
+   * that boundary rather than across it.
+   */
+  caughtMessage(value: unknown, fallback: string): string;
+  /**
+   * Narrow a caught value to the HTTP status it carries, or `null` when it carries none.
+   *
+   * `null` rather than `0`: `createError` stores `0` for a producer that supplied no status, so
+   * zero is a status a `BrowserApiError` can genuinely hold and absence needs its own value.
+   */
+  caughtStatus(value: unknown): number | null;
   createError(body: unknown, fallback: string, status?: number): BrowserApiError;
   read(body: unknown, fallback?: string): BrowserApiErrorDetails;
 }
@@ -41,7 +155,705 @@ export interface BrowserApi {
   putJson(url: string, body: unknown, options?: BrowserJsonRequestOptions): Promise<unknown>;
 }
 
-export interface BrowserRecord {
+/**
+ * One lazily loaded script a module action needs before it can be opened.
+ *
+ * `0.33.33.34` moved this vocabulary out of `public/js/workbench.js`, where the same
+ * shape was expressed as a private constant whose readiness probe was a closure. A
+ * closure cannot be checked, so the descriptor names the namespace member the script
+ * must publish instead: `surface` alone for a script that publishes a whole helper,
+ * `surface` plus `member` for one that extends a namespace object another script owns.
+ */
+export interface ModuleActionDependency {
+  /** Member of `surface` that must exist once the script has run. */
+  member?: string;
+  /** Load through dynamic `import()` rather than a classic `<script>` element. */
+  module?: boolean;
+  /** Document-relative source path, before asset versioning is applied. */
+  src: string;
+  /** `LongtailForge` member the script publishes. */
+  surface: string;
+}
+
+/**
+ * The dependency-loading half of `LongtailForge.moduleActions`, published by
+ * `public/js/shared/module-actions.js`.
+ *
+ * Deliberately separate from the registry's own `list`/`open`/`register`: a host page
+ * loads dependencies before the registry can dispatch, so this half has to be usable
+ * while the action it is loading for is still unopenable.
+ */
+export interface ModuleActionDependencyLoader {
+  /**
+   * The declared dependencies for an action, or an empty list for an unknown one. `actionId` is an
+   * opaque action key (`0.33.33.38.2.10`); the table converts it to a property key, so a numeric
+   * `7` reads the entry for `"7"`.
+   */
+  dependenciesFor(actionId: unknown): ModuleActionDependency[];
+  /** Load an action's dependencies in declaration order, skipping satisfied ones. */
+  ensureDependencies(actionId: unknown): Promise<void>;
+}
+
+/**
+ * Published by `public/js/shared/asset-version.js`. Appends the running app version to
+ * an asset URL so a lazily loaded script is cache-busted the same way a declared one is.
+ * Named here by `0.33.33.34` so the shared dependency loader can apply versioning through
+ * the same expression its callers used, rather than probing an unknown-typed member.
+ */
+export interface BrowserAssetVersion {
+  url(assetUrl: string): string;
+  value: string;
+}
+
+/**
+ * A record a Files module action was invoked with.
+ *
+ * Hosts have passed the attachment under several keys over time, and the record itself is
+ * also accepted, so every carrier key is optional and recursive. Published by
+ * `0.33.33.34` because the unwrapping now happens in `public/js/shared/file-preview.js`
+ * while `public/js/files.js` still delegates to it.
+ */
+export interface BrowserFileActionRecord {
+  attachment?: BrowserFileActionRecord;
+  attachmentId?: string;
+  file?: BrowserFileActionRecord;
+  fileAttachment?: BrowserFileActionRecord;
+  fileName?: string;
+  file_attachment_id?: string;
+  record?: BrowserFileActionRecord;
+  returnFocusTo?: HTMLElement | null;
+  row?: BrowserFileActionRecord;
+  trigger?: HTMLElement | null;
+}
+
+/**
+ * The five preview states the Files preview boundary answers.
+ *
+ * Four come from `previewAvailabilityForAttachment`, which reports `unavailable` for a file
+ * that is not available or has not passed scanning, `download_only` for a supported-but-not-
+ * previewable type, `too_large_for_preview` past the 512 KiB text cap, and `previewable`
+ * otherwise. The fifth, `unauthorized`, is produced one level up by the shared access gate
+ * when `files.download` is refused for the preview operation - the browser is told the file
+ * cannot be previewed without being told anything more about it.
+ */
+export type BrowserFilePreviewState =
+  | "download_only"
+  | "previewable"
+  | "too_large_for_preview"
+  | "unauthorized"
+  | "unavailable";
+
+/** The four kinds `previewKindForAttachment` maps an extension to, and nothing else. */
+export type BrowserFilePreviewKind = "image" | "markdown" | "text" | "unsupported";
+
+/**
+ * The kinds a **previewable** descriptor can carry.
+ *
+ * `unsupported` is missing because it cannot occur: the availability function answers
+ * `download_only` for that kind before it can reach the `previewable` return.
+ */
+export type BrowserPreviewableFileKind = "image" | "markdown" | "text";
+
+/**
+ * The members `shapeAttachmentPreviewDescriptor` writes for every descriptor it builds.
+ *
+ * The paired camelCase and snake_case spellings are the producer's own compatibility pairs,
+ * not a choice made here; it names both, so both are declared.
+ */
+export interface BrowserFilePreviewDescriptorCommon {
+  extension: string;
+  fileAttachmentId: string;
+  file_attachment_id: string;
+  fileId: string;
+  file_id: string;
+  fileName: string;
+  file_name: string;
+  fileSizeBytes: number;
+  file_size_bytes: number;
+  fileType: string;
+  file_type: string;
+  filename: string;
+  mimeType: string;
+  mime_type: string;
+  moduleId: string;
+  module_id: string;
+  /** Why the file is not previewable; the empty string when it is. */
+  reason: string;
+  scanStatus: string;
+  scan_status: string;
+  status: string;
+  targetId: string;
+  target_id: string;
+  targetType: string;
+  target_type: string;
+}
+
+/**
+ * A descriptor whose file may actually be previewed.
+ *
+ * The producer sets `contentAvailable` from `state === "previewable"` and adds the content
+ * URL **only** under that flag, so the state, the flag and the URL's presence are one fact
+ * written three times rather than three independent members. This variant says so, which is
+ * why the browser may read `contentUrl` here without a further test.
+ */
+export interface BrowserPreviewableFileDescriptor extends BrowserFilePreviewDescriptorCommon {
+  contentAvailable: true;
+  content_available: true;
+  /**
+   * The preview content route for this attachment, and deliberately nothing else.
+   *
+   * `previewContentUrlForAttachment` builds `/api/files/attachments/:id/preview/content`
+   * from the attachment id alone. It is never a storage key, a filesystem path or a signed
+   * cloud-storage URL, so following it re-enters the same access gate rather than reaching
+   * an object store directly.
+   */
+  contentUrl: string;
+  content_url: string;
+  kind: BrowserPreviewableFileKind;
+  previewKind: BrowserPreviewableFileKind;
+  preview_kind: BrowserPreviewableFileKind;
+  previewState: "previewable";
+  preview_state: "previewable";
+  state: "previewable";
+}
+
+/**
+ * A descriptor the browser must render as a state message rather than as content.
+ *
+ * The content URL is declared absent rather than optional: this producer does not write it
+ * outside the previewable branch, and a body that carried one here did not come from it.
+ */
+export interface BrowserUnpreviewableFileDescriptor extends BrowserFilePreviewDescriptorCommon {
+  contentAvailable: false;
+  content_available: false;
+  contentUrl?: undefined;
+  content_url?: undefined;
+  kind: BrowserFilePreviewKind;
+  previewKind: BrowserFilePreviewKind;
+  preview_kind: BrowserFilePreviewKind;
+  previewState: Exclude<BrowserFilePreviewState, "previewable">;
+  preview_state: Exclude<BrowserFilePreviewState, "previewable">;
+  state: Exclude<BrowserFilePreviewState, "previewable">;
+}
+
+/** The descriptor `shapeDescriptor` returns, discriminated on the state it was built from. */
+export type BrowserFilePreviewDescriptor =
+  | BrowserPreviewableFileDescriptor
+  | BrowserUnpreviewableFileDescriptor;
+
+/**
+ * `GET /api/files/attachments/:fileAttachmentId/preview`.
+ *
+ * The metadata half of the Files preview boundary: it answers whether and how a file may be
+ * previewed, after the shared access gate has proved the attachment exists, is not removed,
+ * resolves to a target the caller may read, and carries the `files.download` right. The route
+ * wraps the descriptor by name, so this envelope is exact at one member.
+ */
+export interface BrowserFilePreviewDescriptorEnvelope {
+  preview: BrowserFilePreviewDescriptor;
+}
+
+/** Text preview content, read from the file's own bytes and never interpreted as markup. */
+export interface BrowserFilePreviewTextContent {
+  encoding: "utf-8";
+  kind: "text";
+  text: string;
+}
+
+/**
+ * Markdown preview content.
+ *
+ * `bodyHtml` is assigned to `innerHTML`, and it is safe to do that **because
+ * `renderMarkdownToHtml` produced it**: that renderer parses with `html: false`, so raw
+ * markup in the uploaded file is escaped rather than passed through; it strips
+ * `javascript:`, `vbscript:` and `data:` link targets before parsing and validates every
+ * surviving URL; and, because the Files preview passes no `allowImages`, it renders images
+ * as escaped text rather than as `<img>`. The bytes are attacker-controlled - anyone who can
+ * upload a `.md` file chooses them - so the browser must not treat this member as trusted
+ * markup on the strength of its name. It is trusted because of the call that made it.
+ */
+export interface BrowserFilePreviewMarkdownContent {
+  bodyFormat: "markdown";
+  bodyHtml: string;
+  bodyHtmlFormat: "html";
+  bodyMarkdown: string;
+  kind: "markdown";
+}
+
+/**
+ * The two content records the JSON preview branch answers.
+ *
+ * Images are absent on purpose. The content route streams image bytes to the response with
+ * its own headers, so the browser reaches them through `<img src>` and never through
+ * `getJson`; a JSON body claiming `kind: "image"` is not something this producer sends.
+ */
+export type BrowserFilePreviewContent =
+  | BrowserFilePreviewTextContent
+  | BrowserFilePreviewMarkdownContent;
+
+/**
+ * `GET /api/files/attachments/:fileAttachmentId/preview/content`, in its JSON form.
+ *
+ * The delivery half of the boundary. It re-runs the same access gate rather than trusting the
+ * descriptor the browser was handed, then additionally requires that the content is
+ * available, that the backing file row exists, and that the stored object can be read.
+ *
+ * The embedded descriptor is the previewable variant because `assertContentAvailable` throws
+ * for every other state, and its kind equals the content's kind because both are built from
+ * the one availability record this request resolved.
+ */
+export interface BrowserFilePreviewContentEnvelope {
+  content: BrowserFilePreviewContent;
+  preview: BrowserPreviewableFileDescriptor;
+}
+
+/**
+ * The action-shaped half of `LongtailForge.filePreview`: the `files.preview` opener and
+ * the record helpers both Files actions unwrap their params with.
+ */
+export interface BrowserFilePreviewActions {
+  fileActionAttachmentId(attachmentOrRow?: BrowserFileActionRecord): string;
+  normalizeFileActionRecord(params?: BrowserFileActionRecord): BrowserFileActionRecord;
+  openFilePreviewAction(params?: BrowserFileActionRecord, hostContext?: unknown): unknown;
+}
+
+/**
+ * What `previewAvailabilityForRow` answers about one row.
+ *
+ * `unauthorized` is absent because this reader cannot produce it: that state is decided one
+ * level up by the shared access gate, which refuses `files.download` before a row is read.
+ */
+export interface BrowserFilePreviewAvailability {
+  kind: BrowserFilePreviewKind;
+  reason: string;
+  state: Exclude<BrowserFilePreviewState, "unauthorized">;
+}
+
+/**
+ * `LongtailForge.filePreview`, published by `public/js/shared/file-preview.js`.
+ *
+ * The whole publication, not the action-shaped half: `BrowserFilePreviewActions` describes the
+ * three members the Files controller delegates to, and this extends it with the six the preview
+ * helper also publishes. **The two openers are not the same shape and must not be merged.**
+ * `openFilePreview` builds a modal and hands it back synchronously; `openFilePreviewAction`
+ * answers the host context's result promise when there is one and the dialog when there is not,
+ * which is why its return stays `unknown` rather than becoming a promise.
+ *
+ * `previewAvailabilityForRow` never answers `unauthorized`: that state is produced one level up
+ * by the shared access gate, so this reader's own vocabulary excludes it.
+ */
+export interface BrowserFilePreview extends BrowserFilePreviewActions {
+  normalizeFilePreviewRow(attachmentOrRow?: unknown, options?: unknown): Record<string, unknown>;
+  openFilePreview(attachmentOrRow?: unknown, options?: unknown): BrowserViewModalElement;
+  previewAvailabilityForRow(row?: unknown): BrowserFilePreviewAvailability;
+  previewKindForExtension(extension?: unknown): BrowserFilePreviewKind;
+  previewStateMessage(state?: unknown): string;
+  previewUnavailableLabel(row?: unknown): string;
+}
+
+/**
+ * `LongtailForge.filesDialog`, published by `public/js/files.js`.
+ *
+ * Four members, and two of them delegate: the Files page owns the namespace but the preview
+ * pair is forwarded to `shared/file-preview.js`, so a host that only wants a preview never
+ * loads this controller. Both openers are synchronous - the editor action answers the host
+ * context's result when there is one and the dialog when there is not.
+ */
+export interface BrowserFilesDialog {
+  openFileEditor(attachmentOrRow?: unknown, options?: unknown): BrowserViewModalElement;
+  openFileEditorAction(params?: BrowserFileActionRecord, hostContext?: unknown): unknown;
+  openFilePreview(attachmentOrRow?: unknown, options?: unknown): BrowserViewModalElement;
+  openFilePreviewAction(params?: BrowserFileActionRecord, hostContext?: unknown): unknown;
+}
+
+/**
+ * `LongtailForge.clientProjectDialog`, published by `public/js/clients-projects.js`.
+ *
+ * **Unlike the Files openers these are asynchronous, and their promise resolves a string.**
+ * Each awaits its dialog data, resolves the requested record, and settles on the dialog's
+ * `close` event with `dialog.returnValue || "closed"` - a close reason, never a saved record.
+ * Each also **throws** when the record cannot be found or the caller may not manage it, which
+ * is a rejection rather than a resolved outcome.
+ */
+export interface BrowserClientProjectDialog {
+  openAddClient(params?: unknown, hostContext?: unknown): Promise<string>;
+  openAddProject(params?: unknown, hostContext?: unknown): Promise<string>;
+  openEditClient(params?: unknown, hostContext?: unknown): Promise<string>;
+  openEditProject(params?: unknown, hostContext?: unknown): Promise<string>;
+}
+
+/**
+ * `LongtailForge.userPreferences`, published by `public/js/navigation.js`.
+ *
+ * **One member, and its type is the validation the app-shell adapter already performs.** The
+ * adapter reads `source.user` through a record check and builds `preferredCalendarView` with
+ * `stringValue`, which answers the original string or `""`; the publication turns `""` into
+ * `null`. So the runtime promise is a **string or null** - not a three-value union. An
+ * unrecognised non-empty view survives this boundary, and the calendar consumer's own
+ * normaliser is what decides to fall back. Declaring a closed vocabulary here would claim a
+ * check nothing performs.
+ */
+export interface BrowserUserPreferences {
+  readonly preferredCalendarView: string | null;
+}
+
+/**
+ * One navigation intent, as the controller and its callers actually shape it.
+ *
+ * `continue` may answer a value, a promise, or nothing, which is why `request` resolves
+ * `unknown` rather than `void`: the controller hands the caller's own result back.
+ */
+export interface BrowserNavigationIntentRequest {
+  [key: string]: unknown;
+  commitBeforeContinue?: boolean;
+  continue?: () => unknown;
+  href?: string;
+  kind?: string;
+}
+
+/**
+ * What `request` and `navigate` accept, before the controller normalises it (`0.33.33.38.2.11`).
+ *
+ * The same members as {@link BrowserNavigationIntentRequest} except `href`, which is the raw
+ * destination a caller holds. The controller tests that original value: a falsy one becomes `""`
+ * and nothing is assigned, and a truthy one is converted once, inside `request`, into the absolute
+ * URL every guard and `location.assign` then receive as text. So the raw side is `unknown` and the
+ * normalised side stays `string`; nothing here asserts that an unconverted value is already text.
+ */
+export interface BrowserNavigationIntentRequestInput {
+  [key: string]: unknown;
+  commitBeforeContinue?: boolean;
+  continue?: () => unknown;
+  href?: unknown;
+  kind?: string;
+}
+
+/**
+ * The guard a page registers to hold navigation while it finishes something.
+ *
+ * Every member is optional because the controller reaches each through an optional call, and
+ * `shouldHold` is the only one it consults before deciding to hold.
+ */
+export interface BrowserNavigationExitGuard {
+  beforeContinue?(intent: BrowserNavigationIntentRequest): unknown;
+  onCommitted?(intent: BrowserNavigationIntentRequest): void;
+  onContinueError?(intent: BrowserNavigationIntentRequest, error: unknown): void;
+  shouldHold?(intent: BrowserNavigationIntentRequest): boolean;
+}
+
+/**
+ * `LongtailForge.navigationIntent`, published by `public/js/navigation.js`.
+ *
+ * Four members, and the promise lifetime is part of the contract. **`request` is not `async`**:
+ * it answers `Promise.resolve(...)` when nothing holds, and otherwise returns the *same pending
+ * promise* to every caller until that intent settles. Making it `async` would wrap a new promise
+ * each call and move a synchronous URL failure into a rejection, so the declaration says
+ * `Promise<unknown>` and leaves the implementation as it is.
+ *
+ * `registerExitGuard` answers an **unregister function that only clears the guard it registered**
+ * - a stale unregister after a newer guard has replaced it is a no-op.
+ */
+export interface BrowserNavigationIntent {
+  /** `href` is the raw destination; see {@link BrowserNavigationIntentRequestInput}. */
+  navigate(href: unknown, options?: BrowserNavigationIntentRequest): Promise<unknown>;
+  registerExitGuard(guard?: BrowserNavigationExitGuard | null): () => void;
+  request(intent?: BrowserNavigationIntentRequestInput): Promise<unknown>;
+  shouldHold(intent?: BrowserNavigationIntentRequest): boolean;
+}
+
+/** What `quickActionRefresh.subscribe` filters on and calls back. */
+export interface BrowserQuickActionRefreshSubscription {
+  [key: string]: unknown;
+  actionIds?: unknown;
+  onRefresh?: (detail: Record<string, unknown>, event?: unknown) => void;
+  recordTypes?: unknown;
+  refresh?: (detail: Record<string, unknown>, event?: unknown) => void;
+}
+
+/**
+ * `LongtailForge.quickActionRefresh`, published by `public/js/shared/quick-action-refresh.js`.
+ *
+ * `subscribe` **throws** a `TypeError` when it is given neither a record type nor an action id,
+ * or no callback; it never answers `undefined`. When it accepts, it answers the unsubscribe
+ * function, so the return is a function rather than an optional one.
+ */
+export interface BrowserQuickActionRefresh {
+  readonly eventName: string;
+  subscribe(options?: BrowserQuickActionRefreshSubscription): () => void;
+}
+
+/**
+ * `LongtailForge.recovery`, published by `public/js/shared/browser-recovery.js`.
+ *
+ * Three members and three different resolutions. `permissionDenied` resolves **nothing** - its
+ * dialog resolves on close. `render` answers the `<main>` it built, or `null` when a recovery
+ * surface is already showing. `present` chooses between them, so it resolves whichever of those
+ * the error it was given calls for.
+ */
+export interface BrowserRecovery {
+  permissionDenied(): Promise<void>;
+  present(error?: unknown, options?: unknown): Promise<HTMLElement | null | void>;
+  render(options?: unknown): Promise<HTMLElement | null>;
+}
+
+/**
+ * `LongtailForge.reporting`, published by `public/js/reporting.js`.
+ *
+ * One member, and **the object is not frozen** - unlike its quiet-tail siblings - so this
+ * describes what it publishes rather than promising it cannot grow. `registerRenderer` answers
+ * nothing: it returns early for an unusable id or registration and otherwise records it.
+ */
+export interface BrowserReporting {
+  registerRenderer(rendererId?: unknown, registration?: unknown): void;
+}
+
+/**
+ * `LongtailForge.viewActionSecurity`, published by `public/js/shared/view-action-security.js`.
+ *
+ * The guarded half of descriptor action dispatch, extracted from the view renderer by
+ * `0.33.33.35.2`. The renderer keeps the orchestration; this confirms an action and settles what
+ * URL it runs against. Both collaborators are passed in so the module acquires nothing and stays
+ * ignorant of descriptor semantics.
+ *
+ * **It carries no permission check.** `0.33.33.39.22` retired `actionPermissionsAllowed` and
+ * `assertActionPermissions`, which returned `true` unconditionally and could not throw. Permission
+ * enforcement is the server's, on the routes these actions dispatch to.
+ */
+export interface BrowserViewActionSecurity {
+  /** Confirm a guarded action through the framework modal, falling back to the host confirm. */
+  confirmDescriptorAction(action: BrowserSecuredAction): Promise<boolean>;
+  /** Replace `{field}` route tokens using the supplied reader; unresolved tokens are left intact. */
+  interpolateRoute(route: unknown, record: unknown, readValue: BrowserDescriptorValueReader): unknown;
+  /** Run a descriptor route action; settling surface state is the caller's concern. */
+  runRouteAction(
+    action: BrowserSecuredAction,
+    context: { api: BrowserApi; readValue: BrowserDescriptorValueReader; record?: unknown },
+  ): Promise<void>;
+}
+
+/**
+ * The parts of a descriptor action `viewActionSecurity` reads.
+ *
+ * `requiredPermissions` left this shape with `0.33.33.39.22`, because nothing in that module
+ * reads it any more. The metadata keeps its owners: `view-surface-descriptor.js` admits and
+ * validates it on every descriptor action, and `src/core/modules/manifest-contract.js` checks it
+ * against the declared permission set when a module manifest loads.
+ */
+export interface BrowserSecuredAction {
+  confirm?: unknown;
+  id?: string;
+  label?: string;
+  method?: string;
+  payload?: unknown;
+  route?: string;
+}
+
+/** Reads one descriptor field out of a record. Supplied by the caller, never resolved. */
+export type BrowserDescriptorValueReader = (record: unknown, field: string, fallback?: unknown) => unknown;
+
+/**
+ * `LongtailForge.viewSearchOptions`, published by `public/js/shared/view-search-options.js`.
+ *
+ * Option hydration for descriptor fields: native `<select>` population and the search-suggestion
+ * combobox that stands in for a select on free-text controls. Extracted by `0.33.33.35.2`. The
+ * control types are structural because the renderer drives real DOM and the framework
+ * regressions drive a fake one.
+ */
+export interface BrowserViewSearchOptions {
+  /** Mount the suggestion combobox on a text control, replacing any previous mount. */
+  mountSearchOptions(control: unknown, options?: unknown[], config?: BrowserSearchOptionsConfig): void;
+  /** Normalize pair-array, object, and scalar option shapes into one row shape. */
+  normalizeSelectOptions(options?: unknown[]): Record<string, unknown>[];
+  /** Route option hydration by control type. */
+  setFieldOptions(control: unknown, options?: unknown[], selectedValue?: unknown, optionsConfig?: BrowserSearchOptionsConfig): void;
+  /** Put a control into its options-unavailable state without inventing option content. */
+  setFieldOptionsError(control: unknown, message?: string): void;
+  /** Populate a native select. */
+  setSelectOptions(control: unknown, options?: unknown[], selectedValue?: unknown): void;
+}
+
+export interface BrowserSearchOptionsConfig {
+  emptyMessage?: string;
+  maxResults?: number;
+  minChars?: number;
+  selectedValue?: unknown;
+  submitMode?: string;
+}
+
+/**
+ * `LongtailForge.viewDataBinding`, published by `public/js/shared/view-data-binding.js`.
+ *
+ * Turns a descriptor's `dataSource` into records: filtered route, response envelope, field
+ * bindings. Extracted by `0.33.33.35.2`. It holds no descriptor defaults and takes its API
+ * client from the caller.
+ */
+export interface BrowserViewDataBinding {
+  /** Append active filter values to a route; unset values never reach the query. */
+  appendFilterQuery(route: string, filters: unknown[] | undefined, filterValues: Record<string, unknown> | null | undefined): string;
+  /** Map one response row onto the descriptor's declared field bindings. */
+  bindRecord(record: unknown, fieldBindings: Record<string, string>): Record<string, unknown>;
+  /** Load and bind the records a descriptor's `dataSource` declares. */
+  loadBoundRecords(
+    descriptor: unknown,
+    filterValues: Record<string, unknown> | null | undefined,
+    api: BrowserApi,
+  ): Promise<Record<string, unknown>[]>;
+  /** Read a dotted path out of a source object. */
+  readPath(source: unknown, path: unknown): unknown;
+}
+
+/**
+ * `LongtailForge.viewModalStack`, published by `public/js/shared/view-modal-stack.js`.
+ *
+ * The modal stack extracted from the view builder by `0.33.33.35.3`: which dialogs are open,
+ * which is on top, which belong to which parent, and what happens to focus when one closes.
+ *
+ * `view-builder.js` keeps publishing these four on the frozen `LongtailForge.view` factory and
+ * delegates each here, so the public factory contract is unchanged. The modal *constructors*
+ * stay in the builder, which is what lets this depend on nothing but the dialogs it is handed.
+ * Entry bookkeeping and registration stay private to the module.
+ */
+export interface BrowserViewModalStack {
+  /** Close every dialog opened from this one, deepest first. */
+  closeChildModals(parent: unknown, value?: string): void;
+  /** Close a dialog and everything it opened. */
+  closeModal(dialog: unknown, value?: string): void;
+  /** Whether this dialog is currently the top of the stack. */
+  isTopModal(dialog: unknown): boolean;
+  /** Open a dialog on top of the stack, honouring an explicitly passed parent even when null. */
+  showModal(dialog: unknown, options?: BrowserModalStackOptions): unknown;
+}
+
+export interface BrowserModalStackOptions {
+  parent?: unknown;
+  returnFocus?: boolean;
+  trigger?: unknown;
+}
+
+/**
+ * `LongtailForge.taskLifecycleLegality`, published by
+ * `public/js/shared/task-lifecycle-legality.js`.
+ *
+ * Given a status, and a timer where one applies, which lifecycle transitions are legal.
+ * Extracted by `0.33.33.37` from the three task surfaces, which had the same rule written eleven
+ * times in two spellings. The primitives are deliberately small: Tasks, Workbench, and Task
+ * Dialog compose them differently on purpose, and this module holds no permission rule, no
+ * message copy, and no descriptor structure.
+ */
+export interface BrowserTaskLifecycleLegality {
+  /** The statuses from which a task is still actionable. */
+  activeStatuses(): BrowserTaskLifecycleStatus[];
+  /** Whether a task in this status may still be completed. */
+  canCompleteStatus(status: unknown): boolean;
+  /** Whether a task has reached an end state. */
+  isTerminalStatus(status: unknown): boolean;
+  /** Whether a timer satisfies an action's declared timer visibility. */
+  timerMatchesVisibility(timer: { timer_status?: string } | null | undefined, visibility: unknown): boolean;
+}
+
+/**
+ * What `overlayHost.create` needs in order to adopt a host element.
+ *
+ * `host` is optional in the signature and required in fact: the writer throws when it is absent
+ * or is not an element node. It is declared `Element` rather than `HTMLElement` because the
+ * implementation only ever reads `nodeType`, `classList` and `getBoundingClientRect`, all of
+ * which `Element` provides - narrowing it further would refuse hosts this helper accepts today.
+ */
+export interface BrowserOverlayHostOptions {
+  host?: Element;
+}
+
+/**
+ * What registering one overlay needs.
+ *
+ * `name` and `title` are `unknown` because the writer coerces both with `String(...)` and trims
+ * them; that coercion is existing behaviour and is not tightened here. `panel` and `trigger` are
+ * optional in the signature and required in fact - a registration missing either throws, exactly
+ * as it does today.
+ *
+ * `panel` is an `HTMLElement` because the writer sets `hidden`, `dataset` and `style` on it and
+ * focuses it. `trigger` is only given attributes, asked whether it contains a node, and measured,
+ * so `Element` is the honest requirement.
+ */
+export interface BrowserOverlayRegistration {
+  name?: unknown;
+  panel?: HTMLElement;
+  title?: unknown;
+  trigger?: Element;
+}
+
+/**
+ * The overlay record `register` hands back.
+ *
+ * **This is the object the writer keeps, not a copy of it**, and it is deliberately mutable: the
+ * writer installs `abortController` on it while the overlay is open and sets it back to `null` on
+ * close, and it writes `previousFocus` at open time. Declaring those two members is what makes
+ * this contract describe the object that actually exists rather than a tidier one.
+ *
+ * `previousFocus` is `Element | null` because it is `document.activeElement`, which is not
+ * necessarily focusable; the writer checks before calling `focus`.
+ */
+export interface BrowserOverlayHandle {
+  /** Present only while the overlay is open; set to `null` by the close path. */
+  abortController?: AbortController | null;
+  close: () => void;
+  host: Element;
+  /** The trimmed, string-coerced registration name. */
+  name: string;
+  panel: HTMLElement;
+  /** Whatever had focus when the overlay opened. Not necessarily focusable. */
+  previousFocus: Element | null;
+  /** The trimmed, string-coerced title; `""` when none was given. */
+  title: string;
+  trigger: Element;
+}
+
+/**
+ * One host's overlay controller.
+ *
+ * **A new controller object per `create` call, over shared per-host state.** Two `create` calls
+ * for the same host answer two different controllers that reach the same registry, so an overlay
+ * registered through one is toggled by the other. Callers must not rely on controller identity.
+ */
+export interface BrowserOverlayController {
+  /** Closes the host's active overlay when one is open, **without** returning focus. */
+  closeAll(): void;
+  register(options?: BrowserOverlayRegistration): BrowserOverlayHandle;
+  /** Opens the named overlay, closes it if it is already active, and does nothing if unknown. */
+  toggle(name: string): void;
+}
+
+/**
+ * The module-facing overlay hook, documented in `docs/module-development.md` and
+ * `docs/ui-surface-contract.md`.
+ *
+ * **Deliberately a plain mutable object with one method.** The writer publishes `{ create }`
+ * without freezing it and this contract says so; freezing it here would be a behaviour change
+ * wearing a contract's clothes.
+ */
+export interface BrowserOverlayHost {
+  create(options?: BrowserOverlayHostOptions): BrowserOverlayController;
+}
+
+/**
+ * The browser-facing task lifecycle vocabulary.
+ *
+ * Declared separately from `TaskLifecycleStatus` in `task-block-recovery-contracts.d.ts`, whose
+ * trailing `string` member collapses that union to `string`. Narrowing the server type belongs to
+ * its own consumer; `0.33.33.37` did not reach into it.
+ */
+export type BrowserTaskLifecycleStatus = "open" | "in_progress" | "blocked" | "complete" | "archived";
+
+/**
+ * The named members the record helpers read, and **no index signature**.
+ *
+ * A published contract `interface` has no implicit index signature, so it cannot be passed where
+ * `BrowserRecord` is required however exactly its shape matches - `NormalizedClientOption` names
+ * every member these helpers touch and was still rejected. The helpers in `shared/records.js`
+ * read only the members below and never index an arbitrary key, so this is what they actually
+ * require. `BrowserRecord` keeps the index signature for the readers that genuinely need it.
+ */
+export interface BrowserRecordFields {
   clientId?: unknown;
   clientName?: unknown;
   id?: unknown;
@@ -50,15 +862,31 @@ export interface BrowserRecord {
   projectId?: unknown;
   projectName?: unknown;
   username?: unknown;
+}
+
+export interface BrowserRecord extends BrowserRecordFields {
   [key: string]: unknown;
 }
 
 export interface BrowserRecords {
-  getProjectMatchKey(project?: BrowserRecord | null): string;
-  matchesClient(entry?: BrowserRecord | null, client?: BrowserRecord | null): boolean;
-  matchesProject(entry?: BrowserRecord | null, project?: BrowserRecord | null): boolean;
+  getProjectMatchKey(project?: BrowserRecordFields | null): string;
+  matchesClient(entry?: BrowserRecordFields | null, client?: BrowserRecordFields | null): boolean;
+  matchesProject(entry?: BrowserRecordFields | null, project?: BrowserRecordFields | null): boolean;
   normalizeKey(value: unknown): string;
-  sortByName<Item extends BrowserRecord>(items: Item[]): Item[];
+  sortByName<Item extends BrowserRecordFields>(items: Item[]): Item[];
+}
+
+/**
+ * The shared checked-DOM contract, published by `shared/checked-dom.js` (`0.33.33.38.3.9`).
+ *
+ * `find` answers the subtype or `null` - absent and the wrong subtype alike - and never throws for
+ * a missing control. `require` refuses that `null` with an error naming the owner and the control.
+ * They are separate so a page can capture a control early and require it only where it already
+ * depended on it, which keeps both its capture lifetime and its failure timing.
+ */
+export interface BrowserCheckedDom {
+  find<T extends Element>(root: ParentNode, selector: string, constructor: { new (): T }): T | null;
+  require<T>(value: T | null, owner: string, name: string): T;
 }
 
 export interface BrowserViewResponseRecords {
@@ -122,26 +950,7208 @@ export interface PageControllerRegistry {
   [pageId: string]: RegisteredPageController;
 }
 
+/**
+ * What `pageController.setStatus` writes to: an element a page or a module host holds.
+ *
+ * **Stated as the element, with the `dataset` requirement where the writer imposes it.** The
+ * message is written to the node's own `textContent`, which every element has; the tone is then
+ * written to `dataset`, which `HTMLElement`, `SVGElement` and `MathMLElement` carry and an
+ * element of another namespace does not. An element without one is **not** refused here: it
+ * takes the message and then fails at the tone, exactly as it always has, and `0.33.33.39.37`
+ * proves both halves in a real document.
+ *
+ * `0.33.33.39.35` said `Element & HTMLOrSVGElement`, which demanded five members the writer
+ * never touches - `autofocus`, `nonce`, `tabIndex`, `blur` and `focus` - and refused a
+ * namespaced element that carries a real `dataset` and writes correctly today. So this does not
+ * claim every `Element` has a `dataset`; it says which write needs one.
+ */
+export type BrowserStatusRecipient = Element;
+
 export interface BrowserPageController {
-  createOption(value: string, text: string): HTMLOptionElement;
+  /**
+   * Create an `<option>`, then hand both arguments to its own setters unchanged.
+   *
+   * `value` takes the option value setter's ToString: `null` becomes `"null"` and a Symbol throws.
+   * `text` takes `textContent`'s nullable conversion: `null` and `undefined` leave no text, and
+   * anything else takes ToString, so a Symbol throws. Declared `unknown` by `0.33.33.39.24`
+   * because that is what the setters accept; it was `string`, which no implementation enforced.
+   */
+  createOption(value: unknown, text: unknown): HTMLOptionElement;
   register(pageId: string, controller: PageControllerDefinition): RegisteredPageController;
   runSmoke(pageId: string): PageSmokeResult;
-  setStatus(element: HTMLElement | null | undefined, message: string, options?: { isError?: boolean }): void;
-  sortByName<Item extends BrowserRecord>(items: Item[]): Item[];
+  /**
+   * Write a status line onto a recipient, or do nothing without one.
+   *
+   * **`message` is `unknown` because the writer never converts it.** A falsy message clears the
+   * line through the `|| ""` fallback, and anything else reaches the node's own `textContent`
+   * setter, which is the conversion: an object takes its `toString`, and a Symbol throws there.
+   * It was declared `string` while both callers hand over whatever their own callers passed.
+   *
+   * The tone is written on every call that reaches a recipient, `"error"` or `""`, and that
+   * write is the one that requires a `dataset`: a recipient without one fails there, after the
+   * message has been written.
+   */
+  setStatus(element: BrowserStatusRecipient | null | undefined, message: unknown, options?: { isError?: boolean }): void;
+  sortByName<Item extends BrowserRecordFields>(items: Item[]): Item[];
+}
+
+/**
+ * The `LongtailForge.view` factory, declared by `0.33.33.38.1`.
+ *
+ * **This is a declaration of what already exists, not a redesign.** The factory is written by
+ * exactly two files and `0.33.33.38.1` changed neither: `public/js/shared/view-builder.js`
+ * publishes 30 members and `public/js/shared/view-renderer.js` spreads the existing object and
+ * adds 10. No member moved, no writer was added or removed, publication order is unchanged, and
+ * nothing here alters a runtime value.
+ *
+ * **The renderer half is optional because the estate makes it optional.** Of the 18 page
+ * templates that load `view-builder.js`, only 8 also load `view-renderer.js`; no page loads the
+ * renderer without the builder. `window.LongtailForge` has one global type across all of them, so
+ * a member present on 8 pages and absent on 10 is genuinely optional *at this declaration's
+ * scope*. That is measured, not defensive: the primitives are required because they are present
+ * wherever the factory exists at all.
+ *
+ * **Option members are `unknown` where the implementation coerces.** `createElement` reads
+ * `options.text` through `String(...)` and `options.hidden` for truthiness, so `unknown` is the
+ * accurate input type rather than a permissive one - the same reason `BrowserApi` returns
+ * `Promise<unknown>`. Where the implementation requires a real type it is named.
+ */
+export interface BrowserViewFactory extends BrowserViewPrimitives, Partial<BrowserViewDescriptorRenderers> {}
+
+/** Class names: a string, an array of them, or any falsy value; flattened and split on whitespace. */
+export type BrowserViewClassNames = unknown;
+/** Text content: coerced with `String(...)` unless it is null or undefined. */
+export type BrowserViewTextValue = unknown;
+/** Appended children: a node, a string, an array of either, or null/undefined. */
+export type BrowserViewChildren = unknown;
+/** A flag read for truthiness rather than for a boolean type. */
+export type BrowserViewFlag = unknown;
+/**
+ * An attribute or dataset bag. `false`, `null`, and `undefined` are skipped, `true` becomes the
+ * empty string, and every other value is coerced with `String(...)`.
+ */
+export type BrowserViewAttributeBag = Record<string, unknown>;
+/** An action: an existing node is used as-is, anything else is passed to `createActionButton`. */
+export type BrowserViewAction = Node | BrowserViewActionButtonOptions;
+/** One action, an array of them, or nothing. `normalizeActions` accepts all three. */
+export type BrowserViewActionInput = BrowserViewAction | readonly BrowserViewAction[] | null | undefined;
+
+/**
+ * An element the factory returns with a frozen, non-enumerable `viewParts` record attached.
+ *
+ * `assignViewParts` uses `Object.defineProperty`, so the parts hang off `viewParts` rather than
+ * off the element itself - `field.viewParts.control`, which is how every consumer already reads
+ * them. Before this declaration none of that was visible to the compiler.
+ */
+export type BrowserViewElementWithParts<Parts> = HTMLElement & { readonly viewParts: Parts };
+
+export interface BrowserViewFieldMessageOptions {
+  invalid?: BrowserViewFlag;
+  tone?: BrowserViewTextValue;
+}
+
+/**
+ * What `createFieldControl` builds. A select for select and multi-select, a textarea for
+ * textarea, and an input for everything else including the radio group members - so `.value`
+ * is available on all of them, which a flat `HTMLElement` would have hidden.
+ */
+export type BrowserViewFieldControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+export interface BrowserViewFieldParts {
+  /**
+   * The first control. Null only on the radio path, where a field descriptor carrying no
+   * options renders a legend and no inputs.
+   */
+  control: BrowserViewFieldControl | null;
+  /** Every control the field rendered; a radio group has more than one. */
+  controls: BrowserViewFieldControl[];
+  /** A `legend` for a radio group and a `span` otherwise; always built. */
+  label: HTMLElement;
+  message: HTMLElement;
+  setMessage(value: unknown, options?: BrowserViewFieldMessageOptions): void;
+}
+
+export interface BrowserViewFieldGridParts {
+  /** Reads the grid's own bound controls. The one guarantee the writer really establishes. */
+  collectValues(options?: BrowserViewCollectFieldValuesOptions): Record<string, unknown>;
+  /**
+   * Whatever the contributing children exposed as their own `viewParts.controls`, concatenated.
+   * A constructed field contributes `BrowserViewFieldControl`s, but the grid accepts any child
+   * and flattens whatever it finds - `createLinkedContextPicker` hands it ordinary labels and a
+   * button - so the grid **does not** establish that every entry is a bound control.
+   */
+  controls: readonly unknown[];
+  /**
+   * The children as given, wrapped when a single one was passed. **Not necessarily constructed
+   * fields**: the grid stores what it was handed, by identity and in order.
+   */
+  fields: readonly unknown[];
+}
+
+/**
+ * The element kinds whose parts `LongtailForge.view.partsOf` answers (`0.33.33.38.3.11`).
+ *
+ * A kind is added here when a page needs to recover a framework element it found by searching, and
+ * its builder registers the element at the same time. Nothing else is recorded.
+ */
+export interface BrowserViewPartsByKind {
+  bulkActionToolbar: BrowserViewBulkActionToolbarParts;
+  linkedContextPicker: BrowserViewLinkedContextPickerParts;
+}
+
+export interface BrowserViewBulkActionToolbarParts {
+  body: HTMLElement;
+  count: HTMLElement;
+  label: HTMLElement;
+  summary: HTMLElement;
+}
+
+export interface BrowserViewListShellParts {
+  /**
+   * Null when the caller passed `status: false`, which is what `createListShell` has always
+   * done: it builds the status region only for `options.status !== false`. Six production call
+   * sites ask for exactly that - three in `clients-projects.js`, one in `reporting.js` and two
+   * in `shared/file-attachments.js` - so unlike the modal footer this absence is on a path the
+   * running application takes, and the member was declared non-nullable anyway.
+   */
+  status: HTMLElement | null;
+}
+
+export interface BrowserViewModalParts {
+  body: HTMLElement;
+  /**
+   * Null when the modal carries neither actions nor a `footer`, which is what `createModal`
+   * has always done: it builds a footer only for `actions.length || options.footer`. The
+   * member was declared non-nullable and that was simply not true of the writer.
+   */
+  footer: HTMLElement | null;
+  title: HTMLElement;
+}
+
+export interface BrowserViewModalFormParts extends BrowserViewModalParts {
+  form: HTMLFormElement;
+  /**
+   * Never null. `createModalForm` builds its footer unconditionally, so a form modal keeps the
+   * stronger guarantee rather than inheriting the base's nullability - its consumers should not
+   * have to check for something that cannot be absent.
+   */
+  footer: HTMLElement;
+}
+
+export interface BrowserViewLinkedContextListParts<Item = unknown> {
+  empty: HTMLElement;
+  setLinkedItems(items?: readonly Item[]): void;
+}
+
+/** Every part below is built unconditionally, so none of them is nullable. */
+export interface BrowserViewLinkedContextPickerParts {
+  clientContextSelect: HTMLSelectElement;
+  controls: BrowserViewFieldGridElement;
+  empty: HTMLElement;
+  recordSelect: HTMLSelectElement;
+  rows: HTMLElement;
+  searchInput: HTMLInputElement;
+  setClientContexts(contexts?: readonly unknown[]): void;
+  setLinkedItems(items?: readonly unknown[]): void;
+  setReadonly(value?: unknown): void;
+  setRecords(records?: readonly unknown[]): void;
+  setTargets(targets?: readonly unknown[]): void;
+  targetSelect: HTMLSelectElement;
+  useTargetButton: HTMLButtonElement;
+}
+
+export type BrowserViewFieldElement = BrowserViewElementWithParts<BrowserViewFieldParts>;
+export type BrowserViewFieldGridElement = BrowserViewElementWithParts<BrowserViewFieldGridParts>;
+export type BrowserViewBulkActionToolbarElement = BrowserViewElementWithParts<BrowserViewBulkActionToolbarParts>;
+export type BrowserViewListShellElement = BrowserViewElementWithParts<BrowserViewListShellParts>;
+/** `createModal` builds a `<dialog>`, so consumers legitimately call `.close()` on it. */
+export type BrowserViewModalElement = HTMLDialogElement & { readonly viewParts: BrowserViewModalParts };
+export type BrowserViewModalFormElement = HTMLDialogElement & { readonly viewParts: BrowserViewModalFormParts };
+export type BrowserViewLinkedContextListElement<Item = unknown> = BrowserViewElementWithParts<BrowserViewLinkedContextListParts<Item>>;
+export type BrowserViewLinkedContextPickerElement = BrowserViewElementWithParts<BrowserViewLinkedContextPickerParts>;
+
+/**
+ * A rendered descriptor surface. `renderSurface` attaches `openModal` and `viewState` with
+ * `Object.defineProperty`, so both are non-enumerable properties of the returned element.
+ */
+export type BrowserViewSurfaceElement = HTMLElement & {
+  readonly openModal: (modalId: unknown, record?: unknown) => unknown;
+  /** Re-runs the descriptor's data source and repaints the surface. */
+  readonly refresh: () => Promise<unknown>;
+  readonly viewState: Record<string, unknown>;
+};
+
+export interface BrowserViewElementOptions {
+  attrs?: BrowserViewAttributeBag;
+  children?: BrowserViewChildren;
+  className?: BrowserViewClassNames;
+  dataset?: BrowserViewAttributeBag;
+  hidden?: BrowserViewFlag;
+  /** Assigned straight to `element.id`, so this one is a real string. */
+  id?: string;
+  text?: BrowserViewTextValue;
+}
+
+export interface BrowserViewFieldOptions extends BrowserViewFieldMessageOptions {
+  className?: BrowserViewClassNames;
+  controlAttrs?: BrowserViewAttributeBag;
+  controlClassName?: BrowserViewClassNames;
+  controlDataset?: BrowserViewAttributeBag;
+  controlId?: BrowserViewTextValue;
+  dataset?: BrowserViewAttributeBag;
+  disabled?: BrowserViewFlag;
+  message?: BrowserViewTextValue;
+  messageClassName?: BrowserViewClassNames;
+  messageTone?: BrowserViewTextValue;
+  value?: unknown;
+}
+
+export interface BrowserViewCollectFieldValuesOptions {
+  includeDisabled?: BrowserViewFlag;
+}
+
+export interface BrowserViewPageHeaderOptions {
+  actions?: BrowserViewActionInput;
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  headingLevel?: BrowserViewTextValue;
+  subtitle?: BrowserViewTextValue;
+  title?: BrowserViewTextValue;
+}
+
+export interface BrowserViewStatusMessageOptions {
+  className?: BrowserViewClassNames;
+  hidden?: BrowserViewFlag;
+  live?: BrowserViewTextValue;
+  message?: BrowserViewTextValue;
+  role?: BrowserViewTextValue;
+  tagName?: string;
+  tone?: BrowserViewTextValue;
+}
+
+export interface BrowserViewEmptyStateOptions {
+  actions?: BrowserViewActionInput;
+  className?: BrowserViewClassNames;
+  headingLevel?: BrowserViewTextValue;
+  live?: BrowserViewTextValue;
+  message?: BrowserViewTextValue;
+  role?: BrowserViewTextValue;
+  title?: BrowserViewTextValue;
+}
+
+export interface BrowserViewFilterPanelOptions {
+  actions?: BrowserViewActionInput;
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  fields?: BrowserViewChildren;
+  open?: BrowserViewFlag;
+  title?: BrowserViewTextValue;
+}
+
+export interface BrowserViewBulkActionToolbarOptions {
+  ariaLabel?: BrowserViewTextValue;
+  attrs?: BrowserViewAttributeBag;
+  body?: BrowserViewChildren;
+  bodyClassName?: BrowserViewClassNames;
+  className?: BrowserViewClassNames;
+  dataset?: BrowserViewAttributeBag;
+  label?: BrowserViewTextValue;
+  open?: BrowserViewFlag;
+  selectedCount?: number;
+}
+
+export interface BrowserViewListShellOptions {
+  after?: BrowserViewChildren;
+  ariaLabel?: BrowserViewTextValue;
+  attrs?: BrowserViewAttributeBag;
+  before?: BrowserViewChildren;
+  children?: BrowserViewChildren;
+  className?: BrowserViewClassNames;
+  dataset?: BrowserViewAttributeBag;
+  status?: BrowserViewFlag;
+  statusAttrs?: BrowserViewAttributeBag;
+  statusClassName?: BrowserViewClassNames;
+  statusDataset?: BrowserViewAttributeBag;
+  statusHidden?: BrowserViewFlag;
+  statusLive?: BrowserViewTextValue;
+  statusMessage?: BrowserViewTextValue;
+  statusRole?: BrowserViewTextValue;
+  statusTagName?: string;
+  tagName?: string;
+  toolbar?: BrowserViewChildren;
+}
+
+export interface BrowserViewCollapsibleIndexPanelOptions {
+  ariaLabel?: BrowserViewTextValue;
+  body?: BrowserViewChildren;
+  children?: BrowserViewChildren;
+  className?: BrowserViewClassNames;
+  footer?: BrowserViewChildren;
+  footerClassName?: BrowserViewClassNames;
+  open?: BrowserViewFlag;
+  summaryActions?: BrowserViewActionInput;
+  title?: BrowserViewTextValue;
+}
+
+export interface BrowserViewIndexListOptions {
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  items?: readonly unknown[];
+}
+
+export interface BrowserViewSplitListDetailOptions {
+  className?: BrowserViewClassNames;
+  detail?: BrowserViewChildren;
+  detailLabel?: BrowserViewTextValue;
+  list?: BrowserViewChildren;
+  listLabel?: BrowserViewTextValue;
+}
+
+export interface BrowserViewDataTableOptions {
+  caption?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  columns?: readonly unknown[];
+  emptyMessage?: BrowserViewTextValue;
+  hierarchy?: unknown;
+  rows?: readonly unknown[];
+  secondaryRows?: readonly unknown[];
+  tableClassName?: BrowserViewClassNames;
+}
+
+export interface BrowserViewDetailBadgeRowOptions {
+  ariaLabel?: BrowserViewTextValue;
+  attrs?: BrowserViewAttributeBag;
+  badges?: readonly unknown[];
+  className?: BrowserViewClassNames;
+  dataset?: BrowserViewAttributeBag;
+  items?: readonly unknown[];
+}
+
+export interface BrowserViewDetailHeaderOptions {
+  badges?: readonly unknown[];
+  className?: BrowserViewClassNames;
+  headingLevel?: BrowserViewTextValue;
+  meta?: BrowserViewChildren;
+  title?: BrowserViewTextValue;
+}
+
+export interface BrowserViewDetailActionStripOptions {
+  actions?: BrowserViewActionInput;
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+}
+
+export interface BrowserViewDetailActionMenuOptions extends BrowserViewDetailActionStripOptions {
+  floating?: BrowserViewFlag;
+  summaryLabel?: BrowserViewTextValue;
+  title?: BrowserViewTextValue;
+}
+
+export interface BrowserViewInfoPanelOptions {
+  actions?: BrowserViewActionInput;
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  collapsible?: BrowserViewFlag;
+  headingLevel?: BrowserViewTextValue;
+  items?: readonly unknown[];
+  message?: BrowserViewTextValue;
+  open?: BrowserViewFlag;
+  title?: BrowserViewTextValue;
+}
+
+export interface BrowserViewModalOptions {
+  actions?: BrowserViewActionInput;
+  body?: BrowserViewChildren;
+  className?: BrowserViewClassNames;
+  footer?: BrowserViewChildren;
+  headingLevel?: BrowserViewTextValue;
+  size?: BrowserViewTextValue;
+  title?: BrowserViewTextValue;
+  titleId?: BrowserViewTextValue;
+}
+
+export interface BrowserViewModalFormOptions extends BrowserViewModalOptions {
+  fields?: BrowserViewChildren;
+  formClassName?: BrowserViewClassNames;
+  method?: BrowserViewTextValue;
+  utilityActions?: BrowserViewActionInput;
+}
+
+export interface BrowserViewFieldGridOptions {
+  children?: BrowserViewChildren;
+  className?: BrowserViewClassNames;
+  dataset?: BrowserViewAttributeBag;
+  editable?: BrowserViewFlag;
+  /**
+   * One field or a list of them. `createFieldGrid` reads
+   * `Array.isArray(fields) ? fields : [fields]`, so a single node has always been accepted
+   * and wrapped; the array-only declaration was narrower than the writer beneath it. Its
+   * precedence is unchanged: `fields` wins over `children`, and an explicit `[]` wins too.
+   */
+  fields?: BrowserViewChildren;
+  surface?: BrowserViewTextValue;
+}
+
+export interface BrowserViewInlineActionRowOptions {
+  actions?: BrowserViewActionInput;
+  ariaLabel?: BrowserViewTextValue;
+  children?: BrowserViewChildren;
+  className?: BrowserViewClassNames;
+}
+
+/**
+ * The item type is the caller's own: the factory hands each entry of `items` straight back
+ * to `onRemove` and `setLinkedItems`, so a consumer that supplies typed rows gets them back
+ * typed rather than as `unknown`.
+ */
+export interface BrowserViewLinkedContextListOptions<Item = unknown> {
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  disabled?: BrowserViewFlag;
+  emptyMessage?: BrowserViewTextValue;
+  items?: readonly Item[];
+  linkedItems?: readonly Item[];
+  onRemove?: (item: Item, event?: unknown) => unknown;
+  permissionDisabled?: BrowserViewFlag;
+  readonly?: BrowserViewFlag;
+  records?: readonly unknown[];
+  removeAction?: unknown;
+  removeLabel?: BrowserViewTextValue;
+  rows?: readonly unknown[];
+  rowsLabel?: BrowserViewTextValue;
+}
+
+export interface BrowserViewLinkedContextPickerOptions<Item = unknown>
+  extends BrowserViewLinkedContextListOptions<Item> {
+  clientContextLabel?: BrowserViewTextValue;
+  clientContextName?: BrowserViewTextValue;
+  clientContextOptions?: readonly unknown[];
+  clientContexts?: readonly unknown[];
+  noRecordsLabel?: BrowserViewTextValue;
+  onClientContextChange?: (value: unknown, event?: unknown) => unknown;
+  onRecordChange?: (value: unknown, event?: unknown) => unknown;
+  onSearchInput?: (value: unknown, event?: unknown) => unknown;
+  onTargetChange?: (value: unknown, event?: unknown) => unknown;
+  onUseTarget?: (value: unknown, event?: unknown) => unknown;
+  permissionMessage?: BrowserViewTextValue;
+  providers?: readonly unknown[];
+  readonlyMessage?: BrowserViewTextValue;
+  recordLabel?: BrowserViewTextValue;
+  recordName?: BrowserViewTextValue;
+  recordOptions?: readonly unknown[];
+  searchLabel?: BrowserViewTextValue;
+  searchName?: BrowserViewTextValue;
+  searchPlaceholder?: BrowserViewTextValue;
+  showClientContext?: BrowserViewFlag;
+  targetLabel?: BrowserViewTextValue;
+  targetName?: BrowserViewTextValue;
+  targets?: readonly unknown[];
+  useTargetAction?: unknown;
+  useTargetDisabled?: BrowserViewFlag;
+  useTargetLabel?: BrowserViewTextValue;
+}
+
+export interface BrowserViewActionButtonOptions {
+  action?: unknown;
+  actionRole?: BrowserViewTextValue;
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  disabled?: BrowserViewFlag;
+  icon?: unknown;
+  iconOnly?: BrowserViewFlag;
+  label?: BrowserViewTextValue;
+  onClick?: (event: Event) => unknown;
+  role?: BrowserViewTextValue;
+  text?: BrowserViewTextValue;
+  title?: BrowserViewTextValue;
+  type?: BrowserViewTextValue;
+  variant?: BrowserViewTextValue;
+}
+
+/**
+ * The 31 members `public/js/shared/view-builder.js` publishes.
+ *
+ * These are required rather than optional: every page template that loads any part of the
+ * factory loads the builder, and the renderer refuses to run without it.
+ */
+export interface BrowserViewPrimitives {
+  /** Close every dialog opened from this one, deepest first. Delegates to `viewModalStack`. */
+  closeChildModals(parent: unknown, value?: string): void;
+  /** Close a dialog and everything it opened. Delegates to `viewModalStack`. */
+  closeModal(dialog: unknown, value?: string): void;
+  /** Read the current values out of every bound control inside a scope. */
+  collectFieldValues(scope: unknown, options?: BrowserViewCollectFieldValuesOptions): Record<string, unknown>;
+  /**
+   * Always a `button`: the icon path delegates to `icons.createIconButton` and the plain path
+   * builds one directly, and the shared tail assigns `button.type` to whichever came back.
+   */
+  createActionButton(options?: BrowserViewActionButtonOptions): HTMLButtonElement;
+  createBulkActionToolbar(options?: BrowserViewBulkActionToolbarOptions): BrowserViewBulkActionToolbarElement;
+  createCollapsibleIndexPanel(options?: BrowserViewCollapsibleIndexPanelOptions): HTMLElement;
+  createDataTable(options?: BrowserViewDataTableOptions): HTMLElement;
+  createDetailActionMenu(options?: BrowserViewDetailActionMenuOptions): HTMLElement;
+  createDetailActionStrip(options?: BrowserViewDetailActionStripOptions): HTMLElement;
+  createDetailBadgeRow(options?: BrowserViewDetailBadgeRowOptions): HTMLElement;
+  createDetailHeader(options?: BrowserViewDetailHeaderOptions): HTMLElement;
+  /**
+   * The element factory. Overloaded exactly as `document.createElement` is, because the body
+   * is `document.createElement(tagName)` - a known tag name really does produce its own
+   * subtype, and declaring a flat `HTMLElement` would have been weaker than the runtime.
+   */
+  createElement<TagName extends keyof HTMLElementTagNameMap>(
+    tagName: TagName,
+    options?: BrowserViewElementOptions,
+  ): HTMLElementTagNameMap[TagName];
+  createElement(tagName: string, options?: BrowserViewElementOptions): HTMLElement;
+  createEmptyState(options?: BrowserViewEmptyStateOptions): HTMLElement;
+  /** A labelled control with its own message channel, reachable through `viewParts`. */
+  createField(field?: unknown, options?: BrowserViewFieldOptions): BrowserViewFieldElement;
+  createFieldGrid(options?: BrowserViewFieldGridOptions): BrowserViewFieldGridElement;
+  createFilterPanel(options?: BrowserViewFilterPanelOptions): HTMLElement;
+  createIndexList(options?: BrowserViewIndexListOptions): HTMLElement;
+  createInfoPanel(options?: BrowserViewInfoPanelOptions): HTMLElement;
+  createInlineActionRow(options?: BrowserViewInlineActionRowOptions): HTMLElement;
+  createLinkedContextList<Item = unknown>(
+    options?: BrowserViewLinkedContextListOptions<Item>,
+  ): BrowserViewLinkedContextListElement<Item>;
+  createLinkedContextPicker<Item = unknown>(
+    options?: BrowserViewLinkedContextPickerOptions<Item>,
+  ): BrowserViewLinkedContextPickerElement;
+  createListShell(options?: BrowserViewListShellOptions): BrowserViewListShellElement;
+  createModal(options?: BrowserViewModalOptions): BrowserViewModalElement;
+  createModalForm(options?: BrowserViewModalFormOptions): BrowserViewModalFormElement;
+  createPageHeader(options?: BrowserViewPageHeaderOptions): HTMLElement;
+  createSplitListDetail(options?: BrowserViewSplitListDetailOptions): HTMLElement;
+  createStatusMessage(options?: BrowserViewStatusMessageOptions): HTMLElement;
+  /** Whether this dialog is currently the top of the stack. Delegates to `viewModalStack`. */
+  isTopModal(dialog: unknown): boolean;
+  /** Delegates to `viewSurfaceDescriptor.normalize`. */
+  normalizeSurfaceDescriptor(descriptor: unknown): BrowserViewSurfaceDescriptor;
+  /**
+   * The parts of an element this factory built as `kind`, or `null` for anything else.
+   *
+   * A page that found a framework element by searching the document has only an `Element`; this is
+   * how it recovers that element's `viewParts` without asserting them. It answers the very object
+   * `viewParts` holds, and never whatever a `viewParts` property on some other element carries.
+   */
+  partsOf<Kind extends keyof BrowserViewPartsByKind>(element: unknown, kind: Kind): BrowserViewPartsByKind[Kind] | null;
+  /** Open a dialog on top of the stack. Delegates to `viewModalStack`. */
+  showModal(dialog: unknown, options?: BrowserModalStackOptions): unknown;
+}
+
+export interface BrowserViewSlideOutSidebarElements {
+  backdrop?: unknown;
+  closeButton?: unknown;
+  drawer?: unknown;
+  trigger?: unknown;
+}
+
+export interface BrowserViewSlideOutSidebarOptions {
+  open?: BrowserViewFlag;
+  state?: Record<string, unknown>;
+}
+
+export interface BrowserViewSlideOutSidebarSyncOptions {
+  focus?: BrowserViewFlag;
+}
+
+export interface BrowserViewSlideOutSidebarController {
+  close(options?: BrowserViewSlideOutSidebarSyncOptions): void;
+  readonly isOpen: boolean;
+  open(options?: BrowserViewSlideOutSidebarSyncOptions): void;
+  sync(options?: BrowserViewSlideOutSidebarSyncOptions): void;
+  toggle(options?: BrowserViewSlideOutSidebarSyncOptions): void;
+}
+
+export interface BrowserViewDescriptorFieldGridOptions extends BrowserViewFieldGridOptions {
+  fieldOptions?: BrowserViewFieldOptions;
+  values?: Record<string, unknown>;
+}
+
+export interface BrowserViewDescriptorLinkedRecordsOptions {
+  ariaLabel?: BrowserViewTextValue;
+  className?: BrowserViewClassNames;
+  collapsible?: BrowserViewFlag;
+  emptyClassName?: BrowserViewClassNames;
+  formActions?: BrowserViewActionInput;
+  formClassName?: BrowserViewClassNames;
+  formDataset?: BrowserViewAttributeBag;
+  formFields?: BrowserViewChildren;
+  hidden?: BrowserViewFlag;
+  locked?: BrowserViewFlag;
+  open?: BrowserViewFlag;
+  recordNodes?: BrowserViewChildren;
+  recordsClassName?: BrowserViewClassNames;
+  title?: BrowserViewTextValue;
+}
+
+/**
+ * The 10 members `public/js/shared/view-renderer.js` adds to the same object.
+ *
+ * Optional on the factory because only 8 of the 18 builder pages load the renderer. A controller
+ * that knows its own page loads it narrows before use, the way `0.33.33.37` established.
+ */
+export interface BrowserViewDescriptorRenderers {
+  createSlideOutSidebarController(
+    elements?: BrowserViewSlideOutSidebarElements,
+    options?: BrowserViewSlideOutSidebarOptions,
+  ): BrowserViewSlideOutSidebarController;
+  /** Register a named behaviour; the returned function unregisters it. */
+  registerBehavior(id: unknown, handler: unknown): () => void;
+  /** Nodes are used as-is; option bags go to `createActionButton`, which still requires a label at runtime. */
+  renderDescriptorActionMenu(
+    actions?: readonly BrowserViewAction[],
+    options?: BrowserViewDetailActionMenuOptions,
+  ): HTMLElement;
+  /** Nodes are used as-is; option bags go to `createActionButton`, which still requires a label at runtime. */
+  renderDescriptorActionStrip(
+    actions?: readonly BrowserViewAction[],
+    options?: BrowserViewDetailActionStripOptions,
+  ): HTMLElement;
+  renderDescriptorDataTable(
+    tableDescriptor?: unknown,
+    options?: BrowserViewDataTableOptions,
+  ): HTMLElement;
+  renderDescriptorFieldGrid(
+    fieldDescriptor?: unknown,
+    options?: BrowserViewDescriptorFieldGridOptions,
+  ): BrowserViewFieldGridElement;
+  /** Nodes are used as-is; option bags go to `createActionButton`, which still requires a label at runtime. */
+  renderDescriptorInlineActions(
+    actions?: readonly BrowserViewAction[],
+    options?: BrowserViewInlineActionRowOptions,
+  ): HTMLElement;
+  renderDescriptorLinkedRecordsPanel(
+    linkedRecords?: unknown,
+    options?: BrowserViewDescriptorLinkedRecordsOptions,
+  ): HTMLElement;
+  renderDescriptorModalForm(
+    modal?: unknown,
+    options?: BrowserViewModalFormOptions,
+  ): BrowserViewModalFormElement;
+  /** Render a delivered descriptor into a host and return the mounted surface. */
+  renderSurface(deliveredDescriptor: unknown, host: unknown): BrowserViewSurfaceElement;
+}
+
+/**
+ * Whether a module is on for this workspace, as `workspaceModuleStatus` answers it.
+ *
+ * Two functions close this together: the status map coerces every stored row to `enabled` or
+ * `disabled`, and the resolver returns `enabled` for a module that cannot be disabled and the
+ * mapped value or `disabled` otherwise. Neither can answer a third word.
+ *
+ * `BrowserWorkbenchModuleStatus` carries the same two words for the same reason - the Workbench
+ * bootstrap builds its map from this same module context. The two are **proved consistent**
+ * rather than merged, because unifying them belongs to whoever owns both surfaces.
+ */
+export type BrowserWorkspaceModuleStatus = "disabled" | "enabled";
+
+/**
+ * One module as the shared settings body carries it.
+ *
+ * **A deliberate stable minimum over a much richer producer record, not a description of it.**
+ * `loadWorkspaceModuleContext` reconstructs each module from its registry manifest with more
+ * than twenty members, most of them contribution-owned collections - navigation, view surfaces,
+ * settings, permissions, resource definitions, API scopes, event types and more. Those are the
+ * extensibility carrier: they are *meant* to grow as modules are added and as the registry
+ * gains contribution kinds.
+ *
+ * An exact browser declaration would turn every such internal expansion into a browser contract
+ * change even where no browser consumer depends on the new member. So this contract promises
+ * only the stable framework-owned projection this boundary relies on - the module's identity and
+ * whether it is on - and the reader accepts records that carry anything else beside them.
+ *
+ * `id` is validated as non-empty text because the manifest contract requires it as a
+ * pattern-matched string before the catalog is ever exposed, not because an empty one would be
+ * inconvenient.
+ */
+export interface BrowserWorkspaceSettingsModule {
+  /** Required and pattern-checked by the manifest contract, so never empty. */
+  id: string;
+  status: BrowserWorkspaceModuleStatus;
+}
+
+/**
+ * The shared workspace settings body, as `readInternal` answers it.
+ *
+ * **A structural minimum, because `decorateWorkspaceSettings` spreads the persisted settings**
+ * before naming its own five members. Anything a workspace has persisted rides along, so the
+ * browser cannot claim the body is closed - and `modules` is one of the members named *after*
+ * that spread, which is what makes it claimable.
+ *
+ * Nothing else is promised here. `moduleSettings` is registry-owned and stays with its own
+ * boundary; `enabledModules` is read only through the pages' own normalisers, which already
+ * check it. Adding either because it happens to be present would freeze vocabulary this
+ * boundary has not earned.
+ */
+export interface BrowserWorkspaceSettings {
+  modules: BrowserWorkspaceSettingsModule[];
+}
+
+/**
+ * What `PUT /api/settings` resolves to.
+ *
+ * **One member, and its value is the GET body.** `save` ends in
+ * `return { data: await readInternal(session) }` - the same function `GET /api/settings` answers
+ * directly - so there is one settings contract wrapped in a one-member envelope rather than two
+ * body contracts that would be free to drift apart.
+ */
+export interface BrowserWorkspaceSettingsSaveResult {
+  data: BrowserWorkspaceSettings;
+}
+
+/**
+ * `LongtailForge.settingsHost`, published by `public/js/shared/settings-host.js`.
+ *
+ * Mounts the settings host a page declares through `data-settings-host`, and reads the
+ * attachment sections a delivered catalog carries. The module **self-mounts at load** when the
+ * page has a host element, so both members are also reachable for the placements that mount
+ * themselves.
+ */
+export interface BrowserSettingsHost {
+  /**
+   * The attachment sections a catalog carries for a placement.
+   *
+   * The catalog is the body of `GET /api/settings/catalog` and is read defensively - a missing
+   * `attachments`, a missing placement, and a non-array entry all yield an empty array - so it
+   * stays `unknown` here. Validating what the returned entries contain is `0.33.33.38.4`'s
+   * work, not this contract's.
+   */
+  attachmentSections(catalog: unknown, placement: string, moduleId?: string): unknown[];
+  /**
+   * Mount the host, returning the element it was given. Mounting is idempotent through
+   * `data-settings-host-mounted`, and an unrecognised placement throws.
+   */
+  mount<Element extends HTMLElement | null | undefined>(hostElement: Element): Element;
+  /**
+   * The shared workspace settings body, or `null` when it cannot be vouched for.
+   *
+   * Lives here because three pages read this one producer and the host is already a declared
+   * surface all three acquire before use - so sharing the reader costs no new root member.
+   *
+   * The returned value carries the producer's other persisted settings through untouched; only
+   * `modules` is promised, and only it is checked.
+   */
+  readWorkspaceSettings(body: unknown): BrowserWorkspaceSettings | null;
+  /** The save envelope, or `null` when its settings body cannot be vouched for. */
+  readWorkspaceSettingsSaveResult(body: unknown): BrowserWorkspaceSettingsSaveResult | null;
+}
+
+/**
+ * `LongtailForge.settingsPageController`, published by
+ * `public/js/shared/settings-page-controller.js`.
+ */
+export interface BrowserSettingsPageController {
+  /**
+   * Wire a settings page's dirty-state tracking, save and revert buttons, and unsaved-changes
+   * navigation guard. Throws when neither `root` nor a `[data-settings-host]` element resolves.
+   */
+  create(options?: BrowserSettingsPageControllerOptions): BrowserSettingsPageControllerHandle;
+}
+
+export interface BrowserSettingsPageControllerOptions {
+  /**
+   * Falls back to the page's `[data-settings-host]` element. `Element` rather than
+   * `HTMLElement` because a caller supplies whatever it rendered, and the controller queries
+   * it, listens on it, and records the dirty state on its `dataset`. That last one is not
+   * every element's: a host carrying no `dataset` fails at that write, as it always has.
+   */
+  root?: Element | null;
+  onDirtyChange?: (dirty: boolean) => unknown;
+  onRevert?: () => unknown;
+  /** Returning `false` leaves the page dirty; anything else marks it clean. */
+  onSave?: () => unknown;
+}
+
+/**
+ * What `create` returns. All three members are published, and the contract describes the
+ * surface rather than the subset consumers currently call - only `setClean` is used externally
+ * today.
+ */
+export interface BrowserSettingsPageControllerHandle {
+  isDirty(): boolean;
+  setClean(): void;
+  updateDirtyState(): void;
+}
+
+/**
+ * The setting types `normalizeType` closes its answer to.
+ *
+ * **This is the normalized output vocabulary, not the contribution input one.**
+ * `ModuleSettingDefinition.type` stays deliberately open through `(string & {})` because a module
+ * may contribute a type this renderer has not heard of; the renderer then answers `info`. So the
+ * input is extensible and the output is closed, and they are different types on purpose.
+ */
+export type BrowserSettingType =
+  | "boolean"
+  | "toggle"
+  | "text"
+  | "textarea"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "radio"
+  | "info";
+
+/** One select, multi-select or radio choice, rebuilt as two strings by `normalizeOptions`. */
+export interface BrowserSettingOption {
+  label: string;
+  value: string;
+}
+
+/**
+ * A complete dependency between two settings in the same contribution.
+ *
+ * `normalizeVisibleWhen` answers `null` unless the candidate carries a non-empty `settingId` **and**
+ * owns an `equals` member, so a partial condition never reaches rendering. `equals` stays `unknown`
+ * because it is compared against whatever the controller field currently reads, which the module
+ * owns.
+ */
+export interface BrowserSettingVisibleWhen {
+  equals: unknown;
+  settingId: string;
+}
+
+/**
+ * One setting after `normalizeSetting` has run.
+ *
+ * **Structural rather than exact, and the reason is in the writer.** `normalizeSetting` spreads the
+ * contribution before overwriting its stable members, so a module's own extension fields survive
+ * into the resolved record. Every member named here is one the normalizer constructs or overwrites
+ * and is therefore present; the index signature carries the survivors, typed `unknown` exactly as
+ * `ModuleSettingDefinition` already types its own extensions. **An extension value is carried, not
+ * trusted.**
+ *
+ * `value` is `unknown` because the module owns what a setting means: a boolean for a toggle, a
+ * number or `""` for a number, `string[]` for a multi-select, and the contribution's own value
+ * otherwise.
+ */
+export interface BrowserResolvedSetting {
+  [key: string]: unknown;
+  description: string;
+  id: string;
+  /** `""` when the contribution named no recognised input mode. */
+  inputmode: string;
+  label: string;
+  /** A normalized number as a string, or `""`. Never a number - these are DOM attributes. */
+  max: string;
+  min: string;
+  moduleId: string;
+  moduleStatus: boolean;
+  options: BrowserSettingOption[];
+  placeholder: string;
+  readOnly: boolean;
+  readOnlyReason: string;
+  required: boolean;
+  rows: string;
+  spellcheck: boolean;
+  /** `"any"`, a normalized number as a string, or `""`. */
+  step: string;
+  type: BrowserSettingType;
+  value: unknown;
+  visibleWhen: BrowserSettingVisibleWhen | null;
+}
+
+/**
+ * One module after `normalizeModule` has run.
+ *
+ * **Exact, because the normalizer reconstructs it by name and spreads nothing.** `status` is closed
+ * to two values for the same reason: the normalizer writes `"enabled"` or `"disabled"` itself
+ * rather than passing a contributed status through.
+ */
+export interface BrowserResolvedSettingsModule {
+  canDisable: boolean;
+  displayName: string;
+  moduleId: string;
+  name: string;
+  settings: BrowserResolvedSetting[];
+  status: "enabled" | "disabled";
+}
+
+/**
+ * What the renderer's collection and validation methods accept as a search root.
+ *
+ * Both arms are real: the methods default to `document`, and every settings page passes its own
+ * form element instead.
+ */
+export type BrowserSettingsRenderScope = Document | Element;
+
+/**
+ * What `collectPayload` answers: module id to that module's field values.
+ *
+ * The inner record is `unknown`-valued because it comes straight from
+ * `LongtailForge.view.collectFieldValues`, and a module owns what its own settings mean.
+ */
+export type BrowserSettingsPayload = Record<string, Record<string, unknown>>;
+
+/**
+ * The fallback source `normalizeContributions` reads when it is handed no array.
+ *
+ * `modules` is `unknown` because the normalizer is total: it checks for an array, rebuilds each
+ * entry, and drops what it cannot use.
+ */
+export interface BrowserSettingsContributionOptions {
+  modules?: unknown;
+}
+
+/**
+ * What the three render methods accept.
+ *
+ * **Seven members, which is what the writer reads.** There is deliberately no index signature: a
+ * caller passing an option this renderer does not implement should be told so rather than have it
+ * silently ignored.
+ */
+export interface BrowserSettingsRenderOptions extends BrowserSettingsContributionOptions {
+  /** Append to the container instead of replacing its children. */
+  append?: boolean;
+  /** Shown when no module survives normalization, unless `hideEmpty` is `true`. */
+  emptyText?: string;
+  /** The grouped fieldset's legend; `"Modules"` when omitted. */
+  groupTitle?: string;
+  /** Render nothing at all rather than a placeholder when no module survives. */
+  hideEmpty?: boolean;
+  /** A nested bag the render methods forward to `normalizeContributions` in place of themselves. */
+  settings?: BrowserSettingsContributionOptions;
+  /** One section's legend; the module's display name when omitted. */
+  title?: string;
+}
+
+/**
+ * The shared settings surface `shared/settings-renderer.js` publishes.
+ *
+ * **Nine members, which is what the writer's frozen object contains.** The normalizers, the field
+ * builder, the visibility passes and the message helpers are all internal, and `showSaveAction` is
+ * not a member of anything here - the renderer has never read one.
+ */
+export interface BrowserSettingsRenderer {
+  clearValidationErrors(scope?: BrowserSettingsRenderScope): void;
+  collectPayload(scope?: BrowserSettingsRenderScope): BrowserSettingsPayload;
+  normalizeContributions(
+    moduleSettings?: unknown,
+    options?: BrowserSettingsContributionOptions,
+  ): BrowserResolvedSettingsModule[];
+  /** `null` when handed no container. */
+  renderDisabledModuleRecovery(
+    container: Element | null | undefined,
+    moduleDefinition?: unknown,
+  ): HTMLElement | null;
+  renderGroupedSections(
+    container: Element | null | undefined,
+    moduleSettings?: unknown,
+    options?: BrowserSettingsRenderOptions,
+  ): HTMLElement[];
+  /** `null` when handed no container, and when no module survives normalization. */
+  renderSection(
+    container: Element | null | undefined,
+    moduleDefinition?: unknown,
+    options?: BrowserSettingsRenderOptions,
+  ): HTMLElement | null;
+  renderSections(
+    container: Element | null | undefined,
+    moduleSettings?: unknown,
+    options?: BrowserSettingsRenderOptions,
+  ): HTMLElement[];
+  /** How many fields were given an error message. */
+  showValidationErrors(scope?: BrowserSettingsRenderScope, error?: unknown): number;
+  validate(scope?: BrowserSettingsRenderScope): boolean;
+}
+
+/**
+ * Options `LongtailForge.status.set` reads. Nothing else in the bag is consulted.
+ */
+export interface BrowserStatusMessageOptions {
+  /**
+   * Milliseconds after which the message clears itself. Ignored when the message is empty, and
+   * the pending timer is cancelled by the next `set` or `clear` on the same element.
+   */
+  clearAfter?: number;
+  /** An older spelling of `type: "error"`; the writer honours both. */
+  isError?: boolean;
+  /**
+   * `"error"` and `"success"` add their tone class. **Any other value renders neutral rather
+   * than being rejected** - `role-assignments.js` passes `""` deliberately for exactly that - so
+   * this is open vocabulary with two recognised members, not a closed union.
+   */
+  type?: string;
+}
+
+/**
+ * `LongtailForge.status`, published by `public/js/shared/status.js`.
+ *
+ * Writes and clears the message on a status element, with an optional self-clearing timer held
+ * in a `WeakMap` keyed by that element. **The runtime property is named `status`, but the
+ * responsibility is a status *message* on the DOM** - it is unrelated to task lifecycle status,
+ * HTTP status, or any page's own status state, and the contract is named for what it does.
+ *
+ * Published as a plain object rather than a frozen one, which the declaration describes but
+ * does not change.
+ */
+export interface BrowserStatusMessage {
+  /** Empty the element, hide it, drop both tone classes, and cancel any pending timer. */
+  clear(element: HTMLElement | null | undefined): void;
+  /**
+   * Show a message. An absent element is a no-op rather than an error, and an empty message
+   * hides the element.
+   */
+  set(
+    element: HTMLElement | null | undefined,
+    message?: string,
+    options?: BrowserStatusMessageOptions,
+  ): void;
+}
+
+export interface BrowserModalAlertOptions {
+  /** Defaults to `"OK"`. */
+  confirmLabel?: string;
+  /** Defaults to the empty string. */
+  message?: string;
+  /** Defaults to `"Notice"`. */
+  title?: string;
+}
+
+export interface BrowserModalConfirmOptions {
+  /** Defaults to `"Cancel"`. */
+  cancelLabel?: string;
+  /** Defaults to `"Continue"`. */
+  confirmLabel?: string;
+  /** Styles the confirm button as destructive. Defaults to `false`. */
+  danger?: boolean;
+  /** Defaults to `"Continue?"`. */
+  message?: string;
+  /** Defaults to `"Confirm action"`. */
+  title?: string;
+}
+
+/**
+ * `LongtailForge.modal`, published by `public/js/shared/modal.js`.
+ *
+ * The application's alert and confirmation dialogs: each call builds its own `<dialog>`, shows
+ * it modally, restores focus to whatever was active, and removes the element on close.
+ *
+ * **This is not `viewModalStack` and not `view.createModal`.** Those manage the lifecycle of
+ * dialogs a page already owns and construct dialog elements respectively; this one answers a
+ * question and disposes of everything it made.
+ *
+ * **Both methods resolve `boolean` and neither ever rejects.** The writer resolves exactly once,
+ * from a `close` listener registered `{ once: true }`, with a value that starts at `false` and
+ * is only ever set from an action's `value` - `true` for a confirm or an acknowledgement,
+ * `false` for cancel, for the `cancel` event, and for Escape. There is no `reject` anywhere in
+ * the file, and no path resolves `undefined` or `null`.
+ *
+ * Published as a plain object rather than a frozen one, which the declaration describes but
+ * does not change.
+ */
+export interface BrowserModalDialogs {
+  /**
+   * Acknowledge a message. **Resolves `true` when the button is used and `false` when the
+   * dialog is dismissed** - declared because the writer returns it, even though no caller
+   * currently reads it.
+   */
+  alert(options?: BrowserModalAlertOptions): Promise<boolean>;
+  /** Resolves `true` for confirm, `false` for cancel, the `cancel` event, or Escape. */
+  confirm(options?: BrowserModalConfirmOptions): Promise<boolean>;
+}
+
+export interface BrowserIconOptions {
+  /**
+   * When `false` the icon is labelled instead of hidden, and `label` becomes required - the
+   * writer throws without one. Defaults to `true`.
+   */
+  decorative?: boolean;
+  /** The `aria-label` for a non-decorative icon. */
+  label?: string;
+  /** Width and height in pixels. Defaults to `20`. */
+  size?: number;
+  /** Defaults to `2`. */
+  strokeWidth?: number;
+}
+
+export interface BrowserIconButtonOptions {
+  /** A name from `names`. Passed straight to `createIcon`, which throws on an unknown one. */
+  icon?: string;
+  /** Defaults to `true` unless `text` is supplied. */
+  iconOnly?: boolean;
+  /** The accessible label. Either this or `text` is required; the writer throws without both. */
+  label?: string;
+  /** `"after"` puts the text before the icon. Anything else puts the icon first. */
+  position?: string;
+  /** Passed through to the icon. */
+  size?: number;
+  /** Visible button text. */
+  text?: string;
+  /** Defaults to `label` when the button is icon-only. */
+  title?: string;
+  /** `"danger"`, `"secondary"`, and `"link"` each add a class; anything else adds none. */
+  variant?: string;
+}
+
+/**
+ * What `createIconButton` accepts, which is **wider than `decorateButton`'s bag on five members**.
+ *
+ * The creation writer coerces, compares or forwards each of these rather than requiring a type:
+ * `icon` reaches a registry lookup, which converts whatever it is given to a property key;
+ * `title` and `type` are written through native setters that perform ToString; `variant` is
+ * compared with `===` against three names, so anything else simply adds no class; and `iconOnly`
+ * is tested with `!== false`, which **distinguishes `undefined` from `false`** and is exactly why
+ * it cannot be a boolean. `BrowserViewActionButtonOptions` declares all five as `unknown` and
+ * `createActionButton` forwards them raw, so the two contracts disagreed until this one moved.
+ *
+ * `label`, `text`, `position` and `size` keep the parent's types: the view factory coerces the
+ * first two to trimmed strings before forwarding, and forwards neither of the other two.
+ * **`decorateButton` keeps `BrowserIconButtonOptions` unchanged**; only creation is wider.
+ */
+export interface BrowserIconCreateButtonOptions
+  extends Omit<BrowserIconButtonOptions, "icon" | "iconOnly" | "title" | "variant"> {
+  /** Reaches the registry lookup in `createIcon`, which throws on a name it does not hold. */
+  icon?: unknown;
+  /** Tested with `!== false`, so an absent flag and an explicit `false` are different inputs. */
+  iconOnly?: unknown;
+  /** Written through the native `title` setter, which performs ToString. */
+  title?: unknown;
+  /** Assigned to `button.type`, which the DOM normalizes on read. Defaults to `"button"`. */
+  type?: unknown;
+  /** Compared with `===` against `"danger"`, `"secondary"` and `"link"`. */
+  variant?: unknown;
+}
+
+/**
+ * `LongtailForge.icons`, published by `public/js/shared/icons.js`.
+ *
+ * The SVG icon registry and the button decorations built from it.
+ *
+ * **Every one of the 54 reads in the estate is guarded**, and that is the contract as much as
+ * the signatures are: 53 fall back to a plain button or plain text when the surface is absent,
+ * and the one that cannot - `task-dialog.js`'s checklist actions - throws its own error. The
+ * declaration describes the shape; it does not make the surface required.
+ *
+ * **Nothing here is asynchronous and nothing returns `null`.** Each member either returns the
+ * element it built or throws: `createIcon` on an unknown name and on a non-decorative icon with
+ * no label, `createIconButton` with neither a label nor text, `decorateButton` on anything that
+ * is not a `button` element.
+ *
+ * Published as a plain object rather than a frozen one; only `names` is frozen.
+ */
+export interface BrowserIcons {
+  /**
+   * Build one registry icon as an `<svg>`. **Throws** on a name the registry does not hold, so
+   * `name` is `string` rather than a union of `names`: callers compute it, and the runtime -
+   * not the type - is what rejects an unknown one.
+   */
+  createIcon(name: string, options?: BrowserIconOptions): SVGSVGElement;
+  /** Build a new `button` around an icon. **Throws** without a label or visible text. */
+  createIconButton(options?: BrowserIconCreateButtonOptions): HTMLButtonElement;
+  /**
+   * Rebuild an existing button's content around an icon and return **the same element**. The
+   * parameter is `HTMLButtonElement` because the writer demands one and throws otherwise; the
+   * runtime guard exists for callers that cannot prove it, not to widen the contract.
+   */
+  decorateButton(button: HTMLButtonElement, options?: BrowserIconButtonOptions): HTMLButtonElement;
+  /** Every registry name, frozen at publication. */
+  readonly names: readonly string[];
+}
+
+export interface BrowserCapturePromptOptions {
+  /** The cancel button's label. Defaults to `"Cancel"`. */
+  cancelLabel?: string;
+  /** Appended to the dialog's own class list. */
+  className?: string;
+  /** The submit button's label. Defaults to `"Continue"`. */
+  confirmLabel?: string;
+  /** The field label. Defaults to `"Details"`. */
+  label?: string;
+  /** `false` renders a single-line `input`; anything else renders a `textarea`. */
+  multiline?: boolean;
+  /** Forwarded verbatim to `view.showModal`, which owns the modal stack. */
+  parent?: unknown;
+  /** The dialog title. Defaults to `"Add context"`. */
+  prompt?: string;
+  /** Rows for the multiline form. Defaults to `3`; ignored when `multiline` is `false`. */
+  rows?: number;
+  /** Forwarded verbatim to `view.showModal`. Defaults to `document.activeElement`. */
+  trigger?: unknown;
+  /** The initial field value. Defaults to the empty string. */
+  value?: string;
+}
+
+/**
+ * What `open` resolves with. **The writer constructs this object on every path**, so both
+ * members are always present.
+ */
+export interface BrowserCapturePromptResult {
+  /** `true` only when the form was submitted with a non-empty value. */
+  confirmed: boolean;
+  /**
+   * The trimmed entry when `confirmed`, and the empty string otherwise. **Submitting an empty
+   * field does not resolve at all** - the writer reports validity and leaves the dialog open -
+   * so a confirmed result is never empty, which the type cannot say and this comment can.
+   */
+  value: string;
+}
+
+/**
+ * `LongtailForge.capturePrompt`, published by `public/js/shared/capture-prompt.js`.
+ *
+ * A single-field modal that asks for one piece of text - a blocked reason, a resume note - and
+ * resolves what the person entered.
+ *
+ * **`open` never rejects and always resolves an object.** `resolve` is called exactly once, from
+ * a `close` listener registered `{ once: true }`, with a result that starts as
+ * `{ confirmed: false, value: "" }` and is only replaced when the form submits a non-empty
+ * trimmed value. Cancel, Escape, and any other dismissal all reach that same listener.
+ *
+ * **This is not `modal` and not `view.createModalForm`.** `modal` asks a yes/no question and
+ * returns a boolean; `createModalForm` builds a dialog element. This one collects a value and
+ * disposes of everything it made.
+ *
+ * The writer acquires `LongtailForge.view` through its own checked read and throws
+ * `"Capture prompts require LongtailForge.view modal helpers."` when the five modal helpers it
+ * needs are not all present, so **this declaration exposes no view optionality.**
+ *
+ * Published as a plain object rather than a frozen one, which the declaration describes but does
+ * not change.
+ */
+export interface BrowserCapturePrompt {
+  open(options?: BrowserCapturePromptOptions): Promise<BrowserCapturePromptResult>;
+}
+
+export interface BrowserTimezoneOption {
+  /** `"<zone> (UTC +HH:MM)"`, built from the offset at the date the list was asked for. */
+  label: string;
+  /** A normalized IANA zone name. */
+  value: string;
+}
+
+export interface BrowserLocalDateRange {
+  /** The zone's `23:59:59` on that date, as UTC. */
+  end: Date;
+  /** The zone's `00:00:00` on that date, as UTC. */
+  start: Date;
+}
+
+/**
+ * `LongtailForge.timezones`, published by `public/js/shared/timezones.js`.
+ *
+ * The workspace's timezone state and the formatters built on it.
+ *
+ * **Every member that takes a `timezone` defaults to the module's current user timezone and
+ * normalizes whatever it is given**, so a caller cannot put an invalid zone into a formatter:
+ * `normalizeTimezone` coerces with `String(...)`, validates by constructing an
+ * `Intl.DateTimeFormat` for it, and falls back to `"America/New_York"`. **The normalized value is
+ * therefore always a non-empty valid zone name**, which is why the getters return `string` rather
+ * than something nullable.
+ *
+ * **`loadSessionTimezone` reaches the network and still returns nothing from it.** It fetches
+ * `/api/session`, and on every path - non-OK response, unparseable body, thrown error, or success
+ * - it returns the module's own `userTimezone`. On success the parsed body's timezone is passed
+ * *into* `setUserTimezone`, never back out. **The whole body sits inside one `try`, so it never
+ * rejects.** That is why this surface has no `0.33.33.38.4` boundary despite calling `fetch`.
+ *
+ * Published as a plain object rather than a frozen one.
+ */
+export interface BrowserTimezones {
+  formatDate(date: Date, timezone?: string): string;
+  formatDateInput(date: Date, timezone?: string): string;
+  /** Accepts what `new Date(...)` accepts; returns the empty string for an unusable value. */
+  formatDateTime(value: Date | string | number, timezone?: string): string;
+  formatTimeInput(date: Date, timezone?: string): string;
+  /** `"UTC +HH:MM"` for that zone at that instant. */
+  formatUtcOffset(date: Date, timezone: string): string;
+  getUserTimezone(): string;
+  /** Every zone `Intl` reports, plus `UTC`, sorted and labelled with the offset at `date`. */
+  listSupportedTimezones(date?: Date): BrowserTimezoneOption[];
+  /** **Resolves the module's timezone, never the session body.** Does not reject. */
+  loadSessionTimezone(): Promise<string>;
+  localDateRangeToUtc(dateValue: string, timezone?: string): BrowserLocalDateRange;
+  /** `unknown` in because it coerces anything; a valid zone name out, always. */
+  normalizeTimezone(timezone: unknown): string;
+  /** Normalizes, stores to `localStorage`, and returns what it stored. */
+  setUserTimezone(timezone: unknown): string;
+  /** The empty string when the date and time cannot be parsed. */
+  zonedDateTimeToUtcIso(dateValue: string, timeValue: string, timezone?: string): string;
+}
+
+/**
+ * `LongtailForge.esModuleBridge`, published by `public/js/dashboard.entry.js`.
+ *
+ * The dashboard's asset loader. `dashboard.html` carries **one** script tag - the entry module -
+ * and everything else the page runs, including `dashboard.js`, is loaded through these five
+ * functions.
+ *
+ * **The bridge is frozen onto the namespace before the module's first top-level `await`**, so any
+ * classic script it goes on to load observes a fully published surface. Nothing can see it half
+ * built, because the only code that runs after the assignment and before the first `await` is the
+ * assignment itself.
+ *
+ * **Every path is local-asset only.** `versionedAssetUrl` refuses any URL that leaves this origin
+ * or falls outside `/css/` and `/js/`, and the script and style loaders each refuse an extension
+ * that does not match. Those refusals are thrown, not returned.
+ */
+export interface BrowserEsModuleBridge {
+  /**
+   * Load one contribution list. Styles and scripts are dispatched by `type` and **anything else
+   * is skipped**; a non-array argument is treated as empty.
+   *
+   * The parameter is `unknown` because the writer only checks that the argument is an array and
+   * then reads `type` and `path` defensively off each entry. The shape it is *meant* to receive
+   * is `BrowserAssetContribution` from `framework-contracts`, and naming that here instead would
+   * be **stronger than the runtime** - it would reject the parsed manifest its caller actually
+   * holds and push validation onto a consumer this contract does not own.
+   */
+  loadContributedAssets(assets?: unknown): Promise<void>;
+  /**
+   * Dynamically import one browser script, deduplicated by resolved URL.
+   *
+   * **Resolves the imported module namespace**, which is `unknown` because the specifier is
+   * chosen at runtime - not because anything untrusted was parsed. Callers await it for
+   * sequencing rather than reading anything off it. **Rejects** on a non-local path, on a path
+   * that is not `.js`, and on an import failure.
+   */
+  importScript(assetPath?: unknown): Promise<unknown>;
+  /** Import several scripts concurrently. **Requires an array** and rejects if any one fails. */
+  importScripts(assetPaths: readonly unknown[]): Promise<void>;
+  /**
+   * Append one stylesheet `<link>`, deduplicated by resolved URL. **Resolves with the `load`
+   * event** and rejects when the stylesheet fails or the path is not `.css`.
+   */
+  loadStyle(assetPath?: unknown): Promise<Event>;
+  /**
+   * Resolve a local asset path against the document base and stamp the current asset version.
+   * **Throws** for anything off-origin or outside `/css/` and `/js/`.
+   */
+  versionedAssetUrl(assetPath?: unknown): string;
+}
+
+/**
+ * `LongtailForge.dashboardBootstrap`, published by `public/js/dashboard.entry.js`.
+ *
+ * The dashboard's shared load state: the manifest request the page started before any panel
+ * script existed, the route-keyed cache of in-flight panel requests, and the two functions that
+ * fill and address it.
+ *
+ * **`dataPromises` is deliberately shared and consumers write to it.** The entry module seeds it
+ * through `loadRoute`, and `dashboard.js` and `time-tracking-dashboard.js` both `set` into the
+ * same map under the same route keys - so a panel that has already been requested is never
+ * requested twice, whichever file asked first. **A `ReadonlyMap` would describe an architecture
+ * this page does not have**, and would break three call sites that are meant to participate.
+ *
+ * **Every consumer falls back to a private `new Map()` when the surface is absent**, so the
+ * shared cache degrades to per-file caching rather than failing.
+ */
+export interface BrowserDashboardBootstrap {
+  /**
+   * Route to in-flight request. **Values stay `Promise<unknown>`**: each is an `api.getJson`
+   * result, and narrowing a wire body is `0.33.33.38.4`'s work rather than this surface's.
+   */
+  dataPromises: Map<string, Promise<unknown>>;
+  /** Request a route once and memoize it. An empty route resolves an empty object. */
+  loadRoute(routeValue?: unknown): Promise<unknown>;
+  /**
+   * The manifest request started during module evaluation, created **once** and never replaced.
+   *
+   * Resolves the same `CachedFetchResult` shape on both of its branches - the workspace-scoped
+   * path returns `cachedFetch.getJson` directly and the unscoped path builds the equivalent by
+   * hand - so `data` is `unknown` here for the reason it is `unknown` there. **It can reject**:
+   * the API client is acquired inside it and the cached-fetch read is unguarded.
+   */
+  manifestPromise: Promise<CachedFetchResult>;
+  /** The data route for a panel descriptor, with the calendar panel's range folded in. */
+  routeForPanel(panel?: unknown): string;
+}
+
+/**
+ * One registered module action as the registry describes it to a host, built by
+ * `public/js/shared/module-actions.js` at two sites - the elements of `list()` and the
+ * `action` a host context carries - which construct the identical shape.
+ *
+ * **The two identifiers are the registered key.** `register` pins `actionId` and `id` after
+ * spreading the caller's descriptor, so nothing can overwrite them; they are the opaque key the
+ * action registered with, which is any truthy value (`0.33.33.38.2.10`). Every other field is
+ * whatever the registering module supplied: the registry sets defaults, spreads the
+ * descriptor over them, and **never validates what came back**. Naming those fields
+ * `string` would describe the defaults rather than the runtime. The three list fields are
+ * `unknown[]` for the same reason - they are `[...action.requiredModules]`, so the registry
+ * copies whatever iterable it was given.
+ */
+export interface ModuleActionSummary {
+  /**
+   * The opaque key the action registered with, handed back as it was (`0.33.33.38.2.10`). Every
+   * first-party action registers with text, but the registry accepts any truthy value.
+   */
+  actionId: unknown;
+  /** The same key as `actionId`. */
+  id: unknown;
+  label: unknown;
+  mode: unknown;
+  moduleId: unknown;
+  recordType: unknown;
+  requiredModules: unknown[];
+  requiredPermissions: unknown[];
+  requiredWorkspaceCapabilities: unknown[];
+  title: unknown;
+}
+
+/**
+ * What `open` resolves to. **The registry owns this shape** - it is settled by the host
+ * context rather than returned by the module - which is why `completed` is precise and
+ * `actionId` is the exact key the action registered with, opaque since `0.33.33.38.2.10`.
+ * `detail` is not: it is whatever the dialog passed to `complete`/`cancel`, or the opener's own
+ * return value.
+ *
+ * **Every consumer reads `completed` and nothing else.**
+ */
+export interface ModuleActionOutcome {
+  actionId: unknown;
+  completed: boolean;
+  detail: unknown;
+}
+
+/**
+ * `LongtailForge.moduleActions`, published by `public/js/shared/module-actions.js`.
+ *
+ * The registry through which one page opens another module's dialog without loading that
+ * module's page controller. It extends `ModuleActionDependencyLoader`, which `0.33.33.34`
+ * named for the loading half: those two members were always members of this one object, and
+ * the split is a statement about when a host may call them, not about where they live.
+ *
+ * **`register` deliberately does not name the descriptor it accepts.** Eleven call sites in
+ * eight module files register actions, and the fields they supply - `canOpen`, `open`,
+ * `mode`, `recordType`, `requiredModules` and the rest - are **the module-contribution
+ * vocabulary of this framework.** Naming it here would settle a contract that belongs to a
+ * checkpoint about extensibility, on the evidence of whichever modules happen to ship today.
+ * The registry itself validates only that an id and an `open` function are present, and
+ * **returns `null` when either is missing**; the comment names the intended shape, the type
+ * says what the runtime accepts. **No consumer reads the return value.**
+ */
+export interface BrowserModuleActions extends ModuleActionDependencyLoader {
+  /** Registered actions the workspace can currently use, or all of them. */
+  list(options?: { includeUnavailable?: boolean }): ModuleActionSummary[];
+  /**
+   * Open a registered action's dialog and resolve once it settles.
+   *
+   * **Rejects** for an unregistered action, one unavailable in this workspace, one whose
+   * `canOpen` refuses, one with no opener, and any error the opener throws - which it
+   * re-throws after reporting it through the host's status channel.
+   *
+   * `options` carries the host's `onCancel`, `onComplete`, `refresh`, `setStatus` and
+   * `statusElement`, each read behind a `typeof` guard and none of them validated.
+   * **Naming that shape was tried and withdrawn**, because `refresh` is supplied by the host
+   * but *called by the module dialog*, with a detail value neither of them validates. Typing
+   * the parameter honestly as `unknown` made a host's own refresh callback stop compiling -
+   * so the declaration would have been buying consumer assistance with narrowing work that
+   * belongs to `0.33.33.38.4`. The members are named here instead.
+   */
+  /**
+   * `actionId` is the opaque key the action registered with, found by exact value
+   * (`0.33.33.38.2.10`): a numeric `7` and the text `"7"` are two different actions.
+   */
+  open(actionId: unknown, params?: unknown, options?: unknown): Promise<ModuleActionOutcome>;
+  /** Register an action, or return `null` for a descriptor with no id or no opener. */
+  register(action?: unknown): unknown;
+}
+
+/** A billing period a client or project overrides, or `null` where it inherits. */
+export interface NormalizedBillingPeriod {
+  /** 1-28, and always 1 for a calendar month. */
+  startDay: number;
+  type: "calendarMonth" | "custom";
+}
+
+/** A rounding rule a client or project overrides, or `null` where it inherits. */
+export interface NormalizedBillingRounding {
+  enabled: boolean;
+  increment: "nearestHalfHour" | "nearestHour" | "nearestQuarterHour";
+}
+
+/**
+ * A project as `normalizeClients` rebuilds it - **not** a project record.
+ *
+ * Every field here is constructed by the writer rather than passed through: the identifiers
+ * are `String(...).trim()`ed and accept either casing the API uses, `status` is derived from
+ * a case-insensitive `"inactive"` test, `billable` falls back to the owning client's setting,
+ * money is parsed to a finite number or `null`, and the two override shapes are rebuilt field
+ * by field. `displayName`, `optionLabel` and `hierarchyDepth` are added by the ordering pass,
+ * which indents each label by its depth in the parent chain.
+ */
+export interface NormalizedProjectOption {
+  billable: "no" | "yes";
+  billingPeriod: NormalizedBillingPeriod | null;
+  billingRate: number | null;
+  billingRounding: NormalizedBillingRounding | null;
+  client_id: string;
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  name: string;
+  optionLabel: string;
+  parent_project_id: string;
+  status: "Active" | "Inactive";
+}
+
+/**
+ * A client as `normalizeClients` rebuilds it, with its projects already ordered and labelled.
+ *
+ * **The writer spreads the input record before overwriting these fields**, so a normalized
+ * client also carries whatever else the API sent. That is deliberately not described here:
+ * no consumer in the estate reads a pass-through field, and naming today's API columns would
+ * freeze a server shape this helper does not own. The fields below are the ones the writer
+ * constructs and therefore the ones it can promise.
+ */
+export interface NormalizedClientOption {
+  billable: "no" | "yes";
+  billingPeriod: NormalizedBillingPeriod | null;
+  billingRate: number | null;
+  billingRounding: NormalizedBillingRounding | null;
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  /** Present only on the synthetic entry that carries workspace-scoped projects. */
+  isWorkspaceScope?: boolean;
+  name: string;
+  optionLabel: string;
+  parent_client_id: string;
+  projects: NormalizedProjectOption[];
+  status: "Active" | "Inactive";
+}
+
+/**
+ * `LongtailForge.clientProjectOptions`, published by
+ * `public/js/shared/client-project-options.js`.
+ *
+ * Turns a client/project API body into the ordered, labelled options six pages put in their
+ * pickers. **Input and output are deliberately different vocabularies.** `data` is `unknown`
+ * because it is a wire body - every consumer hands it a `response.json()` or an
+ * `api.getJson` result, and the writer reads it defensively, keeping only what survives
+ * `Array.isArray`. The output is named strongly because **the writer constructs every field
+ * of it**, which is the same input-untrusted / output-normalized split `timezones` and the
+ * link-target vocabulary already use.
+ */
+export interface BrowserClientProjectOptions {
+  /**
+   * Order and label a client/project body for a picker. **Total**: an unusable body yields an
+   * empty list rather than an error. Inactive records are dropped unless `includeInactive`.
+   *
+   * Clients come back in parent-then-child order with orphans appended, and a synthetic
+   * `isWorkspaceScope` entry is prepended **only** when the body carries workspace projects.
+   */
+  normalizeClients(data?: unknown, options?: { includeInactive?: boolean }): NormalizedClientOption[];
+  /**
+   * The label for a client **or** a project - both are passed at four sites - falling back
+   * through `displayName` and `name` to `""`.
+   *
+   * The parameter names the three fields the implementation reads rather than either record
+   * type, because that is all it touches and it is called with both.
+   */
+  optionLabel(record?: { displayName?: string; name?: string; optionLabel?: string }): string;
+}
+
+/** One Markdown command the notes editor can apply, as `notesEditor.commands` lists them. */
+export interface NotesEditorCommand {
+  placeholder: string;
+  prefix: string;
+  suffix: string;
+}
+
+/**
+ * The controller `createPlainTextarea` returns: a plain `<textarea>` wired for Markdown
+ * editing. Every member is built by the writer from the element it was given, so the shape is
+ * closed - there is no extension point here and nothing is read back off the DOM untyped.
+ */
+export interface NotesPlainTextareaController {
+  /** Apply a command by name and return the textarea's resulting value. */
+  applyCommand(commandName?: unknown): string;
+  /** The command names this controller accepts, from the writer's own frozen table. */
+  commands: string[];
+  /** Continue a list marker onto the next line; `false` when the caret is not in a list. */
+  continueList(): boolean;
+  element: HTMLTextAreaElement;
+  getValue(): string;
+  indent(): void;
+  outdent(): void;
+  setValue(value?: unknown): void;
+}
+
+/**
+ * `LongtailForge.notesEditor`, published by `public/js/shared/notes-editor.js`.
+ *
+ * Markdown editing behaviour for a plain `<textarea>`, with no dialog and no network of its
+ * own. **Every member is total**: a missing textarea yields `""`, `false`, or `null` rather
+ * than throwing, which is why the parameters below say what the runtime accepts rather than
+ * what a caller ideally passes.
+ */
+export interface BrowserNotesEditor {
+  /** Apply a command to a textarea and return its resulting value, or `""` when it cannot. */
+  applyCommand(textarea?: unknown, commandName?: unknown): string;
+  /** The writer's frozen command table, keyed by command name. */
+  commands: Readonly<Record<string, NotesEditorCommand>>;
+  /** Continue a list marker on Enter. `false` when there is nothing to continue. */
+  continueListMarker(textarea?: unknown): boolean;
+  /** Wire a textarea for Markdown editing, or `null` when there is no element. */
+  createPlainTextarea(element?: unknown, options?: unknown): NotesPlainTextareaController | null;
+  /** Tab, Shift+Tab and Enter behaviour. Reads the event and returns nothing. */
+  handleKeydown(event?: unknown, textarea?: unknown): void;
+  /** Normalise Markdown text. Coerces through `String(...)`, so anything is accepted. */
+  normalizeMarkdown(markdown?: unknown): string;
+}
+
+/**
+ * A panel mounted into a host element, as `notesLinkedPanel.mount` returns.
+ *
+ * **`refresh` fetches but resolves nothing.** The panel reads its own route and renders into
+ * the container it was given; no wire body is handed back to the caller, which is why this
+ * surface is declarable in `0.33.33.38.2` rather than being `0.33.33.38.4`'s work. The same
+ * distinction `timezones` established: reaching the network is not the boundary, returning
+ * unvalidated data is.
+ *
+ * `fileAttachments.mount` returns the identical shape and will reuse this contract when
+ * `0.33.33.40` has typed the Notes page state that currently holds its controller as `null`.
+ */
+export interface BrowserMountedPanel {
+  /** Tear the panel down and empty its container. */
+  destroy(): void;
+  /** Re-read the panel's data and re-render. Resolves when the render is complete. */
+  refresh(): Promise<void>;
+}
+
+/** The four sort modes `LINKED_NOTE_SORT_MODES` admits before the panel options normalise. */
+export type BrowserLinkedNoteSort = "pinned" | "recent" | "title" | "updated";
+
+/** The record `shapeLinkedNoteTarget` builds, four members named from the query's own target. */
+export interface BrowserLinkedNoteTarget {
+  moduleId: string;
+  targetId: string;
+  /** Left open text: the browser reader does not validate the full linked-target vocabulary. */
+  targetType: string;
+  sourceUrl: string;
+}
+
+/**
+ * What `readNotesModuleState` answers: a server policy result, not a browser computation.
+ *
+ * `notesModuleEnabled` and `enabled` are the same `canWriteModule` answer under two names, which
+ * the producer sends for compatibility rather than because they can differ.
+ */
+export interface BrowserNotesModuleState {
+  enabled: boolean;
+  historicalReadAccess: boolean;
+  notesModuleEnabled: boolean;
+  workspaceType: BrowserWorkspaceType;
+}
+
+/**
+ * The panel's action hints.
+ *
+ * **Display hints, not authorization.** Every write route asserts its own permission; these say
+ * what the panel should offer, and a browser that treats them as the decision would be reading a
+ * suggestion as a grant.
+ */
+export interface BrowserLinkedNotePanelActions {
+  canCreate: boolean;
+  canLink: boolean;
+  canUnlink: boolean;
+  readonly: boolean;
+}
+
+/** The empty state the producer builds when a target has no linked notes. */
+export interface BrowserLinkedNotePanelEmptyState {
+  action: { href: string; label: string };
+  body: string;
+  title: string;
+}
+
+/**
+ * What `GET /api/notes/for-target` resolves to.
+ *
+ * **Exact at the envelope: eight members, one literal, no top-level spread.** All eight are
+ * declared even though two diagnostics named only `count` and `linkedNotes`, because the panel
+ * reads `emptyState`, three of the `actions` and `moduleState.enabled` besides.
+ *
+ * **`notes` is deliberately opaque.** It is a compatibility projection of the same sorted notes
+ * `linkedNotes` is built from, shaped by `shapeNoteForBrowser`; no browser consumer on this path
+ * reads into an element. Claiming `BrowserNoteRecord[]` would make this endpoint the owner of a
+ * second exhaustive note projection it does not use, so the container is checked and the element
+ * shape is left to the producer that owns it.
+ *
+ * Three coherences are enforced because the producer guarantees them: `count` is
+ * `linkedNotes.length`, `notes` and `linkedNotes` map the same sorted collection, and
+ * `emptyState` is `null` exactly when there is something to show.
+ */
+export interface BrowserLinkedNotePanelResponse {
+  actions: BrowserLinkedNotePanelActions;
+  /** `linkedNotes.length`, so a finite count rather than a value to default. */
+  count: number;
+  /** `null` exactly when `count > 0`. */
+  emptyState: BrowserLinkedNotePanelEmptyState | null;
+  linkedNotes: BrowserLinkedNoteItem[];
+  moduleState: BrowserNotesModuleState;
+  /** The compatibility projection: container-checked, elements deliberately unpromised. */
+  notes: unknown[];
+  sort: BrowserLinkedNoteSort;
+  target: BrowserLinkedNoteTarget;
+}
+
+/**
+ * `LongtailForge.notesLinkedPanel`, published by `public/js/shared/notes-linked-panel.js`.
+ *
+ * The linked-notes panel the Task dialog mounts. **`mount` throws** rather than returning
+ * `null` when it has no container, so the return type has no null branch.
+ */
+export interface BrowserNotesLinkedPanel {
+  mount(container?: unknown, options?: unknown): BrowserMountedPanel;
+  /**
+   * What `GET /api/notes/for-target` answered, or `null` when it cannot be vouched for.
+   *
+   * Lives here because two pages read this producer and this surface is already declared and
+   * already delivered to both - Tasks loads `shared/notes-linked-panel.js` before its own script -
+   * so sharing the reader costs no new root member and no second copy of the note column tables.
+   */
+  readForTarget(body: unknown): BrowserLinkedNotePanelResponse | null;
+}
+
+/**
+ * `LongtailForge.notesDialog`, published by `public/js/notes.js`.
+ *
+ * **A closed contract with one writer.** `0.33.33.38.2.4.4` removed the spread of the previous
+ * value that made this look like an extension point: the file is delivered as a classic script
+ * on its own page and as a `module: true` module-action dependency elsewhere, and the
+ * descriptor's readiness probe stops the second load. Nothing may contribute members here.
+ *
+ * **Every opener rejects rather than returning a failure value** - a missing note id, an edit
+ * without a record - and each resolves `hostContext.result` when a module action supplied one,
+ * otherwise the dialog's own outcome. That union is genuinely `unknown`: the two branches are
+ * different shapes and `0.33.33.38.4` owns narrowing what a dialog resolves.
+ */
+export interface BrowserNotesDialog {
+  /** Open the editor in add mode. */
+  openAdd(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  /** Open the editor in edit mode. Rejects without a note id. */
+  openEdit(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openNoteEditor(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openNoteViewer(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  /** The viewer, under the name the module-action registry uses. */
+  openView(params?: unknown, hostContext?: unknown): Promise<unknown>;
+}
+
+/**
+ * One action inside a Lists-contributed descriptor fragment.
+ *
+ * **`id` is the only required member, because it is the only one Lists cannot work without**: it
+ * keys the action maps and becomes the rendered control's action name. The three optional members
+ * are the ones Lists itself reads; everything else a module contributes rides the index signature
+ * untouched and reaches the renderer by identity.
+ */
+export interface BrowserListsActionDescriptor {
+  [key: string]: unknown;
+  behavior?: string;
+  id: string;
+  label?: string;
+  role?: string;
+}
+
+/**
+ * One field inside a Lists-contributed descriptor fragment.
+ *
+ * `field` names the control and is required; `width` is written onto a dataset attribute, so it is
+ * validated as a string when present. **The rest of a field definition is the renderer's**, and
+ * this contract does not restate it.
+ */
+export interface BrowserListsFieldDescriptor {
+  [key: string]: unknown;
+  field: string;
+  width?: string;
+}
+
+/** The list action strip a module may contribute in place of the page's own. */
+export interface BrowserListsActionStripDescriptor {
+  [key: string]: unknown;
+  actions?: BrowserListsActionDescriptor[];
+  label?: string;
+}
+
+/** The item form a module may contribute in place of the page's own. */
+export interface BrowserListsItemFormDescriptor {
+  [key: string]: unknown;
+  actions?: BrowserListsActionDescriptor[];
+  fields?: BrowserListsFieldDescriptor[];
+  title?: string;
+}
+
+/** The empty-state fragment of a contributed item-rows descriptor. */
+export interface BrowserListsEmptyStateDescriptor {
+  [key: string]: unknown;
+  message?: string;
+}
+
+/**
+ * The item rows a module may contribute in place of the page's own.
+ *
+ * `actions` is **required** here and optional on the other fragments, because the row builder maps
+ * over it without a guard. A contributed fragment without it is treated as absent so the page's own
+ * descriptor answers instead - which is what the other fragments already did, and what stops a
+ * missing member from throwing.
+ */
+export interface BrowserListsItemRowsDescriptor {
+  [key: string]: unknown;
+  actions: BrowserListsActionDescriptor[];
+  emptyState?: BrowserListsEmptyStateDescriptor;
+}
+
+/** The detail section of the Lists workspace surface. */
+export interface BrowserListsDetailDescriptor {
+  [key: string]: unknown;
+  actionStrip?: BrowserListsActionStripDescriptor;
+  itemForm?: BrowserListsItemFormDescriptor;
+  itemRows?: BrowserListsItemRowsDescriptor;
+}
+
+/** One modal definition Lists reads out of the contributed surface. */
+export interface BrowserListsModalDescriptor {
+  [key: string]: unknown;
+  fields?: BrowserListsFieldDescriptor[];
+  footerActions?: BrowserListsActionDescriptor[];
+  id: string;
+}
+
+/** The index-panel fragment of the Lists workspace surface. */
+export interface BrowserListsIndexPanelDescriptor {
+  [key: string]: unknown;
+  collapseOnSelect?: boolean;
+  label?: string;
+  title?: string;
+}
+
+/**
+ * The `lists.workspace` surface as `public/js/lists.js` consumes it.
+ *
+ * **Page-specific and structural on purpose.** `BrowserStoredWorkspaceContext.viewSurfaces` is
+ * `unknown[]` because the stored-context constructor checks only the container, so each consumer
+ * narrows its own element - and this is Lists doing that, not an application-wide descriptor model.
+ *
+ * **The root promises only its identity.** The nested sections are `unknown` here and validated
+ * where they are used, because each already has a page-local fallback: a contributed section that
+ * is malformed takes the same path an absent one takes, and a valid surface is not discarded for a
+ * section Lists can supply itself. Every member a module contributes rides the index signature and
+ * reaches the renderer by identity.
+ */
+export interface BrowserListsWorkspaceSurfaceDescriptor {
+  [key: string]: unknown;
+  id: string;
+  moduleId: string;
+}
+
+/**
+ * `LongtailForge.listsDialog`, published by `public/js/lists.js`.
+ *
+ * The same closed single-writer shape as `notesDialog`, for the same reasons, with three
+ * members instead of five.
+ */
+export interface BrowserListsDialog {
+  openAdd(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openEdit(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openListEditor(params?: unknown, hostContext?: unknown): Promise<unknown>;
+}
+
+/**
+ * `LongtailForge.tasksDialog`, published by `public/js/task-dialog.js`.
+ *
+ * Eight members, and they do not share a shape. **`configure` answers the surface itself** - it
+ * merges its options into the dialog's context and returns the same object, so a caller may chain
+ * it. The four openers are asynchronous and resolve `dialog.returnValue || "closed"`: a **close
+ * reason**, never a saved task. `openAdd` and `openEdit` are thin modes over `openTaskEditor`.
+ *
+ * `pollRecurrenceContinuity` answers an **opaque continuity token**. It polls the recurrence route
+ * and keeps whatever `recurrenceContinuity` the body carried, validating nothing, so `unknown` is
+ * what it really returns rather than a hidden shape - and its two sibling members are the ones
+ * that read it. Declaring a recurrence record here would claim a validation that does not happen.
+ */
+export interface BrowserTasksDialog {
+  configure(options?: unknown): BrowserTasksDialog;
+  open(request?: unknown): Promise<string>;
+  openAdd(params?: unknown, hostContext?: unknown): Promise<string>;
+  openEdit(params?: unknown, hostContext?: unknown): Promise<string>;
+  openTaskEditor(params?: unknown, hostContext?: unknown): Promise<string>;
+  pollRecurrenceContinuity(taskId?: unknown, options?: unknown): Promise<unknown>;
+  recurrenceContinuityMessage(continuity?: unknown): string;
+  renderRecurrenceContinuity(container?: unknown, continuity?: unknown): void;
+}
+
+/**
+ * What `taskResumeNoteCapture.consume` resolves: a locally built outcome, never a wire body.
+ *
+ * **The shape is constructed and the payload is not.** Every branch of the implementation
+ * returns an object literal assembled here - but `reason` widens to `string` the way any
+ * object-literal property does, and `task`
+ * is a task record that reached this file from the network without validation, and `error` is
+ * a caught value. Those two stay `unknown` because that is what they are; narrowing a task
+ * record is `0.33.33.38.4`'s work.
+ */
+export interface TaskResumeNoteConsumeResult {
+  consumed: boolean;
+  /** Present only on the error branch. */
+  error?: unknown;
+  reason?: string;
+  task?: unknown;
+}
+
+/** What `taskResumeNoteCapture.offer` resolves. Constructed on every branch, like `consume`. */
+export interface TaskResumeNoteOfferResult {
+  captured: boolean;
+  /** Present only on the error branch. */
+  error?: unknown;
+  reason?: string;
+  task?: unknown;
+}
+
+/**
+ * `LongtailForge.taskResumeNoteCapture`, published by `public/js/task-resume-note-capture.js`.
+ *
+ * Offers the resume-note prompt when a task is resumed, and consumes the note the prompt
+ * captured. **Both members reach the network and neither returns a wire body**: each resolves
+ * an outcome this file builds, with the untrusted task record carried in one named field
+ * rather than spread through the result.
+ */
+export interface BrowserTaskResumeNoteCapture {
+  consume(options?: unknown): Promise<TaskResumeNoteConsumeResult>;
+  offer(options?: unknown): Promise<TaskResumeNoteOfferResult>;
+}
+
+/**
+ * `LongtailForge.timeEntryDialog`, published by `public/js/time-entry-dialog.js`.
+ *
+ * **The openers resolve a string, not an opaque result, and that is the finding.**
+ * `0.33.33.38.2.2.6.5` declared `notesDialog` and `listsDialog` with `Promise<unknown>` because
+ * those resolve `hostContext?.result || result` - two different shapes. **These dialogs do not
+ * do that**: both openers delegate to one internal `openDialog`, which resolves
+ * `dialog.returnValue || "closed"`, and `time-entries.js` reads it exactly that way with
+ * `if (result !== "complete")`. Copying the earlier precedent would have thrown away a precise
+ * type the runtime already provides.
+ */
+export interface BrowserTimeEntryDialog {
+  /** Reset the dialog's host context. Returns the surface, so calls can chain. */
+  configure(options?: unknown): BrowserTimeEntryDialog;
+  openAdd(params?: unknown, hostContext?: unknown): Promise<string>;
+  /** **Rejects** when the entry it was asked to edit cannot be loaded. */
+  openEdit(params?: unknown, hostContext?: unknown): Promise<string>;
+}
+
+/**
+ * `LongtailForge.timeTrackingTimerDialog`, published by
+ * `public/js/time-tracking-timer-dialog.js`.
+ *
+ * One member, resolving the same `dialog.returnValue || "closed"` string its sibling dialogs do.
+ */
+export interface BrowserTimeTrackingTimerDialog {
+  openCreate(params?: unknown, hostContext?: unknown): Promise<string>;
+}
+
+/**
+ * A dashboard panel renderer, as modules register them through
+ * `LongtailForge.dashboard.registerPanelRenderer`.
+ *
+ * **The parameters are `unknown` because the runtime hands the renderer untrusted values.**
+ * `contribution` is an entry from the dashboard manifest, which arrives through
+ * `dashboardBootstrap.manifestPromise` as a `CachedFetchResult` whose `data` is `unknown`;
+ * narrowing it is `0.33.33.38.4`'s work. `context` is built by `dashboard.js` and carries
+ * `dashboardData`, `findContribution`, `loadContributionData`, `setStatus`, `view`,
+ * `createPanel` and `createDashboardPanel` - **named here rather than typed**, for the reason
+ * `0.33.33.38.2.2.6.4.1` withdrew `ModuleActionHostOptions`: a host-supplied callback shape is
+ * read defensively, and typing it constrains callers the runtime does not constrain.
+ *
+ * **The return is `unknown` because the registry accepts three shapes**: a falsy value, one
+ * panel, or an array of them. `normalizeRenderedPanels` reduces all three to a list before any
+ * of it reaches the DOM.
+ */
+export type DashboardPanelRenderer = (contribution?: unknown, context?: unknown) => unknown;
+
+/**
+ * `LongtailForge.dashboard`, published by `public/js/dashboard.js`.
+ *
+ * **A closed, single-member surface, and `0.33.33.38.2.4.4` is what made that statement
+ * true rather than assumed.** This child was blocked on `0.33.33.38.2.4` for four checkpoints
+ * because the surface was published by spread-merge - `{ ...(namespace.dashboard || {}), ... }` -
+ * which reads as an invitation to other publishers, and declaring the one member that happened
+ * to exist would have frozen an anticipated extension point into a closed contract. **The block
+ * was correct.** What settled it was archaeology, not assumption: the spread assigned a new
+ * object every time so it never preserved identity for a captured reference, the panel registry
+ * it appeared to protect is a file-local closure, and the file publishes once from one call
+ * behind the ES-module bridge. The spread is gone, and this is a closed contract.
+ *
+ * **Two consumers acquire it at load and fail differently on purpose.** `tasks-dashboard.js`
+ * **throws** - the Tasks dashboard cannot render without the registry - while
+ * `time-tracking-dashboard.js` **returns**, because its panels are an optional contribution to
+ * a dashboard that renders fine without them. Both check `registerPanelRenderer` rather than
+ * the surface, and neither is standardised into the other.
+ */
+export interface BrowserDashboard {
+  /**
+   * Register a renderer for a panel contribution id.
+   *
+   * **Ignores** an empty id or a non-function renderer rather than throwing, and **re-renders
+   * immediately** when dashboard data has already arrived - so a late registration still shows
+   * its panel. A repeat id replaces the previous renderer.
+   */
+  registerPanelRenderer(rendererId?: unknown, renderer?: DashboardPanelRenderer): void;
+}
+
+/**
+ * The detail each attachment event carries, keyed by the event `emit` raises.
+ *
+ * **The eleven events do not share a detail shape, so they do not share a listener type.** A
+ * single `(detail?: unknown) => void` looked tidy and was wrong: `task-dialog.js` destructures
+ * `{ error }` from the upload-failure detail, and a callback that destructures cannot accept
+ * `unknown`. Each listener below carries the shape its own `emit` call site supplies, which is
+ * both more truthful and what lets the existing consumers compile unchanged.
+ *
+ * The values inside stay `unknown`: an attachment, an upload result and a caught error are all
+ * unvalidated, and narrowing them is `0.33.33.38.4`'s work.
+ */
+export type BrowserFileAttachmentEventListener<Detail> = (detail?: Detail) => void;
+
+/**
+ * What `LongtailForge.fileAttachments.mount` accepts.
+ *
+ * **Every key is optional because the writer supplies a default for the ones it needs.**
+ * `normalizeOptions` builds a defaulted object and spreads the caller's over it, so a caller
+ * may pass none of these; what it may not do is pass something the component silently drops.
+ *
+ * **The `on*` members are read through a computed key**, which is why a search for them finds
+ * nothing: `emit` builds `on${Name}` from the event it is raising. They are enumerable all the
+ * same - the writer raises eleven named events - and each is called as `callback?.(detail)`
+ * alongside a `longtailforge:file-attachments:*` DOM event carrying the same detail.
+ *
+ * **`emptyMessage` is accepted and never read.** `task-dialog.js` passes it, the spread carries
+ * it into the component's state, and nothing consumes it - so it is declared rather than
+ * omitted, because omitting it would fail an excess-property check on a call the runtime
+ * accepts today. Removing it from that call site is `0.33.33.41`'s work, not this one's.
+ */
+export interface BrowserFileAttachmentOptions {
+  /** File categories the picker offers, as `acceptedExtensions` maps them. */
+  acceptedCategories?: unknown;
+  /** Extra form fields appended to an upload. Sent as-is, so the value is not narrowed here. */
+  attachmentMetadata?: unknown;
+  canQuarantine?: boolean;
+  /** Compared against `false`, so anything else leaves removal enabled. */
+  canRemove?: boolean;
+  canReport?: boolean;
+  canUpload?: boolean;
+  clientId?: unknown;
+  /** Accepted and currently unread. */
+  emptyMessage?: unknown;
+  /** Required together with `targetType` and `targetId` before the panel will load. */
+  moduleId?: unknown;
+  onAttachmentAdded?: BrowserFileAttachmentEventListener<unknown>;
+  onAttachmentRemoved?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileDeleted?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileQuarantined?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileReported?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileRestored?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onRefresh?: BrowserFileAttachmentEventListener<{ attachments?: unknown }>;
+  onStatusChanged?: BrowserFileAttachmentEventListener<{ attachment?: unknown; status?: unknown }>;
+  onUploadCompleted?: BrowserFileAttachmentEventListener<unknown>;
+  onUploadFailed?: BrowserFileAttachmentEventListener<{ error?: unknown }>;
+  onUploadStarted?: BrowserFileAttachmentEventListener<{ files?: unknown }>;
+  projectId?: unknown;
+  /** Shown in place of the upload form when the record has not been saved yet. */
+  saveFirstMessage?: unknown;
+  targetId?: unknown;
+  targetType?: unknown;
+  /** The panel heading. */
+  title?: unknown;
+  visibility?: unknown;
+}
+
+/**
+ * `LongtailForge.fileAttachments`, published by `public/js/shared/file-attachments.js`.
+ *
+ * The attachment panel Notes and the Task dialog mount. **One writer, one member, closed** -
+ * `0.33.33.38.2.4.4` removed the preserving spread that made it look otherwise, having proved
+ * it was the residue of a three-writer arrangement `0.33.33.34` retired.
+ *
+ * **This surface waited on Notes rather than on itself.** `notes.js` held its controller in a
+ * state field that inferred as `null`, so nothing the mount returned could be assigned there;
+ * `0.33.33.40.1` typed that field and the block ended.
+ */
+export interface BrowserFileAttachments {
+  /**
+   * Mount the attachment panel into a container and start loading its attachments.
+   *
+   * **Throws** when there is no container, so the return has no null branch - and the parameter
+   * admits `null` because that is what the runtime accepts and rejects, rather than forcing a
+   * caller that already guards to narrow again for the declaration's convenience. The returned
+   * controller is the same `BrowserMountedPanel` the linked-notes panel returns: `refresh`
+   * re-reads and re-renders without handing back a wire body, and `destroy` also unsubscribes
+   * from the workspace-context event this panel listens to.
+   */
+  mount(container?: Element | null, options?: BrowserFileAttachmentOptions): BrowserMountedPanel;
+}
+
+/**
+ * What `POST /api/notes/preview` resolves to.
+ *
+ * **Four members reconstructed by name, two of them constants the producer writes literally.**
+ * `bodyFormat` and `bodyHtmlFormat` are not values the shaper discovers; they say which of the
+ * two bodies is which, so they are declared and checked as the words they are.
+ *
+ * **`bodyHtml` is the reason this contract matters.** The page assigns it to `innerHTML`, and it
+ * is safe to do that **because `renderMarkdownToSafeHtml` produced it** - the same call runs
+ * `assertSafeMarkdown` over the input first. A browser that accepted an unvouchable body here
+ * would be writing unsanitised markup into the document, so this reader refuses rather than
+ * falling back to `""`, which would also have claimed the note renders to nothing.
+ */
+export interface BrowserNoteMarkdownPreview {
+  /** A constant: the first body is always the Markdown that was sent. */
+  bodyFormat: "markdown";
+  /** The sanitised render, safe to assign because the server sanitised it. */
+  bodyHtml: string;
+  /** A constant: the second body is always HTML. */
+  bodyHtmlFormat: "html";
+  /** The Markdown the producer echoes back, after `assertSafeMarkdown`. */
+  bodyMarkdown: string;
+}
+
+/**
+ * The note columns every browser-facing Notes projection carries.
+ *
+ * **Derived from the producer, not from what `notes.js` reads.** `NOTE_LIST_COLUMNS` in
+ * `src/modules/notes/notes.repo.js` selects exactly these twenty-seven, and `NOTE_COLUMNS` - the
+ * detail select - is a strict superset, so this is the intersection every shaped note has. The
+ * required/nullable split is the table's own `NOT NULL`, and nothing here is optional: these
+ * columns are selected by name, so they are present even when null.
+ *
+ * **The vocabularies are documented rather than declared as unions, deliberately.** `note_type`,
+ * `library_bucket`, `library_bucket_source`, `status`, `visibility` and `security_mode` each carry
+ * a `CHECK` constraint in the schema, so the server does constrain them - but **the browser does
+ * not validate them**, and `0.33.33.38.4` already recorded for `userPreferences` that a closed
+ * union over an unvalidated wire field is a claim no browser code makes. The runtime vocabularies
+ * are: `note_type` general/meeting/research/decision/procedure/reference/idea/log/client/project/
+ * task/ticket/user; `library_bucket` active_work/ongoing_area/reference; `library_bucket_source`
+ * derived/manual/imported; `status` active/pinned/archived/deleted; `visibility` internal/private/
+ * workspace/client_visible/public; `security_mode` normal/secure.
+ */
+export interface BrowserNoteColumns {
+  archived_at: string | null;
+  /** Nulled by the producer for an effectively secure note, in both projections. */
+  body_excerpt: string | null;
+  client_id: string | null;
+  created_at: string;
+  created_by_user_id: string | null;
+  deleted_at: string | null;
+  import_source: string | null;
+  import_source_id: string | null;
+  imported_at: string | null;
+  library_bucket: string;
+  library_bucket_source: string;
+  linked_user_id: string | null;
+  note_collection_id: string | null;
+  note_id: string;
+  note_type: string;
+  owner_user_id: string | null;
+  project_id: string | null;
+  security_mode: string;
+  slug: string | null;
+  status: string;
+  task_id: string | null;
+  ticket_id: string | null;
+  title: string;
+  updated_at: string;
+  updated_by_user_id: string | null;
+  visibility: string;
+  workspace_id: string;
+}
+
+/**
+ * One note as `GET /api/notes` returns it, shaped by `shapeNoteListProjection`.
+ *
+ * **A list note is not a detail note and this estate has to say so once.** The list select carries
+ * twenty-seven columns, and the projection then deletes `body_markdown`, `body_plaintext_index`,
+ * `body_html`, `metadata_json`, `metadata` and `searchDocument` - most of which the list select
+ * never had. What it adds is `tags`, from the effective-tag decoration every candidate batch runs
+ * through. The internal `__candidateOffset` marker is stripped before the response, so it is
+ * absent here rather than optional.
+ */
+export interface BrowserNoteListItem extends BrowserNoteColumns {
+  /** Effective tags as the tags service decorated them. **Not modelled here**: the tag record is
+   * `LongtailForge.tags`' producer, and `0.33.33.38.2.2.10` owns it. */
+  tags: unknown[];
+}
+
+/**
+ * One note as `GET /api/notes/:id`, `POST /api/notes` and the editor refresh return it.
+ *
+ * **`shapeNoteForBrowser` is subtractive, which is what makes this contract derivable.** It spreads
+ * the forty-seven-column detail row, deletes the eleven secure-storage columns, and then removes or
+ * nulls the rest conditionally. Every member below is a column the detail select names or a field
+ * `attachNoteIntegrations` adds - **no member is here because a consumer reads it.**
+ *
+ * **The eleven secure-storage columns are absent by design and must stay absent.**
+ * `secure_payload`, `secure_payload_version`, `encrypted_data_key`, `encryption_key_version`,
+ * `encryption_algorithm`, `key_wrapping_algorithm`, `encryption_nonce`, `encryption_auth_tag`,
+ * `key_wrapping_nonce`, `key_wrapping_auth_tag` and `encrypted_at` are deleted by
+ * `stripSecureStorageFields` before the note leaves the server. Declaring any of them would invite
+ * a browser consumer to depend on an envelope the server deliberately withholds.
+ */
+export interface BrowserNoteRecord extends BrowserNoteColumns {
+  body_markdown: string;
+  /** Nulled by the producer for an effectively secure note. */
+  body_plaintext_index: string | null;
+  import_batch_id: string | null;
+  import_source_path: string | null;
+  metadata_json: string | null;
+  original_notebook: string | null;
+  original_page_id: string | null;
+  original_section: string | null;
+  original_section_group: string | null;
+  /**
+   * Rendered note body.
+   *
+   * **Optional rather than nullable, and the difference is the contract.** The producer takes
+   * `includeBodyHtml`, and when it is false `shapeNoteForBrowser` **deletes the property** rather
+   * than nulling it. A route that omits it sends a note with no `body_html` key at all.
+   */
+  body_html?: string;
+  /**
+   * The decrypted secure body, present only on the paths that decrypt one and **deleted again**
+   * once the note is recognised as effectively secure. Optional for the same reason as
+   * `body_html`: the producer deletes the key.
+   */
+  secure_body_decrypted?: unknown;
+  /**
+   * Added by the producer **only** for an effectively secure note, so its absence is meaningful.
+   */
+  secure_title_warning?: string;
+  /** Decorated note links. **Not modelled here**: the link decorator is its own producer. */
+  links: unknown[];
+  /** The linked-context summary the producer builds. Its own producer, not modelled here. */
+  linked_context: unknown;
+  owner_display_name: string;
+  /** Effective tags, owned by `0.33.33.38.2.2.10` as on the list item. */
+  tags: unknown[];
+}
+
+/**
+ * One note as `GET /api/notes/for-target` returns it, shaped by `shapeLinkedNotePanelItem`.
+ *
+ * The detail projection minus `body_markdown`, `body_plaintext_index` and `metadata_json`, plus
+ * five fields the panel needs. It is declared against the shared columns rather than against
+ * `BrowserNoteRecord` because `tags` is not decorated on this path.
+ */
+export interface BrowserLinkedNoteItem extends BrowserNoteColumns {
+  /** A duplicate of `note_id`, added by the producer for the panel's list primitives. */
+  id: string;
+  label: string;
+  /** `null` for an effectively secure note, `""` when the note has no excerpt. */
+  excerpt: string | null;
+  sourceUrl: string;
+  links: unknown[];
+}
+
+/**
+ * The pagination record `noteListResult` builds, or `null` when the caller asked for no page.
+ *
+ * Constructed field by field by the producer rather than passed through, so every member is
+ * present and typed.
+ */
+export interface BrowserNotePagination {
+  hasMore: boolean;
+  limit: number;
+  nextCursor: string;
+  pageSize: number;
+}
+
+/** The `{ note }` envelope the single-note routes return. */
+export interface BrowserNoteEnvelope {
+  note: BrowserNoteRecord;
+}
+
+/** The `{ notes, pagination }` envelope `GET /api/notes` returns. */
+export interface BrowserNoteListEnvelope {
+  notes: BrowserNoteListItem[];
+  pagination: BrowserNotePagination | null;
+}
+
+/**
+ * The four linked-context types Lists publishes.
+ *
+ * A subset of the framework's linked-context types: `isListLinkTargetProvider` filters every
+ * active provider through `LIST_LINK_TARGET_TYPES` before the route can answer, and each target
+ * is built with the surviving provider's own type. Using the wider framework vocabulary here
+ * would name types this route can never expose.
+ */
+export type BrowserListLinkTargetType = "client" | "note" | "project" | "task";
+
+/**
+ * One provider as the link-target route advertises it.
+ *
+ * **A deliberate five-member reduction of the registry's provider contribution**, not a mirror
+ * of it: the service maps each active provider to exactly these five and answers no other part
+ * of the contribution record.
+ */
+export interface BrowserListLinkTargetProvider {
+  id: string;
+  label: string;
+  moduleId: string;
+  /** The registry provider key, named `provider` on the contribution and `providerId` here. */
+  providerId: string;
+  targetType: BrowserListLinkTargetType;
+}
+
+/**
+ * One linked-context target as Lists answers it.
+ *
+ * **Exact although the shaper spreads, because what it spreads is the framework's own total
+ * reconstruction.** `normalizeLinkedContextTarget` names all eleven members from the raw input
+ * and adds `primaryContextHints` only when the input carried it;
+ * `assertLinkedContextTargetContract` then refuses the target unless every one is present and
+ * typed. `shapeListLinkTarget` spreads that result and names three Lists labels.
+ *
+ * **Four members carry a safety guarantee the browser must not weaken.** The shared contract
+ * refuses a `displayLabel` or `secondaryLabel` that looks like a raw identifier or echoes the
+ * target, client, project or workspace id, so those labels are safe to render *because the
+ * server refused the alternative* - not because they are strings.
+ *
+ * Six members are additionally guaranteed non-empty by that contract; `secondaryLabel`,
+ * `sourceUrl`, `clientId` and `projectId` are reconstructed but may legitimately be `""`.
+ */
+export interface BrowserListLinkTarget {
+  /** Lists' own label, falling back to the display label, so never empty. */
+  ariaLabel: string;
+  /** Reconstructed, and empty when the target has no client. */
+  clientId: string;
+  /** Refused by the shared contract if it looks like, or echoes, an identifier. */
+  displayLabel: string;
+  fullLabel: string;
+  isAvailable: boolean;
+  moduleId: string;
+  /** Present only when the raw target carried hints; every value is text. */
+  primaryContextHints?: Record<string, string>;
+  /** Reconstructed, and empty when the target has no project. */
+  projectId: string;
+  /** Refused by the shared contract if it looks like, or echoes, an identifier. */
+  secondaryLabel: string;
+  sortKey: string;
+  /** Reconstructed, and empty when the provider offers no link. */
+  sourceUrl: string;
+  targetId: string;
+  targetType: BrowserListLinkTargetType;
+  title: string;
+  workspaceId: string;
+}
+
+/**
+ * What `GET /api/lists/link-targets` resolves to.
+ *
+ * Two members reconstructed by name with no spread. **`providers` is never empty on a success**:
+ * the service derives its target type from `activeProviders[0]` and throws before returning when
+ * no active supported provider survives filtering, so an empty catalogue is not something this
+ * producer can answer.
+ */
+export interface BrowserListLinkTargetsEnvelope {
+  providers: BrowserListLinkTargetProvider[];
+  targets: BrowserListLinkTarget[];
+}
+
+/**
+ * One note collection as `public/js/notes.js` holds it after `normalizeCollections`.
+ *
+ * **This is the normalised shape, not the wire shape, and that is the point.** The collection read
+ * model spreads the twenty-seven-column collection row and adds two rollup counts; the browser then
+ * rebuilds seven fields with defaults and drops any entry without an id. The seven rebuilt fields
+ * are typed because the normaliser guarantees them. **The fields it carries through untouched stay
+ * `unknown` and optional**, because nothing on either side of the boundary establishes them: the
+ * spread neither checks nor defaults them, and the wire may omit any of them.
+ */
+export interface BrowserNoteCollection {
+  accessibleNoteCount: number;
+  depth: number;
+  directAccessibleNoteCount: number;
+  library_bucket: string;
+  note_library_collection_id: string;
+  /** `""` rather than `null` for a root collection - the normaliser's own default. */
+  parent_collection_id: string;
+  title: string;
+  /** Carried through the spread unchecked; read by the collection sort. */
+  path_cache?: unknown;
+  /** Carried through the spread unchecked; compared against `"archived"` and `"deleted"`. */
+  status?: unknown;
+}
+
+/** The three Library buckets `note_library_collections.library_bucket` is constrained to. */
+export type BrowserNoteLibraryBucket = "active_work" | "ongoing_area" | "reference";
+
+/** The catalog lifecycle states that column is constrained to. */
+export type BrowserNoteCatalogStatus = "active" | "archived" | "deleted";
+
+/** What migration 088 constrains `security_policy` to. */
+export type BrowserNoteCatalogSecurityPolicy = "normal" | "secure";
+
+/** What the effective-security resolver answers, from its own frozen table. */
+export type BrowserNoteEffectiveSecurityMode = "normal" | "secure";
+
+/** What migration 088 constrains `security_transition_state` to. */
+export type BrowserNoteCatalogTransitionState = "stable" | "securing" | "failed";
+
+/**
+ * What migration 089 constrains `security_transition_action` to.
+ *
+ * **Not the browser's own action vocabulary.** The page sends `enable`, `remove` and `retry` to
+ * the transition routes; this is the column's record of what a transition is *doing*, where
+ * `retry` is not a value because retrying resumes the action already stored.
+ */
+export type BrowserNoteCatalogTransitionAction = "none" | "enable" | "remove";
+
+/**
+ * One catalog as `shapeCatalogSettingsRow` builds it.
+ *
+ * **A reduction of the collection record, and the omissions are the security argument.** The
+ * record reaching the shaper is a stored row spread together with four members
+ * `projectCollectionSecurity` computes. The shaper names twenty and answers no others - so
+ * `security_transition_actor_user_id` (who started a transition) and `security_source_catalog_id`
+ * (which ancestor imposes security) never cross, along with the workspace id, the slug, both
+ * user-id stamps and the raw metadata blob. `securityInherited` says *that* security is
+ * inherited without naming *where from*.
+ *
+ * Every member is named by the shaper on every row, so none is optional. Six vocabularies are
+ * closed because the browser compares against those exact words and the database constrains the
+ * column to them; `source` is left open because nothing in the browser reads it, which is the
+ * same line this estate has drawn since `userPreferences`.
+ */
+export interface BrowserNoteCatalogSettingsRow {
+  catalogId: string;
+  title: string;
+  /** `""` rather than `null` for a catalog without one - the shaper's own default. */
+  description: string;
+  /** Nullable in the column, and the shaper passes it through without a default. */
+  libraryBucket: BrowserNoteLibraryBucket | null;
+  parentCatalogId: string | null;
+  /** The cached path, falling back to the title, so never absent. */
+  path: string;
+  depth: number;
+  sortOrder: number;
+  /** Constrained to `manual` and `imported`, left open because no browser code reads it. */
+  source: string;
+  status: BrowserNoteCatalogStatus;
+  securityPolicy: BrowserNoteCatalogSecurityPolicy;
+  effectiveSecurityMode: BrowserNoteEffectiveSecurityMode;
+  /** A comparison result, so a real boolean rather than a stored flag. */
+  securityInherited: boolean;
+  securityTransitionState: BrowserNoteCatalogTransitionState;
+  securityTransitionAction: BrowserNoteCatalogTransitionAction;
+  /** Constrained non-negative by migration 089. */
+  securityTransitionVersion: number;
+  securityTransitionJobId: string | null;
+  securityTransitionStartedAt: string | null;
+  securityTransitionErrorCode: string | null;
+  updatedAt: string;
+}
+
+/**
+ * What `GET /api/notes/settings/catalogs` resolves to.
+ *
+ * `listCatalogSettings` reconstructs all three members by name and spreads nothing, so this is
+ * exact. `capabilities.manageSecurity` is the server's own answer to
+ * `canInAnyScope(SECURE_MANAGE)` - the browser reports that decision and never recomputes it -
+ * and `limits.bulkSelection` is the constant the bulk route enforces.
+ *
+ * `limits` is declared even though this page reads only the other two, because the producer
+ * always sends it and an exact contract describes the producer rather than one consumer.
+ */
+export interface BrowserNoteCatalogSettings {
+  catalogs: BrowserNoteCatalogSettingsRow[];
+  capabilities: { manageSecurity: boolean };
+  limits: { bulkSelection: number };
+}
+
+/** What `normalizeAction` answers before it throws; `retry` is a browser word, not a server one. */
+export type BrowserNoteCatalogSecurityAction = "enable" | "remove";
+
+/** Whether the transition runs in the request or continues as a resumable job. */
+export type BrowserNoteCatalogSecurityExecution = "job" | "synchronous";
+
+/**
+ * The preview `publicPreflight` builds for a catalog security transition.
+ *
+ * **Fourteen members reconstructed by name, so this is exact.** `currentPolicy` and
+ * `transitionState` reuse the catalog settings vocabularies because they are literally the same
+ * two columns, read through the same `CHECK` constraints - reuse on producer identity rather
+ * than on shape.
+ *
+ * The counts are all `.length` of a collected array, so they are finite and never absent.
+ * `blockerCodes` is `string[]` rather than a closed union: the two codes the service raises are
+ * not compared against literals anywhere in the browser, which only renders them as labels.
+ */
+export interface BrowserNoteCatalogSecurityPreflight {
+  action: BrowserNoteCatalogSecurityAction;
+  affectedNoteCount: number;
+  affectedRevisionCount: number;
+  /** Rendered one per entry, so the elements are checked rather than the container alone. */
+  blockerCodes: string[];
+  /** `blockers.length === 0`, and the only thing that enables the confirm button. */
+  canProceed: boolean;
+  catalogCount: number;
+  catalogId: string;
+  currentPolicy: BrowserNoteCatalogSecurityPolicy;
+  execution: BrowserNoteCatalogSecurityExecution;
+  noteTransformCount: number;
+  revisionTransformCount: number;
+  staleSearchDocumentCount: number;
+  transitionState: BrowserNoteCatalogTransitionState;
+  workRecordCount: number;
+}
+
+/** What `GET /api/notes/collections/:id/security/preflight` resolves to. */
+export interface BrowserNoteCatalogSecurityPreflightEnvelope {
+  preflight: BrowserNoteCatalogSecurityPreflight;
+}
+
+/**
+ * What the three catalog security transition routes resolve to.
+ *
+ * **A structural minimum, because the producer spreads.** The synchronous branch returns
+ * `{ ...result, execution, preflight }`, so only the members it names after the spread can be
+ * claimed. `execution` is one of those and is the member the route itself branches on to choose
+ * between `200` and `202`.
+ *
+ * The job branch also answers a `collection`, which is the **whole** collection record rather
+ * than the reduced settings row - carrying the workspace id, both user stamps, the transition
+ * actor and the inherited-security source. It is deliberately left undeclared: this contract
+ * describes what the browser may trust, and blessing an over-broad member with a type would
+ * make it look intended. Recorded for its own owner.
+ */
+export interface BrowserNoteCatalogSecurityTransition {
+  execution: BrowserNoteCatalogSecurityExecution;
+}
+
+/**
+ * The target a browser caller builds to identify what it wants to follow.
+ *
+ * **This is not the same shape the server echoes back, and the difference is load-bearing.**
+ * `taskTarget` and `noteTarget` construct camelCase members that `targetParams` turns into a query
+ * string; the server answers with `BrowserNotificationTarget`, which is snake_case because
+ * `normalizeSubscriptionTarget` builds it from the database's own column names. Two records, two
+ * names - collapsing them would let a consumer read `moduleId` off a value that carries `module_id`.
+ */
+export interface BrowserNotificationTargetRequest {
+  moduleId: string;
+  targetId: string;
+  targetType: string;
+}
+
+/**
+ * The target the subscription routes echo back, as `normalizeSubscriptionTarget` builds it.
+ *
+ * Every member is constructed by `String(...).trim()`, so all four are present and are strings;
+ * `event_type` is `""` rather than absent when the caller named no event.
+ */
+export interface BrowserNotificationTarget {
+  event_type: string;
+  module_id: string;
+  target_id: string;
+  target_type: string;
+}
+
+/**
+ * One notification subscription row as the subscription routes return it.
+ *
+ * **Constructed, not selected**: `subscriptionRowToAppValue` builds this object member by member
+ * from the ten columns `NOTIFICATION_SUBSCRIPTION_COLUMNS` names, defaulting `event_type` to `""`
+ * and `status` to `"inactive"`. That is why nothing here is optional or nullable even though
+ * `event_type` is a nullable column - the shaper closes the gap before the row leaves the server.
+ *
+ * `status` is `"active"` or `"inactive"` at runtime, enforced by a `CHECK` constraint. It is typed
+ * `string` because the browser does not validate that vocabulary, on the rule this checkpoint
+ * recorded for `userPreferences`: a closed union over an unvalidated wire field is a claim no
+ * browser code makes.
+ */
+export interface BrowserNotificationSubscription {
+  created_at: string;
+  event_type: string;
+  module_id: string;
+  notification_subscription_id: string;
+  status: string;
+  target_id: string;
+  target_type: string;
+  updated_at: string;
+  user_id: string;
+  workspace_id: string;
+}
+
+/**
+ * What `readStatus`, `follow` and `unfollow` resolve to once the browser has narrowed the body.
+ *
+ * **One envelope for three operations, because the producer builds one.** `subscriptionStatus`,
+ * `followTarget` and `unfollowTarget` each return `{ isFollowing, subscription, target }` - the
+ * operation differs, the record does not. Three interfaces named after three routes would have
+ * described the same runtime shape three times.
+ *
+ * `subscription` and `target` are nullable **here** rather than in the producer: the server always
+ * sends both, and these are the values the browser's own narrowing produces when a body arrives
+ * without them. `isFollowing` is exactly `body.isFollowing === true`, which is the comparison every
+ * consumer already wrote.
+ */
+export interface BrowserNotificationSubscriptionResult {
+  isFollowing: boolean;
+  subscription: BrowserNotificationSubscription | null;
+  target: BrowserNotificationTarget | null;
+}
+
+/**
+ * One configurable notification event, merged with the viewer's preference layers.
+ *
+ * **This is the merged read model, not a stored record, and it is deliberately its own contract.**
+ * The producer holds three layers - `notification_user_preferences`, `notification_workspace_defaults`
+ * and the module event catalog - and `preferences()` collapses them into this one shape. The stored
+ * rows are never sent: `enabled` is an `INTEGER` column on both preference tables and the server
+ * converts it with `Number(row.enabled) === 1`, so **the browser receives real booleans and must not
+ * model an integer flag.**
+ *
+ * `userEnabled` falls back to the workspace value, which falls back to the event's own default, so
+ * the three booleans can disagree and each one means something different. `defaultPriority` and
+ * `workspacePriority` are `low`/`normal`/`high`/`urgent` at runtime, typed `string` for the same
+ * reason `status` is above.
+ */
+export interface BrowserNotificationEventPreference {
+  defaultEnabled: boolean;
+  defaultPriority: string;
+  description: string;
+  id: string;
+  label: string;
+  moduleEnabled: boolean;
+  moduleId: string;
+  userEnabled: boolean;
+  workspaceEnabled: boolean;
+  workspacePriority: string;
+}
+
+/**
+ * The viewer's notification display preferences, as `shapeUserDisplayPreferences` constructs them.
+ *
+ * One member today, and it is normalised twice - once by the server and again by the browser's
+ * `normalizeGroupingPreferences` - so it is always a string.
+ */
+export interface BrowserNotificationGroupingPreferences {
+  groupingMode: string;
+}
+
+/**
+ * What `loadPreferences` resolves to.
+ *
+ * **The envelope was already constructed; only its array was raw.** The browser writer has always
+ * rebuilt `canManageWorkspaceDefaults` and `groupingPreferences` from the body, and it passed
+ * `events` straight through once `Array.isArray` said it was an array. `0.33.33.38.4.10` checks the
+ * elements, which is the difference between an array and an array of records.
+ */
+export interface BrowserNotificationPreferenceCatalog {
+  canManageWorkspaceDefaults: boolean;
+  events: BrowserNotificationEventPreference[];
+  groupingPreferences: BrowserNotificationGroupingPreferences;
+}
+
+/**
+ * `LongtailForge.notificationSubscriptions`, published by
+ * `public/js/shared/notification-subscriptions.js`.
+ *
+ * **One writer, one publication, five members, closed.** The inventory reports no additive
+ * publication and no second writer for this surface, so the object literal the writer assigns is
+ * the whole runtime surface and this interface may be exact.
+ *
+ * **This surface waited on its own response bodies rather than on its shape.** Declaring it before
+ * `0.33.33.38.4.10` would have handed every consumer an `unknown` to read `isFollowing` off; that
+ * checkpoint narrowed the three network members inside this writer, so the contract below names a
+ * checked value rather than a hope.
+ *
+ * **Genuinely optional at the root, and the consumers say so.** `footer.js` loads the script behind
+ * a presence probe and `shared/module-actions.js` names it as a module-action dependency, so every
+ * consumer already guards for absence and behaves differently without it - the Notes and Task
+ * dialogs hide their follow toggle rather than failing. The optionality is a delivery fact, not
+ * namespace ceremony.
+ */
+export interface BrowserNotificationSubscriptions {
+  /**
+   * Follow one target.
+   *
+   * `target` is `unknown` because the writer genuinely accepts either spelling:
+   * `normalizeTargetPayload` reads `moduleId` or `module_id` from whatever it is given. The result
+   * is the same envelope all three network members resolve to.
+   */
+  follow(target: unknown): Promise<BrowserNotificationSubscriptionResult>;
+  /** Build the request target for one note. Constructed locally; it reaches no network. */
+  noteTarget(noteId: string): BrowserNotificationTargetRequest;
+  /** The viewer's follow state for one target. */
+  readStatus(target: unknown): Promise<BrowserNotificationSubscriptionResult>;
+  /** Build the request target for one task. Constructed locally; it reaches no network. */
+  taskTarget(taskId: string): BrowserNotificationTargetRequest;
+  /** Stop following one target. */
+  unfollow(target: unknown): Promise<BrowserNotificationSubscriptionResult>;
+}
+
+/**
+ * How the All Notifications page groups what it lists.
+ *
+ * **A closed union because the browser closes it, not because the schema does.**
+ * `normalizeGroupingMode` answers `["client_project", "notification_type", "record_type"].includes(value)
+ * ? value : "client_project"`, so every value that leaves this writer is one of the three - unlike
+ * the wire vocabularies this estate leaves as `string`, which nothing on the browser side checks.
+ */
+export type BrowserNotificationGroupingMode = "client_project" | "notification_type" | "record_type";
+
+/** The grouping payload `readGroupingPreferencesPayload` builds from the form. */
+export interface BrowserNotificationGroupingPayload {
+  groupingMode: BrowserNotificationGroupingMode;
+}
+
+/**
+ * One row of the user-preference payload the form sends.
+ *
+ * **`id` is optional and its sibling contract's is not, and that asymmetry is the contract.**
+ * This builder reads `row.dataset.notificationEventId` and neither defaults nor filters it, so a
+ * row whose marker attribute is missing is sent with no id at all. `readWorkspaceDefaultsPayload`
+ * defaults the same value to `""` and then drops the row. **Typing them alike would have hidden a
+ * real difference between two builders that sit four lines apart.**
+ */
+export interface BrowserNotificationUserPreferencePayload {
+  enabled: boolean;
+  id: string | undefined;
+}
+
+/**
+ * One row of the workspace-default payload the form sends.
+ *
+ * `id` is `string` because the builder defaults it with `|| ""` before filtering the empties out.
+ * **The filter is not in the type**: TypeScript cannot say "non-empty string" without inventing a
+ * brand, and inventing one here would claim a guarantee the estate does not otherwise keep.
+ * `priority` is read straight from the select with a `"normal"` fallback and is **not** normalised
+ * against a vocabulary, so it stays `string` where `groupingMode` does not.
+ */
+export interface BrowserNotificationWorkspaceDefaultPayload {
+  enabled: boolean;
+  id: string;
+  priority: string;
+}
+
+/** What `renderPreferenceGroups` reads from its options. Every member is optional. */
+export interface BrowserNotificationPreferenceGroupOptions {
+  canManageWorkspaceDefaults?: unknown;
+  emptyText?: unknown;
+  headingLevel?: unknown;
+  includeWorkspaceDefaults?: unknown;
+  workspaceDefaultDisabled?: unknown;
+}
+
+/** What `renderGroupingPreferences` reads from its options. */
+export interface BrowserNotificationGroupingOptions {
+  workspaceType?: unknown;
+}
+
+/**
+ * `LongtailForge.notificationPreferences`, published by
+ * `public/js/shared/notification-preferences.js`.
+ *
+ * **One writer, one publication, eight members, closed.** The inventory reports no additive
+ * publication and no second writer, so the object literal the writer assigns is the whole surface.
+ *
+ * **Three kinds of member, and the difference is the reason this surface took two checkpoints.**
+ * `loadPreferences` crosses the network and returns the catalogue `0.33.33.38.4.10` narrowed. The
+ * three `read*Payload` members cross no network at all - they read the DOM and construct outgoing
+ * request bodies, which is why their contracts are published here rather than there. And the two
+ * `save*` members resolve to `unknown` on purpose.
+ */
+export interface BrowserNotificationPreferences {
+  /** The viewer's preference catalogue, narrowed by `0.33.33.38.4.10` before it is resolved. */
+  loadPreferences(): Promise<BrowserNotificationPreferenceCatalog>;
+  /** Build the grouping payload from the form. Reads the DOM; reaches no network. */
+  readGroupingPreferencesPayload(container: Element | null): BrowserNotificationGroupingPayload;
+  /** Build the user-preference payload from the form. Reads the DOM; reaches no network. */
+  readUserPreferencesPayload(container: Element | null): BrowserNotificationUserPreferencePayload[];
+  /** Build the workspace-default payload from the form. Reads the DOM; reaches no network. */
+  readWorkspaceDefaultsPayload(container: Element | null): BrowserNotificationWorkspaceDefaultPayload[];
+  /** Render the grouping control into a container. Returns nothing, and returns early without one. */
+  renderGroupingPreferences(
+    container: Element | null,
+    groupingPreferences?: unknown,
+    options?: BrowserNotificationGroupingOptions,
+  ): void;
+  /** Render the preference groups into a container. Returns nothing, and returns early without one. */
+  renderPreferenceGroups(
+    container: Element | null,
+    events: unknown,
+    options?: BrowserNotificationPreferenceGroupOptions,
+  ): void;
+  /**
+   * Save the viewer's preferences.
+   *
+   * **`Promise<unknown>` is the contract, not an unfinished one.** `0.33.33.38.2.2.6.6.2` traced
+   * both callers - `user-settings.js` and `notifications.js` - and each awaits this and discards
+   * what it resolves to. Narrowing a body nobody reads would publish a promise the surface does
+   * not make; `0.33.33.38.4.10` recorded the same finding from the boundary side.
+   */
+  saveUserPreferences(preferences: unknown, groupingPreferences?: unknown): Promise<unknown>;
+  /** Save the workspace defaults. `Promise<unknown>` for the same traced reason. */
+  saveWorkspaceDefaults(defaults: unknown): Promise<unknown>;
+}
+
+/**
+ * One workspace a user belongs to, as `decorateUserWithMemberships` constructs it.
+ *
+ * Six members built by name from the membership row, so none is optional here.
+ */
+export interface BrowserUserWorkspaceMembership {
+  createdAt: string;
+  status: string;
+  updatedAt: string;
+  userWorkspaceId: string;
+  workspaceId: string;
+  workspaceName: string;
+}
+
+/**
+ * What `GET /api/users` resolves to.
+ *
+ * **Two members reconstructed by name, and the actor identity is the session's own.**
+ * `usersService.list` answers `currentUserId: session.user_id` beside the decorated list, so the
+ * acting user is stated by the server rather than inferred by the browser from list membership -
+ * and it is required, because a page that loses it loses every self-action restriction that
+ * depends on knowing who is looking.
+ *
+ * `users` reuses `BrowserUserRecord`: this is the producer that record was drawn from, and it
+ * already declares the `workspaceMemberships` the list paths decorate on. Reuse here is producer
+ * identity, not shape similarity.
+ */
+export interface BrowserUserListResponse {
+  /** `session.user_id`, so server-authoritative and never empty. */
+  currentUserId: string;
+  users: BrowserUserRecord[];
+}
+
+/**
+ * One user as the user-administration routes return it.
+ *
+ * **Constructed, and that is what makes the omissions load-bearing.** `userRowToAppValue` in
+ * `src/utils/normalizers.js` builds these fifteen members by name from the row
+ * `USER_SELECT_COLUMNS` selects. That column list includes **`password`**, `home_workspace_id` and
+ * `active_workspace_id`, and the shaper sends none of them. **This contract must never regain
+ * them**: the select is not the response, and a browser record that named `password` would invite
+ * a consumer to depend on something the server deliberately withholds.
+ *
+ * **Every text member has a total server-side fallback, and every one is still typed `string`.**
+ * `themeMode` is light/auto/dark, `themeAutoSource` is always `system`, the two landing
+ * preferences are dashboard/workbench/tasks/notes/lists, `preferredCalendarView` is day/week/month
+ * or `null`, and `userStatus` is active/inactive. **The browser does not check any of them**, and
+ * this estate has refused since `userPreferences` to declare a closed union over a wire field
+ * nothing validates. The vocabularies are written down here instead.
+ *
+ * `altEmail` and `preferredCalendarView` are the two members the shaper genuinely nulls;
+ * everything else is present and non-null on every path.
+ */
+export interface BrowserUserRecord {
+  /** `null` when the account has no alternate address. */
+  altEmail: string | null;
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  openExternalLinksNewTab: boolean;
+  passwordChangeRequired: boolean;
+  /** `null` when the account has expressed no calendar preference. */
+  preferredCalendarView: string | null;
+  preferredLoginLanding: string;
+  preferredWorkspaceSwitchLanding: string;
+  protectedUser: boolean;
+  themeAutoSource: string;
+  themeMode: string;
+  timezone: string;
+  user_id: string;
+  userStatus: string;
+  username: string;
+  /** Added by `decorateUserWithMemberships` on the list paths. */
+  workspaceMemberships?: BrowserUserWorkspaceMembership[];
+}
+
+/**
+ * What `POST /api/users` resolves to.
+ *
+ * **A mutation envelope, not a user record.** `usersService.create` answers four members, and
+ * two of them are the halves `0.33.33.38.4.4.1` already narrowed: the account the route acted
+ * on, and the workspace's list after it. This contract names all four and reuses that record for
+ * both rather than describing a user twice.
+ *
+ * **`initialPassword` is a required member whose `""` means absent, and that is load-bearing.**
+ * The service generates one **only** in the branch that creates a new account; attaching an
+ * account that already existed leaves it the empty string it was initialised to. So emptiness is
+ * the producer's way of saying "no credential was minted", and `accountCreated` is the flag that
+ * says why - the two are read together by the consumer and must stay linked. Making the member
+ * optional would turn a meaningful empty string into an absence and let a consumer treat the two
+ * cases as one.
+ *
+ * The value is a genuine one-time credential and it is safe by construction upstream:
+ * `usersRepository.create` returns a constructed record with no password or hash in it, so the
+ * `user_created` audit entry stores none, and the browser writes the value to a panel it hides
+ * whenever the value is empty.
+ */
+export interface BrowserUserCreationResult {
+  /** `true` only when a new account was minted rather than an existing one attached. */
+  accountCreated: boolean;
+  /** The one-time credential, or `""` when no account was created. Never optional. */
+  initialPassword: string;
+  /** `null` when the body could not be vouched for; the route always echoes the account. */
+  user: BrowserUserRecord | null;
+  users: BrowserUserRecord[];
+}
+
+/**
+ * One active session as `toManagedSession` reduces it for an administrator.
+ *
+ * **A deliberately reduced security projection, and the reduction is the point.** The row behind
+ * it carries eight columns; this record answers five, and the one it never passes through is
+ * `session_id` - which in this system **is the bearer credential**, the value
+ * `buildSessionCookie` writes into the session cookie. So the browser is handed
+ * `sessionReference` in its place, and `home_workspace_id`, `active_workspace_id`, `user_id` and
+ * `updated_at` are withheld as well. **This contract must never regain any of them.**
+ *
+ * There is no token, hash or secret column on `sessions` to withhold: the identifier is the
+ * credential, which is exactly why substituting a reference for it is the control.
+ *
+ * `ipAddress` is **not redacted**. The shaper coerces the nullable column to text and bounds it
+ * at 128 characters, and an administrator holding `users.manage` is shown it so they can tell
+ * one session from another; `""` means the column was empty, and the renderer says "IP
+ * unavailable". Both timestamps are `string` because their columns are `NOT NULL`, though only
+ * `createdAt` carries a defensive fallback in the shaper.
+ */
+export interface BrowserManagedSession {
+  /** The column is `NOT NULL`; the shaper also falls back to `""`. */
+  createdAt: string;
+  /** The column is `NOT NULL` and the shaper passes it through unguarded. */
+  expiresAt: string;
+  /** Bounded to 128 characters, `""` when the column was empty. Shown, not redacted. */
+  ipAddress: string;
+  /** Computed by the server by comparing the stored id with the caller's own. */
+  isCurrent: boolean;
+  /**
+   * An opaque 32-character handle for this session, suitable for sending back to the
+   * revoke-one route, which resolves it server-side.
+   *
+   * **Not a session id, and deliberately not durable.** It is `HMAC-SHA-256` over the stored
+   * identifier under a secret generated with `randomBytes(32)` at module load, base64url
+   * encoded and truncated - so it is stable only for the life of the server process, and the
+   * browser must treat it as a handle for the current interaction rather than a lasting id.
+   */
+  sessionReference: string;
+}
+
+/**
+ * The account whose sessions are being managed, as `toTargetUser` reduces it.
+ *
+ * **Three members, and not a `BrowserUserRecord`.** That record is what the user-administration
+ * list routes send; this is a header for one panel, built by its own shaper, and it carries no
+ * status, preference or protection member. `displayName` falls back to the username, so it is
+ * never empty.
+ */
+export interface BrowserManagedSessionUser {
+  displayName: string;
+  userId: string;
+  username: string;
+}
+
+/**
+ * What `GET /api/users/:userId/sessions` resolves to.
+ *
+ * **Both members are always sent**, so neither is optional. The list is scoped to the sessions
+ * connected to the **caller's workspace** - `listForUserInWorkspace`, not every session the
+ * account holds - which is what the panel's wording promises, and the contract does not widen
+ * it to the account's sessions everywhere.
+ */
+export interface BrowserManagedSessionList {
+  sessions: BrowserManagedSession[];
+  user: BrowserManagedSessionUser;
+}
+
+/**
+ * What both revocation routes resolve to.
+ *
+ * **One contract, because the two producers write the same literal.** `revokeManagedSession` and
+ * `revokeManagedUserSessions` each end in `return { ok: true, revokedCount }`, so `ok` is the
+ * literal `true` rather than a flag a caller has to test - a body that says anything else did not
+ * come from these producers. The revoke-one route answers this too, although the browser awaits
+ * that call without reading its body.
+ */
+export interface BrowserSessionRevocationResult {
+  ok: true;
+  revokedCount: number;
+}
+
+/**
+ * How an attachment list was ordered, closed by the one `Set` the producer tests against and
+ * falls back to.
+ */
+export type BrowserFileAttachmentSort = "filename" | "newest" | "oldest" | "size" | "status";
+
+/**
+ * The stored file behind an attachment, as `shapeAttachment` reconstructs it and
+ * `shapeAttachmentForRead` extends.
+ *
+ * **Fifteen members, and the paired spellings are the producer's own.** `createdAt`/`created_at`,
+ * `updatedAt`/`updated_at`, `deletedAt`/`deleted_at` and `uploadedByLabel`/`uploaded_by_label`
+ * are each written twice by name, which is why both consumers may read either. This contract
+ * reports that rather than choosing a favourite: dropping one spelling would break a reader the
+ * producer deliberately supports.
+ */
+export interface BrowserFileAttachmentFile {
+  /** `null` until the row records a creation time. */
+  createdAt: string | null;
+  /** The same value the producer also writes as `createdAt`. */
+  created_at: string | null;
+  /** `null` unless the file was deleted. */
+  deletedAt: string | null;
+  /** The same value the producer also writes as `deletedAt`. */
+  deleted_at: string | null;
+  displayName: string;
+  extension: string;
+  /** Coerced with `Number(... || 0)`, so always a number. */
+  fileSizeBytes: number;
+  mimeTypeDetected: string;
+  originalFilename: string;
+  scanStatus: string;
+  status: string;
+  /** `null` until the row records an update. */
+  updatedAt: string | null;
+  /** The same value the producer also writes as `updatedAt`. */
+  updated_at: string | null;
+  uploadedByLabel: string;
+  /** The same value the producer also writes as `uploadedByLabel`. */
+  uploaded_by_label: string;
+}
+
+/** What an attachment is attached to, resolved by label; `null` when the target is unreadable. */
+export interface BrowserFileAttachmentTarget {
+  id: string;
+  label: string;
+  type: string;
+}
+
+/**
+ * The storage totals `summarizeStorageAccounting` reduces into.
+ *
+ * **All five always present, because they are the reduce's own seed.** The reducer starts from a
+ * literal naming exactly these five at `0` and only ever adds to them, so none can be absent -
+ * and a workspace with no files answers five real zeros rather than nothing.
+ *
+ * They are `number` and not "non-negative integer". The row shaper coerces each column with
+ * `Number(column || 0)` and clamps nothing, so the honest runtime check is finiteness; the
+ * external recorder does clamp its input, but this projection makes no such promise and the
+ * contract describes the projection.
+ */
+export interface BrowserFileStorageAccountingTotals {
+  externalFileCount: number;
+  externalReportedBytes: number;
+  /** Every entry's file count, internal and external together. */
+  fileCount: number;
+  internalBytes: number;
+  internalFileCount: number;
+}
+
+/**
+ * What `readStorageAccounting` answers, for both the settings body and the accounting route.
+ *
+ * **Named for the producer rather than for the page, because two routes share it exactly.**
+ * `GET /api/files/storage/accounting` and the accounting member of the Files settings body are
+ * the same function; only the `storageKind` filter differs, and that selects which rows are
+ * summed rather than what the result looks like. Nothing in the browser reads the accounting
+ * route today, so no runtime surface is published for it - only this declaration, ready.
+ *
+ * `entries` is the per-row breakdown, container-checked and no further: no browser consumer
+ * reads into an entry, and this estate does not validate elements it does not read. A child
+ * that renders the breakdown owns naming `shapeStorageAccountingRow`'s eleven members.
+ */
+export interface BrowserFileStorageAccounting {
+  /** The per-row breakdown; `shapeStorageAccountingRow` owns its members. */
+  entries: unknown[];
+  totals: BrowserFileStorageAccountingTotals;
+}
+
+/**
+ * What both `GET /api/files/settings` and `PUT /api/files/settings` resolve to.
+ *
+ * **One contract for two routes, and not because they merely share a member.** The save ends in
+ * `return readWorkspaceFileSettings(session)` - it is the read, called again after the write, so
+ * the two bodies cannot diverge without the read changing. Two members, reconstructed by name
+ * with no spread, so the membership is exact.
+ *
+ * `settings` is declared present and left undescribed. It is a static nine-member reconstruction
+ * that a later child can name, but **this page never reads it**: the form is built from
+ * `/api/settings/catalog` and its values are collected back out of the DOM, so naming those nine
+ * here would freeze a settings vocabulary this boundary has not earned.
+ */
+export interface BrowserWorkspaceFileSettingsResponse {
+  accounting: BrowserFileStorageAccounting;
+  /** `shapeWorkspaceFileSettings`'s nine members; unread by this page and unnamed here. */
+  settings: unknown;
+}
+
+/**
+ * One attachment as `GET /api/files/attachments` sends it.
+ *
+ * **Exact, although the producer spreads - because what it spreads is its own reconstruction.**
+ * `shapeAttachmentForRead` spreads `shapeAttachment(attachment)`, which names every one of its
+ * members by hand from the row, and then names eight more. That is the "total reconstruction"
+ * case rather than the "spread of an untrusted body" case, so this contract is exact rather than
+ * a structural minimum.
+ *
+ * The paired spellings continue here: `fileAttachmentId`/`file_attachment_id`,
+ * `fileId`/`file_id`, and the three context labels are each written twice.
+ */
+export interface BrowserFileAttachment {
+  attachmentRole: string;
+  caption: string;
+  clientId: string;
+  clientLabel: string;
+  /** The same value the producer also writes as `clientLabel`. */
+  client_label: string;
+  createdAt: string;
+  file: BrowserFileAttachmentFile;
+  fileAttachmentId: string;
+  /** The same value the producer also writes as `fileAttachmentId`. */
+  file_attachment_id: string;
+  fileId: string;
+  /** The same value the producer also writes as `fileId`. */
+  file_id: string;
+  moduleId: string;
+  projectId: string;
+  projectLabel: string;
+  /** The same value the producer also writes as `projectLabel`. */
+  project_label: string;
+  /** `null` when the attachment is live. */
+  removedAt: string | null;
+  /** Coerced with `Number(... || 0)`, so always a number. */
+  sortOrder: number;
+  /** `null` when the target could not be resolved for this reader. */
+  target: BrowserFileAttachmentTarget | null;
+  targetId: string;
+  targetLabel: string;
+  /** The same value the producer also writes as `targetLabel`. */
+  target_label: string;
+  targetType: string;
+  visibility: string;
+}
+
+/**
+ * What `GET /api/files/attachments` resolves to.
+ *
+ * **Three members on both of the producer's paths.** The paginated branch and the
+ * read-everything branch each answer `attachments`, `pagination` and `sort`, so there is one
+ * contract rather than one per branch.
+ *
+ * `pagination` is `BrowserBoundedPagination` again - the **second** reuse of the contract
+ * `0.33.33.38.4.8.1` named for `boundedPaginationEnvelope` rather than for one route. The Files
+ * page reads only two of its seven members through a total normaliser of its own, and that
+ * normaliser is left exactly as it was.
+ */
+export interface BrowserFileAttachmentList {
+  attachments: BrowserFileAttachment[];
+  pagination: BrowserBoundedPagination;
+  sort: BrowserFileAttachmentSort;
+}
+
+/**
+ * Where a pending workspace deletion has reached.
+ *
+ * Closed by the column itself: migration 077 adds
+ * `CHECK (status IN ('pending_deletion', 'purging'))`, and the lifecycle summary falls back to
+ * the first of those two. The browser validates it, which is what earns the union.
+ */
+export type BrowserWorkspaceDeletionStatus = "pending_deletion" | "purging";
+
+/**
+ * What the server decided a deletion request needs before it may proceed.
+ *
+ * Two words, and the producer chooses between them from **one** value: whether a backup inside
+ * the recent window exists. The browser reports that decision and never re-makes it - the
+ * window, the age test and the acknowledgement rule all stay server-owned.
+ */
+export type BrowserWorkspaceDeletionRequirement = "recent_backup" | "typed_acknowledgement_required";
+
+/**
+ * What the workspace's latest backup means for a deletion request.
+ *
+ * **Five members reconstructed by name, and the reduction is the point.** The backup record
+ * behind it carries twelve - `backupId`, `archiveFilename`, `archiveSha256`, `createdByUserId`,
+ * `appVersion`, `status`, `secureNotesRecoveryRequired` and the object counts among them - and
+ * this summary passes through only the timestamp and the creator's label. **The archive name,
+ * its digest, the backup identifier and the requester's id never reach the browser**, and this
+ * contract must never regain them.
+ *
+ * `current`, `requirement` and the state's `acknowledgementPhrase` are all derived from the same
+ * recency test, so they cannot disagree; the reader enforces that rather than trusting it.
+ */
+export interface BrowserWorkspaceDeletionBackup {
+  /** `null` when the workspace has no backup at all. */
+  createdAt: string | null;
+  /** `null` when the workspace has no backup at all. */
+  createdByName: string | null;
+  /** Whether a backup inside the window exists. The server decides; the browser reports. */
+  current: boolean;
+  requirement: BrowserWorkspaceDeletionRequirement;
+  /** The recency window in hours, a server constant. */
+  windowHours: number;
+}
+
+/**
+ * A pending deletion, as `toLifecycleSummary` reduces it.
+ *
+ * **Six members from a ten-member row, and the four it drops are the security boundary.** The
+ * stored lifecycle carries `workspaceId`, `requestedByUserId`, `backupId`, `purgeStartedAt` and
+ * **`purgeToken`**; the summary answers none of them. `backupProtected` is `Boolean(backupId)` -
+ * the fact of a backup without its identifier - and the purge job's own state and token stay on
+ * the server. **This contract must never regain any of them.**
+ */
+export interface BrowserWorkspaceDeletionLifecycle {
+  /** Whether a backup covered the request, reported without naming which backup. */
+  backupProtected: boolean;
+  noCurrentBackupAcknowledged: boolean;
+  /** When the grace period ends and the purge becomes eligible. */
+  purgeAfter: string;
+  requestedAt: string;
+  requestedByName: string;
+  status: BrowserWorkspaceDeletionStatus;
+}
+
+/**
+ * A workspace backup package, as `toBrowserReceipt` builds it.
+ *
+ * **Eleven members reconstructed by name for two routes.** The read and the create both end in
+ * this one shaper, so there is one receipt rather than a "latest" record and a "created" record
+ * free to drift; `create` only adds the acting administrator's display name to the row first.
+ *
+ * `secureNotesKeyIncluded` and `status` are **constants the shaper writes literally**, not values
+ * it discovers, so they are declared as the literals they are: this receipt never carries a
+ * secure-notes key, and it only ever describes a package that was created.
+ *
+ * **The reduction is deliberate.** The stored export row also holds `backupId`, `workspaceId`,
+ * `archiveFilename` and `createdByUserId`, and the shaper answers none of them. `archiveSha256`
+ * *is* answered, and that is the intended contrast: the integrity digest of a package the
+ * administrator just made is theirs to check, while the deletion summary that mentions the same
+ * backup withholds it, because there it would name a file the reader is not being handed.
+ */
+export interface BrowserWorkspaceBackupReceipt {
+  appVersion: string;
+  /** The package's integrity digest, disclosed to the administrator who owns the package. */
+  archiveSha256: string;
+  createdAt: string;
+  /** Falls back to "Workspace administrator", so never empty. */
+  createdByName: string;
+  /** `Number(...) || 0`, so a finite count rather than a stored value passed through. */
+  fileObjectBytes: number;
+  fileObjectCount: number;
+  /** Built by the shaper from the timestamp, so never absent. */
+  packageLabel: string;
+  /** A constant: this receipt never carries a secure-notes key. */
+  secureNotesKeyIncluded: false;
+  secureNotesRecoveryRequired: boolean;
+  /** A constant: a receipt only ever describes a package that was created. */
+  status: "created";
+  workspaceName: string;
+}
+
+/**
+ * What both workspace backup routes resolve to.
+ *
+ * `null` is the **read's** answer for a workspace that has never been backed up. The create
+ * route wraps the same member but always has a receipt to put in it, so a `null` from that
+ * route would not have come from this producer.
+ */
+export interface BrowserWorkspaceBackupEnvelope {
+  backup: BrowserWorkspaceBackupReceipt | null;
+}
+
+/**
+ * The workspace's deletion state, as `toBrowserState` reconstructs it.
+ *
+ * **One record for three routes.** `read`, `request` and `cancel` all end in this same shaper,
+ * so there is one contract rather than a read result, a request result and a cancel result with
+ * identical members - and the lifecycle member, not an optional field, is what distinguishes the
+ * states.
+ *
+ * `acknowledgementPhrase` is **required and nullable, and the null means something**: the server
+ * answers `null` when a current backup already satisfies the prerequisite, and the phrase to
+ * type when it does not. Making it optional would erase that distinction.
+ *
+ * `pending` is `Boolean(lifecycle)` from the same value the lifecycle member is built from, so
+ * the two can never disagree - and the reader refuses a body where they do.
+ */
+export interface BrowserWorkspaceDeletionState {
+  /** The phrase an administrator must type, or `null` when a current backup makes it needless. */
+  acknowledgementPhrase: string | null;
+  backup: BrowserWorkspaceDeletionBackup;
+  /** `null` when no deletion is pending; the summary itself carries the pending state. */
+  lifecycle: BrowserWorkspaceDeletionLifecycle | null;
+  pending: boolean;
+  /** The workspace's own name, from the workspace record. The browser never supplies it. */
+  workspaceName: string;
+}
+
+/** What all three workspace-deletion routes resolve to. */
+export interface BrowserWorkspaceDeletionEnvelope {
+  deletion: BrowserWorkspaceDeletionState;
+}
+
+/** One scope a role may be assigned in, as `listAssignableRoleOptions` builds it. */
+export interface BrowserRoleScope {
+  label: string;
+  scopeId: string;
+}
+
+/**
+ * One assignable role as `GET /api/roles` returns it.
+ *
+ * **The four columns are the whole role query.** `readRoles` selects `role_id`, `role_name`,
+ * `description` and `assignable_scope_type` and nothing else - **no permission storage, no
+ * capability table, no override JSON** - so the browser record cannot expose any. `sort_order` is
+ * selected for the `ORDER BY` and is not sent.
+ *
+ * `assignment_scope_type` and `scopes` are added by the service. **`scopes` is the permission
+ * decision made visible**: the service asks `canAssignRole` per candidate and keeps only what the
+ * caller may actually assign, so a role with no assignable scope never appears in this list at all.
+ * Narrowing happens after that filtering and must never widen it.
+ *
+ * `assignable_scope_type` and `assignment_scope_type` both hold a scope vocabulary -
+ * all/workspace/client/project - and both are typed `string`, because the browser validates
+ * neither and this estate does not declare unions over unvalidated wire fields.
+ */
+export interface BrowserRoleOption {
+  assignable_scope_type: string;
+  assignment_scope_type: string;
+  description: string;
+  role_id: string;
+  role_name: string;
+  scopes: BrowserRoleScope[];
+}
+
+/**
+ * One role assignment as `GET /api/users/:userId/role-assignments` returns it.
+ *
+ * **Constructed by `decorateAssignment`, seven members, and it is not the delegated record.**
+ * The administrator view carries the assignment's identity, its client and project scoping, and
+ * the parsed permission overrides. `permission_overrides` stays `unknown`: it is the override
+ * storage this response deliberately parses for the assignment editor, and modelling its shape is
+ * the permissions estate's work rather than this boundary's.
+ *
+ * `scope_id`, `client_id` and `project_id` are nullable columns the shaper passes through.
+ */
+export interface BrowserRoleAssignment {
+  assignment_id: string;
+  client_id: string | null;
+  permission_overrides: unknown;
+  project_id: string | null;
+  role_id: string;
+  scope_id: string | null;
+  scope_type: string;
+}
+
+/**
+ * One role assignment as the delegated paths return it.
+ *
+ * **Three members, and the difference from `BrowserRoleAssignment` is the contract.**
+ * `decorateDelegatedAssignment` emits only `role_id`, `scope_type` and `scope_id` - no assignment
+ * identity and **no permission overrides** - because a delegated manager may see which roles are
+ * held in scopes they administer without seeing the assignment record behind them. Reusing the
+ * administrator record here would claim four members the server withholds on purpose.
+ */
+export interface BrowserDelegatedRoleAssignment {
+  role_id: string;
+  scope_id: string | null;
+  scope_type: string;
+}
+
+/**
+ * What `PUT /api/users/:userId/role-assignments` resolves to.
+ *
+ * **`assignmentRevision` is genuinely optional, and the union is the producer's.**
+ * `replaceUserAssignments` answers `{ assignments }` for a full administrator and
+ * `{ assignmentRevision, assignments }` for a delegated manager, because only the delegated path
+ * carries an optimistic-concurrency token. The consumer's `String(body.assignmentRevision || "")`
+ * has always been reading that absence, not defending against a malformed field.
+ */
+export interface BrowserRoleAssignmentUpdate {
+  assignmentRevision?: string;
+  assignments: BrowserDelegatedRoleAssignment[];
+}
+
+/**
+ * The account one `POST /api/users/lookup` matched.
+ *
+ * **Three members, and the omissions are the disclosure.** `lookupAddUserAccount` finds the
+ * account with `usersRepository.readByUsername` - a *global* lookup, not a workspace-scoped one -
+ * and then builds exactly `alreadyActive`, `displayName` and `username`. **No user identifier, no
+ * account status, no workspace list, no alternate address**, so an administrator adding a user
+ * learns that the address is taken and what it is called and nothing further. This contract
+ * describes that permitted disclosure and must never broaden it.
+ *
+ * `alreadyActive` is a real boolean: the service computes `membership?.status === "active"` against
+ * the *target* workspace, so it answers whether the account already belongs here rather than
+ * whether the account is active anywhere. `displayName` runs through `normalizeDisplayName` with
+ * the username as its fallback, so it is never empty.
+ */
+export interface BrowserAccountLookupMatch {
+  alreadyActive: boolean;
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  username: string;
+}
+
+/**
+ * What `POST /api/users/lookup` resolves to.
+ *
+ * **`match` is always present and is `null` when nothing matched** - the service returns
+ * `{ match: null, workspaceId }` from its no-match branch rather than omitting the member, so this
+ * is a nullable member and not an optional one. `workspaceId` is the workspace the service
+ * *resolved*, which is not necessarily the identifier the caller sent: `resolveAddUserWorkspace`
+ * decides it, and the browser is told which one the answer is about.
+ *
+ * The route runs `assertPublicDemoCapabilityAllowed`, `resolveAddUserWorkspace` and
+ * `assertWorkspaceCanAddUser` before any of this exists. Narrowing happens after that decision.
+ */
+export interface BrowserAccountLookup {
+  match: BrowserAccountLookupMatch | null;
+  workspaceId: string;
+}
+
+/**
+ * The workspace member one `POST /api/role-assignments/lookup` matched.
+ *
+ * **This is not `BrowserAccountLookupMatch`, and the difference is authorization rather than
+ * spelling.** `lookupDelegatedRoleAssignmentAccount` searches with
+ * `readExactActiveMemberByUsername`, which joins `user_workspaces` and `workspaces` and requires
+ * an *active* membership of the *caller's own* workspace - so this route can only ever identify
+ * someone the caller already administers, where the account lookup searches every account in the
+ * installation. Two routes, two disclosure rules, two records. The three columns that query
+ * selects are `user_id`, `username` and `display_name`; there is no password, no status and no
+ * verification state to leak here.
+ *
+ * `assignments` is reused from `BrowserDelegatedRoleAssignment` because the producer is literally
+ * the same helper - `decorateDelegatedAssignment` - and the same `canAssignRole` filter runs per
+ * assignment first, so a delegated manager sees only what they may administer. **The administrator
+ * record must never stand in for it**, which is exactly what `0.33.33.38.4.4.3.1` established.
+ *
+ * `assignmentRevision` is the optimistic-concurrency token the delegated `PUT` requires: an
+ * HMAC over the assignments the caller may manage, keyed by a server secret. It is a revision
+ * stamp, not authentication material, and it is the same token `BrowserRoleAssignmentUpdate`
+ * already carries.
+ *
+ * `activeMembership` is `boolean` rather than `true`. The service writes the literal, because the
+ * record only exists when the membership query matched - but the browser never reads the member,
+ * and this estate does not declare a type narrower than what a consumer actually validates.
+ */
+export interface BrowserAssignmentLookupTarget {
+  /** Always `true` on the wire: the query matched an active member, or `match` is `null`. */
+  activeMembership: boolean;
+  assignmentRevision: string;
+  assignments: BrowserDelegatedRoleAssignment[];
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  userId: string;
+  username: string;
+}
+
+/**
+ * What `POST /api/role-assignments/lookup` resolves to.
+ *
+ * **One member, and there is no `workspaceId` beside it.** The account lookup tells the browser
+ * which workspace it resolved; this route works only in the caller's own workspace and has nothing
+ * to report. Declaring a shared envelope over the two would have invented a member for one of them.
+ *
+ * `match` is `null` on all three no-match paths - a username that is not a valid address, an
+ * address with no active member, and the implicit case of neither - and the service never omits
+ * the member, so this is nullable rather than optional.
+ */
+export interface BrowserAssignmentLookup {
+  match: BrowserAssignmentLookupTarget | null;
+}
+
+/**
+ * The billing contact a client record carries.
+ *
+ * **Eleven text members, all reconstructed with a total fallback**, so none is ever `null` and the
+ * whole record is present even for a client that has entered no billing contact at all.
+ */
+export interface BrowserClientBillingContact {
+  alternate_email: string;
+  alternate_name: string;
+  alternate_phone_number: string;
+  city: string;
+  email: string;
+  name: string;
+  phone_number: string;
+  state: string;
+  street_address_1: string;
+  street_address_2: string;
+  zip_code: string;
+}
+
+/**
+ * A client as the create route sends it back.
+ *
+ * **This is the write-payload normaliser's output, not the read shaper's row.** The create service
+ * answers `normalizeClientPayload(payload)`, which runs `normalizeClientProjectData` over a spread
+ * of the caller's own body - so it carries `childScopeIds` and `projects`, and it carries **no
+ * `created_at` or `updated_at`**, because nothing has been read back from the row.
+ * `clientRowToAppClient` is a different producer for a different route, and deriving this record
+ * from it was the mistake `0.33.33.38.4.6.1` had to correct against the live flow.
+ *
+ * Because the normaliser spreads the request payload, this is a **structural minimum**: every
+ * member named here is reconstructed by name, and a body may legitimately carry more.
+ *
+ * `id` and `name` are non-empty on every successful response - the service throws 400 otherwise -
+ * and `status` is a closed union because `normalizeClientStatus` answers one of two words on every
+ * path. `billing_rate` is trimmed text or `null`; `billing_period` and `billing_rounding` are
+ * `null` or another normaliser's record, so their shapes stay unnamed.
+ *
+ * **The five tag members are optional because the decorator genuinely omits them**, exactly as on
+ * the task list: `decorateRecordsForTarget` returns its records untouched when the tags module is
+ * not readable for the session.
+ */
+export interface BrowserClientRecord {
+  billable: BrowserClientBillable;
+  billing_contact: BrowserClientBillingContact;
+  /** `null` when no billing period was given. */
+  billing_period: unknown;
+  /** Trimmed text, or `null` when unset. */
+  billing_rate: string | null;
+  /** `null` when no rounding was given. */
+  billing_rounding: unknown;
+  childScopeIds: unknown[];
+  /** Non-empty: the service throws 400 without it. */
+  id: string;
+  /** Non-empty: the service throws 400 without it. */
+  name: string;
+  parent_client_id: string;
+  /** Forced empty by the create path, which writes the client before any project. */
+  projects: unknown[];
+  status: BrowserClientStatus;
+  workspace_id: string;
+  /** Absent unless the tags module is readable for the session. */
+  directTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  effectiveTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  propagatedTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tagAssignments?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tags?: unknown[];
+}
+
+/**
+ * Where a project stands.
+ *
+ * Closed for the same reason the client status is: `normalizeStatus` answers `"Active"` for
+ * anything it does not recognise and only ever those three words. A project can be completed;
+ * a client cannot, which is why the two unions are separate.
+ */
+export type BrowserProjectStatus = "Active" | "Completed" | "Inactive";
+
+/**
+ * Whether a client is active.
+ *
+ * Closed because `normalizeClientStatus` answers `"Active"` for anything it does not recognise and
+ * only ever those two words.
+ */
+export type BrowserClientStatus = "Active" | "Inactive";
+
+/**
+ * Whether a client or project is billable.
+ *
+ * Closed because `normalizeBillableFlag` returns one of two literals on every path, including its
+ * fallback.
+ */
+export type BrowserClientBillable = "no" | "yes";
+
+/**
+ * A project as the create routes send it back.
+ *
+ * **Not a client record with a `client_id` added, and not the read shaper's row.**
+ * `normalizeProjectPayload` normalises the payload through the same aggregate normaliser, then
+ * re-overrides `client_id` and `parent_project_id` from the request. It carries `taskDefaults`
+ * where the client carries `billing_contact` and `childScopeIds`, and like the client record it
+ * has **no timestamps and no resolved `client_name`** - those belong to the read shaper.
+ *
+ * The same structural-minimum rule applies: the normaliser spreads the request payload, so a body
+ * may legitimately carry more than these members.
+ */
+export interface BrowserProjectRecord {
+  billable: BrowserClientBillable;
+  /** `null` when no billing period was given. */
+  billing_period: unknown;
+  /** Trimmed text, or `null` when unset. */
+  billing_rate: string | null;
+  /** `null` when no rounding was given. */
+  billing_rounding: unknown;
+  client_id: string;
+  /** Non-empty: the service throws 400 without it. */
+  id: string;
+  /** Non-empty: the service throws 400 without it. */
+  name: string;
+  parent_project_id: string;
+  status: BrowserProjectStatus;
+  /** Built by four further normalisers; the Tasks settings estate owns its shape. */
+  taskDefaults: unknown;
+  workspace_id: string;
+  /** Absent unless the tags module is readable for the session. */
+  directTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  effectiveTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  propagatedTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tagAssignments?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tags?: unknown[];
+}
+
+/**
+ * What `POST /api/clients` resolves to.
+ *
+ * The service answers `{ client }` and nothing else. `null` is what the reader gives when it
+ * cannot vouch for the record, which the caller turns into the same failure the raw
+ * `result.client.id` read already produced for an absent client.
+ */
+export interface BrowserClientEnvelope {
+  client: BrowserClientRecord | null;
+}
+
+/**
+ * What `POST /api/projects` and `POST /api/clients/:clientId/projects` resolve to.
+ *
+ * Both routes reach the same service function and send the same envelope, so there is one contract
+ * rather than one per route.
+ */
+export interface BrowserProjectEnvelope {
+  project: BrowserProjectRecord | null;
+}
+
+/**
+ * How a calendar subscription is scoped, as the private-feeds service sends it.
+ *
+ * Closed because the token row's `scope_type` column is typed to these three words on the server
+ * and `toPublicSubscription` falls back to `"workspace"` when it is absent - so the shaper answers
+ * one of the three on every path.
+ */
+export type BrowserCalendarScopeType = "client" | "project" | "workspace";
+
+/**
+ * Who owns a calendar subscription.
+ *
+ * Two text members, both with total fallbacks in the shaper: the display name falls through the
+ * username to a fixed phrase, and the username to `""`.
+ */
+export interface BrowserCalendarSubscriptionOwner {
+  displayName: string;
+  username: string;
+}
+
+/** The scope a calendar subscription renders: a label the shaper resolves, and the closed type. */
+export interface BrowserCalendarSubscriptionScope {
+  label: string;
+  type: BrowserCalendarScopeType;
+}
+
+/**
+ * A calendar subscription as `toPublicSubscription` reconstructs it on every private-feeds route.
+ *
+ * **An exact reconstruction of eleven members, and it never carries the feed URL.** The shaper
+ * names every member from the token row, so this is the same record the server declares as
+ * `PrivateFeedPublicSubscription`, and a test pins the two together. The list route sends these
+ * and nothing else; create and rotate send one beside the one-time secret, on
+ * `BrowserCalendarSubscriptionSecret`; revoke answers only `{ removed, subscriptionId }`, which the
+ * page discards.
+ *
+ * `status` stays text on purpose. The shaper answers the row's `status` column with a `"revoked"`
+ * fallback, and the server's own contract keeps that column as `string` - closing it here would
+ * claim a vocabulary the producer does not. `subscriptionId` is the token row's id, which the row
+ * cannot lack; the four timestamps and the revocation reason are text or `null`, never absent.
+ */
+export interface BrowserCalendarSubscription {
+  createdAt: string | null;
+  name: string;
+  ownedByCurrentUser: boolean;
+  owner: BrowserCalendarSubscriptionOwner;
+  revocationReason: string | null;
+  revokedAt: string | null;
+  rotatedAt: string | null;
+  scope: BrowserCalendarSubscriptionScope;
+  status: string;
+  subscriptionId: string;
+  timezone: string;
+}
+
+/**
+ * What `GET /api/private-feeds/calendar-subscriptions` resolves to: the descriptors, and no URL.
+ *
+ * The server hashes each token's secret and stores only the hash, so this route **cannot**
+ * reproduce a feed URL even if it wanted to - the list is metadata by construction.
+ */
+export interface BrowserCalendarSubscriptionList {
+  subscriptions: BrowserCalendarSubscription[];
+}
+
+/**
+ * What `POST /api/private-feeds/calendar-subscriptions` and `POST .../:subscriptionId/rotate`
+ * resolve to, and **only** those two routes.
+ *
+ * `feedUrl` is the one-time secret: a URL carrying the raw token whose secret half the server
+ * hashed before storing, so this response is the only time the browser will ever see it. That is
+ * deliberate and documented - the page keeps it in memory, shows it once behind a reveal, and
+ * clears it on `pagehide`; the route itself answers with `Cache-Control: no-store`. Naming the URL
+ * here blesses an intended capability handoff, not leaked auth material.
+ *
+ * **This is a separate contract from the descriptor on purpose.** Putting an optional `feedUrl`
+ * on `BrowserCalendarSubscription` would let a list element claim a secret it can never carry and
+ * would erase the one distinction the security model rests on.
+ */
+export interface BrowserCalendarSubscriptionSecret {
+  feedUrl: string;
+  subscription: BrowserCalendarSubscription;
+}
+
+/**
+ * What `GET /api/client-projects?view=options` resolves to.
+ *
+ * `readClientProjectOptions` writes `view` literally and builds both collections by hand, so the
+ * envelope is exact. **Its elements are left as `unknown[]` deliberately.** The option records are
+ * a cross-page vocabulary read by eleven pages, ten of them through
+ * `clientProjectOptions.normalizeClients`, which is total over `unknown` and belongs to the shared
+ * surface; the calendar page's own two normalisers are total as well. Naming the elements is the
+ * work of whoever owns that surface, and it is recorded as later-owner debt rather than settled
+ * here by a container check that would not have validated them anyway.
+ */
+export interface BrowserClientProjectOptionsBody {
+  clients: unknown[];
+  view: "options";
+  workspaceProjects: unknown[];
+}
+
+/**
+ * One project of a client, in the two members User Admin submits as a role scope.
+ *
+ * **A structural minimum, and deliberately so.** `projectOptionFields` sends eight members;
+ * this names the two the role-scope picker relies on. The wider option record is the
+ * cross-page vocabulary `BrowserClientProjectOptionsBody` records as later-owner debt, and
+ * naming it here would settle that debt from the consumer that needs least of it.
+ */
+export interface BrowserUserAdminProjectScope {
+  /** The `projects.id` primary key, submitted as `scope_id` on a project role assignment. */
+  id: string;
+  name: string;
+}
+
+/**
+ * One client of the option body, in the members User Admin submits as a role scope.
+ *
+ * The same structural minimum as its projects, plus the nested collection: the picker walks
+ * `projects` to build project scopes beneath each client.
+ *
+ * **There is no `isWorkspaceScope` member, and that is the point.** The shared
+ * `clientProjectOptions.normalizeClients` prepends a synthetic client standing for the
+ * workspace's own projects whenever `workspaceProjects` is non-empty. User Admin has never
+ * offered that row as a role scope, and this contract describes what the **producer** sends
+ * under `clients` rather than what that normaliser would build from the whole body.
+ */
+export interface BrowserUserAdminClientScope {
+  /** The `clients.id` primary key, submitted as `scope_id` on a client role assignment. */
+  id: string;
+  name: string;
+  projects: BrowserUserAdminProjectScope[];
+}
+
+/**
+ * One workspace an administrator may assign membership in.
+ *
+ * **An exact reconstruction of five members.** `workspaceToAppValue` names all five and is
+ * reached only from `readAssignableWorkspaces`, so this record belongs to this endpoint alone.
+ * It is deliberately **not** any of the other workspace shapes in this file: those come from
+ * different shapers, and matching member names is not producer identity.
+ *
+ * `workspaceType` is `string` rather than `BrowserWorkspaceType` for the same reason. The
+ * `workspaces.workspace_type` column carries no `CHECK`, the query selects it raw and the
+ * shaper copies it, so this producer closes nothing - and the page only ever compares the
+ * value, never validates it. Closing the union here would promise a guarantee no one makes.
+ *
+ * Both owner members are nullable because the query reaches the username through a
+ * `LEFT JOIN`, and a workspace need not have an owner at all.
+ */
+export interface BrowserAssignableWorkspace {
+  ownerUserId: string | null;
+  ownerUsername: string | null;
+  /** The membership checkbox's value, submitted back as the workspace to join or leave. */
+  workspaceId: string;
+  workspaceName: string;
+  workspaceType: string;
+}
+
+/**
+ * `GET /api/workspaces`, behind `users.manage`.
+ *
+ * The service wraps the list by name, so the envelope is exact at one member. The list itself
+ * is already filtered by the server: only `status = 'active'` workspaces, only those the
+ * caller is a member of unless they are a super administrator, and only those where
+ * `users.manage` holds in the target workspace. An empty list is therefore a real answer - it
+ * means this administrator may assign membership nowhere - and the page says so.
+ */
+export interface BrowserAssignableWorkspaceList {
+  workspaces: BrowserAssignableWorkspace[];
+}
+
+/**
+ * One permission resource the server has decided this administrator may see.
+ *
+ * **An exact reconstruction of four members** by `normalizeResourceDefinition`, which trims
+ * every string and de-duplicates the operations before answering.
+ *
+ * **`requiredPermissions` is absent because the producer does not send it.** The server reads
+ * it to decide whether a resource is visible at all and then drops it; the catalog the browser
+ * receives is already the answer to that question. The browser must not re-derive, widen or
+ * hard-code it - module status, workspace terminology and permission filtering are all decided
+ * server-side, and a resource missing from this list is missing on purpose.
+ *
+ * `moduleId` is `""` for a framework resource that belongs to no contributed module, which is
+ * why it is the one member not required to carry text.
+ */
+export interface BrowserPermissionResource {
+  key: string;
+  label: string;
+  moduleId: string;
+  operations: string[];
+}
+
+/**
+ * `GET /api/users/permission-resources`, behind `users.manage`.
+ *
+ * Exact at one member. **A resource that quietly disappeared between the wire and the matrix
+ * would be worse than none arriving at all**: the permission grid would render without its
+ * controls, and a default-denied resource would look deliberately unassigned rather than
+ * unseen. So a catalog carrying one entry the browser cannot vouch for is refused whole.
+ */
+export interface BrowserPermissionResourceCatalog {
+  resources: BrowserPermissionResource[];
+}
+
+/**
+ * What kind of Support View event was recorded.
+ *
+ * Closed three times over: the `support_view_events.event_type` column carries a `CHECK` over
+ * exactly these words, the server declares the same union, and every writer in the service
+ * passes a literal from it. A proof pins all three to this one.
+ */
+export type BrowserSupportViewEventType = "action_attempt" | "entered" | "exited" | "expired" | "terminated";
+
+/**
+ * How a Support View event ended - closed by the same column `CHECK`, server union and literal
+ * writers as the event type.
+ */
+export type BrowserSupportViewEventOutcome = "allowed" | "denied" | "disabled" | "expired" | "revoked" | "success";
+
+/**
+ * The state of the support session an event belongs to, joined in from `support_sessions.outcome`,
+ * whose column `CHECK` and server union close it to these five.
+ */
+export type BrowserSupportViewSessionOutcome = "active" | "disabled" | "exited" | "expired" | "revoked";
+
+/**
+ * One Support View audit event as `toAuditEvent` reconstructs it for the operator.
+ *
+ * **An exact reconstruction of eleven members, and a deliberately narrow disclosure.** The query
+ * behind it selects identifiers, timestamps and usernames; the shaper answers only readable
+ * labels - `actorLabel` and `effectiveUserLabel` fall from display name to username to a fixed
+ * phrase, and `workspaceName` has its own fallback - and never the user ids, the workspace id,
+ * the event id, the request id, or the session's own timestamps. The stored `metadata_json` is
+ * not even selected. Nothing about the request that produced the event - address, agent,
+ * session - is stored on it in the first place, so there is nothing here to withhold.
+ *
+ * `reasonClass` stays text: action attempts pass an identifier-shaped token through
+ * `normalizeAuditIdentifier`, and session ends write literal classes, so the vocabulary is open.
+ * `reasonReference` is the operator's own stated reason, required and bounded at entry.
+ */
+export interface BrowserSupportViewAuditEvent {
+  /** `""` when the event was not an action attempt. */
+  actionId: string;
+  actorLabel: string;
+  effectiveUserLabel: string;
+  eventType: BrowserSupportViewEventType;
+  occurredAt: string;
+  outcome: BrowserSupportViewEventOutcome;
+  /** `""` when no class was recorded. */
+  reasonClass: string;
+  reasonReference: string;
+  /** `""` when the event was not an action attempt. */
+  routeId: string;
+  sessionOutcome: BrowserSupportViewSessionOutcome;
+  workspaceName: string;
+}
+
+/**
+ * The bounded pagination envelope `boundedPaginationEnvelope` builds for seven list routes.
+ *
+ * **An exact reconstruction of seven members**, every one coerced by the helper itself: the four
+ * integers through positive/non-negative normalisers, `hasMore` by a strict comparison,
+ * `nextCursor` minted only when there is more and `""` otherwise, and `total` `null` when the
+ * caller had no count. Named for the helper rather than for Support View so the audit log, files,
+ * jobs, notifications and search reads can share it as each is narrowed.
+ */
+export interface BrowserBoundedPagination {
+  hasMore: boolean;
+  limit: number;
+  maxPageSize: number;
+  /** `""` when there is nothing further. */
+  nextCursor: string;
+  offset: number;
+  returned: number;
+  /** `null` when the producer had no total to give; the audit route always counts. */
+  total: number | null;
+}
+
+/**
+ * Where a runtime path sits relative to the deployment, and whether it had to be redacted.
+ *
+ * The three location shapers answer `data-dir` or `app-root` for a path inside the deployment
+ * and fall through to `redactedPathLocation` otherwise, which is the only branch that sets
+ * `redacted`.
+ */
+export type BrowserRuntimePathScope = "app-root" | "data-dir" | "outside-app-root";
+
+/**
+ * A filesystem path as diagnostics is allowed to describe it.
+ *
+ * **`display` is never the resolved path.** A path inside the data directory is shown against
+ * a `<data-dir>` placeholder, one inside the application root against `./`, and anything else
+ * is reduced to `<redacted>` plus its basename. So an administrator can tell where the
+ * database or storage root lives without the response disclosing the host's directory layout.
+ */
+export interface BrowserRuntimePathLocation {
+  display: string;
+  redacted: boolean;
+  relativeTo: BrowserRuntimePathScope;
+}
+
+/** Whether the safe reader reached its subject, or reported it unreachable. */
+export type BrowserRuntimeHealthStatus = "ok" | "unavailable";
+
+/**
+ * How the configured file scanner answered.
+ *
+ * `safeScannerStatus` normalises the adapter's own word against a fixed set and falls back to
+ * `ok`, `unavailable` or `unknown` from the availability flag, so no adapter can introduce a
+ * sixth word here. `disabled` and `pass_through` are **real, healthy answers** for a
+ * deployment that runs no scanner - they are not failures, and not malformed.
+ */
+export type BrowserScannerHealthStatus = "disabled" | "ok" | "pass_through" | "unavailable" | "unknown";
+
+/** The database health the safe reader reports; `fileWritable` is false when it could not look. */
+export interface BrowserRuntimeDatabaseHealth {
+  fileWritable: boolean;
+  status: BrowserRuntimeHealthStatus;
+}
+
+/**
+ * The SQLite pragmas diagnostics reports.
+ *
+ * Every one is `null` or `""` when the health read threw, which is a real answer about an
+ * unreachable database rather than a malformed body.
+ */
+export interface BrowserRuntimeSqliteDiagnostics {
+  busyTimeoutMs: number | null;
+  cacheSizeKib: number | null;
+  foreignKeysEnabled: boolean;
+  journalMode: string;
+  mmapSizeBytes: number | null;
+  synchronous: string;
+  tempStore: string;
+}
+
+/** The database section: which provider, how healthy, its pragmas, and where its file lives. */
+export interface BrowserRuntimeDatabaseDiagnostics {
+  fileLocation: BrowserRuntimePathLocation;
+  health: BrowserRuntimeDatabaseHealth;
+  provider: string;
+  sqlite: BrowserRuntimeSqliteDiagnostics;
+}
+
+/** Where the data directory lives, described the same safe way. */
+export interface BrowserRuntimeDataDiagnostics {
+  directoryLocation: BrowserRuntimePathLocation;
+}
+
+/**
+ * The storage section.
+ *
+ * `rootLocation` is `null` for a provider that has no local root - an object store, say - and
+ * that is the producer's own answer rather than a missing member.
+ */
+export interface BrowserRuntimeStorageDiagnostics {
+  health: { available: boolean; status: BrowserRuntimeHealthStatus };
+  provider: string;
+  rootLocation: BrowserRuntimePathLocation | null;
+}
+
+/**
+ * The scanner section.
+ *
+ * `available` is `boolean | null` because `booleanOrNull` reports "the adapter did not say"
+ * as `null`, and `warning` is `""` when there is nothing to warn about.
+ */
+export interface BrowserRuntimeScannerDiagnostics {
+  health: { available: boolean | null; status: BrowserScannerHealthStatus; warning: string };
+  mode: string;
+}
+
+/**
+ * What the in-process job worker reports about itself.
+ *
+ * **This is not `/api/jobs/status`.** These are process counters for the worker running in
+ * this deployment; the Jobs Status readout counts durable rows in one workspace's queue. The
+ * two share four words and nothing else, so `0.33.33.38.4.8.4`'s contracts are deliberately
+ * not reused here.
+ */
+export interface BrowserRuntimeWorkerStatus {
+  claimedCount: number;
+  completedCount: number;
+  deadCount: number;
+  failedCount: number;
+  lastClaimedCount: number;
+  lastErrorAt: string | null;
+  lastPollAt: string | null;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lockTtlSeconds: number;
+  pollIntervalMs: number;
+  registeredJobTypes: string[];
+  running: boolean;
+  startedAt: string | null;
+  state: BrowserRuntimeWorkerState;
+  stoppedAt: string | null;
+  timerActive: boolean;
+  workerId: string;
+}
+
+/** The four states the job runner's own status type declares. */
+export type BrowserRuntimeWorkerState = "disabled" | "idle" | "running" | "stopped";
+
+/** The worker section: how it is configured, and what it is doing. */
+export interface BrowserRuntimeWorkerDiagnostics {
+  mode: string;
+  status: BrowserRuntimeWorkerStatus;
+}
+
+/** The deployment-shaped section, including whatever the configuration warned about at boot. */
+export interface BrowserRuntimeEnvironmentDiagnostics {
+  configurationWarnings: string[];
+  deploymentMode: string;
+  environment: string;
+}
+
+/**
+ * `GET /api/runtime-diagnostics`, behind `workspace_settings.manage`.
+ *
+ * **Exactness is per producer level.** `read` reconstructs all eight sections by name and
+ * spreads nothing, so the top level is exact; each section it builds is likewise reconstructed
+ * member by member, which is also what absorbs provider extensibility - a storage or scanner
+ * adapter may answer whatever it likes from `health()`, but only the members this service
+ * names reach the browser, so the contract can be exact without freezing an adapter's
+ * internals.
+ *
+ * **`app` and `features` are declared and left opaque on purpose.** Nothing on this path reads
+ * them: the page renders the database, data, storage, scanner and worker sections and the
+ * configuration warnings, and nothing else. `features` in particular is a thirty-odd member
+ * public-demo budget and perimeter tree; naming it here would be publishing an exhaustive
+ * projection for a producer with no browser consumer, which is what `0.33.33.38.4.2.1` refused
+ * for the compatibility note list. A consumer, not the producer's generosity, earns a contract.
+ */
+export interface BrowserRuntimeDiagnostics {
+  app: unknown;
+  data: BrowserRuntimeDataDiagnostics;
+  database: BrowserRuntimeDatabaseDiagnostics;
+  features: unknown;
+  runtime: BrowserRuntimeEnvironmentDiagnostics;
+  scanner: BrowserRuntimeScannerDiagnostics;
+  storage: BrowserRuntimeStorageDiagnostics;
+  worker: BrowserRuntimeWorkerDiagnostics;
+}
+
+/**
+ * The envelope the route wraps the readout in.
+ *
+ * An unreadable body is not a healthy deployment, and it is not an unconfigured one either.
+ * `result.diagnostics || {}` had rendered every section as "Unavailable" through the same
+ * formatter a genuinely unreachable database uses, which makes a response the page could not
+ * parse indistinguishable from a server that looked and found nothing.
+ */
+export interface BrowserRuntimeDiagnosticsResponse {
+  diagnostics: BrowserRuntimeDiagnostics;
+}
+
+/**
+ * What the attachment-count query was asked, and how much of it the caller could see.
+ *
+ * **Absent on one of the producer's two returns.** `countAttachmentsForTargets` answers
+ * `{ counts: {} }` and nothing else when the request named no module, no target type or no
+ * targets at all; the full answer carries this beside the counts. It is optional here for that
+ * reason rather than because the server sometimes forgets it.
+ *
+ * `readableTargets` is deliberately a count and not a list: it says how many of the requested
+ * targets the caller may read, without naming the ones they may not.
+ */
+export interface BrowserFileAttachmentCountMeta {
+  checkedTargets: number;
+  moduleId: string;
+  readableTargets: number;
+  targetType: string;
+}
+
+/**
+ * `GET /api/files/attachments/counts`.
+ *
+ * **Every requested target id is a key, seeded to zero before any attachment is counted**, so
+ * a zero here means the server looked and found none - not that it had nothing to say. A
+ * target the caller may not read stays at zero, because the tally only increments for ids that
+ * survived `readableAttachmentTargetIds`, which is what keeps this endpoint from being a way
+ * to probe for attachments on records you cannot see.
+ *
+ * The browser reads only `counts`. `meta` is declared because the producer sends it, not
+ * because anything renders it.
+ */
+export interface BrowserFileAttachmentCounts {
+  counts: Record<string, number>;
+  meta?: BrowserFileAttachmentCountMeta;
+}
+
+/**
+ * The seven target types the Notes link-target directory can answer.
+ *
+ * Closed by `LINK_TARGET_TYPES`, which `listLinkTargets` both expands `"all"` into and
+ * validates every requested type against before it queries anything. **This is not
+ * `BrowserListLinkTargetType`**: Lists supports four of these words from its own producer, and
+ * two vocabularies that overlap are still two vocabularies. `workspace` stays in the set
+ * because the service answers it, even though the ordinary editor picker does not offer it.
+ */
+export type BrowserNoteLinkTargetType =
+  | "client"
+  | "list"
+  | "note"
+  | "project"
+  | "task"
+  | "user"
+  | "workspace";
+
+/**
+ * One record the Notes link-target picker may offer.
+ *
+ * **A deliberate structural minimum over a mixed-provider record.** `listLinkTargets` merges
+ * two producers: this module's own targets, shaped by the Notes `shapeLinkTarget`, and the
+ * external directory's, shaped by the framework `shapeLinkTarget` in
+ * `core/linked-context/link-target-shape.js`. Both reconstruct the same member names, but they
+ * are two functions, the framework one adds a conditional `unavailable` marker, and the
+ * directory still *declares* the weaker `LinkTargetCandidate[]` even though its providers
+ * populate every field. `0.33.33.36` owns strengthening that declaration; this contract does
+ * not, so it promises what **both** shapers write unconditionally and stays open above it.
+ *
+ * The nineteen members below are the intersection of two questions: what both producers always
+ * write, and what the Notes picker actually reads. `listId`, `noteId`, `taskId`, `userId`,
+ * `workspaceId` and `status` are written by both and read by neither, so they are not promised
+ * here - a contract earns its members from a consumer, not from a producer's generosity.
+ *
+ * Every string member may legitimately be `""`. The producers default rather than omit, so an
+ * absent subtitle is an empty subtitle, and `sourceUrl` is `""` for a type the framework has
+ * no page route for.
+ */
+export interface BrowserNoteLinkTarget {
+  ariaLabel: string;
+  clientId: string;
+  clientName: string;
+  displayLabel: string;
+  fullLabel: string;
+  /** `false` marks a target the picker shows but must not treat as selectable. */
+  isAvailable: boolean;
+  label: string;
+  /** May be `""`: the framework shaper does not default it the way the Notes one does. */
+  moduleId: string;
+  projectId: string;
+  projectName: string;
+  secondaryLabel: string;
+  sortKey: string;
+  /**
+   * A relative page route, or `""`.
+   *
+   * `targetSourceUrl` builds `notes.html?note=...` and its siblings with an encoded id, and
+   * answers `""` for a type it has no page for. A provider may supply its own value, which is
+   * why this promises a string rather than a shape - and why it can: **the picker never
+   * navigates it.** It carries the value into the option record and the staged target, and the
+   * only members the editor submits are `moduleId`, `targetType` and `targetId`.
+   */
+  sourceUrl: string;
+  subtitle: string;
+  suggestedLibraryBucket: string;
+  targetId: string;
+  targetType: BrowserNoteLinkTargetType;
+  title: string;
+  workspaceName: string;
+}
+
+/**
+ * `GET /api/notes/link-targets`.
+ *
+ * **Exact at one member**, because the service names `targets` and spreads nothing at the top
+ * level - the element beneath it is the part that stays open. The list arrives already
+ * permission-shaped: `NOTE_PERMISSIONS.VIEW` is asserted first, each internal type is gated on
+ * module read access and each external one on the provider's own module check, notes are
+ * filtered to the accessible set, and the client scope is resolved server-side. The browser
+ * reads what survived those decisions and re-derives none of them.
+ *
+ * An empty list is a real answer - a search that matched nothing. A body this contract cannot
+ * read is not, and must not be shown as one.
+ */
+export interface BrowserNoteLinkTargetDirectory {
+  targets: BrowserNoteLinkTarget[];
+}
+
+/**
+ * One contributed setting, in the two members the module settings collector trusts.
+ *
+ * **A deliberate structural minimum over an extensible contribution.** `hydrateContribution`
+ * spreads a module's own contribution and then writes `readOnly`, `readOnlyReason` and `value`
+ * over it, and the framework path spreads a registered definition. So a setting carries its
+ * label, type, options, default, visibility and whatever else its module declared - all of
+ * which the settings renderer already owns and normalises. Naming them here would publish a
+ * second, thinner copy of that renderer's contract for a consumer that reads two members.
+ *
+ * `id` is a validated identifier: the manifest contract requires it against
+ * `IDENTIFIER_PATTERN`, so an empty one cannot reach a loaded module.
+ *
+ * `target` is `string` rather than a union. Every setting in this response carries one -
+ * `listSettingsContributions` defaults a module's to `"module"` and the framework path writes
+ * `"framework"` - but the vocabulary is enforced by the **manifest contract at module load**,
+ * one level removed from this body. What the collector actually needs is narrower and is
+ * proved rather than declared: a module contribution **may not** claim `target: "framework"`,
+ * because the same validator reserves that word.
+ */
+export interface BrowserModuleSettingsSetting {
+  id: string;
+  target: string;
+}
+
+/**
+ * One section of the module placement, as `findOrCreateSection` builds it.
+ *
+ * `id`, `placement` and `settings` are written by name after the module metadata is spread, so
+ * those three are guaranteed; `moduleId`, `name` and `displayName` come from that metadata,
+ * which always supplies all three. **`placement` is `"module"`** because this contract only
+ * describes sections read out of `attachments.module`, and `moduleId` matches the bucket the
+ * section was found under - the producer keys the bucket on the same value it hands
+ * `findOrCreateSection`.
+ *
+ * The section is a structural minimum for the same reason its settings are: the metadata
+ * spread may carry more, and the renderer reads it.
+ */
+export interface BrowserModuleSettingsSection {
+  displayName: string;
+  id: string;
+  moduleId: string;
+  name: string;
+  placement: "module";
+  settings: BrowserModuleSettingsSetting[];
+}
+
+/**
+ * One section of the workspace placement, as `findOrCreateSection` builds it.
+ *
+ * **Deliberately not `BrowserModuleSettingsSection`.** That contract fixes `placement` to
+ * `"module"`, matches `moduleId` against the bucket key the module placement is stored under -
+ * a key the workspace placement does not have, because `attachments.workspace` is a flat array -
+ * and types its settings as the resolved records that page reads. Every one of those three
+ * guarantees is either wrong or unearned here, and the workspace placement additionally carries
+ * lifecycle sections the module placement never produces.
+ *
+ * `id`, `placement` and `settings` are written by name after the module metadata is spread, so
+ * those three are guaranteed; `moduleId`, `name` and `displayName` come from that metadata,
+ * which always supplies all three, with `moduleId` itself as the fallback for the other two.
+ *
+ * **`lifecycle` is optional because absence is a real answer, not a missing member.** Only
+ * `addModuleLifecycleSections` sets it, and only on a module that contributed a
+ * `moduleStatus` setting at this placement. A section without it is an ordinary contributed
+ * section, which is exactly how the page groups it. The producer's own typedef declares it
+ * `boolean`, so that is what is admitted here, though the shipped writer only ever assigns
+ * `true`.
+ *
+ * **`settings` stays `unknown[]`.** This page never reads inside a setting: it groups and sorts
+ * sections and hands the arrays to the settings renderer, which performs its own total
+ * normalisation of type, options, value and read-only state and owns that model. Naming the
+ * elements here would claim a validation this boundary does not perform and duplicate a
+ * contract that already has an owner. The array is answered by identity, so everything the
+ * renderer reads survives.
+ */
+export interface BrowserWorkspaceSettingsSection {
+  displayName: string;
+  id: string;
+  /** Present only on a section built from a module's lifecycle settings. */
+  lifecycle?: boolean;
+  moduleId: string;
+  name: string;
+  placement: "workspace";
+  settings: unknown[];
+}
+
+/**
+ * The four job states the Workspace Settings readout counts.
+ *
+ * `shapeStatusCounts` starts from this exact object with every count at zero and overwrites a
+ * key only for a status it recognises, so all four are always present and a workspace with no
+ * jobs really does report four zeros. **`completed` is deliberately absent**: the counting
+ * query filters to these four, so a completed job is not something this readout counts.
+ */
+export interface BrowserJobStatusCounts {
+  dead: number;
+  failed: number;
+  pending: number;
+  running: number;
+}
+
+/**
+ * The two states a recent-failure row can be in.
+ *
+ * The `jobs` column allows five, but `readRecentFailures` selects
+ * `status IN ('failed', 'dead')`, so a row in this list cannot be pending, running or
+ * completed. The browser validates that narrowing rather than re-deriving it.
+ */
+export type BrowserJobFailureStatus = "dead" | "failed";
+
+/**
+ * One failed or dead-lettered job, as `shapeFailureSummary` reconstructs it.
+ *
+ * **This is the safe observability projection, not the jobs row.** The query enumerates
+ * fourteen columns by name, and the two it leaves behind are the ones that matter:
+ * `payload_json`, which carries whatever the enqueuing caller put in it, and `dedupe_key`,
+ * which is derived from job identity. Neither has a member here, and neither can acquire one
+ * without changing the select.
+ *
+ * `lastError` is the failure message the worker recorded, whitespace-collapsed by `safeText`
+ * and rendered as `textContent`. It is disclosed on purpose - a readout that says a job failed
+ * without saying why is not observability - and it is the one member whose content the server
+ * does not construct, so the durable secret-scanning owner covers it rather than this contract.
+ *
+ * The timestamps are `string | null` because the shaper maps an empty column to `null`, which
+ * makes "never locked" and "locked at the empty string" the same answer.
+ */
+export interface BrowserJobFailureSummary {
+  /** Non-negative: the `jobs` table constrains `attempt_count >= 0`. */
+  attemptCount: number;
+  availableAt: string | null;
+  completedAt: string | null;
+  createdAt: string | null;
+  deadAt: string | null;
+  jobId: string;
+  jobType: string;
+  /** Always a string, `""` when the worker recorded nothing usable. */
+  lastError: string;
+  lockedAt: string | null;
+  lockedBy: string | null;
+  /** Positive: the `jobs` table constrains `max_attempts > 0`. */
+  maxAttempts: number;
+  priority: number;
+  status: BrowserJobFailureStatus;
+  updatedAt: string | null;
+}
+
+/**
+ * The bounded page of recent failures.
+ *
+ * `pagination` is `BrowserBoundedPagination` again - the **third** reuse of the contract
+ * `0.33.33.38.4.8.1` named for `boundedPaginationEnvelope` rather than for one route, and this
+ * producer calls that same helper.
+ */
+export interface BrowserJobRecentFailures {
+  items: BrowserJobFailureSummary[];
+  pagination: BrowserBoundedPagination;
+}
+
+/** What `readAdminReadout` answers behind `workspace_settings.manage`. */
+export interface BrowserJobReadout {
+  counts: BrowserJobStatusCounts;
+  recentFailures: BrowserJobRecentFailures;
+}
+
+/**
+ * `GET /api/jobs/status`.
+ *
+ * The route wraps the readout by name under `no-store`, so this envelope is exact at one
+ * member. Reading it is not optional in the way an empty page is: a body this contract cannot
+ * vouch for means the page does not know how much work has failed, which is the opposite of
+ * what a zeroed readout would tell an administrator.
+ */
+export interface BrowserJobStatusResponse {
+  jobs: BrowserJobReadout;
+}
+
+/**
+ * A filter choice with a readable label: the actor, viewed-user and workspace queries each
+ * select an id `AS value` beside a display name `AS label`.
+ *
+ * **The value is deliberately an identifier.** These are the only ids the audit response
+ * discloses, and they exist so the operator can send them back as filter parameters.
+ */
+export interface BrowserSupportViewAuditFilterOption {
+  label: string;
+  value: string;
+}
+
+/**
+ * A filter choice with no label: the event-type and outcome queries select `DISTINCT ... AS
+ * value` and nothing else, and the page formats the value into a label itself.
+ *
+ * The server's own `SupportViewAuditOption` declares a `label` for all five collections; the two
+ * queries behind these do not select one, and this boundary follows the query. That declaration
+ * is the server's to correct, and the discrepancy is recorded rather than copied.
+ */
+export interface BrowserSupportViewAuditFilterValue {
+  value: string;
+}
+
+/**
+ * The five filter catalogues `readAuditFilterOptions` builds from the retained sessions and
+ * events. Three are labelled, two are bare values, and the two vocabularies are kept apart.
+ */
+export interface BrowserSupportViewAuditFilterOptions {
+  actors: BrowserSupportViewAuditFilterOption[];
+  effectiveUsers: BrowserSupportViewAuditFilterOption[];
+  eventTypes: BrowserSupportViewAuditFilterValue[];
+  outcomes: BrowserSupportViewAuditFilterValue[];
+  workspaces: BrowserSupportViewAuditFilterOption[];
+}
+
+/**
+ * What `GET /api/support-view/audit` resolves to.
+ *
+ * **Reached only after authorization has chosen what may be disclosed.** `listAudit` requires
+ * Support View to be enabled, a normal super-administrator session that is not itself in
+ * Support View, and the `support_view.enter` permission, then prunes and filters to the
+ * retention window before shaping. This contract describes what leaves that gate; it cannot
+ * widen it.
+ *
+ * `retentionDays` and `exportLimit` are the service's own constants, sent so the page can state
+ * the policy rather than assume it.
+ */
+export interface BrowserSupportViewAuditEnvelope {
+  events: BrowserSupportViewAuditEvent[];
+  exportLimit: number;
+  filterOptions: BrowserSupportViewAuditFilterOptions;
+  pagination: BrowserBoundedPagination;
+  retentionDays: number;
+}
+
+/**
+ * One workspace a Support View target may be viewed in, as `listTargets` builds it.
+ *
+ * **Exact: three members written by name** from a row the eligibility query already restricted
+ * to active memberships of active workspaces. `label` and `workspaceName` are the same value
+ * twice, kept because the producer writes both.
+ */
+export interface BrowserSupportViewTargetWorkspace {
+  label: string;
+  /** Non-empty: `start` refuses without it, so a blank one is not a choice. */
+  workspaceId: string;
+  workspaceName: string;
+}
+
+/**
+ * A Support View target as `listTargets` reconstructs it.
+ *
+ * **A security-filtered summary, not a user record.** It is built by hand from five selected
+ * columns - `user_id`, `username`, `display_name`, and the workspace pair - after a query that
+ * admits only active users holding an active membership of an active workspace, and never the
+ * actor themselves. `BrowserUserRecord` is a different producer describing a different thing,
+ * and reusing it here would promise the browser a status, role, timestamps and preferences that
+ * this route deliberately does not send.
+ *
+ * **This list is a picker, not an authorization.** `start` independently re-checks Support View
+ * enablement, session mode, target-is-not-actor, `support_view.enter` for the chosen workspace,
+ * the administrator's password, session freshness and a fresh eligibility row, so nothing named
+ * here can widen who may actually be viewed.
+ *
+ * `label` is `displayLabel`'s output, either the username alone or `Display Name (username)`,
+ * and is non-empty on every path.
+ */
+export interface BrowserSupportViewTarget {
+  displayName: string;
+  /** Non-empty: the shaper falls through to the username and then to a fixed phrase. */
+  label: string;
+  /** Non-empty: `start` refuses without it, so a blank one is not a choice. */
+  userId: string;
+  username: string;
+  workspaces: BrowserSupportViewTargetWorkspace[];
+}
+
+/**
+ * The administrator this page is being shown to, as `listTargets` names them from the session.
+ *
+ * **Exact: three members, and no capability, permission or session material.** `label` is the
+ * operator's username, written twice by the producer.
+ */
+export interface BrowserSupportViewActor {
+  label: string;
+  userId: string;
+  username: string;
+}
+
+/**
+ * What `GET /api/support-view/targets` resolves to.
+ *
+ * Reached only through `assertOperator`: Support View enabled, a normal super-administrator
+ * session that is not itself in Support View, and the `support_view.enter` permission.
+ *
+ * `expiresInSeconds` is the deployment's configured session lifetime - a single number read
+ * from `config.supportView.ttlSeconds`, bounded to 60-3600 - and **not** a catalogue of
+ * durations the operator may choose between. It is a top-level policy value rather than a
+ * member of any target, because the producer sends it that way.
+ */
+export interface BrowserSupportViewTargetEnvelope {
+  /** `null` only when the body could not be vouched for; the route always sends it. */
+  actor: BrowserSupportViewActor | null;
+  expiresInSeconds: number;
+  targets: BrowserSupportViewTarget[];
+}
+
+/**
+ * One audit log entry, exactly as `searchForScope` selects it.
+ *
+ * **Fifteen columns, straight from the table: this route has no shaper.** Six are `NOT NULL` and
+ * nine are nullable, and the contract follows the schema column for column rather than the
+ * renderer, which coerces every one of them to text for display.
+ *
+ * **What it deliberately discloses.** `ip_address` is the address the writer recorded for the
+ * acting session, and the page renders it: this is an administrative audit surface behind
+ * `audit_logs.view`, and the address is the point of several of its entries. The three `_json`
+ * members are the writer's snapshots. They are safe by construction rather than by filtering
+ * here: every value snapshot in the estate is built from a whitelist shaper - `userRowToAppValue`
+ * names fifteen profile members and no password column - or from a hand-written literal, and the
+ * password-reset entry records only a timestamp. Nothing narrows them at read time, so nothing
+ * may be assumed about them at read time either.
+ *
+ * `action`, `change_type` and `record_type` stay text: the writer normalises them but the
+ * columns carry no `CHECK`, the record type has an `allowUnknown` path, and the security stream
+ * writes its own action names.
+ */
+export interface BrowserAuditLogEntry {
+  action: string;
+  /** `null` for an entry no signed-in actor produced. */
+  actor_user_id: string | null;
+  /** `null` when the writer had no username to record. */
+  actor_user_name: string | null;
+  audit_id: string;
+  change_type: string;
+  created_at: string;
+  /**
+   * The address recorded for the acting session, or `null`. Deliberately disclosed to an
+   * administrator holding `audit_logs.view`; it is not redacted and this contract does not
+   * pretend otherwise.
+   */
+  ip_address: string | null;
+  /**
+   * `JSON.stringify` of whatever the writer passed as metadata, or `null`.
+   *
+   * **A JSON string, not a record.** Typing it as an object would promise a shape no producer
+   * agrees on - every caller passes its own - and would invite reading fields out of a snapshot
+   * that exists to be displayed, not queried.
+   */
+  metadata_json: string | null;
+  /** `JSON.stringify` of the writer's before-snapshot, or `null`. A JSON string, not a record. */
+  previous_value_json: string | null;
+  /** `JSON.stringify` of the writer's after-snapshot, or `null`. A JSON string, not a record. */
+  new_value_json: string | null;
+  record_id: string | null;
+  record_label: string | null;
+  record_type: string;
+  record_url: string | null;
+  workspace_id: string;
+}
+
+/**
+ * One audit filter choice, as the audit service's four option builders write it.
+ *
+ * **Not `BrowserSupportViewAuditFilterOption`**, which two members happen to match: that one is
+ * built by the Support View repository from support sessions, this one by four separate builders
+ * over users, clients, projects and workspaces. Same shape, different producers, so the same
+ * rule that kept three client vocabularies apart keeps these apart.
+ */
+export interface BrowserAuditFilterOption {
+  label: string;
+  value: string;
+}
+
+/**
+ * The six filter catalogues `list` assembles.
+ *
+ * Two vocabularies again, and they differ from the Support View audit's: here the record and
+ * change types are **bare strings** mapped straight off `SELECT DISTINCT` rows, while the four
+ * labelled catalogues are `{ label, value }` records. `workspaces` is empty unless the caller is
+ * a super administrator, and `clients` is empty outside a business workspace - both are producer
+ * decisions this contract reports rather than makes.
+ */
+export interface BrowserAuditFilterOptions {
+  changeTypes: string[];
+  clients: BrowserAuditFilterOption[];
+  projects: BrowserAuditFilterOption[];
+  recordTypes: string[];
+  users: BrowserAuditFilterOption[];
+  workspaces: BrowserAuditFilterOption[];
+}
+
+/**
+ * What `GET /api/audit-logs` and `GET /api/security-events` resolve to.
+ *
+ * One service answers both: `listSecurityEvents` calls `list` with `securityOnly`, so the
+ * envelope is identical and there is one contract rather than two named after two routes. The
+ * audit route requires `audit_logs.view` on the caller's workspace; the security route adds its
+ * own administrator check; and `resolveAuditWorkspaceScope` refuses any workspace but the
+ * caller's own unless they are a super administrator.
+ *
+ * `pagination` is the same `boundedPaginationEnvelope` record `0.33.33.38.4.8.1` published for
+ * the Support View audit - the first reuse of that contract, and the reason it was named for the
+ * helper rather than for one route.
+ */
+export interface BrowserAuditLogEnvelope {
+  auditLogs: BrowserAuditLogEntry[];
+  filterOptions: BrowserAuditFilterOptions;
+  pagination: BrowserBoundedPagination;
+  /** The scope the service resolved: a workspace id, or `"all"` for a super administrator. */
+  workspaceId: string;
+}
+
+/**
+ * How the interface picks its palette. `normalizeThemeMode` answers one of these three on every
+ * path, falling back to `"light"`.
+ *
+ * **Closed here although `BrowserUserRecord` leaves the same value open, and the difference is
+ * the check.** That record wrote the vocabulary down in prose and kept `string`, because this
+ * estate refuses to declare a closed union over a wire field nothing validates. This boundary
+ * validates it: `readUserSettingsProfile` refuses a response whose theme mode is not one of
+ * these words. Same rule, applied where the check now exists.
+ */
+export type BrowserUserThemeMode = "auto" | "dark" | "light";
+
+/**
+ * What an automatic theme follows. A single literal, because `normalizeThemeAutoSource` answers
+ * `"system"` on **every** path including its fallback - there is no second source yet, and the
+ * contract says so rather than implying a choice the producer cannot make.
+ */
+export type BrowserUserThemeAutoSource = "system";
+
+/** Where a sign-in or a workspace switch lands, closed by `normalizeUserLandingPage`. */
+export type BrowserUserLandingPage = "dashboard" | "lists" | "notes" | "tasks" | "workbench";
+
+/** Which calendar span the account prefers, closed by `normalizeCalendarViewPreference`. */
+export type BrowserUserCalendarView = "day" | "month" | "week";
+
+/**
+ * The account's own settings, as both `GET` and `PUT /api/user/settings` send them.
+ *
+ * **Ten members, and the two routes agree by construction rather than by coincidence.**
+ * `readSettings` copies them out of `userRowToAppValue`; `saveSettings` rebuilds them from the
+ * request through **the same normalisers** - `normalizeThemeMode`, `normalizeThemeAutoSource`,
+ * `normalizeUserLandingPage`, `normalizeCalendarViewPreference`, `normalizeBooleanPreference`
+ * and the profile normaliser. A proof pins both routes to that shared list so they cannot drift.
+ *
+ * **This is not a `BrowserUserRecord`.** That record is fifteen members from the
+ * user-administration routes and carries `user_id`, `userStatus`, `protectedUser` and
+ * `passwordChangeRequired`, none of which this route sends; this one is the ten an account may
+ * see and change about itself. Ten scalars are common to both, and the vocabularies agree.
+ */
+export interface BrowserUserSettingsProfile {
+  /** `null` when the account has no alternate address. */
+  altEmail: string | null;
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  openExternalLinksNewTab: boolean;
+  /** `null` when the account has expressed no preference. */
+  preferredCalendarView: BrowserUserCalendarView | null;
+  preferredLoginLanding: BrowserUserLandingPage;
+  preferredWorkspaceSwitchLanding: BrowserUserLandingPage;
+  themeAutoSource: BrowserUserThemeAutoSource;
+  themeMode: BrowserUserThemeMode;
+  /** Falls back to the deployment default, so never empty. */
+  timezone: string;
+  username: string;
+}
+
+/** How this deployment is run, closed by the one comparison `readWorkspaceCreationOptions` makes. */
+export type BrowserWorkspaceInstallMode = "saas" | "self_hosted";
+
+/**
+ * A kind of workspace an account may create, closed because the producer starts from a literal
+ * list of these three and only ever filters it.
+ */
+export type BrowserWorkspaceType = "business" | "family" | "personal";
+
+/**
+ * The workspace context this browser persists and publishes.
+ *
+ * **Exact at the top level, because `storeWorkspaceContext` reconstructs all thirteen members by
+ * name and spreads nothing.** This is deliberately *not* the object `loadAppShellBootstrap` builds
+ * and dispatches: that transient one inherits whatever the app-shell producer put on its own
+ * `workspaceContext` - `permissionIds`, `workspaceDeletion`, `publicDemo` - and navigation reads
+ * those immediately. **The store keeps none of them**, so this record does not promise them either.
+ *
+ * **The collections are `unknown[]` on purpose.** The constructor checks each with `Array.isArray`
+ * and nothing else, and one of its candidate sources is `localStorage`. Typing the elements would
+ * claim a validation that does not happen; filtering them to earn the claim would change what the
+ * store persists. Consumers that need element shape own that narrowing.
+ *
+ * `workspaceType` is the one closed member, because the constructor already picks a value and
+ * falls back to `"business"` - and five browser files independently normalise it to this same
+ * vocabulary.
+ */
+export interface BrowserStoredPublicDemo {
+  enabled: boolean;
+  filesIngressAllowed: boolean;
+}
+
+export interface BrowserStoredWorkspaceContext {
+  enabledModules: unknown[];
+  modules: unknown[];
+  navigation: unknown[];
+  /** Whatever the producer sent, proved to be a record. Individual hints are the consumer's. */
+  permissionHints: Record<string, unknown>;
+  publicDemo: BrowserStoredPublicDemo | null;
+  quickActions: unknown[];
+  searchTargets: unknown[];
+  /** `""` when no candidate and no cached value supplied one. */
+  userId: string;
+  username: string;
+  viewSurfaces: unknown[];
+  /** Proved to be a record; `availableTools` and the rest are read by consumers. */
+  workspaceCapabilities: Record<string, unknown>;
+  workspaceId: string;
+  /** `"Workspace"` when the candidate carried no usable name. */
+  workspaceName: string;
+  workspaceType: BrowserWorkspaceType;
+}
+
+/**
+ * One workspace kind the account may create right now.
+ *
+ * **Exact: four members**, built for each type that survived the install-mode, entitlement and
+ * per-user permission filters. `moduleSettings` is left `unknown[]`: it comes from
+ * `readWorkspaceCreationModuleSettings`, which **spreads** each module's own definition, so its
+ * members belong to the contributing module rather than to this response - the same reason the
+ * Workbench contribution contract promises only an identity.
+ */
+export interface BrowserWorkspaceCreationType {
+  /** `""` when the type declares no suggested name. */
+  defaultName: string;
+  label: string;
+  /** Each module's own settings definition, spread; its vocabulary is the module's to name. */
+  moduleSettings: unknown[];
+  workspaceType: BrowserWorkspaceType;
+}
+
+/**
+ * Whether and what this account may create, as `readWorkspaceCreationOptions` reports it.
+ *
+ * **The server has already decided.** `availableTypes` is empty when creation is disabled for
+ * the deployment, when the account lacks the permission, or when a hosted entitlement does not
+ * cover the type - so an empty list is a real answer and the page simply hides its form. The
+ * two flags are reported beside it, never combined into one by the browser.
+ */
+export interface BrowserWorkspaceCreationOptions {
+  availableTypes: BrowserWorkspaceCreationType[];
+  canCreateWorkspaces: boolean;
+  installMode: BrowserWorkspaceInstallMode;
+  workspaceCreationEnabled: boolean;
+}
+
+/**
+ * One workspace the account belongs to, as `readForUser` selects it.
+ *
+ * **Four columns, snake_case, straight from the query** - this is a row, not a shaped record,
+ * which is why it is not `BrowserUserWorkspaceMembership`: that one is six camelCase members
+ * built by `decorateUserWithMemberships` for the administration routes. Neither `status` nor
+ * `workspace_type` carries a column `CHECK`, so both stay text.
+ */
+export interface BrowserUserSettingsWorkspace {
+  status: string;
+  workspace_id: string;
+  workspace_name: string;
+  workspace_type: string;
+}
+
+/**
+ * What `GET /api/user/settings` resolves to: the account's own settings plus what it may do.
+ *
+ * **The profile ten, and four more that only the read sends.** The save answers the ten alone,
+ * so this extends that contract rather than repeating it or making four members optional on one
+ * record - the difference between the routes is real and is expressed as the difference.
+ *
+ * `canEnterAccountExportRecovery` is a **server permission result**, not a browser decision:
+ * `isWorkspaceAdministrator` computes it and the route sends it on every response. The browser
+ * reports it; it can never manufacture it, and nothing here widens who may recover an account.
+ */
+export interface BrowserUserSettings extends BrowserUserSettingsProfile {
+  /** The account's current workspace; the session's active workspace, or its own. */
+  activeWorkspaceId: string;
+  /** A permission result the server computed. The browser reports it and never decides it. */
+  canEnterAccountExportRecovery: boolean;
+  workspaceCreation: BrowserWorkspaceCreationOptions;
+  workspaces: BrowserUserSettingsWorkspace[];
+}
+
+/**
+ * What `DELETE /api/user/workspaces/:workspaceId` answers when the account has just left its
+ * **last** active workspace.
+ *
+ * The service revokes every session for the account and answers this instead of a workspace
+ * list, and the page leaves for the recovery sign-in. `accountExportRecovery` is the literal
+ * `true` the producer writes; `activeWorkspaceId` is `null` because there is no longer one.
+ */
+export interface BrowserAccountExportRecoveryResult {
+  accountExportRecovery: true;
+  activeWorkspaceId: null;
+  workspaces: BrowserUserSettingsWorkspace[];
+}
+
+/**
+ * What that route answers on the ordinary path: the workspace the account is left on, and the
+ * memberships it still holds.
+ *
+ * **`accountExportRecovery` is absent, not `false`** - the producer omits the member entirely,
+ * and `?: never` says so, which is what lets the two results be told apart by their own shapes
+ * rather than by a flag the browser has to interpret.
+ */
+export interface BrowserWorkspaceMembershipResult {
+  accountExportRecovery?: never;
+  activeWorkspaceId: string;
+  workspaces: BrowserUserSettingsWorkspace[];
+}
+
+/**
+ * The two answers that route genuinely has.
+ *
+ * Modelled as a union rather than one record with optional members, because the producer really
+ * does return two different shapes and flattening them would let a consumer read a workspace
+ * list off the recovery answer, which is always empty.
+ */
+export type BrowserWorkspaceRemovalResult =
+  | BrowserAccountExportRecoveryResult
+  | BrowserWorkspaceMembershipResult;
+
+/**
+ * An API key as the workspace list sends it: the nine columns `readAll` selects by name, with
+ * the key's scopes attached.
+ *
+ * **Exact, and it never carries the hash.** The repository lists its columns explicitly and
+ * `key_hash` is not among them, so the list is metadata by construction. This is a different
+ * record from `BrowserApiKeyRecord`: the list discloses `created_by_user_id` and the public
+ * shaper does not, and the two are kept apart rather than merged with an optional member.
+ *
+ * `status` stays text: the service writes `"active"` and `"revoked"`, but the column carries
+ * no `CHECK` and the server's own row type keeps it open.
+ */
+export interface BrowserApiKeyListEntry {
+  api_key_id: string;
+  created_at: string;
+  created_by_user_id: string;
+  key_prefix: string;
+  /** `null` until the key is first used. */
+  last_used_at: string | null;
+  name: string;
+  /** `null` until the key is revoked. */
+  revoked_at: string | null;
+  scopes: string[];
+  status: string;
+  workspace_id: string;
+}
+
+/**
+ * An API key as `toPublicApiKey` reconstructs it beside a create or revoke result.
+ *
+ * **An exact reconstruction of nine members**: the list entry without its creator, and never
+ * the hash or the raw key. The same shaper feeds the audit trail's before-and-after values, so
+ * what the browser sees here is also what the audit log records.
+ */
+export interface BrowserApiKeyRecord {
+  api_key_id: string;
+  created_at: string;
+  key_prefix: string;
+  last_used_at: string | null;
+  name: string;
+  revoked_at: string | null;
+  scopes: string[];
+  status: string;
+  workspace_id: string;
+}
+
+/**
+ * One API scope the workspace may grant, as `listAvailableApiScopes` builds it from the
+ * enabled modules' catalogue entries.
+ *
+ * **Exact: six members written by name** after enablement, workspace-type and public-demo
+ * filtering. `id` and `scope` are the same value twice, kept because the producer writes both.
+ * `access` stays text: the registry answers a declared `access` when a module gives one and
+ * derives `"read"` or `"write"` from the scope's suffix otherwise, so the declared path is open.
+ */
+export interface BrowserApiScope {
+  access: string;
+  description: string;
+  id: string;
+  label: string;
+  moduleId: string;
+  scope: string;
+}
+
+/**
+ * What `GET /api/api-keys` resolves to, and the two members every API key route shares.
+ *
+ * Reached only through `workspace_settings.manage`; `list` reads it, `create` and `revoke`
+ * re-read it after their write so the page can re-render without a second request.
+ */
+export interface BrowserApiKeyCollection {
+  apiKeys: BrowserApiKeyListEntry[];
+  availableScopes: BrowserApiScope[];
+}
+
+/**
+ * The one-time secret `POST /api/api-keys` answers, and nothing else answers.
+ *
+ * `rawKey` is minted from twenty-four random bytes, hashed with SHA-256 before it is stored,
+ * and its first seventeen characters kept as the display prefix; the audit trail records only
+ * that prefix. So this response is the only time the raw key exists outside the caller's
+ * hands, which is why it is named here and forbidden, by proof, from the list entry and the
+ * public record.
+ */
+export interface BrowserApiKeySecret {
+  apiKey: BrowserApiKeyRecord;
+  rawKey: string;
+}
+
+/** What `POST /api/api-keys` resolves to: the secret beside the re-read collection. */
+export type BrowserApiKeyCreation = BrowserApiKeyCollection & BrowserApiKeySecret;
+
+/**
+ * What `PUT /api/api-keys/:apiKeyId/revoke` resolves to: the revoked record beside the re-read
+ * collection, and **no raw key** - a revoked key has nothing left to hand over.
+ */
+export interface BrowserApiKeyRevocation extends BrowserApiKeyCollection {
+  apiKey: BrowserApiKeyRecord;
+}
+
+/**
+ * One module's state as the Workbench bootstrap reports it.
+ *
+ * **An exact reconstruction of three members.** `buildModuleStateMap` builds this for every module
+ * the workspace context returned, keyed by module id, and names all three - so unlike most of this
+ * bootstrap it can be described precisely.
+ *
+ * `enabled` and `status` are two spellings of one decision: the shaper writes
+ * `moduleDefinition.status === "enabled"` for the boolean and the matching word for the text, so
+ * they cannot disagree. `displayName` falls back through the module's name to its id, so it is
+ * never empty.
+ */
+export interface BrowserWorkbenchModuleState {
+  /** Falls back through the module name to its id, so never empty. */
+  displayName: string;
+  enabled: boolean;
+  status: BrowserWorkbenchModuleStatus;
+}
+
+/**
+ * The two words `buildModuleStateMap` writes.
+ *
+ * Closed because the shaper writes a literal on both branches of one comparison; nothing here is a
+ * column passing through.
+ */
+export type BrowserWorkbenchModuleStatus = "disabled" | "enabled";
+
+/**
+ * One module contribution as the Workbench registry carries it.
+ *
+ * **A one-member guarantee, and that is the honest size of it.** `normalizeContribution` spreads
+ * the contribution a module declared in its own `module.js` and overrides only `moduleId`.
+ * Everything else - renderer, label, sort order, actions - is that module's declaration, so the
+ * framework's extensibility contract owns those shapes rather than this response boundary. Naming
+ * them here would freeze one module's vocabulary into every module's contract.
+ *
+ * **Contributions arrive already filtered, twice.** `listWorkspaceContributions` drops any whose
+ * module is disabled, whose requirements are unavailable, or whose required permissions the caller
+ * lacks; `filterPublicDemoContributionActions` then removes individual actions a public demo may
+ * not offer. The browser describes what survived both and must never try to restore either.
+ */
+export interface BrowserWorkbenchContribution {
+  moduleId: string;
+}
+
+/**
+ * The three contribution lists the Workbench bootstrap sends as its registry.
+ *
+ * **`registry` and `modules` are not two names for one thing.** This is a fixed three-member
+ * record of contribution lists; `modules` is a map keyed by module id holding enablement state.
+ * One says what the workspace's modules *offer*, the other says which are *on*.
+ */
+export interface BrowserWorkbenchRegistry {
+  timerSources: BrowserWorkbenchContribution[];
+  workbenchCards: BrowserWorkbenchContribution[];
+  workItemSources: BrowserWorkbenchContribution[];
+}
+
+/**
+ * What `GET /api/workbench/bootstrap` resolves to.
+ *
+ * **Three of its seven members are constants, and the producer says so in its own source.**
+ * `taskOptions` is literally `null`, `timers` and `workCandidates` are literally `[]`, and a
+ * comment beside them records that the fifty-candidate bootstrap computation was removed once the
+ * browser began resolving candidates from `/api/workbench/focus-candidates` and the task detail
+ * read. The Workbench's `sourceData.taskOptions || bootstrap.taskOptions` has therefore been
+ * reading a member that is always absent, and this contract states that rather than implying a
+ * catalog arrives here. **No Task option contract is reused, because none is sent.**
+ *
+ * `currentUserId` is `session.user_id` and is always text.
+ *
+ * **`modules` and `registry` are nullable here even though the route always sends them.** The
+ * producer builds both unconditionally, but the reader answers `null` for anything it cannot vouch
+ * for, and each Workbench read already had its own fallback - the cached registry for one, the
+ * module map it is holding for the other. Preserving those fallbacks is why the members are
+ * nullable rather than the reader inventing an empty registry.
+ */
+export interface BrowserWorkbenchBootstrap {
+  currentUserId: string;
+  /** `null` when the map cannot be vouched for; the route itself always sends one. */
+  modules: Record<string, BrowserWorkbenchModuleState> | null;
+  /** `null` when the registry cannot be vouched for; the route itself always sends one. */
+  registry: BrowserWorkbenchRegistry | null;
+  /** Always `null` on this route: the catalog reaches the page from its own producer. */
+  taskOptions: null;
+  /** Always empty on this route. */
+  timers: unknown[];
+  /** Always the empty string on this route. */
+  workCandidateMode: string;
+  /** Always empty on this route: candidates load from `/api/workbench/focus-candidates`. */
+  workCandidates: unknown[];
+}
+
+/**
+ * The active Task Focus as the checklist renderer reads it (`0.33.33.38.2.12`).
+ *
+ * Every member is optional and states what Workbench's producer supplies, not a validation: the
+ * renderer receives the original active object, never a copy. The checklist items, the progress
+ * the task carries, and the identity of the item being changed stay `unknown`, because the renderer
+ * reads them through its own checked readers and must not narrow them for Workbench.
+ */
+export interface BrowserWorkbenchTaskFocusChecklistState {
+  task?: { checklistItems?: unknown; checklistProgress?: unknown } | null;
+  isLoading?: boolean;
+  error?: string;
+  checklistError?: string;
+  checklistMutationItemId?: unknown;
+}
+
+/**
+ * The Workbench functions the checklist renderer calls, injected rather than reached for.
+ *
+ * Each is the existing Workbench function under its own name and signature: Workbench keeps its
+ * view acquisition, empty-state and text helpers, section summary, disclosure state, and the
+ * change handler that owns every checklist write. The renderer binds them to local names so each
+ * is still called bare.
+ */
+export interface BrowserWorkbenchTaskFocusChecklistHost {
+  requireView(): BrowserViewFactory;
+  emptyState(message: string | null): HTMLDivElement;
+  safeTaskFocusText(value: unknown, fallback?: string): string;
+  createWorkbenchSectionSummary(options: {
+    bodyId?: string;
+    count?: HTMLElement | null;
+    subtitle?: HTMLElement | null;
+    title: string;
+  }): HTMLElement;
+  setWorkbenchDisclosureOpen(details: HTMLDetailsElement | null, open: unknown): void;
+  handleTaskFocusChecklistChange(event: Event): Promise<void>;
+}
+
+/** One checklist renderer, bound to the host that created it. */
+export interface BrowserWorkbenchTaskFocusChecklistRenderer {
+  /** The checklist section for the active Task Focus, or for none. */
+  render(active: BrowserWorkbenchTaskFocusChecklistState | null): HTMLDetailsElement;
+}
+
+/**
+ * `LongtailForge.workbenchTaskFocusChecklist`, published by
+ * `public/js/workbench-task-focus-checklist.js` (`0.33.33.42.46`).
+ *
+ * Presentation only: Workbench keeps the Task Focus state, API writes, request guards, event
+ * handling, focus and recovery, and hands the renderer the host functions it needs.
+ */
+export interface BrowserWorkbenchTaskFocusChecklist {
+  create(host: BrowserWorkbenchTaskFocusChecklistHost): BrowserWorkbenchTaskFocusChecklistRenderer;
+}
+
+/**
+ * One related-context item's open action, as the Task Focus presentation reads it
+ * (`0.33.33.38.2.13`).
+ *
+ * These are the presentation's existing local preconditions, not a validation: the normaliser
+ * proves the related arrays and the loading and error fields, and leaves these members as the
+ * server sent them. Action ids keep their optional-string precondition.
+ */
+export interface BrowserWorkbenchTaskFocusRelatedAction {
+  type?: string;
+  moduleActionId?: string;
+  params?: unknown;
+  fallbackUrl?: string;
+}
+
+/** One related-context item, as the presentation renders it. Every member is a precondition. */
+export interface BrowserWorkbenchTaskFocusRelatedItem {
+  action?: BrowserWorkbenchTaskFocusRelatedAction;
+  moduleId?: string;
+  recordType?: string;
+  recordId?: unknown;
+  reason?: string;
+  title?: string;
+  sourceLabel?: string;
+  contextLabel?: string;
+  reasonLabel?: string;
+  badges?: unknown[];
+}
+
+/** One related-context group, as the presentation renders it. */
+export interface BrowserWorkbenchTaskFocusRelatedGroup {
+  id?: string;
+  label?: string;
+  reason?: string;
+  count?: number | string;
+  items?: BrowserWorkbenchTaskFocusRelatedItem[];
+}
+
+/**
+ * The related context Workbench's normaliser produces: the arrays and the loading and error fields
+ * are proved there; the group and item members inside them stay preconditions.
+ */
+export interface BrowserWorkbenchTaskFocusRelatedState {
+  error: string;
+  groups: Array<BrowserWorkbenchTaskFocusRelatedGroup & { items: BrowserWorkbenchTaskFocusRelatedItem[] }>;
+  isLoading: boolean;
+  items: unknown[];
+  taskId: unknown;
+  meta?: unknown;
+  task?: unknown;
+}
+
+/**
+ * The active Task Focus as the presentation reads it: the checklist's view of it, plus the members
+ * the summary, timer, related context and actions render.
+ *
+ * The presentation receives Workbench's own active object, never a copy. `task` is the record
+ * `preserveTaskFocusChecklistData` produces, whose identity, checklist data and decorator payloads
+ * stay opaque.
+ */
+export interface BrowserWorkbenchTaskFocusPresentationState
+  extends BrowserWorkbenchTaskFocusChecklistState {
+  task?: Record<string, unknown> | null;
+  taskId?: unknown;
+  title?: string;
+  contextLabel?: string;
+  dueAt?: unknown;
+  priority?: unknown;
+  status?: unknown;
+  relatedContext?: BrowserWorkbenchTaskFocusRelatedState;
+}
+
+/**
+ * The four timer members the presentation displays - the projection of the published timer record
+ * Workbench already uses. Timers do not pass through a validated reader here.
+ */
+export type BrowserWorkbenchTaskFocusDisplayTimer = Partial<Pick<
+  BrowserTaskTimerRecord,
+  "active_timer_id" | "timer_status" | "accumulated_elapsed_seconds" | "last_active_start_time"
+>>;
+
+/**
+ * Workbench's element slots, handed over as accessors on the slots themselves, never a snapshot.
+ *
+ * The three writable slots are the ones building the panel assigns - the action mount, the body,
+ * then the panel - so a partial assignment survives a throw exactly where it did. The Inspector
+ * slots are read only.
+ */
+export interface BrowserWorkbenchTaskFocusPresentationMounts {
+  taskFocusActionMount: HTMLElement | null;
+  taskFocusBody: HTMLElement | null;
+  taskFocusPanelElement: HTMLElement | null;
+  readonly workbenchInspectorElement: HTMLElement | null;
+  readonly workbenchInspectorList: HTMLElement | null;
+  readonly workbenchInspectorCountText: HTMLElement | null;
+  readonly workbenchInspectorCollapseButton: HTMLButtonElement | null;
+}
+
+/**
+ * Everything the presentation reads from and calls on Workbench, injected rather than reached for.
+ *
+ * `state` is Workbench's own state object by reference, and `taskFocusInspectorCollapsed` a live
+ * read-only accessor; the collapse toggle and all focus return stay Workbench's. Each function is
+ * the existing Workbench function under its own name and signature: Workbench keeps view
+ * acquisition, text and date formatting, timer policy and arithmetic, lifecycle policy, every write
+ * and every navigation.
+ */
+export interface BrowserWorkbenchTaskFocusPresentationHost {
+  readonly state: { readonly activeTaskFocus: BrowserWorkbenchTaskFocusPresentationState | null };
+  readonly mounts: BrowserWorkbenchTaskFocusPresentationMounts;
+  readonly taskFocusInspectorCollapsed: boolean;
+  requireView(): BrowserViewFactory;
+  requireWorkbenchElement<T extends HTMLElement>(element: T | null | undefined): T;
+  resolvedWorkbenchViewState(): string;
+  setWorkbenchInspectorCopy(heading: string, helper: string): void;
+  emptyState(message: string | null): HTMLDivElement;
+  safeTaskFocusText(value: unknown, fallback?: string): string;
+  safeRelatedContextText(value: unknown, fallback?: string): string;
+  relatedContextSourceLabel(item?: BrowserWorkbenchTaskFocusRelatedItem): string;
+  workbenchDetailField(value: unknown, key: string, optional?: boolean): unknown;
+  badge(label: unknown, type?: unknown): HTMLSpanElement;
+  formatToken(value: unknown): string;
+  formatCandidateDate(value: unknown): string;
+  formatDuration(totalSeconds: unknown): string;
+  readElapsedSeconds(timer: unknown): number;
+  actionButton(label: string | null, handler: EventListener, options?: { danger?: unknown }): HTMLButtonElement;
+  createWorkbenchSectionSummary: BrowserWorkbenchTaskFocusChecklistHost["createWorkbenchSectionSummary"];
+  setWorkbenchDisclosureOpen: BrowserWorkbenchTaskFocusChecklistHost["setWorkbenchDisclosureOpen"];
+  createTaskFocusChecklistSection(active: BrowserWorkbenchTaskFocusPresentationState | null): HTMLDetailsElement;
+  currentTaskFocusTimer(active?: BrowserWorkbenchTaskFocusPresentationState | null): BrowserWorkbenchTaskFocusDisplayTimer | null;
+  taskFocusTimerEligibility(active?: BrowserWorkbenchTaskFocusPresentationState | null): { eligible: boolean; reason: string };
+  taskTimerSurfaceAvailable(): boolean;
+  taskFocusLifecycleDisabledReason(action: string, active?: BrowserWorkbenchTaskFocusPresentationState | null): string;
+  openFocusedTaskEditor(event: Event | null | undefined): Promise<void>;
+  completeFocusedTask(): Promise<void>;
+  blockFocusedTask(event: Event | null | undefined): Promise<void>;
+  resumeFocusedTask(): Promise<void>;
+  saveFocusedTaskTimer(timerStatus: string): Promise<void>;
+  finalizeFocusedTaskTimer(event?: Event | null): Promise<void>;
+  resetFocusedTaskTimer(): Promise<void>;
+  openTaskFocusRelatedContextItem(item?: BrowserWorkbenchTaskFocusRelatedItem, trigger?: EventTarget | null): Promise<void>;
+  /**
+   * Workbench's own context label, shared with its entry and candidate projection, so it is
+   * injected rather than exported by the renderer (`0.33.33.38.2.14`).
+   */
+  taskFocusContextLabel(task?: { client_name?: unknown; project_name?: unknown }, active?: { contextLabel?: unknown } | null): string;
+  /**
+   * Workbench's own related-context reader, shared with its refresh. Injected rather than exported:
+   * returned through the renderer, its wider declared type would no longer fit the refresh's state.
+   */
+  taskFocusRelatedContextState(active?: BrowserWorkbenchTaskFocusPresentationState | null): BrowserWorkbenchTaskFocusRelatedState;
+  /** Workbench's own related-group reader, shared with its page-controller snapshot. */
+  taskFocusRelatedContextGroups(context?: BrowserWorkbenchTaskFocusRelatedState): BrowserWorkbenchTaskFocusRelatedState["groups"];
+}
+
+/** One presentation renderer, bound to the host that created it. */
+export interface BrowserWorkbenchTaskFocusPresentationRenderer {
+  createPanel(): HTMLElement;
+  renderSurface(): void;
+  renderInspector(): void;
+  syncInspectorCollapse(collapsed: boolean, options?: { enableCollapse?: unknown }): void;
+  title(active?: BrowserWorkbenchTaskFocusPresentationState | null): string;
+}
+
+/**
+ * `LongtailForge.workbenchTaskFocusPresentation`, published by
+ * `public/js/workbench-task-focus-presentation.js` (`0.33.33.42.47`).
+ *
+ * Presentation only: the summary and details, timer display, related context, action strip and
+ * panel composition. It composes the checklist through its existing seam; Workbench keeps the
+ * state, writes, refresh, drift, deep links, exit and resume handling, focus, recovery and
+ * navigation.
+ */
+export interface BrowserWorkbenchTaskFocusPresentation {
+  create(host: BrowserWorkbenchTaskFocusPresentationHost): BrowserWorkbenchTaskFocusPresentationRenderer;
+}
+
+/**
+ * The resume context both task-timer producers reconstruct.
+ *
+ * **Twelve members, built identically by three shapers.** `timerToTaskTimer` builds it from the
+ * repository row, `shapeTimerPayload` builds it from the unified active timer, and
+ * `taskTimerFromUnified` rebuilds it again over that - every one of them naming all twelve, with
+ * the same fallbacks and the same `"running"`-or-`"paused"` normalisation.
+ *
+ * `lastActiveStartTime` is the one nullable member: a paused timer has no active start.
+ */
+export interface BrowserTaskTimerResumeContext {
+  accumulatedElapsedSeconds: number;
+  clientId: string;
+  clientName: string;
+  projectId: string;
+  projectName: string;
+  sourceId: string;
+  sourceLabel: string;
+  sourceModuleId: string;
+  sourceType: string;
+  sourceUrl: string;
+  /** `null` while the timer is paused. */
+  lastActiveStartTime: string | null;
+  timerStatus: BrowserTaskTimerStatus;
+}
+
+/**
+ * The two states every task-timer producer normalises to.
+ *
+ * Closed because all three shapers write `timer.timer_status === "running" ? "running" : "paused"`;
+ * nothing reaches the browser unnormalised.
+ */
+export type BrowserTaskTimerStatus = "paused" | "running";
+
+/**
+ * Whether a task timer's time is billable.
+ *
+ * Closed for the same reason: `row.billable === "no" ? "no" : "yes"` at the repository, and the
+ * list shaper repeats it. A workspace-level normaliser runs before the row is written.
+ */
+export type BrowserTaskTimerBillable = "no" | "yes";
+
+/**
+ * One active manual timer, as far as the list boundary promises it.
+ *
+ * **A deliberate structural minimum, not a description of the record.** `shapeTimerPayload`
+ * answers `{ ...timer, source_label, source_url, resumeContext, resume_context }` - a spread of
+ * the repository row, so the browser cannot claim the shape is closed. What it *can* claim is
+ * the one member both list consumers rely on and the producer genuinely guarantees: the column
+ * is `TEXT NOT NULL`, the row mapping runs it through `textParam`, and every writer goes through
+ * `normalizeTimerSlot`, which throws on an empty slot.
+ *
+ * **The source label and URL are deliberately absent.** The producer blanks them when the timer's
+ * source is unreadable, which is a permission decision this boundary must not become the owner
+ * of; a contract that does not promise them cannot weaken them. `resumeContext` is left out for
+ * the same reason in a different key: it belongs to the resume workflows, not to slot occupancy.
+ *
+ * A record satisfying this type carries the rest of the row at runtime. The narrowing is of the
+ * type surface, not of the payload.
+ */
+export interface BrowserActiveTimerSlotRecord {
+  /** Non-empty: `TEXT NOT NULL`, and `normalizeTimerSlot` refuses an empty one on every write. */
+  timer_slot: string;
+}
+
+/**
+ * What `GET /api/active-timers` resolves to.
+ *
+ * One member, reconstructed by name. The route reaches `activeTimersRepository.readAll`, which
+ * is the **manual-timer** producer - `readAllBySource(..., { sourceType: "manual" })` - and not
+ * the all-work-timers list its sibling route answers.
+ */
+export interface BrowserActiveTimerList {
+  timers: BrowserActiveTimerSlotRecord[];
+}
+
+/**
+ * One task timer, in the shape **both** producers guarantee.
+ *
+ * **The two paths are not built the same way, and that asymmetry is the reason this contract is a
+ * guaranteed minimum rather than an exact record.** `GET /api/tasks/timers` reaches
+ * `timerToTaskTimer`, which reconstructs all twenty-five members by name. The save and link routes
+ * reach `taskTimerFromUnified`, which **spreads** the unified active timer and overrides eleven -
+ * and what it spreads has already been through `shapeTimerPayload`, which spreads again over
+ * `activeTimerRowToAppValue`.
+ *
+ * Every member named here is nevertheless guaranteed on both paths: eleven because the task shaper
+ * overrides them, two more because `shapeTimerPayload` does, and the rest because
+ * `activeTimerRowToAppValue` is itself a total reconstruction that normalises `billable` and
+ * `timer_status` exactly as the list shaper does. **A structural interface does not claim that no
+ * other property exists**, which is what lets this describe the spread path honestly.
+ *
+ * **`timer_slot` is deliberately absent.** The mutation path carries it through the spread and the
+ * list path never emits it, so it is not a common guarantee; naming it would freeze an incidental
+ * extra into browser vocabulary. The same applies to anything else the unified record happens to
+ * carry.
+ *
+ * **`source_label` and `source_url` are permission-filtered before they arrive.**
+ * `shapeTimerPayload` asks `canReadTimerSource` and blanks both to the empty string when the caller
+ * may not read the source. The browser describes what survived that decision and must never try to
+ * reconstruct what was withheld.
+ *
+ * `sourceMetadata` stays `unknown`: it is parsed JSON from another producer, and
+ * `source_metadata_json` beside it is the text it was parsed from.
+ *
+ * `task_id` is built differently on the two paths - the list shaper uses the timer's own
+ * `source_id`, the mutation shaper uses the task it was given - and both answer text.
+ */
+export interface BrowserTaskTimerRecord {
+  accumulated_elapsed_seconds: number;
+  billable: BrowserTaskTimerBillable;
+  active_task_timer_id: string;
+  active_timer_id: string;
+  client_id: string;
+  client_name: string;
+  created_at: string;
+  description: string;
+  project_id: string;
+  project_name: string;
+  source_id: string;
+  source_label: string;
+  source_metadata_json: string;
+  source_module_id: string;
+  source_type: string;
+  source_url: string;
+  task_id: string;
+  updated_at: string;
+  user_id: string;
+  workspace_id: string;
+  /** `null` while the timer is paused. */
+  last_active_start_time: string | null;
+  resumeContext: BrowserTaskTimerResumeContext;
+  /** The same object as `resumeContext`; both producers send both names. */
+  resume_context: BrowserTaskTimerResumeContext;
+  /** Parsed from `source_metadata_json` by another producer. */
+  sourceMetadata: unknown;
+  timer_status: BrowserTaskTimerStatus;
+}
+
+/**
+ * The three periods the Calendar host and the Dashboard panel can display.
+ *
+ * Declared as a union because `normalizeCalendarView` answers a member of a fixed `Set` or
+ * `null`, and every producer of a view id in this surface returns through it. Not a column read.
+ */
+export type BrowserTaskCalendarViewId = "day" | "month" | "week";
+
+/**
+ * What `calendarRange` builds for one period: the fetch bounds, the day keys to draw, and a label.
+ *
+ * **`monthIndex` exists only in the month branch**, and the renderer treats its presence as the
+ * signal that it is drawing a month grid - that is what dims the days either side of the month
+ * and switches the day header between a number and a long date. The day and week branches
+ * genuinely omit it rather than sending a placeholder.
+ *
+ * **Not the server's `range`.** `BrowserTaskCalendarWindowRange` is what the response echoes back;
+ * this is a rendering input the browser computes with local-time date arithmetic.
+ */
+export interface BrowserTaskCalendarRange {
+  /** Every `YYYY-MM-DD` key the period draws. One entry for a day, seven for a week, the full grid for a month. */
+  days: string[];
+  /** The last day key, sent as the request's `end`. */
+  fetchEnd: string;
+  /** The first day key, sent as the request's `start`. */
+  fetchStart: string;
+  /** A locale-formatted period title, e.g. `"Week of ..."`. Consumers write it into their period heading. */
+  label: string;
+  /** The anchor's zero-based month. **Month branch only** - its presence is what makes the renderer draw a month grid. */
+  monthIndex?: number;
+}
+
+/** The recurrence identity a projected occurrence is opened with. */
+export interface BrowserTaskCalendarOccurrence {
+  instanceDate: string;
+  templateId: string;
+  virtual: true;
+}
+
+/**
+ * The click handler the renderer calls for a task entry or a reminder row.
+ *
+ * **Three call shapes, one signature.** A saved task entry sends its `task_id` and the button; a
+ * projected occurrence sends the empty string, the button, and its recurrence identity; a
+ * reminder row sends the marker's `task_id` and the row, with no third argument. A consumer that
+ * ignored `trigger` would lose return focus, and one that ignored `occurrence` could not open a
+ * virtual instance at all - so both stay in the signature even though the Dashboard's handler
+ * uses fewer of them.
+ *
+ * The return value is discarded by the renderer; consumers may answer anything.
+ */
+export type BrowserTaskCalendarOpenTask = (
+  taskId: string,
+  trigger: Element,
+  occurrence?: BrowserTaskCalendarOccurrence | null,
+) => unknown;
+
+/** What `renderCalendarBody` needs in order to draw a period. */
+export interface BrowserTaskCalendarRenderOptions {
+  /** The validated window. Absent or partial data draws an empty period rather than throwing. */
+  data?: BrowserTaskCalendarWindow | null;
+  onOpenTask?: BrowserTaskCalendarOpenTask;
+  /** Required in practice: the renderer reads `range.days` on every path that gets past its guard. */
+  range: BrowserTaskCalendarRange;
+  /** Defaults to `"month"` when omitted. */
+  viewId?: BrowserTaskCalendarViewId;
+}
+
+/** The filters `fetchCalendarWindow` folds into its query string. */
+export interface BrowserTaskCalendarFilters {
+  clientId?: string;
+  projectId?: string;
+  /**
+   * One status, a comma-joined list, or an array of either. The helper flattens, splits, trims,
+   * de-duplicates and drops empties before sending anything.
+   */
+  statuses?: unknown;
+}
+
+/**
+ * The shared read-only task-calendar helper, published frozen by `shared/task-calendar.js`.
+ *
+ * Nine members, and the declaration states all nine rather than only the ones a consumer has been
+ * seen to call. Four of them - `addDays`, `dateKeyOf`, `parseDateKey` and `normalizeCalendarView`
+ * - are the period arithmetic the two consumers navigate with; the rest build a range, fetch its
+ * window and draw it.
+ *
+ * **The date arithmetic is deliberately local-time.** `addDays` and `parseDateKey` construct
+ * `new Date(year, monthIndex, day)`, which is a local-midnight instant, and `dateKeyOf` reads the
+ * local components back. The day keys this surface produces therefore agree with the calendar the
+ * user is looking at, and this declaration describes that rather than changing it.
+ */
+export interface BrowserTaskCalendar {
+  /**
+   * A new date `days` later, at local midnight.
+   *
+   * Constructed from the local year, month and date, so it lands on the same wall-clock day the
+   * caller is navigating - not on a UTC offset of the original instant. `days` may be negative,
+   * which is how the week and month grids find their start.
+   */
+  addDays(date: Date, days: number): Date;
+
+  /**
+   * The fetch bounds, day keys and label for one period around `anchor`.
+   *
+   * Three branches. `"day"` answers a single key; `"week"` answers the seven days from the
+   * anchor's Sunday; anything else answers the **month grid** - the whole weeks that contain the
+   * month - and is the only branch that sets `monthIndex`. An unrecognised `viewId` falls into
+   * the month branch rather than failing, which is why this accepts `string`.
+   */
+  calendarRange(viewId: string, anchor: Date): BrowserTaskCalendarRange;
+
+  /** The `YYYY-MM-DD` key for a date's **local** calendar day. */
+  dateKeyOf(date: Date): string;
+
+  /**
+   * The bounded window for a range, validated before it resolves.
+   *
+   * Reaches `/api/tasks/calendar` through `dashboardBootstrap.loadRoute` when one is published and
+   * a native `no-store` fetch otherwise; `0.33.33.38.4.3.10` put both branches behind one reader,
+   * so this resolves to a checked response or rejects. It never answers a partial window.
+   */
+  fetchCalendarWindow(
+    range: { fetchEnd: string, fetchStart: string },
+    filters?: BrowserTaskCalendarFilters,
+  ): Promise<BrowserTaskCalendarWindow>;
+
+  /** The value as a view id, or `null` when it is not one of the three. Accepts anything. */
+  normalizeCalendarView(value: unknown): BrowserTaskCalendarViewId | null;
+
+  /**
+   * A day key as a local-midnight `Date`.
+   *
+   * **Coercion, not validation.** The producer splits on `-`, coerces through `Number`, and
+   * defaults a missing month or day to 1; a value it cannot read yields an *invalid* `Date`
+   * rather than `null`. `calendar.js` relies on exactly that, testing
+   * `Number.isFinite(anchor.getTime())` after the call. Declaring a nullable return here would
+   * describe a producer that does not exist.
+   */
+  parseDateKey(dateKey: unknown): Date;
+
+  /**
+   * The user's saved calendar view, or `null` when none is stored or it is unrecognised.
+   *
+   * Reads `userPreferences.preferredCalendarView` but **returns it through**
+   * `normalizeCalendarView`, so the wire value never escapes: the answer is a member of the known
+   * set or `null`.
+   */
+  readPreferredCalendarView(): BrowserTaskCalendarViewId | null;
+
+  /**
+   * Draw a period into `target`, answering whether it had anything to show.
+   *
+   * **`false` has two meanings and both are real.** It is returned when `target` is absent or
+   * `LongtailForge.view` is unpublished - nothing was drawn at all - and again when the period
+   * drew successfully but held no tasks and no reminders, in which case an empty state was
+   * rendered. Consumers currently discard the answer; it is declared because the producer
+   * returns it.
+   */
+  renderCalendarBody(target: Element | null, options?: BrowserTaskCalendarRenderOptions): boolean;
+
+  /**
+   * The view to open with: the preference when it is one of the three, otherwise the device default.
+   *
+   * The device default is `"day"` on a narrow viewport and `"month"` otherwise. `options.isMobile`
+   * overrides the media query when the caller already knows; it is read only when it is a boolean,
+   * so an absent option falls through to `matchMedia` rather than to `false`.
+   */
+  resolveDefaultView(
+    preferredView: unknown,
+    options?: { isMobile?: boolean },
+  ): BrowserTaskCalendarViewId;
+}
+
+/**
+ * The window `GET /api/tasks/calendar` describes, as the server states it.
+ *
+ * **Not the browser's display range, and the two are not interchangeable.** `tasksService`
+ * builds exactly these two day keys from the requested query, clamped to the service's bounded
+ * window. `taskCalendar.calendarRange()` builds a *different* object for the same period - it
+ * carries `fetchStart`, `fetchEnd`, the expanded `days` list, a formatted `label`, and in the
+ * month branch a `monthIndex`. That one is a rendering input; this one is a response member.
+ */
+export interface BrowserTaskCalendarWindowRange {
+  /** Inclusive `YYYY-MM-DD` day key, echoed from the request after normalization. */
+  endDate: string;
+  /** Inclusive `YYYY-MM-DD` day key. Never later than `endDate`; the producer rejects that with a 400. */
+  startDate: string;
+}
+
+/**
+ * The members every calendar row carries, whether it is a saved task or a projected occurrence.
+ *
+ * **`status` and `priority` stay `string`.** They are column values passing through
+ * `taskCalendarRow`, not literals the producer writes, which is the same reason
+ * `0.33.33.38.4.3.1` refused to close them. `formatToken` in the renderer title-cases whatever
+ * arrives; that is display formatting and not a constraint on the data.
+ *
+ * `startDate` and `endDate` are the row's own single-day span - both equal to `due_date` from
+ * both producers. They are declared because the producer promises them, not because this
+ * renderer reads them.
+ */
+export interface BrowserTaskCalendarRowBase {
+  /** `true` exactly when `due_time` is empty; the producer derives it rather than storing it. */
+  allDay: boolean;
+  client_name: string;
+  /** `YYYY-MM-DD`. The key the renderer groups rows by. */
+  due_date: string;
+  /** `HH:MM`, or the empty string for an all-day row. */
+  due_time: string;
+  endDate: string;
+  /** DOM identity. The task id for a saved row, `recurrence:<templateId>:<date>` for a projected one. */
+  id: string;
+  priority: string;
+  project_name: string;
+  startDate: string;
+  status: string;
+  title: string;
+}
+
+/**
+ * A row backed by a saved task.
+ *
+ * `task_id` is the saved identifier and the renderer opens the task with it directly. The
+ * recurrence members are absent rather than empty, which is what distinguishes this row from a
+ * projected one.
+ */
+export interface BrowserTaskCalendarTaskRow extends BrowserTaskCalendarRowBase {
+  instanceDate?: undefined;
+  task_id: string;
+  templateId?: undefined;
+  virtual?: undefined;
+}
+
+/**
+ * A recurrence occurrence the window projects without materializing it.
+ *
+ * **`task_id` is deliberately the empty string and must stay legal.** `virtualTaskCalendarRow`
+ * writes it that way because no task exists yet: a calendar `GET` projects occurrences and never
+ * creates them. The click handler opens this row through `templateId` and `instanceDate`
+ * instead, and requiring a saved identifier here would refuse a valid response.
+ *
+ * `virtual` is the discriminant, written as the literal `true` by the only producer that builds
+ * these rows.
+ */
+export interface BrowserTaskCalendarVirtualRow extends BrowserTaskCalendarRowBase {
+  /** `YYYY-MM-DD`, equal to `due_date`. */
+  instanceDate: string;
+  /** Always the empty string. The occurrence has no saved task. */
+  task_id: string;
+  templateId: string;
+  virtual: true;
+}
+
+/** One calendar row: a saved task or a projected recurrence occurrence. */
+export type BrowserTaskCalendarRow = BrowserTaskCalendarTaskRow | BrowserTaskCalendarVirtualRow;
+
+/**
+ * One reminder occurrence that falls inside the displayed window.
+ *
+ * **A marker's task is not necessarily in the same response's `tasks`.** `calendarWindow` reads
+ * tasks due through a lookahead horizon past `endDate`, computes reminders across all of them,
+ * and then keeps the markers whose *reminder* day lands inside the window while filtering the
+ * task rows down to `due_date <= endDate`. A reminder that fires today for a task due next week
+ * is the intended case, so nothing here may require `task_id` to appear in `tasks`.
+ *
+ * `due_kind` is a closed union because `computeReminderOccurrences` assigns one of two module
+ * constants by whether the task has a due time. `source` stays `string`: it is the reminder
+ * policy target that supplied the offset, and the server's own `TaskReminderOccurrence` declares
+ * it as `string`.
+ */
+export interface BrowserTaskCalendarReminderMarker {
+  /** `YYYY-MM-DD` in the session timezone. The key the renderer groups markers by. */
+  date: string;
+  /** ISO-8601 UTC instant the task is due, from which `reminder_at_utc` is offset. */
+  due_at_utc: string;
+  due_kind: BrowserTaskCalendarReminderDueKind;
+  /** Minutes *before* the due instant. `reminder_at_utc` is `due_at_utc` minus this many minutes. */
+  offset_minutes: number;
+  /** ISO-8601 UTC instant. Sorted ascending by the producer. */
+  reminder_at_utc: string;
+  /** The policy level the offsets came from, e.g. `"workspace"` or `"project"`. */
+  source: string;
+  task_id: string;
+  title: string;
+  /** `tasks.html?task=` with the identifier encoded, built by the producer. */
+  url: string;
+}
+
+/**
+ * Whether the reminder was computed against a date-and-time due value or a date-only one.
+ *
+ * Declared as a union because `computeReminderOccurrences` writes one of two constants, chosen
+ * by whether the task carries a `due_time`. Not a column read.
+ */
+export type BrowserTaskCalendarReminderDueKind = "date_only" | "date_time";
+
+/**
+ * The whole `GET /api/tasks/calendar` body.
+ *
+ * **`source_enabled: false` is a valid response, not an error and not an empty calendar.** It
+ * says the Tasks module is disabled for the workspace; the window still carries the due dates
+ * that already exist, and the Calendar page shows them read-only with a status line. Both
+ * arrays may legitimately be empty.
+ */
+export interface BrowserTaskCalendarWindow {
+  range: BrowserTaskCalendarWindowRange;
+  reminders: BrowserTaskCalendarReminderMarker[];
+  /** `false` when the Tasks module is disabled for this workspace. Still a complete response. */
+  source_enabled: boolean;
+  tasks: BrowserTaskCalendarRow[];
+}
+
+/**
+ * The next occurrence a recurrence continuity points at.
+ *
+ * **Four members, and `safeNextTask` is why it is safe to name them.** It answers `null` for
+ * anything without a `task_id` and otherwise builds exactly `due_date`, `task_id`, `title` and
+ * `url` - a deliberately tiny descriptor rather than a task record, because the surfaces that
+ * render it need a link and a label and nothing else. `title` falls back to `"Task"` and
+ * `due_date` falls back through the recurrence instance date to the empty string, so neither is
+ * ever empty-by-accident.
+ *
+ * `url` is built by the producer, not the browser: `tasks.html?task=` with the identifier encoded.
+ */
+export interface BrowserTaskRecurrenceNextTask {
+  /** Falls back to the recurrence instance date, then to the empty string. */
+  due_date: string;
+  task_id: string;
+  /** Falls back to `"Task"`, so never empty. */
+  title: string;
+  url: string;
+}
+
+/**
+ * What a completed recurrence instance says about the rest of its series.
+ *
+ * **One record from four construction sites, which is what makes it nameable.**
+ * `readCompletionContinuity` builds all seven members, `endedContinuity` builds the same seven,
+ * `prepareCompletionContinuity` spreads that record and overrides one member, and
+ * `completeRecurrenceHandoff` either spreads it with two overrides or - on its `catch` path -
+ * rebuilds the same seven by hand. No path produces a different shape.
+ *
+ * **`status` is a closed union because every one of those sites writes a literal.** `"ended"` when
+ * the template is inactive or has no next occurrence, `"available"` when the next instance already
+ * exists, `"pending"` when it does not, and `"handoff_failed"` when the follow-up queue threw.
+ * Nothing here is a database column passing through, which is the only reason this estate declares
+ * a union at all.
+ *
+ * `isRecurring` is `true` on every path; the producer never builds this record for a task that is
+ * not a recurrence instance, and answers `null` instead. `nextScheduledDate` is the empty string
+ * rather than `null` when the series has ended.
+ */
+export interface BrowserTaskRecurrenceContinuity {
+  checklistTemplateSeeded: boolean;
+  followUpFailed: boolean;
+  followUpQueued: boolean;
+  /** Always `true`: a task with no series gets `null` instead of this record. */
+  isRecurring: boolean;
+  /** The empty string when the series has ended. */
+  nextScheduledDate: string;
+  nextTask: BrowserTaskRecurrenceNextTask | null;
+  status: BrowserTaskRecurrenceStatus;
+}
+
+/**
+ * The four continuity states the producer writes as literals.
+ *
+ * Declared as a union rather than `string` because every construction site is a literal in the
+ * recurrence service, not a column read. `0.33.33.38.4.3.1` kept `status`, `priority` and
+ * `source_type` as `string` for exactly the opposite reason.
+ */
+export type BrowserTaskRecurrenceStatus = "available" | "ended" | "handoff_failed" | "pending";
+
+/**
+ * One entry of the bulk action's recurrence report.
+ *
+ * **Not simply `BrowserTaskRecurrenceContinuity`, and the difference is one member.** `bulkUpdate`
+ * pushes `{ task_id, ...recurrenceContinuity }`, so each entry says *which* task the continuity
+ * belongs to - information the singular routes never need because their envelope already carries
+ * the task. Declaring the plural as an array of the singular record would have lost the only thing
+ * that makes the collection usable.
+ */
+export interface BrowserTaskBulkRecurrenceContinuity extends BrowserTaskRecurrenceContinuity {
+  task_id: string;
+}
+
+/**
+ * One task assignee as `attachAssignees` sends it.
+ *
+ * **A four-member summary, and it is not `BrowserUserRecord`.** `assigneeRowToAppValue` builds
+ * `task_assignee_id`, `user_id`, `username` and `displayName` - the identity of the assignment and
+ * enough to label the person. The user record is fifteen constructed members including theme and
+ * landing preferences, and reusing it here would claim eleven the task query never joins.
+ *
+ * `displayName` falls back through the username to the user identifier, so it is never empty.
+ */
+export interface BrowserTaskAssignee {
+  /** Falls back to the username and then the identifier, so never empty. */
+  displayName: string;
+  task_assignee_id: string;
+  user_id: string;
+  username: string;
+}
+
+/**
+ * A task exactly as `taskRowToAppValue` reconstructs it, plus the assignees `attachAssignees` adds.
+ *
+ * **A total reconstruction, which is why this contract can be exact.** The shaper names all
+ * thirty-three members individually - no spread anywhere - and every task column the select
+ * carries is emitted. `assignee_ids` is a *write-side* input the service passes into the
+ * repository and the shaper never emits it, so it must never appear here.
+ *
+ * **This is the record the task-timer routes send.** `taskTimersService.save`, `finalize` and
+ * `linkManualTimer` answer `task: updatedTask || task` where `updatedTask` is
+ * `tasksRepository.readById` - the base record with no reminders, no checklist, no tags and no
+ * recurrence detail. `BrowserTaskDetail` is what everything else sends.
+ *
+ * **Twenty-seven members have a total fallback and three are passed through**, so every one of the
+ * thirty is `string` and none is ever `null`. `estimate_minutes` is the single nullable member: the
+ * shaper answers `null` for a null or absent column and a number otherwise.
+ *
+ * `billable` is a closed union because the producer genuinely closes it - a ternary that answers
+ * `"no"` only for a literal `"no"` and `"yes"` for everything else cannot produce a third value.
+ * `status`, `priority` and `source_type` are **not** closed: each is a database text column with a
+ * default applied by a falsy fallback, and this estate does not declare a union over a wire field
+ * nothing validates. Their vocabularies are open/in_progress/blocked/complete/archived,
+ * low/normal/high, and manual/recurrence/import.
+ *
+ * `reminder_override_enabled` is a real boolean: the column is an integer flag and the shaper
+ * converts it through the dialect boolean reader, so the browser must reject the stored integer.
+ */
+export interface BrowserTaskRecord {
+  assignees: BrowserTaskAssignee[];
+  /** `"no"` only when the column literally holds `"no"`; the producer closes this union. */
+  billable: "no" | "yes";
+  /** `null` for a null or absent column; a number otherwise. */
+  estimate_minutes: number | null;
+  /** Converted from the stored integer flag, so a number here is wrong. */
+  reminder_override_enabled: boolean;
+  archived_at: string;
+  archived_by_user_id: string;
+  blocked_reason: string;
+  client_id: string;
+  client_name: string;
+  completed_at: string;
+  completed_by_user_id: string;
+  created_at: string;
+  created_by_user_id: string;
+  description: string;
+  due_at_utc: string;
+  due_date: string;
+  due_time: string;
+  due_timezone: string;
+  last_worked_at: string;
+  next_action: string;
+  priority: string;
+  project_id: string;
+  project_name: string;
+  recurrence_instance_date: string;
+  recurrence_template_id: string;
+  resume_note: string;
+  source_id: string;
+  source_type: string;
+  status: string;
+  task_id: string;
+  title: string;
+  updated_at: string;
+  updated_by_user_id: string;
+  workspace_id: string;
+}
+
+/**
+ * Which end of the relationship the task being asked about sits on.
+ *
+ * `readableRelationshipsForTask` writes `"child"` when the asked-about task is the parent of
+ * the pair and `"parent"` when it is the child, from one comparison and nothing else.
+ */
+export type BrowserTaskRelationshipDirection = "child" | "parent";
+
+/**
+ * The nine members `taskRelationshipTaskSummary` reconstructs from a related task.
+ *
+ * It is a summary rather than a task record: the shaper names these nine and no others, so a
+ * page cannot reach the related task's description, dates, assignee or tags through this
+ * boundary. `estimate_minutes` is the one nullable member, as it is on the task record itself.
+ */
+export interface BrowserTaskRelationshipTaskSummary {
+  client_id: string;
+  client_name: string;
+  estimate_minutes: number | null;
+  project_id: string;
+  project_name: string;
+  status: string;
+  task_id: string;
+  title: string;
+  url: string;
+}
+
+/** The members every relationship in the list carries, whichever side the caller can see. */
+export interface BrowserTaskRelationshipCommon {
+  child_task_id: string;
+  created_at: string;
+  direction: BrowserTaskRelationshipDirection;
+  is_blocking: boolean;
+  parent_task_id: string;
+  /** The other task's id: the child's on a `"child"` row, the parent's on a `"parent"` row. */
+  related_task_id: string;
+  task_relationship_id: string;
+  updated_at: string;
+}
+
+/** A relationship whose other task the caller may read, so its summary is present. */
+export interface BrowserReadableTaskRelationship extends BrowserTaskRelationshipCommon {
+  related_task: BrowserTaskRelationshipTaskSummary;
+  related_task_readable: true;
+}
+
+/**
+ * A relationship whose other task the caller may **not** read, or which no longer exists.
+ *
+ * The relationship itself is still disclosed - a task may legitimately know it has a parent it
+ * cannot open - but the summary is `null`, so the title, status, client and project of a task
+ * outside the caller's reach never cross this boundary.
+ */
+export interface BrowserWithheldTaskRelationship extends BrowserTaskRelationshipCommon {
+  related_task: null;
+  related_task_readable: false;
+}
+
+/**
+ * One relationship, discriminated on whether its other task was readable.
+ *
+ * The producer sets `related_task_readable` from a `tasks.view` check that is false whenever
+ * the related task is missing, and writes the summary only when that check passed and the task
+ * exists. So the flag and the summary's presence are one decision reported twice, not two
+ * members that could disagree - and a body in which they do disagree is one where a withheld
+ * task's details arrived anyway.
+ */
+export type BrowserTaskRelationship =
+  | BrowserReadableTaskRelationship
+  | BrowserWithheldTaskRelationship;
+
+/**
+ * `GET /api/tasks/:taskId/relationships`, and the four write routes that answer with it.
+ *
+ * `addChildTask`, `updateChildTaskRelationship` and their siblings all end in
+ * `listRelationships`, so the write responses cannot diverge from the read - producer identity
+ * proved by a call rather than by matching members. The envelope is exact at two.
+ *
+ * `relationshipSummary` is left `unknown` on purpose. It is a **different producer** -
+ * `taskRelationshipsRepository.relationshipSummary`, five counts from one aggregate query -
+ * and the same member is already carried as `unknown` by the two task-detail contracts that
+ * also receive it. Naming it here would put its contract on the boundary that happens to
+ * mention it rather than on the children that own it, and nothing on this path reads it.
+ */
+export interface BrowserTaskRelationshipListResponse {
+  relationshipSummary: unknown;
+  relationships: BrowserTaskRelationship[];
+}
+
+/**
+ * A task as every non-timer route sends it: `attachTaskDetails` over the base record.
+ *
+ * **One shaper serves all of them.** `create`, `read`, `update`, `complete`, `reopen`, `archive`,
+ * `restore` and `skipToCurrent` all reach `attachTaskDetails`, directly or through
+ * `readTaggedTaskWithDetails`, so there is one detailed record rather than one per route.
+ *
+ * **Ten members are ten other producers**, and nine of their shapes are still unnamed here -
+ * `recurrenceContinuity` was named by `0.33.33.38.4.3.4` once its producer was traced.
+ * `reminderDetails` comes from `taskRemindersService`, `checklistItems` and `checklistProgress`
+ * from `taskChecklistsRepository`, `relationshipSummary` from `taskRelationshipsRepository`,
+ * `recurrenceDetails` from `taskRecurrenceService`, `recurrenceContinuity` from
+ * `readTaskCompletionContinuity`, `recurrenceRecovery` from `recurrenceRecoveryPlan`, and
+ * `completionMetrics`, `resumeContext` and `tags` from three more. Naming them from what a task
+ * page renders is the guess this rollup exists to refuse; the sibling children own them.
+ *
+ * **Every member is present on every path, including the ones that look conditional.**
+ * `recurrenceRecovery` is `null` rather than absent when no session reaches the shaper - which is
+ * what `complete`, `reopen`, `archive` and `restore` do - and `tags` is an empty array rather than
+ * absent when the tag service did not decorate the row first. Content differs by path; the shape
+ * does not.
+ *
+ * `complete` additionally spreads `recurrenceContinuity` over the record a second time on its
+ * recurrence branch. It is the same member this contract already carries, and the browser reads
+ * the envelope sibling rather than the copy.
+ */
+export interface BrowserTaskDetail extends BrowserTaskRecord {
+  checklistItems: unknown[];
+  checklistProgress: unknown;
+  completionMetrics: unknown;
+  /**
+   * `null` for any task that is not a completed recurrence instance.
+   *
+   * Named by `0.33.33.38.4.3.4`: `attachTaskDetails` fills this member with
+   * `readTaskCompletionContinuity`, which is the same producer the lifecycle routes send beside
+   * their task, so the detail record carries the same contract rather than a parallel one.
+   */
+  recurrenceContinuity: BrowserTaskRecurrenceContinuity | null;
+  recurrenceDetails: unknown;
+  /** `null` whenever the shaper is called without a session, which four routes do. */
+  recurrenceRecovery: unknown;
+  relationshipSummary: unknown;
+  reminderDetails: unknown;
+  resumeContext: unknown;
+  tags: unknown[];
+}
+
+/**
+ * The task a timer route sends back beside its timer.
+ *
+ * **`task` is nullable because the repository read can answer nothing.** The producer writes
+ * `task: updatedTask || task`, so the member is always present, but the browser cannot prove which
+ * side of that fallback it received and every consumer already wrote its own.
+ *
+ * The `timer` and `timers` siblings belong to the task-timer child and are not named here.
+ */
+export interface BrowserTaskEnvelope {
+  task: BrowserTaskRecord | null;
+}
+
+/**
+ * The task a create, read, update or lifecycle route sends.
+ *
+ * The siblings differ by route - `read` adds `currentUserId` and `options`, `complete` adds
+ * `createdTask`, `recurrenceContinuity` and `recurrenceJob` - and **each belongs to its own
+ * child**. Declaring one envelope with every sibling optional would be the mega-interface this
+ * estate keeps refusing.
+ */
+export interface BrowserTaskDetailEnvelope {
+  task: BrowserTaskDetail | null;
+}
+
+/**
+ * What `POST /api/tasks/:taskId/skip-to-current` resolves to.
+ *
+ * **`targetTask` is the same detailed record `task` is**, because the service builds it with
+ * `readTaggedTaskWithDetails` - the same shaper. Producer identity decides the reuse; the
+ * different member name does not make it a different type.
+ *
+ * It is genuinely `null` when the skip retained no target, which is the absence the consumer has
+ * always been reading through an optional chain.
+ */
+export interface BrowserTaskSkipToCurrentResult {
+  targetTask: BrowserTaskDetail | null;
+}
+
+/**
+ * The narrowing surface the three task consumers share.
+ *
+ * **One field table, three consumers.** `tasks.js`, `task-dialog.js` and `workbench.js` all read
+ * single-task responses, and a thirty-three member predicate written three times would be three
+ * chances to disagree with the shaper. This surface is installed by the same framework script
+ * block that already delivers `errors` and `taskLifecycleLegality`, so every page that reads a
+ * task has it before its own script runs.
+ *
+ * It answers `null` for anything it cannot vouch for. None of these readers throws: every call
+ * site already had a fallback for a missing task, and this preserves it.
+ */
+/**
+ * One task as `GET /api/tasks` sends it.
+ *
+ * **This is not `BrowserTaskDetail`, and the projection is why.**
+ * `attachTaskListProjectionDetails` adds five members - `checklistProgress`, `completionMetrics`,
+ * `parentTask`, `relationshipSummary` and `resumeContext` - where `attachTaskDetails` adds ten.
+ * The list deliberately never loads `checklistItems`, `recurrenceContinuity`, `recurrenceDetails`,
+ * `recurrenceRecovery` or `reminderDetails`, because it is the optimised projection that keeps the
+ * list off a per-row detail query. It also carries `parentTask`, which **no detail route sends**.
+ * Five shared members, five detail-only, five list-only: neither record extends the other and both
+ * extend `BrowserTaskRecord`.
+ *
+ * **The five tag members are optional because the producer genuinely omits them.**
+ * `tagsService.decorateRecordsForTarget` returns its records *untouched* when the tags module is
+ * not readable for the session, so a workspace with tags disabled receives list items with no
+ * `tags`, `tagAssignments`, `directTags`, `propagatedTags` or `effectiveTags` at all. Requiring
+ * them would have emptied the task list for those workspaces. This is optionality a runtime
+ * condition creates, not optionality that makes one interface cover two records.
+ *
+ * `parentTask` is `null` when the task has no readable primary parent - `readPrimaryParentByTaskId`
+ * applies the caller's own `tasks.view` evaluator, so an unreadable parent is absent by design and
+ * the browser must not try to fill it in.
+ *
+ * The five projection members stay `unknown`: they are five other producers, the same answer
+ * `BrowserTaskDetail` gives for the members it shares with this record.
+ */
+export interface BrowserTaskListItem extends BrowserTaskRecord {
+  checklistProgress: unknown;
+  completionMetrics: unknown;
+  /** Absent unless the tags module is readable for the session. */
+  directTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  effectiveTags?: unknown[];
+  /** `null` when the task has no parent the caller may read. */
+  parentTask: unknown;
+  /** Absent unless the tags module is readable for the session. */
+  propagatedTags?: unknown[];
+  relationshipSummary: unknown;
+  resumeContext: unknown;
+  /** Absent unless the tags module is readable for the session. */
+  tagAssignments?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tags?: unknown[];
+}
+
+/**
+ * The paging cursor `GET /api/tasks` sends beside its tasks.
+ *
+ * **Four members, all constructed, none inferred from the page controls.** `queryTasksResult`
+ * builds `hasMore` from whether it minted a next cursor, and `limit` and `pageSize` from the same
+ * resolved page size - two names for one number, which is why both are declared rather than one
+ * being called optional. `nextCursor` is the empty string when there is nothing further, not
+ * `null` and not absent.
+ *
+ * The browser's own `normalizeTaskPagination` reduces this to the three members the list controls
+ * need; this contract describes what arrives, not what survives that reduction.
+ */
+export interface BrowserTaskListPagination {
+  hasMore: boolean;
+  limit: number;
+  nextCursor: string;
+  pageSize: number;
+}
+
+/**
+ * The option catalog `GET /api/tasks` sends beside its tasks.
+ *
+ * **Nine members from six producers, and every one of them is now named.**
+ * `readOptions` constructs `workspaceType`, `priorities`, `statuses`, `taskTimersEnabled` and
+ * `timeTrackingEnabled` itself. The four collections come from `readClientOptionPayload`,
+ * `readProjectOptionPayload`, `readTaskOptionPayload` and `usersRepository.readAll`, and each has
+ * its own element contract - **four producers, four records, one envelope.** A single option type
+ * covering all four would have erased exactly the distinctions these checkpoints recovered.
+ *
+ * `0.33.33.38.4.3.2` left the four as `unknown[]` and validated only their containers. That was
+ * honest while their producers were untraced, and it made the element-level debt visible in the
+ * consumers; `0.33.33.38.4.3.8` traced them and closed it.
+ *
+ * `priorities` and `statuses` are spread from server constants and are arrays of text. The browser
+ * validates that they are text and not which words they hold, as this estate has done since
+ * `userPreferences`.
+ */
+/**
+ * One client as the Task option catalog carries it.
+ *
+ * **A structural minimum, and deliberately not the whole client.** `readClientOptionPayload`
+ * spreads `...client` before adding `optionLabel`, `displayName` and `hierarchyDepth`, and what it
+ * spreads has itself been through `decorateClientShape`, which spreads again. A spread is a trust
+ * boundary only for what it reconstructs, so this contract promises the three members that payload
+ * builder genuinely constructs plus the two `clientRowToAppClient` guarantees by name - `id` and
+ * `name` - and says nothing about the rest of the record travelling beside them.
+ *
+ * The billing, hierarchy and tag members that `decorateClientShape` adds are **not** here. The
+ * Tasks page does not read them, and claiming them would be claiming the client-projects estate's
+ * contribution rather than this catalog's.
+ *
+ * `hierarchyDepth` is a real number: the builder answers `Number(client.depth) || 0`, and
+ * `parent_client_id` is the third member `clientRowToAppClient` guarantees by name - the empty
+ * string for a top-level client, which mirrors the project option's `client_id`.
+ */
+export interface BrowserTaskClientOption {
+  /** Falls back through the indented label to the name, so never empty for a named client. */
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  name: string;
+  optionLabel: string;
+  /** The empty string for a top-level client, never `null`. */
+  parent_client_id: string;
+}
+
+/**
+ * One project as the Task option catalog carries it.
+ *
+ * **Not a client option plus `client_id`.** It reaches the browser through a different service
+ * call, a different hierarchy sort and a different row shaper, and `projectRowToAppProject`
+ * guarantees `client_id` as text - the empty string for a project with no client, which is what
+ * the page's `(project.client_id || "") === selectedClientId` comparison has always read.
+ *
+ * The same structural-minimum rule applies as for the client option: `readProjectOptionPayload`
+ * spreads its rows and this contract promises only the members it reconstructs plus the three the
+ * row shaper builds by name.
+ */
+export interface BrowserTaskProjectOption {
+  /** The empty string when the project has no client, never `null`. */
+  client_id: string;
+  /** Falls back through the indented label to the name, so never empty for a named project. */
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  name: string;
+  optionLabel: string;
+}
+
+/**
+ * One task as the Task option catalog carries it.
+ *
+ * **This is a picker projection, not a task record.** `taskPickerOption` is a total
+ * reconstruction of thirteen members over a task the repository already returned, and it carries
+ * neither the thirty columns `BrowserTaskRecord` describes nor the assignees, the projection
+ * members or the detail members. Widening it to any of the task contracts would claim a shape this
+ * producer never builds.
+ *
+ * It duplicates the identifier as both `task_id` and `id`, and the label three ways -
+ * `label`, `optionLabel` and `displayName` - because the pickers that consume it read different
+ * ones. All three are text with total fallbacks.
+ *
+ * The list is already permission-filtered: `readTaskOptionPayload` asks a `tasks.view` evaluator
+ * per candidate and applies the status filter before shaping. Narrowing happens after that.
+ */
+export interface BrowserTaskPickerOption {
+  client_id: string;
+  client_name: string;
+  displayName: string;
+  due_date: string;
+  due_time: string;
+  /** The same value as `task_id`; the producer sends both. */
+  id: string;
+  /** Falls back to `"Untitled Task"`, so never empty. */
+  label: string;
+  optionLabel: string;
+  priority: string;
+  project_id: string;
+  project_name: string;
+  status: string;
+  task_id: string;
+}
+
+/**
+ * One workspace member as the Task option catalog carries it.
+ *
+ * **A deliberate subset of `BrowserUserRecord`, and it says so rather than pretending.** The
+ * producer is identical - `usersRepository.readAll` answers `rows.map(userRowToAppValue)`, the
+ * same shaper `0.33.33.38.4.4.1` derived that record from, filtered to active memberships - so the
+ * full fifteen members really are on the wire. This contract promises the three the Tasks page
+ * reads and validates all three.
+ *
+ * The alternative was a second copy of the fifteen-member predicate that lives in `user-admin.js`,
+ * or a new published surface to share it. **A page-local subset is cheaper than either and claims
+ * less**, which is why it is named for the catalog it belongs to rather than for the user record it
+ * is drawn from. A later child that shares the full predicate may replace this with
+ * `BrowserUserRecord` and delete the subset.
+ *
+ * Nothing withheld by `0.33.33.38.4.4.1` may appear here: the shaper never emits `password`, and
+ * this record must never regain it or any other column the select carries but the response drops.
+ */
+export interface BrowserTaskUserOption {
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  user_id: string;
+  username: string;
+}
+
+export interface BrowserTaskListOptions {
+  clients: BrowserTaskClientOption[];
+  priorities: string[];
+  projects: BrowserTaskProjectOption[];
+  statuses: string[];
+  taskTimersEnabled: boolean;
+  tasks: BrowserTaskPickerOption[];
+  timeTrackingEnabled: boolean;
+  users: BrowserTaskUserOption[];
+  workspaceType: string;
+}
+
+/**
+ * What `GET /api/tasks` resolves to.
+ *
+ * **One envelope for all three loaders**, because all three call the same `loadCanonicalTasks`
+ * helper and the same route: the first load, the refresh, and the cursor page. Only the query
+ * string differs.
+ *
+ * `currentUserId` is `session.user_id` and is always text - the consumer's
+ * `result.currentUserId || state.currentUserId` was reading a malformed body, not a producer
+ * union.
+ *
+ * **`options` and `pagination` are nullable here even though this route always sends them.**
+ * `list` throws its own invariant when pagination is missing and always asks for options, so the
+ * route cannot answer `null`; but `queryTasksResult` builds both conditionally for its other
+ * callers, and the browser cannot prove which caller answered. `null` is what the reader gives
+ * when it cannot vouch for the member, which keeps both existing consumer fallbacks intact.
+ *
+ * `timers` is **not** part of this envelope: `queryTasksResult` carries it, and `list` rebuilds
+ * the response without it. The task timers belong to `0.33.33.38.4.3.3` and reach the page from
+ * their own route.
+ */
+export interface BrowserTaskListEnvelope {
+  currentUserId: string;
+  options: BrowserTaskListOptions | null;
+  pagination: BrowserTaskListPagination | null;
+  tasks: BrowserTaskListItem[];
+}
+
+export interface BrowserTaskRecords {
+  /** The base record a timer route sends, or `null`. */
+  readTask(body: unknown): BrowserTaskRecord | null;
+  /** The detailed record every other route sends, or `null`. */
+  readTaskDetail(body: unknown): BrowserTaskDetail | null;
+  /** The detailed record the skip-to-current route retained, or `null`. */
+  readSkipToCurrentTarget(body: unknown): BrowserTaskDetail | null;
+  /** The task list envelope, with every element checked. */
+  readTaskList(body: unknown): BrowserTaskListEnvelope;
+  /** The task timers `GET /api/tasks/timers` listed, with every element checked. */
+  readTaskTimers(body: unknown): BrowserTaskTimerRecord[];
+  /** The task timer a save or link route answered with, or `null`. */
+  readTaskTimer(body: unknown): BrowserTaskTimerRecord | null;
+  /** The continuity a lifecycle route reported beside its task, or `null`. */
+  readRecurrenceContinuity(body: unknown): BrowserTaskRecurrenceContinuity | null;
+  /** The per-task continuity entries a bulk action reported, with every element checked. */
+  readBulkRecurrenceContinuities(body: unknown): BrowserTaskBulkRecurrenceContinuity[];
+  /**
+   * The detailed tasks a bulk action changed.
+   *
+   * `bulkUpdate` collects `readTaggedTaskWithDetails` output and the lifecycle services' own
+   * `task`, so these are detail records rather than list items - which is also why they flow into
+   * `upsertTask` beside the single-task responses.
+   */
+  readBulkTasks(body: unknown): BrowserTaskDetail[];
+}
+
+/**
+ * The list columns every browser-facing Lists projection carries.
+ *
+ * **Derived from `LIST_COLUMNS`, which both shapers spread rather than reconstruct.**
+ * `shapeListsForBrowser` answers `{ ...listRecord, ... }` and the browser's
+ * `normalizeListRecord` answers `{ ...list, ... }`, so these twenty-one columns reach the page
+ * exactly as the row held them. The required/nullable split is the table's own `NOT NULL`.
+ *
+ * **`is_reusable` is a boolean on the wire, and so is `metadata_json` not text.** The columns are
+ * `INTEGER NOT NULL` and `TEXT`, but the repository's row mapper (`listRowToAppValue`) booleanizes
+ * `is_reusable` and parses `metadata_json` on every read, before either shaper spreads the row. This
+ * contract once took the column types for the wire and declared a number and nullable text; the
+ * browser checked both, and refused every real list. `0.33.33.43.44` measured the real endpoint and
+ * corrected both. The shaper still adds a separate camelCase `isReusable` boolean beside it.
+ *
+ * `list_type` is shopping/procurement/packing/supplies/parts/checklist/bill_of_materials and
+ * `status` is active/completed/finalized/archived/deleted. Both are `CHECK`-constrained on the
+ * server and **neither is validated by the browser**, so both stay `string`.
+ */
+export interface BrowserListColumns {
+  archived_at: string | null;
+  client_id: string | null;
+  completed_at: string | null;
+  created_at: string;
+  created_by_user_id: string | null;
+  deleted_at: string | null;
+  description: string | null;
+  duplicated_from_list_id: string | null;
+  finalized_at: string | null;
+  finalized_by_user_id: string | null;
+  /** Booleanized by the repository's row mapper. The shaper adds `isReusable` beside it. */
+  is_reusable: boolean;
+  list_id: string;
+  list_type: string;
+  /** Parsed by the repository into the JSON it stored (`{}` when none). Unread by the page. */
+  metadata_json: unknown;
+  project_id: string | null;
+  source_list_id: string | null;
+  status: string;
+  title: string;
+  updated_at: string;
+  updated_by_user_id: string | null;
+  workspace_id: string;
+}
+
+/**
+ * One list as `GET /api/lists` and the single-list routes return it.
+ *
+ * **The seven members below are what the server constructs; everything else is spread.**
+ * `shapeListsForBrowser` adds `id`, `isBillOfMaterials`, `isReusable`, `links`, `progress`,
+ * `resumeContext` and `sourceContext` around the spread row.
+ *
+ * **Four of them stay `unknown`, and that is this checkpoint's boundary.** `links`, `progress`,
+ * `resumeContext` and `sourceContext` are built by `readPermissionSafeLinksForLists`,
+ * `readListProgressSummaries`, `buildListResumeContext` and `readSourceContextsForLists` - four
+ * producers of their own, none of which this child traced. Naming their shapes from what the Lists
+ * page happens to render is exactly the guess `0.33.33.38.4` exists to refuse.
+ */
+export interface BrowserListSummary extends BrowserListColumns {
+  /** A duplicate of `list_id`, added by the server for the page's list primitives. */
+  id: string;
+  isBillOfMaterials: boolean;
+  isReusable: boolean;
+  /** Permission-filtered links. Their record is `0.33.33.38.4.7.2`'s producer, not this one's. */
+  links: unknown[];
+  progress: unknown;
+  resumeContext: unknown;
+  sourceContext: unknown;
+}
+
+/**
+ * One list item as `GET /api/lists/:listId` returns it.
+ *
+ * Derived from `ITEM_COLUMNS`. **`quantity`, `estimated_cost`, `actual_cost` and `sort_order` stay
+ * `unknown`**: the item row mapper converts the first three with `Number()` when they are present,
+ * and this child validates what the page relies on rather than what the renderer hopes.
+ * `metadata_json` is parsed JSON, as it is for a list.
+ */
+export interface BrowserListItem {
+  actual_cost: unknown;
+  assigned_user_id: string | null;
+  catalog_item_id: string | null;
+  checked_at: string | null;
+  checked_by_user_id: string | null;
+  completed_at: string | null;
+  completed_by_user_id: string | null;
+  created_at: string;
+  created_by_user_id: string | null;
+  deleted_at: string | null;
+  estimated_cost: unknown;
+  item_name: string;
+  list_id: string;
+  list_item_id: string;
+  metadata_json: unknown;
+  needed_by_date: string | null;
+  notes: string | null;
+  purchase_status: string;
+  quantity: unknown;
+  sort_order: unknown;
+  tracking_id: string | null;
+  unit: string | null;
+  updated_at: string;
+  updated_by_user_id: string | null;
+  url: string | null;
+  vendor_name: string | null;
+  workspace_id: string;
+}
+
+/**
+ * The progress summary `normalizeListProgress` rebuilds for a list.
+ *
+ * **Every member is recomputed or coerced, which is why this one can promise its types.** The
+ * counts go through `Number(...)` with an item-derived fallback, the labels and dates fall back to
+ * `""`/`null`, and the two collections fall back to `[]`. Their *elements* stay `unknown`: the
+ * producer sends whatever it sends and this normaliser does not inspect them.
+ */
+export interface BrowserListProgressSummary {
+  assignedUserIds: unknown;
+  checkedItemCount: number;
+  completedItemCount: number;
+  earliestNeededByDate: unknown;
+  incompleteItemCount: number;
+  lastActivityAt: unknown;
+  neededByDates: unknown;
+  nextUncheckedItemLabel: unknown;
+  totalItemCount: number;
+  unassignedItemCount: number;
+}
+
+/**
+ * One list as the Lists page holds it, which is **not** one list as the wire sends it.
+ *
+ * `normalizeListRecord` spreads its input and then overwrites nine members, so the page record and
+ * `BrowserListSummary` disagree on purpose:
+ *
+ * - **`is_reusable` is a `boolean` both on the wire and here.** The repository's row mapper
+ *   booleanizes it before the shaper, and the normaliser coerces it again. This bullet once named it
+ *   a number on the wire, which `0.33.33.43.44` measured and corrected; whether this record could now
+ *   extend the wire contract is a separate question, not taken here.
+ * - `items` and `links` are re-mapped with an added `id`, so they are the detail contracts rather
+ *   than the wire's `unknown[]`.
+ * - `progress`, `resumeContext` and `sourceContext` are rebuilt with defaults.
+ *
+ * **`id` and `list_id` may be `undefined`, because a draft is a real input.** The normaliser
+ * defaults its parameter to `{}`, and `readListDetail` answers `list: undefined` for a body it
+ * cannot read - so `list.list_id || list.id` is genuinely absent for a list that has not been
+ * saved. Promising a string here would be describing the saved case only.
+ *
+ * The wire members it merely spreads are carried as an optional partial: present for a saved list,
+ * absent for a draft. Nothing here is an index signature - a member this page does not read is a
+ * member this contract does not promise.
+ */
+export interface BrowserNormalizedListRecord extends Partial<Omit<BrowserListSummary,
+  "id" | "isBillOfMaterials" | "is_reusable" | "items" | "links" | "list_id" | "progress" | "resumeContext" | "sourceContext">> {
+  /** `list_id` when the list is saved; `undefined` for a draft the editor has not created yet. */
+  id: string | undefined;
+  isBillOfMaterials: boolean;
+  /** Coerced from the wire's numeric column. */
+  is_reusable: boolean;
+  items: BrowserListItem[];
+  links: BrowserListLink[];
+  /** `id` when the list is saved; `undefined` for a draft. */
+  list_id: string | undefined;
+  progress: BrowserListProgressSummary;
+  /** The producer's context plus a guaranteed `progress` and `sourceUrl`. */
+  resumeContext: BrowserListResumeContext;
+  sourceContext: unknown;
+}
+
+/**
+ * The resume context the page attaches to a normalized list.
+ *
+ * The normaliser spreads whatever the producer sent and then guarantees two members, so those two
+ * are promised and the rest stay unstated.
+ */
+export interface BrowserListResumeContext {
+  progress: unknown;
+  sourceUrl: unknown;
+}
+
+/**
+ * One list link as the detail route returns it, derived from `LINK_COLUMNS`.
+ *
+ * **This is not a Notes link and not a Tasks linked context.** It is the list-link row: eleven
+ * columns naming which module and target a list points at, with no label, no decorated record and
+ * no resolved title. Reusing another module's link contract for the word would have claimed
+ * decoration this producer never performs.
+ */
+export interface BrowserListLink {
+  created_at: string;
+  created_by_user_id: string | null;
+  link_role: string | null;
+  list_id: string;
+  list_link_id: string;
+  metadata_json: unknown;
+  module_id: string;
+  removed_at: string | null;
+  target_id: string;
+  target_type: string;
+  workspace_id: string;
+}
+
+/** The `{ list, items, links }` envelope the single-list detail route returns. */
+export interface BrowserListDetail {
+  items: BrowserListItem[];
+  links: BrowserListLink[];
+  /** Absent rather than `null`, so the browser normaliser's own default applies unchanged. */
+  list?: BrowserListSummary;
+}
+
+/**
+ * One catalog suggestion as `GET /api/lists/item-suggestions` offers it.
+ *
+ * **A structural minimum, because `shapeCatalogItemForBrowser` spreads.** It answers
+ * `{ ...item, id: item.catalog_item_id }` over the persistence record, so the response carries
+ * every column `CATALOG_COLUMNS` selects and whatever the catalogue grows next. The nine members
+ * below are the nine the Lists item picker reads, and each is what `list_item_catalog` guarantees:
+ * `quantity` and `use_count` are `NOT NULL` with `CHECK (>= 0)`, `estimated_cost` is nullable with
+ * the same check, and the four text columns beside them are nullable.
+ *
+ * **The `id` alias is deliberately absent.** The shaper adds it, but this picker submits
+ * `catalog_item_id`, and promising a member no consumer reads would make this contract the owner
+ * of a compatibility alias it does not use.
+ *
+ * **Not the persistence record.** `normalized_name`, `metadata_json`, `last_used_at`, the two
+ * actor columns and the workspace scoping stay off the browser promise: nothing here reads them,
+ * and declaring them would invite a consumer to.
+ */
+export interface BrowserListItemSuggestion {
+  /** The identity the picker submits, so it is required and non-empty. */
+  catalog_item_id: string;
+  /** `REAL`, nullable, and never negative. */
+  estimated_cost: number | null;
+  /** `NOT NULL`, and the value the datalist offers, so it is non-empty. */
+  item_name: string;
+  notes: string | null;
+  /** `NOT NULL DEFAULT 1 CHECK (quantity >= 0)`. */
+  quantity: number;
+  unit: string | null;
+  /** `NOT NULL DEFAULT 0 CHECK (use_count >= 0)`, read by the suggestion label. */
+  use_count: number;
+  url: string | null;
+  vendor_name: string | null;
+}
+
+/**
+ * One revision as `GET /api/notes/:noteId/revisions` lists it.
+ *
+ * **A structural minimum over a doubly-spread record.** `revisionRowToAppValue` spreads the
+ * persisted row and adds `metadata`; `shapeRevisionForBrowser` spreads that again through
+ * `stripSecureStorageFields`. So a listed revision carries every `note_revisions` column that
+ * survives the strip, and the nine members below are the nine the Revisions panel reads. Each is
+ * what the table guarantees: `note_revision_id` is the primary key, `revision_number`, `title`
+ * and `created_at` are `NOT NULL`, and `body_excerpt` and `change_summary` are nullable.
+ *
+ * **`security_mode` is closed and the rest are not.** The column's `CHECK` constraint admits
+ * exactly `normal` and `secure`, `NoteSecurityMode` says the same, and the browser **branches on
+ * it** to decide whether to hide a revision body - so it is validated here as the pair it is.
+ * `library_bucket` and `visibility` also carry `CHECK` constraints, but this panel only passes
+ * them through `formatToken`; formatting a token is not validating a vocabulary, and closing
+ * them would make this contract the owner of two vocabularies it never inspects.
+ *
+ * **`note_type` and `status` are absent because the panel does not read them**, not because the
+ * producer withholds them.
+ *
+ * **What a listed revision may not carry.** `stripSecureStorageFields` removes eleven encrypted
+ * storage columns from every revision, and a secure revision listed with `includeBody: false`
+ * additionally loses `body_markdown` and `secure_body_decrypted` and has its `body_excerpt`
+ * nulled. Those absences are the contract's, enforced by the reader rather than assumed.
+ *
+ * A **normal** revision may still carry `body_markdown`, because the shaper only deletes it on
+ * the secure branch. This contract does not promise it, does not read it and does not remove it:
+ * the caller already holds `view_history`, so that is a least-data question for the producer,
+ * not a boundary this consumer may decide by truncating what it was sent.
+ */
+export interface BrowserNoteRevisionSummary {
+  /** `NULL`-able in the table, and nulled outright for a secure revision. */
+  body_excerpt: string | null;
+  change_summary: string | null;
+  created_at: string;
+  /** `CHECK`-constrained by the table, but only formatted here, so it stays open. */
+  library_bucket: string;
+  /** The revision's identity, submitted to the restore route. */
+  note_revision_id: string;
+  revision_number: number;
+  /** Closed, because the browser decides whether to hide a body on it. */
+  security_mode: BrowserNoteEffectiveSecurityMode;
+  title: string;
+  /** `CHECK`-constrained by the table, but only formatted here, so it stays open. */
+  visibility: string;
+}
+
+/**
+ * What `GET /api/notes/:noteId/revisions` answers.
+ *
+ * `listRevisions` names `revisions` and spreads nothing, so this envelope is **exact at one
+ * member** even though its elements are structural minimums.
+ */
+export interface BrowserNoteRevisionList {
+  revisions: BrowserNoteRevisionSummary[];
+}
+
+/**
+ * The identity of a saved time entry, as both save routes nest it.
+ *
+ * **A structural minimum over a decorated record.** `tagsService.decorateRecordsForTarget` answers
+ * the persisted entry with its tags attached, so `entry` carries durations, timestamps, billing,
+ * invoice status, client and project context and the tag list. The dialog reads **one member** of
+ * it - the identity it reports to the host - and `context.onSaved` receives the whole object, so
+ * promising more here would make this contract the owner of a record it only passes through.
+ */
+export interface BrowserSavedTimeEntryIdentity {
+  entry_id: string;
+}
+
+/**
+ * What `POST /api/time-entries` answers.
+ *
+ * `createFromActiveTimer` names three members and spreads nothing, so this is **exact**. The
+ * outer `entry_id` is the newly minted identity, which the update route has no reason to send
+ * and deliberately does not - so these two results are separate contracts rather than one with
+ * an optional member.
+ */
+export interface BrowserTimeEntryCreateResult {
+  entry: BrowserSavedTimeEntryIdentity;
+  entry_id: string;
+  storage: "database";
+}
+
+/**
+ * What `PUT /api/time-entries/:entryId` answers.
+ *
+ * `update` names two members and spreads nothing, so this is **exact** as well - and it is exact
+ * at two, not three. The caller already knows which entry it addressed, so an outer `entry_id`
+ * would be the server repeating the route parameter back.
+ */
+export interface BrowserTimeEntryUpdateResult {
+  entry: BrowserSavedTimeEntryIdentity;
+  storage: "database";
+}
+
+/** The four statuses the `notifications.status` column admits, and `normalizeStatus` coerces to. */
+export type BrowserNotificationStatus = "unread" | "read" | "dismissed" | "archived";
+
+/** The four priorities the `notifications.priority` column admits, and `normalizePriority` coerces to. */
+export type BrowserNotificationPriority = "low" | "normal" | "high" | "urgent";
+
+/**
+ * The context a task or note target carries, in the two members the browser reads.
+ *
+ * Both readers build it with `normalizeJobText`, so both are strings and never absent when the
+ * context itself is present. It stays open above these two: a provider that adds a benign member
+ * later is still a context this reader can use.
+ */
+export interface BrowserNotificationRecordTargetContext {
+  clientName: string;
+  projectName: string;
+}
+
+/**
+ * What `readTargetMetadata` resolves for one notification.
+ *
+ * **Not `BrowserNotificationTarget`, which is already taken by a different producer.** That one
+ * is the snake_case target the *subscription* routes echo back; this is the navigation target the
+ * *list* decorator resolves. Two producers, two names - the same rule that keeps
+ * `BrowserNotificationTargetRequest` separate from it.
+ *
+ * Six members are unconditional - the base metadata object names them all before any branch runs.
+ * `label` and `context` are added **only** by the task and note readers when the record resolved,
+ * so they are optional here rather than empty-stringed.
+ */
+export interface BrowserNotificationRecordTarget {
+  canOpen: boolean;
+  context?: BrowserNotificationRecordTargetContext;
+  label?: string;
+  moduleId: string;
+  recordId: string;
+  recordType: string;
+  targetExists: boolean;
+  /** `""` when the target cannot be opened. Application-relative when set - see `BrowserNotification.url`. */
+  url: string;
+}
+
+/**
+ * One notification as `GET /api/notifications` returns it.
+ *
+ * **Exact, because the spread source is the producer's own total reconstruction.**
+ * `notificationRowToAppValue` names all seventeen persisted members and inherits nothing;
+ * `decorateForSession` spreads *that* and adds four of its own while overwriting `url`. A spread
+ * of a total reconstruction is still a total reconstruction, so every member below is named by
+ * one of those two functions and none is here because a renderer happens to read it.
+ *
+ * **Every member is a string, and none is nullable.** The row normaliser applies `|| ""` to each
+ * column the table leaves nullable, so an absent value arrives as the empty string rather than
+ * `null` - which is why `read_at` and `dismissed_at` are `string` and not `string | null`.
+ *
+ * **`metadata` is a plain object and nothing more.** `parseMetadata` guarantees a non-array
+ * object, and these consumers never read into it, so its values stay `unknown`: modelling the
+ * event payloads would make this contract the owner of every notification producer's metadata.
+ */
+export interface BrowserNotification {
+  actor_user_id: string;
+  body: string;
+  created_at: string;
+  /** The same string as `updateTypeLabel`; the producer sends both. */
+  displayType: string;
+  /** The target's label, the notification title, or the protected-note replacement. */
+  displayTitle: string;
+  dismissed_at: string;
+  event_type: string;
+  metadata: Record<string, unknown>;
+  module_id: string;
+  notification_id: string;
+  priority: BrowserNotificationPriority;
+  read_at: string;
+  recipient_user_id: string;
+  record_id: string;
+  record_type: string;
+  status: BrowserNotificationStatus;
+  target: BrowserNotificationRecordTarget;
+  title: string;
+  updateTypeLabel: string;
+  /**
+   * `""` unless the target can be opened.
+   *
+   * **This member reaches `anchor.href`, so the browser validates its shape rather than trusting
+   * the server guard.** `safeRelativeUrl` rejects anything carrying a URI scheme, which stops
+   * `javascript:`, `data:` and `vbscript:`, but it accepts protocol-relative and backslash forms
+   * that a browser resolves to a different origin. The reader refuses those here; the server
+   * guard is a separate defect recorded with its own owner.
+   */
+  url: string;
+  workspace_id: string;
+}
+
+/**
+ * The filter catalogue `readFilterOptionsForRecipient` reconstructs.
+ *
+ * Two named members, each a `DISTINCT` column projection filtered for truthiness, so both are
+ * arrays of non-empty strings and either may legitimately be empty.
+ */
+export interface BrowserNotificationFilterOptions {
+  events: string[];
+  modules: string[];
+}
+
+/**
+ * What `GET /api/notifications` answers.
+ *
+ * `notificationsService.list` names three members and spreads nothing, so this envelope is exact
+ * at three - and `pagination` is the **same** `boundedPaginationEnvelope` every other bounded
+ * reader in this estate already consumes, so `BrowserBoundedPagination` is reused rather than
+ * copied.
+ */
+export interface BrowserNotificationList {
+  filterOptions: BrowserNotificationFilterOptions;
+  notifications: BrowserNotification[];
+  pagination: BrowserBoundedPagination;
+}
+
+/**
+ * What `GET /api/notifications/unread-count` answers.
+ *
+ * **Exact.** `readBellSummaryForRecipient` reconstructs nine members by name from one aggregate
+ * row and spreads nothing, and every count is `Number(... || 0)` over a `SUM` of ones and zeroes -
+ * so all five are finite, non-negative integers.
+ *
+ * **The count members are not interchangeable and are deliberately not collapsed.** The badge
+ * excludes low-priority unread items; the total does not; the low-priority count is the
+ * difference. The two priority counts are a **different population again**: their `SUM` spans
+ * `status IN ('unread', 'read')`, so an urgent notification the recipient has already read is
+ * still counted here and is **not** part of `unreadCount`. Reducing these to one number would
+ * lose the distinction the bell is built on.
+ *
+ * The three flags are derived from the two priority counts by the same producer, in the same
+ * statement, so the browser checks that they agree rather than recomputing them.
+ */
+export interface BrowserNotificationBellSummary {
+  /** The badge number: unread notifications that are not low priority. Always equal to `unreadCount`. */
+  count: number;
+  /** Active notifications at `high` priority, read or unread. */
+  highPriorityCount: number;
+  /** `highPriorityCount > 0`. */
+  hasHighPriority: boolean;
+  /** `hasUrgentPriority || hasHighPriority`. */
+  hasPriorityAlert: boolean;
+  /** `urgentPriorityCount > 0`. */
+  hasUrgentPriority: boolean;
+  /** Unread notifications at `low` priority, which the badge excludes. */
+  lowPriorityUnreadCount: number;
+  /** Every unread notification, including the low-priority ones. */
+  totalUnreadCount: number;
+  /** The same value as `count`; the producer sends both names. */
+  unreadCount: number;
+  /** Active notifications at `urgent` priority, read or unread. */
+  urgentPriorityCount: number;
+}
+
+/**
+ * The three statuses the `tags.status` column admits.
+ *
+ * Closed on the column's `CHECK` constraint rather than on what a page compares: `tags.js` only
+ * distinguishes `active` from the rest, but the column admits three and the browser validates all
+ * three. **`disabled` is admitted by the column and written by no current path** - it is declared
+ * because the constraint permits it, not because something produces it today.
+ */
+export type BrowserTagStatus = "active" | "archived" | "disabled";
+
+/**
+ * One tag as the catalogue routes return it.
+ *
+ * **Exact, because `tagRowToAppValue` is a total named reconstruction.** It rebuilds fifteen
+ * members from the row and inherits nothing, and **`GET /api/tags` and `POST /api/tags` both
+ * reach it** - so there is one record here rather than a list tag and a created tag.
+ *
+ * **Every member is a string or a number, and none is nullable.** The normaliser applies `|| ""`
+ * to the three columns the table leaves nullable, so `color` and `created_by_user_id` arrive as
+ * the empty string rather than `null`, and `description` is `NOT NULL DEFAULT ''` besides.
+ *
+ * **The four usage counts are aggregates, not columns.** The list query supplies them as
+ * `COALESCE(COUNT(*), 0)` over a join and the single-record reads default them to zero, so each
+ * is a finite non-negative integer either way.
+ *
+ * **This is not an assignment record.** `tag_assignment_id`, `source`, `source_assignment_id`,
+ * the source target fields and `propagation_rule_id` belong to `assignmentRowToAppValue` and to
+ * the effective-tag values `normalizeTagList` accepts - none of them reaches this producer, and
+ * naming any of them here would make this contract claim a shape these two routes never send.
+ */
+export interface BrowserTagCatalogRecord {
+  /** `""` when the tag carries no colour; the column is nullable and the normaliser fills it. */
+  color: string;
+  created_at: string;
+  /** `""` when the creating account is unknown; the column is nullable. */
+  created_by_user_id: string;
+  /** `NOT NULL DEFAULT ''`, so present and possibly empty. */
+  description: string;
+  direct_usage_count: number;
+  name: string;
+  propagated_usage_count: number;
+  slug: string;
+  status: BrowserTagStatus;
+  system_usage_count: number;
+  /** The tag's identity, non-empty because it is the table's primary key. */
+  tag_id: string;
+  updated_at: string;
+  usage_count: number;
+  workspace_id: string;
+}
+
+/**
+ * What `GET /api/tags` answers.
+ *
+ * `tagsService.list` names one member and spreads nothing, so this envelope is exact at one.
+ */
+export interface BrowserTagListEnvelope {
+  tags: BrowserTagCatalogRecord[];
+}
+
+/**
+ * What `POST /api/tags` answers.
+ *
+ * `tagsService.create` names one member and spreads nothing, and throws rather than answering a
+ * body without it - so this is exact at one too, and it is a **separate** contract from the list
+ * envelope rather than one shape with two optional members.
+ */
+export interface BrowserTagMutationEnvelope {
+  tag: BrowserTagCatalogRecord;
+}
+
+/**
+ * What `loadTags` narrows its query by.
+ *
+ * Both members go straight into a `URLSearchParams`, with `"active"` and `""` as the defaults the
+ * writer supplies when the caller omits them.
+ */
+export interface BrowserTagLoadOptions {
+  search?: string;
+  status?: string;
+}
+
+/**
+ * The controller `mountPicker` resolves to.
+ *
+ * Three members, exactly as the returned literal builds them. `refreshTags` is the same function
+ * the writer registers in its mounted-picker set, so a create elsewhere refreshes this picker too.
+ */
+export interface BrowserTagPickerController {
+  /** The **directly assigned** tag identities; propagated and system tags are excluded. */
+  readTagIds(): string[];
+  refreshTags(): Promise<void>;
+  setSelected(tagIds?: unknown): void;
+}
+
+/**
+ * What `mountPicker` accepts.
+ *
+ * **`tags` and `selectedTags` are `unknown[]` on purpose.** `normalizeTagList` rebuilds whatever
+ * it is handed - catalogue tags, assignment records and effective tags all reach it - so
+ * requiring `BrowserTagCatalogRecord[]` here would be narrower than the writer, and every caller
+ * passing a propagated tag would be wrong against a contract the runtime happily accepts.
+ */
+export interface BrowserTagPickerOptions {
+  allowCreate?: boolean;
+  /** The fieldset legend; `"Tags"` when omitted. */
+  label?: string;
+  /** The entry input's placeholder; the writer supplies its own when omitted. */
+  placeholder?: string;
+  selectedTagIds?: unknown;
+  selectedTags?: unknown[];
+  tags?: unknown[];
+}
+
+/** The controller `mountFilterPicker` returns. */
+export interface BrowserTagFilterPickerController {
+  destroy(): void;
+  readValue(): string;
+  setTags(tags?: unknown[]): void;
+  setValue(value: unknown, options?: { notify?: boolean }): void;
+}
+
+/**
+ * What `mountFilterPicker` accepts.
+ *
+ * **Two members, because the writer reads two.** It signals a selection by dispatching a DOM
+ * `change` event on the input rather than by calling back, so there is no `onChange` here - and
+ * the No-Tags choice is always offered rather than gated by an option.
+ */
+export interface BrowserTagFilterPickerOptions {
+  tags?: unknown[];
+  value?: unknown;
+}
+
+/**
+ * The Support View state this framework publishes, as far as it is actually proved.
+ *
+ * **A record boundary, not a validated Support View DTO.** The app-shell adapter runs
+ * `asRecord(source.supportView)`, which proves the value is a non-array object and nothing more;
+ * `applySupportViewState` then publishes a **shallow** frozen copy of it. Individual members -
+ * an actor, an expiry, a read-only flag - are read by consumers out of `unknown` and are not
+ * promised here. Declaring them would claim validation that no code performs.
+ *
+ * Nested values stay `unknown` deliberately: only the top level is frozen, and closing the field
+ * boundary is separate `0.33.33.38.4` work rather than a consequence of this declaration.
+ */
+export type BrowserSupportViewState = Readonly<Record<string, unknown>>;
+
+/**
+ * The session-warning compatibility hook.
+ *
+ * **One method, retained because it is published, not because a consumer was found.** `show`
+ * raises the expired-session dialog and resolves when that dialog closes. Repeated calls while a
+ * dialog is open share **the same pending promise** and raise no second dialog; the slot resets
+ * once it finishes.
+ *
+ * It shows a warning. It is **not** an authentication grant, a session-restoration API, or a
+ * promise that unsaved work was preserved - the dialog says so in as many words.
+ */
+export interface BrowserSessionAuthWarnings {
+  show(): Promise<void>;
+}
+
+/**
+ * The shared tag surface `shared/tags.js` publishes.
+ *
+ * **Eleven members, which is what the writer's object literal contains.** An earlier preflight
+ * recorded twelve; the count was wrong and is corrected here rather than reconciled by publishing
+ * a twelfth. In particular `createTagChip` is **not** published - it is internal, and the one
+ * consumer that probed for it had a guard that has always been false.
+ *
+ * **`loadTags` and `createTag` return validated records** because `0.33.33.38.4.14` closed those
+ * two wire boundaries at the writer. `suppressPropagatedTag` stays `Promise<unknown>`: its only
+ * caller awaits and discards the body, so typing it would describe a value nobody reads.
+ *
+ * The two mounts answer `null` when handed no container or input, and that is preserved rather
+ * than typed away.
+ *
+ * **Closed by `0.33.33.38.2.5`: there is no index signature.** The catch-all entered in
+ * `dabf9257` as bootstrap looseness with no extensibility rationale recorded, and the estate
+ * outgrew it - every one of the 64 members is a static identifier, the publication inventory
+ * reports **0 deep writes and 0 unresolvable rooted targets**, and the undeclared backlog is
+ * empty. An undeclared publication is now a compile error, which is the behaviour governance
+ * already enforced by other means.
+ *
+ * **A misspelled or unknown top-level member is rejected. The alternative to a declared member is
+ * a compile error, never a permissive signature.** Extensibility that is genuinely open lives in
+ * the *nested* contracts that carry it - `supportView`'s unknown-valued record, module
+ * contribution data - and not at this root.
+ */
+export interface BrowserTags {
+  NO_TAGS_FILTER_VALUE: string;
+  allTagsOption(): HTMLOptionElement;
+  createFilterOption(value: string, label: string): HTMLOptionElement;
+  createTag(payload?: unknown): Promise<BrowserTagCatalogRecord>;
+  loadTags(options?: BrowserTagLoadOptions): Promise<BrowserTagCatalogRecord[]>;
+  mountFilterPicker(
+    input: HTMLInputElement | null | undefined,
+    options?: BrowserTagFilterPickerOptions,
+  ): BrowserTagFilterPickerController | null;
+  mountPicker(
+    container: Element | null | undefined,
+    options?: BrowserTagPickerOptions,
+  ): Promise<BrowserTagPickerController | null>;
+  noTagsOption(): HTMLOptionElement;
+  readTagIds(container: Element | null | undefined): string[];
+  renderTagList(container: Element | null | undefined, tags?: unknown[]): void;
+  suppressPropagatedTag(assignmentId: string): Promise<unknown>;
 }
 
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
+  assetVersion?: BrowserAssetVersion;
   cachedFetch?: BrowserCachedFetch;
+  capturePrompt?: BrowserCapturePrompt;
+  checkedDom?: BrowserCheckedDom;
+  clientProjectDialog?: BrowserClientProjectDialog;
+  clientProjectOptions?: BrowserClientProjectOptions;
   controllers?: PageControllerRegistry;
+  dashboard?: BrowserDashboard;
+  dashboardBootstrap?: BrowserDashboardBootstrap;
   errors?: BrowserErrorContract;
+  taskRecords?: BrowserTaskRecords;
+  esModuleBridge?: BrowserEsModuleBridge;
+  fileAttachments?: BrowserFileAttachments;
+  filePreview?: BrowserFilePreview;
+  filesDialog?: BrowserFilesDialog;
   formatters?: BrowserFormatters;
+  getWorkspaceProjectsLabel?: (workspaceName?: unknown) => string;
+  icons?: BrowserIcons;
+  listsDialog?: BrowserListsDialog;
+  modal?: BrowserModalDialogs;
+  moduleActions?: BrowserModuleActions;
+  navigationIntent?: BrowserNavigationIntent;
+  notesDialog?: BrowserNotesDialog;
+  notesEditor?: BrowserNotesEditor;
+  notesLinkedPanel?: BrowserNotesLinkedPanel;
+  notificationPreferences?: BrowserNotificationPreferences;
+  notificationSubscriptions?: BrowserNotificationSubscriptions;
+  notificationsPageReady?: boolean;
   pageController?: BrowserPageController;
+  /**
+   * Published by `public/js/login.js`. The required-password-change form is
+   * only reached through a server response to a temporary password, so the
+   * login end-to-end spec drives that transition directly. `0.33.33.33.2`
+   * scoped the controller, which removed the implicit global the spec had
+   * been reaching for; the surface is named here rather than rediscovered.
+   */
+  loginPage?: { showRequiredPasswordChange: (currentPassword?: string) => void };
+  /**
+   * Published by `public/js/navigation.js` and read by the Workspace Settings
+   * controller after a rename.
+   *
+   * `0.33.33.33.1` scoped the navigation script and declared this on `Window`,
+   * because the consumer had been resolving the read against that script's
+   * top-level function through the shared global scope. `0.33.33.33.3` owns
+   * that consumer and moved the surface here: every other surface navigation
+   * publishes is a namespace member, and the only bare `window.*` it still
+   * owns is the deliberate `fetch` patch.
+   */
+  applyWorkspaceName?: (value: unknown) => void;
+  quickActionRefresh?: BrowserQuickActionRefresh;
+  recovery?: BrowserRecovery;
   records?: BrowserRecords;
+  /**
+   * The app-shell bootstrap, uncalled. Its side effect is the refresh; its result is transient.
+   *
+   * Optional because `navigation.js` publishes it and not every surface loads navigation - the
+   * recovery and public pages do not - so every caller optional-calls it today and keeps doing so.
+   */
+  refreshAppShell?: () => Promise<BrowserAppShellRefreshResult>;
+  refreshNotifications?: () => Promise<void>;
+  reporting?: BrowserReporting;
+  settingsHost?: BrowserSettingsHost;
+  settingsRenderer?: BrowserSettingsRenderer;
+  settingsPageController?: BrowserSettingsPageController;
+  status?: BrowserStatusMessage;
+  tags?: BrowserTags;
+  taskResumeNoteCapture?: BrowserTaskResumeNoteCapture;
+  taskCalendar?: BrowserTaskCalendar;
+  /**
+   * The Help page's completion sentinel, set to `true` once `help.js` finishes evaluating.
+   *
+   * **A boolean, and deliberately still a boolean.** It is absent on every page that does not
+   * load Help, and absent on Help itself until that final statement runs. It says the script
+   * reached its end - not that any Help request succeeded, and not that data is ready.
+   */
+  helpPageReady?: boolean;
+  /** The documented module-facing overlay hook. Contract published by `0.33.33.39.3`. */
+  overlayHost?: BrowserOverlayHost;
+  sessionAuthWarnings?: BrowserSessionAuthWarnings;
+  /** `null` while no Support View session is active; absent before the app shell publishes. */
+  supportView?: BrowserSupportViewState | null;
+  tasksDialog?: BrowserTasksDialog;
+  timeEntryDialog?: BrowserTimeEntryDialog;
+  timeTrackingTimerDialog?: BrowserTimeTrackingTimerDialog;
+  timezones?: BrowserTimezones;
+  userPreferences?: BrowserUserPreferences;
+  /**
+   * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.
+   * Optional because the namespace itself can be absent, not because the factory is.
+   */
+  /**
+   * The five surfaces below were published with accurate interfaces by `0.33.33.34` through
+   * `.37` and reached through a local cast at every consumer, because the namespace did not
+   * name them. `0.33.33.38.2.2.1` wires the interfaces that already exist rather than
+   * restating them: each consumer keeps the checked accessor that does the real narrowing and
+   * simply stops supplying its own type.
+   */
+  taskLifecycleLegality?: BrowserTaskLifecycleLegality;
+  view?: BrowserViewFactory;
+  viewActionSecurity?: BrowserViewActionSecurity;
+  viewDataBinding?: BrowserViewDataBinding;
+  viewModalStack?: BrowserViewModalStack;
+  viewSearchOptions?: BrowserViewSearchOptions;
   viewSurfaceDescriptor?: BrowserViewSurfaceDescriptorAdapter;
   viewResponseRecords?: BrowserViewResponseRecords;
-  [key: string]: unknown;
+  /**
+   * The Task Focus checklist renderer Workbench composes (`0.33.33.38.2.12`). Declared ahead of its
+   * writer, `0.33.33.42.46`, through governance's type-only record, which that checkpoint strikes.
+   */
+  workbenchTaskFocusChecklist?: BrowserWorkbenchTaskFocusChecklist;
+  /**
+   * The Task Focus presentation Workbench composes (`0.33.33.38.2.13`). Declared ahead of its
+   * writer, `0.33.33.42.47`, through governance's type-only record, which that checkpoint strikes.
+   */
+  workbenchTaskFocusPresentation?: BrowserWorkbenchTaskFocusPresentation;
+  /**
+   * The same bootstrap, called once at load, as a synchronisation barrier.
+   *
+   * `refreshAppShell` and this are one function expression published twice - one uncalled, one
+   * called - so they answer the same three forms. Awaiting this says "the first app-shell pass has
+   * settled"; it does **not** hand back the stored workspace context, and a consumer that wants
+   * that reads `LongtailForge.workspaceContext` after awaiting.
+   */
+  workspaceContext?: BrowserStoredWorkspaceContext;
+  workspaceContextReady?: Promise<BrowserAppShellRefreshResult>;
 }
 
 export type BrowserErrorEnvelope = ApiErrorEnvelope;

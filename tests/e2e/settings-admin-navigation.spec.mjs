@@ -1,7 +1,28 @@
 import { expect, test } from "@playwright/test";
 
+test("Role Assignments renders the dedicated exact-account surface", async ({ page }) => {
+  const response = await page.goto("/role-assignments.html");
+  if (!response) {
+    throw new Error("Navigation to /role-assignments.html returned no response");
+  }
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1, name: "Role Assignments" })).toBeVisible();
+  await expect(page.locator("[data-role-account-email]")).toHaveAttribute("type", "email");
+  await expect(page.locator("[data-role-assignment-status]")).toHaveAttribute("aria-live", "polite");
+  await expect(page.locator("[data-role-target]")).toHaveAttribute("aria-labelledby", "delegated-role-target-heading");
+  await expect(page.locator("[data-delegated-role-list]")).toHaveCount(1);
+  await expect(page.locator("[data-add-delegated-role]")).toHaveCount(1);
+  await expect(page.getByText("Workspace Memberships", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Active Sessions", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Reset Password", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Delete User", { exact: true })).toHaveCount(0);
+});
+
 test("Workspace groups optional modules and repaired Files Settings host loads", async ({ page }) => {
   const workspaceResponse = await page.goto("/workspace-settings.html");
+  if (!workspaceResponse) {
+    throw new Error("Navigation to /workspace-settings.html returned no response");
+  }
   expect(workspaceResponse.status()).toBe(200);
 
   const workspaceHeader = page.locator(".view-page-header");
@@ -29,6 +50,9 @@ test("Workspace groups optional modules and repaired Files Settings host loads",
   ]);
 
   const filesResponse = await page.goto("/files-settings.html");
+  if (!filesResponse) {
+    throw new Error("Navigation to /files-settings.html returned no response");
+  }
   expect(filesResponse.status()).toBe(200);
   await expect(page.locator(".view-settings-section-legend", { hasText: "Storage Accounting" })).toBeVisible();
   await expect(page.locator("[data-module-settings-status]")).not.toContainText("undefined");
@@ -49,6 +73,9 @@ test("Developer Example can be enabled and its Settings host loads", { tag: "@de
     }
 
     const developerResponse = await page.goto("/developer-example.html");
+    if (!developerResponse) {
+      throw new Error("Navigation to /developer-example.html returned no response");
+    }
     expect(developerResponse.status()).toBe(200);
     await expect(page.locator("h1")).toHaveText("Developer Example Settings");
     const hintsToggle = page.locator('[data-module-setting="developerExampleHintsEnabled"]');
@@ -95,20 +122,67 @@ test("module lifecycle saves refresh recovery and timer surfaces immediately", a
   await page.route("**/api/app-shell/bootstrap", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(shellResponse()) });
   });
+  /**
+   * The one task this fixture wants the list to hold.
+   *
+   * **It states the shape the server actually sends**, rather than the eight-member literal it
+   * used to be. That literal carried `assignee_ids` - a write-side input the task shaper never
+   * returns - and omitted the thirty text members, the assignees, the three typed scalars and the
+   * five members `attachTaskListProjectionDetails` always adds. A mock that claims a shape the
+   * producer cannot produce is a second, wrong contract, and `0.33.33.38.4.3.2` made the browser
+   * notice it.
+   *
+   * @param {{ currentUserId?: string }} liveResult
+   */
+  const timerSuppressionFixtureTask = (liveResult) => ({
+      archived_at: "",
+      archived_by_user_id: "",
+      blocked_reason: "",
+      client_id: "",
+      client_name: "",
+      completed_at: "",
+      completed_by_user_id: "",
+      created_at: "",
+      created_by_user_id: "",
+      description: "",
+      due_at_utc: "",
+      due_date: "",
+      due_time: "",
+      due_timezone: "",
+      last_worked_at: "",
+      next_action: "",
+      priority: "normal",
+      project_id: "fixture-project",
+      project_name: "Fixture Project",
+      recurrence_instance_date: "",
+      recurrence_template_id: "",
+      resume_note: "",
+      source_id: "",
+      source_type: "manual",
+      status: "open",
+      task_id: "timer-suppression-fixture",
+      title: "Timer suppression fixture",
+      updated_at: "",
+      updated_by_user_id: "",
+      workspace_id: "",
+      assignees: [],
+      billable: "yes",
+      estimate_minutes: null,
+      reminder_override_enabled: false,
+      checklistProgress: { completed: 0, total: 0 },
+      completionMetrics: {},
+      parentTask: null,
+      relationshipSummary: {},
+      resumeContext: {},
+      tags: [],
+      currentUserId: liveResult.currentUserId,
+    });
+
   await page.route(/\/api\/tasks(?:\?.*)?$/, async (route) => {
     const response = await route.fetch();
     const result = await response.json();
     if (taskTimersDisabled) {
-      result.tasks = [{
-        task_id: "timer-suppression-fixture",
-        title: "Timer suppression fixture",
-        status: "open",
-        priority: "normal",
-        project_id: "fixture-project",
-        project_name: "Fixture Project",
-        assignee_ids: [result.currentUserId].filter(Boolean),
-        tags: [],
-      }];
+      result.tasks = [timerSuppressionFixtureTask(result)];
       result.options = {
         ...(result.options || {}),
         projects: [{ project_id: "fixture-project", project_name: "Fixture Project" }],
@@ -159,6 +233,9 @@ test("module lifecycle saves refresh recovery and timer surfaces immediately", a
   await expect(page.locator('[data-quick-action-id="timer"]')).toHaveCount(0);
 
   const recoveryResponse = await page.goto("/time-tracking-settings.html");
+  if (!recoveryResponse) {
+    throw new Error("Navigation to /time-tracking-settings.html returned no response");
+  }
   expect(recoveryResponse.status()).toBe(200);
   await expect(page.locator("h1")).toHaveText("Time Tracking Settings");
   await expect(page.locator('[data-disabled-module-recovery="time-tracking"]')).toContainText("Time Tracking is disabled");
@@ -188,7 +265,7 @@ test("module lifecycle saves refresh recovery and timer surfaces immediately", a
 
   function settingsResponse() {
     const settings = cloneJson(settingsFixture);
-    settings.enabledModules = (settings.enabledModules || []).filter((moduleId) => (
+    settings.enabledModules = (settings.enabledModules || []).filter((/** @type {string} */ moduleId) => (
       !timeTrackingDisabled || moduleId !== "time-tracking"
     ));
     for (const module of settings.modules || []) {
@@ -222,38 +299,55 @@ test("module lifecycle saves refresh recovery and timer surfaces immediately", a
   function shellResponse() {
     const shell = cloneJson(shellFixture);
     if (!timeTrackingDisabled) return shell;
-    shell.enabledModules = (shell.enabledModules || []).filter((moduleId) => moduleId !== "time-tracking");
+    shell.enabledModules = (shell.enabledModules || []).filter((/** @type {string} */ moduleId) => moduleId !== "time-tracking");
     shell.workspaceContext.enabledModules = (shell.workspaceContext?.enabledModules || [])
-      .filter((moduleId) => moduleId !== "time-tracking");
-    shell.quickActions = (shell.quickActions || []).filter((action) => action.moduleId !== "time-tracking");
+      .filter((/** @type {string} */ moduleId) => moduleId !== "time-tracking");
+    shell.quickActions = (shell.quickActions || []).filter((/** @type {{ moduleId?: string }} */ action) => action.moduleId !== "time-tracking");
     shell.navigation = removeModuleNavigation(shell.navigation || [], "time-tracking");
     return shell;
   }
 });
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string} url
+ */
 async function readJson(page, url) {
   const response = await page.request.get(url);
   expect(response.ok()).toBeTruthy();
   return response.json();
 }
 
+/**
+ * @template T
+ * @param {T} value
+ * @returns {T}
+ */
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+/** @typedef {{ moduleId?: string, href?: string, items?: NavigationItem[] }} NavigationItem */
+
+/**
+ * @param {NavigationItem[]} items
+ * @param {string} moduleId
+ * @returns {NavigationItem[]}
+ */
 function removeModuleNavigation(items, moduleId) {
   return items.flatMap((item) => {
     if (item.moduleId === moduleId || [
       "time-tracker.html",
       "time-entries.html",
       "time-tracking-settings.html",
-    ].includes(item.href)) return [];
+    ].includes(/** @type {string} */ (item.href))) return [];
     if (!Array.isArray(item.items)) return [item];
     const children = removeModuleNavigation(item.items, moduleId);
     return children.length > 0 ? [{ ...item, items: children }] : [];
   });
 }
 
+/** @param {{ id: string, label: string, sourceType: string }} fixture */
 function timerFixture({ id, label, sourceType }) {
   return {
     accumulated_elapsed_seconds: 60,

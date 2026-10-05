@@ -1,11 +1,34 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
-const root = process.cwd();
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} ContextFixtures */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the upload was accepted.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-context-targets-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-context-targets-conversion.db");
@@ -13,10 +36,8 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Context-Targets-Conversion-Test-123!";
 
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepositorySource = readText("src/repositories/files.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
-const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { filesService, handleFileScanJob } = await import("../src/services/files.service.js");
@@ -40,9 +61,10 @@ try {
 
 function assertStaticContract() {
 
-  assert.match(filesServiceSource, /from "\.\.\/core\/database\.js"/, "Files service should import database access from the provider-neutral facade");
-  assertFunctionUsesNamedParams("updateAttachmentContext", [
-    /await db\.run\(`/,
+  assert.match(filesServiceSource, /filesRepo.*from "\.\.\/repositories\/files\.repo\.js"/, "Files service should delegate persistence to the Files repository");
+  assert.match(filesRepositorySource, /from "\.\.\/core\/database\.js"/, "Files repository should import database access from the provider-neutral facade");
+  assertFunctionUsesNamedParams(filesRepositorySource, "updateAttachmentContext", [
+    /db\.run\(`/,
     /SET module_id = :attachmentModuleId/,
     /target_type = :attachmentTargetType/,
     /target_id = :attachmentTargetId/,
@@ -50,41 +72,40 @@ function assertStaticContract() {
     /project_id = :attachmentProjectId/,
     /file_attachment_id = :attachmentId/,
   ]);
-  assertFunctionUsesNamedParams("readAttachableTarget", [
-    /safeSqlIdentifier\(attachableType\.tableName\)/,
-    /safeSqlIdentifier\(attachableType\.idField\)/,
-    /safeSqlIdentifier\(attachableType\.labelField\)/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachableTarget", [
+    /safeSqlIdentifier\(fields\.tableName\)/,
+    /safeSqlIdentifier\(fields\.idField\)/,
+    /safeSqlIdentifier\(fields\.labelField\)/,
     /await db\.get\(`/,
     /WHERE \${workspaceField} = :attachableTargetWorkspaceId/,
     /AND \${idField} = :attachableTargetId/,
   ]);
-  assertFunctionUsesNamedParams("readAttachmentContextLabels", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachmentContextLabels", [
     /db\.get\(`/,
-    /workspace_id = :contextWorkspaceId/,
-    /id = :contextClientId/,
-    /id = :contextProjectId/,
+    /workspace_id = :workspaceId/,
+    /id = :recordId/,
   ]);
-  assertFunctionUsesNamedParams("readWorkspaceType", [
-    /const row = await db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readWorkspaceType", [
+    /await db\.get\(`/,
     /workspace_id = :workspaceId/,
   ]);
-  assertFunctionUsesNamedParams("readClientLabelMap", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readClientLabels", [
     /await db\.query\(`/,
-    /id IN \(:clientIds\)/,
+    /id IN \(:recordIds\)/,
   ]);
-  assertFunctionUsesNamedParams("readProjectLabelMap", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readProjectLabels", [
     /await db\.query\(`/,
-    /id IN \(:projectIds\)/,
+    /id IN \(:recordIds\)/,
   ]);
-  assertFunctionUsesNamedParams("readAttachableTargetOptionRows", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachableTargetOptionRows", [
     /await readTableColumnSet\(tableName\)/,
     /db\.dialect\.comparison\.likePattern\(filters\.search/,
     /db\.dialect\.comparison\.containsNoCase\(labelExpression, ":attachableTargetSearchPattern"\)/,
-    /return db\.query\(`/,
+    /await db\.query\(`/,
     /LIMIT :attachableTargetLimit/,
   ]);
-  assertFunctionUsesNamedParams("assertNoDuplicateActiveAttachmentContext", [
-    /const row = await db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "findDuplicateActiveAttachment", [
+    /db\.get\(`/,
     /workspace_id = :attachmentWorkspaceId/,
     /file_id = :attachmentFileId/,
     /module_id = :attachmentModuleId/,
@@ -94,14 +115,14 @@ function assertStaticContract() {
   ]);
 
   const convertedBlocks = [
-    functionBlock(filesServiceSource, "updateAttachmentContext"),
-    functionBlock(filesServiceSource, "readAttachableTarget"),
-    functionBlock(filesServiceSource, "readAttachmentContextLabels"),
-    functionBlock(filesServiceSource, "readWorkspaceType"),
-    functionBlock(filesServiceSource, "readAttachableTargetOptionRows"),
-    functionBlock(filesServiceSource, "readClientLabelMap"),
-    functionBlock(filesServiceSource, "readProjectLabelMap"),
-    functionBlock(filesServiceSource, "assertNoDuplicateActiveAttachmentContext"),
+    extractFunctionBlock(filesRepositorySource, "updateAttachmentContext"),
+    extractFunctionBlock(filesRepositorySource, "readAttachableTarget"),
+    extractFunctionBlock(filesRepositorySource, "readAttachmentContextLabels"),
+    extractFunctionBlock(filesRepositorySource, "readWorkspaceType"),
+    extractFunctionBlock(filesRepositorySource, "readAttachableTargetOptionRows"),
+    extractFunctionBlock(filesRepositorySource, "readClientLabels"),
+    extractFunctionBlock(filesRepositorySource, "readProjectLabels"),
+    extractFunctionBlock(filesRepositorySource, "findDuplicateActiveAttachment"),
   ].join("\n");
 
   assert.doesNotMatch(convertedBlocks, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b|\bquerySql\b|\brunSql\b/, "converted Files context/target blocks should not use literal helpers or compatibility query wrappers");
@@ -109,20 +130,19 @@ function assertStaticContract() {
 
   assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| services\/files\.service \| Converted \| 0 \| 0 \| 32 \| 33 \|/, "audit inventory should record the fully converted Files service state");
-  assert.match(auditDocs, /0\.33\.5\.27\.19 Files Context and Attachable Targets Conversion[\s\S]*File Context attachment update path[\s\S]*687 runtime literal-helper invocations[\s\S]*137 direct interpolated SQL operation sites[\s\S]*214 existing bound operation sites/, "audit docs should record the Files context/targets conversion slice");
-  assert.match(databaseDocs, /As of version 0\.33\.5\.27\.19[\s\S]*Files context and attachable-target metadata paths[\s\S]*687 remaining helper invocations/, "database docs should record the concrete Files context/targets conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.19 - Conversion wave: Files context and attachable targets[\s\S]*- \[x\] Convert File Context update reads\/writes[\s\S]*- \[x\] Preserve attachment-scoped File Context behavior[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.19 - [\s\S]*Files context and attachable targets conversion[\s\S]*687 helper invocations[\s\S]*137 direct interpolated operation sites[\s\S]*214 bound operation sites/, "changelog should record the Files context/targets conversion burndown");
   }
 
-function assertFunctionUsesNamedParams(functionName, patterns) {
-  const block = functionBlock(filesServiceSource, functionName);
+/** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
+/** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
+function assertFunctionUsesNamedParams(source, functionName, patterns) {
+  const block = extractFunctionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
   }
 }
 
+/** @param {FilesSession} session @param {ContextFixtures} fixtures */
 async function assertContextAndTargetOptionRuntime(session, fixtures) {
   const upload = await filesService.uploadAndAttach(session, {
     contentBase64: Buffer.from("Files context target conversion body").toString("base64"),
@@ -133,9 +153,10 @@ async function assertContextAndTargetOptionRuntime(session, fixtures) {
     targetType: "task",
     visibility: "private",
   });
+  const uploadedFile = requireFile(upload, "context conversion upload");
   await handleFileScanJob({
     payload: {
-      fileId: upload.file.fileId,
+      fileId: uploadedFile.fileId,
       requestedByUserId: session.user_id,
       workspaceId: session.workspace_id,
     },
@@ -153,6 +174,7 @@ async function assertContextAndTargetOptionRuntime(session, fixtures) {
   assert.equal(noteOption.label, "Files Context Note");
   assert.equal(noteOption.clientLabel, "Files Context Client");
   assert.equal(noteOption.projectLabel, "Files Context Project");
+  if (!noteOption.contextLabel) throw new Error("Note target should include its readable context label.");
   assert.match(noteOption.contextLabel, /Files Context Client/);
   assert.match(noteOption.contextLabel, /Files Context Project/);
   assertNoStorageLeak(targetOptions);
@@ -199,7 +221,7 @@ WHERE file_attachment_id = ${sqlText(upload.attachment.fileAttachmentId)};
   });
 
   const secondLink = await filesService.attachExistingFile(session, {
-    fileId: upload.file.fileId,
+    fileId: uploadedFile.fileId,
     moduleId: "tasks",
     targetId: fixtures.secondTaskId,
     targetType: "task",
@@ -215,14 +237,16 @@ WHERE file_attachment_id = ${sqlText(upload.attachment.fileAttachmentId)};
       targetType: "note",
     }),
     (error) => {
-      assert.equal(error.statusCode, 409);
-      assert.match(error.message, /already attached/);
+      const denial = /** @type {{ message?: string, statusCode?: number }} */ (error);
+      assert.equal(denial.statusCode, 409);
+      assert.match(String(denial.message), /already attached/);
       return true;
     },
     "duplicate active attachment contexts should remain rejected",
   );
 }
 
+/** @param {FilesSession} session */
 async function seedFixtures(session) {
   const now = new Date().toISOString();
   const clientId = randomUUID();
@@ -408,10 +432,13 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireFirstRow(rows, "workspace");
+  assert.ok(workspace.workspace_id, "workspace should exist");
+  return workspace;
 }
 
+/** @param {string} workspaceId @returns {Promise<FilesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -421,17 +448,23 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
+  /** @type {{ display_name: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected user");
+  assert.ok(admin.user_id, "protected user should exist");
   return {
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
+    home_workspace_id: workspaceId,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
+    timezone: admin.timezone || "America/New_York",
+    user_id: admin.user_id,
+    username: admin.username,
     workspace_id: workspaceId,
   };
 }
 
+/** @param {unknown} value */
 function assertNoStorageLeak(value) {
   const text = JSON.stringify(value);
   assert.doesNotMatch(text, /storage_key/i);
@@ -442,6 +475,7 @@ function assertNoStorageLeak(value) {
   assert.doesNotMatch(text, /protected[\\/]/i);
 }
 
+/** @param {unknown} value */
 function assertSafeLabels(value) {
   for (const [key, item] of walk(value)) {
     if (!/label$/i.test(key)) {
@@ -451,6 +485,11 @@ function assertSafeLabels(value) {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} [key]
+ * @returns {Generator<[string, string]>}
+ */
 function* walk(value, key = "") {
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -467,6 +506,7 @@ function* walk(value, key = "") {
   }
 }
 
+/** @param {unknown} value */
 function looksLikeRawIdentifier(value) {
   const text = String(value || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(text) ||
@@ -476,45 +516,4 @@ function looksLikeRawIdentifier(value) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function functionBlock(source, functionName) {
-  const asyncStart = source.indexOf(`async function ${functionName}`);
-  const syncStart = source.indexOf(`function ${functionName}`);
-  const start = asyncStart >= 0 && (syncStart < 0 || asyncStart < syncStart) ? asyncStart : syncStart;
-  assert.notEqual(start, -1, `${functionName} should exist`);
-
-  let braceStart = -1;
-  let parenDepth = 0;
-  for (let index = start; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "(") {
-      parenDepth += 1;
-    } else if (character === ")") {
-      parenDepth -= 1;
-    } else if (character === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-  assert.notEqual(braceStart, -1, `${functionName} body should exist`);
-  let depth = 0;
-
-  for (let index = braceStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not find end of ${functionName}`);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

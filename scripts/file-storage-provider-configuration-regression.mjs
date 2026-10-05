@@ -3,6 +3,26 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
+const { readTextAsync: readText } = createProjectTextReader();
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the upload was accepted.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-provider-config-"));
 
@@ -31,10 +51,10 @@ try {
     originalFilename: "default-provider.txt",
     text: "default provider body",
   }));
-  const fileId = upload.file.fileId;
+  const fileId = requireFile(upload, "default provider upload").fileId;
   const storedFile = await readFileRow(session.workspace_id, fileId);
 
-  assert.equal(upload.file.storageProvider, "local", "upload response should identify the stored provider");
+  assert.equal(requireFile(upload, "default provider upload").storageProvider, "local", "upload response should identify the stored provider");
   assert.equal(storedFile.storage_provider, "local", "new uploads should persist the configured local provider");
   assert.equal(storedFile.status, "pending", "provider selection must not change upload scan handoff status");
   assert.equal(storedFile.scan_status, "pending", "provider selection must not change upload scan handoff status");
@@ -53,8 +73,9 @@ try {
       text: "missing provider body",
     })),
     (error) => {
-      assert.equal(error.statusCode, 500, "unknown configured providers should fail as server configuration errors");
-      assert.match(error.message, /File storage provider 'missing-provider' is not configured\./);
+      const denial = /** @type {{ message?: string, statusCode?: number }} */ (error);
+      assert.equal(denial.statusCode, 500, "unknown configured providers should fail as server configuration errors");
+      assert.match(String(denial.message), /File storage provider 'missing-provider' is not configured\./);
       return true;
     },
     "unknown configured providers should not silently fall back to local",
@@ -80,36 +101,19 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
 async function assertStaticContracts() {
   const [
-    _packageJson,
-    _packageLock,
-    roadmap,
-    _changelog,
     runtimeDocs,
     filesServiceSource,
     _regressionSuite,
   ] = await Promise.all([
-    readJson("package.json"),
-    readJson("package-lock.json"),
-    readText("ROADMAP.md"),
-    readText("CHANGELOG.md"),
     readText("docs/runtime-configuration.md"),
     readText("src/services/files.service.js"),
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
           assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15, `LONGTAIL_STORAGE_PROVIDER=local` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(filesServiceSource, /function resolveConfiguredFileStorageProvider\(\)/, "Files service should own configured provider resolution");
-  assert.doesNotMatch(functionBlock(filesServiceSource, "uploadAndAttach"), /getFileStorageAdapter\("local"\)|storageProvider:\s*"local"/, "upload writes should not hardcode the local provider");
+  assert.doesNotMatch(extractFunctionSpan(filesServiceSource, "uploadAndAttach"), /getFileStorageAdapter\("local"\)|storageProvider:\s*"local"/, "upload writes should not hardcode the local provider");
   }
-
-async function readJson(relativePath) {
-  return JSON.parse(await readText(relativePath));
-}
-
-async function readText(relativePath) {
-  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
-}
 
 async function readSeedSession() {
   const rows = await querySql(`
@@ -122,19 +126,10 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  const workspaceId = user.active_workspace_id || user.home_workspace_id;
-
-  return {
-    active_workspace_id: workspaceId,
-    display_name: "Admin User",
-    role: "super_admin",
-    timezone: user.timezone || "UTC",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, display_name: "Admin User" });
 }
 
+/** @param {FilesSession} session @param {string} title */
 async function createTask(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -173,6 +168,7 @@ VALUES (
   return taskId;
 }
 
+/** @param {string} taskId @param {{ originalFilename?: string, text?: string }} [options] */
 function uploadPayload(taskId, options = {}) {
   return {
     contentBase64: Buffer.from(options.text || "file body").toString("base64"),
@@ -183,6 +179,7 @@ function uploadPayload(taskId, options = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} fileId */
 async function readFileRow(workspaceId, fileId) {
   const rows = await querySql(`
 SELECT *
@@ -196,6 +193,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {NodeJS.ReadableStream} stream */
 async function streamToText(stream) {
   const chunks = [];
 
@@ -204,11 +202,4 @@ async function streamToText(stream) {
   }
 
   return Buffer.concat(chunks).toString("utf8");
-}
-
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, nextFunction === -1 ? source.length : nextFunction);
 }

@@ -1,17 +1,19 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
+/** @typedef {{ workspace_id: string }} WorkspaceIdProjection */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-wave-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-wave.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Wave-Test-123!";
 
-const changelog = readText("CHANGELOG.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const convertedSources = new Map([
@@ -49,9 +51,6 @@ try {
   assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the conversion wave: 233/, "audit docs should record the wave operation-site burndown");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.3[\s\S]*auth, workspace, permission, and settings repositories/, "database docs should record the converted wave");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
-  assert.match(changelog, /## Version 0\.33\.5\.23\.3 - [\s\S]*Converted the first parameter-binding wave/, "changelog should include the conversion-wave slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "conversion-wave database should pass integrity check");
@@ -72,17 +71,17 @@ function assertConvertedSourceShape() {
     assert.match(source, /\bdb\.(?:query|get|run|transaction)\b/, `${label} should use the adapter db path`);
   }
 
-  assert.match(convertedSources.get("users.repo"), /USER_REMOVAL_STATEMENTS[\s\S]*transaction\.run/, "user cleanup should be transaction-backed bound statements");
-  assert.match(convertedSources.get("workspaces.repo"), /createWorkspace[\s\S]*db\.transaction/, "workspace creation should use adapter transactions");
-  assert.match(convertedSources.get("permissions.repo"), /ensurePermissionContracts[\s\S]*db\.transaction/, "permission contract repair should use adapter transactions");
-  assert.match(convertedSources.get("settings.repo"), /saveWorkspaceSettings[\s\S]*db\.transaction/, "settings save should use adapter transactions");
-  assert.match(convertedSources.get("app-settings.repo"), /ensureDefaults[\s\S]*db\.transaction/, "app settings defaults should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("users.repo")), /USER_REMOVAL_STATEMENTS[\s\S]*transaction\.run/, "user cleanup should be transaction-backed bound statements");
+  assert.match(/** @type {string} */ (convertedSources.get("workspaces.repo")), /createWorkspace[\s\S]*db\.transaction/, "workspace creation should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("permissions.repo")), /ensurePermissionContracts[\s\S]*db\.transaction/, "permission contract repair should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("settings.repo")), /saveWorkspaceSettings[\s\S]*db\.transaction/, "settings save should use adapter transactions");
+  assert.match(/** @type {string} */ (convertedSources.get("app-settings.repo")), /ensureDefaults[\s\S]*db\.transaction/, "app settings defaults should use adapter transactions");
 }
 
 async function assertConvertedRepositoriesRuntime() {
   await initializeDatabase();
 
-  const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  const workspace = /** @type {WorkspaceIdProjection | null} */ (await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"));
   assert.ok(workspace?.workspace_id, "fresh database should create the default workspace");
 
   const hostileSuffix = `'; DROP TABLE users; -- ${randomUUID()}`;
@@ -99,7 +98,7 @@ async function assertConvertedRepositoriesRuntime() {
     status: "active",
   });
 
-  const readUser = await usersRepository.readByUsername(username);
+  const readUser = requireRow(await usersRepository.readByUsername(username), "readUser");
   assert.equal(readUser.user_id, user.user_id, "usersRepository should read SQL-like usernames through bound params");
 
   await usersRepository.updateProfile(workspace.workspace_id, user.user_id, {
@@ -111,7 +110,7 @@ async function assertConvertedRepositoriesRuntime() {
   await usersRepository.updateThemeMode(workspace.workspace_id, user.user_id, "dark");
   await usersRepository.updateOpenExternalLinksNewTab(workspace.workspace_id, user.user_id, true);
 
-  const membership = await userWorkspacesRepository.readByUserAndWorkspace(user.user_id, workspace.workspace_id);
+  const membership = requireRow(await userWorkspacesRepository.readByUserAndWorkspace(user.user_id, workspace.workspace_id), "membership");
   assert.equal(membership.status, "active", "user workspace reads should stay scoped and bound");
 
   const settings = await settingsRepository.readWorkspaceSettings(workspace.workspace_id);
@@ -136,7 +135,7 @@ async function assertConvertedRepositoriesRuntime() {
     workspaceName: `Owned ${hostileSuffix}`,
     workspaceType: "personal",
   });
-  const ownedWorkspace = await workspacesRepository.readById(createdWorkspace.workspaceId);
+  const ownedWorkspace = requireRow(await workspacesRepository.readById(createdWorkspace.workspaceId), "ownedWorkspace");
   assert.equal(ownedWorkspace.workspace_name, `Owned ${hostileSuffix}`, "workspace creation should preserve SQL-like names");
 
   const defaultCreationPermission = await appSettingsRepository.readWorkspaceCreationPermission(`missing-${hostileSuffix}`);
@@ -156,12 +155,8 @@ async function assertConvertedRepositoriesRuntime() {
   await usersRepository.remove(workspace.workspace_id, removableUser.user_id);
   assert.equal(await usersRepository.readFirstByUserId(removableUser.user_id), null, "home-workspace user cleanup should delete the user record");
 
-  const usersTable = await db.get("SELECT COUNT(1) AS count FROM users;");
-  const workspacesTable = await db.get("SELECT COUNT(1) AS count FROM workspaces;");
+  const usersTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM users;"), "usersTable");
+  const workspacesTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM workspaces;"), "workspacesTable");
   assert.ok(Number(usersTable.count) >= 1, "users table should survive SQL-like bound values");
   assert.ok(Number(workspacesTable.count) >= 1, "workspaces table should survive SQL-like bound values");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

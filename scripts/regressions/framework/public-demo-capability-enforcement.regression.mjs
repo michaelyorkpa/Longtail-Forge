@@ -7,6 +7,7 @@ export const regressionMeta = Object.freeze({
   runMode: "isolated-database",
 });
 
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
@@ -45,11 +46,12 @@ const outboundCapabilityIds = [
 ];
 for (const capabilityId of outboundCapabilityIds) {
   assert.ok(PUBLIC_DEMO_ABSENT_CAPABILITY_IDS.includes(capabilityId));
+  /** @type {{ code?: string } | null} */
   let outboundDenial = null;
-  requirePublicDemoCapability(capabilityId, { demoEnabled: true })({}, {}, (error) => {
-    outboundDenial = error;
+  requirePublicDemoCapability(capabilityId, { demoEnabled: true })(/** @type {import("express").Request} */ (/** @type {unknown} */ ({})), {}, (error) => {
+    outboundDenial = /** @type {{ code?: string }} */ (error);
   });
-  assert.equal(outboundDenial?.code, PUBLIC_DEMO_DENIAL_CODE);
+  assert.equal(/** @type {{ code?: string } | null} */ (outboundDenial)?.code, PUBLIC_DEMO_DENIAL_CODE);
 }
 
 const catalogProbe = {
@@ -71,6 +73,7 @@ for (const moduleDefinition of listModules()) {
     assert.equal(endpoint.publicDemoCapability, "api_keys", moduleDefinition.id + " endpoint " + endpoint.path + " must be demo-disabled");
   }
   for (const scope of moduleDefinition.apiScopes || []) {
+    if (typeof scope === "string") continue;
     assert.equal(scope.publicDemoCapability, "api_keys", moduleDefinition.id + " scope " + scope.id + " must be demo-disabled");
   }
 }
@@ -104,7 +107,7 @@ assert.match(appSource, /app\.use\("\/api\/v1", requirePublicDemoCapability\("ap
 const jobSources = await Promise.all([
   "src/modules/notes/catalog-security.service.js",
   "src/modules/tasks/task-jobs.service.js",
-  "src/services/files.service.js",
+  "src/services/files-scanner-job.service.js",
   "src/services/import-jobs.service.js",
   "src/services/notifications.service.js",
   "src/services/search-index-jobs.service.js",
@@ -120,34 +123,37 @@ assert.match(runnerSource, /assertRegisteredJobPublicDemoCapabilityAllowed\(job\
 
 let denialError = null;
 requirePublicDemoCapability("administration.accounts", { demoEnabled: true })(
-  {},
+  /** @type {import("express").Request} */ (/** @type {unknown} */ ({})),
   {},
   (error) => {
     denialError = error;
   },
 );
 assert.ok(denialError);
+/** @type {{ body: unknown, status: number | null }} */
 const responseState = { body: null, status: null };
 createErrorHandler()(
   denialError,
-  {
+  /** @type {import("../../../src/types/route-contracts.js").RouteRequest} */ (/** @type {unknown} */ ({
     method: "POST",
     path: "/api/users",
     originalUrl: "/api/users",
     requestContext: { requestId: "demo-denial-request" },
     session: { user_id: "public-workspace-admin", workspace_id: "demo-workspace" },
-  },
-  {
+  })),
+  /** @type {import("../../../src/types/route-contracts.js").RouteResponse} */ (/** @type {unknown} */ ({
     headersSent: false,
+    /** @param {number} status */
     status(status) {
       responseState.status = status;
       return this;
     },
+    /** @param {unknown} body */
     json(body) {
       responseState.body = body;
       return this;
     },
-  },
+  })),
   () => {},
 );
 assert.equal(responseState.status, 403);
@@ -226,6 +232,7 @@ await databaseFixture.cleanup();
 
 console.log("Public-demo capability enforcement regression passed.");
 
+/** @param {unknown} value @param {string} pathLabel @returns {void} */
 function assertDeclaredActions(value, pathLabel) {
   if (Array.isArray(value)) {
     value.forEach((item, index) => assertDeclaredActions(item, pathLabel + "[" + index + "]"));
@@ -250,8 +257,4 @@ function assertDeclaredActions(value, pathLabel) {
     }
     assertDeclaredActions(item, pathLabel + "." + key);
   }
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 }

@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const root = process.cwd();
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notifications-inbox-lifecycle-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notifications-inbox-lifecycle-conversion.db");
@@ -15,8 +18,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Notifications-Inbox-Lifecycle-Conversion-Tes
 const notificationsRepoSource = readText("src/repositories/notifications.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { notificationsRepository } = await import("../src/repositories/notifications.repo.js");
@@ -69,7 +70,7 @@ function assertStaticContract() {
     /priority = :priority/,
     /return \{ clauses, params \};/,
   ]);
-  assert.doesNotMatch(functionBlock(notificationsRepoSource, "notificationListWhereClauses"), /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "notification list filters should not use literal SQL helpers after conversion");
+  assert.doesNotMatch(extractFunctionBlock(notificationsRepoSource, "notificationListWhereClauses"), /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, "notification list filters should not use literal SQL helpers after conversion");
 
   assertFunctionUsesPatterns("readFilterOptionsForRecipient", [
     /db\.query\(`/,
@@ -92,19 +93,19 @@ function assertStaticContract() {
 
   assert.match(auditDocs, /0\.33\.5\.27\.21 Notifications Inbox and Lifecycle Conversion[\s\S]*create, list\/count, bell summary, read-by-id, mark-read, dismiss, archive, admin-recipient, and filter-option paths[\s\S]*536 runtime literal-helper invocations[\s\S]*111 direct interpolated SQL operation sites[\s\S]*246 existing bound operation sites/, "audit docs should record the Notifications inbox/lifecycle conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.21[\s\S]*Notifications inbox and lifecycle paths in `notifications\.repo` are partially converted[\s\S]*536 remaining helper invocations/, "database docs should record the concrete Notifications inbox/lifecycle conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.21 - Conversion wave: Notifications inbox and lifecycle[\s\S]*- \[x\] Convert notification create[\s\S]*- \[x\] Preserve in-app notification display[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.21 - [\s\S]*Notifications inbox and lifecycle conversion[\s\S]*536 helper invocations[\s\S]*111 direct interpolated operation sites[\s\S]*246 bound operation sites/, "changelog should record the Notifications inbox/lifecycle conversion burndown");
   }
 
+/** @param {string} functionName */
 function assertConvertedFunction(functionName) {
-  const block = functionBlock(notificationsRepoSource, functionName);
+  const block = extractFunctionBlock(notificationsRepoSource, functionName);
   assert.match(block, /\bdb\.(?:query|get|run)\(`/u, `${functionName} should use the provider-neutral db facade`);
   assert.match(block, /:[A-Za-z][A-Za-z0-9_]*|notificationListWhereClauses/u, `${functionName} should use named params`);
   assert.doesNotMatch(block, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, `${functionName} should not use literal SQL helpers after conversion`);
 }
 
+/** @param {string} functionName @param {readonly RegExp[]} patterns */
 function assertFunctionUsesPatterns(functionName, patterns) {
-  const block = functionBlock(notificationsRepoSource, functionName);
+  const block = extractFunctionBlock(notificationsRepoSource, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -125,11 +126,12 @@ LIMIT 1;
   assert.ok(user?.user_id, "fresh database should include a protected user");
 
   return {
-    userId: user.user_id,
-    workspaceId: workspace.workspace_id,
+    userId: String(user.user_id),
+    workspaceId: String(workspace.workspace_id),
   };
 }
 
+/** @param {{ userId: string, workspaceId: string }} identity */
 async function seedWorkspaceAdminRole({ userId, workspaceId }) {
   const now = new Date().toISOString();
 
@@ -163,6 +165,7 @@ VALUES (
 `);
 }
 
+/** @param {{ userId: string, workspaceId: string }} identity */
 async function assertNotificationInboxLifecycleRuntime({ userId, workspaceId }) {
   const oldIso = "2020-01-01T00:00:00.000Z";
   const firstId = randomUUID();
@@ -182,6 +185,7 @@ async function assertNotificationInboxLifecycleRuntime({ userId, workspaceId }) 
     url: "tasks.html?task=notification-conversion-task",
     workspace_id: workspaceId,
   });
+  assert.ok(first, "creating an inbox notification should return the persisted row");
   assert.equal(first.notification_id, firstId, "created notifications should be readable by id");
   assert.equal(first.status, "unread", "new notifications should default to unread");
 
@@ -193,6 +197,7 @@ async function assertNotificationInboxLifecycleRuntime({ userId, workspaceId }) 
     title: "Replacement title should not win",
     workspace_id: workspaceId,
   });
+  assert.ok(duplicate, "the deduplicated insert should return the existing row");
   assert.equal(duplicate.title, "Normal task notification", "explicit duplicate notification IDs should return the existing row");
 
   await notificationsRepository.create({
@@ -238,14 +243,17 @@ async function assertNotificationInboxLifecycleRuntime({ userId, workspaceId }) 
   assert.equal(summary.hasUrgentPriority, true, "urgent read active notifications should keep the priority alert");
 
   const read = await notificationsRepository.markRead(workspaceId, userId, firstId);
+  assert.ok(read, "marking a notification read should return the persisted row");
   assert.equal(read.status, "read", "markRead should mark an unread notification read");
   assert.ok(read.read_at, "markRead should stamp read_at");
 
   const dismissed = await notificationsRepository.dismiss(workspaceId, userId, firstId);
+  assert.ok(dismissed, "dismissing a notification should return the persisted row");
   assert.equal(dismissed.status, "dismissed", "dismiss should mark the notification dismissed");
   assert.ok(dismissed.dismissed_at, "dismiss should stamp dismissed_at");
 
   const dismissedAfterRead = await notificationsRepository.markRead(workspaceId, userId, firstId);
+  assert.ok(dismissedAfterRead, "dismissing a read notification should return the persisted row");
   assert.equal(dismissedAfterRead.status, "dismissed", "markRead should not revive a dismissed notification");
 
   await notificationsRepository.markAllRead(workspaceId, userId);
@@ -255,6 +263,7 @@ async function assertNotificationInboxLifecycleRuntime({ userId, workspaceId }) 
 
   await notificationsRepository.archiveOlderThan("2021-01-01T00:00:00.000Z");
   const oldArchived = await notificationsRepository.readByIdForRecipient(workspaceId, userId, oldReadId);
+  assert.ok(oldArchived, "archiving an aged notification should return the persisted row");
   assert.equal(oldArchived.status, "archived", "archiveOlderThan should archive old read/dismissed notifications only");
 
   const admins = await notificationsRepository.readWorkspaceAdminUserIds(workspaceId);
@@ -264,30 +273,4 @@ async function assertNotificationInboxLifecycleRuntime({ userId, workspaceId }) 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
-}
-
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`(?:async\\s+)?function ${functionName}\\s*\\([^)]*\\)\\s*\\{`);
-  const match = pattern.exec(source);
-  assert.ok(match, `${functionName} should exist`);
-
-  const bodyStart = match.index + match[0].lastIndexOf("{");
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(match.index, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract function ${functionName}`);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

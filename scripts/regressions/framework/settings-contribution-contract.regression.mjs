@@ -11,6 +11,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { extractFunctionBlock } from "../../test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("settings-contribution-contract");
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
@@ -27,6 +29,9 @@ const {
 const { developerExampleModule } = await import("../../../src/modules/developer-example/module.js");
 const { tasksModule } = await import("../../../src/modules/tasks/module.js");
 const { timeTrackingModule } = await import("../../../src/modules/time-tracking/module.js");
+
+/** @typedef {import("../../../src/types/framework-contracts.js").ModuleSettingDefinition} ModuleSettingDefinition */
+/** @typedef {import("../../../src/types/framework-contracts.js").ModuleViewContribution} ModuleViewContribution */
 
 try {
   assert.equal(ACTIVE_MANIFEST_FIELDS.has("settings"), true);
@@ -165,6 +170,8 @@ try {
     enabledModuleIds: new Set(["developer-example"]),
   }), true, "Settings should inherit the shared workspace-capability filter");
 
+  assertSharedViewContributionContract();
+
   console.log("Settings contribution contract regression passed.");
 } finally {
   await closeSqlite();
@@ -172,13 +179,22 @@ try {
 }
 
 function assertRealContributionShape() {
-  const hints = developerExampleModule.settings.find((setting) => setting.id === "developerExampleHintsEnabled");
-  const mode = developerExampleModule.settings.find((setting) => setting.id === "developerExampleMode");
-  const taskTimers = tasksModule.settings.find((setting) => setting.id === "taskTimersEnabled");
-  const developerSettingsView = developerExampleModule.protectedViews.find((view) => view.id === "developer-example");
-  const developerSettingsAsset = developerExampleModule.browserAssets.find((asset) => asset.id === "developer-example-script");
-  const tasksSettingsView = tasksModule.protectedViews.find((view) => view.id === "tasks-settings");
-  const timeTrackingSettingsView = timeTrackingModule.protectedViews.find((view) => view.id === "time-tracking-settings");
+  // All three bundled modules declare the contribution arrays asserted below;
+  // reading through these aliases keeps a missing array failing at the same
+  // find() call it fails at today.
+  const developerSettings = /** @type {ModuleSettingDefinition[]} */ (developerExampleModule.settings);
+  const taskSettings = /** @type {ModuleSettingDefinition[]} */ (tasksModule.settings);
+  const developerViews = /** @type {ModuleViewContribution[]} */ (developerExampleModule.protectedViews);
+  const taskViews = /** @type {ModuleViewContribution[]} */ (tasksModule.protectedViews);
+  const timeTrackingViews = /** @type {ModuleViewContribution[]} */ (timeTrackingModule.protectedViews);
+  const developerAssets = /** @type {import("../../../src/types/framework-contracts.js").BrowserAssetContribution[]} */ (developerExampleModule.browserAssets);
+  const hints = /** @type {ModuleSettingDefinition} */ (developerSettings.find((setting) => setting.id === "developerExampleHintsEnabled"));
+  const mode = /** @type {ModuleSettingDefinition} */ (developerSettings.find((setting) => setting.id === "developerExampleMode"));
+  const taskTimers = /** @type {ModuleSettingDefinition} */ (taskSettings.find((setting) => setting.id === "taskTimersEnabled"));
+  const developerSettingsView = developerViews.find((view) => view.id === "developer-example");
+  const developerSettingsAsset = developerAssets.find((asset) => asset.id === "developer-example-script");
+  const tasksSettingsView = taskViews.find((view) => view.id === "tasks-settings");
+  const timeTrackingSettingsView = timeTrackingViews.find((view) => view.id === "time-tracking-settings");
   assert.equal(developerSettingsView?.path, "/developer-example.html");
   assert.equal(developerSettingsAsset?.path, "/js/module-settings.js");
   assert.deepEqual(developerSettingsAsset?.views, ["developer-example"]);
@@ -190,7 +206,7 @@ function assertRealContributionShape() {
   assert.equal(taskTimers.handler, undefined, "Task timers should use ordinary generic persistence after migration");
   assert.deepEqual(taskTimers.requiredModules, ["time-tracking"]);
   assert.equal(
-    tasksModule.settings.filter((setting) => setting.handler?.startsWith("tasks.reminder")).length,
+    taskSettings.filter((setting) => setting.handler?.startsWith("tasks.reminder")).length,
     4,
     "Tasks reminder defaults should declare their four retained-table handlers",
   );
@@ -213,7 +229,7 @@ function assertDisabledModuleRecoveryBrowserContract() {
   assert.match(rendererSource, /renderDisabledModuleRecovery[\s\S]*Open Workspace Settings/);
   assert.match(rendererSource, /panel\.dataset\.disabledModuleRecovery = moduleId/);
   assert.match(navigationSource, /refreshAppShell = loadAppShellBootstrap[\s\S]*longtailforge:workspace-context-updated/);
-  assert.match(workspaceSettingsSource, /await window\.LongtailForge\.refreshAppShell\?\.\(\)/);
+  assert.match(extractFunctionBlock(workspaceSettingsSource, "saveSettings"), /await requireNamespace\(\)\.refreshAppShell\?\.\(\)/);
   assert.match(footerSource, /longtailforge:workspace-context-updated[\s\S]*syncQuickActionCapture/);
 }
 
@@ -290,7 +306,7 @@ function assertListingSeparation() {
   const catalogSource = readFileSync("src/services/settings-catalog.service.js", "utf8");
   assert.match(
     source,
-    /async function listSettingsContributions\(workspaceId, session = null\)[\s\S]*listWorkspaceContributions\(workspaceId, session, "settings"\)/,
+    /async function listSettingsContributions\(workspaceId, session =[\s\S]{0,100}const settings = await listWorkspaceContributions\(workspaceId, session, "settings"\)/,
   );
   const listingBody = source.match(/async function listSettingsContributions[\s\S]*?\n}\n/)?.[0] || "";
   assert.doesNotMatch(listingBody, /settingsService|getValue|readModuleSetting/);
@@ -325,6 +341,7 @@ function assertOwnershipMigrationBoundary() {
   assert.match(environmentExample, /LONGTAIL_SECURE_NOTES_MASTER_KEY[\s\S]*LONGTAIL_STORAGE_PROVIDER[\s\S]*LONGTAIL_FILE_SCANNER/, "Secrets, storage providers, and scanner selection should remain environment configuration");
 }
 
+/** @param {unknown} settings @param {RegExp} pattern */
 function assertInvalid(settings, pattern) {
   assert.throws(
     () => validateModuleManifests([sampleModule({ settings: Array.isArray(settings) ? settings : [settings] })]),
@@ -368,6 +385,7 @@ function sampleSetting(overrides = {}) {
   };
 }
 
+/** @param {unknown} value @returns {boolean} */
 function containsFunction(value) {
   if (typeof value === "function") {
     return true;
@@ -387,12 +405,43 @@ LIMIT 1;
 `);
   const user = rows[0];
   assert.ok(user, "Fresh database should seed a protected super admin");
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
+}
+
+/**
+ * The view-contribution declaration must stay a single named shape that matches
+ * what the manifest contract enforces at runtime. Before 0.33.33.30.2.1 both
+ * arrays were declared `unknown[]`, which forced every consumer to invent its
+ * own local shape and let those copies drift from the validator.
+ */
+function assertSharedViewContributionContract() {
+  const declaration = readFileSync("src/types/framework-contracts.d.ts", "utf8");
+  const openMarker = "export interface ModuleViewContribution {";
+  const openIndex = declaration.indexOf(openMarker);
+  assert.notEqual(openIndex, -1, "View contributions should have one named declaration");
+  const body = declaration.slice(openIndex + openMarker.length, declaration.indexOf("}", openIndex));
+  for (const requiredField of ["id", "moduleId", "path", "file"]) {
+    assert.equal(
+      body.includes(`${requiredField}: string;`),
+      true,
+      `ModuleViewContribution should require ${requiredField}, which validateViews enforces`,
+    );
+  }
+  for (const arrayField of ["protectedViews", "publicViews"]) {
+    assert.equal(declaration.includes(`${arrayField}?: ModuleViewContribution[];`), true, `${arrayField} should use the shared contribution shape`);
+    assert.equal(declaration.includes(`${arrayField}?: unknown[];`), false, `${arrayField} must not return to an untyped array`);
+    assert.equal(declaration.includes(`${arrayField}: ModuleViewContribution[];`), true, `the normalized ${arrayField} should use the same shape`);
+  }
+  for (const [ownerLabel, views] of [
+    ["developer-example", developerExampleModule.protectedViews],
+    ["tasks", tasksModule.protectedViews],
+    ["time-tracking", timeTrackingModule.protectedViews],
+  ]) {
+    for (const view of /** @type {ModuleViewContribution[]} */ (views)) {
+      for (const requiredField of /** @type {const} */ (["id", "moduleId", "path", "file"])) {
+        assert.equal(typeof view[requiredField], "string", `${ownerLabel} protected view should carry a ${requiredField} the declaration requires`);
+        assert.notEqual(view[requiredField], "", `${ownerLabel} protected view ${requiredField} should not be empty`);
+      }
+    }
+  }
 }

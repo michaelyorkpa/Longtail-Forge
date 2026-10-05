@@ -53,9 +53,12 @@ describe("public-demo capability enforcement", () => {
     for (const capabilityId of ["support_view", "future.undeclared"]) {
       assert.throws(
         () => assertPublicDemoCapabilityAllowed(capabilityId, { demoEnabled: true }),
-        (error) => error.statusCode === 403
-          && error.code === PUBLIC_DEMO_DENIAL_CODE
-          && error.message === PUBLIC_DEMO_DENIAL_MESSAGE,
+        (error) => {
+          const denial = /** @type {{ statusCode?: number, code?: string, message?: string }} */ (error);
+          return denial.statusCode === 403
+            && denial.code === PUBLIC_DEMO_DENIAL_CODE
+            && denial.message === PUBLIC_DEMO_DENIAL_MESSAGE;
+        },
       );
     }
   });

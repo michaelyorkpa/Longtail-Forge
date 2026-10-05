@@ -8,13 +8,16 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
-    console.error(error?.message || error);
+    console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   } finally {
     await closeDatabase();
   }
 }
 
+/** @typedef {{ help?: boolean, workspaceId?: string }} WorkspacePurgeOptions */
+
+/** @param {string[]} args */
 async function main(args) {
   const options = parseCli(args);
   if (options.help) {
@@ -35,7 +38,9 @@ async function main(args) {
   }, null, 2));
 }
 
+/** @param {string[]} args @returns {WorkspacePurgeOptions} */
 function parseCli(args) {
+  /** @type {WorkspacePurgeOptions} */
   const options = {};
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];

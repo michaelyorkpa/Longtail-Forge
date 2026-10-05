@@ -1,4 +1,3 @@
-// @ts-check
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 import { notesPublicApiRoutes } from "./public-api.routes.js";
 import { notesRoutes } from "./notes.routes.js";
@@ -39,11 +38,8 @@ const notesModule = {
   historicalReadAccess: true,
   browserApiRoutes: [notesRoutes],
   publicApiRoutes: [notesPublicApiRoutes],
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     {
       id: "notes",
@@ -79,7 +75,6 @@ const notesModule = {
       allowDisabledRead: true,
     },
   ],
-  publicViews: [],
   viewSurfaces: [
     {
       id: "notes.workspace",

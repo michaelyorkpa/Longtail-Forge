@@ -1,4 +1,3 @@
-// @ts-check
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +13,9 @@ if (!appVersion) {
   throw new Error("package.json must define a non-empty version.");
 }
 
+/**
+ * @param {string} value
+ */
 function normalizeReleaseBranch(value, { required = false } = {}) {
   const branch = String(value || "").trim().toLowerCase();
   if (!branch) {

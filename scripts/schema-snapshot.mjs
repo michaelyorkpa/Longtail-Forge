@@ -25,6 +25,7 @@ if (options.mode === "refresh") {
   console.log(`Schema snapshot is current (${result.migrations.length} migration(s)).`);
 }
 
+/** @param {string[]} args */
 function parseOptions(args) {
   const allowed = new Set(["--refresh", "--check", "--allow-schema-without-migration"]);
   for (const argument of args) {

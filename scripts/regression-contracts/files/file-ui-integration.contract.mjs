@@ -1,0 +1,168 @@
+import assert from "node:assert/strict";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
+const { readText: read } = createProjectTextReader();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const helper = read("public/js/shared/file-attachments.js");
+const taskDialog = read("public/js/task-dialog.js");
+const tasksPage = read("views/protected/tasks.html");
+const workbenchPage = read("views/protected/workbench.html");
+const tasksScript = read("public/js/tasks.js");
+const filesPage = read("views/protected/files.html");
+const filesScript = read("public/js/files.js");
+const filesRoutes = read("src/routes/files.routes.js");
+const filesService = read("src/services/files.service.js");
+const filesPreviewService = read("src/services/files-preview.service.js");
+const filesStorageAccountingService = read("src/services/files-storage-accounting.service.js");
+const filesRepository = read("src/repositories/files.repo.js");
+const filesRepositoryContracts = read("src/types/files-repository-contracts.d.ts");
+const filesStorageAccountingContracts = read("src/types/files-storage-accounting-contracts.d.ts");
+const appShell = read("src/services/app-shell.service.js");
+const staticService = read("src/services/static.service.js");
+const taskModuleIntegrations = read("src/modules/tasks/module.integrations.js");
+
+[
+  "uploadStarted",
+  "uploadCompleted",
+  "uploadFailed",
+  "attachmentAdded",
+  "attachmentRemoved",
+  "statusChanged",
+  "refresh",
+].forEach((eventName) => {
+  assert.match(helper, new RegExp(`"${eventName}"`), `file attachment helper should expose ${eventName} event flow`);
+});
+
+[
+  "data-file-attachment-input",
+  "/api/files",
+  "/api/files/attachments",
+  "/api/files/attachments/${encodeURIComponent(attachmentId)}/remove",
+  "/api/files/${encodeURIComponent(fileId)}/download",
+  "No attachments yet.",
+  "Save before adding files.",
+  "Review pending",
+  "In review",
+].forEach((snippet) => {
+  assert.ok(helper.includes(snippet), `file attachment helper should contain ${snippet}`);
+});
+
+assert.ok(taskDialog.includes("data-task-files"), "Task dialog should reserve task attachment mount point.");
+assert.ok(
+  tasksPage.indexOf("js/shared/file-attachments.js") < tasksPage.indexOf("js/task-dialog.js"),
+  "Task attachment helper must load before task dialog.",
+);
+assert.ok(
+  tasksPage.indexOf("js/shared/notes-linked-panel.js") < tasksPage.indexOf("js/task-dialog.js"),
+  "Task notes helper must load before task dialog.",
+);
+// The workbench lazy-loads the task dialog through the module-action
+// dependency mechanism; its attachment and notes helpers stay static so they
+// are always present before the dialog script executes. 0.33.33.34 moved that
+// dependency table out of workbench.js and into the shared registry, so the
+// lazy-load assertion below reads its published owner.
+const moduleActionsScript = read("public/js/shared/module-actions.js");
+assert.ok(workbenchPage.includes("js/shared/file-attachments.js"), "Workbench must keep the task attachment helper static for the lazy task dialog.");
+assert.ok(workbenchPage.includes("js/shared/notes-linked-panel.js"), "Workbench must keep the task notes helper static for the lazy task dialog.");
+assert.ok(!workbenchPage.includes("js/task-dialog.js"), "Workbench must not load the task dialog statically.");
+assert.ok(moduleActionsScript.includes('src: "js/task-dialog.js"'), "The module-action registry must lazy-load the task dialog as a dependency.");
+assert.ok(taskDialog.includes("namespace.fileAttachments.mount"), "Task dialog should mount shared file helper.");
+assert.ok(taskDialog.includes('moduleId: "tasks"'), "Task dialog should pass manifest module ID.");
+assert.ok(taskDialog.includes('targetType: "task"'), "Task dialog should pass manifest target type.");
+assert.ok(taskDialog.includes("onAttachmentsChanged"), "Task dialog should expose module-facing attachment callbacks.");
+assert.ok(taskModuleIntegrations.includes("attachableTypes"), "Tasks manifest should declare attachable target.");
+assert.ok(taskModuleIntegrations.includes('targetType: "task"'), "Tasks attachable target should be task.");
+
+assert.ok(tasksScript.includes("/api/files/attachments/counts"), "Tasks list should request framework attachment counts.");
+assert.ok(tasksScript.includes('moduleId: "tasks"'), "Task count request should use tasks module ID.");
+assert.ok(tasksScript.includes('targetType: "task"'), "Task count request should use task target type.");
+assert.ok(tasksScript.includes("task-attachment-count"), "Task rows should render attachment count chips.");
+
+assert.ok(filesPage.includes('<main class="wide-page files-page" data-files-host></main>'), "Files page should expose the minimal descriptor host.");
+assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the shared modal helper for in-app warnings.");
+assert.ok(
+  filesPage.indexOf("js/shared/client-project-options.js") < filesPage.indexOf("js/shared/view-builder.js") &&
+    filesPage.indexOf("js/shared/view-builder.js") < filesPage.indexOf("js/shared/view-renderer.js") &&
+    filesPage.indexOf("js/shared/view-renderer.js") < filesPage.indexOf("js/shared/file-preview.js") &&
+    filesPage.indexOf("js/shared/file-preview.js") < filesPage.indexOf("js/files.js"),
+  "Files page should load client/project helpers plus the shared view builder/renderer before the Files adapter.",
+);
+assert.ok(filesPage.includes("js/files.js"), "Files page should reference the protected Files script.");
+assert.doesNotMatch(filesPage, /\b(data-file-filters|data-file-business-control|data-file-list)\b/, "Files page should not ship browse hooks outside the descriptor host.");
+assert.ok(filesScript.includes("data-file-filters") || filesScript.includes("dataset.fileFilters"), "Files adapter should mount the filter form.");
+assert.ok(filesScript.includes("data-file-business-control") || filesScript.includes("dataset.fileBusinessControl"), "Files adapter should mark business-only client controls.");
+["data-file-filter-module", "data-file-filter-target-type", "data-file-filter-target-id", "data-file-filter-client", "data-file-filter-project", "data-file-filter-filename", "data-file-filter-status"].forEach((selector) => {
+  const datasetName = selector.replace(/^data-/, "").replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
+  assert.ok(filesScript.includes(selector) || filesScript.includes(`dataset.${datasetName}`), `Files adapter should expose ${selector}.`);
+});
+assert.ok(filesScript.includes("/api/files/attachments?"), "Files surface should browse framework attachments.");
+assert.ok(filesScript.includes("moduleId"), "Files surface should filter by module.");
+assert.ok(filesScript.includes("targetType"), "Files surface should filter by target type.");
+assert.ok(filesScript.includes("clientId"), "Files surface should filter by client.");
+assert.ok(filesScript.includes("projectId"), "Files surface should filter by project.");
+assert.ok(filesScript.includes("filename"), "Files surface should filter by filename.");
+assert.ok(filesScript.includes("status"), "Files surface should filter by status.");
+assert.ok(filesScript.includes("targetLabel"), "Files surface should render human-readable target labels.");
+assert.ok(filesScript.includes("clientLabel"), "Files surface should render human-readable client labels.");
+assert.ok(filesScript.includes("projectLabel"), "Files surface should render human-readable project labels.");
+// 0.33.33.38.2.6.8 publishes through a checked local binding, so the assignment no longer
+// spells the root. The claim is unchanged - this file still owns the surface - and the
+// binding it publishes through is pinned alongside it.
+assert.match(filesScript, /const namespace = window\.LongtailForge;[\s\S]*?namespace\.filesDialog = /,
+  "Files surface should expose the canonical file context dialog namespace.");
+assert.ok(filesScript.includes("openFileEditor"), "Files surface should expose the file context editor opener.");
+assert.ok(filesScript.includes("usesBusinessScope() ? clientFilter?.value : \"\""), "Files surface should not send client filters outside Business workspaces.");
+assert.ok(filesScript.includes('title: "Delete file?"'), "Files surface should warn before deleting files.");
+assert.ok(helper.includes('title: "Delete file?"'), "Attachment helper should warn before deleting files.");
+assert.ok(staticService.includes('"files.html"'), "Files page should be a framework protected view.");
+assert.ok(appShell.includes('href: "files.html"'), "Files page should appear in app navigation.");
+
+assert.ok(filesRoutes.includes('"/files/attachments/counts"'), "Files routes should expose count endpoint.");
+assert.ok(filesRoutes.includes('"/files/attachable-targets"'), "Files routes should expose attachable target option endpoint.");
+assert.ok(filesRoutes.includes('"/files/attachments/:fileAttachmentId/preview"'), "Files routes should expose the attachment-scoped preview descriptor endpoint.");
+assert.ok(filesRoutes.includes('"/files/attachments/:fileAttachmentId/preview/content"'), "Files routes should expose the attachment-scoped preview content endpoint.");
+assert.ok(
+  filesRoutes.indexOf('"/files/attachments/:fileAttachmentId/preview/content"') < filesRoutes.indexOf('"/files/attachments/:fileAttachmentId/preview"') &&
+    filesRoutes.indexOf('"/files/attachments/:fileAttachmentId/preview"') < filesRoutes.indexOf('"/files/:fileId"'),
+  "Files preview descriptor and content endpoints should be registered before the generic file route.",
+);
+assert.ok(filesService.includes("countAttachmentsForTargets"), "Files service should own permission-shaped attachment counts.");
+assert.ok(filesService.includes("listAttachableTargetOptions"), "Files service should own permission-shaped attachable target options.");
+assert.ok(filesService.includes("readAttachmentPreviewDescriptor"), "Files service should own attachment preview descriptors.");
+assert.ok(filesService.includes("readAttachmentPreviewContent"), "Files service should own attachment preview content.");
+assert.match(filesService, /filesPreviewService\.shapeDescriptor/, "Files facade should delegate safe preview projection to the checked Files preview seam.");
+assert.match(filesService, /filesPreviewService\.readContent/, "Files facade should delegate safe preview content shaping to the checked Files preview seam.");
+assert.match(filesPreviewService, /renderMarkdownToHtml/, "Files preview seam should retain the shared safe Markdown renderer.");
+assert.doesNotMatch(filesPreviewService, /storage[_A-Z]?key|protectedPath|signedUrl|sha256|scanner/i, "Files preview seam should not consume protected storage or scanner metadata.");
+assert.ok(filesService.includes("normalizeFileStatusFilter"), "Files service should normalize status filters.");
+assert.ok(filesRepository.includes("filters.filename"), "Files repository should filter browse results by filename.");
+assert.ok(filesService.includes("filters.clientId"), "Files service should filter browse results by client.");
+assert.ok(filesService.includes("filters.projectId"), "Files service should filter browse results by project.");
+assert.match(filesService, /filesRepo.*from "\.\.\/repositories\/files\.repo\.js"/, "Files service should consume the checked repository seam.");
+assert.doesNotMatch(filesService, /\bdb\.(?:query|get|run|dialect)\b|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/, "Files service should not own SQL, dialect query construction, or row projections.");
+assert.match(filesService, /db\.transaction\(async \(transaction\)[\s\S]*filesRepo\.createFileReport\(transaction[\s\S]*filesRepo\.markFileReported\(transaction/, "Files service should retain report transaction orchestration while passing scoped capability to repository writes.");
+assert.match(filesService, /filesStorageAccountingService\.refreshStorageAccounting/, "Files facade should delegate accounting reconciliation to the typed Files-owned policy seam.");
+assert.match(filesStorageAccountingService, /db\.transaction\(async \(transaction\)[\s\S]*filesRepo\.replaceInternalStorageAccounting\(transaction/, "Files accounting policy should own reconciliation transaction orchestration while passing scoped capability to repository writes.");
+assert.match(filesStorageAccountingService, /filesRepo\.readInternalStorageQuotaUsage/, "Files accounting policy should read repository-owned quota usage.");
+assert.match(filesStorageAccountingService, /userBytes: Number\(row\?\.user_bytes[\s\S]*workspaceBytes: Number\(row\?\.workspace_bytes/, "Files accounting policy should derive workspace and user quota state from repository usage.");
+assert.doesNotMatch(filesStorageAccountingService, /storage[_A-Z]?key|protectedPath|scanner/i, "Files accounting policy should not consume protected storage or scanner details.");
+assert.equal(owningProgram("src/repositories/files.repo.js"), "server-tests", "Files repository must remain a strict-clean checked owner.");
+assert.match(filesRepository, /from "\.\.\/core\/database\.js"/, "Files repository should consume the provider-neutral database facade.");
+assert.match(filesRepository, /function buildAttachmentReadQuery[\s\S]*applyAttachmentContextScopeFilters[\s\S]*likePattern[\s\S]*containsNoCase/, "Files repository should own bounded dynamic browse filters through dialect seams.");
+assert.match(filesRepository, /function readAttachableTargetOptionRows[\s\S]*safeSqlIdentifier[\s\S]*readTableColumnSet[\s\S]*attachableTargetFilterConditions/, "Files repository should own validated dynamic attachable-target projections.");
+for (const method of ["createAttachment", "createFile", "readAttachmentRows", "readFile", "readStorageAccounting", "saveWorkspaceFileSettings", "updateScanResult"]) {
+  assert.match(filesRepository, new RegExp(`\\b${method}\\b`), `Files repository should expose ${method}.`);
+}
+for (const rowContract of ["AttachmentRow", "AttachableTargetRow", "FileRow", "StorageAccountingRow", "WorkspaceFileSettingsRow"]) {
+  assert.match(filesRepositoryContracts, new RegExp(`interface ${rowContract}\\b`), `Files repository declarations should name ${rowContract}.`);
+}
+for (const policyContract of ["StorageAccountingEntry", "StorageAccountingResult", "StorageAccountingSummary", "StorageQuotaState", "FileUploadLimit"]) {
+  assert.match(filesStorageAccountingContracts, new RegExp(`interface ${policyContract}\\b`), `Files accounting declarations should name ${policyContract}.`);
+}
+
+console.log("File UI integration regression passed.");
+// Consolidated under files.current-static-contracts by 0.33.33.11.

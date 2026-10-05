@@ -8,6 +8,10 @@ async function prepareRegressionNodeCompileCache({ parentDirectory = os.tmpdir()
   return fs.mkdtemp(path.join(parentDirectory, NODE_COMPILE_CACHE_PREFIX));
 }
 
+/**
+ * @param {string | null | undefined} directory
+ * @returns {Promise<void>}
+ */
 async function cleanupRegressionNodeCompileCache(directory) {
   if (!directory) {
     return;

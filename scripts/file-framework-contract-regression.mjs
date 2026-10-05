@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-framework-contract-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-file-framework-contract.db");
@@ -29,6 +30,9 @@ try {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} CapturedEvent */
 
 async function assertManifestValidation() {
   assert.doesNotThrow(() => validateModuleManifests([
@@ -223,6 +227,7 @@ async function assertStorageKeyContainment() {
 
 async function assertSafeLifecycleEvents() {
   const session = await readProtectedSession();
+  /** @type {CapturedEvent[]} */
   const receivedEvents = [];
   internalEventBus.reset();
   internalEventBus.on("file.attachment.created", async (event) => {
@@ -250,16 +255,22 @@ async function assertSafeLifecycleEvents() {
   });
 
   assert.equal(receivedEvents.length, 1);
-  assert.equal(receivedEvents[0].name, "file.attachment.created");
-  assert.equal(receivedEvents[0].workspace_id, session.workspace_id);
-  assert.equal(receivedEvents[0].module_id, "tasks");
-  assert.equal(receivedEvents[0].record_type, "task");
-  assert.equal(receivedEvents[0].record_id, "task-1");
-  assert.equal(receivedEvents[0].metadata.file_id, "file-1");
-  assert.equal(receivedEvents[0].metadata.attachment_id, "attachment-1");
-  assert.equal(receivedEvents[0].metadata.scannerDetail, "safe summary");
-  assert.equal(receivedEvents[0].metadata.content, undefined);
-  assert.equal(receivedEvents[0].metadata.storagePath, undefined);
+  const [lifecycleEvent] = receivedEvents;
+  assert.ok(lifecycleEvent, "the lifecycle emit should publish one event");
+  assert.equal(lifecycleEvent.name, "file.attachment.created");
+  assert.equal(lifecycleEvent.workspace_id, session.workspace_id);
+  assert.equal(lifecycleEvent.module_id, "tasks");
+  assert.equal(lifecycleEvent.record_type, "task");
+  assert.equal(lifecycleEvent.record_id, "task-1");
+  // The bus publishes metadata as optional, so the redaction claims below
+  // only mean something once the payload is proven to carry one.
+  const { metadata } = lifecycleEvent;
+  assert.ok(metadata, "the lifecycle event should carry metadata");
+  assert.equal(metadata.file_id, "file-1");
+  assert.equal(metadata.attachment_id, "attachment-1");
+  assert.equal(metadata.scannerDetail, "safe summary");
+  assert.equal(metadata.content, undefined);
+  assert.equal(metadata.storagePath, undefined);
 
   await assert.rejects(
     () => filesService.emitFileLifecycleEvent("file.unknown", { session }),
@@ -267,6 +278,7 @@ async function assertSafeLifecycleEvents() {
   );
 }
 
+/** @returns {Promise<FilesSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT user_id, username, home_workspace_id, active_workspace_id
@@ -278,14 +290,7 @@ LIMIT 1;
   const user = rows[0];
 
   assert.ok(user, "protected user should exist");
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
@@ -293,6 +298,7 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {string} id @param {Record<string, unknown>} [overrides] */
 function manifest(id, overrides = {}) {
   return {
     id,
@@ -306,6 +312,7 @@ function manifest(id, overrides = {}) {
   };
 }
 
+/** @param {string} id */
 function permission(id) {
   return {
     id,
@@ -315,6 +322,7 @@ function permission(id) {
   };
 }
 
+/** @param {string} moduleId @param {string} targetType @param {Record<string, unknown>} [overrides] */
 function attachable(moduleId, targetType, overrides = {}) {
   return {
     targetType,

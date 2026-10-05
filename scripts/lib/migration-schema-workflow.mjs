@@ -8,11 +8,55 @@ const GENERATED_SCHEMA_PATH = "src/db/schema/current.generated.sql";
 const CORE_MIGRATIONS_PATH = "src/db/migrations";
 const MIGRATION_FILE_PATTERN = /^(\d{3,})_([a-z][a-z0-9_]*)\.sql$/;
 
+/**
+ * One discovered migration file.
+ * @typedef {object} MigrationFile
+ * @property {string} absolutePath
+ * @property {string} fileName
+ * @property {string} moduleId
+ * @property {string} name
+ * @property {string} relativePath
+ * @property {string} version
+ * @property {number} versionNumber
+ */
+
+/**
+ * One core/module migration source directory.
+ * @typedef {object} MigrationSourceDirectory
+ * @property {string} moduleId
+ * @property {string} relativeDir
+ */
+
+/**
+ * The subset of a better-sqlite3 connection the schema snapshot uses.
+ * @typedef {object} SqliteDatabaseLike
+ * @property {(sql: string) => unknown} exec
+ * @property {(pragmaText: string) => unknown} pragma
+ * @property {(sql: string) => { all(): unknown[] }} prepare
+ * @property {() => unknown} close
+ */
+
+/**
+ * One sqlite_schema row of the generated snapshot query.
+ * @typedef {object} SchemaRow
+ * @property {string} type
+ * @property {string} name
+ * @property {string} tableName
+ * @property {string} sql
+ */
+
+/**
+ * List every core and module migration in canonical order.
+ * @param {{ root?: string }} [options]
+ * @returns {Promise<readonly MigrationFile[]>}
+ */
 async function listMigrationFiles({ root = process.cwd() } = {}) {
+  /** @type {MigrationSourceDirectory[]} */
   const sources = [
     { moduleId: "core", relativeDir: CORE_MIGRATIONS_PATH },
     ...await listModuleMigrationDirectories(root),
   ];
+  /** @type {MigrationFile[]} */
   const migrations = [];
 
   for (const source of sources) {
@@ -21,7 +65,7 @@ async function listMigrationFiles({ root = process.cwd() } = {}) {
     try {
       entries = await fs.readdir(absoluteDir, { withFileTypes: true });
     } catch (error) {
-      if (error.code === "ENOENT") {
+      if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") {
         continue;
       }
       throw error;
@@ -48,18 +92,24 @@ async function listMigrationFiles({ root = process.cwd() } = {}) {
   return Object.freeze(migrations.sort(compareMigrations));
 }
 
+/**
+ * Discover per-module migration directories beneath src/modules.
+ * @param {string} root
+ * @returns {Promise<MigrationSourceDirectory[]>}
+ */
 async function listModuleMigrationDirectories(root) {
   const modulesRoot = path.resolve(root, "src/modules");
   let moduleEntries;
   try {
     moduleEntries = await fs.readdir(modulesRoot, { withFileTypes: true });
   } catch (error) {
-    if (error.code === "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") {
       return [];
     }
     throw error;
   }
 
+  /** @type {MigrationSourceDirectory[]} */
   const sources = [];
   for (const entry of moduleEntries.filter((candidate) => candidate.isDirectory())) {
     const relativeDir = path.posix.join("src/modules", entry.name, "migrations");
@@ -69,7 +119,7 @@ async function listModuleMigrationDirectories(root) {
         sources.push({ moduleId: entry.name, relativeDir });
       }
     } catch (error) {
-      if (error.code !== "ENOENT") {
+      if (/** @type {NodeJS.ErrnoException} */ (error).code !== "ENOENT") {
         throw error;
       }
     }
@@ -77,6 +127,10 @@ async function listModuleMigrationDirectories(root) {
   return sources.sort((left, right) => left.moduleId.localeCompare(right.moduleId));
 }
 
+/**
+ * Reject duplicate migration versions across core and modules.
+ * @param {readonly MigrationFile[]} migrations
+ */
 function assertUniqueMigrationVersions(migrations) {
   const byVersion = new Map();
   for (const migration of migrations) {
@@ -88,6 +142,11 @@ function assertUniqueMigrationVersions(migrations) {
   }
 }
 
+/**
+ * Plan the next core migration file for a requested name.
+ * @param {string} name
+ * @param {readonly MigrationFile[]} migrations
+ */
 function planMigrationCreation(name, migrations) {
   assertUniqueMigrationVersions(migrations);
   const normalizedName = normalizeMigrationName(name);
@@ -106,6 +165,11 @@ function planMigrationCreation(name, migrations) {
   });
 }
 
+/**
+ * Create the next core migration file from its plan.
+ * @param {string} name
+ * @param {{ root?: string }} [options]
+ */
 async function createMigrationFile(name, { root = process.cwd() } = {}) {
   const migrations = await listMigrationFiles({ root });
   const plan = planMigrationCreation(name, migrations);
@@ -115,7 +179,7 @@ async function createMigrationFile(name, { root = process.cwd() } = {}) {
   try {
     await fs.writeFile(absolutePath, plan.sql, { encoding: "utf8", flag: "wx" });
   } catch (error) {
-    if (error.code === "EEXIST") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "EEXIST") {
       throw new Error(`Migration file already exists: ${plan.relativePath}.`);
     }
     throw error;
@@ -130,6 +194,11 @@ async function createMigrationFile(name, { root = process.cwd() } = {}) {
   return plan;
 }
 
+/**
+ * Normalize a human migration name to lowercase snake_case.
+ * @param {string} name
+ * @returns {string}
+ */
 function normalizeMigrationName(name) {
   const normalized = String(name || "")
     .trim()
@@ -144,6 +213,11 @@ function normalizeMigrationName(name) {
   return normalized;
 }
 
+/**
+ * Header template for a newly created migration file.
+ * @param {{ name: string, version: string }} identity
+ * @returns {string}
+ */
 function migrationTemplate({ name, version }) {
   return [
     `-- Migration ${version}: ${name}`,
@@ -153,6 +227,10 @@ function migrationTemplate({ name, version }) {
   ].join("\n");
 }
 
+/**
+ * Apply the baseline plus every migration in memory and snapshot the schema.
+ * @param {{ root?: string }} [options]
+ */
 async function generateCurrentSchema({ root = process.cwd() } = {}) {
   const baselinePath = path.resolve(root, BASELINE_SCHEMA_PATH);
   const baselineSql = await fs.readFile(baselinePath, "utf8");
@@ -174,8 +252,13 @@ async function generateCurrentSchema({ root = process.cwd() } = {}) {
   }
 }
 
+/**
+ * Read the ordered, normalized sqlite_schema verification rows.
+ * @param {SqliteDatabaseLike} database
+ * @returns {SchemaRow[]}
+ */
 function readSchemaRows(database) {
-  return database.prepare(`
+  return /** @type {SchemaRow[]} */ (database.prepare(`
 SELECT type, name, tbl_name AS tableName, sql
 FROM sqlite_schema
 WHERE sql IS NOT NULL
@@ -189,9 +272,14 @@ ORDER BY
     ELSE 5
   END,
   name;
-`).all();
+`).all());
 }
 
+/**
+ * Serialize snapshot rows into the generated schema file contents.
+ * @param {readonly SchemaRow[]} rows
+ * @returns {string}
+ */
 function serializeGeneratedSchema(rows) {
   const header = [
     "-- GENERATED FILE: final SQLite schema verification snapshot.",
@@ -203,10 +291,19 @@ function serializeGeneratedSchema(rows) {
   return `${header}\n\n${statements.join("\n\n")}\n`;
 }
 
+/**
+ * Normalize one schema statement for stable serialization.
+ * @param {string} sql
+ * @returns {string}
+ */
 function normalizeSql(sql) {
   return String(sql || "").replaceAll("\r\n", "\n").trim().replace(/;$/, "");
 }
 
+/**
+ * Regenerate and write the generated schema snapshot.
+ * @param {{ root?: string }} [options]
+ */
 async function refreshGeneratedSchema({ root = process.cwd() } = {}) {
   const generated = await generateCurrentSchema({ root });
   const outputPath = path.resolve(root, GENERATED_SCHEMA_PATH);
@@ -215,6 +312,10 @@ async function refreshGeneratedSchema({ root = process.cwd() } = {}) {
   return Object.freeze({ ...generated, outputPath });
 }
 
+/**
+ * Compare the checked-in generated schema against a fresh snapshot.
+ * @param {{ root?: string }} [options]
+ */
 async function checkGeneratedSchema({ root = process.cwd() } = {}) {
   const generated = await generateCurrentSchema({ root });
   const outputPath = path.resolve(root, GENERATED_SCHEMA_PATH);
@@ -222,7 +323,7 @@ async function checkGeneratedSchema({ root = process.cwd() } = {}) {
   try {
     actual = await fs.readFile(outputPath, "utf8");
   } catch (error) {
-    if (error.code === "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") {
       return Object.freeze({ ...generated, actual: "", matches: false, outputPath });
     }
     throw error;
@@ -230,6 +331,11 @@ async function checkGeneratedSchema({ root = process.cwd() } = {}) {
   return Object.freeze({ ...generated, actual, matches: actual === generated.sql, outputPath });
 }
 
+/**
+ * Guard schema-baseline edits that arrive without a forward migration.
+ * @param {{ allowSchemaWithoutMigration?: boolean, changedPaths?: readonly string[] }} [options]
+ * @returns {readonly string[]} guard errors
+ */
 function collectSchemaWorkflowGuardErrors({
   allowSchemaWithoutMigration = false,
   changedPaths = [],
@@ -240,6 +346,7 @@ function collectSchemaWorkflowGuardErrors({
     /^src\/db\/migrations\/[^/]+\.sql$/.test(filePath) ||
     /^src\/modules\/[^/]+\/migrations\/[^/]+\.sql$/.test(filePath)
   ));
+  /** @type {string[]} */
   const errors = [];
 
   if (baselineChanged && !migrationChanged && !allowSchemaWithoutMigration) {
@@ -250,6 +357,12 @@ function collectSchemaWorkflowGuardErrors({
   return Object.freeze(errors);
 }
 
+/**
+ * Canonical ordering: version number, then module, then file name.
+ * @param {MigrationFile} left
+ * @param {MigrationFile} right
+ * @returns {number}
+ */
 function compareMigrations(left, right) {
   return left.versionNumber - right.versionNumber ||
     left.moduleId.localeCompare(right.moduleId) ||

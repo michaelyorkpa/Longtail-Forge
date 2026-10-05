@@ -1,4 +1,3 @@
-// @ts-check
 import { tagsRoutes } from "../../routes/tags.routes.js";
 import { createModuleEntry } from "../../core/modules/module-entry.js";
 
@@ -26,10 +25,7 @@ const tagsModule = {
   browserApiRoutes: [tagsRoutes],
   publicApiRoutes: [],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
-  seedHooks: [],
-  repairHooks: [],
   navigation: [
     {
       label: "Tags",
@@ -79,7 +75,6 @@ const tagsModule = {
       },
     },
   ],
-  publicViews: [],
   browserAssets: [
     {
       id: "tags-management-script",

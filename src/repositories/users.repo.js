@@ -1,4 +1,3 @@
-// @ts-check
 import { db } from "../core/database.js";
 import { createRecordId } from "../core/identifiers.js";
 import {
@@ -75,7 +74,11 @@ import {
  * @property {string} timezone
  * @property {string} themeMode
  * @property {string} themeAutoSource
+ * @property {"dashboard" | "workbench" | "tasks" | "notes" | "lists"} preferredLoginLanding
+ * @property {"dashboard" | "workbench" | "tasks" | "notes" | "lists"} preferredWorkspaceSwitchLanding
+ * @property {string | null} preferredCalendarView
  * @property {boolean} openExternalLinksNewTab
+ * @property {boolean} passwordChangeRequired
  * @property {string} userStatus
  * @property {boolean} protectedUser
  */
@@ -206,7 +209,7 @@ LIMIT 1;
 
 /** @param {string} workspaceId @returns {Promise<UserListItem[]>} */
 async function readAll(workspaceId) {
-  const rows = await db.query(`
+  const rows = /** @type {UserRow[]} */ (await db.query(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
@@ -221,7 +224,7 @@ WHERE ${USERS_PHYSICAL_ROW_ID} IN (
   GROUP BY user_workspaces.user_id
 )
 ORDER BY username;
-`, { workspaceId });
+`, { workspaceId }));
 
   return rows.map(userRowToAppValue);
 }
@@ -288,7 +291,11 @@ VALUES (
     timezone,
     themeMode: "light",
     themeAutoSource: "system",
+    preferredLoginLanding: "dashboard",
+    preferredWorkspaceSwitchLanding: "dashboard",
+    preferredCalendarView: null,
     openExternalLinksNewTab: false,
+    passwordChangeRequired: false,
     userStatus: "active",
     protectedUser: false,
   };

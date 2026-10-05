@@ -1,5 +1,5 @@
-// @ts-check
 import { registerSearchIndexer } from "../../core/search/indexer-registry.js";
+import { indexSearchReference } from "../../core/search/record-indexer.js";
 import { readSearchTagsText } from "../../core/search/tag-text.js";
 import { notesRepository } from "./notes.repo.js";
 import { canExposeNoteToConsumer } from "./consumer-policy.js";
@@ -7,6 +7,7 @@ import { NOTE_STATUSES, NOTE_VISIBILITIES } from "./library.js";
 import { extractPlainTextFromMarkdown } from "./markdown.js";
 
 /** @typedef {import("../../types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../../types/notes-domain-contracts.js").NoteSearchSource} NoteSearchSource */
 
 const NOTES_SEARCH_INDEXER_ID = "notes.records";
 
@@ -15,30 +16,16 @@ function registerNotesSearchIndexers() {
 }
 
 /** @param {SearchReference} reference */
-async function indexNoteRecord({ workspaceId, recordId }) {
-  if (!recordId) {
-    const notes = await notesRepository.list(workspaceId, { includeDeleted: false });
-    const documents = [];
-
-    for (const note of notes) {
-      const document = await noteToSearchDocument(note);
-      if (document) {
-        documents.push(document);
-      }
-    }
-
-    return { documents };
-  }
-
-  const note = await notesRepository.readById(workspaceId, recordId);
-  if (!note) {
-    return null;
-  }
-
-  return noteToSearchDocument(note);
+async function indexNoteRecord(reference) {
+  return indexSearchReference(reference, {
+    readAll: (workspaceId) => notesRepository.list(workspaceId, { includeDeleted: false }),
+    readOne: (workspaceId, recordId) => notesRepository.readById(workspaceId, recordId),
+    toDocument: noteToSearchDocument,
+  });
 }
 
-async function noteToSearchDocument(note = {}) {
+/** @param {NoteSearchSource} note */
+async function noteToSearchDocument(note) {
   if (!isSearchableNote(note)) {
     return null;
   }
@@ -91,7 +78,8 @@ async function noteToSearchDocument(note = {}) {
   };
 }
 
-function isSearchableNote(note = {}) {
+/** @param {NoteSearchSource} note */
+function isSearchableNote(note) {
   if (!note.note_id || note.status === NOTE_STATUSES.DELETED || note.deleted_at) {
     return false;
   }
@@ -103,7 +91,8 @@ function isSearchableNote(note = {}) {
   return note.visibility !== NOTE_VISIBILITIES.PRIVATE;
 }
 
-function normalizeNoteSearchStatus(note = {}) {
+/** @param {NoteSearchSource} note */
+function normalizeNoteSearchStatus(note) {
   if (note.status === NOTE_STATUSES.ARCHIVED || note.archived_at) {
     return "archived";
   }

@@ -18,6 +18,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+/** @typedef {() => number} DeterministicRandomGenerator */
+/** @typedef {(index: number) => Promise<void>} HotOperation */
+/** @typedef {(name: string, iterations: number, operation: HotOperation) => Promise<{ name: string, iterations: number, meanMicroseconds: number, operationsPerSecond: number }>} BenchmarkScenario */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-adapter-microbenchmark-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "adapter-microbenchmark.db");
 process.env.SUPER_ADMIN_PASSWORD = "Adapter-Microbenchmark-Test-123!";
@@ -26,8 +30,10 @@ const { closeDatabase, db, initializeDatabaseRuntime } = await import("../src/db
 
 const SEED_ROW_COUNT = 1000;
 const WARMUP_FRACTION = 0.1;
+/** @type {boolean} */
 const OUTPUT_JSON = process.argv.includes("--json");
 
+/** @param {number} seed */
 function createDeterministicRandom(seed) {
   let state = seed >>> 0;
   return () => {
@@ -36,7 +42,8 @@ function createDeterministicRandom(seed) {
   };
 }
 
-async function measureScenario(name, iterations, operation) {
+/** @type {BenchmarkScenario} */
+const measureScenario = async (name, iterations, operation) => {
   const warmupIterations = Math.max(1, Math.floor(iterations * WARMUP_FRACTION));
 
   for (let index = 0; index < warmupIterations; index += 1) {
@@ -58,7 +65,11 @@ async function measureScenario(name, iterations, operation) {
     meanMicroseconds: Number(meanMicroseconds.toFixed(2)),
     operationsPerSecond: Math.round(iterations / (elapsedNs / 1_000_000_000)),
   };
-}
+};
+
+/** @type {DeterministicRandomGenerator} */
+const random = createDeterministicRandom(0x5eed_1234);
+const rowId = () => 1 + Math.floor(random() * SEED_ROW_COUNT);
 
 try {
   await initializeDatabaseRuntime();
@@ -87,8 +98,6 @@ CREATE TABLE IF NOT EXISTS adapter_bench (
     }
   });
 
-  const random = createDeterministicRandom(0x5eed_1234);
-  const rowId = () => 1 + Math.floor(random() * SEED_ROW_COUNT);
   const results = [];
 
   results.push(await measureScenario("hot-single-row-read (db.get)", 5000, async () => {
@@ -115,7 +124,7 @@ CREATE TABLE IF NOT EXISTS adapter_bench (
 
   results.push(await measureScenario("hot-in-list-read (db.query IN :ids)", 2000, async (index) => {
     const idCount = 1 + (index % 20);
-    const ids = Array.from({ length: idCount }, rowId);
+    const ids = Array.from({ length: idCount }, () => rowId());
     const rows = await db.query(
       "SELECT id, label, amount FROM adapter_bench WHERE id IN (:ids) ORDER BY id",
       { ids },

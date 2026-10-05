@@ -1,12 +1,40 @@
 import { appVersion } from "../src/core/version.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
-import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 
+import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
+/** @typedef {import("../src/types/framework-contracts.js").ViewFilterDescriptor} ViewFilterDescriptor */
+/** @typedef {import("../src/types/framework-contracts.js").ViewSurfaceDescriptor} ViewSurfaceDescriptor */
+/** @typedef {import("../src/types/framework-contracts.js").ViewTableDescriptor} ViewTableDescriptor */
+
+/**
+ * A read surface with the framework-owned table anatomy this owner asserts on.
+ *
+ * The descriptor contract publishes `table` and each of its parts as optional
+ * because not every contributed surface is a table page. Clients and Projects
+ * are, and this owner is the standing proof of that anatomy, so the parts are
+ * proven present rather than read through.
+ * @typedef {ViewSurfaceDescriptor & {
+ *   filters: ViewFilterDescriptor[],
+ *   table: ViewTableDescriptor & Required<Pick<ViewTableDescriptor, "columns" | "rowActions" | "secondaryRows" | "selection">>,
+ * }} ReadSurfaceDescriptor
+ */
 
 const builder = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const css = readText("public/css/longtail-forge.css");
@@ -28,25 +56,24 @@ assert.match(
   /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*await loadPageData\(\{ applyQueryActions: false \}\)[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*applyClientProjectQueryActions\(\)/,
   "Adapter should wait for app-shell viewSurfaces and server-shaped capabilities before rendering descriptor read pages",
 );
-assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render the descriptor surface into the minimal host");
+assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render the descriptor surface into the minimal host");
 assert.match(clientsProjectsScript, /function openAddClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.add"/, "Add Client query opener should dispatch the registered module action");
 assert.match(clientsProjectsScript, /function openEditClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.edit", \{ clientId: client\.id \}/, "Client detail query opener should dispatch the registered module action");
 assert.match(clientsProjectsScript, /function openAddProjectActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("projects\.add"/, "Add Project query opener should dispatch the registered module action");
 assert.match(clientsProjectsScript, /function openEditProjectActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("projects\.edit", \{ projectId: match\.project\.id \}/, "Project detail query opener should dispatch the registered module action");
 
 assert.match(renderer, /function tableColumns[\s\S]*table\.rowActions[\s\S]*__view_row_actions/, "Renderer should add a framework-owned table action column from descriptor rowActions");
-assert.match(builder, /Object\.hasOwn\(column, "label"\)[\s\S]*\? column\.label/, "The table builder should preserve an explicitly blank descriptor header instead of falling back to an internal column key");
+assert.match(builder, /Object\.hasOwn\(fields, "label"\)[\s\S]*\? fields\.label/, "The table builder should preserve an explicitly blank descriptor header instead of falling back to an internal column key");
 assert.match(renderer, /Object\.hasOwn\(selection, "headerLabel"\)[\s\S]*selection\.headerLabel/, "Selection columns should support a blank visible heading without changing checkbox accessible names");
 assert.match(renderer, /Object\.hasOwn\(table, "rowActionsHeaderLabel"\)[\s\S]*table\.rowActionsHeaderLabel/, "Row-action columns should support a blank visible heading without changing action accessible names");
 assert.match(css, /\.client-projects-filter-panel \.view-filter-panel-fields\s*\{[\s\S]*padding: 6px/, "Clients/Projects filter fields should leave focus-ring clearance inside the scrolling drawer");
 assert.match(css, /tr:has\(\+ \.client-projects-tag-row\)[\s\S]*border-bottom: 0/, "Client/Project tag rows should visually join the record-name row without an extra divider");
 assert.match(css, /\.client-projects-tag-row \.surface-chip\s*\{[\s\S]*max-width: 100%[\s\S]*overflow-wrap: anywhere/, "Client/Project tag chips should contain long labels within their borders");
 
+assert.ok(clientProjectsModule.viewSurfaces, "Clients/Projects should contribute view surfaces");
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));
-const clientsDescriptor = surfaces.get("client-projects.clients");
-const projectsDescriptor = surfaces.get("client-projects.projects");
-assert.ok(clientsDescriptor, "Clients descriptor should be available");
-assert.ok(projectsDescriptor, "Projects descriptor should be available");
+const clientsDescriptor = readSurfaceAnatomy(surfaces.get("client-projects.clients"), "Clients");
+const projectsDescriptor = readSurfaceAnatomy(surfaces.get("client-projects.projects"), "Projects");
 assert.equal(clientsDescriptor.filterPlacement, "slide-out-sidebar", "Clients filters should render through the shared slide-out filter surface");
 assert.equal(projectsDescriptor.filterPlacement, "slide-out-sidebar", "Projects filters should render through the shared slide-out filter surface");
 assert.equal(clientsDescriptor.table.columns.some((column) => column.label === "Tags"), false, "Clients should not expose Tags as a standalone table column");
@@ -78,22 +105,50 @@ assert.deepEqual(
 );
 assert.ok(projectsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Projects repeated row actions should be icon-only");
 
-const clientsContext = createBrowserContext({
+const clientsContext = createFakeBrowserContext({
   responses: [{
     clients: [
       clientRecord({ id: "client-parent", name: "Acme Parent", depth: 0 }),
       clientRecord({ id: "client-child", name: "Acme Child", parent_client_id: "client-parent", depth: 1 }),
     ],
   }],
-  permissions: ["clients.manage"],
+  workspaceContext: {
+    permissionIds: ["clients.manage"],
+    workspaceId: "clients-projects-read-anatomy",
+    workspaceType: "business",
+  },
+  iconButton: { iconClass: false },
 });
 vm.runInNewContext(surfaceDescriptor, clientsContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, clientsContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, clientsContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, clientsContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, clientsContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, clientsContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, clientsContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, clientsContext, { filename: "view-renderer.js" });
 
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * A rendered read surface: fake-DOM anatomy plus the renderer-owned refresh
+ * path this regression awaits.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown> }} ReadSurface
+ */
+/**
+ * One dispatched module-owned behavior call, as the descriptor hands it to a
+ * registered handler.
+ * @typedef {{ action: { behavior: string }, record?: { id?: string } | null, mountSearchOptions: (options: Array<{ label: string, value: string }>, config?: Record<string, unknown>) => void }} BehaviorContext
+ */
+
+/** @typedef {{ behavior: string, recordId: string }} DispatchedBehavior */
+
+/**
+ * The published `LongtailForge.view` read-anatomy entry points under test.
+ * @typedef {{ registerBehavior: (id: string, handler: (context: BehaviorContext) => unknown) => void, renderSurface: (descriptor: object, host: FakeNode) => ReadSurface }} ReadViewSurface
+ */
+/** @type {DispatchedBehavior[]} */
 const clientActionCalls = [];
-const clientsView = clientsContext.window.LongtailForge.view;
+const clientsView = /** @type {ReadViewSurface} */ (clientsContext.window.LongtailForge.view);
 clientsView.registerBehavior("client-projects.clients.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
 clientsView.registerBehavior("client-projects.clients.create", (context) => clientActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
 clientsView.registerBehavior("client-projects.clients.edit", (context) => clientActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
@@ -120,22 +175,32 @@ assert.deepEqual(clientActionCalls, [
   { behavior: "client-projects.clients.edit", recordId: "client-parent" },
 ], "Clients page and row actions should dispatch module-owned behavior handlers with safe record context");
 
-const projectsContext = createBrowserContext({
+const projectsContext = createFakeBrowserContext({
   responses: [{
     projects: [
       projectRecord({ id: "project-parent", name: "Buildout", depth: 0 }),
       projectRecord({ id: "project-child", name: "Launch", parent_project_id: "project-parent", depth: 1 }),
     ],
   }],
-  permissions: ["projects.manage"],
+  workspaceContext: {
+    permissionIds: ["projects.manage"],
+    workspaceId: "clients-projects-read-anatomy",
+    workspaceType: "business",
+  },
+  iconButton: { iconClass: false },
 });
 vm.runInNewContext(surfaceDescriptor, projectsContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, projectsContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, projectsContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, projectsContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, projectsContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, projectsContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, projectsContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, projectsContext, { filename: "view-renderer.js" });
 
+/** @type {DispatchedBehavior[]} */
 const projectActionCalls = [];
-const projectsView = projectsContext.window.LongtailForge.view;
+const projectsView = /** @type {ReadViewSurface} */ (projectsContext.window.LongtailForge.view);
 projectsView.registerBehavior("client-projects.projects.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
 projectsView.registerBehavior("client-projects.projects.clients", () => [{ value: "client-parent", label: "Acme Parent" }]);
 projectsView.registerBehavior("client-projects.projects.create", (context) => projectActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
@@ -184,6 +249,12 @@ const { closeDatabase } = await import("../src/db/provider.js");
 await closeDatabase();
 await fixture.cleanup();
 
+/**
+ * One seeded Clients row, as the descriptor's data source shapes it.
+ * @typedef {{ depth?: number, id?: string, name?: string, parent_client_id?: string }} ClientRecordOverrides
+ */
+
+/** @param {ClientRecordOverrides} [overrides] */
 function clientRecord(overrides = {}) {
   const name = overrides.name || "Client";
   const depth = overrides.depth || 0;
@@ -206,6 +277,12 @@ function clientRecord(overrides = {}) {
   };
 }
 
+/**
+ * One seeded Projects row, as the descriptor's data source shapes it.
+ * @typedef {{ depth?: number, id?: string, name?: string, parent_project_id?: string }} ProjectRecordOverrides
+ */
+
+/** @param {ProjectRecordOverrides} [overrides] */
 function projectRecord(overrides = {}) {
   const name = overrides.name || "Project";
   const depth = overrides.depth || 0;
@@ -232,12 +309,36 @@ function projectRecord(overrides = {}) {
   };
 }
 
+/**
+ * Prove one contributed read surface carries the framework-owned anatomy.
+ *
+ * A descriptor that stopped contributing its table, columns, secondary rows,
+ * selection column, row actions, or filters would otherwise reach the
+ * assertions below as `undefined` and fail on a member comparison rather than
+ * naming the anatomy it dropped. That naming is the point of this owner.
+ * @param {ViewSurfaceDescriptor | undefined} descriptor
+ * @param {string} label
+ * @returns {ReadSurfaceDescriptor}
+ */
+function readSurfaceAnatomy(descriptor, label) {
+  assert.ok(descriptor, `${label} descriptor should be available`);
+  assert.ok(descriptor.filters, `${label} descriptor should contribute filters`);
+  assert.ok(descriptor.table, `${label} descriptor should contribute a table`);
+  assert.ok(descriptor.table.columns, `${label} table should contribute columns`);
+  assert.ok(descriptor.table.secondaryRows, `${label} table should contribute secondary rows`);
+  assert.ok(descriptor.table.selection, `${label} table should contribute a selection column`);
+  assert.ok(descriptor.table.rowActions, `${label} table should contribute row actions`);
+  return /** @type {ReadSurfaceDescriptor} */ (descriptor);
+}
+
+/** @param {string} html @param {string} label */
 function assertMinimalHost(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} protected host should not ship page anatomy`);
   assert.match(body, /data-client-projects-host/, `${label} protected host should expose the descriptor host`);
 }
 
+/** @param {string} text @param {readonly string[]} orderedLabels */
 function assertTextOrder(text, orderedLabels) {
   let lastIndex = -1;
   for (const label of orderedLabels) {
@@ -247,232 +348,23 @@ function assertTextOrder(text, orderedLabels) {
   }
 }
 
+/** @param {FakeNode} root @param {string} text @returns {FakeNode} */
 function findButtonByText(root, text) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.textContent === text);
   assert.ok(button, `Expected button '${text}'`);
   return button;
 }
 
+/** @param {FakeNode} root @param {string} label @returns {FakeNode} */
 function findButtonByLabel(root, label) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.getAttribute("aria-label") === label || candidate.title === label);
   assert.ok(button, `Expected button labeled '${label}'`);
   return button;
 }
 
+/** @param {FakeNode} root @param {string} fieldName @returns {FakeNode | undefined} */
 function findFieldControl(root, fieldName) {
   return root.querySelectorAll("input")
     .concat(root.querySelectorAll("select"))
     .find((candidate) => candidate.getAttribute("data-view-input") === fieldName);
-}
-
-function createBrowserContext({ responses, permissions }) {
-  const document = new FakeDocument();
-  const queue = [...responses];
-  const calls = [];
-  const window = {
-    document,
-    LongtailForge: {
-      workspaceContext: {
-        permissionIds: permissions,
-        workspaceId: "clients-projects-read-anatomy",
-        workspaceType: "business",
-      },
-      api: {
-        calls,
-        async getJson(url) {
-          calls.push(url);
-          return queue.length ? queue.shift() : responses[responses.length - 1];
-        },
-      },
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          button.textContent = options.iconOnly ? "" : options.text || options.label || "";
-          if (options.label) {
-            button.setAttribute("aria-label", options.label);
-          }
-          if (options.title) {
-            button.title = options.title;
-          }
-          return button;
-        },
-      },
-    },
-  };
-  document.body = document.createElement("body");
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this.listeners = {};
-  this._textContent = "";
-  this.disabled = false;
-  this.hidden = false;
-  this.open = false;
-  this.type = "";
-  this.value = "";
-  this.colSpan = 1;
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    if (child === null || child === undefined || child === false) {
-      return child;
-    }
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.replaceChildren = (...children) => {
-    this.children.forEach((child) => {
-      child.parentNode = null;
-    });
-    this.children = [];
-    this.append(...children);
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "class") {
-      this.className = String(value);
-    }
-    if (name === "value") {
-      this.value = String(value);
-    }
-    if (name === "disabled") {
-      this.disabled = true;
-    }
-    if (name === "hidden") {
-      this.hidden = true;
-    }
-  };
-
-  this.removeAttribute = (name) => {
-    this.attributes.delete(name);
-    if (name === "hidden") {
-      this.hidden = false;
-    }
-    if (name === "disabled") {
-      this.disabled = false;
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = (eventName, handler) => {
-    this.listeners[eventName] = handler;
-  };
-
-  this.click = async () => {
-    if (!this.disabled && this.listeners.click) {
-      await this.listeners.click({ currentTarget: this, preventDefault() {} });
-    }
-  };
-
-  this.showModal = () => {
-    this.open = true;
-  };
-
-  this.focus = () => {};
-
-  this.querySelector = (selector) => findElement(this, selector);
-  this.querySelectorAll = (selector) => findElements(this, selector);
-
-  Object.defineProperty(this, "firstChild", {
-    get: () => this.children[0] || null,
-  });
-
-  Object.defineProperty(this, "options", {
-    get: () => this.children.filter((child) => child.tagName === "OPTION"),
-  });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => this._textContent || this.children.map((child) => child.textContent).join(""),
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function findElement(root, selector) {
-  return findElements(root, selector)[0] || null;
-}
-
-function findElements(root, selector) {
-  const queue = [...root.children];
-  const matches = [];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      matches.push(element);
-    }
-    queue.push(...element.children);
-  }
-  return matches;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

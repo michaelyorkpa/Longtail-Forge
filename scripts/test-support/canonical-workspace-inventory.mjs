@@ -1,3 +1,4 @@
+/// <reference path="../../src/types/database-runtime-modules.d.ts" />
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,6 +8,19 @@ import Database from "better-sqlite3";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CANONICAL_DATABASE_FILE = path.join(root, "data", "longtail-forge.db");
 
+/**
+ * @typedef {object} CanonicalWorkspaceInventory
+ * @property {string} databaseFile
+ * @property {boolean} exists
+ * @property {string} fingerprint
+ * @property {number} membershipCount
+ * @property {number} workspaceCount
+ */
+
+/**
+ * @param {string} [databaseFile]
+ * @returns {CanonicalWorkspaceInventory}
+ */
 function captureCanonicalWorkspaceInventory(databaseFile = CANONICAL_DATABASE_FILE) {
   const resolvedDatabaseFile = path.resolve(databaseFile);
 
@@ -63,6 +77,10 @@ ORDER BY user_workspace_id;
   }
 }
 
+/**
+ * @param {CanonicalWorkspaceInventory} before
+ * @param {CanonicalWorkspaceInventory} after
+ */
 function assertCanonicalWorkspaceInventoryUnchanged(before, after) {
   if (
     before.exists !== after.exists ||
@@ -77,10 +95,15 @@ function assertCanonicalWorkspaceInventoryUnchanged(before, after) {
   }
 }
 
+/**
+ * @param {unknown[]} rows
+ * @returns {string}
+ */
 function hashRows(rows) {
   return createHash("sha256").update(JSON.stringify(rows)).digest("hex");
 }
 
+/** @param {CanonicalWorkspaceInventory} inventory */
 function summary(inventory) {
   return {
     exists: inventory.exists,

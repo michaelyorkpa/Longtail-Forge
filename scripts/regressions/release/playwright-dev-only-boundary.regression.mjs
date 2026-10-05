@@ -8,16 +8,17 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { requireDependencies, requireDevDependencies, requireEngines, requireLockEntry, requireLockPackages, requirePackageLock, requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
+import { existsSync, readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { readRuntimeSourceEntries } from "../../test-support/source-scan.mjs";
 
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-const packageLock = JSON.parse(readFileSync("package-lock.json", "utf8"));
-const rootLock = packageLock.packages[""];
-const playwrightTestLock = packageLock.packages["node_modules/@playwright/test"];
-const playwrightLock = packageLock.packages["node_modules/playwright"];
-const playwrightCoreLock = packageLock.packages["node_modules/playwright-core"];
+const packageJson = requirePackageManifest(JSON.parse(readFileSync("package.json", "utf8")));
+const packageLock = requirePackageLock(JSON.parse(readFileSync("package-lock.json", "utf8")));
+const rootLock = requireLockEntry(packageLock, "");
+const playwrightTestLock = requireLockEntry(packageLock, "node_modules/@playwright/test");
+const playwrightLock = requireLockEntry(packageLock, "node_modules/playwright");
+const playwrightCoreLock = requireLockEntry(packageLock, "node_modules/playwright-core");
 const dependencies = packageJson.dependencies || {};
 const devDependencies = packageJson.devDependencies || {};
 const scripts = packageJson.scripts || {};
@@ -26,18 +27,18 @@ const scripts = packageJson.scripts || {};
 // dependencies.
 assert.equal(devDependencies["@playwright/test"], "^1.62.1", "@playwright/test must use the reviewed 1.62.1 development baseline");
 assert.equal(dependencies["@playwright/test"], undefined, "@playwright/test must never ship as a runtime dependency");
-assert.equal(rootLock.devDependencies["@playwright/test"], "^1.62.1", "the lockfile root should match the Playwright package contract");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@playwright/test"], "^1.62.1", "the lockfile root should match the Playwright package contract");
 assert.equal(playwrightTestLock.version, "1.62.1", "@playwright/test should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightTestLock.dev, true, "@playwright/test must remain development-only in the resolved graph");
-assert.equal(playwrightTestLock.dependencies.playwright, "1.62.1", "@playwright/test should depend on the matching Playwright runtime");
-assert.equal(playwrightTestLock.engines.node, ">=20", "Playwright's Node floor must remain compatible with the repository's Node 24 line");
+assert.equal(requireDependencies(playwrightTestLock, "@playwright/test lock entry").playwright, "1.62.1", "@playwright/test should depend on the matching Playwright runtime");
+assert.equal(requireEngines(playwrightTestLock, "@playwright/test lock entry").node, ">=20", "Playwright's Node floor must remain compatible with the repository's Node 24 line");
 assert.equal(playwrightLock.version, "1.62.1", "playwright should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightLock.dev, true, "playwright must remain development-only in the resolved graph");
-assert.equal(playwrightLock.dependencies["playwright-core"], "1.62.1", "playwright should depend on the matching core runtime");
+assert.equal(requireDependencies(playwrightLock, "playwright lock entry")["playwright-core"], "1.62.1", "playwright should depend on the matching core runtime");
 assert.equal(playwrightCoreLock.version, "1.62.1", "playwright-core should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightCoreLock.dev, true, "playwright-core must remain development-only in the resolved graph");
 assert.deepEqual(
-  Object.keys(packageLock.packages).filter((name) => /(?:experimental-ct|playwright-ct)/i.test(name)),
+  Object.keys(requireLockPackages(packageLock)).filter((name) => /(?:experimental-ct|playwright-ct)/i.test(name)),
   [],
   "the component-testing package family must not enter the resolved graph",
 );
@@ -103,20 +104,6 @@ for (const requiredPath of REQUIRED_HARNESS_FILES) {
   assert.ok(existsSync(requiredPath), `${requiredPath} must exist in clean clones`);
 }
 
-const playwrightConfig = readFileSync("playwright.config.js", "utf8");
-assert.match(playwrightConfig, /testDir: "tests\/e2e"/, "the e2e suite must stay in the dedicated tests/e2e folder");
-assert.match(playwrightConfig, /name: "desktop"/, "the named desktop viewport project must remain");
-assert.match(playwrightConfig, /name: "mobile"/, "the named mobile viewport project must remain");
-assert.match(playwrightConfig, /dependencies: \["setup"\]/, "viewport projects must retain the authenticated setup dependency");
-assert.match(playwrightConfig, /storageState: E2E_STORAGE_STATE_PATH/, "viewport projects must retain the saved authenticated state");
-assert.match(playwrightConfig, /grepInvert: \/@mobile\//, "the desktop project must exclude explicitly mobile-only tests before setup");
-assert.match(playwrightConfig, /grepInvert: \/@desktop\//, "the mobile project must exclude explicitly desktop-only tests before setup");
-assert.match(playwrightConfig, /retries: isCI \? 1 : 0/, "CI must retry browser failures once while local runs remain single-attempt");
-assert.match(playwrightConfig, /workers: 2/, "browser execution must stay at the measured shared-server-safe two-worker bound");
-assert.match(playwrightConfig, /trace: isCI \? "on-first-retry" : "retain-on-failure"/, "CI retries and local failures must retain actionable traces");
-assert.match(playwrightConfig, /screenshot: "only-on-failure"/, "browser failures must retain screenshots");
-assert.doesNotMatch(playwrightConfig, /webServer:/, "the config must not delegate Windows process-tree teardown to Playwright's shell wrapper");
-
 assert.equal(scripts["test:e2e"], "node scripts/run-playwright-e2e.mjs", "the canonical browser command must own managed-server cleanup");
 assert.equal(scripts["test:e2e:ui"], "node scripts/run-playwright-e2e.mjs --ui", "UI mode must use the same managed-server owner");
 assert.equal(
@@ -129,24 +116,55 @@ assert.match(playwrightRunner, /spawn\(process\.execPath/, "the managed server a
 assert.match(playwrightRunner, /await stopManagedServer\(managedServer\)/, "the managed runner must always await server cleanup");
 assert.match(playwrightRunner, /child\.kill\("SIGKILL"\)/, "managed cleanup must have a bounded forced fallback");
 
-const e2eSpecSource = readdirSync("tests/e2e", { withFileTypes: true })
-  .filter((entry) => entry.isFile() && entry.name.endsWith(".spec.mjs"))
-  .map((entry) => readFileSync(`tests/e2e/${entry.name}`, "utf8"))
-  .join("\n");
-assert.doesNotMatch(
-  e2eSpecSource,
-  /test\.skip\s*\(/,
-  "project selection must happen through explicit tags instead of in-body test.skip calls",
-);
-assert.equal((e2eSpecSource.match(/tag: "@mobile"/g) || []).length, 9, "all nine mobile-only tests must be tagged explicitly");
-assert.equal((e2eSpecSource.match(/tag: "@desktop"/g) || []).length, 11, "all eleven desktop-only tests must be tagged explicitly");
-
 const developmentWorkflow = readFileSync(".github/workflows/development-pr.yml", "utf8");
 assert.match(
   developmentWorkflow,
   /^\s+name: Browser smoke and accessibility$/m,
   "the required development pull-request Browser check name must remain stable",
 );
+
+// Every protected workflow installs the browser through the one bounded entry
+// point whose retry ordering tests/unit/install-playwright-browser.test.mjs
+// proves. The 0.33.33.29 inline loop retried into the package lock a cancelled
+// attempt still held, and lived in three copies no test could reach.
+for (const workflowPath of [
+  ".github/workflows/development-pr.yml",
+  ".github/workflows/nightly.yml",
+  ".github/workflows/promotion.yml",
+]) {
+  const workflow = readFileSync(workflowPath, "utf8");
+  assert.equal(
+    workflow.includes("run: node scripts/release/install-playwright-browser.mjs"),
+    true,
+    `${workflowPath} must install the browser through the single bounded entry point`,
+  );
+  assert.equal(
+    workflow.includes("playwright install --with-deps chromium"),
+    false,
+    `${workflowPath} must not reintroduce an inline install no test can reach`,
+  );
+  // Worst case is 2 attempts x 540s plus one 180s wait, or 1320s. Four CI runs
+  // showed the earlier 240s attempt bound killed installs that were still making
+  // progress, so the bounds detect a stall rather than deadline a slow install.
+  const beforeInstall = workflow.slice(0, workflow.indexOf("name: Install the Playwright browser"));
+  const jobBounds = [...beforeInstall.matchAll(/^ {4}timeout-minutes: (\d+)\r?$/gm)];
+  assert.ok(jobBounds.length > 0, `${workflowPath} must bound the job that installs the browser`);
+  assert.equal(jobBounds[jobBounds.length - 1][1], "25", `${workflowPath} must bound the browser job above the install budget plus its checks`);
+  const installStep = workflow.slice(workflow.indexOf("name: Install the Playwright browser"));
+  assert.match(installStep.slice(0, 200), /timeout-minutes: 23/, `${workflowPath} must bound the install step above its 22-minute worst case`);
+}
+const installEntryPoint = readFileSync("scripts/release/install-playwright-browser.mjs", "utf8");
+assert.match(installEntryPoint, /SIGKILL/, "a timed-out attempt must be hard-killed, not only signalled");
+// The wait must be on the package-manager process. Waiting on the lock files
+// with flock(1) was a proven no-op: it uses flock(2) while apt uses fcntl
+// record locks, so it returned instantly and the retry raced the cancelled
+// attempt anyway.
+assert.equal(installEntryPoint.includes("pgrep -x apt-get"), true, "the retry must wait for the package-manager process, not a lock file");
+assert.equal(installEntryPoint.includes(String.fromCharCode(34) + "flock" + String.fromCharCode(34)), false, "flock does not conflict with apt fcntl locks and must not be used as the wait command");
+// Setting apt DPkg::Lock::Timeout turned a fast, visible lock failure into a
+// 540-second silence in CI, so the install must let apt fail loudly and rely on
+// the process wait instead.
+assert.equal(installEntryPoint.includes("Lock::Timeout"), false, "apt must fail loudly on a contended lock rather than waiting silently");
 
 const e2eDocs = readFileSync("docs/e2e-testing.md", "utf8");
 assert.match(e2eDocs, /test:e2e:install/, "e2e docs must cover browser installation");

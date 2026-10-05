@@ -24,13 +24,18 @@ import { activateModuleRuntime, runModuleStartupTasks } from "../modules/module-
 import { registerFrameworkHelpSearchIndexers } from "../help/search-indexers.js";
 import { assertPublicDemoRuntimeReady } from "../public-demo-runtime.js";
 
+/** @typedef {Awaited<ReturnType<typeof acquireWorkerProcessLock>>} WorkerProcessLock */
+/** @typedef {Pick<Console, "log" | "warn">} WorkerCliLogger */
+
+/** @type {WorkerProcessLock | null} */
 let workerLock = null;
 let shuttingDown = false;
 
+/** @param {{ logger?: WorkerCliLogger }} [options] */
 async function startWorkerProcess(options = {}) {
   const logger = options.logger || console;
   logRuntimeConfigWarnings(config.environment === "production"
-    ? () => operationalLogger.warn("runtime.configuration.unsafe_override")
+    ? () => operationalLogger.warn("runtime.configuration.unsafe_override", {})
     : (logger.warn?.bind(logger) || console.warn));
 
   if (config.worker.mode === "disabled") {
@@ -81,13 +86,15 @@ async function startWorkerCli() {
     await startWorkerProcess();
   } catch (error) {
     console.error("[job-worker] Worker startup failed.");
-    console.error(error.message || error);
+    console.error(error instanceof Error ? error.message : error);
     await releaseWorkerResources();
     process.exitCode = 1;
   }
 }
 
+/** @param {WorkerCliLogger} logger */
 function registerShutdownHandlers(logger) {
+  /** @param {NodeJS.Signals} signal */
   const shutdown = (signal) => {
     void shutdownWorker(signal, logger);
   };
@@ -96,6 +103,7 @@ function registerShutdownHandlers(logger) {
   process.once("SIGTERM", shutdown);
 }
 
+/** @param {NodeJS.Signals} signal @param {WorkerCliLogger} [logger] */
 async function shutdownWorker(signal, logger = console) {
   if (shuttingDown) {
     return;
@@ -113,7 +121,7 @@ async function releaseWorkerResources() {
   if (workerLock) {
     await workerLock.release().catch((error) => {
       console.warn("[job-worker] Failed to release worker lock.");
-      console.warn(error.message || error);
+      console.warn(error instanceof Error ? error.message : error);
     });
     workerLock = null;
   }

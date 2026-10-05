@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import http from "node:http";
 import express from "express";
 import { createErrorHandler } from "../../../src/middleware/error-handler.js";
@@ -83,9 +84,10 @@ try {
   const response = await request(disabled, "/api/public-demo/accounts");
   assert.equal(response.statusCode, 404);
   assert.equal(response.headers["cache-control"], "no-store");
-  const body = JSON.parse(response.body);
-  assert.equal(body.error.code, "not_found");
-  assert.equal(body.error.message, "The requested resource was not found.");
+  const payload = requireJsonRecord(JSON.parse(response.body), "the disabled-catalog response body");
+  const error = requireJsonRecord(payload.error, "the disabled-catalog error envelope");
+  assert.equal(error.code, "not_found");
+  assert.equal(error.message, "The requested resource was not found.");
   assert.doesNotMatch(response.body, /role-|password|account|demo/i);
 } finally {
   await close(disabled);
@@ -93,12 +95,17 @@ try {
 
 console.log("Public-demo account catalog regression passed.");
 
+/**
+ * @param {import("../../../src/types/route-contracts.js").RouterContract} router
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function serve(router) {
   const app = express();
-  app.use((request, _response, next) => {
-    request.requestContext = { requestId: "catalog-regression-request" };
+  app.use(/** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, _response, next) => {
+    /** @type {import("../../../src/types/route-contracts.js").RouteRequest & { requestContext?: { requestId: string } }} */
+    (request).requestContext = { requestId: "catalog-regression-request" };
     next();
-  });
+  }));
   app.use("/api", router);
   app.use(createErrorHandler({ logger: { error() {} } }));
   return new Promise((resolve) => {
@@ -107,6 +114,11 @@ function serve(router) {
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server
+ * @param {string} requestPath
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureStatusCodeTextResponse>}
+ */
 function request(server, requestPath) {
   return new Promise((resolve, reject) => {
     const outgoing = http.request({
@@ -114,8 +126,9 @@ function request(server, requestPath) {
       host: "127.0.0.1",
       method: "GET",
       path: requestPath,
-      port: server.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (server.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -130,6 +143,10 @@ function request(server, requestPath) {
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server
+ * @returns {Promise<void>}
+ */
 function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());

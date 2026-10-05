@@ -30,6 +30,22 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 async function assertSchemaAndAssets() {
   const tables = await querySql(`
 SELECT name
@@ -48,6 +64,7 @@ WHERE type = 'table'
   assert.match(script, /\/api\/files\/settings/);
 }
 
+/** @param {FilesSession} adminSession @param {FilesSession} limitedSession @param {string} taskId */
 async function assertDefaultPolicy(adminSession, limitedSession, taskId) {
   const response = await filesService.readWorkspaceFileSettings(adminSession);
   assert.equal(response.settings.fileTypePolicyMode, "safe_default");
@@ -71,6 +88,7 @@ async function assertDefaultPolicy(adminSession, limitedSession, taskId) {
   );
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertSavedPolicy(session, taskId) {
   await filesService.saveWorkspaceFileSettings(session, {
     allowedExtensions: [".pdf"],
@@ -104,10 +122,12 @@ async function assertSavedPolicy(session, taskId) {
     originalFilename: "allowed.txt",
     text: "allowed text",
   }));
-  assert.equal(upload.file.status, "pending");
-  assert.equal(upload.file.scanStatus, "pending");
+  const uploadedFile = requireFile(upload, "allowed policy upload");
+  assert.equal(uploadedFile.status, "pending");
+  assert.equal(uploadedFile.scanStatus, "pending");
 }
 
+/** @param {FilesSession} session @param {string} title */
 async function createTask(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -144,6 +164,7 @@ VALUES (
   return taskId;
 }
 
+/** @param {string} targetId @param {{ contentBase64?: string, displayName?: string, originalFilename?: string, text?: string }} [options] */
 function uploadPayload(targetId, options = {}) {
   return {
     contentBase64: options.contentBase64 || Buffer.from(options.text || "hello file settings").toString("base64"),
@@ -156,6 +177,7 @@ function uploadPayload(targetId, options = {}) {
   };
 }
 
+/** @returns {Promise<{ workspace_id: string }>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -164,10 +186,13 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireFirstRow(rows, "workspace");
+  assert.ok(workspace.workspace_id, "workspace should exist");
+  return workspace;
 }
 
+/** @param {string} workspaceId @returns {Promise<FilesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -177,17 +202,23 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
+  /** @type {{ display_name: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected user");
+  assert.ok(admin.user_id, "protected user should exist");
   return {
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
+    home_workspace_id: workspaceId,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
+    timezone: admin.timezone || "America/New_York",
+    user_id: admin.user_id,
+    username: admin.username,
     workspace_id: workspaceId,
   };
 }
 
+/** @param {string} workspaceId @returns {Promise<FilesSession>} */
 async function createLimitedSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -240,7 +271,10 @@ VALUES (
 
   return {
     active_workspace_id: workspaceId,
-    display_name: "File Settings Limited User",
+    home_workspace_id: workspaceId,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: "America/New_York",
     user_id: userId,
     username: `file-settings-limited-${userId}@example.test`,

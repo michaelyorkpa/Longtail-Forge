@@ -1,4 +1,3 @@
-// @ts-check
 import fs from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
@@ -6,6 +5,8 @@ import { config } from "../config.js";
 
 const PRIVATE_DIRECTORY_MASK = 0o077;
 
+/** @typedef {{ key: string, value: string }} RuntimePath */
+/** @param {{ environment?: string, paths?: RuntimePath[], contentPaths?: RuntimePath[] }} [options] */
 async function assertRuntimeDataPathsReady(options = {}) {
   const environment = options.environment || config.environment;
   const paths = options.paths || [
@@ -34,6 +35,7 @@ async function assertRuntimeDataPathsReady(options = {}) {
   }
 }
 
+/** @param {string} directory @param {string} key @param {string} environment */
 async function assertRuntimeDirectoryReady(directory, key, environment) {
   try {
     await fs.mkdir(directory, { recursive: true, mode: 0o700 });
@@ -54,6 +56,7 @@ async function assertRuntimeDirectoryReady(directory, key, environment) {
   }
 }
 
+/** @param {string} filePath @param {string} key */
 async function assertRuntimeContentFileReady(filePath, key) {
   try {
     const stats = await fs.stat(filePath);

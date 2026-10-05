@@ -7,6 +7,24 @@
   const namespace = global.LongtailForge || {};
 
   /**
+   * @param {Record<string, unknown>} value
+   * @returns {import("../../../src/types/framework-contracts.js").AppShellSearchTarget}
+   */
+  function searchTarget(value) {
+    const sourceLabel = stringValue(value.sourceLabel)
+      || stringValue(value.label)
+      || stringValue(value.moduleId);
+    return {
+      aggregate: value.aggregate === true,
+      id: stringValue(value.id),
+      label: stringValue(value.label) || sourceLabel || stringValue(value.recordType),
+      moduleId: stringValue(value.moduleId),
+      recordType: stringValue(value.recordType),
+      sourceLabel,
+    };
+  }
+
+  /**
    * @param {unknown} value
    * @returns {NormalizedAppShellBootstrap}
    */
@@ -34,7 +52,7 @@
       notificationSummary: asRecord(source.notificationSummary) || {},
       permissionHints: asRecord(source.permissionHints) || {},
       quickActions,
-      searchTargets: objectArray(source.searchTargets),
+      searchTargets: objectArray(source.searchTargets).map(searchTarget),
       supportView: asRecord(source.supportView),
       themeAutoSource: stringValue(source.themeAutoSource),
       themeMode: stringValue(source.themeMode),

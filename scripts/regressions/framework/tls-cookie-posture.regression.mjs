@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { readPayload } from "../../test-support/http-payload-assertions.mjs";
 import http from "node:http";
 import express from "express";
 import { createConfig } from "../../../src/config.js";
@@ -98,22 +99,22 @@ const forwardedHeaders = {
 };
 
 const directHttp = await probeRequest([], {}, { enabled: true, maxAgeSeconds: 300 });
-assert.equal(directHttp.body.protocol, "http");
+assert.equal(readPayload(directHttp, ["protocol"], "direct HTTP probe").protocol, "http");
 assert.equal(directHttp.hsts, undefined, "direct HTTP should never receive HSTS");
 assertCookiePosture(directHttp.cookies, { secure: false });
 
 const forgedHttps = await probeRequest([], forwardedHeaders, { enabled: true, maxAgeSeconds: 300 });
-assert.equal(forgedHttps.body.protocol, "http", "direct mode should ignore forged forwarded HTTPS");
+assert.equal(readPayload(forgedHttps, ["protocol"], "forged HTTPS probe").protocol, "http", "direct mode should ignore forged forwarded HTTPS");
 assert.equal(forgedHttps.hsts, undefined, "forged forwarded HTTPS should not enable HSTS");
 assertCookiePosture(forgedHttps.cookies, { secure: false });
 
 const untrustedHttps = await probeRequest(["10.0.0.0/8"], forwardedHeaders, { enabled: true, maxAgeSeconds: 300 });
-assert.equal(untrustedHttps.body.protocol, "http", "an untrusted peer should not establish HTTPS");
+assert.equal(readPayload(untrustedHttps, ["protocol"], "untrusted peer probe").protocol, "http", "an untrusted peer should not establish HTTPS");
 assert.equal(untrustedHttps.hsts, undefined, "an untrusted peer should not enable HSTS");
 assertCookiePosture(untrustedHttps.cookies, { secure: false });
 
 const trustedHttps = await probeRequest(["127.0.0.1/32"], forwardedHeaders, { enabled: true, maxAgeSeconds: 300 });
-assert.equal(trustedHttps.body.protocol, "https");
+assert.equal(readPayload(trustedHttps, ["protocol"], "trusted proxy probe").protocol, "https");
 assert.equal(trustedHttps.hsts, "max-age=300", "trusted effective HTTPS should enable HSTS");
 assertCookiePosture(trustedHttps.cookies, { secure: true });
 
@@ -133,6 +134,7 @@ function createProductionConfig(overrides = {}) {
   });
 }
 
+/** @param {string[]} cookies @param {{ secure: boolean }} expectation */
 function assertCookiePosture(cookies, { secure }) {
   assert.equal(cookies.length, 4, "the probe should issue one session, two theme, and one CSRF cookie");
   assert.match(cookies[0], /; Path=\/;/, "the session cookie should be scoped to the app root");
@@ -151,12 +153,17 @@ function assertCookiePosture(cookies, { secure }) {
   }
 }
 
+// The probe route's body arrives as parsed JSON, so it is published as
+// `unknown` and narrowed where it is read. The previous ProbeRequestContext
+// annotation on this member was a claim nothing checked.
+/** @typedef {{ body: unknown, cookies: string[], hsts: string | undefined }} ProbeResponse */
+/** @param {readonly string[] | undefined} trustedProxies @param {Record<string, string>} headers @param {{ enabled: boolean, maxAgeSeconds: number }} [hsts] @returns {Promise<ProbeResponse>} */
 async function probeRequest(trustedProxies, headers, hsts) {
   const app = express();
   configureTrustedProxy(app, trustedProxies);
   app.use(attachRequestContext);
   app.use(createTransportSecurityMiddleware({ hsts }));
-  app.get("/probe", (request, response) => {
+  app.get("/probe", /** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, response) => {
     response.setHeader("Set-Cookie", [
       buildSessionCookie("probe-session", 300, request),
       buildThemeCookie("system", request),
@@ -164,21 +171,23 @@ async function probeRequest(trustedProxies, headers, hsts) {
       buildCsrfCookie("probe-token", request),
     ]);
     response.json(getRequestContext(request));
-  });
+  }));
 
+  /** @type {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} */
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
 
   try {
-    return await sendRequest(server.address().port, headers);
+    return await sendRequest(/** @type {import("node:net").AddressInfo} */ (server.address()).port, headers);
   } finally {
-    await new Promise((resolve, reject) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
-    });
+    }));
   }
 }
 
+/** @param {number} port @param {Record<string, string>} headers @returns {Promise<ProbeResponse>} */
 function sendRequest(port, headers) {
   return new Promise((resolve, reject) => {
     const request = http.request({
@@ -188,11 +197,12 @@ function sendRequest(port, headers) {
       path: "/probe",
       port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
         resolve({
-          body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
+          body: /** @type {unknown} */ (JSON.parse(Buffer.concat(chunks).toString("utf8"))),
           cookies: response.headers["set-cookie"] || [],
           hsts: response.headers["strict-transport-security"],
         });

@@ -4,6 +4,15 @@ import { readSeparateWorkerReadiness } from "../core/jobs/worker-process-lock.js
 import { readMigrationReadiness } from "../db/migrations.js";
 import { readDatabaseHealth } from "../db/provider.js";
 
+/**
+ * @typedef {Object} OperationalReadinessDependencies
+ * @property {() => Promise<unknown>} [readDatabaseHealth]
+ * @property {() => Promise<boolean>} [readMigrationReadiness]
+ * @property {() => { mode?: string, state?: string, timerActive?: boolean }} [getJobWorkerStatus]
+ * @property {() => Promise<boolean>} [readSeparateWorkerReadiness]
+ * @property {string} [workerMode]
+ */
+/** @param {OperationalReadinessDependencies} [dependencies] */
 function createOperationalReadinessService(dependencies = {}) {
   const readDatabase = dependencies.readDatabaseHealth || readDatabaseHealth;
   const readMigrations = dependencies.readMigrationReadiness || readMigrationReadiness;
@@ -33,7 +42,7 @@ function createOperationalReadinessService(dependencies = {}) {
       const status = readInlineWorker();
       return status?.mode === "inline"
         && status.timerActive === true
-        && ["idle", "running"].includes(status.state);
+        && ["idle", "running"].includes(String(status.state || ""));
     }
 
     if (workerMode === "separate") {
@@ -46,19 +55,21 @@ function createOperationalReadinessService(dependencies = {}) {
   return Object.freeze({ isReady });
 }
 
+/** @param {unknown} health */
 function databaseIsReady(health) {
   if (!health || typeof health !== "object") {
     return false;
   }
 
-  if (health.provider === "sqlite") {
-    return health.databaseFileWritable === true
-      && health.foreignKeysEnabled === true
-      && health.busyTimeoutMs === config.sqlite.busyTimeoutMs
-      && health.journalMode === config.sqlite.journalMode;
+  const readiness = /** @type {Record<string, unknown>} */ (health);
+  if (readiness.provider === "sqlite") {
+    return readiness.databaseFileWritable === true
+      && readiness.foreignKeysEnabled === true
+      && readiness.busyTimeoutMs === config.sqlite.busyTimeoutMs
+      && readiness.journalMode === config.sqlite.journalMode;
   }
 
-  return health.ready === true;
+  return readiness.ready === true;
 }
 
 const operationalReadinessService = createOperationalReadinessService();

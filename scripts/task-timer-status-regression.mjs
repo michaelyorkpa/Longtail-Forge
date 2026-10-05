@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-timer-status-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-timer-status.db");
@@ -37,6 +42,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TimeTrackingSession} session @param {{ clientId: string, clientName: string, projectId: string, projectName: string }} context */
 async function assertRecurringStartAuditCarriesReadableContext(session, context) {
   const task = await createTask(session, context.projectId, "Recurring timer audit context", {
     recurrence: {
@@ -51,7 +57,10 @@ async function assertRecurringStartAuditCarriesReadableContext(session, context)
   await taskTimersService.save(task.task_id, runningTimerPayload(), session);
 
   const audit = await readAudit(session.workspace_id, "task_timer_status_started", task.task_id);
-  const metadata = JSON.parse(audit?.metadata_json || "{}");
+  const metadata = requireJsonRecord(
+    JSON.parse(String(audit?.metadata_json ?? "{}")),
+    "task timer start audit metadata",
+  );
   assert.deepEqual(
     {
       client_id: metadata.client_id,
@@ -76,6 +85,7 @@ async function assertRecurringStartAuditCarriesReadableContext(session, context)
   assert.ok(byProject.auditLogs.some((entry) => entry.audit_id === audit.audit_id), "project filtering should retain the recurring-task status audit");
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertStartMovesOpenTask(session, projectId) {
   const task = await createTask(session, projectId, "Timer start transition");
 
@@ -95,6 +105,7 @@ async function assertStartMovesOpenTask(session, projectId) {
   );
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertStartMovesBlockedTask(session, projectId) {
   const blockedReason = "Waiting for the reviewed source package.";
   const task = await createTask(session, projectId, "Blocked timer start transition", {
@@ -115,6 +126,7 @@ async function assertStartMovesBlockedTask(session, projectId) {
   assert.equal(transition.previousBlockedReason, blockedReason, "timer metadata should retain the exact recoverable blocked reason");
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertBlockingPausesRunningTimers(session, projectId) {
   const directTask = await createTask(session, projectId, "Direct block pauses timer");
   await taskTimersService.save(directTask.task_id, runningTimerPayload(), session);
@@ -145,6 +157,7 @@ async function assertBlockingPausesRunningTimers(session, projectId) {
   );
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertResumeMovesNewlyBlockedTask(session, projectId) {
   const blockedReason = "Waiting after this timer was paused.";
   const task = await createTask(session, projectId, "Paused timer resumes newly blocked task");
@@ -168,6 +181,7 @@ async function assertResumeMovesNewlyBlockedTask(session, projectId) {
   assert.equal(transition.previousBlockedReason, blockedReason, "resuming should retain the current blocked reason for eligible Reset recovery");
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertPauseLeavesInProgress(session, projectId) {
   const task = await createTask(session, projectId, "Timer pause transition");
 
@@ -181,6 +195,7 @@ async function assertPauseLeavesInProgress(session, projectId) {
   assert.equal(await readTaskStatus(session.workspace_id, task.task_id), "in_progress");
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertRemoveRevertsOnlyTimerMovedTask(session, projectId) {
   const openTask = await createTask(session, projectId, "Timer remove reverts open");
 
@@ -211,6 +226,7 @@ async function assertRemoveRevertsOnlyTimerMovedTask(session, projectId) {
   );
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertBlockedResetRestorationRules(session, projectId) {
   const restorableReason = "Waiting for the client decision.";
   const restorable = await createTask(session, projectId, "Blocked timer reset restores reason", {
@@ -261,6 +277,7 @@ async function assertBlockedResetRestorationRules(session, projectId) {
   assert.equal(savedTimeReset.task?.blocked_reason, "", "persisted work should keep the old blocked reason cleared");
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertFinalizeLeavesInProgress(session, projectId) {
   const task = await createTask(session, projectId, "Timer finalize transition");
 
@@ -279,6 +296,7 @@ async function assertFinalizeLeavesInProgress(session, projectId) {
   );
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertCompletedAndArchivedTasksRejectTimers(session, projectId) {
   const completedTask = await createTask(session, projectId, "Completed timer rejection");
   await tasksService.complete(completedTask.task_id, session);
@@ -289,6 +307,7 @@ async function assertCompletedAndArchivedTasksRejectTimers(session, projectId) {
   await assertRejectsTaskTimer(archivedTask.task_id, session);
 }
 
+/** @param {string} taskId @param {TimeTrackingSession} session */
 async function assertRejectsTaskTimer(taskId, session) {
   await assert.rejects(
     () => taskTimersService.save(taskId, runningTimerPayload(), session),
@@ -296,6 +315,7 @@ async function assertRejectsTaskTimer(taskId, session) {
   );
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId @param {string} title @param {Record<string, unknown>} [overrides] */
 async function createTask(session, projectId, title, overrides = {}) {
   const result = await tasksService.create({
     title,
@@ -312,6 +332,7 @@ async function createTask(session, projectId, title, overrides = {}) {
   return result.task;
 }
 
+/** @param {string} workspaceId */
 async function createClientProject(workspaceId) {
   const now = new Date().toISOString();
   const clientId = randomUUID();
@@ -399,18 +420,7 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
 function runningTimerPayload() {
@@ -421,6 +431,7 @@ function runningTimerPayload() {
   };
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readTaskStatus(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT status
@@ -433,6 +444,7 @@ LIMIT 1;
   return rows[0]?.status || "";
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readTaskLifecycle(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT status, blocked_reason
@@ -448,11 +460,13 @@ LIMIT 1;
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} taskId */
 async function readTimerTransitionFlag(workspaceId, userId, taskId) {
   const metadata = await readTimerTransitionMetadata(workspaceId, userId, taskId);
   return metadata.movedTaskFromOpen === true;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} taskId */
 async function readTimerTransitionMetadata(workspaceId, userId, taskId) {
   const rows = await querySql(`
 SELECT source_metadata_json
@@ -464,11 +478,18 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   AND source_id = ${sqlText(taskId)}
 LIMIT 1;
 `);
-  const metadata = JSON.parse(rows[0]?.source_metadata_json || "{}");
+  const metadata = requireJsonRecord(
+    JSON.parse(String(rows[0]?.source_metadata_json ?? "{}")),
+    "active work timer source metadata",
+  );
 
-  return metadata.taskTimerStatusTransition || {};
+  const transition = metadata.taskTimerStatusTransition;
+  return transition === null || transition === undefined
+    ? {}
+    : requireJsonRecord(transition, "active work timer task timer status transition");
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} taskId @returns {Promise<number>} */
 async function readTaskTimerCount(workspaceId, userId, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -483,6 +504,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count) || 0;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} taskId */
 async function readTaskTimerLifecycle(workspaceId, userId, taskId) {
   const rows = await querySql(`
 SELECT timer_status, last_active_start_time
@@ -501,6 +523,7 @@ LIMIT 1;
   };
 }
 
+/** @param {string} workspaceId @param {string} action @param {string} taskId @returns {Promise<number>} */
 async function auditCount(workspaceId, action, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -514,6 +537,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count) || 0;
 }
 
+/** @param {string} workspaceId @param {string} action @param {string} taskId */
 async function readAudit(workspaceId, action, taskId) {
   const rows = await querySql(`
 SELECT audit_id, metadata_json

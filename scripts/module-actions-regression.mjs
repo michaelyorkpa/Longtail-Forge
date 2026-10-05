@@ -1,27 +1,29 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const moduleActionsSource = fs.readFileSync("public/js/shared/module-actions.js", "utf8");
-const workbenchView = fs.readFileSync("views/protected/workbench.html", "utf8");
-const taskView = fs.readFileSync("views/protected/tasks.html", "utf8");
-const timeEntriesView = fs.readFileSync("views/protected/time-entries.html", "utf8");
-const projectsView = fs.readFileSync("views/protected/projects.html", "utf8");
-const clientsView = fs.readFileSync("views/protected/clients.html", "utf8");
-const notesView = fs.readFileSync("views/protected/notes.html", "utf8");
-const listsView = fs.readFileSync("views/protected/lists.html", "utf8");
-const filesView = fs.readFileSync("views/protected/files.html", "utf8");
-const workbenchScript = fs.readFileSync("public/js/workbench.js", "utf8");
-const tasksScript = fs.readFileSync("public/js/tasks.js", "utf8");
-const taskDialogScript = fs.readFileSync("public/js/task-dialog.js", "utf8");
-const timeEntryDialogScript = fs.readFileSync("public/js/time-entry-dialog.js", "utf8");
-const timeTrackingTimerDialogScript = fs.readFileSync("public/js/time-tracking-timer-dialog.js", "utf8");
-const timeEntriesScript = fs.readFileSync("public/js/time-entries.js", "utf8");
-const clientsProjectsScript = fs.readFileSync("public/js/clients-projects.js", "utf8");
-const notesScript = fs.readFileSync("public/js/notes.js", "utf8");
-const listsScript = fs.readFileSync("public/js/lists.js", "utf8");
-const filesScript = fs.readFileSync("public/js/files.js", "utf8");
+const moduleActionsSource = readText("public/js/shared/module-actions.js");
+const workbenchView = readText("views/protected/workbench.html");
+const taskView = readText("views/protected/tasks.html");
+const timeEntriesView = readText("views/protected/time-entries.html");
+const projectsView = readText("views/protected/projects.html");
+const clientsView = readText("views/protected/clients.html");
+const notesView = readText("views/protected/notes.html");
+const listsView = readText("views/protected/lists.html");
+const filesView = readText("views/protected/files.html");
+const workbenchScript = readText("public/js/workbench.js");
+const tasksScript = readText("public/js/tasks.js");
+const taskDialogScript = readText("public/js/task-dialog.js");
+const timeEntryDialogScript = readText("public/js/time-entry-dialog.js");
+const timeTrackingTimerDialogScript = readText("public/js/time-tracking-timer-dialog.js");
+const timeEntriesScript = readText("public/js/time-entries.js");
+const clientsProjectsScript = readText("public/js/clients-projects.js");
+const notesScript = readText("public/js/notes.js");
+const listsScript = readText("public/js/lists.js");
+const filesScript = readText("public/js/files.js");
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -108,30 +110,30 @@ check("Workbench Add Task dispatches a module action instead of navigating away"
 });
 
 check("Tasks actions use module-owned reusable dialog helpers", () => {
-  assert.match(workbenchScript, /src: "js\/task-dialog\.js"/);
+  assert.match(moduleActionsSource, /src: "js\/task-dialog\.js"/);
   assert.match(taskView, /js\/task-dialog\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
-  assert.match(taskDialogScript, /namespace\.moduleActions\?\.register\?\.\(\{/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireTasksDialog\(\)\.openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireTasksDialog\(\)\.openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(taskDialogScript, /namespace\.moduleActions\?\.register\?\.\(addTaskAction\)[\s\S]*namespace\.moduleActions\?\.register\?\.\(editTaskAction\)/);
   assert.match(taskDialogScript, /actionId: "tasks\.add"/);
   assert.match(taskDialogScript, /actionId: "tasks\.edit"/);
   assert.match(tasksScript, /tasksDialog\?\.configure/);
-  assert.match(tasksScript, /tasksDialog\.openTaskEditor/);
+  assert.match(tasksScript, /requireTasksDialog\(\)\.openTaskEditor/);
 });
 
 check("Time Entry actions use module-owned reusable dialog helpers", () => {
-  assert.match(workbenchScript, /src: "js\/time-entry-dialog\.js"/);
+  assert.match(moduleActionsSource, /src: "js\/time-entry-dialog\.js"/);
   assert.match(timeEntriesView, /js\/time-entry-dialog\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeEntryDialog\.openAdd\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeEntryDialog\.openEdit\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.timeEntryDialog|requireTimeEntryDialog\(\))\.openAdd\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.timeEntryDialog|requireTimeEntryDialog\(\))\.openEdit\(params, hostContext\)/);
   assert.match(timeEntryDialogScript, /actionId: "time-entries\.add"/);
   assert.match(timeEntryDialogScript, /actionId: "time-entries\.edit"/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openAdd/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openEdit/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openAdd/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openEdit/);
 });
 
 check("Time Tracking timer action uses module-owned reusable dialog helpers", () => {
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeTrackingTimerDialog\.openCreate\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.timeTrackingTimerDialog|requireTimeTrackingTimerDialog\(\))\.openCreate\(params, hostContext\)/);
   assert.match(timeTrackingTimerDialogScript, /actionId: TIMER_ACTION_ID/);
   assert.match(timeTrackingTimerDialogScript, /namespace\.timeTrackingTimerDialog = timeTrackingTimerDialogApi/);
   assert.match(timeTrackingTimerDialogScript, /openCreate/);
@@ -140,14 +142,14 @@ check("Time Tracking timer action uses module-owned reusable dialog helpers", ()
 });
 
 check("Client and Project actions use module-owned reusable dialog helpers", () => {
-  assert.match(workbenchScript, /src: "js\/clients-projects\.js"/);
+  assert.match(moduleActionsSource, /src: "js\/clients-projects\.js"/);
   assert.match(projectsView, /js\/clients-projects\.js/);
   assert.match(clientsView, /js\/clients-projects\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openAddProject\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openEditProject\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openAddClient\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openEditClient\(params, hostContext\)/);
-  assert.match(clientsProjectsScript, /window\.LongtailForge\.clientProjectDialog = clientProjectDialogApi/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openAddProject\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openEditProject\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openAddClient\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openEditClient\(params, hostContext\)/);
+  assert.match(clientsProjectsScript, /namespace\.clientProjectDialog = clientProjectDialogApi/);
   assert.match(clientsProjectsScript, /function openClientProjectModuleAction[\s\S]*moduleActions\.open\(actionId, params/, "Clients/Projects descriptor and query actions should dispatch through the shared module action registry");
   assert.doesNotMatch(clientsProjectsScript, /window\.LongtailForge\.moduleActions\?\.register/, "Clients/Projects adapter should not duplicate first-party module action metadata");
 });
@@ -156,24 +158,24 @@ check("Notes, Lists, and Files actions use module-owned canonical openers", () =
   assert.match(notesView, /js\/shared\/module-actions\.js/);
   assert.match(listsView, /js\/shared\/module-actions\.js/);
   assert.match(filesView, /js\/shared\/module-actions\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFilePreviewAction\(params, hostContext\)/);
-  assert.match(notesScript, /window\.LongtailForge\.notesDialog = Object\.freeze/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteViewer\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireFilesDialog\(\)\.openFileEditorAction\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireFilePreview\(\)\.openFilePreviewAction\(params, hostContext\)/);
+  assert.match(notesScript, /namespace\.notesDialog = Object\.freeze/);
   assert.match(notesScript, /openNoteEditor/);
   assert.match(notesScript, /openNoteViewer/);
-  assert.match(listsScript, /window\.LongtailForge\.listsDialog = Object\.freeze/);
+  assert.match(listsScript, /namespace\.listsDialog = Object\.freeze/);
   assert.match(listsScript, /openListEditor/);
   assert.match(filesScript, /openFileEditorAction/);
   assert.match(filesScript, /openFilePreviewAction/);
 });
 
 check("module-owned saves can signal host completion", () => {
-  assert.match(taskDialogScript, /hostContext\?\.complete/);
+  assert.match(taskDialogScript, /const host = context\?\.hostContext;[\s\S]*const callback = optionalTaskProjectionFields\(host\)\?\.complete;[\s\S]*callback !== null && callback !== undefined[\s\S]*const args = \[taskCompletionHostDetail\(result\)\];[\s\S]*typeof callback !== "function"[\s\S]*Reflect\.apply\(callback, host, args\)/);
   assert.match(timeEntryDialogScript, /hostContext\?\.complete/);
   assert.match(timeTrackingTimerDialogScript, /hostContext\?\.complete/);
   assert.match(timeTrackingTimerDialogScript, /hostContext\?\.refresh/);
@@ -181,7 +183,7 @@ check("module-owned saves can signal host completion", () => {
   assert.match(notesScript, /completeNoteEditorHostContext/);
   assert.match(listsScript, /completeListDialogHostContext/);
   assert.match(filesScript, /hostContext\?\.complete\?\.\(\{/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openEdit/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openEdit/);
   assert.match(timeEntriesScript, /complete: async \(\) =>/);
   assert.match(clientsProjectsScript, /signalClientProjectModuleAction/);
 });

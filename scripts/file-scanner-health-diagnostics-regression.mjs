@@ -1,11 +1,49 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { fileURLToPath } from "node:url";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
+/** @typedef {typeof import("../src/db/index.js")["db"]} DatabaseFacade */
+
+/** The runtime diagnostics envelope this owner reads from the scanner child. */
+/** @typedef {{ scanner: { health: { available: boolean, status: string, warning: string }, mode: string } }} ScannerDiagnosticsEnvelope */
+
+/**
+ * Narrow a scenario child's last stdout line to a JSON object.
+ *
+ * The child is a separate process, so its output crosses back as text. Parsing
+ * it would otherwise infer `any` and every assertion below would be a claim the
+ * compiler never checks.
+ * @template {object} [ChildResult=Record<string, unknown>]
+ * @param {import("node:child_process").SpawnSyncReturns<string>} child
+ * @param {ReadonlyArray<string>} keys
+ * @param {string} label
+ * @returns {ChildResult}
+ */
+function readChildResult(child, keys, label) {
+  const resultLine = child.stdout.trim().split(/\r?\n/).at(-1);
+  assert.ok(resultLine, `${label} should publish a JSON result line`);
+  /** @type {unknown} */
+  const parsed = JSON.parse(resultLine);
+  assert.ok(
+    parsed && typeof parsed === "object" && !Array.isArray(parsed),
+    `${label} output should be a JSON object: ${resultLine}`,
+  );
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  for (const key of keys) {
+    assert.ok(key in record, `${label} output should carry ${key}: ${JSON.stringify(Object.keys(record))}`);
+  }
+  return /** @type {ChildResult} */ (/** @type {unknown} */ (record));
+}
+
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
@@ -51,12 +89,10 @@ assertSafeScannerDiagnostics(clamscanDiagnostics);
 console.log("File scanner health diagnostics regression passed.");
 
 function assertStaticContracts() {
-  const roadmap = readText("ROADMAP.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
   const workspaceSettingsScript = readText("public/js/workspace-settings.js");
-
 
   assert.match(scannerAdapterSource, /async health\(\)[\s\S]*status: "disabled"/, "none scanner should expose safe disabled health");
   assert.match(scannerAdapterSource, /async health\(\)[\s\S]*status: "pass_through"/, "noop scanner should expose safe pass-through health");
@@ -67,11 +103,15 @@ function assertStaticContracts() {
   assert.doesNotMatch(runtimeDiagnosticsSource, /process\.env|clamdHost|clamdPort|clamscanPath|signedUrl|storageKey|protectedPath|masterKey/i, "runtime diagnostics source must not expose scanner internals, raw env, signed URLs, storage keys, or secret material");
   assert.match(workspaceSettingsScript, /Scanner Status/, "Workspace Settings should render scanner availability status");
   assert.match(workspaceSettingsScript, /formatScannerStatus/, "Workspace Settings should format scanner health safely");
-  assert.match(workspaceSettingsScript, /scanner\.health\?\.warning/, "Workspace Settings warnings should consume the server-provided scanner warning");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*scanner mode[\s\S]*scanner health[\s\S]*disabled/, "runtime docs should document scanner health diagnostics");
-    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+  // Retargeted under `0.33.33.38.4.8.5`: the optional chain is gone because the diagnostics
+  // reader now proves the scanner section before the warnings are built, so the page reads
+  // the server-provided warning directly instead of guessing whether it exists.
+  assert.match(workspaceSettingsScript, /warnings\.push\(scanner\.health\.warning\)/, "Workspace Settings warnings should consume the server-provided scanner warning");
+  assert.match(workspaceSettingsScript, /SCANNER_HEALTH_STATUSES\.some\(\(word\) => word === health\.status\)/, "Workspace Settings should validate the scanner status against the producer's own vocabulary");
+  assert.match(runtimeDocs, /scanner mode[\s\S]*scanner health[\s\S]*disabled/, "runtime docs should document scanner health diagnostics");
   }
 
+/** @param {string} mode */
 async function runDiagnosticsScenario(mode) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `ltf-file-scanner-health-${mode}-`));
 
@@ -98,6 +138,7 @@ async function runDiagnosticsScenario(mode) {
   }
 }
 
+/** @param {DatabaseFacade} db */
 async function readSeedSession(db) {
   const admin = await db.get(`
 SELECT user_id, username, home_workspace_id, active_workspace_id, timezone
@@ -108,18 +149,10 @@ LIMIT 1;
 `);
   assert.ok(admin?.user_id, "fresh database should seed a protected admin");
 
-  const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
-
-  return {
-    active_workspace_id: workspaceId,
-    home_workspace_id: admin.home_workspace_id,
-    timezone: admin.timezone || "America/New_York",
-    user_id: admin.user_id,
-    username: admin.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture(admin);
 }
 
+/** @param {string} mode @returns {ScannerDiagnosticsEnvelope} */
 function runDiagnosticsChild(mode) {
   const child = spawnSync(process.execPath, [scriptPath, "--mode", mode], {
     cwd: root,
@@ -128,9 +161,12 @@ function runDiagnosticsChild(mode) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  return JSON.parse(child.stdout.trim().split(/\r?\n/).at(-1));
+  /** @type {ScannerDiagnosticsEnvelope} */
+  const diagnostics = readChildResult(child, ["scanner"], `scanner health ${mode} diagnostics`);
+  return diagnostics;
 }
 
+/** @param {unknown} diagnostics */
 function assertSafeScannerDiagnostics(diagnostics) {
   const serialized = JSON.stringify(diagnostics);
 
@@ -154,12 +190,4 @@ function cleanEnv() {
   }
 
   return env;
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

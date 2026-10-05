@@ -7,7 +7,6 @@ import {
   taskCalendarResource,
 } from "./task-calendar.shared.js";
 import { normalizeTaskCalendarFeedScope } from "./task-calendar-feed.scope.js";
-import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
 import { tasksRepository } from "./tasks.repo.js";
 
@@ -17,6 +16,9 @@ const TASK_CALENDAR_NAME = "Longtail Forge Tasks";
 const ICALENDAR_PRODID = "-//Longtail Forge//Tasks Calendar//EN";
 const ACTIVE_FEED_STATUSES = new Set(["open", "in_progress", "blocked", "complete"]);
 
+/**
+ * @param {{ now?: Date, session: import("../../types/http-contracts.d.ts").PrivateFeedAuthorizationSession, subscription: import("../../types/task-recurrence-contracts.d.ts").TaskCalendarSubscription }} input
+ */
 async function buildTasksPrivateCalendarContent({ now = new Date(), session, subscription }) {
   const window = calendarFeedWindow(now, session.timezone);
   const scope = normalizeTaskCalendarFeedScope(subscription?.scope);
@@ -27,7 +29,7 @@ async function buildTasksPrivateCalendarContent({ now = new Date(), session, sub
       window.endDate,
       { scope },
     ),
-    taskRecurrenceRepository.readActiveTemplates(session.workspace_id, {
+    taskRecurrenceService.listActiveTemplates(session.workspace_id, {
       fromDate: window.startDate,
       includeAssignees: false,
       scope,
@@ -35,13 +37,16 @@ async function buildTasksPrivateCalendarContent({ now = new Date(), session, sub
     }),
     permissionsService.createPermissionEvaluator(session, "tasks.view"),
   ]);
-  const suppressedInstances = await tasksRepository.readCalendarFeedSuppressedInstances(
+  const suppressedInstances = (await tasksRepository.readCalendarFeedSuppressedInstances(
     session.workspace_id,
     window.startDate,
     window.endDate,
     templates.map((template) => template.recurrence_template_id),
     { scope },
-  );
+  )).map((instance) => ({
+    recurrence_instance_date: String(instance.recurrence_instance_date || ""),
+    recurrence_template_id: String(instance.recurrence_template_id || ""),
+  }));
 
   return serializeTasksCalendar({
     canReadTask,
@@ -55,6 +60,9 @@ async function buildTasksPrivateCalendarContent({ now = new Date(), session, sub
   });
 }
 
+/**
+ * @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarSerializationInput} input
+ */
 function serializeTasksCalendar({
   canReadTask = () => true,
   now = new Date(),
@@ -150,7 +158,7 @@ function serializeTasksCalendar({
       continue;
     }
 
-    const template = templatesById.get(task.recurrence_template_id);
+    const template = templatesById.get(String(task.recurrence_template_id || ""));
     const instanceIsInPublishedSeries = template
       && readableTemplateIds.has(template.recurrence_template_id)
       && task.recurrence_instance_date
@@ -188,6 +196,7 @@ function serializeTasksCalendar({
   return renderICalendar(lines);
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string[]} occurrences @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarWindow} window @param {Date} now @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedSession} session */
 function recurringMasterLines(template, occurrences, window, now, session) {
   const uid = stableCalendarUid(
     "recurrence",
@@ -195,7 +204,7 @@ function recurringMasterLines(template, occurrences, window, now, session) {
     template.recurrence_template_id,
   );
   const firstOccurrence = occurrences[0];
-  const finalOccurrence = occurrences.at(-1);
+  const finalOccurrence = occurrences.at(-1) || firstOccurrence;
   const lines = eventHeader(uid, template.updated_at, now);
 
   lines.push(...eventStartLines({
@@ -211,6 +220,7 @@ function recurringMasterLines(template, occurrences, window, now, session) {
   return lines;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string} instanceDate @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @param {Date} now @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedSession} session */
 function recurrenceOverrideLines(template, instanceDate, task, now, session) {
   const uid = stableCalendarUid(
     "recurrence",
@@ -221,7 +231,7 @@ function recurrenceOverrideLines(template, instanceDate, task, now, session) {
 
   lines.push(recurrenceIdLine(template, instanceDate, session?.timezone));
   lines.push(...eventStartLines({
-    date: task.due_date,
+    date: String(task.due_date || ""),
     dueAtUtc: task.due_at_utc,
     time: task.due_time,
     timezone: task.due_timezone || session?.timezone,
@@ -232,6 +242,7 @@ function recurrenceOverrideLines(template, instanceDate, task, now, session) {
   return lines;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string} instanceDate @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord | import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} task @param {Date} now @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedSession} session */
 function cancelledRecurrenceLines(template, instanceDate, task, now, session) {
   const uid = stableCalendarUid(
     "recurrence",
@@ -252,6 +263,7 @@ function cancelledRecurrenceLines(template, instanceDate, task, now, session) {
   return lines;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @param {Date} now @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarFeedSession} session */
 function singleTaskLines(task, now, session) {
   const uid = stableCalendarUid(
     "task",
@@ -261,7 +273,7 @@ function singleTaskLines(task, now, session) {
   const lines = eventHeader(uid, task.updated_at, now);
 
   lines.push(...eventStartLines({
-    date: task.due_date,
+    date: String(task.due_date || ""),
     dueAtUtc: task.due_at_utc,
     time: task.due_time,
     timezone: task.due_timezone || session?.timezone,
@@ -272,6 +284,7 @@ function singleTaskLines(task, now, session) {
   return lines;
 }
 
+/** @param {string} uid @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} updatedAt @param {Date} now */
 function eventHeader(uid, updatedAt, now) {
   const lines = [
     "BEGIN:VEVENT",
@@ -284,6 +297,7 @@ function eventHeader(uid, updatedAt, now) {
   return lines;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarEventStart} input */
 function eventStartLines({
   date,
   dueAtUtc = "",
@@ -309,6 +323,7 @@ function eventStartLines({
   return [`DTSTART:${toICalendarUtc(canonicalUtc)}`];
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string} instanceDate @param {string} fallbackTimezone */
 function recurrenceIdLine(template, instanceDate, fallbackTimezone) {
   if (!template.due_time) {
     return `RECURRENCE-ID;VALUE=DATE:${toICalendarDate(instanceDate)}`;
@@ -318,6 +333,7 @@ function recurrenceIdLine(template, instanceDate, fallbackTimezone) {
   return `RECURRENCE-ID;TZID=${timezone}:${toICalendarLocal(instanceDate, template.due_time)}`;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string} finalOccurrence @param {string} fallbackTimezone */
 function boundedRRule(template, finalOccurrence, fallbackTimezone) {
   const parts = String(template.rrule || "")
     .split(";")
@@ -338,6 +354,7 @@ function boundedRRule(template, finalOccurrence, fallbackTimezone) {
   return parts.join(";");
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord | import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} task */
 function taskMetadataLines(task) {
   return [
     `X-LONGTAIL-FORGE-STATUS:${escapeICalendarText(task.status || "open")}`,
@@ -346,6 +363,7 @@ function taskMetadataLines(task) {
   ];
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecord} task @param {import("../../types/task-recurrence-contracts.d.ts").TaskRecurrenceTemplate} template @param {string} instanceDate */
 function hasMaterializedOverride(task, template, instanceDate) {
   return task.title !== template.title
     || task.status !== (template.status || "open")
@@ -355,6 +373,7 @@ function hasMaterializedOverride(task, template, instanceDate) {
     || normalizeTimezone(task.due_timezone) !== normalizeTimezone(template.due_timezone);
 }
 
+/** @param {string} kind @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} workspaceId @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} recordId */
 function stableCalendarUid(kind, workspaceId, recordId) {
   const digest = createHash("sha256")
     .update(["longtail-forge", kind, workspaceId, recordId].join("\0"))
@@ -362,6 +381,7 @@ function stableCalendarUid(kind, workspaceId, recordId) {
   return `${digest}@calendar.longtailforge.local`;
 }
 
+/** @param {string} timezone @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarWindow} window */
 function timezoneComponentLines(timezone, window) {
   const start = new Date(`${addDaysKey(window.startDate, -730)}T00:00:00.000Z`);
   const end = new Date(`${addDaysKey(window.endDate, 370)}T23:59:59.999Z`);
@@ -405,7 +425,9 @@ function timezoneComponentLines(timezone, window) {
   ];
 }
 
+/** @param {string} timezone @param {Date} start @param {Date} end @returns {import("../../types/task-recurrence-contracts.d.ts").TimezoneTransition[]} */
 function findTimezoneTransitions(timezone, start, end) {
+  /** @type {import("../../types/task-recurrence-contracts.d.ts").TimezoneTransition[]} */
   const transitions = [];
   const stepMilliseconds = 6 * 60 * 60 * 1000;
   let previousInstant = new Date(start);
@@ -438,6 +460,7 @@ function findTimezoneTransitions(timezone, start, end) {
   return transitions;
 }
 
+/** @param {string} timezone @param {Date} lowerDate @param {Date} upperDate @param {number} fromOffset */
 function findTransitionInstant(timezone, lowerDate, upperDate, fromOffset) {
   let lower = Math.floor(lowerDate.getTime() / 60000) * 60000;
   let upper = Math.ceil(upperDate.getTime() / 60000) * 60000;
@@ -454,6 +477,7 @@ function findTransitionInstant(timezone, lowerDate, upperDate, fromOffset) {
   return new Date(upper);
 }
 
+/** @param {Date} date @param {string} timezone */
 function timezoneOffsetMinutes(date, timezone) {
   const parts = zonedDateTimeParts(date, timezone);
   const zonedAsUtc = Date.UTC(
@@ -467,6 +491,7 @@ function timezoneOffsetMinutes(date, timezone) {
   return Math.round((zonedAsUtc - date.getTime()) / 60000);
 }
 
+/** @param {Date} date @param {string} timezone @returns {import("../../types/task-recurrence-contracts.d.ts").ZonedDateTimeParts} */
 function zonedDateTimeParts(date, timezone) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
@@ -490,6 +515,7 @@ function zonedDateTimeParts(date, timezone) {
   };
 }
 
+/** @param {Date} date @param {number} offsetMinutes @returns {import("../../types/task-recurrence-contracts.d.ts").ZonedDateTimeParts} */
 function localPartsAtOffset(date, offsetMinutes) {
   const local = new Date(date.getTime() + (offsetMinutes * 60 * 1000));
   return {
@@ -502,6 +528,7 @@ function localPartsAtOffset(date, offsetMinutes) {
   };
 }
 
+/** @param {Date} date @param {string} timezone */
 function timezoneName(date, timezone) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
@@ -511,6 +538,7 @@ function timezoneName(date, timezone) {
     .find((part) => part.type === "timeZoneName")?.value || timezone;
 }
 
+/** @param {number} offsetMinutes */
 function formatTimezoneOffset(offsetMinutes) {
   const sign = offsetMinutes < 0 ? "-" : "+";
   const absolute = Math.abs(offsetMinutes);
@@ -519,6 +547,7 @@ function formatTimezoneOffset(offsetMinutes) {
   return `${sign}${hours}${minutes}`;
 }
 
+/** @param {Date} now @param {string} timezone @returns {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarWindow} */
 function calendarFeedWindow(now, timezone) {
   const today = localDateKey(now, normalizeTimezone(timezone));
   return {
@@ -527,6 +556,7 @@ function calendarFeedWindow(now, timezone) {
   };
 }
 
+/** @param {Date} date @param {string} timezone */
 function localDateKey(date, timezone) {
   const parts = zonedDateTimeParts(date, timezone);
   return [
@@ -536,30 +566,36 @@ function localDateKey(date, timezone) {
   ].join("-");
 }
 
+/** @param {string} dateKey @param {number} days */
 function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} date @param {import("../../types/task-recurrence-contracts.d.ts").TaskCalendarWindow} window */
 function dateInWindow(date, window) {
   return Boolean(date && date >= window.startDate && date <= window.endDate);
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} date */
 function toICalendarDate(date) {
   return String(date || "").replaceAll("-", "");
 }
 
+/** @param {string} date @param {import("../../types/task-recurrence-contracts.d.ts").NullableText} time */
 function toICalendarLocal(date, time) {
   return `${toICalendarDate(date)}T${String(time || "00:00").replaceAll(":", "").padEnd(6, "0")}`;
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").DateInput} value @param {Date} [fallback] */
 function toICalendarUtc(value, fallback = new Date()) {
   const date = new Date(value || fallback);
   const safeDate = Number.isFinite(date.getTime()) ? date : new Date(fallback);
   return safeDate.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").ZonedDateTimeParts} parts */
 function formatDateTimeParts(parts) {
   return [
     String(parts.year).padStart(4, "0"),
@@ -572,10 +608,12 @@ function formatDateTimeParts(parts) {
   ].join("");
 }
 
+/** @param {import("../../types/task-recurrence-contracts.d.ts").DateInput} value */
 function isValidDateTime(value) {
-  return Boolean(value) && Number.isFinite(new Date(value).getTime());
+  return Boolean(value) && Number.isFinite(new Date(value || 0).getTime());
 }
 
+/** @param {unknown} value */
 function escapeICalendarText(value) {
   return String(value || "")
     .replaceAll("\\", "\\\\")
@@ -584,10 +622,12 @@ function escapeICalendarText(value) {
     .replaceAll(",", "\\,");
 }
 
+/** @param {string[]} lines */
 function renderICalendar(lines) {
   return `${lines.flatMap(foldICalendarLine).join("\r\n")}\r\n`;
 }
 
+/** @param {string} line */
 function foldICalendarLine(line) {
   const segments = [];
   let segment = "";

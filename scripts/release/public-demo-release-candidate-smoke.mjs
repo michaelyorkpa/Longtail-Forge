@@ -19,8 +19,20 @@ const PUBLIC_DEMO_CONTRACT_SCRIPTS = Object.freeze([
   "scripts/regressions/release/public-demo-isolation.regression.mjs",
 ]);
 
+/**
+ * Parsed public-demo candidate smoke options.
+ * @typedef {object} CandidateSmokeOptions
+ * @property {string} artifact
+ * @property {boolean} container
+ * @property {boolean} list
+ * @property {boolean} pull
+ * @property {string} sourceBranch
+ */
+
+/** @typedef {{ version: string }} PackageManifest */
+
 const options = parseArgs(process.argv.slice(2));
-const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+const packageJson = /** @type {PackageManifest} */ (JSON.parse(fs.readFileSync("package.json", "utf8")));
 const artifact = path.resolve(
   options.artifact || `dist/longtail-forge-${packageJson.version}.tgz`,
 );
@@ -58,6 +70,11 @@ if (options.container) {
 
 printSummary({ artifact, executed: true });
 
+/**
+ * @param {readonly string[]} args
+ * @param {string} label
+ * @returns {void}
+ */
 function runNode(args, label) {
   console.log(`[public-demo candidate] ${label}`);
   const result = spawnSync(process.execPath, args, {
@@ -74,6 +91,10 @@ function runNode(args, label) {
   }
 }
 
+/**
+ * @param {{ artifact: string, executed: boolean }} summary
+ * @returns {void}
+ */
 function printSummary({ artifact, executed }) {
   console.log(JSON.stringify({
     artifact: path.relative(process.cwd(), artifact).replaceAll("\\", "/"),
@@ -86,6 +107,10 @@ function printSummary({ artifact, executed }) {
   }, null, 2));
 }
 
+/**
+ * @param {readonly string[]} args
+ * @returns {Readonly<CandidateSmokeOptions>}
+ */
 function parseArgs(args) {
   const parsed = {
     artifact: "",
@@ -97,7 +122,7 @@ function parseArgs(args) {
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (["--container", "--list", "--pull"].includes(argument)) {
-      const key = argument.slice(2);
+      const key = /** @type {"container" | "list" | "pull"} */ (argument.slice(2));
       parsed[key] = true;
       continue;
     }

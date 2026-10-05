@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import { readFileSync } from "node:fs";
 import {
   AREA_COMMANDS,
@@ -16,11 +17,23 @@ import {
 } from "../../lib/regression-change-routing.mjs";
 import { CANONICAL_REGRESSION_AREAS } from "../../lib/regression-metadata.mjs";
 
-const manifest = JSON.parse(readFileSync("scripts/regression-coverage-manifest.json", "utf8"));
+/**
+ * Recorded routing tables and the generated coverage-manifest row this owner
+ * reads, named once so every table entry keeps its exact declared shape.
+ * @typedef {{ area: string, path: string }} ManifestRegression
+ * @typedef {{ regressions: ManifestRegression[] }} CoverageManifest
+ * @typedef {readonly [string, readonly string[], readonly string[], boolean]} PositiveRoute
+ * @typedef {readonly [string, readonly string[], readonly string[]]} AdditiveRoute
+ */
+
+// The generated coverage manifest is parsed JSON; it enters through the
+// shared record narrowing and names only the rows this owner routes on.
+/** @type {CoverageManifest} */
+const manifest = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-coverage-manifest.json", "utf8")), "scripts/regression-coverage-manifest.json");
 
 assert.deepEqual(Object.keys(AREA_COMMANDS).sort(), [...CANONICAL_REGRESSION_AREAS].sort(), "every canonical area must expose one package command");
 for (const [area, _command] of Object.entries(AREA_COMMANDS)) {
-    const representative = manifest.regressions.find((entry) => entry.area === area);
+    const representative = manifest.regressions.find((/** @type {ManifestRegression} */ entry) => entry.area === area);
   assert.ok(representative, `${area} must remain populated in the discovered registry`);
   assert.equal(
     suggestRegressionsForPaths([representative.path]).areas.includes(area),
@@ -29,6 +42,7 @@ for (const [area, _command] of Object.entries(AREA_COMMANDS)) {
   );
 }
 
+/** @type {readonly PositiveRoute[]} */
 const positiveRoutes = [
   ["Tasks", ["src/modules/tasks/tasks.service.js"], ["tasks"], false],
   ["Time Tracking", ["src/modules/time-tracking/time-entries.service.js"], ["time-tracking"], false],
@@ -48,6 +62,7 @@ for (const [label, paths, expectedAreas, fullCheckRecommended] of positiveRoutes
   assert.equal(suggestion.fullCheckRecommended, fullCheckRecommended, `${label} escalation should remain intentional`);
 }
 
+/** @type {readonly AdditiveRoute[]} */
 const additiveRoutes = [
   ["Tags repository", ["src/repositories/tags.repo.js"], ["database", "tags"]],
   ["Lists documentation", ["docs/lists-module.md"], ["docs", "lists"]],

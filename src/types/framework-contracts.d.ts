@@ -1,4 +1,6 @@
-import type { RequestSession } from "./http-contracts.js";
+import type { RequestSession, WorkspaceRequestSession } from "./http-contracts.js";
+import type { JobPayload, RegisteredJobType } from "./job-contracts.js";
+export type { JobPayload, JobPayloadRegistry, RegisteredJobType } from "./job-contracts.js";
 
 /**
  * Framework contract shapes (type-only).
@@ -37,8 +39,8 @@ export interface ModuleManifest {
   protectedViewsDir?: string | URL | null;
   publicViewsDir?: string | URL | null;
   browserAssetsDir?: string | URL | null;
-  protectedViews?: unknown[];
-  publicViews?: unknown[];
+  protectedViews?: ModuleViewContribution[];
+  publicViews?: ModuleViewContribution[];
   viewSurfaces?: ViewSurfaceDescriptor[];
   browserAssets?: BrowserAssetContribution[];
   navigation?: NavigationContribution[];
@@ -81,6 +83,22 @@ export interface ModuleManifest {
   workspaceCapabilityRequirements?: string[];
 }
 
+/**
+ * One protected or public view a module or the framework contributes. Every
+ * field mirrors what `validateViews` in the manifest contract actually
+ * enforces: identity, route, and backing file are required, and `moduleId`
+ * must match the contributing module.
+ */
+export interface ModuleViewContribution {
+  id: string;
+  moduleId: string;
+  path: string;
+  file: string;
+  requiredPermissions?: string[];
+  requiredWorkspaceCapabilities?: string[];
+  allowDisabledRead?: boolean;
+}
+
 export interface CatalogContribution {
   id?: string;
   moduleId?: string;
@@ -93,7 +111,78 @@ export interface CatalogContribution {
   workspaceTypes?: string[];
   publicDemoCapability?: string;
   path?: string;
+  category?: string;
+  placement?: string;
+  sortOrder?: number;
+  sourceType?: string;
+  ownerType?: string;
+  target?: string;
   terminology?: TerminologyMap;
+}
+
+export interface PublicApiEndpointContribution extends CatalogContribution {
+  method: string;
+  path: string;
+  scope: string;
+}
+
+export interface TimerSourceContribution extends CatalogContribution {
+  sourceType: string;
+  listRoute: string;
+  startRoute: string;
+  pauseRoute: string;
+  finalizeRoute: string;
+  removeRoute: string;
+  requiredPermissions: string[];
+}
+
+export interface WorkItemSourceContribution extends CatalogContribution {
+  sourceType: string;
+  listRoute: string;
+}
+
+export interface LinkedContextProviderContribution extends CatalogContribution {
+  id: string;
+  moduleId: string;
+  targetType: string;
+  label: string;
+  description: string;
+  provider: string;
+  responseContract: string;
+  requiredReadPermission: string;
+}
+
+export interface NormalizedModuleManifest extends ModuleManifest {
+  browserApiRoutes: unknown[];
+  publicApiRoutes: unknown[];
+  protectedViews: ModuleViewContribution[];
+  publicViews: ModuleViewContribution[];
+  browserAssets: BrowserAssetContribution[];
+  navigation: NavigationContribution[];
+  dashboard: DashboardContribution[];
+  reporting: ReportingContribution[];
+  workbench: WorkbenchContribution[];
+  settings: ModuleSettingDefinition[];
+  publicApiEndpoints: PublicApiEndpointContribution[];
+  permissions: PermissionContribution[];
+  defaultRolePermissions: { roleId: string; permissions: string[] }[];
+  resourceDefinitions: ResourceDefinitionContribution[];
+  auditRecordTypes: AuditRecordTypeContribution[];
+  eventTypes: EventTypeContribution[];
+  timerSources: TimerSourceContribution[];
+  workItemSources: WorkItemSourceContribution[];
+  linkedContextProviders: LinkedContextProviderContribution[];
+  searchableTypes: SearchableTypeContribution[];
+  taggableTypes: TaggableTypeContribution[];
+  attachableTypes: AttachableTypeContribution[];
+}
+
+export interface PermissionContribution extends CatalogContribution {
+  id: string;
+  label: string;
+  description: string;
+  resource?: string;
+  operation?: string;
 }
 
 export interface ResourceDefinitionContribution extends CatalogContribution {
@@ -193,17 +282,23 @@ export interface NotificationFollowTargetContribution {
   eventTypes?: string[];
 }
 
-export interface ModuleStartupTask {
+export interface ModuleStartupTask<Result = unknown> {
   id: string;
-  run: () => unknown | Promise<unknown>;
-  formatSuccess?: (result: any) => string;
+  run: () => Result | Promise<Result>;
+  /**
+   * Declared in method position on purpose. The result type is known only
+   * where the task is registered; the runtime that invokes this holds
+   * `unknown`, and method-position bivariance is what lets both be true at
+   * once without an `any`.
+   */
+  formatSuccess?(result: Awaited<Result>): string;
   failureMessage?: string;
 }
 
 export interface ModuleActivationContext {
   moduleId: string;
   runtime: "app" | "worker";
-  registerStartupTask: (task: ModuleStartupTask) => void;
+  registerStartupTask: <Result>(task: ModuleStartupTask<Result>) => void;
 }
 
 export interface ModuleEntry {
@@ -235,8 +330,8 @@ export interface ModuleSettingDefinition {
   label: string;
   type: "boolean" | "toggle" | "text" | "textarea" | "number" | "select" | "multi-select" | "radio" | "info" | (string & {});
   placement: "workspace" | "user" | "module" | "new-workspace" | (string & {});
-  target?: "module";
-  protected?: false;
+  target?: "module" | "framework";
+  protected?: boolean;
   ownerOnly?: boolean;
   readOnly?: boolean;
   description?: string;
@@ -570,6 +665,17 @@ export interface ViewSurfaceDescriptor {
   regions?: ViewRegionDescriptor[];
 }
 
+/**
+ * A view surface after `normalizeViewSurfaceContribution` has resolved it.
+ *
+ * Modules contribute a `ViewSurfaceDescriptor` without a view path; normalization
+ * sets `viewPath` unconditionally from the contributing protected view. Consumers
+ * that read a normalized surface should not have to re-assert that.
+ */
+export interface NormalizedViewSurfaceDescriptor extends ViewSurfaceDescriptor {
+  viewPath: string;
+}
+
 // ---------------------------------------------------------------------------
 // Dashboard / Reporting / Workbench contributions
 // ---------------------------------------------------------------------------
@@ -782,7 +888,14 @@ export interface ResumeStateReadResolverContext {
   recordId: string;
   recordType: string;
   row: Record<string, unknown>;
-  session: RequestSession;
+  /**
+   * Workspace-scoped by construction: `runReadCheck` in
+   * `work-resume-state.service` is the only producer of this context and
+   * already requires a `WorkspaceRequestSession`. Resolvers still must not
+   * assume this session is scoped to `workspaceId` — that is a separate
+   * invariant no type can state, and each resolver proves it for itself.
+   */
+  session: WorkspaceRequestSession;
   userId: string;
   workspaceId: string;
 }
@@ -790,7 +903,8 @@ export interface ResumeStateReadResolverContext {
 export interface ResumeStateBatchReadResolverContext {
   recordIds: string[];
   rows: Array<Record<string, unknown>>;
-  session: RequestSession;
+  /** Workspace-scoped by construction; see `ResumeStateReadResolverContext`. */
+  session: WorkspaceRequestSession;
   workspaceId: string;
 }
 
@@ -814,11 +928,17 @@ export interface SearchRecord {
   title?: string;
   body?: string;
   record_status?: string;
-  record_created_at?: string;
-  record_updated_at?: string;
+  record_created_at?: string | null;
+  record_updated_at?: string | null;
   [key: string]: unknown;
 }
 
+/**
+ * What every registered search indexer can rely on receiving. Both producers
+ * publish at least this much: the rebuild path passes the workspace, the
+ * declaration, and the rebuild flag, and the single-record path passes the
+ * full canonical identity described by `SearchRecordIndexerReference`.
+ */
 export interface SearchReference {
   workspaceId: string;
   moduleId?: string;
@@ -829,6 +949,42 @@ export interface SearchReference {
   record?: unknown;
   searchService?: Record<string, unknown>;
 }
+
+/**
+ * The reference `reindexSearchRecord` hands an indexer for one record.
+ *
+ * It always spreads the normalized record reference, and normalization throws
+ * unless the workspace, module, record type, and record id all resolve, so the
+ * canonical camelCase identity, the derived search index id, and the
+ * snake_case persistence aliases are all present and non-empty here. They are
+ * optional on `SearchReference` because the rebuild producer legitimately
+ * publishes none of them; they are required here because this producer always
+ * does.
+ *
+ * Declared as a type alias rather than an interface on purpose: the normalized
+ * reference is also handed to `removeSearchDocument` and to the adapter's
+ * `removeDocument`, both of which accept an open record reference and normalize
+ * it themselves, and only an alias carries the implicit index signature that
+ * assignment needs. `reindexSearchRecord` passes this reference to a
+ * `SearchIndexer`, so the compiler proves at that call that the alias remains a
+ * superset of `SearchReference`.
+ */
+export type SearchRecordIndexerReference = {
+  workspaceId: string;
+  moduleId: string;
+  recordType: string;
+  recordId: string;
+  searchIndexId: string;
+  workspace_id: string;
+  module_id: string;
+  record_type: string;
+  record_id: string;
+  search_index_id: string;
+  declaration?: SearchableTypeContribution;
+  rebuild?: boolean;
+  record?: unknown;
+  searchService?: Record<string, unknown>;
+};
 
 export interface SearchResult {
   search_index_id: string;
@@ -854,11 +1010,43 @@ export interface SearchResult {
   [key: string]: unknown;
 }
 
+/**
+ * The column map one permission-safe search target publishes.
+ *
+ * Built by exactly one producer in search.service.js from the normalized
+ * searchable-type declaration, so every target carries the same ten members.
+ * The nullable ones are nullable at the source: a declaration that names no
+ * client, project, tag, visibility, or status column answers null for it.
+ */
+export interface SearchTargetFieldMap {
+  body: string[];
+  client: string | null;
+  id: string;
+  project: string | null;
+  recordStatus: string | null;
+  summary: string;
+  tagsText: string | null;
+  title: string;
+  visibility: string | null;
+  workspace: string;
+}
+
+/**
+ * The index signature stays open on purpose: a target is the spread of one
+ * permission-safe filter composition, whose remaining members vary with the
+ * filter input rather than with a fixed contract.
+ *
+ * `fields` is declared because it has one producer and one shape, but it is
+ * optional rather than required: this type is also the input the search
+ * adapters accept, and no adapter reads or requires the column map. Requiring
+ * it would reject targets the execution path genuinely handles.
+ */
 export interface SearchPermissionTarget {
+  fields?: SearchTargetFieldMap;
   moduleId: string;
   recordType: string;
-  requiredReadPermission: string;
-  sourceLabel: string;
+  requiredReadPermission?: string;
+  sourceLabel?: string;
   [key: string]: unknown;
 }
 
@@ -955,13 +1143,15 @@ export interface InternalEvent {
   recordId?: string;
   record_label?: string;
   recordLabel?: string;
-  previous_value?: Record<string, unknown> | null;
-  new_value?: Record<string, unknown> | null;
+  previous_value?: ((Record<string, unknown> | unknown[]) & { title?: unknown }) | null;
+  new_value?: ((Record<string, unknown> | unknown[]) & { title?: unknown }) | null;
   source?: string;
   metadata?: Record<string, unknown>;
-  session?: RequestSession | null;
+  session?: Partial<RequestSession> | null;
   emitted_at?: string;
 }
+
+export type EventSummaryInput = Omit<InternalEvent, "session"> & { session?: unknown };
 
 export interface EventSummaryResolverContext {
   event: InternalEvent;
@@ -977,6 +1167,7 @@ export interface EventSummarySection {
   body?: EventSummaryText;
   url?: EventSummaryText;
   recipientHints?: EventSummaryRecipientHints;
+  terminology?: TerminologyMap;
 }
 
 export interface EventSummaryDeclaration {
@@ -984,6 +1175,7 @@ export interface EventSummaryDeclaration {
   moduleId?: string;
   activity?: EventSummarySection;
   notification?: EventSummarySection;
+  terminology?: TerminologyMap;
 }
 
 // ---------------------------------------------------------------------------
@@ -1016,7 +1208,33 @@ export interface TaggableTypeContribution {
   recordType?: string;
   targetType?: string;
   label?: string;
+  description?: string;
+  tableName?: string;
+  idField?: string;
+  labelField?: string;
+  workspaceField?: string;
+  clientField?: string;
+  projectField?: string;
+  requiredReadPermission?: string;
+  requiredTagPermission?: string;
+  requiredModules?: string[];
   [key: string]: unknown;
+}
+
+export interface TagPropagationContribution extends CatalogContribution {
+  id?: string;
+  sourceModuleId?: string;
+  sourceTargetType?: string;
+  targetModuleId?: string;
+  targetType?: string;
+  relationshipResolver?: string;
+  workspaceField?: string;
+  sourceReadPermission?: string;
+  targetReadPermission?: string;
+  targetTagPermission?: string;
+  snapshotOnCreate?: boolean;
+  propagateOnParentChange?: boolean;
+  propagateOnRelationshipChange?: boolean;
 }
 
 export interface SearchableTypeContribution {
@@ -1031,8 +1249,21 @@ export interface AttachableTypeContribution {
   moduleId?: string;
   targetType?: string;
   label?: string;
+  description?: string;
+  tableName?: string;
+  idField?: string;
+  labelField?: string;
+  workspaceField?: string;
+  clientField?: string;
+  projectField?: string;
+  requiredReadPermission?: string;
+  requiredAttachPermission?: string;
+  requiredRemovePermission?: string;
   allowedFileCategories?: string[];
-  maxFileSizeBytes?: number | string;
+  allowedVisibilityValues?: string[];
+  lifecycleEvents?: string[];
+  maxFilesPerRecord?: number;
+  maxFileSizeBytes?: number;
   [key: string]: unknown;
 }
 
@@ -1070,12 +1301,28 @@ export interface ApiErrorEnvelope {
 }
 
 export interface AppShellBootstrapUser {
-  preferredCalendarView: string;
+  preferredCalendarView: string | null;
   themeAutoSource: string;
   themeMode: string;
   timezone: string;
   user_id: string;
   username: string;
+}
+
+/**
+ * One entry in the app shell's visible search target list.
+ *
+ * Unlike the shell's `navigation`, which is deliberately open because modules
+ * contribute arbitrary entries, every target is built by one normalizing
+ * producer in app-shell.service.js and always carries these six members.
+ */
+export interface AppShellSearchTarget {
+  aggregate: boolean;
+  id: string;
+  label: string;
+  moduleId: string;
+  recordType: string;
+  sourceLabel: string;
 }
 
 export interface AppShellBootstrap {
@@ -1088,7 +1335,7 @@ export interface AppShellBootstrap {
   notificationSummary: Record<string, unknown>;
   permissionHints: Record<string, unknown>;
   quickActions: unknown[];
-  searchTargets: unknown[];
+  searchTargets: AppShellSearchTarget[];
   supportView: Record<string, unknown> | null;
   themeAutoSource: string;
   themeMode: string;
@@ -1109,16 +1356,16 @@ export interface PublicApiErrorEnvelope extends ApiErrorEnvelope {
 // ---------------------------------------------------------------------------
 
 /** Dual-cased on purpose: enqueue accepts either casing today. */
-export interface JobEnqueueOptions {
+export interface JobEnqueueOptions<JobType extends RegisteredJobType = RegisteredJobType> {
   workspaceId?: string;
   workspace_id?: string;
-  jobType?: string;
-  job_type?: string;
+  jobType?: JobType;
+  job_type?: JobType;
   jobId?: string;
   job_id?: string;
   dedupeKey?: string | null;
   dedupe_key?: string | null;
-  payload?: Record<string, unknown>;
+  payload?: JobPayload<NoInfer<JobType>>;
   priority?: number;
   maxAttempts?: number;
   max_attempts?: number;
@@ -1147,25 +1394,38 @@ export interface JobRecord {
   [key: string]: unknown;
 }
 
-export interface JobExecutionRecord {
+export interface JobExecutionRecord<JobType extends RegisteredJobType = RegisteredJobType> {
   attemptCount: number;
   dedupeKey: string | null;
   id: string;
   jobId: string;
-  jobType: string;
+  jobType: JobType;
   maxAttempts: number;
-  payload: Record<string, any>;
+  payload: JobPayload<JobType>;
   priority: number;
-  type: string;
+  type: JobType;
   workspaceId: string;
 }
 
-export interface JobHandlerContext {
-  job: JobExecutionRecord;
-  payload: Record<string, any>;
+export interface JobHandlerContext<JobType extends RegisteredJobType = RegisteredJobType> {
+  job: JobExecutionRecord<JobType>;
+  payload: JobPayload<JobType>;
 }
 
-export type JobHandler = (context: JobHandlerContext) => Promise<unknown> | unknown;
+export type JobHandler<JobType extends RegisteredJobType = RegisteredJobType> = (context: JobHandlerContext<JobType>) => Promise<unknown> | unknown;
+
+export interface UnknownJobExecutionRecord extends Omit<JobExecutionRecord, "jobType" | "payload" | "type"> {
+  jobType: string;
+  payload: Record<string, unknown>;
+  type: string;
+}
+
+export interface UnknownJobHandlerContext {
+  job: UnknownJobExecutionRecord;
+  payload: Record<string, unknown>;
+}
+
+export type UnknownJobHandler = (context: UnknownJobHandlerContext) => Promise<unknown> | unknown;
 
 export interface JobHandlerOptions {
   publicDemoCapability?: string;
@@ -1216,3 +1476,5 @@ export interface JobWorkerStatus {
   deadCount: number;
   registeredJobTypes?: string[];
 }
+
+export type NormalizeInferredEmptyArray<T> = T extends never[] ? Record<string, unknown>[] : T;

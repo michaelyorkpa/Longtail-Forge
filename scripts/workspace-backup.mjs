@@ -8,17 +8,44 @@ import {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(scriptPath), "..");
-const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+const packageJson = /** @type {{ version: string }} */ (JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")));
+
+/**
+ * A thrown value that may carry an operator-facing message.
+ * @typedef {import("./lib/backup-archive.mjs").MessageCarrier} MessageCarrier
+ */
+
+/**
+ * Boolean operator flags accepted by the workspace backup CLI.
+ * @typedef {"allowAnyAppVersion"} WorkspaceBackupBooleanOptionKey
+ */
+
+/**
+ * Value-carrying operator flags accepted by the workspace backup CLI.
+ * @typedef {"archive" | "secureNotesKeyBackup" | "targetDatabase" | "targetFilesRoot"} WorkspaceBackupValueOptionKey
+ */
+
+/**
+ * Operator options parsed from one workspace backup invocation. Every flag is
+ * optional here; required-flag enforcement stays in parseCli.
+ * @typedef {Partial<Record<WorkspaceBackupBooleanOptionKey, boolean> & Record<WorkspaceBackupValueOptionKey, string>>} WorkspaceBackupCliOptions
+ */
+
+/**
+ * One parsed workspace backup CLI invocation.
+ * @typedef {{ command: string, options: WorkspaceBackupCliOptions }} WorkspaceBackupCliInvocation
+ */
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {
-    console.error(error?.message || error);
+    console.error(/** @type {MessageCarrier} */ (error)?.message || error);
     process.exitCode = 1;
   }
 }
 
+/** @param {string[]} args */
 async function main(args) {
   const { command, options } = parseCli(args);
   if (command === "inspect") {
@@ -54,12 +81,16 @@ async function main(args) {
   }
 }
 
+/**
+ * @param {string[]} args
+ * @returns {WorkspaceBackupCliInvocation}
+ */
 function parseCli(args) {
-  const command = args.shift();
+  const command = /** @type {string} */ (args.shift());
   if (!new Set(["inspect", "restore"]).has(command)) {
     throw new Error("Usage: node scripts/workspace-backup.mjs <inspect|restore> --archive <path> [options]");
   }
-  const options = {};
+  const options = /** @type {WorkspaceBackupCliOptions} */ ({});
   const booleanFlags = new Map([["--allow-any-app-version", "allowAnyAppVersion"]]);
   const valueFlags = new Map([
     ["--archive", "archive"],
@@ -70,11 +101,11 @@ function parseCli(args) {
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (booleanFlags.has(argument)) {
-      options[booleanFlags.get(argument)] = true;
+      options[/** @type {WorkspaceBackupBooleanOptionKey} */ (booleanFlags.get(argument))] = true;
     } else if (valueFlags.has(argument)) {
       const value = args[++index];
       if (!value || value.startsWith("--")) throw new Error(`${argument} requires a value.`);
-      options[valueFlags.get(argument)] = value;
+      options[/** @type {WorkspaceBackupValueOptionKey} */ (valueFlags.get(argument))] = value;
     } else {
       throw new Error(`Unknown workspace backup option: ${argument}`);
     }
@@ -86,6 +117,7 @@ function parseCli(args) {
   return { command, options };
 }
 
+/** @param {unknown} value */
 function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
 }

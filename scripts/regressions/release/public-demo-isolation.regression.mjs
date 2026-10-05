@@ -105,6 +105,10 @@ for (const docs of [operationalSecurity, runtimeConfiguration]) {
 }
 console.log("Public-demo outbound and infrastructure isolation regression passed.");
 
+/**
+ * @param {string} directory
+ * @returns {Promise<string>}
+ */
 async function readJavaScriptTree(directory) {
   const sources = [];
   for (const entry of await fs.readdir(directory, { withFileTypes: true })) {

@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
-const root = process.cwd();
-const asyncRecurrenceVersion = "0.33.5.21.7.7";
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-async-recurrence-response-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-async-recurrence-response.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Async-Recurrence-Response-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const publicApiDocs = readText("docs/public-api.md");
 const tasksPageSource = readText("public/js/tasks.js");
@@ -35,18 +37,16 @@ try {
   assert.match(tasksServiceSource, /createdTask: null,[\s\S]*recurrenceContinuity: recurrenceHandoff\.recurrenceContinuity,[\s\S]*recurrenceJob: recurrenceHandoff\.recurrenceJob/, "task completion should return safe continuity and queued metadata instead of an inline task");
   assert.doesNotMatch(tasksServiceSource, /const recurrenceResult = await taskRecurrenceService\.createNextInstance/, "task completion should not create the next recurrence instance inline");
   assert.match(publicApiSource, /recurrenceJob: publicRecurrenceJob\(result\.recurrenceJob\)/, "public API completion should expose a safe recurrence queued hint");
-  assert.doesNotMatch(functionBlock(publicApiSource, "publicRecurrenceJob"), /jobId|job_id|dedupe|payload/i, "public recurrence job response should not expose job internals");
-  assert.match(tasksPageSource, /renderTaskRecurrenceContinuity\(result\.recurrenceContinuity\)/, "Tasks page should render safe recurrence continuity");
-  assert.match(tasksPageSource, /trackTaskRecurrenceContinuity\([^\n]+result\.recurrenceContinuity\)/, "Tasks page should track pending recurrence continuity without creating inline");
-  assert.match(workbenchSource, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
-  assert.match(functionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.recurrenceContinuity[\s\S]*trackTaskRecurrenceContinuity/, "Workbench completion should render and track safe recurrence continuity");
-  assert.doesNotMatch(functionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
+  assert.doesNotMatch(extractFunctionBlock(publicApiSource, "publicRecurrenceJob"), /jobId|job_id|dedupe|payload/i, "public recurrence job response should not expose job internals");
+  assert.match(tasksPageSource, /renderTaskRecurrenceContinuity\(taskActionField\(result, "recurrenceContinuity"\)\)/, "Tasks page should render safe recurrence continuity");
+  assert.match(tasksPageSource, /trackTaskRecurrenceContinuity\([^\n]+taskActionField\(result, "recurrenceContinuity"\)\)/, "Tasks page should track pending recurrence continuity without creating inline");
+  // `0.33.33.42.6` reads the lifecycle action through the detail's own receiver; the claim that
+  // the Workbench routes a safe lifecycle detail to completion is unchanged.
+  assert.match(workbenchSource, /Reflect\.get\(Object\(detail\), "taskLifecycleAction", detail\) === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
+  assert.match(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /taskCompletionField\(detail, "recurrenceContinuity"\)[\s\S]*trackTaskRecurrenceContinuity/, "Workbench completion should render and track safe recurrence continuity");
+  assert.doesNotMatch(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
   assert.match(tasksDocs, /As of 0\.33\.9\.6[\s\S]*does not create the next instance inline[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "Tasks docs should describe the async recurrence continuity contract");
   assert.match(publicApiDocs, /As of 0\.33\.9\.6[\s\S]*createdTask` remains `null`[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "public API docs should describe the safe recurrence continuity contract");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(asyncRecurrenceVersion)} - `), "changelog should include the async recurrence closeout slice");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-
   await initializeDatabase();
   activateModuleRuntime("worker");
   registerSearchIndexJobHandlers({ replace: true });
@@ -64,6 +64,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertProtectedCompletionResponse(session) {
   const task = (await tasksService.create({
     due_date: "2026-09-01",
@@ -77,6 +78,7 @@ async function assertProtectedCompletionResponse(session) {
   }, session)).task;
 
   const completed = await tasksService.complete(task.task_id, session);
+  assert.ok(completed.recurrenceContinuity, "recurring completion should expose continuity");
 
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.createdTask, null, "protected completion should not return a synchronously created next task");
@@ -91,6 +93,7 @@ async function assertProtectedCompletionResponse(session) {
   assert.equal(await recurrenceInstanceCount(session.workspace_id, task.recurrence_template_id, "2026-09-02"), 1, "worker should create the next recurring task instance");
 }
 
+/** @param {TasksSession} session */
 async function assertPublicCompletionResponse(session) {
   const task = (await tasksService.create({
     due_date: "2026-10-06",
@@ -103,7 +106,8 @@ async function assertPublicCompletionResponse(session) {
     title: "Public async recurrence task",
   }, session)).task;
 
-  const completed = await tasksPublicApiService.completeTask(session, task.task_id);
+  const completed = await tasksPublicApiService.completeTask(publicApiSession(session), task.task_id);
+  assert.ok(completed.recurrenceContinuity, "public recurring completion should expose continuity");
 
   assert.equal(completed.task.status, "complete");
   assert.equal(completed.createdTask, null, "public API completion should not return a synchronously created next task");
@@ -135,20 +139,10 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} instanceDate @returns {Promise<number>} */
 async function recurrenceInstanceCount(workspaceId, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -166,16 +160,16 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`function ${functionName}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`);
-  const match = source.match(pattern);
-  return match ? match[0] : "";
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/**
+ * Present the session shape the Tasks public API service publishes. The
+ * surface authenticates with an API key, so its contract requires an
+ * api_key_id; the workspace fixture session does not carry one.
+ * @param {import("../src/types/http-contracts.js").WorkspaceRequestSession} session
+ * @returns {import("../src/types/http-contracts.js").ApiSession}
+ */
+function publicApiSession(session) {
+  return {
+    ...session,
+    api_key_id: "async-recurrence-response-regression-key",
+  };
 }

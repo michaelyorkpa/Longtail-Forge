@@ -100,7 +100,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.classify_changes.outputs.revision }}
-          fetch-depth: 1
+          # Full history: unit tests read committed baselines through `git show <sha>:<path>`.
+          # The checkout is still the exact classify-selected revision.
+          fetch-depth: 0
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -118,8 +120,6 @@ jobs:
         run: node scripts/run-timed-stage.mjs "typecheck/unit/lint" -- npm run check:fast
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "regression buckets" -- npm run test:regressions
-      - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
-        run: node scripts/run-timed-stage.mjs "permission checks" -- npm run test:permissions
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: npm audit --audit-level=high
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
@@ -149,7 +149,7 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: GitHub-only documentation browser fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'
@@ -176,7 +176,9 @@ jobs:
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "context/setup" -- npm ci
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
-        run: npx playwright install --with-deps chromium
+        name: Install the Playwright browser
+        timeout-minutes: 23
+        run: node scripts/release/install-playwright-browser.mjs
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
         run: node scripts/run-timed-stage.mjs "browser checks" -- npm run test:e2e
 

@@ -7,6 +7,7 @@ import {
   summarizeProjectBillingRows,
 } from "../../src/modules/time-tracking/time-tracking-billing.service.js";
 
+/** @type {import("../../src/types/time-tracking-contracts.d.ts").BillingSettings} */
 const baseSettings = {
   workspaceName: "Forge",
   workspaceType: "business",
@@ -14,6 +15,7 @@ const baseSettings = {
   billingRounding: { enabled: false, increment: "nearestQuarterHour" },
 };
 
+/** @param {import("../../src/types/time-tracking-contracts.d.ts").BillingProjectInput[]} projects @returns {import("../../src/types/time-tracking-contracts.d.ts").BillingClientProjectData} */
 function clientData(projects) {
   return {
     workspaceProjects: [],
@@ -28,6 +30,7 @@ function clientData(projects) {
   };
 }
 
+/** @param {string} id @param {Partial<import("../../src/types/time-tracking-contracts.d.ts").BillingProjectInput>} [overrides] @returns {import("../../src/types/time-tracking-contracts.d.ts").BillingProjectInput} */
 function project(id, overrides = {}) {
   return {
     id,
@@ -73,30 +76,32 @@ describe("Time Tracking billing pure helpers", () => {
       },
     ]);
 
-    expect(entries[0]).toMatchObject({
+    const firstEntry = first(entries);
+    expect(firstEntry).toMatchObject({
       clientId: "client-1",
       projectId: "project-1",
       taskId: "task-1",
       durationSeconds: 1800,
       billable: "no",
     });
-    expect(entries[0].endTime).toEqual(new Date("2026-07-14T14:00:00.000Z"));
-    expect(entries[1].durationSeconds).toBe(0);
-    expect(Number.isNaN(entries[1].endTime.getTime())).toBe(true);
+    expect(firstEntry.endTime).toEqual(new Date("2026-07-14T14:00:00.000Z"));
+    const secondEntry = first(entries.slice(1));
+    expect(secondEntry.durationSeconds).toBe(0);
+    expect(Number.isNaN(secondEntry.endTime.getTime())).toBe(true);
   });
 
   it("decorates project hierarchy descendants", () => {
-    const [scope] = buildBillingScopes(clientData([
+    const scope = first(buildBillingScopes(clientData([
       project("parent"),
       project("child", { parent_project_id: "parent" }),
       project("grandchild", { parent_project_id: "child" }),
-    ]), baseSettings);
+    ]), baseSettings));
 
-    expect(scope.projects.find((item) => item.id === "parent").childProjectIds)
+    expect(required(scope.projects.find((item) => item.id === "parent")).childProjectIds)
       .toEqual(["child", "grandchild"]);
-    expect(scope.projects.find((item) => item.id === "child").childProjectIds)
+    expect(required(scope.projects.find((item) => item.id === "child")).childProjectIds)
       .toEqual(["grandchild"]);
-    expect(scope.projects.find((item) => item.id === "grandchild").childProjectIds)
+    expect(required(scope.projects.find((item) => item.id === "grandchild")).childProjectIds)
       .toEqual([]);
   });
 
@@ -106,17 +111,17 @@ describe("Time Tracking billing pure helpers", () => {
       { client_id: "client-1", project_id: "leaf", end_time: "2026-07-14T10:00:00.000Z", duration_seconds: 1800, billable: "yes" },
       { client_id: "client-1", project_id: "leaf", end_time: "2026-07-14T11:00:00.000Z", duration_seconds: 900, billable: "no" },
     ]);
-    const [summary] = summarizeBillingScopesForRange(baseSettings, scopes, entries, {
+    const summary = first(summarizeBillingScopesForRange(baseSettings, scopes, entries, {
       start: new Date("2026-07-01T00:00:00.000Z"),
       end: new Date("2026-08-01T00:00:00.000Z"),
-    });
+    }));
 
     expect(summary.rawSeconds).toBe(2700);
     expect(summary.billableSeconds).toBe(1800);
     expect(summary.displaySeconds).toBe(1800);
     expect(summary.amount).toBe(50);
     expect(summary.projectSummaries).toHaveLength(1);
-    expect(summary.projectSummaries[0].project.id).toBe("leaf");
+    expect(first(summary.projectSummaries).project.id).toBe("leaf");
   });
 
   it("uses an inclusive start and exclusive end range", () => {
@@ -127,10 +132,10 @@ describe("Time Tracking billing pure helpers", () => {
       { client_id: "client-1", project_id: "leaf", end_time: "2026-07-31T23:59:59.999Z", duration_seconds: 30, billable: "yes" },
       { client_id: "client-1", project_id: "leaf", end_time: "2026-08-01T00:00:00.000Z", duration_seconds: 40, billable: "yes" },
     ]);
-    const [summary] = summarizeBillingScopesForRange(baseSettings, scopes, entries, {
+    const summary = first(summarizeBillingScopesForRange(baseSettings, scopes, entries, {
       start: new Date("2026-07-01T00:00:00.000Z"),
       end: new Date("2026-08-01T00:00:00.000Z"),
-    });
+    }));
 
     expect(summary.rawSeconds).toBe(50);
     expect(summary.billableSeconds).toBe(50);
@@ -146,20 +151,20 @@ describe("Time Tracking billing pure helpers", () => {
       { client_id: "client-1", project_id: "leaf", end_time: "2026-07-14T10:00:00.000Z", duration_seconds: 500, billable: "yes" },
       { client_id: "client-1", project_id: "leaf", end_time: "2026-07-14T11:00:00.000Z", duration_seconds: 200, billable: "no" },
     ]);
-    const [summary] = summarizeBillingScopesForRange(settings, scopes, entries, {
+    const summary = first(summarizeBillingScopesForRange(settings, scopes, entries, {
       start: new Date("2026-07-01T00:00:00.000Z"),
       end: new Date("2026-08-01T00:00:00.000Z"),
-    });
+    }));
 
     expect(summary.rawSeconds).toBe(700);
     expect(summary.billableSeconds).toBe(900);
     expect(summary.displaySeconds).toBe(900);
     expect(summary.amount).toBe(25);
-    expect(summary.projectSummaries[0].rate).toBe(100);
+    expect(first(summary.projectSummaries).rate).toBe(100);
   });
 
   it("prices and rounds every project directly before recursively aggregating its branch", () => {
-    const [scope] = buildBillingScopes(clientData([
+    const scope = first(buildBillingScopes(clientData([
       project("parent", {
         billing_rate: "100",
         billing_rounding: { enabled: true, increment: "nearestQuarterHour" },
@@ -174,20 +179,20 @@ describe("Time Tracking billing pure helpers", () => {
         billing_rate: "300",
         billing_rounding: { enabled: false, increment: "nearestQuarterHour" },
       }),
-    ]), baseSettings);
+    ]), baseSettings));
     const entries = normalizeTimeEntries([
       reportEntry("parent", 500, "2026-07-20T10:00:00.000Z"),
       reportEntry("child", 1000, "2026-07-20T11:00:00.000Z"),
       reportEntry("grandchild", 2000, "2026-07-20T12:00:00.000Z"),
     ]);
-    const summary = summarizeProjectBillingRows(baseSettings, scope, [scope.projects[0]], entries, {
+    const summary = summarizeProjectBillingRows(baseSettings, scope, [first(scope.projects)], entries, {
       period: "custom",
       startDate: "2026-07-01",
       endDate: "2026-07-31",
     }, { includeDescendants: true });
-    const parentRow = summary.rows[0];
-    const childRow = parentRow.childRows[0];
-    const grandchildRow = childRow.childRows[0];
+    const parentRow = first(summary.rows);
+    const childRow = first(parentRow.childRows || []);
+    const grandchildRow = first(childRow.childRows || []);
 
     expect(parentRow.rawSeconds).toBe(3500);
     expect(parentRow.billableSeconds).toBe(4700);
@@ -204,27 +209,28 @@ describe("Time Tracking billing pure helpers", () => {
   });
 
   it("uses each project's effective billing period for current-period recursive totals", () => {
-    const [scope] = buildBillingScopes(clientData([
+    const scope = first(buildBillingScopes(clientData([
       project("calendar-parent", { billing_period: { type: "calendarMonth", startDay: 1 } }),
       project("custom-child", {
         parent_project_id: "calendar-parent",
         billing_period: { type: "custom", startDay: 15 },
       }),
-    ]), baseSettings);
+    ]), baseSettings));
     const entries = normalizeTimeEntries([
       reportEntry("calendar-parent", 600, "2026-07-10T10:00:00.000Z"),
       reportEntry("custom-child", 700, "2026-07-10T11:00:00.000Z"),
       reportEntry("custom-child", 800, "2026-07-16T11:00:00.000Z"),
     ]);
-    const summary = summarizeProjectBillingRows(baseSettings, scope, [scope.projects[0]], entries, {
+    const summary = summarizeProjectBillingRows(baseSettings, scope, [first(scope.projects)], entries, {
       period: "current",
     }, {
       includeDescendants: true,
       today: new Date("2026-07-20T12:00:00.000Z"),
     });
 
-    expect(summary.rows[0].rawSeconds).toBe(1400);
-    expect(summary.rows[0].childRows[0].rawSeconds).toBe(800);
+    const parentRow = first(summary.rows);
+    expect(parentRow.rawSeconds).toBe(1400);
+    expect(first(parentRow.childRows || []).rawSeconds).toBe(800);
     expect(summary.totals.seconds).toBe(1400);
   });
 
@@ -260,8 +266,8 @@ describe("Time Tracking billing pure helpers", () => {
       start: new Date("2026-07-01T00:00:00.000Z"),
       end: new Date("2026-08-01T00:00:00.000Z"),
     });
-    const parent = summaries.find((summary) => summary.scope.id === "parent-client");
-    const child = summaries.find((summary) => summary.scope.id === "child-client");
+    const parent = required(summaries.find((summary) => summary.scope.id === "parent-client"));
+    const child = required(summaries.find((summary) => summary.scope.id === "child-client"));
 
     expect(parent.rawSeconds).toBe(7200);
     expect(parent.amount).toBe(350);
@@ -270,6 +276,7 @@ describe("Time Tracking billing pure helpers", () => {
   });
 });
 
+/** @param {string} projectId @param {number} durationSeconds @param {string} endTime @param {string} [clientId] */
 function reportEntry(projectId, durationSeconds, endTime, clientId = "client-1") {
   return {
     client_id: clientId,
@@ -278,4 +285,20 @@ function reportEntry(projectId, durationSeconds, endTime, clientId = "client-1")
     duration_seconds: durationSeconds,
     billable: "yes",
   };
+}
+
+/** @template Item @param {Item[]} items @returns {Item} */
+function first(items) {
+  if (items.length === 0) {
+    throw new Error("Expected at least one item.");
+  }
+  return /** @type {Item} */ (items[0]);
+}
+
+/** @template Item @param {Item | null | undefined} value @returns {Item} */
+function required(value) {
+  if (value === null || value === undefined) {
+    throw new Error("Expected a value.");
+  }
+  return value;
 }

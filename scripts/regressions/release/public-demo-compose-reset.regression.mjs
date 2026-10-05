@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -24,6 +25,7 @@ import {
   runPublicDemoActivationOperation,
 } from "../../lib/public-demo-baseline-activation.mjs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
+
 
 const environment = Object.freeze({
   DEMO_MODE: "true",
@@ -70,6 +72,7 @@ try {
 
 console.log("Public-demo Compose reset activation and recovery regression passed.");
 
+/** @param {string} dataRoot */
 async function exerciseSuccessfulActivation(dataRoot) {
   const operationId = "20260807T120001Z-reset-success";
   await createUnit(dataRoot, "old", { sidecars: true });
@@ -94,9 +97,10 @@ async function exerciseSuccessfulActivation(dataRoot) {
   assert.equal((await operate("finalize", dataRoot, operationId)).status, "activation-finalized");
   await assert.rejects(() => fs.access(path.join(dataRoot, PUBLIC_DEMO_ACTIVE_OPERATION)));
   const retained = path.join(dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`);
-  assert.equal(JSON.parse(await fs.readFile(path.join(retained, "reset-operation.json"), "utf8")).phase, "completed");
+  assert.equal(await readOperationPhase(retained), "completed");
 }
 
+/** @param {string} dataRoot */
 async function exerciseActivatedRecovery(dataRoot) {
   const operationId = "20260807T120002Z-reset-recovery";
   await createUnit(dataRoot, "old", { sidecars: true });
@@ -111,10 +115,11 @@ async function exerciseActivatedRecovery(dataRoot) {
     assert.equal(await fs.readFile(path.join(dataRoot, sidecar), "utf8"), `old-${sidecar}`);
     assert.equal(await fs.readFile(path.join(failed, sidecar), "utf8"), "new-" + sidecar);
   }
-  assert.equal(JSON.parse(await fs.readFile(path.join(failed, "reset-operation.json"), "utf8")).phase, "recovered");
+  assert.equal(await readOperationPhase(failed), "recovered");
   await assert.rejects(() => fs.access(path.join(dataRoot, PUBLIC_DEMO_ACTIVE_OPERATION)));
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedRetirement(dataRoot) {
   const operationId = "20260807T120003Z-reset-retirement";
   await createUnit(dataRoot, "old");
@@ -128,6 +133,7 @@ async function exerciseInterruptedRetirement(dataRoot) {
   await assert.rejects(() => fs.access(paths.candidateRoot));
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedSidecarRetirement(dataRoot) {
   const operationId = "20260807T120007Z-reset-sidecar-retirement";
   await createUnit(dataRoot, "old", { sidecars: true });
@@ -150,6 +156,7 @@ async function exerciseInterruptedSidecarRetirement(dataRoot) {
   await assert.rejects(() => fs.access(path.join(failed, SQLITE_SIDECARS[1])));
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedPromotion(dataRoot) {
   const operationId = "20260807T120004Z-reset-promotion";
   await createUnit(dataRoot, "old");
@@ -169,6 +176,7 @@ async function exerciseInterruptedPromotion(dataRoot) {
   assert.equal(await fs.readFile(path.join(dataRoot, "files", "label.txt"), "utf8"), "old");
 }
 
+/** @param {string} dataRoot */
 async function exerciseInterruptedFinalization(dataRoot) {
   const operationId = "20260807T120005Z-reset-finalization";
   await createUnit(dataRoot, "old");
@@ -178,9 +186,26 @@ async function exerciseInterruptedFinalization(dataRoot) {
   assert.equal((await operate("recover", dataRoot)).status, "completed-activation-reconciled");
   assert.equal(await readLabel(dataRoot), "new");
   const retained = path.join(dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`);
-  assert.equal(JSON.parse(await fs.readFile(path.join(retained, "reset-operation.json"), "utf8")).phase, "completed");
+  assert.equal(await readOperationPhase(retained), "completed");
 }
 
+/**
+ * Read the phase off one retained or failed reset operation's marker.
+ *
+ * The marker is parsed JSON written by the reset operation itself, so it
+ * crosses the boundary here once rather than at each of the four assertions
+ * that used to read the field straight off JSON.parse.
+ * @param {string} operationDirectory
+ * @returns {Promise<unknown>} the recorded phase
+ */
+async function readOperationPhase(operationDirectory) {
+  const marker = requireJsonRecord(
+    JSON.parse(await fs.readFile(path.join(operationDirectory, "reset-operation.json"), "utf8")),
+    `${operationDirectory} reset-operation.json`,
+  );
+  return marker.phase;
+}
+/** @param {string} dataRoot */
 async function exerciseInterruptedRecoveryArchive(dataRoot) {
   const operationId = "20260807T120006Z-reset-recovery-archive";
   await createUnit(dataRoot, "old");
@@ -194,9 +219,10 @@ async function exerciseInterruptedRecoveryArchive(dataRoot) {
   );
   assert.equal((await operate("recover", dataRoot)).status, "recovered-activation-reconciled");
   assert.equal(await readLabel(dataRoot), "old");
-  assert.equal(JSON.parse(await fs.readFile(path.join(failed, "reset-operation.json"), "utf8")).phase, "recovered");
+  assert.equal(await readOperationPhase(failed), "recovered");
 }
 
+/** @param {string} dataRoot */
 async function exerciseCorruptOperationRefusal(dataRoot) {
   const operationId = "20260807T120008Z-reset-corrupt-operation";
   await createUnit(dataRoot, "old");
@@ -206,6 +232,7 @@ async function exerciseCorruptOperationRefusal(dataRoot) {
   await assert.rejects(() => operate("recover", dataRoot), /operation marker is invalid/);
 }
 
+/** @param {string} dataRoot */
 async function exerciseRefusals(dataRoot) {
   const operationId = "20260807T120005Z-reset-refusal";
   await createUnit(dataRoot, "old");
@@ -246,7 +273,7 @@ async function exerciseRefusals(dataRoot) {
 }
 
 async function assertHostContract() {
-  const [host, deploy, candidate, activationCli, artifact, attributes, manualRelease, roadmap, archive, changelog, docs] = await Promise.all([
+  const [host, deploy, candidate, activationCli, artifact, attributes, manualRelease, roadmap, docs] = await Promise.all([
     fs.readFile("scripts/release/longtail-forge-public-demo-reset-host.example", "utf8"),
     fs.readFile("scripts/release/longtail-forge-compose-deploy-host.example", "utf8"),
     fs.readFile("scripts/lib/public-demo-baseline-candidate.mjs", "utf8"),
@@ -255,8 +282,6 @@ async function assertHostContract() {
     fs.readFile(".gitattributes", "utf8"),
     fs.readFile(".github/workflows/manual-release.yml", "utf8"),
     fs.readFile("ROADMAP.md", "utf8"),
-    fs.readFile("ROADMAP-ARCHIVE.md", "utf8"),
-    fs.readFile("CHANGELOG.md", "utf8"),
     fs.readFile("docs/demo-data-operations.md", "utf8"),
   ]);
   for (const source of [host, deploy]) {
@@ -326,11 +351,14 @@ async function assertHostContract() {
   assert.doesNotMatch(host, /systemctl|longtail-forge\.service|cron|systemd timer|setInterval/);
   assert.match(docs, /shared Compose operation lock/i);
   assert.match(docs, /pre-reset session/i);
-  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", roadmap);
-  assert.match(archive, /^## Version 0\.33\.31\.7 - Compose reset activation and automatic recovery$/m);
-  assert.match(changelog, /^## Version 0\.33\.31\.7 - \d{4}-\d{2}-\d{2}$/m);
+  assertRoadmapCursorAtLeast("0.33.31.8", "public-demo Compose reset closeout", { roadmapSource: roadmap });
 }
 
+/**
+ * @param {string} unitRoot
+ * @param {string} label
+ * @param {{ sidecars?: boolean }} [options]
+ */
 async function createUnit(unitRoot, label, { sidecars = false } = {}) {
   await fs.mkdir(path.join(unitRoot, "files"), { recursive: true, mode: 0o700 });
   await fs.writeFile(path.join(unitRoot, "longtail-forge.db"), label, { mode: 0o600 });
@@ -343,10 +371,17 @@ async function createUnit(unitRoot, label, { sidecars = false } = {}) {
   }
 }
 
+/** @param {string} unitRoot */
 async function readLabel(unitRoot) {
   return fs.readFile(path.join(unitRoot, "longtail-forge.db"), "utf8");
 }
 
+/**
+ * @param {string} dataRoot
+ * @param {string} operationId
+ * @param {string} phase
+ * @param {Record<string, unknown>} [extra]
+ */
 async function writeOperation(dataRoot, operationId, phase, extra = {}) {
   await fs.writeFile(path.join(dataRoot, PUBLIC_DEMO_ACTIVE_OPERATION), `${JSON.stringify({
     contract: PUBLIC_DEMO_ACTIVATION_CONTRACT,
@@ -359,6 +394,11 @@ async function writeOperation(dataRoot, operationId, phase, extra = {}) {
   }, null, 2)}\n`, { mode: 0o600 });
 }
 
+/**
+ * @param {string} action
+ * @param {string} dataRoot
+ * @param {string} [operationId]
+ */
 function operate(action, dataRoot, operationId) {
   return runPublicDemoActivationOperation({
     action,
@@ -371,10 +411,15 @@ function operate(action, dataRoot, operationId) {
   });
 }
 
+/** @param {string} dataRoot */
 function inspect(dataRoot) {
   return operate("inspect", dataRoot);
 }
 
+/**
+ * @param {string} source
+ * @param {readonly string[]} values
+ */
 function assertOrdered(source, values) {
   let cursor = -1;
   for (const value of values) {

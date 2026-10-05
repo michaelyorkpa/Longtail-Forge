@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-result-fidelity-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-result-fidelity.db");
@@ -131,7 +133,7 @@ VALUES (
     safeCount: 42,
   });
 
-  const row = await db.get(`
+  const row = requireRow(await db.get(`
 SELECT
   flag_yes,
   flag_no,
@@ -141,7 +143,7 @@ SELECT
   large_text_key
 FROM result_fidelity_values
 WHERE id = :id;
-`, { id: "result-fidelity-row" });
+`, { id: "result-fidelity-row" }), "row");
 
   assert.equal(row.flag_yes, 1, "boolean true parameters should store as 1 for current SQLite callers");
   assert.equal(row.flag_no, 0, "boolean false parameters should store as 0 for current SQLite callers");
@@ -149,13 +151,13 @@ WHERE id = :id;
   assert.equal(row.safe_count, 42, "normal integer values should read back as numbers");
   assert.equal(row.large_text_key, "9007199254740993", "large identifier-like values should stay exact as TEXT keys");
   assert.equal(Buffer.isBuffer(row.blob_value), true, "BLOB values should read back as Buffer instances");
-  assert.equal(row.blob_value.equals(blobValue), true, "BLOB Buffer contents should round-trip");
+  assert.equal(/** @type {Buffer} */ (row.blob_value).equals(blobValue), true, "BLOB Buffer contents should round-trip");
 
-  const integerShape = await db.get(`
+  const integerShape = requireRow(await db.get(`
 SELECT
   9007199254740991 AS max_safe_integer,
   '9007199254740993' AS large_text_key;
-`);
+`), "integerShape");
   assert.equal(integerShape.max_safe_integer, Number.MAX_SAFE_INTEGER, "safe integer values should read back exactly as numbers");
   assert.equal(Number.isSafeInteger(integerShape.max_safe_integer), true, "current numeric counters should stay inside JS safe-integer range");
   assert.equal(integerShape.large_text_key, "9007199254740993", "large keys should remain exact when stored as text");
@@ -186,8 +188,4 @@ ORDER BY bm25(result_fidelity_fts), rowid;
   assert.equal(rows[0].row_id, 1);
   assert.equal(rows[0].title, "Alpha launch");
   assert.equal(typeof rows[0].search_score, "number", "bm25() should return a numeric score");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

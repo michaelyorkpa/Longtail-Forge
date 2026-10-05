@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+/** @typedef {{ materialized: boolean, materializationRequests: Array<{ instanceDate: string, templateId: string }> }} MaterializationState */
+
 test("mobile Dashboard and Actions Calendar default to Day with their deliberate status split", { tag: "@mobile" }, async ({ page }) => {
+  /** @type {URL[]} */
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);
@@ -61,6 +64,7 @@ test("scheduled recurring tasks use ordinary Task presentation in Month, Week, a
 });
 
 test("opening a scheduled recurring task materializes it once without changing its presentation", { tag: "@desktop" }, async ({ page }) => {
+  /** @type {MaterializationState} */
   const state = { materialized: false, materializationRequests: [] };
   await stubCalendarPreference(page, "day");
   await stubCalendarReads(page, [], state);
@@ -116,6 +120,7 @@ test("Actions Calendar query view takes precedence over the saved preference", {
 });
 
 test("Actions Calendar keeps completed history bounded in Day, Week, and Month while Archived is opt-in", { tag: "@desktop" }, async ({ page }) => {
+  /** @type {URL[]} */
   const requests = [];
   await stubCalendarPreference(page, null);
   await stubCalendarReads(page, requests);
@@ -154,6 +159,10 @@ test("Actions Calendar keeps completed history bounded in Day, Week, and Month w
   await expect(page.getByRole("button", { name: "Open task: Mobile archived proof" })).toBeVisible();
 });
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string | null} preferredCalendarView
+ */
 async function stubCalendarPreference(page, preferredCalendarView) {
   await page.route("**/api/app-shell/bootstrap", async (route) => {
     const response = await route.fetch();
@@ -171,6 +180,11 @@ async function stubCalendarPreference(page, preferredCalendarView) {
   });
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {URL[]} [requests]
+ * @param {Partial<MaterializationState>} [state]
+ */
 async function stubCalendarReads(page, requests = [], state = {}) {
   await page.route("**/api/tasks/calendar?*", async (route) => {
     const requestUrl = new URL(route.request().url());
@@ -185,11 +199,17 @@ async function stubCalendarReads(page, requests = [], state = {}) {
         tasks: [
           {
             task_id: "mobile-calendar-task",
+            id: "mobile-calendar-task",
             title: "Mobile calendar proof",
             due_date: date,
             due_time: "09:00",
             status: "open",
             priority: "normal",
+            client_name: "",
+            project_name: "",
+            allDay: false,
+            startDate: date,
+            endDate: date,
           },
           ...(state.materialized
             ? [materializedCalendarTask(date)]
@@ -204,35 +224,65 @@ async function stubCalendarReads(page, requests = [], state = {}) {
                 due_time: "",
                 status: "open",
                 priority: "normal",
+                client_name: "",
+                project_name: "",
+                allDay: true,
+                startDate: date,
+                endDate: date,
               }]),
-          ...(statuses.includes("complete") ? [{
+          ...(statuses.includes("complete") ? [
+          {
             task_id: "mobile-calendar-completed-task",
+            id: "mobile-calendar-completed-task",
             title: "Mobile completed proof",
             due_date: date,
             due_time: "10:00",
             status: "complete",
             priority: "normal",
-          }] : []),
-          ...(statuses.includes("archived") ? [{
+            client_name: "",
+            project_name: "",
+            allDay: false,
+            startDate: date,
+            endDate: date,
+          },
+          ] : []),
+          ...(statuses.includes("archived") ? [
+          {
             task_id: "mobile-calendar-archived-task",
+            id: "mobile-calendar-archived-task",
             title: "Mobile archived proof",
             due_date: date,
             due_time: "11:00",
             status: "archived",
             priority: "normal",
-          }] : []),
+            client_name: "",
+            project_name: "",
+            allDay: false,
+            startDate: date,
+            endDate: date,
+          },
+          ] : []),
         ],
         reminders: [{
           task_id: "mobile-calendar-reminder",
           title: "Mobile reminder proof",
           date,
           reminder_at_utc: `${date}T08:00:00.000Z`,
+          due_at_utc: `${date}T09:00:00.000Z`,
+          due_kind: "date_time",
+          offset_minutes: 60,
+          source: "workspace",
+          url: "tasks.html?task=mobile-calendar-reminder",
         }],
       },
     });
   });
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {MaterializationState} state
+ */
 async function stubOccurrenceMaterialization(page, state) {
   await page.route("**/api/tasks/recurrence-instances/materialize", async (route) => {
     const payload = route.request().postDataJSON();
@@ -265,17 +315,25 @@ async function stubOccurrenceMaterialization(page, state) {
   });
 }
 
+/** @param {string | null} date */
 function materializedCalendarTask(date) {
   return {
     task_id: "mobile-calendar-materialized-task",
+    id: "mobile-calendar-materialized-task",
     title: "Mobile scheduled recurrence proof",
     due_date: date,
     due_time: "",
     status: "open",
     priority: "normal",
+    client_name: "",
+    project_name: "",
+    allDay: true,
+    startDate: date,
+    endDate: date,
   };
 }
 
+/** @param {string | null} date */
 function materializedTaskDetail(date) {
   return {
     ...materializedCalendarTask(date),
@@ -307,10 +365,12 @@ function materializedTaskDetail(date) {
   };
 }
 
+/** @param {import("@playwright/test").Locator} locator */
 async function selectedValues(locator) {
-  return locator.evaluate((select) => [...select.selectedOptions].map((option) => option.value));
+  return locator.evaluate((select) => [.../** @type {HTMLSelectElement} */ (select).selectedOptions].map((option) => option.value));
 }
 
+/** @param {URL} requestUrl */
 function calendarWindowDays(requestUrl) {
   const start = new Date(`${requestUrl.searchParams.get("start")}T00:00:00.000Z`);
   const end = new Date(`${requestUrl.searchParams.get("end")}T00:00:00.000Z`);

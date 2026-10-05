@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
 
 const repositoryPaths = [
   "src/repositories/settings.repo.js",
@@ -21,8 +22,8 @@ const [settingsSource, usersSource, workspacesSource] = await Promise.all(
   repositoryPaths.map((filePath) => fs.readFile(filePath, "utf8")),
 );
 
-for (const [index, source] of [settingsSource, usersSource, workspacesSource].entries()) {
-  assert.match(source, /^\/\/ @ts-check/, `${repositoryPaths[index]} must stay opted into checking`);
+for (const repositoryPath of repositoryPaths) {
+  assert.equal(owningProgram(repositoryPath), "server-tests", `${repositoryPath} must stay strict-clean in its checked program`);
 }
 assert.match(settingsSource, /@returns \{Promise<ModuleSettingRow \| null>\}/);
 assert.match(usersSource, /@returns \{Promise<UserRow \| null>\}/);
@@ -87,7 +88,7 @@ void misuseRepositories;
 
 console.log("Database repository signature type regression passed.");
 
-function compileProbe(probePath) {
+function compileProbe(/** @type {string} */ probePath) {
   const result = spawnSync(process.execPath, [
     "node_modules/typescript/bin/tsc",
     "--ignoreConfig",

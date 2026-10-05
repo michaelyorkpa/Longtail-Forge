@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
-import { readFileSync } from "node:fs";
+
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-sqlite-hardening-"));
@@ -61,7 +63,7 @@ try {
 
   const health = await initializeSqliteRuntime();
   assert.equal(health.provider, "sqlite");
-  assert.equal(path.resolve(health.databaseFile), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
+  assert.equal(path.resolve(/** @type {string} */ (health.databaseFile)), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
   assert.equal(health.databaseFileWritable, true);
   assert.equal(health.foreignKeysEnabled, true);
   assert.equal(health.journalMode, "wal");
@@ -284,7 +286,7 @@ function readDefaultProvider() {
   return child.stdout.trim();
 }
 
-function assertConfigFails(overrides, pattern) {
+function assertConfigFails(/** @type {Record<string, unknown>} */ overrides, /** @type {RegExp} */ pattern) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import "./src/config.js";
   `], {
@@ -319,8 +321,4 @@ function cleanEnv(overrides = {}) {
   }
 
   return { ...env, ...overrides };
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

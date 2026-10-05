@@ -1,8 +1,38 @@
 (function attachViewRenderer(global) {
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceElement} BrowserViewSurfaceElement */
+  // 0.33.33.35.2 moved three responsibilities out of this file behind published contracts:
+  // permission/route security, field option hydration, and descriptor data binding. They are
+  // reached lazily through the namespace, the way every classic script reaches a sibling, and
+  // none of them publishes onto the frozen `LongtailForge.view` factory.
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewActionSecurity} BrowserViewActionSecurity */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDataBinding} BrowserViewDataBinding */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSearchOptions} BrowserViewSearchOptions */
+
   const root = global.LongtailForge || {};
   const behaviors = new Map();
-  let searchOptionsCounter = 0;
 
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = root?.api;
+    if (!apiClient) {
+      throw new Error("View surface rendering requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
+  /**
+   * @param {unknown} id
+   * @param {unknown} handler
+   */
   function registerBehavior(id, handler) {
     const behaviorId = String(id || "").trim();
     if (!behaviorId) {
@@ -15,6 +45,13 @@
     return () => behaviors.delete(behaviorId);
   }
 
+  /**
+   * `host` names the three members this reads: `appendChild` to mount the surface, and the
+   * `firstChild` and `removeChild` that `clearHost` empties it with. They carry the DOM's own
+   * signatures, so a real element satisfies the shape exactly.
+   * @param {unknown} [deliveredDescriptor]
+   * @param {{ appendChild?: HTMLElement["appendChild"], firstChild?: ChildNode | null, removeChild?: HTMLElement["removeChild"] } | null} [host]
+   */
   function renderSurface(deliveredDescriptor = {}, host) {
     const view = requireViewPrimitives();
     if (!host || typeof host.appendChild !== "function") {
@@ -26,18 +63,26 @@
 
     const state = {
       descriptor,
+      /** @type {unknown} */
       actionError: null,
+      /** @type {unknown} */
       error: null,
       filterValues: initialFilterValues(descriptor),
       loading: Boolean(descriptor.dataSource?.route),
       pendingMounts: [],
+      /** @type {Record<string, unknown>[]} */
       records: [],
+      /** @type {unknown} */
       selectedRecord: null,
       selectedRecordId: "",
       slideOutSidebarOpen: false,
+      /** @type {HTMLElement | null} */
       surface: null,
+      /** @type {HTMLElement | null} */
+      body: null,
       view,
     };
+    /** @type {Promise<unknown> | null} */
     let inFlightRefresh = null;
     const surface = view.createElement("section", {
       className: ["view-renderer-surface", `view-renderer-layout-${descriptor.layout || "single-column"}`],
@@ -64,7 +109,8 @@
         state.error = null;
         renderInto(body, renderLayout(descriptor, view, state));
         try {
-          state.records = await loadBoundRecords(descriptor, state.filterValues);
+          state.records = await requireDataBinding()
+            .loadBoundRecords(descriptor, state.filterValues, requireApiClient());
           state.selectedRecord = initialSelectedRecord(descriptor, state);
           state.selectedRecordId = recordId(state.selectedRecord);
         } catch (error) {
@@ -98,13 +144,17 @@
     Object.defineProperty(surface, "openModal", {
       configurable: true,
       enumerable: false,
-      value: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+      value: (/** @type {unknown} */ modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
     });
     Object.defineProperty(surface, "viewState", {
       configurable: true,
       enumerable: false,
       value: state,
     });
+
+    if (!isSurfaceElement(surface)) {
+      throw new Error("View surfaces must carry their refresh, modal, and state channels.");
+    }
 
     host.appendChild(surface);
     flushMounts(state);
@@ -115,6 +165,10 @@
     return surface;
   }
 
+  /**
+   * @param {Node} parent
+   * @param {Iterable<Node>} children
+   */
   function renderInto(parent, children) {
     clearHost(parent);
     for (const child of children) {
@@ -122,6 +176,11 @@
     }
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderLayout(descriptor, view, state) {
     const children = [
       renderPageHeader(descriptor.pageHeader, view, state),
@@ -175,9 +234,13 @@
 
     children.push(...renderRegions(regionsForPlacement(descriptor.regions, "default"), view, state, state.selectedRecord));
     children.push(...renderModalShells(descriptor.modals, view));
-    return children.filter(Boolean);
+    return children.filter(isRendered);
   }
 
+  /**
+   * @param {readonly ViewRegionDescriptor[] | undefined} regions
+   * @param {string} placement
+   */
   function regionsForPlacement(regions, placement) {
     const regionList = Array.isArray(regions) ? regions : [];
     if (placement === "default") {
@@ -186,6 +249,11 @@
     return regionList.filter((region) => region.placement === placement);
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSlideOutSidebarLayout(descriptor, view, state) {
     const drawerId = `${descriptor.id || "view"}-slideout-sidebar`;
     const container = view.createElement("div", { className: "view-slideout-sidebar" });
@@ -248,6 +316,11 @@
     return container;
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderTablePageSlideOutLayout(descriptor, view, state) {
     const drawerId = `${descriptor.id || "view"}-slideout-sidebar`;
     const container = view.createElement("div", { className: "view-slideout-sidebar" });
@@ -314,6 +387,191 @@
     return container;
   }
 
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewFilterDescriptor} ViewFilterDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewIndexPanelDescriptor} ViewIndexPanelDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewItemRowsDescriptor} ViewItemRowsDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewDetailDescriptor} ViewDetailDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewRegionDescriptor} ViewRegionDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewSummaryPanelDescriptor} ViewSummaryPanelDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewSummaryPanelItemDescriptor} ViewSummaryPanelItemDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewItemFormDescriptor} ViewItemFormDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewVisibleWhenDescriptor} ViewVisibleWhenDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewSidebarPanelDescriptor} ViewSidebarPanelDescriptor */
+
+  /**
+   * One region or field-option mount, queued while a layout renders and flushed afterwards.
+   *
+   * Two producers build these - a filter field queues a control and its selected value, a region
+   * queues a container and its record - and the flush reads every member before it tells them
+   * apart by `mountType`. So the shape is one bag of optional members rather than a union, and
+   * the container a region renders into is established where it is used instead.
+   * @typedef {object} PendingMount
+   * @property {{ behavior?: unknown, id?: unknown }} region
+   * @property {HTMLElement} [container]
+   * @property {Element} [control]
+   * @property {unknown} [field]
+   * @property {unknown} [mountType]
+   * @property {unknown} [record]
+   * @property {unknown} [selectedValue]
+   */
+
+  /**
+   * The container a region mount renders its message into.
+   *
+   * Every region producer queues one, so this reports a capability failure rather than skipping
+   * the message: a mount that cannot show why it failed must not fail silently.
+   * @param {PendingMount} mount
+   * @returns {HTMLElement}
+   */
+  function requireMountContainer(mount) {
+    const container = mount.container;
+    if (!container) {
+      throw new Error("View region mounts require a container element.");
+    }
+    return container;
+  }
+
+  /**
+   * A surface as this file holds it, which is not always a finished one.
+   *
+   * Every channel is optional because `renderSurface` installs them last, and because a helper
+   * may legitimately be handed a partial context - a behaviour that needs none of them must not
+   * be refused for their absence. The element members are optional for the same reason: a caller
+   * may supply a stand-in that answers only what its own operation reads.
+   * The three channels carry the shapes `renderSurface` installs. The element members carry the
+   * DOM's own signatures, so a real element satisfies this shape exactly and a stand-in that
+   * answers only what its operation reads satisfies it too.
+   * @typedef {object} SurfaceUnderConstruction
+   * @property {() => unknown} [refresh]
+   * @property {(modalId: unknown, record?: unknown) => unknown} [openModal]
+   * @property {unknown} [viewState]
+   * @property {HTMLElement["appendChild"]} [appendChild]
+   * @property {HTMLElement["querySelector"]} [querySelector]
+   * @property {ChildNode | null} [firstChild]
+   */
+
+  /** The primitives every layout renderer is handed, derived from the checked accessor. */
+  /** @typedef {ReturnType<typeof requireViewPrimitives>} ViewPrimitives */
+
+  /**
+   * The surface state, as `renderSurface` builds it and every renderer below reads it.
+   *
+   * It began as a partial view - what each renderer reads, so they could be typed one at a time
+   * while the slot itself stayed untyped. `0.33.33.39.21` completed it: the state object
+   * `renderSurface` builds is now this shape, and the five helpers that take it take it as this.
+   * `descriptor` and `view` are required because `renderSurface` sets both before anything reads
+   * them; everything else stays optional, because two of these renderers are also called with
+   * `null` and because a renderer reads only its own few.
+   *
+   * `indexCollapsed` is written by `selectIndexRecord` and initialised nowhere - **a finding for
+   * the state slot, not something this child repairs.**
+   *
+   * `surface` is a `SurfaceUnderConstruction`, not a finished `BrowserViewSurfaceElement`, and
+   * that is the whole of `0.33.33.39.21`'s decision. `renderSurface` creates the element, stores
+   * it here, renders through it, and only then installs `refresh`, `openModal` and `viewState` -
+   * so for most of this file's work the slot holds an element that does not yet carry them. Each
+   * helper therefore establishes the one capability its own operation uses, rather than assuming
+   * the completed type. **The completed return contract is unchanged**: `renderSurface` installs
+   * all three before publication and still proves it with `isSurfaceElement`.
+   * @typedef {object} RendererState
+   * @property {unknown} [actionError]
+   * @property {HTMLElement | null} [body]
+   * @property {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @property {unknown} [error]
+   * @property {Record<string, unknown>} [filterValues]
+   * @property {boolean} [indexCollapsed]
+   * @property {boolean} [loading]
+   * @property {PendingMount[]} pendingMounts
+   * @property {readonly Record<string, unknown>[]} [records]
+   * @property {unknown} [selectedRecord]
+   * @property {unknown} [selectedRecordId]
+   * @property {unknown} [slideOutSidebarOpen]
+   * @property {SurfaceUnderConstruction | null} [surface]
+   * @property {ViewPrimitives} view
+   */
+
+  /**
+   * The layout descriptor fragments, on the same terms `0.33.33.39.8` set: `Partial`, because the
+   * callers pass fragments, with each intersection naming a member the renderer reads that the
+   * framework descriptor does not declare.
+   * @typedef {Partial<ViewIndexPanelDescriptor> & { open?: unknown, title?: unknown }} DescriptorIndexPanel
+   */
+
+  /** @typedef {Partial<ViewSidebarPanelDescriptor> & { title?: unknown }} DescriptorSidebarPanel */
+
+  /** @typedef {Partial<ViewItemRowsDescriptor>} DescriptorItemRows */
+
+  /**
+   * The four controls a slide-out sidebar wires.
+   *
+   * **The guard proves presence; the element type is this controller's own requirement.**
+   * `createSlideOutSidebarController` checks that each carries `addEventListener` and throws by
+   * name when one does not - that is the whole of what it verifies. It then calls `setAttribute`
+   * on three of them, `focus` on one and reads `classList` and `hidden` on two, unguarded, and
+   * has always done so. Naming them elements states that standing requirement rather than adding
+   * a check for it; the published `BrowserViewSlideOutSidebarElements` keeps its `unknown`
+   * members, because a caller is not obliged to know what this file requires.
+   * @typedef {object} SlideOutSidebarElements
+   * @property {HTMLElement} backdrop
+   * @property {HTMLElement} closeButton
+   * @property {HTMLElement} drawer
+   * @property {HTMLElement} trigger
+   */
+
+  /**
+   * The one flag the sidebar keeps. `unknown` rather than a boolean because the flag is read off
+   * whatever surface state the host supplied, and `createSlideOutSidebarController` coerces it
+   * on entry precisely because it may arrive as anything.
+   * @typedef {object} SlideOutSidebarState
+   * @property {unknown} [slideOutSidebarOpen]
+   */
+
+  /**
+   * One focusable control inside the drawer.
+   *
+   * The query answers `Element`, which is the honest type for a selector: `[tabindex]` can match
+   * a node that is not an HTML control. The three members the focus helpers read are therefore
+   * **optional additions, not claims** - `disabled` is declared on no shared element type at all,
+   * and `hidden` and `focus` exist on HTML elements but not on every `Element`. Each is read for
+   * truthiness or called optionally, so a match without them behaves exactly as it does today.
+   * @typedef {Element & { disabled?: unknown, hidden?: unknown, focus?: () => void }} SlideOutFocusTarget
+   */
+
+  /**
+   * A table's secondary row. `title` is read as a label fallback and the framework descriptor
+   * declares only `label`, so it joins the other members named here as findings.
+   * @typedef {Partial<import("../../../src/types/framework-contracts.js").ViewTableSecondaryRowDescriptor> & { title?: unknown }} DescriptorSecondaryRow
+   */
+
+  /** @typedef {Partial<import("../../../src/types/framework-contracts.js").ViewTableSelectionDescriptor>} DescriptorSelection */
+
+  /**
+   * One column as this file hands it to `createDataTable`, which takes them as `unknown`.
+   * The selection and row-action columns it prepends and appends carry no `header`, so the
+   * member is optional here rather than absent from those two literals.
+   * @typedef {object} RenderedTableColumn
+   * @property {unknown} key
+   * @property {unknown} label
+   * @property {unknown} [align]
+   * @property {unknown} [header]
+   * @property {unknown} [render]
+   */
+
+  /** @typedef {Partial<ViewFilterDescriptor>} DescriptorFilter */
+
+  /**
+   * What the slide-out toggle is built from. Three text members, because two of them reach
+   * `createIconButton`, which requires them, and the third is added as a class.
+   * @typedef {object} SlideOutSidebarButtonOptions
+   * @property {string} [className]
+   * @property {string} [icon]
+   * @property {string} [label]
+   */
+
+  /**
+   * @param {ViewPrimitives} view
+   * @param {SlideOutSidebarButtonOptions} [options]
+   */
   function createSlideOutSidebarButton(view, options = {}) {
     let button = null;
     if (root.icons?.createIconButton) {
@@ -333,45 +591,73 @@
         attrs: { type: "button" },
       });
     }
-    button.classList.add(options.className);
+    button.classList.add(String(options.className));
     return button;
   }
 
+  /**
+   * The four checks below were one loop over the names, and are unrolled because a loop's guard
+   * cannot narrow the member it checked. Each is the same test on the same member in the same
+   * order, throwing the same message; `controls` then carries the four the guard just proved.
+   * @param {Partial<SlideOutSidebarElements>} [elements]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSlideOutSidebarOptions} [options]
+   */
   function createSlideOutSidebarController(elements = {}, options = {}) {
-    for (const name of ["backdrop", "closeButton", "drawer", "trigger"]) {
-      if (!elements[name]?.addEventListener) {
-        throw new Error(`Slide-out sidebar controllers require a ${name} element.`);
-      }
+    if (!elements.backdrop?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a backdrop element.");
+    }
+    if (!elements.closeButton?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a closeButton element.");
+    }
+    if (!elements.drawer?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a drawer element.");
+    }
+    if (!elements.trigger?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a trigger element.");
     }
 
+    /** @type {SlideOutSidebarElements} */
+    const controls = {
+      backdrop: elements.backdrop,
+      closeButton: elements.closeButton,
+      drawer: elements.drawer,
+      trigger: elements.trigger,
+    };
+    /** @type {SlideOutSidebarState} */
     const state = options.state || { slideOutSidebarOpen: Boolean(options.open) };
     state.slideOutSidebarOpen = Boolean(state.slideOutSidebarOpen);
-    wireSlideOutSidebar(state, elements);
-    syncSlideOutSidebarState(state, elements, { focus: false });
+    wireSlideOutSidebar(state, controls);
+    syncSlideOutSidebarState(state, controls, { focus: false });
 
+    // `isOpen` was an enumerable accessor installed with `Object.defineProperty`, which is the
+    // same property a literal getter declares once the object is frozen - and unlike the
+    // defineProperty form it is part of the object's type.
     const controller = {
-      close: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, false, syncOptions),
-      open: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, true, syncOptions),
-      sync: (syncOptions = {}) => syncSlideOutSidebarState(state, elements, syncOptions),
-      toggle: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen, syncOptions),
+      close: (syncOptions = {}) => setSlideOutSidebarOpen(state, controls, false, syncOptions),
+      get isOpen() {
+        return Boolean(state.slideOutSidebarOpen);
+      },
+      open: (syncOptions = {}) => setSlideOutSidebarOpen(state, controls, true, syncOptions),
+      sync: (syncOptions = {}) => syncSlideOutSidebarState(state, controls, syncOptions),
+      toggle: (syncOptions = {}) => setSlideOutSidebarOpen(state, controls, !state.slideOutSidebarOpen, syncOptions),
     };
-    Object.defineProperty(controller, "isOpen", {
-      enumerable: true,
-      get: () => Boolean(state.slideOutSidebarOpen),
-    });
     return Object.freeze(controller);
   }
 
+  /**
+   * @param {SlideOutSidebarState} state
+   * @param {SlideOutSidebarElements} elements
+   */
   function wireSlideOutSidebar(state, elements) {
     const close = () => setSlideOutSidebarOpen(state, elements, false);
     const toggle = () => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen);
-    const closeOnEscape = (event) => {
+    const closeOnEscape = (/** @type {KeyboardEvent} */ event) => {
       if (event?.key === "Escape" && state.slideOutSidebarOpen) {
         event.preventDefault?.();
         close();
       }
     };
-    const containDrawerFocus = (event) => {
+    const containDrawerFocus = (/** @type {KeyboardEvent} */ event) => {
       if (event?.key === "Tab" && state.slideOutSidebarOpen) {
         containSlideOutSidebarFocus(event, elements.drawer);
       }
@@ -394,11 +680,22 @@
     elements.closeButton.setAttribute("data-view-slideout-sidebar-close", "");
   }
 
+  /**
+   * @param {SlideOutSidebarState} state
+   * @param {SlideOutSidebarElements} elements
+   * @param {unknown} open
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSlideOutSidebarSyncOptions} [options]
+   */
   function setSlideOutSidebarOpen(state, elements, open, options = {}) {
     state.slideOutSidebarOpen = Boolean(open);
     syncSlideOutSidebarState(state, elements, { focus: options.focus !== false });
   }
 
+  /**
+   * @param {SlideOutSidebarState} state
+   * @param {SlideOutSidebarElements} elements
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSlideOutSidebarSyncOptions} [options]
+   */
   function syncSlideOutSidebarState(state, elements, options = {}) {
     const open = Boolean(state.slideOutSidebarOpen);
     elements.trigger.setAttribute("aria-expanded", String(open));
@@ -419,6 +716,10 @@
     }
   }
 
+  /**
+   * @param {HTMLElement | null | undefined} element
+   * @param {unknown} hidden
+   */
   function setElementHidden(element, hidden) {
     if (!element) {
       return;
@@ -431,6 +732,11 @@
     }
   }
 
+  /**
+   * @param {Element | null | undefined} element
+   * @param {string} className
+   * @param {unknown} active
+   */
   function setElementClass(element, className, active) {
     if (!element?.classList) {
       return;
@@ -446,13 +752,19 @@
     }
   }
 
+  /** @param {SlideOutFocusTarget | null | undefined} drawer */
   function focusSlideOutSidebar(drawer) {
+    /** @type {SlideOutFocusTarget | null | undefined} */
     const focusTarget = slideOutSidebarFocusTargets(drawer)[0]
       || drawer?.querySelector?.("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")
       || drawer;
     focusTarget?.focus?.();
   }
 
+  /**
+   * @param {KeyboardEvent} event
+   * @param {SlideOutFocusTarget | null | undefined} drawer
+   */
   function containSlideOutSidebarFocus(event, drawer) {
     const focusTargets = slideOutSidebarFocusTargets(drawer);
     if (focusTargets.length === 0) {
@@ -461,34 +773,44 @@
       return;
     }
 
+    /** @type {SlideOutFocusTarget | null | undefined} */
     const activeElement = global.document?.activeElement;
     const first = focusTargets[0];
     const last = focusTargets[focusTargets.length - 1];
     if (event.shiftKey && (activeElement === first || activeElement === drawer)) {
       event.preventDefault?.();
       last.focus?.();
-    } else if (!event.shiftKey && (activeElement === last || !focusTargets.includes(activeElement))) {
+    } else if (!event.shiftKey && (activeElement === last || !(activeElement && focusTargets.includes(activeElement)))) {
       event.preventDefault?.();
       first.focus?.();
     }
   }
 
+  /**
+   * @param {SlideOutFocusTarget | null | undefined} drawer
+   * @returns {SlideOutFocusTarget[]}
+   */
   function slideOutSidebarFocusTargets(drawer) {
     if (!drawer?.querySelectorAll) {
       return [];
     }
-    return [...drawer.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")]
+    /** @type {SlideOutFocusTarget[]} */
+    const matches = [...drawer.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")];
+    return matches
       .filter((element) => !element.disabled && !element.hidden && element.getAttribute?.("aria-hidden") !== "true");
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor["pageHeader"]} pageHeader
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderPageHeader(pageHeader, view, state) {
     if (!pageHeader) {
       return null;
     }
 
-    const primaryAction = pageHeader.primaryAction && actionPermissionsAllowed(pageHeader.primaryAction)
-      ? pageHeader.primaryAction
-      : null;
+    const primaryAction = pageHeader.primaryAction || null;
     return view.createPageHeader({
       title: pageHeader.title || pageHeader.label || "Untitled view",
       subtitle: pageHeader.description,
@@ -496,6 +818,12 @@
     });
   }
 
+  /**
+   * @param {readonly DescriptorFilter[] | null | undefined} filters
+   * @param {ViewPrimitives} view
+   * @param {RendererState | null} [state]
+   * @param {Record<string, unknown>} [options]
+   */
   function renderFilters(filters, view, state = null, options = {}) {
     if (!Array.isArray(filters) || filters.length === 0) {
       return null;
@@ -513,6 +841,12 @@
     return panel;
   }
 
+  /**
+   * @param {readonly DescriptorFilter[]} filters
+   * @param {ViewPrimitives} view
+   * @param {RendererState | null} [state]
+   * @param {string} [className]
+   */
   function renderFilterForm(filters, view, state = null, className = "view-filter-panel-fields") {
     const form = view.createElement("form", {
       className,
@@ -521,10 +855,11 @@
       },
     });
     form.append(...filters.map((filter) => renderFieldShell(filter, view, {
-      value: state ? state.filterValues?.[filter.field || filter.id] : undefined,
+      value: state ? state.filterValues?.[String(filter.field || filter.id)] : undefined,
     })));
 
     if (state) {
+      /** @param {Event} [event] */
       const applyFilters = (event) => {
         if (event && typeof event.preventDefault === "function") {
           event.preventDefault();
@@ -542,6 +877,11 @@
     return form;
   }
 
+  /**
+   * @param {Element} form
+   * @param {readonly DescriptorFilter[]} fields
+   * @param {RendererState} state
+   */
   function queueFieldOptionSourceMounts(form, fields, state) {
     for (const field of (Array.isArray(fields) ? fields : [])) {
       if (!field?.optionsSource) {
@@ -563,11 +903,16 @@
           id: field.id || field.field,
           behavior: field.optionsSource,
         },
-        selectedValue: state.filterValues?.[controlId] ?? field.default ?? control.value,
+        selectedValue: state.filterValues?.[controlId] ?? field.default ?? ("value" in control ? control.value : undefined),
       });
     }
   }
 
+  /**
+   * @param {Element} form
+   * @param {readonly DescriptorFilter[]} filters
+   * @param {RendererState} state
+   */
   function collectFilterValues(form, filters, state) {
     if (!state.filterValues) {
       state.filterValues = {};
@@ -584,16 +929,44 @@
     }
   }
 
+  /**
+   * An element read as a filter control.
+   *
+   * `collectFilterValues` hands over whatever element carries the input's data attribute, so no
+   * control subtype is proved. Every member is optional and read as what it is: a member the element
+   * lacks answers `undefined`, exactly as the plain property access did.
+   * @typedef {Element & {
+   *   checked?: unknown,
+   *   dataset?: DOMStringMap,
+   *   multiple?: unknown,
+   *   selectedOptions?: Iterable<{ value: unknown }>,
+   *   type?: unknown,
+   *   value?: unknown,
+   * }} FilterControl
+   */
+
+  /**
+   * @param {FilterControl} control
+   * @param {Element | null} [form]
+   * @param {string} [fieldKey]
+   */
   function filterControlValue(control, form = null, fieldKey = "") {
     if (control.type === "checkbox") {
       return Boolean(control.checked);
     }
     if (control.type === "radio") {
+      /** @type {Iterable<FilterControl>} */
       const controls = form?.querySelectorAll?.(`[data-view-input="${fieldKey}"]`) || [control];
       return [...controls].find((candidate) => candidate.checked)?.value || "";
     }
     if (control.multiple) {
-      return [...control.selectedOptions].map((option) => option.value);
+      // A `multiple` control without selected options failed here spreading `undefined`; it still
+      // fails here, as a `TypeError`, with a message.
+      const selectedOptions = control.selectedOptions;
+      if (selectedOptions === undefined) {
+        throw new TypeError("A multiple filter control must expose its selected options.");
+      }
+      return [...selectedOptions].map((option) => option.value);
     }
     if (control.dataset?.viewSearchOptions === "true") {
       const submitMode = control.dataset.viewSearchSubmitMode || "input";
@@ -610,7 +983,9 @@
     return control.value;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor */
   function initialFilterValues(descriptor) {
+    /** @type {Record<string, unknown>} */
     const values = {};
     for (const filter of (Array.isArray(descriptor.filters) ? descriptor.filters : [])) {
       const key = filter.field || filter.id;
@@ -621,6 +996,10 @@
     return values;
   }
 
+  /**
+   * @param {RendererState} state
+   * @param {ViewPrimitives} view
+   */
   function renderDataStatus(state, view) {
     if (state.loading) {
       return view.createStatusMessage({
@@ -631,14 +1010,14 @@
 
     if (state.error) {
       return view.createStatusMessage({
-        message: state.error.message || "Records could not be loaded.",
+        message: failureMessageOf(state.error) || "Records could not be loaded.",
         tone: "danger",
       });
     }
 
     if (state.actionError) {
       return view.createStatusMessage({
-        message: state.actionError.message || "Action could not be completed.",
+        message: failureMessageOf(state.actionError) || "Action could not be completed.",
         tone: "danger",
       });
     }
@@ -646,6 +1025,12 @@
     return null;
   }
 
+  /**
+   * @param {DescriptorIndexPanel | null | undefined} indexPanel
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   * @param {Record<string, unknown>} [options]
+   */
   function renderIndexPanel(indexPanel, view, state, options = {}) {
     if (!indexPanel) {
       return null;
@@ -661,6 +1046,14 @@
     });
   }
 
+  /**
+   * `indexPanel` is never absent here: `renderIndexPanel` returns before calling this for a
+   * missing panel, and the sidebar's index branch does the same, so the parameter says so.
+   * @param {DescriptorIndexPanel} indexPanel
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   * @param {Record<string, unknown>} [options]
+   */
   function renderIndexPanelBody(indexPanel, view, state, options = {}) {
     const records = state.records || [];
     const title = options.title || indexPanel?.title || indexPanel?.label || "Index";
@@ -678,6 +1071,11 @@
       ];
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSidebarPanels(descriptor, view, state) {
     if (!Array.isArray(descriptor.sidebarPanels) || descriptor.sidebarPanels.length === 0) {
       return [
@@ -685,14 +1083,20 @@
         descriptor.indexPanel
           ? renderIndexPanel(descriptor.indexPanel, view, state) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view)
           : null,
-      ].filter(Boolean);
+      ].filter(isRendered);
     }
 
     return descriptor.sidebarPanels
       .map((panel) => renderSidebarPanel(panel, descriptor, view, state))
-      .filter(Boolean);
+      .filter(isRendered);
   }
 
+  /**
+   * @param {ViewSidebarPanelDescriptor} panel
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSidebarPanel(panel, descriptor, view, state) {
     const panelType = panel.type || "navigation";
     if (!panel.id) {
@@ -742,6 +1146,11 @@
     return null;
   }
 
+  /**
+   * @param {DescriptorSidebarPanel} panel
+   * @param {ViewPrimitives} view
+   * @param {Record<string, unknown>} [options]
+   */
   function renderSidebarPanelShell(panel, view, options = {}) {
     const title = panel.title || panel.label || options.fallbackTitle || "Panel";
     const body = (Array.isArray(options.body) ? options.body : [options.body]).filter(Boolean);
@@ -793,6 +1202,11 @@
     return details;
   }
 
+  /**
+   * @param {ViewSidebarPanelDescriptor} panel
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSidebarPanelFooter(panel, view, state) {
     if (!panel.footer) {
       return [];
@@ -822,6 +1236,7 @@
     return children;
   }
 
+  /** @param {unknown} footer */
   function normalizeSidebarPanelFooter(footer) {
     if (!footer || (Array.isArray(footer) && footer.length === 0)) {
       return null;
@@ -829,6 +1244,11 @@
     return footer;
   }
 
+  /**
+   * @param {DescriptorIndexPanel} indexPanel
+   * @param {Record<string, unknown>} record
+   * @param {RendererState} state
+   */
   function buildIndexItem(indexPanel, record, state) {
     const title = readDescriptorValue(record, indexPanel.itemTitleField, record.title || record.label || record.id || "Record");
     const subtitle = readDescriptorValue(record, indexPanel.itemSubtitleField, "");
@@ -848,10 +1268,15 @@
     };
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {RendererState} state
+   */
   function initialSelectedRecord(descriptor, state) {
     const records = state.records || [];
-    const indexPanel = descriptor.indexPanel || {};
-    if (indexPanel.initialSelection === "none") {
+    // `(indexPanel || {}).initialSelection` and `indexPanel?.initialSelection` answer the same
+    // value for every panel, present or not; only the second names the member it reads.
+    if (descriptor.indexPanel?.initialSelection === "none") {
       return null;
     }
     if (state.selectedRecordId) {
@@ -860,6 +1285,10 @@
     return records[0] || null;
   }
 
+  /**
+   * @param {RendererState} state
+   * @param {unknown} record
+   */
   function selectIndexRecord(state, record) {
     state.selectedRecord = record || null;
     state.selectedRecordId = recordId(record);
@@ -872,10 +1301,29 @@
     }
   }
 
-  function recordId(record) {
-    return String(record?.id || record?.record_id || record?.list_id || record?.note_id || "");
+  /**
+   * A record this file reads members off without having proved any of them.
+   *
+   * Every consumer here is handed whatever the data source answered, so the proof answers what
+   * the optional chaining it replaced answered: `undefined` for every member of a non-record.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isDescriptorRecord(value) {
+    return value !== null && typeof value === "object";
   }
 
+  /** @param {unknown} record @returns {string} */
+  function recordId(record) {
+    const fields = isDescriptorRecord(record) ? record : {};
+    return String(fields.id || fields.record_id || fields.list_id || fields.note_id || "");
+  }
+
+  /**
+   * @param {DescriptorTable | null | undefined} table
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderTableShell(table, view, state) {
     if (!table) {
       return null;
@@ -893,7 +1341,13 @@
     });
   }
 
+  /**
+   * @param {DescriptorTable} table
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function tableColumns(table, view, state) {
+    /** @type {RenderedTableColumn[]} */
     const columns = (table.columns || []).map((column) => ({
       key: column.field || column.id,
       label: column.label || column.field || column.id || "",
@@ -907,7 +1361,7 @@
         key: "__view_row_selection",
         label: Object.hasOwn(selection, "headerLabel") ? selection.headerLabel : selection.label || "Select",
         align: "center",
-        render: (record) => renderRowSelection(selection, view, record),
+        render: (/** @type {unknown} */ record) => renderRowSelection(selection, view, record),
       });
     }
     const rowActions = Array.isArray(table.rowActions) ? table.rowActions : [];
@@ -916,12 +1370,16 @@
         key: "__view_row_actions",
         label: Object.hasOwn(table, "rowActionsHeaderLabel") ? table.rowActionsHeaderLabel : "Actions",
         align: "right",
-        render: (record) => renderActions(rowActions, view, "Row actions", state, record),
+        render: (/** @type {unknown} */ record) => renderActions(rowActions, view, "Row actions", state, record),
       });
     }
     return columns;
   }
 
+  /**
+   * @param {DescriptorTable} table
+   * @param {ViewPrimitives} view
+   */
   function tableSecondaryRows(table, view) {
     return (Array.isArray(table.secondaryRows) ? table.secondaryRows : []).map((row) => ({
       id: row.id,
@@ -929,10 +1387,15 @@
       startColumn: row.startColumn,
       endBeforeColumn: row.endBeforeColumn,
       hideWhenEmpty: row.hideWhenEmpty !== false,
-      render: (record) => renderTableSecondaryRow(row, view, record),
+      render: (/** @type {unknown} */ record) => renderTableSecondaryRow(row, view, record),
     }));
   }
 
+  /**
+   * @param {DescriptorSecondaryRow} row
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderTableSecondaryRow(row, view, record) {
     const hasValue = descriptorHasValue(readDescriptorValue(record, row.chipsField || row.field || row.id, []));
     if (!hasValue && row.hideWhenEmpty !== false) {
@@ -955,11 +1418,16 @@
     });
   }
 
+  /** @param {unknown} value */
   function descriptorHasValue(value) {
     const values = Array.isArray(value) ? value : [value];
     return values.some((item) => item !== null && item !== undefined && item !== false && item !== "");
   }
 
+  /**
+   * @param {DescriptorTable} [table]
+   * @returns {DescriptorSelection | null}
+   */
   function tableSelection(table = {}) {
     if (!table.selection || table.selection.enabled === false) {
       return null;
@@ -967,6 +1435,11 @@
     return table.selection;
   }
 
+  /**
+   * @param {DescriptorSelection} selection
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderRowSelection(selection, view, record) {
     const id = recordId(record);
     const labelField = selection.labelField || "name";
@@ -986,16 +1459,27 @@
     });
   }
 
+  /**
+   * @param {DescriptorColumn} column
+   * @param {DescriptorTable} table
+   * @param {ViewPrimitives} view
+   */
   function tableColumnRenderer(column = {}, table = {}, view) {
     if (column.formatter === "hierarchy-label") {
-      return (record) => renderHierarchyLabel(column, table, view, record);
+      return (/** @type {unknown} */ record) => renderHierarchyLabel(column, table, view, record);
     }
     if (column.formatter === "chip-list") {
-      return (record) => renderChipList(column, view, record);
+      return (/** @type {unknown} */ record) => renderChipList(column, view, record);
     }
     return undefined;
   }
 
+  /**
+   * @param {DescriptorColumn} column
+   * @param {DescriptorTable | null | undefined} table
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderHierarchyLabel(column, table, view, record) {
     const value = readDescriptorValue(record, column.field || column.id, "");
     const depthField = column.depthField || table?.hierarchy?.depthField;
@@ -1008,6 +1492,14 @@
     });
   }
 
+  /**
+   * Called with a column and with a secondary row, which is why the parameter is the union:
+   * `tableColumnRenderer` routes a chip-list column here, and `renderTableSecondaryRow` routes
+   * a chip-list row here.
+   * @param {DescriptorColumn | DescriptorSecondaryRow} column
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderChipList(column, view, record) {
     const chips = readDescriptorValue(record, column.chipsField || column.field || column.id, []);
     const chipList = Array.isArray(chips) ? chips : [chips];
@@ -1022,13 +1514,19 @@
     });
   }
 
+  /**
+   * @param {unknown} chip
+   * @param {unknown} labelField
+   * @returns {string}
+   */
   function chipDisplayLabel(chip, labelField) {
-    if (chip && typeof chip === "object") {
+    if (isDescriptorRecord(chip)) {
       return String(readDescriptorValue(chip, labelField || "label", chip.name || chip.title || chip.value || chip.id || ""));
     }
     return String(chip ?? "");
   }
 
+  /** @param {unknown} value @returns {number} */
   function normalizedHierarchyDepth(value) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -1037,6 +1535,11 @@
     return Math.min(Math.floor(parsed), 12);
   }
 
+  /**
+   * @param {ViewDetailDescriptor | undefined} detail
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderDetailShell(detail, view, state) {
     if (!detail) {
       return [];
@@ -1057,6 +1560,12 @@
     return children.flat().filter(Boolean);
   }
 
+  /**
+   * @param {readonly ViewRegionDescriptor[] | undefined} regions
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   * @param {unknown} record
+   */
   function renderRegions(regions, view, state, record) {
     if (!Array.isArray(regions) || regions.length === 0) {
       return [];
@@ -1088,6 +1597,27 @@
     });
   }
 
+  /**
+   * The message a failed mount shows.
+   *
+   * `catch` hands over whatever was thrown, and this answers what `error?.message ||` answered:
+   * a record's own message when it has one, and the fallback for everything else - a thrown
+   * string, a thrown number, or nothing at all.
+   *
+   * The `String` is the coercion both consumers already performed. `setFieldOptionsError` writes
+   * the message into a control's dataset and the region path hands it to `createElement`'s `text`,
+   * so a truthy non-string message reached the page as its own digits either way; declaring the
+   * return `string` only stops the published `message?: string` from being handed a number.
+   * @param {unknown} error
+   * @param {string} fallback
+   * @returns {string}
+   */
+  function mountFailureMessage(error, fallback) {
+    const message = isDescriptorRecord(error) ? error.message : undefined;
+    return message ? String(message) : fallback;
+  }
+
+  /** @param {RendererState} state */
   function flushMounts(state) {
     const pending = state.pendingMounts || [];
     state.pendingMounts = [];
@@ -1095,9 +1625,9 @@
       const handler = behaviors.get(mount.region.behavior);
       if (!handler) {
         if (mount.mountType === "fieldOptions") {
-          setFieldOptionsError(mount.control, `Missing view behavior handler: ${mount.region.behavior}`);
+          requireSearchOptions().setFieldOptionsError(mount.control, `Missing view behavior handler: ${mount.region.behavior}`);
         } else {
-          mount.container.appendChild(state.view.createElement("p", {
+          requireMountContainer(mount).appendChild(state.view.createElement("p", {
             className: ["view-region-error", "view-status-message"],
             text: `Missing view behavior handler: ${mount.region.behavior}`,
             attrs: { role: "alert" },
@@ -1112,33 +1642,35 @@
           container: mount.container,
           control: mount.control,
           field: mount.field,
-          openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+          openModal: (/** @type {unknown} */ modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
           record: mount.record,
-          refresh: state.surface.refresh,
+          refresh: state.surface?.refresh,
           region: mount.region,
-          mountSearchOptions: (options, optionsConfig = {}) => mountSearchOptions(mount.control, options, {
+          mountSearchOptions: (/** @type {unknown[]} */ options, optionsConfig = {}) => requireSearchOptions().mountSearchOptions(mount.control, options, {
             ...optionsConfig,
             selectedValue: mount.selectedValue,
           }),
-          setOptions: (options, optionsConfig = {}) => setFieldOptions(mount.control, options, mount.selectedValue, optionsConfig),
+          setOptions: (/** @type {unknown[]} */ options, optionsConfig = {}) => requireSearchOptions()
+            .setFieldOptions(mount.control, options, mount.selectedValue, optionsConfig),
           workspaceContext: root.workspaceContext || {},
         });
         if (mount.mountType === "fieldOptions") {
           Promise.resolve(result)
             .then((options) => {
               if (Array.isArray(options)) {
-                setFieldOptions(mount.control, options, mount.selectedValue);
+                requireSearchOptions().setFieldOptions(mount.control, options, mount.selectedValue);
               }
             })
-            .catch((error) => setFieldOptionsError(mount.control, error?.message || "Options could not be loaded."));
+            .catch((error) => requireSearchOptions()
+              .setFieldOptionsError(mount.control, mountFailureMessage(error, "Options could not be loaded.")));
         }
       } catch (error) {
         if (mount.mountType === "fieldOptions") {
-          setFieldOptionsError(mount.control, error?.message || "Options could not be loaded.");
+          requireSearchOptions().setFieldOptionsError(mount.control, mountFailureMessage(error, "Options could not be loaded."));
         } else {
-          mount.container.appendChild(state.view.createElement("p", {
+          requireMountContainer(mount).appendChild(state.view.createElement("p", {
             className: ["view-region-error", "view-status-message"],
-            text: error?.message || "Region could not be mounted.",
+            text: mountFailureMessage(error, "Region could not be mounted."),
             attrs: { role: "alert" },
           }));
         }
@@ -1146,290 +1678,11 @@
     }
   }
 
-  function setFieldOptions(control, options = [], selectedValue = undefined, optionsConfig = {}) {
-    if (control?.tagName === "SELECT") {
-      setSelectOptions(control, options, selectedValue);
-      return;
-    }
-    mountSearchOptions(control, options, {
-      ...optionsConfig,
-      selectedValue,
-    });
-  }
-
-  function setSelectOptions(control, options = [], selectedValue = undefined) {
-    if (!control || control.tagName !== "SELECT") {
-      return;
-    }
-    const selectedValues = control.multiple
-      ? new Set((Array.isArray(selectedValue)
-        ? selectedValue
-        : selectedValue === undefined || selectedValue === null
-          ? [...control.selectedOptions].map((option) => option.value)
-          : [selectedValue]).map((value) => String(value)))
-      : null;
-    const selected = selectedValue !== undefined && selectedValue !== null ? String(selectedValue) : control.value;
-    const optionNodes = normalizeSelectOptions(options).map((option) => {
-      const optionElement = document.createElement("option");
-      optionElement.textContent = String(option.label ?? option.value ?? "");
-      optionElement.value = String(option.value ?? "");
-      optionElement.selected = selectedValues
-        ? selectedValues.has(optionElement.value) || (selectedValues.size === 0 && option.selected)
-        : option.selected;
-      return optionElement;
-    });
-    control.replaceChildren(...optionNodes);
-    if (!control.multiple && selected && optionNodes.some((option) => option.value === selected)) {
-      control.value = selected;
-    }
-    control.disabled = false;
-    delete control.dataset.viewOptionsError;
-  }
-
-  function mountSearchOptions(control, options = [], config = {}) {
-    if (!control || control.tagName !== "INPUT") {
-      return;
-    }
-
-    const normalizedOptions = normalizeSelectOptions(options)
-      .filter((option) => option && (option.label !== "" || option.value !== ""));
-    const submitMode = config.submitMode || "input";
-    const minChars = Number.isFinite(config.minChars) ? config.minChars : 1;
-    const maxResults = Number.isInteger(config.maxResults) ? config.maxResults : 8;
-    const emptyMessage = config.emptyMessage || "No matching options.";
-
-    if (typeof control._viewSearchOptionsCleanup === "function") {
-      control._viewSearchOptionsCleanup();
-    }
-
-    const popup = document.createElement("div");
-    const popupId = `view-search-options-${++searchOptionsCounter}`;
-    popup.id = popupId;
-    popup.className = "view-search-options";
-    popup.hidden = true;
-    popup.setAttribute("role", "listbox");
-
-    if (document.body?.appendChild) {
-      document.body.appendChild(popup);
-    }
-
-    control.autocomplete = "off";
-    control.dataset.viewSearchOptions = "true";
-    control.dataset.viewSearchSubmitMode = submitMode;
-    control.setAttribute("aria-autocomplete", "list");
-    control.setAttribute("aria-controls", popupId);
-    control.setAttribute("aria-expanded", "false");
-    control.removeAttribute("aria-invalid");
-    delete control.dataset.viewOptionsError;
-
-    const selectedValue = config.selectedValue !== undefined && config.selectedValue !== null
-      ? String(config.selectedValue)
-      : "";
-    if (selectedValue) {
-      const selectedOption = normalizedOptions.find((option) => String(option.value ?? "") === selectedValue);
-      if (selectedOption) {
-        selectSearchOption(control, selectedOption, { notify: false });
-      }
-    }
-
-    const renderOptions = () => {
-      const query = String(control.value || "").trim().toLowerCase();
-      if (query.length < minChars) {
-        hideSearchOptions(control, popup);
-        return;
-      }
-
-      const matches = normalizedOptions
-        .filter((option) => searchOptionText(option).includes(query))
-        .slice(0, maxResults);
-
-      if (matches.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "view-search-option-empty";
-        empty.textContent = emptyMessage;
-        popup.replaceChildren(empty);
-      } else {
-        popup.replaceChildren(...matches.map((option) => createSearchOptionButton(control, popup, option)));
-      }
-
-      showSearchOptions(control, popup);
-    };
-
-    const handleInput = () => {
-      const selectedLabel = control.dataset.viewSearchOptionLabel || "";
-      const hadSelectedValue = Boolean(control.dataset.viewSearchOptionValue);
-      if (hadSelectedValue && control.value !== selectedLabel) {
-        delete control.dataset.viewSearchOptionValue;
-        delete control.dataset.viewSearchOptionLabel;
-        if (!control.value) {
-          dispatchFieldEvent(control, "change");
-        }
-      }
-      renderOptions();
-    };
-    const handleFocus = () => renderOptions();
-    const handleBlur = () => {
-      global.setTimeout?.(() => hideSearchOptions(control, popup), 120);
-    };
-    const handleKeydown = (event) => {
-      if (event.key === "Escape") {
-        hideSearchOptions(control, popup);
-        return;
-      }
-      if (event.key !== "Enter" || popup.hidden) {
-        return;
-      }
-      const firstOption = popup.querySelector?.(".view-search-option");
-      if (!firstOption) {
-        return;
-      }
-      event.preventDefault?.();
-      firstOption.click?.();
-    };
-    const reposition = () => positionSearchOptions(control, popup);
-
-    control.addEventListener("input", handleInput);
-    control.addEventListener("focus", handleFocus);
-    control.addEventListener("blur", handleBlur);
-    control.addEventListener("keydown", handleKeydown);
-    if (typeof global.addEventListener === "function") {
-      global.addEventListener("resize", reposition);
-      global.addEventListener("scroll", reposition, true);
-    }
-
-    control._viewSearchOptionsCleanup = () => {
-      if (typeof global.removeEventListener === "function") {
-        global.removeEventListener("resize", reposition);
-        global.removeEventListener("scroll", reposition, true);
-      }
-      if (popup.parentNode?.removeChild) {
-        popup.parentNode.removeChild(popup);
-      }
-      delete control._viewSearchOptionsCleanup;
-    };
-  }
-
-  function createSearchOptionButton(control, popup, option) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "view-search-option";
-    button.setAttribute("role", "option");
-    button.dataset.viewSearchOptionValue = String(option.value ?? "");
-    if (option.color) {
-      const swatch = document.createElement("span");
-      swatch.className = "view-search-option-swatch";
-      swatch.style.background = String(option.color);
-      button.appendChild(swatch);
-    }
-    const label = document.createElement("span");
-    label.textContent = String(option.label ?? option.value ?? "");
-    button.appendChild(label);
-    button.addEventListener("mousedown", (event) => event.preventDefault());
-    button.addEventListener("click", () => {
-      selectSearchOption(control, option);
-      hideSearchOptions(control, popup);
-    });
-    return button;
-  }
-
-  function selectSearchOption(control, option, { notify = true } = {}) {
-    const label = String(option.label ?? option.value ?? "");
-    const value = String(option.value ?? "");
-    control.value = label;
-    control.dataset.viewSearchOptionValue = value;
-    control.dataset.viewSearchOptionLabel = label;
-    if (notify) {
-      dispatchFieldEvent(control, "input");
-      dispatchFieldEvent(control, "change");
-      global.setTimeout?.(() => cleanupDetachedSearchOptions(control), 0);
-    }
-  }
-
-  function cleanupDetachedSearchOptions(control) {
-    if (typeof document.body?.contains !== "function" || document.body.contains(control)) {
-      return;
-    }
-    control._viewSearchOptionsCleanup?.();
-  }
-
-  function showSearchOptions(control, popup) {
-    popup.hidden = false;
-    control.setAttribute("aria-expanded", "true");
-    positionSearchOptions(control, popup);
-  }
-
-  function hideSearchOptions(control, popup) {
-    popup.hidden = true;
-    control.setAttribute("aria-expanded", "false");
-  }
-
-  function positionSearchOptions(control, popup) {
-    if (popup.hidden || typeof control.getBoundingClientRect !== "function") {
-      return;
-    }
-    const rect = control.getBoundingClientRect();
-    const viewportWidth = global.innerWidth || document.documentElement?.clientWidth || rect.right || 320;
-    const viewportHeight = global.innerHeight || document.documentElement?.clientHeight || rect.bottom || 480;
-    const spacing = 6;
-    const width = Math.max(rect.width || 0, 180);
-    const below = viewportHeight - rect.bottom - spacing;
-    const above = rect.top - spacing;
-    const openAbove = below < 140 && above > below;
-    const availableHeight = Math.max(96, Math.min(260, openAbove ? above - spacing : below - spacing));
-    const left = Math.min(
-      Math.max(8, rect.left || 8),
-      Math.max(8, viewportWidth - width - 8),
-    );
-    if (!popup.style) {
-      popup.style = {};
-    }
-    popup.style.left = `${left}px`;
-    popup.style.top = `${openAbove ? Math.max(8, rect.top - availableHeight - spacing) : rect.bottom + spacing}px`;
-    popup.style.width = `${width}px`;
-    popup.style.maxHeight = `${availableHeight}px`;
-  }
-
-  function searchOptionText(option) {
-    const keywords = Array.isArray(option.keywords)
-      ? option.keywords
-      : String(option.keywords || "").split(/\s+/);
-    return [
-      option.label,
-      option.value,
-      ...keywords,
-    ].filter(Boolean).join(" ").toLowerCase();
-  }
-
-  function dispatchFieldEvent(control, eventName) {
-    if (typeof control.dispatchEvent !== "function") {
-      return;
-    }
-    if (typeof global.Event === "function") {
-      control.dispatchEvent(new global.Event(eventName, { bubbles: true }));
-      return;
-    }
-    control.dispatchEvent({ type: eventName, bubbles: true });
-  }
-
-  function setFieldOptionsError(control, message) {
-    if (!control) {
-      return;
-    }
-    if (control.tagName !== "SELECT") {
-      control.dataset.viewOptionsError = message || "Options unavailable.";
-      control.setAttribute("aria-invalid", "true");
-      return;
-    }
-    if (!control.options.length) {
-      const optionElement = document.createElement("option");
-      optionElement.textContent = "Options unavailable";
-      optionElement.value = "";
-      control.appendChild(optionElement);
-    }
-    control.disabled = true;
-    control.dataset.viewOptionsError = message || "Options unavailable.";
-  }
-
+  /**
+   * @param {ViewDetailDescriptor["header"]} header
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderDetailHeader(header, view, record) {
     if (!header) {
       return null;
@@ -1449,6 +1702,11 @@
     });
   }
 
+  /**
+   * @param {readonly ViewSummaryPanelDescriptor[] | undefined} summaryPanels
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderSummaryPanels(summaryPanels, view, record) {
     if (!Array.isArray(summaryPanels)) {
       return [];
@@ -1457,16 +1715,23 @@
     return summaryPanels.map((panel) => view.createInfoPanel({
       title: panel.title || panel.label,
       message: readDescriptorValue(record, panel.messageField, panel.description),
-      items: (panel.items || []).map((item) => ({
+      items: (panel.items || []).map((/** @type {ViewSummaryPanelItemDescriptor} */ item) => ({
         label: item.label || item.field || "",
         value: readDescriptorValue(record, item.field, item.value || ""),
       })),
     }));
   }
 
+  /**
+   * @param {ViewItemFormDescriptor | undefined} itemForm
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderFieldGridShell(itemForm, view, record) {
     const fields = Array.isArray(itemForm?.fields) ? itemForm.fields : [];
-    if (!fields.length) {
+    // An absent form already produced an empty list; naming it here is what lets the read below
+    // see a form, and it returns in exactly the cases the empty-list check did.
+    if (!itemForm || !fields.length) {
       return null;
     }
 
@@ -1480,11 +1745,17 @@
     });
   }
 
+  /**
+   * @param {DescriptorItemRows} itemRows
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderItemCollection(itemRows, view, state) {
     const record = state.selectedRecord;
-    const items = Array.isArray(readDescriptorValue(record, itemRows?.itemsField || "items", []))
-      ? readDescriptorValue(record, itemRows?.itemsField || "items", [])
-      : [];
+    // Read once and narrow: the value reader is contract-typed since 0.33.33.35.2, so the
+    // guard has to apply to the value that is actually used rather than to a second call.
+    const declaredItems = readDescriptorValue(record, itemRows?.itemsField || "items", []);
+    const items = Array.isArray(declaredItems) ? declaredItems : [];
 
     if (!itemRows || items.length === 0) {
       return null;
@@ -1496,6 +1767,12 @@
     });
   }
 
+  /**
+   * @param {DescriptorItemRows} itemRows
+   * @param {Record<string, unknown>} item
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderItemRow(itemRows, item, view, state) {
     const children = [
       view.createElement("strong", {
@@ -1527,7 +1804,6 @@
     }
 
     const rowActions = (Array.isArray(itemRows.rowActions) ? itemRows.rowActions : [])
-      .filter(actionPermissionsAllowed)
       .filter((action) => evaluateVisibleWhen(action.visibleWhen, item))
       .map((action) => normalizeAction(action, state, item));
     if (rowActions.length > 0) {
@@ -1543,6 +1819,10 @@
     });
   }
 
+  /**
+   * @param {ViewVisibleWhenDescriptor | undefined} condition
+   * @param {unknown} record
+   */
   function evaluateVisibleWhen(condition, record) {
     if (!condition || typeof condition !== "object") {
       return true;
@@ -1563,6 +1843,10 @@
     return true;
   }
 
+  /**
+   * @param {readonly ViewModalDescriptor[] | undefined} modals
+   * @param {ViewPrimitives} view
+   */
   function renderModalShells(modals, view) {
     if (!Array.isArray(modals)) {
       return [];
@@ -1570,22 +1854,35 @@
 
     return modals.map((modal) => view.createModalForm({
       title: modal.title || modal.label || "Modal",
-      fields: (modal.fields || []).map((field) => renderFieldShell(field, view)),
+      fields: (modal.fields || []).map((/** @type {ViewFieldDescriptor} */ field) => renderFieldShell(field, view)),
       actions: [...(modal.footerActions || []), ...(modal.actions || [])]
-        .filter(actionPermissionsAllowed)
         .map((action) => normalizeAction(action)),
     }));
   }
 
+  /**
+   * Descriptor actions, filtered by `visibleWhen` and normalized into builder actions.
+   *
+   * `actions` is what all three callers pass - a surface's, a detail strip's or a table row's
+   * `ViewActionDescriptor[]`, or nothing - and what this body reads: `visibleWhen`, then
+   * `normalizeAction`, which takes a `DescriptorAction`. It was annotated as builder actions
+   * (`BrowserViewAction`) from `0.33.33.39.9`, which `0.33.33.39.22` carried forward; that is the
+   * shape this function produces, not the one it receives. `ariaLabel` is forwarded unchanged to
+   * the strip, which takes a `BrowserViewTextValue`, so it is named as that.
+   * @param {readonly DescriptorAction[] | undefined} actions
+   * @param {ViewPrimitives} view
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewTextValue} ariaLabel
+   * @param {RendererState | null} [state]
+   * @param {unknown} [recordOverride]
+   */
   function renderActions(actions, view, ariaLabel, state = null, recordOverride = undefined) {
     if (!Array.isArray(actions) || actions.length === 0) {
       return null;
     }
 
-    const permittedActions = actions.filter(actionPermissionsAllowed);
     const visibleActions = recordOverride === undefined
-      ? permittedActions
-      : permittedActions.filter((action) => evaluateVisibleWhen(action.visibleWhen, recordOverride));
+      ? actions
+      : actions.filter((action) => evaluateVisibleWhen(action.visibleWhen, recordOverride));
     if (visibleActions.length === 0) {
       return null;
     }
@@ -1596,15 +1893,27 @@
     });
   }
 
+  /**
+   * The three published action-list renderers take `readonly BrowserViewAction[]` since
+   * `0.33.33.39.25`: a node, used as-is, or an option bag the builder hands to
+   * `createActionButton`. The list is forwarded unchanged; the builder still decides at runtime
+   * whether an option bag can render, including its accessible-name requirement.
+   * @param {readonly BrowserViewAction[]} [actions]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailActionStripOptions} [options]
+   */
   function renderDescriptorActionStrip(actions = [], options = {}) {
     const view = requireViewPrimitives();
     return view.createDetailActionStrip({
       ariaLabel: options.ariaLabel || "Actions",
       className: options.className,
-      actions: actions.filter(actionPermissionsAllowed),
+      actions,
     });
   }
 
+  /**
+   * @param {readonly BrowserViewAction[]} [actions]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailActionMenuOptions} [options]
+   */
   function renderDescriptorActionMenu(actions = [], options = {}) {
     const view = requireViewPrimitives();
     return view.createDetailActionMenu({
@@ -1612,19 +1921,82 @@
       summaryLabel: options.summaryLabel,
       title: options.title,
       className: options.className,
-      actions: actions.filter(actionPermissionsAllowed),
+      actions,
     });
   }
 
+  /**
+   * @param {readonly BrowserViewAction[]} [actions]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewInlineActionRowOptions} [options]
+   */
   function renderDescriptorInlineActions(actions = [], options = {}) {
     const view = requireViewPrimitives();
     return view.createInlineActionRow({
       ariaLabel: options.ariaLabel || "Actions",
       className: options.className,
-      actions: actions.filter(actionPermissionsAllowed),
+      actions,
     });
   }
 
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewActionDescriptor} ViewActionDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewFieldDescriptor} ViewFieldDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewLinkedRecordsDescriptor} ViewLinkedRecordsDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewModalDescriptor} ViewModalDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewTableColumnDescriptor} ViewTableColumnDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewTableDescriptor} ViewTableDescriptor */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewAction} BrowserViewAction */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+
+  /**
+   * The descriptor fragments these renderers are actually handed.
+   *
+   * **`Partial` because the callers pass fragments, not whole framework descriptors.** `lists.js`
+   * renders a field grid from `{ fields: modal.fields || [] }` and from an empty `{ fields: [] }`;
+   * `files.js` passes a modal descriptor it builds itself. The published renderer signatures take
+   * `unknown` for that reason, and these say what each renderer reads without claiming a caller
+   * supplied a complete descriptor.
+   *
+   * **Each intersection names a member the renderer reads that the framework descriptor does not
+   * declare** - a table's `title`, a column's `key`, `align` and `header`, a linked-records
+   * panel's `ariaLabel`, an action's `modal` and `modalId`. They are read as `unknown` and
+   * recorded as findings for the descriptor contract's owner; nothing here repairs one.
+   * @typedef {Partial<ViewTableColumnDescriptor> & {
+   *   align?: unknown, chipLabelField?: unknown, chipsField?: unknown, depthField?: unknown,
+   *   header?: unknown, key?: unknown
+   * }} DescriptorColumn
+   */
+
+  /** @typedef {Omit<Partial<ViewTableDescriptor>, "columns"> & { columns?: readonly DescriptorColumn[], title?: unknown }} DescriptorTable */
+
+  /** @typedef {{ fields?: readonly Partial<ViewFieldDescriptor>[] }} DescriptorFieldSource */
+
+  /** @typedef {Partial<ViewModalDescriptor>} DescriptorModal */
+
+  /** @typedef {Partial<ViewLinkedRecordsDescriptor> & { ariaLabel?: unknown }} DescriptorLinkedRecords */
+
+  /** @typedef {Partial<ViewActionDescriptor> & { modal?: unknown, modalId?: unknown }} DescriptorAction */
+
+  /**
+   * The published option bags, narrowed at the three members these renderers do more than forward.
+   *
+   * `columns` is mapped member by member, `actions` is filtered, and the two form slots are spread
+   * into `append` - each needs a list where the published bag accepts anything. The declarations
+   * state the requirement the code already made rather than adding a check to satisfy one.
+   * @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDataTableOptions & { columns?: readonly DescriptorColumn[] }} DescriptorTableOptions
+   */
+
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewModalFormOptions & { actions?: readonly unknown[] }} DescriptorModalOptions */
+
+  /**
+   * @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDescriptorLinkedRecordsOptions & {
+   *   formActions?: readonly (Node | string)[], formFields?: readonly (Node | string)[]
+   * }} DescriptorLinkedRecordsOptions
+   */
+
+  /**
+   * @param {DescriptorTable} [tableDescriptor]
+   * @param {DescriptorTableOptions} [options]
+   */
   function renderDescriptorDataTable(tableDescriptor = {}, options = {}) {
     const view = requireViewPrimitives();
     return view.createDataTable({
@@ -1644,6 +2016,10 @@
     });
   }
 
+  /**
+   * @param {DescriptorFieldSource} [fieldDescriptor]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewDescriptorFieldGridOptions} [options]
+   */
   function renderDescriptorFieldGrid(fieldDescriptor = {}, options = {}) {
     const view = requireViewPrimitives();
     const values = options.values && typeof options.values === "object" ? options.values : {};
@@ -1667,12 +2043,15 @@
     });
   }
 
+  /**
+   * @param {DescriptorModal} [modal]
+   * @param {DescriptorModalOptions} [options]
+   */
   function renderDescriptorModalForm(modal = {}, options = {}) {
     const view = requireViewPrimitives();
     const actions = options.actions
-      ? options.actions.filter(actionPermissionsAllowed)
+      ? options.actions
       : [...(modal.footerActions || []), ...(modal.actions || [])]
-        .filter(actionPermissionsAllowed)
         .map((action) => normalizeAction(action));
     return view.createModalForm({
       title: options.title || modal.title || modal.label || "Modal",
@@ -1685,6 +2064,10 @@
     });
   }
 
+  /**
+   * @param {DescriptorLinkedRecords} [linkedRecords]
+   * @param {DescriptorLinkedRecordsOptions} [options]
+   */
   function renderDescriptorLinkedRecordsPanel(linkedRecords = {}, options = {}) {
     const view = requireViewPrimitives();
     const section = view.createInfoPanel({
@@ -1723,112 +2106,39 @@
     return section;
   }
 
+  /**
+   * A field through the builder, which takes the descriptor as `unknown` and validates it itself.
+   * @param {unknown} field
+   * @param {ViewPrimitives} view
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewFieldOptions} [options]
+   */
   function renderFieldShell(field, view, options = {}) {
     return view.createField(field, options);
   }
 
-  function normalizeSelectOptions(options = []) {
-    if (!Array.isArray(options)) {
-      return [];
-    }
-
-    return options.map((option) => {
-      if (Array.isArray(option)) {
-        return {
-          value: option[0] ?? "",
-          label: option[1] ?? option[0] ?? "",
-          selected: Boolean(option[2]),
-        };
-      }
-      if (option && typeof option === "object") {
-        const value = option.value ?? option.id ?? "";
-        return {
-          ...option,
-          value,
-          label: option.label ?? option.text ?? value,
-          selected: Boolean(option.selected || option.default),
-        };
-      }
-      return {
-        value: option ?? "",
-        label: option ?? "",
-        selected: false,
-      };
-    });
-  }
-
-  async function loadBoundRecords(descriptor, filterValues = {}) {
-    const api = requireApiClient();
-    const responseRecords = requireViewResponseRecords();
-    const route = appendFilterQuery(descriptor.dataSource.route, descriptor.filters, filterValues);
-    const body = await api.getJson(route, { cache: "no-store" });
-    return responseRecords.read(body, descriptor.dataSource.recordsKey)
-      .map((record) => bindRecord(record, descriptor.dataSource.fieldBindings || {}));
-  }
-
-  function appendFilterQuery(route, filters, filterValues) {
-    if (!Array.isArray(filters) || filters.length === 0 || !filterValues) {
-      return route;
-    }
-
-    const params = [];
-    for (const filter of filters) {
-      const key = filter.queryKey || filter.field || filter.id;
-      const valueKey = filter.field || filter.id;
-      if (!key || !valueKey) {
-        continue;
-      }
-      const value = filterValues[valueKey];
-      if (value === undefined || value === null || value === "" || value === false) {
-        continue;
-      }
-      params.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-    }
-
-    if (params.length === 0) {
-      return route;
-    }
-    return `${route}${route.includes("?") ? "&" : "?"}${params.join("&")}`;
-  }
-
-  function bindRecord(record, fieldBindings) {
-    const bound = { _source: record };
-
-    for (const [fieldName, sourcePath] of Object.entries(fieldBindings)) {
-      bound[fieldName] = readPath(record, sourcePath);
-    }
-
-    for (const [fieldName, value] of Object.entries(record || {})) {
-      if (bound[fieldName] === undefined) {
-        bound[fieldName] = value;
-      }
-    }
-
-    return bound;
-  }
-
+  /**
+   * `fieldName` is `unknown` rather than `string` because this reader's own first statement
+   * answers the fallback for an absent one, and the published `readPath` it delegates to takes
+   * the path as `unknown` too. Four callers compose a name from members that may be absent.
+   * @param {unknown} record
+   * @param {unknown} fieldName
+   * @param {unknown} [fallback]
+   * @returns {unknown}
+   */
   function readDescriptorValue(record, fieldName, fallback = "") {
     if (!fieldName) {
       return fallback;
     }
 
-    const value = readPath(record, fieldName);
+    const value = requireDataBinding().readPath(record, fieldName);
     return value === undefined || value === null ? fallback : value;
   }
 
-  function readPath(source, path) {
-    if (!path || !source || typeof source !== "object") {
-      return undefined;
-    }
-
-    return String(path).split(".").reduce((value, key) => {
-      if (value === undefined || value === null) {
-        return undefined;
-      }
-      return value[key];
-    }, source);
-  }
-
+  /**
+   * @param {unknown} title
+   * @param {Record<string, unknown> | null | undefined} emptyState
+   * @param {ReturnType<typeof requireViewPrimitives>} view
+   */
   function renderPlaceholder(title, emptyState, view) {
     return view.createEmptyState({
       title: emptyState?.title || title,
@@ -1836,7 +2146,17 @@
     });
   }
 
+  /**
+   * `state` is nullable because half this file's callers have one and half do not: a modal shell
+   * and a descriptor modal-form render their actions with no state at all, and those actions come
+   * back `disabled` with no `onClick`. That is the existing behaviour, now named.
+   * @param {DescriptorAction} [action]
+   * @param {RendererState | null} [state]
+   * @param {unknown} [recordOverride]
+   * @returns {BrowserViewActionButtonOptions}
+   */
   function normalizeAction(action = {}, state = null, recordOverride = undefined) {
+    /** @type {BrowserViewActionButtonOptions} */
     const normalized = {
       label: action.label || action.id || "Action",
       role: action.role,
@@ -1853,18 +2173,41 @@
     return normalized;
   }
 
+  /**
+   * `state` was left uninferred while `0.33.33.39.8` measured the surface slot as a completed
+   * element; it is a `SurfaceUnderConstruction` instead, so the slot names what it holds and this
+   * reads through it. Neither parameter below is marked optional, because a required `state` sits
+   * between them.
+   * @param {DescriptorAction} action
+   * @param {RendererState} state
+   * @param {unknown} recordOverride
+   */
   async function runDescriptorAction(action = {}, state, recordOverride = undefined) {
     const record = recordOverride !== undefined ? recordOverride : state.selectedRecord;
     try {
       state.actionError = null;
-      if (action.confirm && !(await confirmDescriptorAction(action))) {
+      const actionSecurity = requireActionSecurity();
+      if (action.confirm && !(await actionSecurity.confirmDescriptorAction(action))) {
         return;
       }
-      assertActionPermissions(action);
 
       if (action.route) {
-        await runRouteAction(action, state, record);
-        await state.surface.refresh();
+        // The capability first, then the write. A route action's normal completion includes the
+        // reload, so a surface that cannot refresh fails before anything is sent rather than
+        // after it. If the write succeeds and the reload then fails, that rejection travels to
+        // the catch below untouched: the write is not replayed and the failure is not cleared.
+        const surface = state.surface;
+        const refresh = surface?.refresh;
+        if (typeof refresh !== "function") {
+          throw new Error("View surface refresh is unavailable: the surface has not finished initialising.");
+        }
+        await actionSecurity.runRouteAction(action, {
+          api: requireApiClient(),
+          readValue: readDescriptorValue,
+          record,
+        });
+        state.actionError = null;
+        await Reflect.apply(refresh, surface, []);
         return;
       }
 
@@ -1885,75 +2228,11 @@
     }
   }
 
-  async function confirmDescriptorAction(action) {
-    const message = typeof action.confirm === "string"
-      ? action.confirm
-      : `Continue with ${action.label || action.id || "this action"}?`;
-    if (root.modal?.confirm) {
-      return root.modal.confirm({ title: action.label || "Confirm action", message });
-    }
-    if (typeof global.confirm === "function") {
-      return global.confirm(message);
-    }
-    return true;
-  }
-
-  async function runRouteAction(action, state, record = null) {
-    const api = requireApiClient();
-    const method = String(action.method || "POST").toUpperCase();
-    const route = interpolateRoute(action.route, record);
-
-    if (method === "GET") {
-      await api.getJson(route, { cache: "no-store" });
-    } else if (method === "POST") {
-      await api.postJson(route, action.payload || {});
-    } else if (method === "PUT") {
-      await api.putJson(route, action.payload || {});
-    } else if (method === "PATCH") {
-      if (typeof api.patchJson !== "function") {
-        throw new Error("PATCH route actions require LongtailForge.api.patchJson.");
-      }
-      await api.patchJson(route, action.payload || {});
-    } else if (method === "DELETE") {
-      await api.deleteJson(route);
-    } else {
-      throw new Error(`Unsupported action method: ${method}`);
-    }
-
-    state.actionError = null;
-  }
-
-  function interpolateRoute(route, record) {
-    if (typeof route !== "string" || !record) {
-      return route;
-    }
-    return route.replace(/\{([\w.]+)\}/g, (match, field) => {
-      const value = readDescriptorValue(record, field, undefined);
-      return value === undefined || value === null ? match : encodeURIComponent(String(value));
-    });
-  }
-
-  function assertActionPermissions(action) {
-    if (!actionPermissionsAllowed(action)) {
-      throw new Error("You do not have permission to run this action.");
-    }
-  }
-
-  function actionPermissionsAllowed(action = {}) {
-    const requiredPermissions = action.requiredPermissions || [];
-    if (!Array.isArray(requiredPermissions) || requiredPermissions.length === 0) {
-      return true;
-    }
-
-    const grantedPermissions = root.workspaceContext?.permissionIds || root.workspaceContext?.permissions;
-    if (!Array.isArray(grantedPermissions)) {
-      return true;
-    }
-
-    const granted = new Set(grantedPermissions);
-    return requiredPermissions.every((permissionId) => granted.has(permissionId));
-  }
-
+  /**
+   * @param {{ behavior?: unknown }} action
+   * @param {RendererState} state
+   * @param {unknown} [recordOverride]
+   */
   async function runBehaviorAction(action, state, recordOverride = null) {
     const handler = behaviors.get(action.behavior);
     if (!handler) {
@@ -1963,9 +2242,9 @@
     await handler({
       action,
       api: requireApiClient(),
-      openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+      openModal: (/** @type {unknown} */ modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
       record: recordOverride !== null ? recordOverride : state.selectedRecord,
-      refresh: state.surface.refresh,
+      refresh: state.surface?.refresh,
       workspaceContext: root.workspaceContext || {},
     });
     state.actionError = null;
@@ -1976,6 +2255,11 @@
     }
   }
 
+  /**
+   * @param {RendererState} state
+   * @param {unknown} modalId
+   * @param {unknown} [record]
+   */
   function openDescriptorModal(state, modalId, record = null) {
     const modal = (state.descriptor.modals || []).find((candidate) => candidate.id === modalId);
     if (!modal) {
@@ -1988,19 +2272,27 @@
         value: readDescriptorValue(record, field.field, field.default || ""),
       })),
       actions: [...(modal.footerActions || []), ...(modal.actions || [])]
-        .filter(actionPermissionsAllowed)
         .map((action) => normalizeAction(action, state)),
     });
+    // The modal needs somewhere to append, and nothing else. The body is preferred and the
+    // surface stands in for it, exactly as before; only the failure is now described rather
+    // than left to the native one, and `Reflect.apply` keeps the original receiver.
     const parent = global.document?.body || state.surface;
-    parent.appendChild(dialog);
+    const appendChild = parent?.appendChild;
+    if (typeof appendChild !== "function") {
+      throw new Error("View surface modals require a host that can append: no document body or surface is available.");
+    }
+    Reflect.apply(appendChild, parent, [dialog]);
     state.view.showModal(dialog);
     return dialog;
   }
 
+  /** @param {RendererState} [state] */
   function surfaceOwnsRenderedData(state) {
     return Boolean(state?.descriptor?.dataSource?.route);
   }
 
+  /** @param {RendererState} state */
   function rerenderState(state) {
     const body = state.surface?.querySelector?.(".view-renderer-body") || state.surface?.firstChild;
     if (!body) {
@@ -2010,12 +2302,55 @@
     flushMounts(state);
   }
 
+  /**
+   * Empty a host, reading `firstChild` and `removeChild` in the order the loop always did.
+   *
+   * A node always answers both. `renderSurface` hands this whatever host its caller gave, and a host
+   * with children but no `removeChild` failed here as a native call on `undefined`; it now fails at
+   * the same point with a message, and still as a `TypeError`. The method is applied to the host
+   * itself, so its receiver is unchanged.
+   * @param {{ readonly firstChild?: ChildNode | null, removeChild?: Node["removeChild"] }} host
+   */
   function clearHost(host) {
     while (host.firstChild) {
-      host.removeChild(host.firstChild);
+      const removeChild = host.removeChild;
+      if (typeof removeChild !== "function") {
+        throw new TypeError("A view host with children must be able to remove them.");
+      }
+      Reflect.apply(removeChild, host, [host.firstChild]);
     }
   }
 
+  /**
+   * `filter(Boolean)` with the narrowing it already performs named for the compiler.
+   *
+   * Every list this filters holds rendered elements or `null`, and an object is always truthy, so it
+   * keeps exactly what `filter(Boolean)` kept.
+   * @template {object} T
+   * @param {T | null | undefined} value
+   * @returns {value is T}
+   */
+  function isRendered(value) {
+    return Boolean(value);
+  }
+
+  /**
+   * The `message` of a recorded failure, read exactly as `error.message` read it.
+   *
+   * `Object` leaves an object or a function as itself and boxes a primitive the way a member access
+   * does, so every truthy failure answers what it answered before. Callers only reach this for a
+   * truthy failure, on which `error.message` never threw.
+   * @param {unknown} error
+   * @returns {unknown}
+   */
+  function failureMessageOf(error) {
+    return Reflect.get(Object(error), "message");
+  }
+
+  /**
+   * @param {Node | null} existingNode
+   * @param {Node} replacementNode
+   */
   function replaceNode(existingNode, replacementNode) {
     const parent = existingNode?.parentNode;
     if (!parent) {
@@ -2025,9 +2360,35 @@
     parent.appendChild(replacementNode);
   }
 
+  /**
+   * Whether the three channels `renderSurface` installs are present.
+   *
+   * They are attached with `Object.defineProperty`, which keeps them off the element's type the
+   * same way `viewParts` is kept off a builder result. This checks for them rather than
+   * asserting them, so the published return contract is earned.
+   * @param {HTMLElement} element
+   * @returns {element is BrowserViewSurfaceElement}
+   */
+  function isSurfaceElement(element) {
+    return "refresh" in element && "openModal" in element && "viewState" in element;
+  }
+
+  /**
+   * The builder primitives this renderer is written against.
+   *
+   * `root.view || {}` produced a union whose empty branch answered every member read, which is
+   * the un-narrowed acquisition `0.33.33.38.1` removed from every other consumer. An absent
+   * factory failed the first member check and threw; it now fails one line earlier with the
+   * same message from the same call, which is the same observable behaviour.
+   * @returns {BrowserViewFactory}
+   */
   function requireViewPrimitives() {
-    const view = root.view || {};
-    for (const helperName of [
+    const view = root.view;
+    if (!view) {
+      throw new Error("View surface rendering requires LongtailForge.view primitives.");
+    }
+    /** @type {readonly (keyof import("../../../src/types/browser-contracts.js").BrowserViewPrimitives)[]} */
+    const helperNames = [
       "createCollapsibleIndexPanel",
       "createDataTable",
       "createDetailActionStrip",
@@ -2044,7 +2405,8 @@
       "normalizeSurfaceDescriptor",
       "createPageHeader",
       "createSplitListDetail",
-    ]) {
+    ];
+    for (const helperName of helperNames) {
       if (typeof view[helperName] !== "function") {
         throw new Error("View surface rendering requires LongtailForge.view primitives.");
       }
@@ -2052,34 +2414,60 @@
     return view;
   }
 
+  /** @returns {BrowserViewActionSecurity} */
+  function requireActionSecurity() {
+    const actionSecurity = root.viewActionSecurity;
+    if (typeof actionSecurity?.runRouteAction !== "function") {
+      throw new Error("View surface actions require LongtailForge.viewActionSecurity.");
+    }
+    return actionSecurity;
+  }
+
+  /** @returns {BrowserViewSearchOptions} */
+  function requireSearchOptions() {
+    const searchOptions = root.viewSearchOptions;
+    if (typeof searchOptions?.setFieldOptions !== "function") {
+      throw new Error("View surface fields require LongtailForge.viewSearchOptions.");
+    }
+    return searchOptions;
+  }
+
+  /** @returns {BrowserViewDataBinding} */
+  function requireDataBinding() {
+    const dataBinding = root.viewDataBinding;
+    if (typeof dataBinding?.loadBoundRecords !== "function") {
+      throw new Error("View surface data binding requires LongtailForge.viewDataBinding.");
+    }
+    return dataBinding;
+  }
+
+  /** @returns {BrowserApi} */
   function requireApiClient() {
-    const api = root.api || {};
-    if (typeof api.getJson !== "function") {
+    const api = requireApi();
+    if (typeof api?.getJson !== "function") {
       throw new Error("View surface data binding requires LongtailForge.api.getJson.");
     }
     return api;
   }
 
-  function requireViewResponseRecords() {
-    const responseRecords = root.viewResponseRecords || {};
-    if (typeof responseRecords.read !== "function") {
-      throw new Error("View surface data binding requires LongtailForge.viewResponseRecords.read.");
-    }
-    return responseRecords;
+  // The renderer extends the builder's factory and cannot stand in for it: every function above
+  // calls requireViewPrimitives() first, so a renderer-only object was a factory no caller could
+  // use. The extension is now guarded by the thing it extends, which also lets the spread name
+  // that surface directly - the || {} it replaces was contributing nothing a spread does not.
+  if (root.view) {
+    root.view = Object.freeze({
+      ...root.view,
+      createSlideOutSidebarController,
+      registerBehavior,
+      renderDescriptorActionMenu,
+      renderDescriptorActionStrip,
+      renderDescriptorDataTable,
+      renderDescriptorFieldGrid,
+      renderDescriptorInlineActions,
+      renderDescriptorLinkedRecordsPanel,
+      renderDescriptorModalForm,
+      renderSurface,
+    });
   }
-
-  root.view = Object.freeze({
-    ...(root.view || {}),
-    createSlideOutSidebarController,
-    registerBehavior,
-    renderDescriptorActionMenu,
-    renderDescriptorActionStrip,
-    renderDescriptorDataTable,
-    renderDescriptorFieldGrid,
-    renderDescriptorInlineActions,
-    renderDescriptorLinkedRecordsPanel,
-    renderDescriptorModalForm,
-    renderSurface,
-  });
   global.LongtailForge = root;
 })(window);

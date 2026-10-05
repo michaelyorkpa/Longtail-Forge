@@ -1,6 +1,12 @@
 import { internalEventBus } from "../core/events/event-bus.js";
 import { normalizeBooleanPreference } from "../utils/normalizers.js";
 
+/** @typedef {{ user_id?: string, username?: string, workspace_id?: string | null, timezone?: string, ip_address?: string }} PasswordEventSession */
+/** @typedef {{ user_id: string, home_workspace_id?: string | null, password_change_required?: unknown }} PasswordEventTargetUser */
+/** @typedef {{ revokedSessionCount?: unknown, session?: PasswordEventSession | null, targetUser: PasswordEventTargetUser }} PasswordEventInput */
+/** @typedef {PasswordEventInput & { newAlgorithm?: unknown, previousAlgorithm?: unknown, rehashReason?: unknown }} PasswordRehashEventInput */
+
+/** @param {PasswordEventInput} input */
 async function emitPasswordResetSecurityEvent({ revokedSessionCount = 0, session, targetUser }) {
   return internalEventBus.emit("security.password.reset", {
     actorUserId: session?.user_id,
@@ -22,6 +28,7 @@ async function emitPasswordResetSecurityEvent({ revokedSessionCount = 0, session
   });
 }
 
+/** @param {PasswordEventInput} input */
 async function emitPasswordChangedSecurityEvent({ revokedSessionCount = 0, session, targetUser }) {
   return internalEventBus.emit("security.password.changed", {
     actorUserId: session?.user_id,
@@ -44,6 +51,7 @@ async function emitPasswordChangedSecurityEvent({ revokedSessionCount = 0, sessi
   });
 }
 
+/** @param {PasswordRehashEventInput} input */
 async function emitPasswordRehashedSecurityEvent({
   newAlgorithm,
   previousAlgorithm,

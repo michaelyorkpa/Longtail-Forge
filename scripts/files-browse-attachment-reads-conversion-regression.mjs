@@ -1,11 +1,33 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
-const root = process.cwd();
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the upload was accepted.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-browse-reads-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-browse-reads-conversion.db");
@@ -13,10 +35,8 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Files-Browse-Reads-Conversion-Test-123!";
 
 const filesServiceSource = readText("src/services/files.service.js");
+const filesRepositorySource = readText("src/repositories/files.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
-const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { filesService, handleFileScanJob } = await import("../src/services/files.service.js");
@@ -40,62 +60,60 @@ try {
 
 function assertStaticContract() {
 
-  assert.match(filesServiceSource, /from "\.\.\/core\/database\.js"/, "Files service should import database access from the provider-neutral facade");
-  assertFunctionUsesNamedParams("listAttachments", [
+  assert.match(filesServiceSource, /filesRepo.*from "\.\.\/repositories\/files\.repo\.js"/, "Files service should delegate persistence to the Files repository");
+  assert.match(filesRepositorySource, /from "\.\.\/core\/database\.js"/, "Files repository should import database access from the provider-neutral facade");
+  assertFunctionUsesNamedParams(filesRepositorySource, "buildAttachmentReadQuery", [
     /file_attachments\.workspace_id = :attachmentWorkspaceId/,
     /db\.dialect\.comparison\.likePattern\(filename/,
     /db\.dialect\.comparison\.containsNoCase\("files\.original_filename", ":attachmentFilenamePattern"\)/,
-    /await db\.query\(`/,
   ]);
-  assertFunctionUsesNamedParams("readAttachmentCandidateRows", [
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachmentRows", [
     /LIMIT :attachmentPageLimit/,
     /OFFSET :attachmentPageOffset/,
-    /return db\.query\(`/,
+    /await db\.query\(`/,
   ]);
-  assertFunctionUsesNamedParams("readFileRow", [
-    /return db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readFile", [
+    /await db\.get\(`/,
     /workspace_id = :workspaceId/,
     /file_id = :fileId/,
   ]);
-  assertFunctionUsesNamedParams("readAttachmentById", [
-    /return db\.get\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readAttachmentById", [
+    /await db\.get\(`/,
     /file_attachment_id = :attachmentId/,
   ]);
-  assertFunctionUsesNamedParams("readActiveAttachmentsForFile", [
-    /return db\.query\(`/,
+  assertFunctionUsesNamedParams(filesRepositorySource, "readActiveAttachmentsForFile", [
+    /await db\.query\(`/,
     /file_attachments\.file_id = :fileId/,
   ]);
 
   const convertedBlocks = [
-    functionBlock(filesServiceSource, "listAttachments"),
-    functionBlock(filesServiceSource, "readAttachmentCandidateRows"),
-    functionBlock(filesServiceSource, "readFileRow"),
-    functionBlock(filesServiceSource, "readAttachmentById"),
-    functionBlock(filesServiceSource, "readActiveAttachmentsForFile"),
-    functionBlock(filesServiceSource, "attachmentOrderByClause"),
+    extractFunctionBlock(filesRepositorySource, "buildAttachmentReadQuery"),
+    extractFunctionBlock(filesRepositorySource, "readAttachmentRows"),
+    extractFunctionBlock(filesRepositorySource, "readFile"),
+    extractFunctionBlock(filesRepositorySource, "readAttachmentById"),
+    extractFunctionBlock(filesRepositorySource, "readActiveAttachmentsForFile"),
+    extractFunctionBlock(filesRepositorySource, "attachmentOrderByClause"),
   ].join("\n");
 
   assert.doesNotMatch(convertedBlocks, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b|\bquerySql\b|\brunSql\b/, "converted Files browse/read blocks should not use literal helpers or compatibility query wrappers");
   assert.doesNotMatch(convertedBlocks, /LOWER\(files\.|COLLATE NOCASE/, "converted Files browse/read blocks should route case-insensitive SQL through dialect seams");
-  assert.match(functionBlock(filesServiceSource, "attachmentOrderByClause"), /orderByNoCase\("COALESCE\(files\.display_name, files\.original_filename, ''\)", "ASC"\)/, "filename ordering should use the comparison seam");
-  assert.match(functionBlock(filesServiceSource, "attachmentOrderByClause"), /orderByNoCase\("files\.status", "ASC"\)/, "status ordering should use the comparison seam");
+  assert.match(extractFunctionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("COALESCE\(files\.display_name, files\.original_filename, ''\)", "ASC"\)/, "filename ordering should use the comparison seam");
+  assert.match(extractFunctionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("files\.status", "ASC"\)/, "status ordering should use the comparison seam");
 
   assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| services\/files\.service \| Converted \| 0 \| 0 \| 32 \| 33 \|/, "audit inventory should record the fully converted Files service state");
-  assert.match(auditDocs, /0\.33\.5\.27\.18 Files Browse and Attachment Reads Conversion[\s\S]*browse\/read metadata paths[\s\S]*709 runtime literal-helper invocations[\s\S]*145 direct interpolated SQL operation sites[\s\S]*206 existing bound operation sites/, "audit docs should record the Files browse/read conversion slice");
-  assert.match(databaseDocs, /As of version 0\.33\.5\.27\.18[\s\S]*Files browse and attachment read metadata paths[\s\S]*709 remaining helper invocations/, "database docs should record the concrete Files browse/read conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.18 - Conversion wave: Files browse and attachment reads[\s\S]*- \[x\] Convert Files browse[\s\S]*- \[x\] Preserve compact browse\/recovery listing[\s\S]*- \[x\] Coordinate with storage follow-ups[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.18 - [\s\S]*Files browse and attachment reads conversion[\s\S]*709 helper invocations[\s\S]*145 direct interpolated operation sites[\s\S]*206 bound operation sites/, "changelog should record the Files browse/read conversion burndown");
   }
 
-function assertFunctionUsesNamedParams(functionName, patterns) {
-  const block = functionBlock(filesServiceSource, functionName);
+/** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
+function assertFunctionUsesNamedParams(source, functionName, patterns) {
+  const block = extractFunctionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
   }
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertBrowseReadMetadataPaths(session, taskId) {
   const searchNeedle = `Needle_%_${randomUUID().slice(0, 8)}`;
   const first = await uploadAndScan(session, taskId, {
@@ -107,6 +125,7 @@ async function assertBrowseReadMetadataPaths(session, taskId) {
     text: "# Markdown preview\n\nSecond file body.",
   });
 
+  const firstFile = requireFile(first, "first upload");
   await runSql(`
 UPDATE file_attachments
 SET created_at = '2026-01-01T10:00:00.000Z'
@@ -130,8 +149,8 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   });
   assert.equal(filtered.pagination.returned, 1, "filename-filtered attachment reads should stay paged");
   assert.equal(filtered.pagination.hasMore, true, "visible attachment page should report another readable row");
-  assert.equal(filtered.attachments[0].fileId, first.file.fileId, "filename sort should remain stable and case-insensitive");
-  assert.equal(filtered.attachments[0].file.originalFilename, first.file.originalFilename, "browse reads should expose the persisted safe filename");
+  assert.equal(filtered.attachments[0].fileId, firstFile.fileId, "filename sort should remain stable and case-insensitive");
+  assert.equal(filtered.attachments[0].file.originalFilename, firstFile.originalFilename, "browse reads should expose the persisted safe filename");
   assert.equal(JSON.stringify(filtered).includes("storage_key"), false, "browse reads must not expose storage keys");
 
   const counts = await filesService.countAttachmentsForTargets(session, {
@@ -139,10 +158,11 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     targetType: "task",
     targetIds: [taskId],
   });
-  assert.equal(counts.counts[taskId], 2, "attachment counts should keep permission-shaped visible counts");
+  assert.equal(/** @type {Record<string, number>} */ (counts.counts)[taskId], 2, "attachment counts should keep permission-shaped visible counts");
 
-  const readFile = await filesService.readFileForSession(session, first.file.fileId);
-  assert.equal(readFile.fileId, first.file.fileId, "readFileForSession should return the uploaded file through the converted read helper");
+  const readFile = await filesService.readFileForSession(session, firstFile.fileId);
+  assert.ok(readFile, "readFileForSession should resolve the uploaded file");
+  assert.equal(readFile.fileId, firstFile.fileId, "readFileForSession should return the uploaded file through the converted read helper");
   assert.equal(Object.hasOwn(readFile, "storage_key"), false, "file reads must not expose storage keys");
 
   const preview = await filesService.readAttachmentPreviewDescriptor(session, second.attachment.fileAttachmentId);
@@ -150,14 +170,21 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(preview.preview.kind, "markdown", "preview descriptor should preserve preview kind");
 
   const content = await filesService.readAttachmentPreviewContent(session, second.attachment.fileAttachmentId);
+  assert.ok(content.content && content.content.kind === "markdown", "preview content should return the markdown JSON branch");
   assert.equal(content.content.kind, "markdown", "preview content should still use the route-safe markdown response");
   assert.match(content.content.bodyHtml, /<h1>Markdown preview<\/h1>/);
 
-  const download = await filesService.downloadFile(session, first.file.fileId);
-  assert.equal(download.file.fileId, first.file.fileId, "download should still resolve file metadata through converted reads");
+  const download = await filesService.downloadFile(session, firstFile.fileId);
+  assert.equal(requireFile(download, "download").fileId, firstFile.fileId, "download should still resolve file metadata through converted reads");
   assert.equal((await streamToString(download.stream)), "first text preview body");
 }
 
+/**
+ * @param {FilesSession} session
+ * @param {string} taskId
+ * @param {{ originalFilename: string, text: string }} options
+ * @returns {Promise<FileUploadEnvelope>}
+ */
 async function uploadAndScan(session, taskId, options) {
   const upload = await filesService.uploadAndAttach(session, {
     contentBase64: Buffer.from(options.text).toString("base64"),
@@ -171,7 +198,7 @@ async function uploadAndScan(session, taskId, options) {
 
   await handleFileScanJob({
     payload: {
-      fileId: upload.file.fileId,
+      fileId: requireFile(upload, "uploaded file").fileId,
       requestedByUserId: session.user_id,
       workspaceId: session.workspace_id,
     },
@@ -180,6 +207,7 @@ async function uploadAndScan(session, taskId, options) {
   return upload;
 }
 
+/** @param {FilesSession} session @param {string} title */
 async function createTask(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -224,10 +252,13 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireFirstRow(rows, "workspace");
+  assert.ok(workspace.workspace_id, "workspace should exist");
+  return workspace;
 }
 
+/** @param {string} workspaceId @returns {Promise<FilesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -237,18 +268,25 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
+  /** @type {{ display_name: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected user");
+  assert.ok(admin.user_id, "protected user should exist");
   return {
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
+    home_workspace_id: workspaceId,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
+    timezone: admin.timezone || "America/New_York",
+    user_id: admin.user_id,
+    username: admin.username,
     workspace_id: workspaceId,
   };
 }
 
+/** @param {NodeJS.ReadableStream} stream */
 async function streamToString(stream) {
+  /** @type {Buffer[]} */
   const chunks = [];
 
   for await (const chunk of stream) {
@@ -261,45 +299,4 @@ async function streamToString(stream) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function functionBlock(source, functionName) {
-  const asyncStart = source.indexOf(`async function ${functionName}`);
-  const syncStart = source.indexOf(`function ${functionName}`);
-  const start = asyncStart >= 0 && (syncStart < 0 || asyncStart < syncStart) ? asyncStart : syncStart;
-  assert.notEqual(start, -1, `${functionName} should exist`);
-
-  let braceStart = -1;
-  let parenDepth = 0;
-  for (let index = start; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "(") {
-      parenDepth += 1;
-    } else if (character === ")") {
-      parenDepth -= 1;
-    } else if (character === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-  assert.notEqual(braceStart, -1, `${functionName} body should exist`);
-  let depth = 0;
-
-  for (let index = braceStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not find end of ${functionName}`);
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

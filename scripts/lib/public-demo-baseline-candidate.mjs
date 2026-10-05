@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import { requireJsonRecord } from "../test-support/json-record-assertions.mjs";
+import { requireManifestString, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { verifyPassword } from "../../src/security/passwords.js";
@@ -35,12 +37,215 @@ const EXPECTED_CANDIDATE_ENTRIES = new Set(["files", "longtail-forge.db", DEMO_D
 const PROTECTED_TABLE_PATTERN = /(analytics|feedback|interest)/i;
 const SECRET_KEY_PATTERN = /(PASSWORD|SECRET|TOKEN|MASTER_KEY|PRIVATE_KEY)/;
 
+/**
+ * The verification summary returned by the staging seed command.
+ * @typedef {import("./demo-data-operation.mjs").DemoSeedResult} DemoSeedResult
+ */
+
+/**
+ * The verified identity of one seeded demo candidate.
+ * @typedef {import("./demo-data-operation.mjs").DemoSeedVerification} DemoSeedVerification
+ */
+
+/**
+ * The non-null resolved role-fixture credential set for the named demo.
+ * @typedef {NonNullable<Awaited<ReturnType<typeof loadSanitizedDemoRoleFixtures>>>} SanitizedRoleFixtures
+ */
+
+/**
+ * A value that may carry a filesystem error code, narrowed from an unknown thrown value.
+ * @typedef {{ code?: unknown }} ErrnoCarrier
+ */
+
+/**
+ * Minimal structural surface of an open better-sqlite3 statement.
+ * @typedef {object} SqliteStatementLike
+ * @property {(...bindings: unknown[]) => Record<string, unknown>[]} all
+ * @property {(...bindings: unknown[]) => Record<string, unknown> | undefined} get
+ * @property {(...bindings: unknown[]) => unknown} run
+ */
+
+/**
+ * Minimal structural surface of an open better-sqlite3 database handle.
+ * @typedef {object} SqliteDatabaseLike
+ * @property {(sql: string) => SqliteStatementLike} prepare
+ * @property {(sql: string, options?: { simple?: boolean }) => unknown} pragma
+ * @property {() => void} close
+ */
+
+/**
+ * One PRAGMA wal_checkpoint result row.
+ * @typedef {{ busy: unknown }} WalCheckpointRow
+ */
+
+/**
+ * One applied schema-migration identity row.
+ * @typedef {object} AppliedMigrationRow
+ * @property {string} checksum
+ * @property {string} moduleId
+ * @property {string} name
+ * @property {string} version
+ */
+
+/**
+ * One Files storage-key row.
+ * @typedef {{ storage_key: string }} StorageKeyRow
+ */
+
+/**
+ * One sqlite_master table-name row.
+ * @typedef {{ name: string }} TableNameRow
+ */
+
+/**
+ * One active-user credential row.
+ * @typedef {{ username: string, password: string }} CredentialRow
+ */
+
+/**
+ * Validated command-line arguments for the public-demo candidate operation.
+ * @typedef {object} PublicDemoCandidateArgs
+ * @property {string} action
+ * @property {string} anchorDate
+ * @property {string} dataRoot
+ * @property {boolean} dryRun
+ * @property {string} roleCredentialsFile
+ * @property {string} target
+ */
+
+/**
+ * Value-flag destination keys accepted on the command line.
+ * @typedef {"anchorDate" | "dataRoot" | "roleCredentialsFile" | "target"} PublicDemoOptionKey
+ */
+
+/**
+ * Runtime identity requirements for candidate construction.
+ * @typedef {object} PublicDemoRuntimeGate
+ * @property {string} dataRoot
+ * @property {NodeJS.ProcessEnv} environment
+ * @property {boolean} [requireCanonicalDataRoot]
+ * @property {boolean} [requireRoot]
+ * @property {string} target
+ */
+
+/**
+ * Options accepted by preparePublicDemoCandidateContext.
+ * @typedef {object} PublicDemoContextRequest
+ * @property {string} action
+ * @property {string} [anchorDate]
+ * @property {string} dataRoot
+ * @property {boolean} [dryRun]
+ * @property {NodeJS.ProcessEnv} [environment]
+ * @property {string} [releaseDir]
+ * @property {boolean} [requireCanonicalDataRoot]
+ * @property {boolean} [requireRoot]
+ * @property {string} roleCredentialsFile
+ * @property {string} target
+ */
+
+/**
+ * Resolved candidate-related locations inside the Compose data root.
+ * @typedef {object} PublicDemoCandidatePaths
+ * @property {string} activeDatabaseFile
+ * @property {string} activeFilesRoot
+ * @property {string} candidateRoot
+ * @property {string} dataRoot
+ */
+
+/**
+ * Candidate-state expectations for one operation.
+ * @typedef {{ allowCandidate: boolean }} CandidateStateGate
+ */
+
+/**
+ * A staging seed request executed inside the current release.
+ * @typedef {object} PublicDemoSeedRequest
+ * @property {string} anchorDate
+ * @property {string} releaseDir
+ * @property {string} roleCredentialsFile
+ * @property {string} seedDataRoot
+ */
+
+/**
+ * The injectable side effects of the candidate operation.
+ * @typedef {object} PublicDemoCandidateDependencies
+ * @property {() => string} operationId
+ * @property {(request: PublicDemoSeedRequest) => Promise<DemoSeedResult | void>} seedCandidate
+ * @property {(candidateRoot: string) => Promise<void>} repairPermissions
+ */
+
+/**
+ * Options accepted by runPublicDemoCandidateOperation.
+ * @typedef {object} RunPublicDemoCandidateOptions
+ * @property {string} action
+ * @property {string} anchorDate
+ * @property {string} appVersion
+ * @property {string} [dataRoot]
+ * @property {PublicDemoCandidateDependencies} [dependencies]
+ * @property {boolean} [dryRun]
+ * @property {readonly unknown[]} [forbiddenValues]
+ * @property {PublicDemoCandidatePaths} paths
+ * @property {string} releaseDir
+ * @property {string} roleCredentialsFile
+ * @property {SanitizedRoleFixtures} roleFixtures
+ * @property {string} [target]
+ */
+
+/**
+ * A verification request for one candidate (or active) baseline root.
+ * @typedef {object} PublicDemoVerifyRequest
+ * @property {string} anchorDate
+ * @property {string} appVersion
+ * @property {string} candidateRoot
+ * @property {boolean} [exactEntries]
+ * @property {readonly unknown[]} [forbiddenValues]
+ * @property {string} releaseDir
+ * @property {SanitizedRoleFixtures} roleFixtures
+ */
+
+/**
+ * The verified candidate identity, including its migration identity hash.
+ * @typedef {object} PublicDemoVerification
+ * @property {Readonly<Record<string, number>>} counts
+ * @property {string} migrationIdentitySha256
+ * @property {readonly string[]} publicVisitorUserIds
+ * @property {string} semanticFingerprint
+ */
+
+/**
+ * The parsed candidate ownership marker (the properties this module reads).
+ * @typedef {object} PublicDemoCandidateMarker
+ * @property {string} action
+ * @property {string} anchorDate
+ * @property {string} appVersion
+ * @property {string} candidateContract
+ * @property {string} contract
+ * @property {Readonly<Record<string, number>>} counts
+ * @property {string} generatedAt
+ * @property {string} migrationIdentitySha256
+ * @property {readonly string[]} publicVisitorUserIds
+ * @property {number} roleFixtureCount
+ * @property {string} semanticFingerprint
+ * @property {string} state
+ * @property {string} target
+ */
+
+/**
+ * The verified values one candidate marker must match exactly.
+ * @typedef {object} CandidateMarkerExpectation
+ * @property {string} anchorDate
+ * @property {string} appVersion
+ * @property {string} migrationIdentitySha256
+ * @property {DemoSeedVerification} verification
+ */
+
+/** @param {string[]} args */
 function parsePublicDemoCandidateArgs(args) {
   const action = args[0];
   if (!new Set(["active", "build", "validate"]).has(action)) {
     throw new Error("Choose active, build, or validate.");
   }
-  const options = { action, dryRun: false };
+  const options = /** @type {PublicDemoCandidateArgs} */ ({ action, dryRun: false });
   const seenFlags = new Set();
   const valueFlags = new Map([
     ["--anchor-date", "anchorDate"],
@@ -60,7 +265,7 @@ function parsePublicDemoCandidateArgs(args) {
     seenFlags.add(argument);
     const value = args[++index];
     if (!value || value.startsWith("--")) throw new Error(`${argument} requires a value.`);
-    options[valueFlags.get(argument)] = value;
+    options[/** @type {PublicDemoOptionKey} */ (valueFlags.get(argument))] = value;
   }
   if (options.target !== DEMO_DATA_TARGET) throw new Error(`--target must be exactly ${DEMO_DATA_TARGET}.`);
   if (options.anchorDate === "today") {
@@ -75,6 +280,7 @@ function parsePublicDemoCandidateArgs(args) {
   return Object.freeze(options);
 }
 
+/** @param {PublicDemoRuntimeGate} gate */
 function assertPublicDemoCandidateRuntime({
   dataRoot,
   environment,
@@ -97,6 +303,7 @@ function assertPublicDemoCandidateRuntime({
   }
 }
 
+/** @param {PublicDemoContextRequest} request */
 async function preparePublicDemoCandidateContext({
   action,
   dataRoot,
@@ -127,8 +334,8 @@ async function preparePublicDemoCandidateContext({
     label: "public-demo role credential configuration",
     requireRoot,
   });
-  const packageJson = JSON.parse(await fs.readFile(path.join(resolvedReleaseDir, "package.json"), "utf8"));
-  const roleFixtures = await loadSanitizedDemoRoleFixtures({
+  const packageJson = requirePackageManifest(JSON.parse(await fs.readFile(path.join(resolvedReleaseDir, "package.json"), "utf8")));
+  const roleFixtures = /** @type {SanitizedRoleFixtures} */ (await loadSanitizedDemoRoleFixtures({
     credentialBinding: RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
     env: {
       LONGTAIL_ENV: "development",
@@ -138,14 +345,14 @@ async function preparePublicDemoCandidateContext({
     },
     mode: PUBLIC_DEMO_ROLE_FIXTURE_MODE,
     target: { profile: "sanitized-demo" },
-  });
+  }));
   const forbiddenValues = collectForbiddenValues(environment, roleFixtures);
   assertDistinctRoleCredentials(roleFixtures, environment);
   const paths = resolvePublicDemoCandidatePaths(resolvedDataRoot);
   await assertCandidateState(paths, { allowCandidate: action === "validate" });
   if (action === "validate") await assertRealDirectory(paths.candidateRoot, "public-demo candidate root");
   return Object.freeze({
-    appVersion: packageJson.version,
+    appVersion: requireManifestString(packageJson, "version", "release package.json"),
     forbiddenValues,
     paths,
     releaseDir: resolvedReleaseDir,
@@ -154,6 +361,10 @@ async function preparePublicDemoCandidateContext({
   });
 }
 
+/**
+ * @param {string} dataRoot
+ * @returns {Readonly<PublicDemoCandidatePaths>}
+ */
 function resolvePublicDemoCandidatePaths(dataRoot) {
   const resolvedDataRoot = path.resolve(dataRoot);
   return Object.freeze({
@@ -164,6 +375,7 @@ function resolvePublicDemoCandidatePaths(dataRoot) {
   });
 }
 
+/** @param {RunPublicDemoCandidateOptions} options */
 async function runPublicDemoCandidateOperation(options) {
   const {
     action,
@@ -222,7 +434,7 @@ async function runPublicDemoCandidateOperation(options) {
     const preliminary = await verifyDemoSeedCandidate({
       databaseFile: path.join(seedDataRoot, "longtail-forge.db"),
       expectedAnchorDate: anchorDate,
-      expectedFingerprint: seedResult.semanticFingerprint,
+      expectedFingerprint: /** @type {DemoSeedResult} */ (seedResult).semanticFingerprint,
       filesRoot: path.join(seedDataRoot, "files"),
     });
     await fs.rm(path.join(seedDataRoot, ".longtail-development-data.json"), { force: false });
@@ -267,10 +479,11 @@ async function runPublicDemoCandidateOperation(options) {
   }
 }
 
+/** @param {string} databaseFile */
 async function finalizeCandidateDatabase(databaseFile) {
-  const database = new Database(databaseFile, { fileMustExist: true });
+  const database = /** @type {SqliteDatabaseLike} */ (/** @type {unknown} */ (new Database(databaseFile, { fileMustExist: true })));
   try {
-    const result = database.pragma("wal_checkpoint(TRUNCATE)");
+    const result = /** @type {WalCheckpointRow[]} */ (database.pragma("wal_checkpoint(TRUNCATE)"));
     if (result.some((row) => Number(row.busy) !== 0)) {
       throw new Error("Public-demo candidate database could not be checkpointed.");
     }
@@ -284,6 +497,10 @@ async function finalizeCandidateDatabase(databaseFile) {
   await fs.rm(`${databaseFile}-shm`, { force: true });
 }
 
+/**
+ * @param {PublicDemoVerifyRequest} request
+ * @returns {Promise<Readonly<PublicDemoVerification>>}
+ */
 async function verifyPublicDemoCandidate({
   anchorDate,
   appVersion,
@@ -328,6 +545,7 @@ async function verifyPublicDemoCandidate({
   return Object.freeze({ ...verification, migrationIdentitySha256 });
 }
 
+/** @param {string} releaseDir */
 async function listCandidateMigrationFiles(releaseDir) {
   const sources = [{ moduleId: "core", relativeDir: "src/db/migrations" }];
   const modulesRoot = path.join(releaseDir, "src", "modules");
@@ -359,25 +577,30 @@ async function listCandidateMigrationFiles(releaseDir) {
     || left.moduleId.localeCompare(right.moduleId));
 }
 
+/** @param {string} target */
 async function isRealDirectory(target) {
   try {
     const stats = await fs.lstat(target);
     return stats.isDirectory() && !stats.isSymbolicLink();
   } catch (error) {
-    if (error?.code === "ENOENT") return false;
+    if (/** @type {ErrnoCarrier} */ (error)?.code === "ENOENT") return false;
     throw error;
   }
 }
 
+/**
+ * @param {string} databaseFile
+ * @param {string} releaseDir
+ */
 async function verifyMigrationIdentity(databaseFile, releaseDir) {
   const database = new Database(databaseFile, { readonly: true, fileMustExist: true });
   let applied;
   try {
-    applied = database.prepare(`
+    applied = /** @type {AppliedMigrationRow[]} */ (database.prepare(`
 SELECT version, module_id AS moduleId, name, checksum
 FROM schema_migrations
 ORDER BY version, module_id;
-`).all();
+`).all());
   } finally {
     database.close();
   }
@@ -409,11 +632,15 @@ ORDER BY version, module_id;
   return hashText(JSON.stringify(applied));
 }
 
+/**
+ * @param {string} databaseFile
+ * @param {string} filesRoot
+ */
 async function verifyExactFilesInventory(databaseFile, filesRoot) {
   const database = new Database(databaseFile, { readonly: true, fileMustExist: true });
   let expected;
   try {
-    expected = database.prepare("SELECT storage_key FROM files ORDER BY storage_key").all()
+    expected = /** @type {StorageKeyRow[]} */ (database.prepare("SELECT storage_key FROM files ORDER BY storage_key").all())
       .map((row) => normalizeStorageKey(row.storage_key));
   } finally {
     database.close();
@@ -426,10 +653,11 @@ async function verifyExactFilesInventory(databaseFile, filesRoot) {
   }
 }
 
+/** @param {string} databaseFile */
 async function verifyNoProtectedPersistence(databaseFile) {
   const database = new Database(databaseFile, { readonly: true, fileMustExist: true });
   try {
-    const protectedTables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all()
+    const protectedTables = /** @type {TableNameRow[]} */ (database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all())
       .map((row) => row.name)
       .filter((name) => PROTECTED_TABLE_PATTERN.test(name));
     if (protectedTables.length) {
@@ -440,6 +668,10 @@ async function verifyNoProtectedPersistence(databaseFile) {
   }
 }
 
+/**
+ * @param {string} databaseFile
+ * @param {SanitizedRoleFixtures} roleFixtures
+ */
 async function verifyCredentialHashes(databaseFile, roleFixtures) {
   if (roleFixtures?.fixtures?.length !== SANITIZED_DEMO_ROLE_FIXTURES.length) {
     throw new Error("Public-demo candidate credential fixture contract is incomplete.");
@@ -447,7 +679,7 @@ async function verifyCredentialHashes(databaseFile, roleFixtures) {
   const database = new Database(databaseFile, { readonly: true, fileMustExist: true });
   let rows;
   try {
-    rows = database.prepare("SELECT username, password FROM users WHERE user_status = 'active' ORDER BY username").all();
+    rows = /** @type {CredentialRow[]} */ (database.prepare("SELECT username, password FROM users WHERE user_status = 'active' ORDER BY username").all());
   } finally {
     database.close();
   }
@@ -461,6 +693,10 @@ async function verifyCredentialHashes(databaseFile, roleFixtures) {
   }
 }
 
+/**
+ * @param {string} root
+ * @param {readonly unknown[]} values
+ */
 async function verifyForbiddenValuesAbsent(root, values) {
   const protectedValues = [...new Set(values.map(String).filter((value) => value.length >= 8))];
   if (!protectedValues.length) return;
@@ -475,6 +711,10 @@ async function verifyForbiddenValuesAbsent(root, values) {
   }
 }
 
+/**
+ * @param {PublicDemoCandidateMarker} marker
+ * @param {CandidateMarkerExpectation} expectation
+ */
 function assertCandidateMarker(marker, { anchorDate, appVersion, migrationIdentitySha256, verification }) {
   const allowedKeys = new Set([
     "action", "anchorDate", "appVersion", "candidateContract", "contract", "counts", "generatedAt",
@@ -498,14 +738,27 @@ function assertCandidateMarker(marker, { anchorDate, appVersion, migrationIdenti
   }
 }
 
+/**
+ * @param {string} markerFile
+ * @returns {Promise<PublicDemoCandidateMarker>}
+ */
 async function readCandidateMarker(markerFile) {
   try {
-    return JSON.parse(await fs.readFile(markerFile, "utf8"));
+    // The marker enters as a record rather than as `any`; the contract,
+    // candidate-contract, and target members it is read for are proven by the
+    // ownership check below, which is what its declared shape rests on.
+    return /** @type {PublicDemoCandidateMarker} */ (
+      requireJsonRecord(JSON.parse(await fs.readFile(markerFile, "utf8")), "public-demo candidate ownership marker")
+    );
   } catch {
     throw new Error("Public-demo candidate ownership marker is unreadable or invalid.");
   }
 }
 
+/**
+ * @param {PublicDemoCandidatePaths} paths
+ * @param {CandidateStateGate} gate
+ */
 async function assertCandidateState(paths, { allowCandidate }) {
   assertExactCandidateChild(paths.dataRoot, paths.candidateRoot, PUBLIC_DEMO_CANDIDATE_DIRECTORY);
   const entries = await fs.readdir(paths.dataRoot);
@@ -519,6 +772,11 @@ async function assertCandidateState(paths, { allowCandidate }) {
   if (allowCandidate && !candidateExists) throw new Error("The verified public-demo candidate is missing.");
 }
 
+/**
+ * @param {string} dataRoot
+ * @param {string} candidate
+ * @param {string} expectedNameOrPrefix
+ */
 function assertExactCandidateChild(dataRoot, candidate, expectedNameOrPrefix) {
   const resolvedDataRoot = path.resolve(dataRoot);
   const resolvedCandidate = path.resolve(candidate);
@@ -529,6 +787,10 @@ function assertExactCandidateChild(dataRoot, candidate, expectedNameOrPrefix) {
   }
 }
 
+/**
+ * @param {NodeJS.ProcessEnv} environment
+ * @param {SanitizedRoleFixtures} roleFixtures
+ */
 function collectForbiddenValues(environment, roleFixtures) {
   return [
     ...Object.entries(environment)
@@ -538,6 +800,10 @@ function collectForbiddenValues(environment, roleFixtures) {
   ];
 }
 
+/**
+ * @param {SanitizedRoleFixtures} roleFixtures
+ * @param {NodeJS.ProcessEnv} environment
+ */
 function assertDistinctRoleCredentials(roleFixtures, environment) {
   const applicationSecrets = new Set(Object.entries(environment)
     .filter(([key, value]) => SECRET_KEY_PATTERN.test(key) && String(value || ""))
@@ -548,6 +814,7 @@ function assertDistinctRoleCredentials(roleFixtures, environment) {
   }
 }
 
+/** @param {string} candidateRoot */
 async function repairCandidatePermissions(candidateRoot) {
   const files = await listTree(candidateRoot);
   for (const entry of files) {
@@ -559,11 +826,12 @@ async function repairCandidatePermissions(candidateRoot) {
   }
 }
 
+/** @param {string} root */
 async function listTree(root) {
   const result = [root];
   const pending = [root];
   while (pending.length) {
-    const current = pending.pop();
+    const current = /** @type {string} */ (pending.pop());
     const stats = await fs.lstat(current);
     if (!stats.isDirectory()) continue;
     const children = (await fs.readdir(current)).map((entry) => path.join(current, entry));
@@ -573,6 +841,7 @@ async function listTree(root) {
   return result;
 }
 
+/** @param {string} root */
 async function listRegularFiles(root) {
   const files = [];
   for (const entry of await listTree(root)) {
@@ -583,6 +852,12 @@ async function listRegularFiles(root) {
   return files;
 }
 
+/**
+ * @param {string} status
+ * @param {string} anchorDate
+ * @param {string} appVersion
+ * @param {PublicDemoVerification} verification
+ */
 function candidateResult(status, anchorDate, appVersion, verification) {
   return Object.freeze({
     status,
@@ -596,18 +871,22 @@ function candidateResult(status, anchorDate, appVersion, verification) {
   });
 }
 
+/** @param {unknown} value */
 function normalizeStorageKey(value) {
   return String(value).replaceAll("\\", "/");
 }
 
+/** @param {string} value */
 function normalizeSql(value) {
   return value.replace(/\r\n?/g, "\n");
 }
 
+/** @param {string} value */
 function hashText(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/** @param {unknown} value */
 function normalizeOrigin(value) {
   try {
     const parsed = new URL(String(value || ""));
@@ -618,29 +897,36 @@ function normalizeOrigin(value) {
   }
 }
 
+/** @param {unknown} value */
 function isIsoTimestamp(value) {
   if (typeof value !== "string") return false;
   const date = new Date(value);
   return !Number.isNaN(date.valueOf()) && date.toISOString() === value;
 }
 
+/** @param {unknown} value */
 function isCalendarDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
+/**
+ * @param {string} parent
+ * @param {string} child
+ */
 function isInside(parent, child) {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
   return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
+/** @param {string} targetPath */
 async function pathExists(targetPath) {
   try {
     await fs.lstat(targetPath);
     return true;
   } catch (error) {
-    if (error?.code === "ENOENT") return false;
+    if (/** @type {ErrnoCarrier} */ (error)?.code === "ENOENT") return false;
     throw error;
   }
 }

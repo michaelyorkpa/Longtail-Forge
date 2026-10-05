@@ -2,6 +2,12 @@ import { auditService } from "../services/audit.service.js";
 import { internalEventBus } from "../core/events/event-bus.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 
+/** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {{ user_id?: string, username?: string, workspace_id?: string | null, ip_address?: string | null }} SecurityEventSession */
+/** @typedef {{ home_workspace_id?: unknown, active_workspace_id?: unknown }} SecurityEventUser */
+/** @typedef {{ eventType?: unknown, outcome?: unknown, reasonClass?: unknown, attemptedUsername?: unknown, metadata?: Record<string, unknown> | null, actorUserId?: unknown, actorUserName?: unknown, createdAt?: unknown, ipAddress?: unknown, recordId?: unknown, session?: SecurityEventSession | null, workspaceId?: unknown, user?: SecurityEventUser | null }} SecurityEventInput */
+/** @typedef {{ source: string, workspaceId: string | null }} SecurityWorkspaceResolution */
+
 const SECURITY_CHANGE_TYPE = "security";
 const SECURITY_RECORD_TYPE = "security_event";
 const MAX_METADATA_DEPTH = 4;
@@ -53,6 +59,7 @@ const INTERNAL_SECURITY_EVENTS = Object.freeze({
   "security.session.revoked": { outcome: "success", reasonClass: "session_revoked" },
 });
 
+/** @param {SecurityEventInput} [event] */
 async function record(event = {}) {
   try {
     const workspaceResolution = await resolveWorkspaceId(event);
@@ -107,7 +114,7 @@ function registerEventHandlers() {
       continue;
     }
 
-    internalEventBus.on(eventName, async (event) => {
+    internalEventBus.on(eventName, async (/** @type {InternalEvent} */ event) => {
       await record({
         actorUserId: event.actor_user_id,
         actorUserName: event.session?.username,
@@ -128,6 +135,7 @@ function registerEventHandlers() {
   }
 }
 
+/** @param {SecurityEventInput} event @returns {Promise<SecurityWorkspaceResolution>} */
 async function resolveWorkspaceId(event) {
   const explicitWorkspaceId = nullableText(event.workspaceId || event.session?.workspace_id);
   if (explicitWorkspaceId) {
@@ -146,6 +154,7 @@ async function resolveWorkspaceId(event) {
   };
 }
 
+/** @param {unknown} value @param {number} [depth] @returns {Record<string, unknown>} */
 function sanitizeMetadata(value, depth = 0) {
   if (!value || typeof value !== "object" || depth >= MAX_METADATA_DEPTH) {
     return {};
@@ -170,6 +179,7 @@ function sanitizeMetadata(value, depth = 0) {
   }));
 }
 
+/** @param {unknown} value @param {number} depth @returns {unknown} */
 function sanitizeMetadataValue(value, depth) {
   if (value && typeof value === "object") {
     return sanitizeMetadata(value, depth);
@@ -186,6 +196,7 @@ function sanitizeMetadataValue(value, depth) {
   return String(value ?? "").slice(0, MAX_METADATA_STRING_LENGTH);
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeEventType(value) {
   return String(value || "security.unknown")
     .trim()
@@ -194,6 +205,7 @@ function normalizeEventType(value) {
     .slice(0, 128) || "security.unknown";
 }
 
+/** @param {unknown} value @param {string} fallback @returns {string} */
 function normalizeClassification(value, fallback) {
   return String(value || fallback)
     .trim()
@@ -202,14 +214,17 @@ function normalizeClassification(value, fallback) {
     .slice(0, 64) || fallback;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeIpAddress(value) {
   return String(value || "").replace(/^::ffff:/, "").trim().slice(0, 128);
 }
 
+/** @param {unknown} value @returns {string | null} */
 function normalizeUsername(value) {
   return nullableText(value)?.toLowerCase().slice(0, 320) || null;
 }
 
+/** @param {unknown} value @returns {string | null} */
 function nullableText(value) {
   if (value === null || value === undefined) {
     return null;

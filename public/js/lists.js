@@ -1,2615 +1,4722 @@
-const api = window.LongtailForge.api;
+(function attachListsPage() {
 
-const LIST_TYPE_LABELS = {
-  bill_of_materials: "Bill of Materials",
-  checklist: "Checklist",
-  packing: "Packing",
-  parts: "Parts",
-  procurement: "Procurement",
-  shopping: "Shopping",
-  supplies: "Supplies",
-};
-const STATUS_LABELS = {
-  active: "Active",
-  archived: "Archived",
-  completed: "Completed",
-  deleted: "Deleted",
-  finalized: "Finalized",
-};
-const PURCHASE_STATUS_LABELS = {
-  cancelled: "Cancelled",
-  needed: "Needed",
-  not_needed: "Not Needed",
-  ordered: "Ordered",
-  planned: "Planned",
-  received: "Received",
-};
-const LIST_LINK_TYPE_LABELS = {
-  client: "Client",
-  note: "Note",
-  project: "Project",
-  task: "Task",
-};
-const LIST_LINK_TARGET_ORDER = ["task", "note", "project", "client"];
-
-const view = window.LongtailForge?.view;
-let activeListsViewDescriptor = null;
-const listsWorkspaceHost = document.querySelector("[data-lists-host]");
-const isListsWorkspaceSurface = Boolean(listsWorkspaceHost);
-
-let state = {
-  clients: [],
-  currentUserId: "",
-  dialogDataReady: null,
-  editingListId: "",
-  editorList: null,
-  editorStagedTargets: [],
-  itemDialogList: null,
-  itemSuggestions: new Map(),
-  linkTargetSearchTimer: null,
-  linkTargets: [],
-  listDialogHostContext: null,
-  listDialogHostContextSettled: false,
-  lists: [],
-  selectedListId: new URLSearchParams(window.location.search).get("list") || "",
-  users: [],
-  workspaceType: "business",
-};
-
-buildListsViewShell();
-if (!isListsWorkspaceSurface) {
-  ensureListsDialogShell();
-}
-
-const pageTitle = document.querySelector("[data-lists-title]");
-const createButton = document.querySelector("[data-list-create]");
-const statusMessage = document.querySelector("[data-lists-status]");
-const filtersForm = document.querySelector("[data-lists-filters]");
-const statusFilter = document.querySelector("[data-list-filter-status]");
-const typeFilter = document.querySelector("[data-list-filter-type]");
-const reusableFilter = document.querySelector("[data-list-filter-reusable]");
-const clientFilter = document.querySelector("[data-list-filter-client]");
-const projectFilter = document.querySelector("[data-list-filter-project]");
-const assigneeFilter = document.querySelector("[data-list-filter-assignee]");
-const neededFilter = document.querySelector("[data-list-filter-needed]");
-const archiveFilter = document.querySelector("[data-list-filter-archive]");
-const sortSelect = document.querySelector("[data-list-sort]");
-const indexPanel = document.querySelector("[data-lists-index-panel]");
-const countLabel = document.querySelector("[data-lists-count]");
-const listMount = document.querySelector("[data-lists-list]");
-const detailPanel = document.querySelector("[data-list-detail]");
-const listDialog = document.querySelector("[data-list-dialog]");
-const listForm = document.querySelector("[data-list-form]");
-const listDialogTitle = document.querySelector("[data-list-dialog-title]");
-const listDialogClose = document.querySelector("[data-list-dialog-close]");
-const listTitleInput = document.querySelector("[data-list-title]");
-const listTypeInput = document.querySelector("[data-list-type]");
-const listClientInput = document.querySelector("[data-list-client]");
-const listProjectInput = document.querySelector("[data-list-project]");
-const listDescriptionInput = document.querySelector("[data-list-description]");
-const listLinkPicker = document.querySelector("[data-list-link-picker]");
-const listLinkTargetTypeInput = document.querySelector("[data-list-link-target-type]");
-const listLinkSearchInput = document.querySelector("[data-list-link-search]");
-const listLinkResultsInput = document.querySelector("[data-list-link-results]");
-const listLinkApplyButton = document.querySelector("[data-list-link-apply]");
-const listFormStatus = document.querySelector("[data-list-form-status]");
-const listCancelButton = document.querySelector("[data-list-cancel]");
-const listSaveButton = document.querySelector("[data-list-save]");
-const itemDialog = document.querySelector("[data-list-item-dialog]");
-const itemDialogForm = document.querySelector("[data-list-item-form]");
-const itemDialogTitle = document.querySelector("[data-list-item-dialog-title]");
-const itemDialogClose = document.querySelector("[data-list-item-dialog-close]");
-const itemDialogCancel = document.querySelector("[data-list-item-cancel]");
-const itemDialogSave = document.querySelector("[data-list-item-save]");
-const itemDialogFormStatus = document.querySelector("[data-list-item-form-status]");
-
-if (!createButton?.dataset.surfaceAction) {
-  createButton?.addEventListener("click", () => openListDialog());
-}
-filtersForm?.addEventListener("change", () => refreshLists());
-sortSelect?.addEventListener("change", () => refreshLists());
-listForm?.addEventListener("submit", saveList);
-listDialogClose?.addEventListener("click", cancelListDialog);
-listCancelButton?.addEventListener("click", cancelListDialog);
-listDialog?.addEventListener("close", handleListDialogClose);
-itemDialogForm?.addEventListener("submit", saveItem);
-itemDialogClose?.addEventListener("click", closeItemDialog);
-itemDialogCancel?.addEventListener("click", closeItemDialog);
-listClientInput?.addEventListener("change", () => populateProjectOptions(listProjectInput, listClientInput.value));
-listProjectInput?.addEventListener("change", syncClientFromProject);
-listTypeInput?.addEventListener("change", () => setContextControlsVisible(shouldShowContextControls(listTypeInput.value)));
-detailPanel?.addEventListener("click", handleDetailClick);
-detailPanel?.addEventListener("submit", handleDetailSubmit);
-
-const listsDialogApi = Object.freeze({
-  openAdd: (params = {}, hostContext = null) => openListEditor({ ...params, mode: "add" }, hostContext),
-  openEdit: (params = {}, hostContext = null) => openListEditor({ ...params, mode: "edit" }, hostContext),
-  openListEditor,
-});
-
-window.LongtailForge.listsDialog = Object.freeze({
-  ...(window.LongtailForge.listsDialog || {}),
-  ...listsDialogApi,
-});
-
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "lists.add",
-  id: "lists.add",
-  label: "Add List",
-  mode: "add",
-  moduleId: "lists",
-  open: (params, hostContext) => openListEditor({ ...params, mode: "add" }, hostContext),
-  recordType: "list",
-  requiredModules: ["lists"],
-  requiredPermissions: ["lists.create"],
-  title: "Add List",
-});
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "lists.edit",
-  id: "lists.edit",
-  label: "Edit List",
-  mode: "edit",
-  moduleId: "lists",
-  open: (params, hostContext) => openListEditor({ ...params, mode: "edit" }, hostContext),
-  recordType: "list",
-  requiredModules: ["lists"],
-  requiredPermissions: ["lists.view"],
-  title: "Edit List",
-});
-
-if (isListsWorkspaceSurface) {
-  initialize();
-}
-
-function buildListsViewShell() {
-  const host = document.querySelector("[data-lists-host]");
-  if (!host || host.querySelector("[data-lists-title]")) {
-    return;
-  }
-  if (!view) {
-    throw new Error("Lists requires LongtailForge.view to build the protected workspace.");
-  }
-  registerListsViewBehaviors();
-
-  activeListsViewDescriptor = listsViewSurfaceDescriptor();
-  // The renderer auto-renders descriptor.modals into the surface; Lists builds and owns its own
-  // dialog (createListDialogShell), so suppress the framework duplicate modal shells.
-  const renderDescriptor = {
-    ...activeListsViewDescriptor,
-    dataSource: null,
-    modals: [],
+  /**
+   * Read by a list's `list_type` column, which is plain text rather than one of the seven keys,
+   * so an unlisted type falls through to the raw value.
+   * @type {Record<string, string>}
+   */
+  const LIST_TYPE_LABELS = {
+    bill_of_materials: "Bill of Materials",
+    checklist: "Checklist",
+    packing: "Packing",
+    parts: "Parts",
+    procurement: "Procurement",
+    shopping: "Shopping",
+    supplies: "Supplies",
   };
-  const surface = view.renderSurface(renderDescriptor, host);
-  decorateListsDeclarativeSurface(surface, renderDescriptor);
-  document.body.appendChild(createListDialogShell());
-  document.body.appendChild(createItemDialogShell());
-}
-
-function ensureListsDialogShell() {
-  if (!document.querySelector("[data-list-dialog]")) {
-    document.body.appendChild(createListDialogShell());
-  }
-}
-
-function registerListsViewBehaviors() {
-  if (typeof view.registerBehavior !== "function") {
-    return;
-  }
-  const behaviorActions = {
-    "lists.create": "create-list",
-    "lists.workflow.duplicate": "duplicate-list",
-    "lists.workflow.edit": "edit-list",
-    "lists.workflow.complete": "complete-list",
-    "lists.workflow.finalize": "finalize-list",
-    "lists.workflow.reopen": "reopen-list",
-    "lists.workflow.mark-reusable": "mark-reusable-list",
-    "lists.workflow.unmark-reusable": "unmark-reusable-list",
-    "lists.workflow.archive": "archive-list",
-    "lists.workflow.delete": "delete-list",
-    "lists.workflow.restore": "restore-list",
-    "lists.link.add": "add-link",
-    "lists.link.remove": "remove-link",
-    "lists.item.save": "save-item",
-    "lists.item.edit": "edit-item",
-    "lists.item.move-up": "move-item-up",
-    "lists.item.move-down": "move-item-down",
-    "lists.item.delete": "delete-item",
+  /**
+   * Read by a list's `status` column, which is plain text rather than one of the five keys, so an
+   * unlisted status falls through to the raw value or to the caller's own stand-in.
+   * @type {Record<string, string>}
+   */
+  const STATUS_LABELS = {
+    active: "Active",
+    archived: "Archived",
+    completed: "Completed",
+    deleted: "Deleted",
+    finalized: "Finalized",
   };
-
-  Object.entries(behaviorActions).forEach(([behaviorId, action]) => {
-    view.registerBehavior(behaviorId, ({ record }) => runRegisteredListBehavior(action, record));
-  });
-}
-
-async function runRegisteredListBehavior(action, record) {
-  if (action === "create-list") {
-    openListDialog();
-    return;
-  }
-  const list = resolveListRecord(record);
-  if (!list) {
-    return;
-  }
-  if (action === "edit-list") {
-    openListDialog(list);
-    return;
-  }
-  const selectedId = await runAction(action, list);
-  await refreshLists(selectedId || list.list_id || state.selectedListId);
-}
-
-async function openListEditor(params = {}, hostContext = null) {
-  await prepareListDialogData();
-
-  const mode = normalizeListEditorMode(params);
-  const listId = readListEditorId(params);
-  let list = params.list || params.record || params.listRecord || null;
-
-  if (mode === "edit") {
-    if (!list && listId) {
-      list = await loadListDetail(listId);
-    }
-    if (!list?.list_id) {
-      throw new Error("List ID is required.");
-    }
-  }
-
-  const result = openListDialog(mode === "add" ? null : list, {
-    defaults: normalizeListEditorDefaults(params),
-    hostContext,
-    trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
-  });
-  return hostContext?.result || result;
-}
-
-async function prepareListDialogData() {
-  if (!state.dialogDataReady) {
-    state.dialogDataReady = (async () => {
-      await window.LongtailForge.workspaceContextReady;
-      applyWorkspaceContext();
-      await loadOptions();
-    })().catch((error) => {
-      state.dialogDataReady = null;
-      throw error;
-    });
-  }
-
-  return state.dialogDataReady;
-}
-
-function normalizeListEditorMode(params = {}) {
-  const mode = String(params.mode || params.actionMode || "").toLowerCase();
-  return mode === "edit" ? "edit" : "add";
-}
-
-function readListEditorId(params = {}) {
-  return params.listId || params.list_id || params.recordId || params.id || "";
-}
-
-function normalizeListEditorDefaults(params = {}) {
-  const context = params.context || {};
-  return {
-    client_id: params.client_id || params.clientId || context.clientId || "",
-    description: params.description || "",
-    list_type: params.list_type || params.listType || "",
-    project_id: params.project_id || params.projectId || context.projectId || "",
-    title: params.title || "",
+  /**
+   * Read by an item's purchase status, which is a plain column value rather than one of the six
+   * keys, so an unlisted status falls through to the raw value.
+   * @type {Record<string, string>}
+   */
+  const PURCHASE_STATUS_LABELS = {
+    cancelled: "Cancelled",
+    needed: "Needed",
+    not_needed: "Not Needed",
+    ordered: "Ordered",
+    planned: "Planned",
+    received: "Received",
   };
-}
-
-function resolveListRecord(record) {
-  const listId = record?.list_id || record?.id || record?._source?.list_id || record?._source?.id || state.selectedListId;
-  return state.lists.find((entry) => entry.list_id === listId) || selectedList();
-}
-
-function listsViewSurfaceDescriptor() {
-  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-  return surfaces.find((surface) => surface.id === "lists.workspace" && surface.moduleId === "lists") || fallbackListsViewSurfaceDescriptor();
-}
-
-function fallbackListsViewSurfaceDescriptor() {
-  return {
-    id: "lists.workspace",
-    moduleId: "lists",
-    viewId: "lists",
-    layout: "slide-out-sidebar",
-    sidebarLabel: "Lists navigation",
-    pageHeader: {
-      title: "Lists",
-      primaryAction: {
-        id: "create-list",
-        label: "Create List",
-        role: "primary",
-        behavior: "lists.create",
-      },
-    },
-    sidebarPanels: [
-      {
-        id: "lists-filters",
-        type: "filters",
-        title: "Filters",
-        open: false,
-        className: "lists-filters-panel",
-      },
-      {
-        id: "lists-index",
-        type: "index",
-        title: "List Selector",
-        open: true,
-      },
-    ],
-    filters: [
-      descriptorSelect("status", "Status", [["active", "Active", true], ["completed", "Completed"], ["finalized", "Finalized"], ["archived", "Archived"], ["deleted", "Deleted"], ["all", "All visible"]]),
-      descriptorSelect("listType", "Type", [["all", "All types", true], ...Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label])]),
-      descriptorSelect("reusable", "Reusable", [["no", "Normal lists", true], ["yes", "Reusable only"], ["all", "All"]]),
-      descriptorSelect("clientId", "Client", [["all", "All clients", true]]),
-      descriptorSelect("projectId", "Project", [["all", "All projects", true]]),
-      descriptorSelect("assigneeId", "Assigned", [["all", "All assignees", true]]),
-      { id: "needed-filter", field: "neededByDate", type: "date", label: "Needed By" },
-      descriptorSelect("archiveState", "Archived State", [["current", "Current", true], ["archived", "Archived"], ["deleted", "Deleted"], ["all", "All states"]]),
-      descriptorSelect("sort", "Sort", [["updated_desc", "Updated", true], ["title_asc", "Title"], ["type_asc", "Type"], ["status_asc", "Status"], ["needed_asc", "Needed Date"], ["finalized_desc", "Finalized Date"]]),
-    ],
-    indexPanel: {
-      title: "List Selector",
-      initialSelection: "none",
-      collapseOnSelect: true,
-      emptyState: {
-        message: "No lists match the current filters.",
-      },
-    },
-    detail: {
-      header: {
-        title: "Selected list",
-        description: "Choose a list to inspect.",
-      },
-      summaryPanels: [
-        {
-          title: "List Details",
-          description: "Description and read-only linked records.",
-        },
-        { title: "Next", description: "List progress and next action context." },
-        { title: "Source", description: "Template and working-copy context." },
-        { title: "Costs", description: "Estimated and actual item costs." },
-      ],
-      actionStrip: listsWorkflowActionStripDescriptor(),
-      emptyState: {
-        message: "Select a list to review its context.",
-      },
-      itemForm: listsItemFormDescriptor(),
-      itemRows: listsItemRowsDescriptor(),
-    },
-    modals: [listsModalDescriptor()],
-    dataSource: {
-      route: "/api/lists",
-      method: "GET",
-      recordsKey: "lists",
-      fieldBindings: {
-        id: "list_id",
-        title: "title",
-      },
-    },
+  /**
+   * Read by target type, which is text rather than one of the four keys: the wire link's
+   * `target_type` is a plain string, so an unlisted type falls through to `formatToken`.
+   * @type {Record<string, string>}
+   */
+  const LIST_LINK_TYPE_LABELS = {
+    client: "Client",
+    note: "Note",
+    project: "Project",
+    task: "Task",
   };
-}
+  /** @type {BrowserListLinkTargetType[]} */
+  const LIST_LINK_TARGET_ORDER = ["task", "note", "project", "client"];
 
-function listsWorkflowActionStripDescriptor() {
-  return {
-    label: "List actions",
-    actions: [
-      { id: "duplicate-list", label: "Duplicate", role: "secondary", behavior: "lists.workflow.duplicate" },
-      { id: "edit-list", label: "Edit", role: "secondary", behavior: "lists.workflow.edit" },
-      { id: "complete-list", label: "Complete", role: "secondary", behavior: "lists.workflow.complete" },
-      { id: "finalize-list", label: "Finalize", role: "secondary", behavior: "lists.workflow.finalize" },
-      { id: "reopen-list", label: "Reopen", role: "secondary", behavior: "lists.workflow.reopen" },
-      { id: "mark-reusable-list", label: "Mark Reusable", role: "secondary", behavior: "lists.workflow.mark-reusable" },
-      { id: "unmark-reusable-list", label: "Unmark Reusable", role: "secondary", behavior: "lists.workflow.unmark-reusable" },
-      { id: "archive-list", label: "Archive", role: "secondary", behavior: "lists.workflow.archive" },
-      { id: "delete-list", label: "Delete", role: "destructive", behavior: "lists.workflow.delete" },
-      { id: "restore-list", label: "Restore", role: "secondary", behavior: "lists.workflow.restore" },
-    ],
-  };
-}
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
-function listsItemFormDescriptor() {
-  return {
-    title: "Items",
-    fields: [
-      { field: "item_name", type: "text", label: "Item", required: true, autocomplete: "off", behavior: "lists.catalog-suggestions", width: "full" },
-      { field: "catalog_item_id", type: "hidden", label: "Catalog Item" },
-      { field: "quantity", type: "number", label: "Qty", default: "1", min: "0", step: "0.01", width: "narrow" },
-      { field: "unit", type: "text", label: "Unit", width: "narrow" },
-      { field: "needed_by_date", type: "date", label: "Needed by", width: "compact" },
-      { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users", width: "compact" },
-      { field: "purchase_status", type: "select", label: "Status", default: "needed", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]), width: "compact" },
-      { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced", width: "wide" },
-      { field: "url", type: "url", label: "URL", placement: "advanced", width: "wide" },
-      { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
-      { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
-      { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced", width: "wide" },
-      { field: "notes", type: "textarea", label: "Notes", rows: "2", width: "full" },
-      { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true", width: "full" },
-    ],
-    actions: [
-      { id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save" },
-    ],
-  };
-}
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
-function listsItemRowsDescriptor() {
-  return {
-    itemsField: "items",
-    columns: [
-      { id: "done", label: "Done", type: "checkbox" },
-      { id: "item", field: "item_name", label: "Item" },
-      { id: "quantity", field: "quantity", label: "Qty" },
-      { id: "cost", field: "estimated_cost", label: "Cost" },
-      { id: "needed", field: "needed_by_date", label: "Needed By" },
-      { id: "status", field: "purchase_status", label: "Status" },
-      { id: "actions", label: "Actions", type: "actions" },
-    ],
-    actions: [
-      { id: "edit-item", label: "Edit", role: "secondary", behavior: "lists.item.edit" },
-      { id: "move-item-up", label: "Up", role: "utility", behavior: "lists.item.move-up" },
-      { id: "move-item-down", label: "Down", role: "utility", behavior: "lists.item.move-down" },
-      { id: "delete-item", label: "Delete", role: "destructive", behavior: "lists.item.delete" },
-    ],
-    emptyState: {
-      message: "No items yet.",
-    },
-  };
-}
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListSummary} BrowserListSummary */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItem} BrowserListItem */
+  /**
+   * The context a module action hands the list dialog, as this page uses it.
+   *
+   * It is the host's object, not this page's: nothing here validates it, and both members are
+   * reached through `?.` exactly because a host may supply either, both or neither.
+   * @typedef {{
+   *   cancel?: (detail?: unknown) => unknown,
+   *   complete?: (detail?: unknown) => unknown,
+   *   refresh?: (detail?: unknown) => unknown,
+   *   result?: unknown,
+   *   trigger?: unknown
+   * }} ListDialogHostContext
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewTextValue} BrowserViewTextValue */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLink} BrowserListLink */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListDetail} BrowserListDetail */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNormalizedListRecord} BrowserNormalizedListRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListProgressSummary} BrowserListProgressSummary */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItemSuggestion} BrowserListItemSuggestion */
 
-function listsModalDescriptor() {
-  return {
-    id: "list-editor",
-    title: "List",
-    size: "wide",
-    fields: [
-      { field: "title", type: "text", label: "Title", required: true, width: "full" },
-      { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]), width: "compact" },
-      { field: "client_id", type: "select", label: "Client", optionsSource: "clients", width: "wide" },
-      { field: "project_id", type: "select", label: "Project", optionsSource: "projects", width: "wide" },
-      { field: "description", type: "textarea", label: "Description", rows: "4", width: "full" },
-    ],
-    footerActions: [
-      { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
-      { id: "save-list", label: "Save List", role: "primary", behavior: "lists.modal.save" },
-    ],
-  };
-}
-
-function descriptorSelect(field, label, options) {
-  return {
-    id: `${field}-filter`,
-    field,
-    type: "select",
-    label,
-    options,
-  };
-}
-
-function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDescriptor) {
-  const pageHeading = surface.querySelector(".view-page-title");
-  if (pageHeading) {
-    pageHeading.dataset.listsTitle = "";
-  }
-
-  const createAction = surface.querySelector('[data-surface-action="lists.create"], [data-surface-action="create-list"]');
-  if (createAction) {
-    createAction.dataset.listCreate = "";
-  }
-
-  const header = surface.querySelector(".view-page-header");
-  header?.classList.add("lists-page-header");
-  const status = view.createStatusMessage({ className: "lists-status-message" });
-  status.dataset.listsStatus = "";
-  header?.after(status);
-
-  const filterPanel = surface.querySelector('[data-view-sidebar-panel="lists-filters"]')
-    || surface.querySelector(".view-filter-panel");
-  filterPanel?.classList.add("lists-filters-panel");
-  if (filterPanel) {
-    filterPanel.dataset.listsFiltersPanel = "";
-  }
-  const filterForm = surface.querySelector("[data-view-filter-form]");
-  filterForm?.classList.add("lists-filters");
-  if (filterForm) {
-    filterForm.dataset.listsFilters = "";
-  }
-
-  decorateFilterControl(surface, "status", "listFilterStatus");
-  decorateFilterControl(surface, "listType", "listFilterType");
-  decorateFilterControl(surface, "reusable", "listFilterReusable");
-  decorateFilterControl(surface, "clientId", "listFilterClient", "listBusinessControl");
-  decorateFilterControl(surface, "projectId", "listFilterProject", "listContextControl");
-  decorateFilterControl(surface, "assigneeId", "listFilterAssignee");
-  decorateFilterControl(surface, "neededByDate", "listFilterNeeded");
-  decorateFilterControl(surface, "archiveState", "listFilterArchive");
-  decorateFilterControl(surface, "sort", "listSort");
-
-  const workspace = surface.querySelector(".view-slideout-sidebar")
-    || surface.querySelector(".view-stacked");
-  workspace?.classList.add("lists-workspace");
-
-  const indexPanel = surface.querySelector('[data-view-sidebar-panel="lists-index"]')
-    || surface.querySelector(".view-collapsible-index");
-  indexPanel?.classList.add("lists-index-panel");
-  if (indexPanel) {
-    indexPanel.dataset.listsIndexPanel = "";
-  }
-  const summaryTitle = indexPanel?.querySelector(".view-collapsible-index-title");
-  if (summaryTitle) {
-    summaryTitle.dataset.listsCount = "";
-    summaryTitle.textContent = listSelectorTitle(descriptor);
-  }
-  const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
-  const mount = view.createElement("div", { className: "lists-index-content" });
-  mount.dataset.listsIndexContent = "";
-  mount.dataset.listsList = "";
-  indexBody?.replaceChildren(mount);
-
-  const detail = surface.querySelector(".view-slideout-sidebar-main")
-    || surface.querySelector(".view-stacked-detail");
-  detail?.classList.add("lists-detail-panel");
-  if (detail) {
-    detail.dataset.listDetail = "";
-  }
-  detail?.replaceChildren(view.createEmptyState({
-    message: "Select a list.",
-    className: "lists-empty-state",
-    headingLevel: 2,
-  }));
-}
-
-function decorateFilterControl(surface, fieldName, datasetName, wrapperDatasetName = "") {
-  const wrapper = surface.querySelector(`[data-view-field="${fieldName}"]`);
-  const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
-  if (control) {
-    control.dataset[datasetName] = "";
-  }
-  if (wrapperDatasetName && wrapper) {
-    wrapper.dataset[wrapperDatasetName] = "";
-  }
-}
-
-function createListDialogShell() {
-  const modal = listsEditorModalDescriptor();
-  const editorFields = view.renderDescriptorFieldGrid({ fields: modal.fields || [] }, {
-    surface: false,
-    className: "lists-editor-fields",
-  });
-  editorFields.dataset.viewFieldWidth = "full";
-  decorateListEditorField(editorFields, "title", "listTitle");
-  decorateListEditorField(editorFields, "list_type", "listType");
-  decorateListEditorField(editorFields, "client_id", "listClient", "listBusinessControl");
-  decorateListEditorField(editorFields, "project_id", "listProject", "listContextControl");
-  decorateListEditorField(editorFields, "description", "listDescription");
-
-  const picker = view.createLinkedContextPicker({
-    ariaLabel: "List linked records",
-    emptyMessage: "No linked records yet.",
-    linkedItems: [],
-    onRemove: handleListEditorLinkedContextRemove,
-    onSearchInput: queueListEditorLinkTargetSearch,
-    onTargetChange: loadListEditorLinkTargets,
-    onUseTarget: applyListEditorLinkTarget,
-    providers: listLinkProviderOptions(),
-    records: [],
-    rowsLabel: "Linked records",
-  });
-  picker.dataset.listLinkPicker = "";
-  picker.viewParts.targetSelect.dataset.listLinkTargetType = "";
-  picker.viewParts.searchInput.dataset.listLinkSearch = "";
-  picker.viewParts.recordSelect.dataset.listLinkResults = "";
-  picker.viewParts.useTargetButton.dataset.listLinkApply = "";
-  const linkedRecordsSection = view.createElement("div", {
-    className: "lists-editor-linked-records",
-    children: [
-      view.createElement("h3", { className: "surface-modal-section-heading", text: "Linked Records" }),
-      picker,
-    ],
-  });
-  linkedRecordsSection.dataset.viewFieldWidth = "full";
-
-  const formStatus = view.createStatusMessage({ className: "lists-form-status" });
-  formStatus.dataset.listFormStatus = "";
-  formStatus.dataset.viewFieldWidth = "full";
-
-  const cancelAction = modal.footerActions?.find((action) => action.id === "cancel-list") || {};
-  const saveAction = modal.footerActions?.find((action) => action.id === "save-list") || {};
-  const cancel = view.createActionButton({ label: cancelAction.label || "Cancel", role: cancelAction.role || "secondary" });
-  cancel.dataset.listCancel = "";
-  const save = view.createActionButton({ label: saveAction.label || "Save List", type: "submit", role: saveAction.role || "primary" });
-  save.dataset.listSave = "";
-
-  const dialog = view.renderDescriptorModalForm(modal, {
-    className: "lists-dialog",
-    formClassName: "lists-form",
-    fields: [editorFields, linkedRecordsSection, formStatus],
-    actions: [cancel, save],
-  });
-  dialog.dataset.listDialog = "";
-  dialog.viewParts.form.dataset.listForm = "";
-  dialog.viewParts.title.dataset.listDialogTitle = "";
-
-  const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
-  close.dataset.listDialogClose = "";
-  const heading = view.createElement("div", {
-    className: "surface-modal-heading",
-    children: [
-      dialog.viewParts.title,
-      view.createElement("div", {
-        className: "surface-modal-heading-actions",
-        children: [close],
-      }),
-    ],
-  });
-  dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
-  return dialog;
-}
-
-function listsEditorModalDescriptor() {
-  return listsViewSurfaceDescriptor().modals?.find((modal) => modal.id === "list-editor") || listsModalDescriptor();
-}
-
-function decorateListEditorField(grid, fieldName, dataName, wrapperDataName = "") {
-  const wrapper = grid.querySelector(`[data-view-field="${fieldName}"]`);
-  const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
-  if (control) {
-    control.dataset[dataName] = "";
-  }
-  if (wrapper && wrapperDataName) {
-    wrapper.dataset[wrapperDataName] = "";
-  }
-}
-
-async function initialize() {
-  setStatus("Loading lists...");
-
-  try {
-    await window.LongtailForge.workspaceContextReady;
-    applyWorkspaceContext();
-    await Promise.all([loadOptions(), loadLists()]);
-    populateFilters();
-    renderLists();
-    openListFromUrl();
-    setStatus("");
-  } catch (error) {
-    renderListPlaceholder(error.message || "Lists could not be loaded.");
-    renderDetailPrompt(error.message || "Lists could not be loaded.");
-    setStatus(error.message || "Lists could not be loaded.", true);
-  }
-}
-
-function applyWorkspaceContext() {
-  const context = window.LongtailForge?.workspaceContext || {};
-  const moduleDefinition = (context.modules || []).find((module) => module.id === "lists");
-  const terminology = moduleDefinition?.terminology?.[context.workspaceType] || moduleDefinition?.terminology?.default || {};
-  const label = terminology.label || moduleDefinition?.displayName || "Lists";
-
-  state.workspaceType = context.workspaceType || "business";
-  state.currentUserId = context.userId || context.user_id || "";
-  if (pageTitle) {
-    pageTitle.textContent = label;
-  }
-  if (createButton) {
-    createButton.textContent = terminology.createButton || "Create List";
-  }
-  document.body.dataset.listsWorkspaceType = state.workspaceType;
-  setBusinessControlsVisible(usesBusinessScope());
-  setContextControlsVisible(usesBusinessScope());
-}
-
-async function loadOptions() {
-  const [clientProjects, users] = await Promise.all([
-    loadClientProjects(),
-    loadUsers(),
+  /** The list columns the table declares `NOT NULL` and the shapers spread untouched. */
+  const LIST_TEXT_COLUMNS = Object.freeze([
+    "created_at", "list_id", "list_type", "status", "title", "updated_at", "workspace_id",
   ]);
 
-  state.clients = window.LongtailForge.clientProjectOptions.normalizeClients(clientProjects);
-  state.users = users.users || [];
-}
-
-async function loadClientProjects() {
-  try {
-    return await api.getJson("/api/client-projects?view=options", { cache: "no-store" });
-  } catch {
-    return { clients: [], workspaceProjects: [] };
-  }
-}
-
-async function loadUsers() {
-  try {
-    return await api.getJson("/api/users", { cache: "no-store" });
-  } catch {
-    return { users: [] };
-  }
-}
-
-async function loadLists() {
-  const result = await api.getJson(`/api/lists?${buildListQueryParams()}`, { cache: "no-store" });
-  const summaries = result.lists || [];
-  const details = await Promise.all(summaries.map((list) => loadListDetail(list.list_id || list.id, list)));
-  state.lists = details.filter(Boolean);
-}
-
-async function loadListDetail(listId, fallback = null) {
-  try {
-    const result = await api.getJson(`/api/lists/${encodeURIComponent(listId)}?includeDeleted=true&includeDeletedItems=true`, {
-      cache: "no-store",
-    });
-    return normalizeListRecord(result.list, result.items || [], result.links || []);
-  } catch {
-    return fallback ? normalizeListRecord(fallback, []) : null;
-  }
-}
-
-function buildListQueryParams() {
-  const params = new URLSearchParams();
-  const statusValue = statusFilter?.value || "active";
-  const typeValue = typeFilter?.value || "all";
-  const reusableValue = reusableFilter?.value || "no";
-  const archiveValue = archiveFilter?.value || "current";
-  const clientValue = usesBusinessScope() ? clientFilter?.value || "all" : "all";
-  const projectValue = projectFilter?.value || "all";
-  const assigneeValue = assigneeFilter?.value || "all";
-  const neededValue = neededFilter?.value || "";
-  const sortValue = sortSelect?.value || "updated_desc";
-
-  params.set("status", archiveValue === "archived" || archiveValue === "deleted" ? archiveValue : statusValue);
-  params.set("archiveState", archiveValue);
-  params.set("reusable", reusableValue);
-  params.set("sort", sortValue);
-
-  if (typeValue !== "all") {
-    params.set("listType", typeValue);
-  }
-  if (clientValue !== "all") {
-    params.set("clientId", clientValue);
-  }
-  if (projectValue !== "all") {
-    params.set("projectId", projectValue);
-  }
-  if (assigneeValue !== "all") {
-    params.set("assigneeId", assigneeValue);
-  }
-  if (neededValue) {
-    params.set("neededByDate", neededValue);
-  }
-  if (archiveValue === "all" || archiveValue === "deleted" || statusValue === "all") {
-    params.set("includeDeleted", "true");
-  }
-
-  return params;
-}
-
-function populateFilters() {
-  replaceOptions(clientFilter, [
-    option("all", "All clients"),
-    option("", "Workspace"),
-    ...state.clients.filter((client) => !client.isWorkspaceScope).map((client) => option(client.id, client.optionLabel || client.name)),
+  /**
+   * The list columns the table allows to be null, and that reach the page as text or null.
+   *
+   * **`metadata_json` is not here.** The repository's row mapper parses it into whatever JSON it
+   * stored - `{}` when there is none - before any shaper sees the row, so on the wire it is not text,
+   * and this page never reads it. Checking it as nullable text refused every real list
+   * (`0.33.33.43.44`).
+   */
+  const LIST_NULLABLE_COLUMNS = Object.freeze([
+    "archived_at", "client_id", "completed_at", "created_by_user_id", "deleted_at", "description",
+    "duplicated_from_list_id", "finalized_at", "finalized_by_user_id",
+    "project_id", "source_list_id", "updated_by_user_id",
   ]);
-  replaceOptions(projectFilter, [
-    option("all", "All projects"),
-    option("", "No project"),
-    ...allProjects().map((project) => option(project.id, project.optionLabel || project.name)),
+
+  /** The members `shapeListsForBrowser` constructs around the spread row. */
+  const LIST_SHAPED_BOOLEANS = Object.freeze(["isBillOfMaterials", "isReusable"]);
+
+  /** `ITEM_COLUMNS` the item table declares `NOT NULL`. */
+  const ITEM_TEXT_COLUMNS = Object.freeze([
+    "created_at", "item_name", "list_id", "list_item_id", "purchase_status", "updated_at", "workspace_id",
   ]);
-  replaceOptions(assigneeFilter, [
-    option("all", "All assignees"),
-    option("me", "Me"),
-    option("", "Unassigned"),
-    ...state.users.map((user) => option(user.user_id, displayUser(user))),
+
+  /**
+   * `ITEM_COLUMNS` the item table allows to be null, minus the four numeric ones and `metadata_json`,
+   * which the row mapper parses into JSON exactly as it does for a list.
+   */
+  const ITEM_NULLABLE_COLUMNS = Object.freeze([
+    "assigned_user_id", "catalog_item_id", "checked_at", "checked_by_user_id", "completed_at",
+    "completed_by_user_id", "created_by_user_id", "deleted_at", "needed_by_date",
+    "notes", "tracking_id", "unit", "updated_by_user_id", "url", "vendor_name",
   ]);
-}
 
-function renderLists() {
-  const lists = state.lists;
-  if (countLabel) {
-    countLabel.textContent = listSelectorTitle();
-  }
-
-  if (lists.length === 0) {
-    state.selectedListId = "";
-    renderListPlaceholder(emptyListMessage());
-    if (!selectedList()) {
-      renderDetailPrompt("Create a list or adjust filters to resume one.");
-    }
-    return;
-  }
-
-  listMount.replaceChildren(view.createIndexList({
-    ariaLabel: "List index",
-    items: lists.map(listIndexItem),
-  }));
-
-  if (state.selectedListId && lists.some((list) => list.list_id === state.selectedListId)) {
-    renderDetail(selectedList());
-    updateListSelectionState();
-  } else {
-    state.selectedListId = "";
-    renderDetailPrompt("Select a list.");
-    updateListSelectionState();
-  }
-}
-
-function listIndexItem(list) {
-  const typeLabel = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
-  const needed = nextNeededDate(list);
-  const chips = [
-    statusBadge(list.status),
-    typeLabel,
-    needed ? `Needed ${needed}` : "",
-    itemSummary(list),
-    ...listBadges(list),
-  ];
-  const stateSummary = view.createElement("span", {
-    className: ["view-index-list-meta", "lists-state-summary"],
-    text: compactStateSummary(list),
-  });
-  stateSummary.dataset.listStateSummary = "";
-
-  const meta = [
-    listContextLabel(list),
-    listDescriptionExcerpt(list),
-    linkedRecordSummary(list),
-    listTimelineSummary(list),
-    listCostSummary(list),
-    stateSummary,
-  ];
-
-  return {
-    id: list.list_id,
-    label: list.title || "Untitled list",
-    selected: list.list_id === state.selectedListId,
-    onSelect: () => selectList(list.list_id),
-    chips,
-    meta,
-  };
-}
-
-function selectList(listId, options = {}) {
-  state.selectedListId = listId || "";
-  if (options.updateUrl !== false) {
-    const params = new URLSearchParams(window.location.search);
-    if (state.selectedListId) {
-      params.set("list", state.selectedListId);
-    } else {
-      params.delete("list");
-    }
-    window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
-  }
-  renderDetail(selectedList());
-  collapseIndexAfterSelection();
-  updateListSelectionState();
-}
-
-function updateListSelectionState() {
-  listMount.querySelectorAll(".view-index-list-button").forEach((button) => {
-    const selected = button.dataset.viewIndexId === state.selectedListId;
-    button.classList.toggle("is-selected", selected);
-    if (selected) {
-      button.setAttribute("aria-current", "true");
-    } else {
-      button.removeAttribute("aria-current");
-    }
-  });
-}
-
-function collapseIndexAfterSelection() {
-  if (indexPanel && activeListsViewDescriptor?.indexPanel?.collapseOnSelect && state.selectedListId) {
-    indexPanel.open = false;
-  }
-}
-
-function openListFromUrl() {
-  if (state.selectedListId && selectedList()) {
-    selectList(state.selectedListId, { updateUrl: false });
-  }
-}
-
-function renderDetail(list) {
-  if (!list) {
-    renderDetailPrompt("Select a list.");
-    return;
-  }
-
-  const locked = list.status === "archived" || list.status === "deleted" || list.status === "finalized";
-  const article = view.createElement("section", { className: "lists-detail-content" });
-  const header = createListDetailHeader(list, locked);
-  const listDetails = createListDetailsPanel(list);
-  const nextAction = createNextActionStrip(list);
-  const sourceContext = shouldShowSourceContext(list) ? createSourceContextPanel(list) : null;
-  const costSummary = createCostSummaryPanel(list);
-  const itemsHeader = createItemsHeader(list, locked);
-  const items = view.createElement("div", { className: "lists-items" });
-
-  items.appendChild(createItemsTable(list, locked));
-
-  // Detail order: identity -> details context -> what to do next -> provenance (only when meaningful) ->
-  // Items heading + Add Item -> the items table -> the cost rollup beneath the items it totals.
-  article.append(...[header, listDetails, nextAction, sourceContext, itemsHeader, items, costSummary].filter(Boolean));
-  detailPanel.replaceChildren(article);
-}
-
-function createListDetailHeader(list, locked) {
-  // Mirrors the Notes detail header: a title row (title + badges on the left, a 3-dot action menu on
-  // the right), a rule, then a compact labeled meta line. Keeping the actions in a "..." menu stops the
-  // wide action row from overlapping the detail content.
-  const title = view.createElement("h2", { className: "lists-detail-title", text: list.title || "Untitled list" });
-  const titleGroup = view.createElement("div", {
-    className: "lists-detail-title-group",
-    children: [title, ...listBadges(list)],
-  });
-  const titleRow = view.createElement("div", {
-    className: "lists-detail-title-row",
-    children: [titleGroup, createListActionStrip(list, locked)],
-  });
-  const rule = view.createElement("hr", { className: "lists-detail-rule" });
-  const meta = view.createElement("p", { className: "lists-detail-meta", children: detailMetaItems(list) });
-  return view.createElement("header", { className: "lists-detail-header", children: [titleRow, rule, meta] });
-}
-
-function createListActionStrip(list, locked) {
-  const label = listsActionStripSurfaceDescriptor().label || "List actions";
-  return view.renderDescriptorActionMenu(detailActionButtons(list, locked), {
-    summaryLabel: "...",
-    ariaLabel: label,
-    title: label,
-  });
-}
-
-function createListDetailsPanel(list) {
-  const panel = view.createInfoPanel({
-    title: "List Details",
-    className: "lists-details-panel",
-    collapsible: true,
-    open: true,
-    ariaLabel: "List details",
-  });
-  const description = view.createElement("p", { className: "lists-description" });
-  const linkedRecords = view.createLinkedContextList({
-    ariaLabel: "Linked records",
-    className: "lists-linked-context-list",
-    emptyMessage: "No linked records yet.",
-    items: linkedContextItems(list),
-    readonly: true,
-  });
-
-  description.textContent = list.description || "No description.";
-  panel.dataset.listDetailsPanel = "";
-  panel.append(description, linkedRecords);
-  return panel;
-}
-
-function listsActionStripSurfaceDescriptor() {
-  return listsViewSurfaceDescriptor().detail?.actionStrip || listsWorkflowActionStripDescriptor();
-}
-
-function detailActionButtons(list, locked) {
-  const actions = listsActionStripSurfaceDescriptor().actions || [];
-  const buttons = [];
-  const actionById = new Map(actions.map((action) => [action.id, action]));
-
-  if (list.status !== "deleted") {
-    buttons.push(listWorkflowActionButton(actionById.get("duplicate-list"), list, {
-      label: duplicateActionLabel(list),
-    }));
-  }
-  if (!locked) {
-    buttons.push(listWorkflowActionButton(actionById.get("edit-list"), list));
-    if (list.status === "active") {
-      buttons.push(listWorkflowActionButton(actionById.get("complete-list"), list));
-    }
-    if (["active", "completed"].includes(list.status)) {
-      buttons.push(listWorkflowActionButton(actionById.get("finalize-list"), list));
-    }
-    const reusableActionId = list.is_reusable ? "unmark-reusable-list" : "mark-reusable-list";
-    buttons.push(listWorkflowActionButton(actionById.get(reusableActionId), list));
-    buttons.push(listWorkflowActionButton(actionById.get("archive-list"), list));
-    buttons.push(listWorkflowActionButton(actionById.get("delete-list"), list));
-  }
-  if (list.status === "completed") {
-    buttons.unshift(listWorkflowActionButton(actionById.get("reopen-list"), list));
-  }
-  if (list.status === "archived" || list.status === "deleted") {
-    buttons.push(listWorkflowActionButton(actionById.get("restore-list"), list));
-  }
-
-  return buttons.length > 0 ? buttons : [readonlyBadge(list.status)];
-}
-
-function listWorkflowActionButton(action = {}, list, options = {}) {
-  const actionId = action.id || options.actionId || "";
-  return actionButton(options.label || action.label || actionId, actionId, list.list_id, action.role === "destructive" ? "secondary" : "", {
-    behavior: action.behavior,
-  });
-}
-
-function createItemsHeader(list, locked) {
-  // The item form now lives in a modal; the detail just carries an "Items" heading and an Add Item button
-  // that opens it (or a read-only notice when the list is locked).
-  const descriptor = listsItemFormSurfaceDescriptor();
-  const title = view.createElement("h3", { text: descriptor.title || "Items" });
-  const children = [title];
-  if (locked) {
-    children.push(view.createElement("p", { className: "lists-locked-note", text: readOnlyStateMessage(list) }));
-  } else {
-    const addAction = descriptor.actions?.[0] || {};
-    const add = view.createActionButton({ label: addAction.label || "Add Item", role: addAction.role || "primary" });
-    add.dataset.listAction = "add-item";
-    add.dataset.listId = list.list_id;
-    children.push(add);
-  }
-  return view.createElement("div", { className: "lists-items-header", children });
-}
-
-// The add/edit item form is a framework-rendered modal (createModalForm via renderDescriptorModalForm);
-// the module supplies the fields from the descriptor and owns the data, validation, and save routes.
-function createItemDialogShell() {
-  const descriptor = listsItemFormSurfaceDescriptor();
-  const name = createItemFieldFromDescriptor(itemFormField("item_name"));
-  const catalogItemId = createItemFieldFromDescriptor(itemFormField("catalog_item_id"));
-  const sideBySide = view.renderDescriptorFieldGrid({ fields: [] }, {
-    surface: false,
-    className: "lists-item-fields",
-    fields: ["quantity", "unit", "needed_by_date", "assigned_user_id", "purchase_status"]
-      .map((fieldName) => createItemFieldFromDescriptor(itemFormField(fieldName))),
-  });
-  const advancedDescriptorFields = (descriptor.fields || []).filter((field) => field.placement === "advanced");
-  const advanced = view.createElement("details", { className: ["lists-item-advanced", "surface-modal-group"] });
-  const advancedSummary = view.createElement("summary", {
-    className: "surface-modal-section-heading",
-    text: "Details",
-  });
-  const advancedFields = view.renderDescriptorFieldGrid({ fields: advancedDescriptorFields }, {
-    surface: false,
-    className: ["lists-item-advanced-fields", "surface-modal-section-body"],
-    fields: advancedDescriptorFields.map((field) => createItemFieldFromDescriptor(field)),
-  });
-  advanced.append(advancedSummary, advancedFields);
-  const notes = createItemFieldFromDescriptor(itemFormField("notes"));
-  const saveToCatalog = createItemFieldFromDescriptor(itemFormField("save_to_catalog"));
-  const formStatus = view.createStatusMessage({ className: "lists-form-status" });
-  formStatus.dataset.listItemFormStatus = "";
-
-  const saveAction = descriptor.actions?.[0] || {};
-  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
-  cancel.dataset.listItemCancel = "";
-  const save = view.createActionButton({ label: saveAction.label || "Add Item", type: "submit", role: saveAction.role || "primary" });
-  save.dataset.listItemSave = "";
-
-  const dialog = view.renderDescriptorModalForm(descriptor, {
-    title: descriptor.title || "Item",
-    size: "wide",
-    className: "lists-item-dialog",
-    formClassName: "lists-item-form",
-    fields: [name, catalogItemId, sideBySide, advanced, notes, saveToCatalog, formStatus],
-    actions: [cancel, save],
-  });
-  dialog.dataset.listItemDialog = "";
-  dialog.viewParts.form.dataset.listItemForm = "";
-  dialog.viewParts.title.dataset.listItemDialogTitle = "";
-
-  const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
-  close.dataset.listItemDialogClose = "";
-  const heading = view.createElement("div", {
-    className: "surface-modal-heading",
-    children: [
-      dialog.viewParts.title,
-      view.createElement("div", {
-        className: "surface-modal-heading-actions",
-        children: [close],
-      }),
-    ],
-  });
-  dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
-  return dialog;
-}
-
-async function openItemDialog(list, item = null) {
-  if (!itemDialog || !list) {
-    return;
-  }
-  state.itemDialogList = list;
-  itemDialogForm.reset();
-  itemDialogForm.dataset.listId = list.list_id;
-  itemDialogForm.dataset.editingItemId = item?.list_item_id || "";
-  populateItemAssigneeOptions();
-  setFormValue(itemDialogForm, "catalog_item_id", item?.catalog_item_id || "");
-  itemDialogTitle.textContent = item ? "Edit Item" : "Add Item";
-  itemDialogSave.textContent = item ? "Save Item" : (listsItemFormSurfaceDescriptor().actions?.[0]?.label || "Add Item");
-  itemDialogFormStatus.textContent = "";
-  const advanced = itemDialogForm.querySelector(".lists-item-advanced");
-  if (item) {
-    fillItemForm(itemDialogForm, item);
-    advanced?.setAttribute("open", "open");
-  } else {
-    advanced?.removeAttribute("open");
-  }
-  await loadItemSuggestions(list);
-  updateSuggestionDatalist(itemDialog, list);
-  if (typeof itemDialog.showModal === "function") {
-    itemDialog.showModal();
-  } else {
-    itemDialog.setAttribute("open", "open");
-  }
-  itemDialogForm.querySelector("[name='item_name']")?.focus();
-}
-
-function populateItemAssigneeOptions(selectedUserId = "") {
-  const select = itemDialogForm?.elements.assigned_user_id;
-  if (!select) {
-    return;
-  }
-  replaceOptions(select, [
-    option("", "Unassigned"),
-    ...state.users.map((user) => option(user.user_id, displayUser(user))),
+  /** `LINK_COLUMNS` the link table declares `NOT NULL`. */
+  const LINK_TEXT_COLUMNS = Object.freeze([
+    "created_at", "list_id", "list_link_id", "module_id", "target_id", "target_type", "workspace_id",
   ]);
-  select.value = selectedUserId || "";
-}
 
-function closeItemDialog() {
-  itemDialog?.close?.();
-  itemDialog?.removeAttribute("open");
-}
+  /** `LINK_COLUMNS` the link table allows to be null, minus the parsed `metadata_json`. */
+  const LINK_NULLABLE_COLUMNS = Object.freeze([
+    "created_by_user_id", "link_role", "removed_at",
+  ]);
 
-async function saveItem(event) {
-  event.preventDefault();
-  const form = event.target;
-  const listId = form.dataset.listId;
-  const editingItemId = form.dataset.editingItemId || "";
-  const payload = Object.fromEntries(new FormData(form).entries());
-
-  payload.quantity = payload.quantity || 1;
-  payload.save_to_catalog = payload.save_to_catalog === "true";
-  try {
-    itemDialogSave.disabled = true;
-    itemDialogFormStatus.textContent = "Saving item...";
-    if (editingItemId) {
-      await api.putJson(`/api/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(editingItemId)}`, payload);
-    } else {
-      await api.postJson(`/api/lists/${encodeURIComponent(listId)}/items`, payload);
-    }
-    closeItemDialog();
-    await refreshLists(listId);
-    setStatus("");
-  } catch (error) {
-    itemDialogFormStatus.textContent = error.message || "Item could not be saved.";
-  } finally {
-    itemDialogSave.disabled = false;
-  }
-}
-
-function listsItemFormSurfaceDescriptor() {
-  return listsViewSurfaceDescriptor().detail?.itemForm || listsItemFormDescriptor();
-}
-
-function itemFormField(fieldName) {
-  return listsItemFormSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
-}
-
-function createItemFieldFromDescriptor(field) {
-  const node = buildItemFieldNode(field);
-  if (field.width && node && node.dataset) {
-    node.dataset.viewFieldWidth = field.width;
-  }
-  return node;
-}
-
-function buildItemFieldNode(field) {
-  if (field.field === "item_name") {
-    return createItemNameField(field);
-  }
-  if (field.field === "catalog_item_id") {
-    const input = view.createElement("input");
-    input.type = "hidden";
-    input.name = field.field;
-    input.dataset.listCatalogItemId = "";
-    return input;
-  }
-  if (field.field === "assigned_user_id") {
-    // Built once (before users load) with just the placeholder; openItemDialog fills the user options.
-    return selectField(field.label || "Assigned", field.field, [option("", "Unassigned")]);
-  }
-  if (field.type === "select") {
-    const node = selectField(field.label || field.field, field.field, optionsFromDescriptor(field).map(([value, label]) => option(value, label)));
-    applySelectDefault(node, field.default);
-    return node;
-  }
-  if (field.type === "textarea") {
-    return textareaField(field.label || field.field, field.field, { rows: field.rows });
-  }
-  if (field.type === "checkbox") {
-    // For checkboxes the descriptor `default` carries the checked-by-default state; the submitted value
-    // stays "true" so the save handler's `=== "true"` check is unaffected.
-    return checkboxField(field.label || field.field, field.field, "true", { checked: field.default === "true" || field.default === true });
-  }
-  return inputField(field.label || field.field, field.type || "text", field.field, {
-    autocomplete: field.autocomplete,
-    min: field.min,
-    required: field.required,
-    step: field.step,
-    value: field.default,
-  });
-}
-
-function optionsFromDescriptor(field = {}) {
-  return (field.options || []).map((entry) => {
-    if (Array.isArray(entry)) {
-      return entry;
-    }
-    return [entry.value ?? entry.id ?? "", entry.label ?? entry.text ?? entry.value ?? ""];
-  });
-}
-
-function createItemNameField(field = {}) {
-  const label = document.createElement("label");
-  const input = document.createElement("input");
-  const dataList = document.createElement("datalist");
-  // Fixed datalist id (the modal is built once and reused); suggestions are repopulated per open for the
-  // list currently in the dialog (state.itemDialogList).
-  const listId = "list-item-suggestions";
-
-  input.type = "text";
-  input.name = "item_name";
-  input.required = true;
-  input.setAttribute("list", listId);
-  input.autocomplete = "off";
-  input.dataset.listItemName = "";
-  dataList.id = listId;
-  dataList.dataset.listItemSuggestions = "";
-  label.append(field.label || "Item", input, dataList);
-  input.addEventListener("input", () => applySuggestionSelection(input.form, state.itemDialogList, input.value));
-  return label;
-}
-
-function checkboxField(labelText, name, value, options = {}) {
-  const label = document.createElement("label");
-  const input = document.createElement("input");
-
-  label.className = "lists-checkbox-field";
-  input.type = "checkbox";
-  input.name = name;
-  input.value = value;
-  if (options.checked) {
-    // defaultChecked so form.reset() (after adding an item) restores the on state.
-    input.checked = true;
-    input.defaultChecked = true;
-  }
-  label.append(input, labelText);
-  return label;
-}
-
-function createItemsTable(list, locked) {
-  const items = visibleItems(list);
-  const descriptor = listsItemRowsSurfaceDescriptor();
-  const table = view.renderDescriptorDataTable(descriptor, {
-    rows: [],
-    emptyMessage: descriptor.emptyState?.message || "No items yet.",
-    className: "lists-items-table-wrap",
-    tableClassName: "list-table lists-items-table",
-  });
-  const tbody = table.querySelector("tbody");
-
-  if (items.length > 0) {
-    tbody.replaceChildren(...items.map((item, index) => createItemRow(list, item, index, items.length, locked)));
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
-  return table;
-}
+  /**
+   * Every named column is present and is a string.
+   * @param {unknown} value @param {readonly string[]} columns @returns {boolean}
+   */
+  function hasListText(value, columns) {
+    return isResponseRecord(value) && columns.every((column) => typeof value[column] === "string");
+  }
 
-function listsItemRowsSurfaceDescriptor() {
-  return listsViewSurfaceDescriptor().detail?.itemRows || listsItemRowsDescriptor();
-}
+  /**
+   * Every named column is present and is either a string or `null`.
+   * @param {unknown} value @param {readonly string[]} columns @returns {boolean}
+   */
+  function hasListNullableText(value, columns) {
+    return isResponseRecord(value)
+      && columns.every((column) => value[column] === null || typeof value[column] === "string");
+  }
 
-function linkedContextItems(list) {
-  return (list.links || []).map((link) => {
-    const target = link.target || {};
-    const targetType = link.target_type || "";
-    const typeLabel = LIST_LINK_TYPE_LABELS[targetType] || formatToken(targetType);
-    const displayLabel = target.label || unavailableLinkedRecordLabel(targetType);
+  /**
+   * One list as the server shapes it.
+   *
+   * `is_reusable` is checked as a **boolean**. The column is `INTEGER`, but the repository's row
+   * mapper booleanizes it on every read, before either shaper spreads the row - so both it and the
+   * `isReusable` the shaper builds beside it are booleans on the wire. This was checked as a number
+   * from the column type alone, which refused every real list until `0.33.33.43.44` measured the
+   * endpoint.
+   * @param {unknown} value
+   * @returns {value is BrowserListSummary}
+   */
+  function isListSummary(value) {
+    return isResponseRecord(value)
+      && hasListText(value, LIST_TEXT_COLUMNS)
+      && hasListNullableText(value, LIST_NULLABLE_COLUMNS)
+      && typeof value.is_reusable === "boolean"
+      && typeof value.id === "string"
+      && LIST_SHAPED_BOOLEANS.every((member) => typeof value[member] === "boolean")
+      && Array.isArray(value.links)
+      && value.list_id !== "";
+  }
+
+  /**
+   * One list item as the detail route returns it.
+   * @param {unknown} value
+   * @returns {value is BrowserListItem}
+   */
+  function isListItem(value) {
+    return hasListText(value, ITEM_TEXT_COLUMNS)
+      && hasListNullableText(value, ITEM_NULLABLE_COLUMNS)
+      && isResponseRecord(value)
+      && value.list_item_id !== "";
+  }
+
+  /**
+   * One list link as the detail route returns it.
+   * @param {unknown} value
+   * @returns {value is BrowserListLink}
+   */
+  function isListLink(value) {
+    return hasListText(value, LINK_TEXT_COLUMNS)
+      && hasListNullableText(value, LINK_NULLABLE_COLUMNS)
+      && isResponseRecord(value)
+      && value.list_link_id !== "";
+  }
+
+  /**
+   * The `{ list, items, links }` envelope the detail route returns.
+   *
+   * **Each array is checked element by element before `normalizeListRecord` sees it**, because that
+   * normaliser spreads what it is given: it rebuilds nine members of the list and adds `id` to each
+   * item and link, and passes everything else through. It is a trust boundary for what it
+   * reconstructs and for nothing else, so the checking happens here.
+   * **`list` is `undefined` rather than `null` when the body carries none**, so the normaliser's
+   * own `list = {}` default applies exactly as it did when `result.list` was absent.
+   * @param {unknown} body
+   * @returns {BrowserListDetail}
+   */
+  function readListDetail(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const list = envelope ? envelope.list : null;
     return {
-      className: "lists-linked-context-row",
-      displayLabel,
-      fullLabel: displayLabel,
-      hintLabel: typeLabel,
-      isAvailable: Boolean(target.label),
-      moduleId: target.moduleId || target.module_id || targetType || "lists",
-      removable: false,
-      secondaryLabel: typeLabel,
-      sourceUrl: target.url || "",
-      targetId: target.id || target.target_id || "",
-      targetType,
+      items: envelope && Array.isArray(envelope.items) ? envelope.items.filter(isListItem) : [],
+      links: envelope && Array.isArray(envelope.links) ? envelope.links.filter(isListLink) : [],
+      list: isListSummary(list) ? list : undefined,
     };
+  }
+
+  /**
+   * The progress bag a list response carried, or `undefined` when it carried none this reader can
+   * use.
+   *
+   * **`BrowserListSummary.progress` is `unknown` and `isListSummary` does not look inside it.**
+   * `0.33.33.43.19` recorded that as the reason it could not type the record normaliser's `list`,
+   * and named this checker as the discharge - here, with the readers, rather than inside the
+   * normaliser that consumes it.
+   *
+   * It vouches for the bag being a plain record and for nothing else. Every member stays `unknown`,
+   * because the normaliser is still what converts them; this only establishes that there is
+   * something to read them from.
+   *
+   * **A malformed bag does not cost the list.** Rejecting the whole summary would drop a real list
+   * over one member, so an unusable bag answers `undefined` and the normaliser's existing default
+   * computes the summary from the items - which is exactly what it already did for a list that
+   * carried no progress at all.
+   * @param {unknown} value
+   * @returns {ListProgressInput | undefined}
+   */
+  function readListProgressBag(value) {
+    return isResponseRecord(value) ? value : undefined;
+  }
+
+  /**
+   * The identifier a save or duplicate response reports for the list it wrote.
+   *
+   * **One identifier vocabulary, not two.** The server sends `list_id` as the column and `id` as
+   * the duplicate the shaper adds, and the two call sites already read them in that order. This
+   * keeps that order and returns `""` when neither is text, which is what `|| ""` produced.
+   * @param {unknown} body
+   * @returns {string}
+   */
+  function readSavedListId(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const list = envelope && isResponseRecord(envelope.list) ? envelope.list : null;
+    if (!list) {
+      return "";
+    }
+
+    const listId = list.list_id;
+    const id = list.id;
+    if (typeof listId === "string" && listId) {
+      return listId;
+    }
+
+    return typeof id === "string" && id ? id : "";
+  }
+
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root this page awaits its workspace-context readiness through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** A missing
+   * root failed at this property read before and still fails here, in the same expression and so
+   * inside the same `try` region. A present root that publishes no `workspaceContextReady` never
+   * failed - `await undefined` is a real state this page has always tolerated, and it still
+   * continues one microtask later exactly as it did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Lists requires the LongtailForge namespace.");
+    }
+
+    return namespace;
+  }
+
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Lists requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Lists uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderDescriptorActionMenu === "function"
+      && typeof factory.renderDescriptorDataTable === "function"
+      && typeof factory.renderDescriptorFieldGrid === "function"
+      && typeof factory.renderDescriptorInlineActions === "function"
+      && typeof factory.renderDescriptorModalForm === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Lists requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsActionDescriptor} BrowserListsActionDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsActionStripDescriptor} BrowserListsActionStripDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsFieldDescriptor} BrowserListsFieldDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsIndexPanelDescriptor} BrowserListsIndexPanelDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsItemFormDescriptor} BrowserListsItemFormDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsItemRowsDescriptor} BrowserListsItemRowsDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsModalDescriptor} BrowserListsModalDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsWorkspaceSurfaceDescriptor} BrowserListsWorkspaceSurfaceDescriptor */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Lists requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Lists requires LongtailForge.view.");
+    }
+    return factory;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCheckedDom} BrowserCheckedDom */
+
+  /**
+   * The shared checked-DOM contract this page's lookups go through (`0.33.33.38.3.10`).
+   *
+   * Acquired per call, like the page's other required surfaces. The static service injects
+   * `shared/checked-dom.js` at the opening `<head>` of every rendered page, ahead of any page
+   * script, so both the workspace path and the synchronous dialog-only path find it.
+   * @returns {BrowserCheckedDom}
+   */
+  function requireCheckedDom() {
+    const checkedDom = window.LongtailForge?.checkedDom;
+    if (!checkedDom) {
+      throw new Error("Lists requires LongtailForge.checkedDom.");
+    }
+    return checkedDom;
+  }
+
+  /**
+   * A handle `cacheListsElements` captured, required at a read the page already made unguarded.
+   *
+   * **Checked at the use, never at capture.** The dialog-only path captures the workspace handles
+   * as `null` and never reads them, so requiring them when they are cached would break it. Every
+   * caller passes a module handle declared `T | null` and written only by `cacheListsElements`,
+   * whose subtype is already established; `require` removes only that `null`, and a missing
+   * control now fails by name where the unguarded read used to throw.
+   * @template T
+   * @param {T | null} handle
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireListsHandle(handle, name) {
+    return requireCheckedDom().require(handle, "Lists", name);
+  }
+  /** @type {BrowserListsWorkspaceSurfaceDescriptor | null} */
+  let activeListsViewDescriptor = null;
+  const listsWorkspaceHost = document.querySelector("[data-lists-host]");
+  const isListsWorkspaceSurface = Boolean(listsWorkspaceHost);
+
+  let state = {
+    /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
+    clients: [],
+    currentUserId: "",
+    /**
+     * The in-flight load of everything the dialog needs, or `null` when none is running.
+     *
+     * The empty initialiser would otherwise infer `null`, which refuses the assignment this slot
+     * exists for; the rejection handler clears it back to `null` so a failed load is retried.
+     * @type {Promise<void> | null}
+     */
+    dialogDataReady: null,
+    /** @type {unknown} */
+    editingListId: "",
+    /**
+     * The exact normalized page record or opaque host record the editor currently holds.
+     * @type {unknown}
+     */
+    editorList: null,
+    /**
+     * Targets staged on a list that has not been created yet.
+     *
+     * The second direct handoff of the same narrowed value: `applyListEditorLinkTarget` moves a
+     * target out of `linkTargets` and into this slot, so leaving it inferred as `never[]` would
+     * turn this child's own narrowing into two new diagnostics rather than none.
+     * @type {BrowserListLinkTarget[]}
+     */
+    editorStagedTargets: [],
+    /**
+     * The list the item dialog is working inside; the same normalized value the editor holds.
+     * @type {BrowserNormalizedListRecord | null}
+     */
+    itemDialogList: null,
+    /** The two writers store the validated reader's array or an empty array, without cloning.
+     * @type {Map<unknown, NonNullable<ReturnType<typeof readItemSuggestions>>>}
+     */
+    itemSuggestions: new Map(),
+    /**
+     * The pending picker-search debounce, or `null` when none is scheduled.
+     * @type {number | null}
+     */
+    linkTargetSearchTimer: null,
+    /**
+     * The link targets the picker is currently offering.
+     *
+     * Annotated because the narrowed response is handed straight into this slot; the empty
+     * initialiser would otherwise infer `never[]` and refuse it. One slot, not a page state.
+     * @type {BrowserListLinkTarget[]}
+     */
+    linkTargets: [],
+    /**
+     * The module action's context while its dialog is open, or `null` when nothing opened it
+     * through one.
+     *
+     * Both members are optional and both are called through `?.`: a host may report completion,
+     * refresh its own surface, both, or neither. The empty initialiser would otherwise infer
+     * `never`, which refuses every read.
+     * @type {ListDialogHostContext | null}
+     */
+    listDialogHostContext: null,
+    listDialogHostContextSettled: false,
+    /**
+     * The loaded collection, as **normalized page records** rather than wire summaries.
+     * @type {BrowserNormalizedListRecord[]}
+     */
+    lists: [],
+    // Native event datasets supply text; synthetic action targets can carry opaque identities.
+    /** @type {unknown} */
+    selectedListId: new URLSearchParams(window.location.search).get("list") || "",
+    /**
+     * The workspace's users, as the options payload supplied them.
+     *
+     * `loadOptions` reads them out of a body it types `{ users?: unknown[] }` and nothing
+     * validates the rows, so the one member this page reads stays `unknown` - it is only ever
+     * handed to the option builder and the display helper, neither of which requires more. The
+     * empty initialiser would otherwise infer `never[]`, which refuses both the assignment and
+     * every read.
+     * @type {{ user_id?: unknown }[]}
+     */
+    users: [],
+    workspaceType: "business",
+  };
+
+  async function initializeListsWorkspace() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders,
+      // and initialize() below reports the failure through the surface it just built.
+    }
+    buildListsViewShell();
+    cacheListsElements();
+    bindListsEvents();
+    await initialize();
+  }
+
+  /** @type {Element | null} */
+  let pageTitle = null;
+  /** @type {HTMLElement | null} */
+  let createButton = null;
+  /** @type {Element | null} */
+  let statusMessage = null;
+  /** @type {Element | null} */
+  let filtersForm = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let statusFilter = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let typeFilter = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let reusableFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let clientFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let projectFilter = null;
+  /** @type {HTMLSelectElement | null} */
+  let assigneeFilter = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let neededFilter = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let archiveFilter = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let sortSelect = null;
+  /**
+   * The sidebar index panel, a `<details>` the shared renderer builds (or the collapsible index
+   * fallback, also a `<details>`). Optional: its one use is guarded, and the dialog-only path has none.
+   * @type {HTMLDetailsElement | null}
+   */
+  let indexPanel = null;
+  /** @type {Element | null} */
+  let countLabel = null;
+  /** @type {Element | null} */
+  let listMount = null;
+  /** @type {Element | null} */
+  let detailPanel = null;
+  /** @type {HTMLDialogElement | null} */
+  let listDialog = null;
+  /** @type {HTMLFormElement | null} */
+  let listForm = null;
+  /** @type {Element | null} */
+  let listDialogTitle = null;
+  /** @type {Element | null} */
+  let listDialogClose = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listTitleInput = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listTypeInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let listClientInput = null;
+  /** @type {HTMLSelectElement | null} */
+  let listProjectInput = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listDescriptionInput = null;
+  /** @type {Element | null} */
+  let listLinkPicker = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listLinkTargetTypeInput = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listLinkSearchInput = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listLinkResultsInput = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listLinkApplyButton = null;
+  /** @type {Element | null} */
+  let listFormStatus = null;
+  /** @type {Element | null} */
+  let listCancelButton = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let listSaveButton = null;
+  /** @type {HTMLDialogElement | null} */
+  let itemDialog = null;
+  /** @type {HTMLFormElement | null} */
+  let itemDialogForm = null;
+  /** @type {Element | null} */
+  let itemDialogTitle = null;
+  /** @type {Element | null} */
+  let itemDialogClose = null;
+  /** @type {Element | null} */
+  let itemDialogCancel = null;
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
+  let itemDialogSave = null;
+  /** @type {Element | null} */
+  let itemDialogFormStatus = null;
+
+  /**
+   * The checked lookups the typed handles need, in the selector form this estate's other page
+   * cohorts use. `public/js/files.js` established this shape on its way to zero.
+   *
+   * **Narrowing only, with no refusal.** Each answers `null` for a control that is not the subtype
+   * its builder makes, and every handle narrowed here is one whose reads **already assume** that
+   * subtype: a `.value` read on a plain `Element` is `undefined` today, so a mismatch is a defect
+   * this page would already be showing rather than a case these lookups newly reject.
+   *
+   * **The union is the member, not the tag.** `findListsFormControl` names the four elements that
+   * carry `value` and `disabled`, so no handle has to guess whether its builder emits an input, a
+   * select, a textarea or a button. The handles whose only diagnostic is nullability keep
+   * `document.querySelector` and stay `Element | null`: narrowing them would close nothing, and
+   * their reads are unguarded assignments that a guard would change the behaviour of.
+   *
+   * **Through the shared contract since `0.33.33.38.3.10`.** The shared `find` takes one
+   * constructor, so this stays a thin adapter: one shared query for any element, then the same
+   * four-way union test. It still queries once, and a mismatch is still `null`, not a throw.
+   *
+   * @param {string} selector
+   * @returns {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null}
+   */
+  function findListsFormControl(selector) {
+    const element = requireCheckedDom().find(document, selector, Element);
+    return element instanceof HTMLInputElement
+      || element instanceof HTMLSelectElement
+      || element instanceof HTMLTextAreaElement
+      || element instanceof HTMLButtonElement
+      ? element
+      : null;
+  }
+
+  /**
+   * The select-only lookup, for the five handles `replaceOptions` refills: it reads `.options`,
+   * which no other control carries, so those reads already assume a select.
+   * @param {string} selector @returns {HTMLSelectElement | null}
+   */
+  function findListsSelect(selector) {
+    return requireCheckedDom().find(document, selector, HTMLSelectElement);
+  }
+
+  /** @param {string} selector @returns {HTMLFormElement | null} */
+  function findListsForm(selector) {
+    return requireCheckedDom().find(document, selector, HTMLFormElement);
+  }
+
+  /** @param {string} selector @returns {HTMLDialogElement | null} */
+  function findListsDialog(selector) {
+    return requireCheckedDom().find(document, selector, HTMLDialogElement);
+  }
+
+  /** @param {string} selector @returns {HTMLElement | null} */
+  function findListsHtmlElement(selector) {
+    return requireCheckedDom().find(document, selector, HTMLElement);
+  }
+
+  function cacheListsElements() {
+    pageTitle = document.querySelector("[data-lists-title]");
+    createButton = findListsHtmlElement("[data-list-create]");
+    statusMessage = document.querySelector("[data-lists-status]");
+    filtersForm = document.querySelector("[data-lists-filters]");
+    statusFilter = findListsFormControl("[data-list-filter-status]");
+    typeFilter = findListsFormControl("[data-list-filter-type]");
+    reusableFilter = findListsFormControl("[data-list-filter-reusable]");
+    clientFilter = findListsSelect("[data-list-filter-client]");
+    projectFilter = findListsSelect("[data-list-filter-project]");
+    assigneeFilter = findListsSelect("[data-list-filter-assignee]");
+    neededFilter = findListsFormControl("[data-list-filter-needed]");
+    archiveFilter = findListsFormControl("[data-list-filter-archive]");
+    sortSelect = findListsFormControl("[data-list-sort]");
+    indexPanel = requireCheckedDom().find(document, "[data-lists-index-panel]", HTMLDetailsElement);
+    countLabel = document.querySelector("[data-lists-count]");
+    listMount = document.querySelector("[data-lists-list]");
+    detailPanel = document.querySelector("[data-list-detail]");
+    listDialog = findListsDialog("[data-list-dialog]");
+    listForm = findListsForm("[data-list-form]");
+    listDialogTitle = document.querySelector("[data-list-dialog-title]");
+    listDialogClose = document.querySelector("[data-list-dialog-close]");
+    listTitleInput = findListsFormControl("[data-list-title]");
+    listTypeInput = findListsFormControl("[data-list-type]");
+    listClientInput = findListsSelect("[data-list-client]");
+    listProjectInput = findListsSelect("[data-list-project]");
+    listDescriptionInput = findListsFormControl("[data-list-description]");
+    listLinkPicker = document.querySelector("[data-list-link-picker]");
+    listLinkTargetTypeInput = findListsFormControl("[data-list-link-target-type]");
+    listLinkSearchInput = findListsFormControl("[data-list-link-search]");
+    listLinkResultsInput = findListsFormControl("[data-list-link-results]");
+    listLinkApplyButton = findListsFormControl("[data-list-link-apply]");
+    listFormStatus = document.querySelector("[data-list-form-status]");
+    listCancelButton = document.querySelector("[data-list-cancel]");
+    listSaveButton = findListsFormControl("[data-list-save]");
+    itemDialog = findListsDialog("[data-list-item-dialog]");
+    itemDialogForm = findListsForm("[data-list-item-form]");
+    itemDialogTitle = document.querySelector("[data-list-item-dialog-title]");
+    itemDialogClose = document.querySelector("[data-list-item-dialog-close]");
+    itemDialogCancel = document.querySelector("[data-list-item-cancel]");
+    itemDialogSave = findListsFormControl("[data-list-item-save]");
+    itemDialogFormStatus = document.querySelector("[data-list-item-form-status]");
+  }
+
+  function bindListsEvents() {
+    if (!createButton?.dataset.surfaceAction) {
+      createButton?.addEventListener("click", () => openListDialog());
+    }
+    filtersForm?.addEventListener("change", () => refreshLists());
+    sortSelect?.addEventListener("change", () => refreshLists());
+    listForm?.addEventListener("submit", saveList);
+    listDialogClose?.addEventListener("click", cancelListDialog);
+    listCancelButton?.addEventListener("click", cancelListDialog);
+    listDialog?.addEventListener("close", handleListDialogClose);
+    itemDialogForm?.addEventListener("submit", saveItem);
+    itemDialogClose?.addEventListener("click", closeItemDialog);
+    itemDialogCancel?.addEventListener("click", closeItemDialog);
+    const listClientControl = listClientInput;
+    const listTypeControl = listTypeInput;
+    listClientControl?.addEventListener("change", () => populateProjectOptions(listProjectInput, listClientControl.value));
+    listProjectInput?.addEventListener("change", syncClientFromProject);
+    listTypeControl?.addEventListener("change", () => setContextControlsVisible(shouldShowContextControls(listTypeControl.value)));
+    detailPanel?.addEventListener("click", handleDetailClick);
+    detailPanel?.addEventListener("submit", handleDetailSubmit);
+  }
+
+  const listsDialogApi = Object.freeze({
+    openAdd: (params = {}, hostContext = null) => openListEditor({ ...params, mode: "add" }, hostContext),
+    openEdit: (params = {}, hostContext = null) => openListEditor({ ...params, mode: "edit" }, hostContext),
+    openListEditor,
   });
-}
 
-function unavailableLinkedRecordLabel(targetType) {
-  const typeLabel = LIST_LINK_TYPE_LABELS[targetType] || formatToken(targetType);
-  return typeLabel ? `Unavailable ${typeLabel.toLowerCase()}` : "Unavailable linked record";
-}
+  // A plain publication, for the reason `public/js/notes.js` records: one writer, two
+  // delivery paths, and a readiness probe on `listsDialog.openListEditor` that stops the
+  // second one. `0.33.33.38.2.4.4` removed the spread of the previous value.
+  const namespace = window.LongtailForge;
 
-function createItemRow(list, item, index, total, locked) {
-  const row = document.createElement("tr");
-  const doneCell = document.createElement("td");
-  const itemCell = document.createElement("td");
-  const qtyCell = document.createElement("td");
-  const costCell = document.createElement("td");
-  const neededCell = document.createElement("td");
-  const statusCell = document.createElement("td");
-  const actionsCell = document.createElement("td");
-  const checkbox = document.createElement("input");
-  const itemTitle = document.createElement("strong");
-
-  checkbox.type = "checkbox";
-  checkbox.checked = Boolean(item.checked_at);
-  checkbox.disabled = locked;
-  checkbox.dataset.itemAction = checkbox.checked ? "uncheck-item" : "check-item";
-  checkbox.dataset.listId = list.list_id;
-  checkbox.dataset.itemId = item.list_item_id;
-  doneCell.appendChild(checkbox);
-
-  // Show only the item name (truncated past 20 chars, full name in the cell title); vendor/url/tracking/
-  // notes live in the item editor and the cost surfaces in its own column below.
-  const itemName = item.item_name || "Untitled item";
-  itemTitle.textContent = truncateItemName(itemName, 20);
-  if (itemTitle.textContent !== itemName) {
-    itemCell.title = itemName;
+  if (!namespace) {
+    throw new Error("Lists requires the LongtailForge namespace.");
   }
-  itemCell.appendChild(itemTitle);
-  qtyCell.textContent = [item.quantity ?? "", item.unit || ""].filter(Boolean).join(" ") || "-";
-  applyItemCostCell(costCell, item);
-  neededCell.textContent = item.needed_by_date || "-";
-  statusCell.textContent = PURCHASE_STATUS_LABELS[item.purchase_status] || item.purchase_status || "-";
-  actionsCell.appendChild(createItemRowActions(list, item, index, total, locked));
-  row.append(doneCell, itemCell, qtyCell, costCell, neededCell, statusCell, actionsCell);
-  return row;
-}
 
-function createItemRowActions(list, item, index, total, locked) {
-  // The reorder controls stay inline (up/down icons); edit and delete fold into a "..." overflow menu.
-  const actionById = new Map(listsItemRowsSurfaceDescriptor().actions.map((action) => [action.id, action]));
-  const rowActionButton = (id, options) => itemRowActionButton(actionById.get(id), list, item, index, total, locked, options);
-  const ariaLabel = `${item.item_name || "Item"} actions`;
-  const menu = view.renderDescriptorActionMenu(
-    [rowActionButton("edit-item", { menu: true }), rowActionButton("delete-item", { menu: true })],
-    { summaryLabel: "...", ariaLabel, title: "Item actions" },
-  );
-  return view.renderDescriptorInlineActions(
-    [rowActionButton("move-item-up"), rowActionButton("move-item-down"), menu],
-    { className: "lists-item-actions", ariaLabel },
-  );
-}
-
-function truncateItemName(text, max) {
-  const value = String(text || "");
-  return value.length > max ? `${value.slice(0, max)}…` : value;
-}
-
-function applyItemCostCell(cell, item) {
-  const estimated = Number(item.estimated_cost) || 0;
-  const actual = Number(item.actual_cost) || 0;
-  const display = actual || estimated;
-  cell.textContent = display ? formatCurrency(display) : "-";
-  if (estimated && actual) {
-    cell.title = `Estimated ${formatCurrency(estimated)} · Actual ${formatCurrency(actual)}`;
-  } else if (estimated) {
-    cell.title = `Estimated ${formatCurrency(estimated)}`;
-  } else if (actual) {
-    cell.title = `Actual ${formatCurrency(actual)}`;
-  }
-}
-
-const ITEM_ROW_ACTION_ICONS = {
-  "edit-item": "edit",
-  "move-item-up": "up",
-  "move-item-down": "down",
-  "delete-item": "delete",
-};
-
-function itemRowActionButton(action, list, item, index, total, locked, options = {}) {
-  const disabledByPosition = (action.id === "move-item-up" && index === 0) ||
-    (action.id === "move-item-down" && index >= total - 1);
-  return actionButton(action.label || action.id, action.id, list.list_id, action.role === "destructive" ? "secondary" : "", {
-    itemId: item.list_item_id,
-    disabled: locked || disabledByPosition,
-    behavior: action.behavior,
-    // Menu items render as labeled buttons (Edit/Delete); the inline up/down stay icon-only.
-    icon: options.menu ? undefined : ITEM_ROW_ACTION_ICONS[action.id],
+  namespace.listsDialog = Object.freeze({
+    ...listsDialogApi,
   });
-}
 
-async function handleDetailClick(event) {
-  const actionElement = event.target.closest("[data-list-action], [data-item-action]");
-  if (!actionElement) {
-    return;
+  namespace.moduleActions?.register?.({
+    actionId: "lists.add",
+    id: "lists.add",
+    label: "Add List",
+    mode: "add",
+    moduleId: "lists",
+    // The registry hands these straight through. `params` is a bag this page spreads and does
+    // not read, so a record of unknowns is the whole of what it needs to be.
+    open: (/** @type {Record<string, unknown>} */ params,
+      /** @type {ListEditorHostContext | null} */ hostContext) =>
+      openListEditor({ ...params, mode: "add" }, hostContext),
+    recordType: "list",
+    requiredModules: ["lists"],
+    requiredPermissions: ["lists.create"],
+    title: "Add List",
+  });
+  namespace.moduleActions?.register?.({
+    actionId: "lists.edit",
+    id: "lists.edit",
+    label: "Edit List",
+    mode: "edit",
+    moduleId: "lists",
+    // The registry hands these straight through. `params` is a bag this page spreads and does
+    // not read, so a record of unknowns is the whole of what it needs to be.
+    open: (/** @type {Record<string, unknown>} */ params,
+      /** @type {ListEditorHostContext | null} */ hostContext) =>
+      openListEditor({ ...params, mode: "edit" }, hostContext),
+    recordType: "list",
+    requiredModules: ["lists"],
+    requiredPermissions: ["lists.view"],
+    title: "Edit List",
+  });
+
+
+  function buildListsViewShell() {
+    const host = document.querySelector("[data-lists-host]");
+    if (!host || host.querySelector("[data-lists-title]")) {
+      return;
+    }
+    activeListsViewDescriptor = listsViewSurfaceDescriptor();
+    if (activeListsViewDescriptor) {
+      registerListsViewBehaviors();
+      // The renderer auto-renders descriptor.modals into the surface; Lists builds and owns its own
+      // dialog (createListDialogShell), so suppress the framework duplicate modal shells.
+      const renderDescriptor = {
+        ...activeListsViewDescriptor,
+        dataSource: null,
+        modals: [],
+      };
+      const surface = requireDescriptorRenderers().renderSurface(renderDescriptor, host);
+      decorateListsDeclarativeSurface(surface, renderDescriptor);
+    }
+
+    // Lists owns its dialogs whether or not the server delivered a workspace surface, so a
+    // module action can still open the editor on a page whose surface was not delivered.
+    document.body.appendChild(createListDialogShell());
+    document.body.appendChild(createItemDialogShell());
   }
 
-  const list = state.lists.find((entry) => entry.list_id === actionElement.dataset.listId);
-  const itemId = actionElement.dataset.itemId || "";
-  const linkId = actionElement.dataset.linkId || "";
-  const action = actionElement.dataset.listAction || actionElement.dataset.itemAction;
+  function ensureListsDialogShell() {
+    if (!document.querySelector("[data-list-dialog]")) {
+      document.body.appendChild(createListDialogShell());
+    }
+  }
 
-  try {
-    setStatus("Saving...");
+  function registerListsViewBehaviors() {
+    const view = requireView();
+    if (typeof view.registerBehavior !== "function") {
+      return;
+    }
+    const behaviorActions = {
+      "lists.create": "create-list",
+      "lists.workflow.duplicate": "duplicate-list",
+      "lists.workflow.edit": "edit-list",
+      "lists.workflow.complete": "complete-list",
+      "lists.workflow.finalize": "finalize-list",
+      "lists.workflow.reopen": "reopen-list",
+      "lists.workflow.mark-reusable": "mark-reusable-list",
+      "lists.workflow.unmark-reusable": "unmark-reusable-list",
+      "lists.workflow.archive": "archive-list",
+      "lists.workflow.delete": "delete-list",
+      "lists.workflow.restore": "restore-list",
+      "lists.link.add": "add-link",
+      "lists.link.remove": "remove-link",
+      "lists.item.save": "save-item",
+      "lists.item.edit": "edit-item",
+      "lists.item.move-up": "move-item-up",
+      "lists.item.move-down": "move-item-down",
+      "lists.item.delete": "delete-item",
+    };
+
+    Object.entries(behaviorActions).forEach(([behaviorId, action]) => {
+      requireDescriptorRenderers().registerBehavior(behaviorId,
+        /** @param {{ record?: ListRecordReference }} detail */
+        ({ record }) => runRegisteredListBehavior(action, record));
+    });
+  }
+
+  /**
+   * Run one registered list behaviour, by its action id.
+   *
+   * `record` is whatever the surface that raised the action was holding; `resolveListRecord`
+   * is what turns it into a list or refuses it, so nothing here claims more. It carries the same
+   * tolerates-anything shape that reader declares, because it forwards it unread, and is optional
+   * because a registered behaviour may fire with no record at all.
+   * @param {string} action @param {ListRecordReference} [record]
+   */
+  async function runRegisteredListBehavior(action, record) {
+    if (action === "create-list") {
+      openListDialog();
+      return;
+    }
+    const list = resolveListRecord(record);
+    if (!list) {
+      return;
+    }
     if (action === "edit-list") {
       openListDialog(list);
-      setStatus("");
       return;
     }
-    if (action === "add-item") {
-      await openItemDialog(list);
-      setStatus("");
-      return;
-    }
-    if (action === "edit-item") {
-      await openItemDialog(list, list?.items?.find((entry) => entry.list_item_id === itemId) || null);
-      setStatus("");
-      return;
-    }
-    const selectedId = await runAction(action, list, itemId, linkId);
-    await refreshLists(selectedId || list?.list_id || state.selectedListId);
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "List action failed.", true);
-  }
-}
-
-async function runAction(action, list, itemId, linkId = "") {
-  const listId = encodeURIComponent(list.list_id);
-  const itemPath = itemId ? `/items/${encodeURIComponent(itemId)}` : "";
-
-  if (action === "complete-list") {
-    await api.postJson(`/api/lists/${listId}/complete`, {});
-  } else if (action === "finalize-list") {
-    await api.postJson(`/api/lists/${listId}/finalize`, {});
-  } else if (action === "reopen-list") {
-    await api.postJson(`/api/lists/${listId}/reopen`, {});
-  } else if (action === "duplicate-list") {
-    const result = await api.postJson(`/api/lists/${listId}/duplicate`, {});
-    if (reusableFilter) {
-      reusableFilter.value = "no";
-    }
-    if (statusFilter) {
-      statusFilter.value = "active";
-    }
-    if (archiveFilter) {
-      archiveFilter.value = "current";
-    }
-    setStatus("Created active working copy.");
-    return result.list?.list_id || result.list?.id || "";
-  } else if (action === "mark-reusable-list") {
-    await api.postJson(`/api/lists/${listId}/mark-reusable`, {});
-  } else if (action === "unmark-reusable-list") {
-    await api.postJson(`/api/lists/${listId}/unmark-reusable`, {});
-  } else if (action === "archive-list") {
-    await api.postJson(`/api/lists/${listId}/archive`, {});
-  } else if (action === "restore-list") {
-    await api.postJson(`/api/lists/${listId}/restore`, {});
-  } else if (action === "delete-list") {
-    await api.deleteJson(`/api/lists/${listId}`);
-  } else if (action === "check-item" || action === "uncheck-item") {
-    await api.postJson(`/api/lists/${listId}${itemPath}/${action.replace("-item", "")}`, {});
-  } else if (action === "delete-item") {
-    await api.deleteJson(`/api/lists/${listId}${itemPath}`);
-  } else if (action === "move-item-up" || action === "move-item-down") {
-    await moveItem(list, itemId, action === "move-item-up" ? -1 : 1);
-  } else if (action === "remove-link") {
-    if (linkId) {
-      await api.postJson(`/api/lists/${listId}/links/${encodeURIComponent(linkId)}/remove`, {});
-    }
-  }
-  return "";
-}
-
-async function moveItem(list, itemId, direction) {
-  const items = visibleItems(list);
-  const index = items.findIndex((item) => item.list_item_id === itemId);
-  const targetIndex = index + direction;
-
-  if (index < 0 || targetIndex < 0 || targetIndex >= items.length) {
-    return;
+    const selectedId = await runAction(action, list);
+    await refreshLists(selectedId || list.list_id || state.selectedListId);
   }
 
-  const ordered = [...items];
-  const [item] = ordered.splice(index, 1);
-  ordered.splice(targetIndex, 0, item);
-  await api.postJson(`/api/lists/${encodeURIComponent(list.list_id)}/items/reorder`, {
-    items: ordered.map((entry, orderIndex) => ({
-      list_item_id: entry.list_item_id,
-      sort_order: orderIndex * 10,
-    })),
-  });
-}
+  /**
+   * The host context a module action supplies, or `null` when the editor is opened directly.
+   *
+   * Two members, both `unknown`: `trigger` is forwarded to the dialog's own focus-return slot and
+   * `result` is handed back to the caller untouched, so this reader inspects neither.
+   * @typedef {{ result?: unknown, trigger?: unknown }} ListEditorHostContext
+   */
 
-async function handleDetailSubmit(event) {
-  if (event.target.matches("[data-list-link-form]")) {
-    event.preventDefault();
-    const form = event.target;
-    const listId = form.dataset.listId;
-    const payload = Object.fromEntries(new FormData(form).entries());
-    if (payload.target_type === "task" && !payload.target_id) {
-      setStatus("Select a task to link.", true);
-      return;
+  /** @param {unknown} value @param {PropertyKey} key @param {boolean} [optional] @returns {unknown} */
+  function listEditorField(value, key, optional = false) {
+    if (value === null || value === undefined) {
+      if (optional) return undefined;
+      throw new TypeError("The list editor value cannot be read.");
     }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @param {PropertyKey} key @param {unknown[]} args @returns {unknown} */
+  function callListEditorMember(value, key, args) {
+    const method = listEditorField(value, key);
+    if (typeof method !== "function") throw new TypeError(`The list editor value has no callable ${String(key)}.`);
+    return Reflect.apply(method, value, args);
+  }
+
+  /** Native computed-member conversion, including objects whose primitive result is a Symbol.
+   * @param {unknown} key @returns {unknown}
+   */
+  function listEditorLinkTypeLabel(key) {
+    const propertyKey = Reflect.ownKeys(Object.fromEntries([[key, null]]))[0];
+    return Reflect.get(LIST_LINK_TYPE_LABELS, propertyKey);
+  }
+
+  /** Exhaust the same iterator as an editor spread, without reading target-owned hooks twice.
+   * @param {unknown} input @returns {Generator<unknown, void, unknown>}
+   */
+  function listEditorValues(input) {
+    return (function* readValues() {
+      const method = listEditorField(input, Symbol.iterator, true);
+      if (typeof method !== "function") throw new TypeError("The list editor collection is not iterable.");
+      const iterator = Reflect.apply(method, input, []);
+      if ((typeof iterator !== "object" || iterator === null) && typeof iterator !== "function") {
+        throw new TypeError("The list editor iterator did not return an object.");
+      }
+      const next = listEditorField(iterator, "next");
+      while (true) {
+        if (typeof next !== "function") throw new TypeError("The list editor iterator has no callable next.");
+        const step = Reflect.apply(next, iterator, []);
+        if ((typeof step !== "object" || step === null) && typeof step !== "function") {
+          throw new TypeError("The list editor iterator next did not return an object.");
+        }
+        if (listEditorField(step, "done")) return;
+        yield listEditorField(step, "value");
+      }
+    })();
+  }
+
+  /** @param {unknown} value @param {unknown} key @returns {unknown} */
+  function listEditorIndex(value, key) {
+    if (value === null || value === undefined) return undefined;
+    const propertyKey = Reflect.ownKeys(Object.fromEntries([[key, null]]))[0];
+    return Reflect.get(Object(value), propertyKey, value);
+  }
+
+  /** @param {unknown} status */
+  function isListEditorClosedStatus(status) {
+    return status === "archived" || status === "deleted" || status === "finalized";
+  }
+
+  /** @param {unknown} [params] @param {ListEditorHostContext | null} [hostContext] */
+  async function openListEditor(params = {}, hostContext = null) {
+    await prepareListDialogData();
+
+    const mode = normalizeListEditorMode(params);
+    const listId = readListEditorId(params);
+    let list = listEditorField(params, "list") || listEditorField(params, "record") || listEditorField(params, "listRecord") || null;
+
+    if (mode === "edit") {
+      if (!list && listId) {
+        list = await loadListDetail(listId);
+      }
+      if (!listEditorField(list, "list_id", true)) {
+        throw new Error("List ID is required.");
+      }
+    }
+
+    const result = openListDialog(mode === "add" ? null : list, {
+      defaults: normalizeListEditorDefaults(params),
+      hostContext,
+      trigger: listEditorField(params, "returnFocusTo") || listEditorField(params, "trigger") || hostContext?.trigger || null,
+    });
+    return hostContext?.result || result;
+  }
+
+  async function prepareListDialogData() {
+    if (!state.dialogDataReady) {
+      state.dialogDataReady = (async () => {
+        await requireNamespace().workspaceContextReady;
+        applyWorkspaceContext();
+        await loadOptions();
+      })().catch((error) => {
+        state.dialogDataReady = null;
+        throw error;
+      });
+    }
+
+    return state.dialogDataReady;
+  }
+
+  /** @param {unknown} [params] */
+  function normalizeListEditorMode(params = {}) {
+    const mode = String(listEditorField(params, "mode") || listEditorField(params, "actionMode") || "").toLowerCase();
+    return mode === "edit" ? "edit" : "add";
+  }
+
+  // Keep identifiers opaque through the truthiness gate; conversion belongs to loadListDetail.
+  /** @param {unknown} [params] */
+  function readListEditorId(params = {}) {
+    return listEditorField(params, "listId") || listEditorField(params, "list_id") || listEditorField(params, "recordId") || listEditorField(params, "id") || "";
+  }
+
+  /**
+   * The values that seed the editor for a draft, as text.
+   *
+   * **`0.33.33.43.20` deferred this and `0.33.33.43.23` measured the cost; `0.33.33.43.30`
+   * discharges the half that can be discharged.** The members were `{}` because the module-action
+   * bag is published `unknown`, and the two option populators that receive them require text. Each
+   * chain is now templated, which is **the conversion that already happened** one step later: every
+   * one of these lands in `control.value = x || ""`, and the IDL `DOMString` conversion there is
+   * `ToString`.
+   *
+   * Measured rather than assumed, across ten value kinds including the three that are **truthy yet
+   * stringify to empty** - `[]`, `new String("")` and an object whose `toString` answers `""`. All
+   * ten write the same text, because a falsy result and an empty result are the same `""` here.
+   * **That is why this half is safe and `readListEditorId` is not**: nothing downstream of these
+   * branches on their truthiness before the conversion.
+   * @param {unknown} [params]
+   */
+  function normalizeListEditorDefaults(params = {}) {
+    const context = listEditorField(params, "context") || {};
+    return {
+      client_id: `${listEditorField(params, "client_id") || listEditorField(params, "clientId") || listEditorField(context, "clientId") || ""}`,
+      description: `${listEditorField(params, "description") || ""}`,
+      list_type: `${listEditorField(params, "list_type") || listEditorField(params, "listType") || ""}`,
+      project_id: `${listEditorField(params, "project_id") || listEditorField(params, "projectId") || listEditorField(context, "projectId") || ""}`,
+      title: `${listEditorField(params, "title") || ""}`,
+    };
+  }
+
+  /**
+   * The list one surface's record refers to, or `null` when it names none this page holds.
+   *
+   * `record` is whatever raised the action, so nothing is claimed of it.
+   *
+   * **Every member is `unknown` and every one optional**, which is the same as saying the reader
+   * tolerates anything and vouches for nothing; the nested `_source` is what a search result
+   * carries around the row it found.
+   * @typedef {{
+   *   id?: unknown, list_id?: unknown,
+   *   _source?: { id?: unknown, list_id?: unknown } | null
+   * } | null} ListRecordReference
+   * @param {ListRecordReference} [record]
+   */
+  function resolveListRecord(record) {
+    const listId = record?.list_id || record?.id || record?._source?.list_id || record?._source?.id || state.selectedListId;
+    return state.lists.find((entry) => entry.list_id === listId) || selectedList();
+  }
+
+  /**
+   * The `lists.workspace` surface the server delivered, or `null`.
+   *
+   * `0.33.33.35.1.2`: null means the server did not deliver this surface, which is the whole
+   * contract now - there is no local descriptor to fall back to. `0.33.33.35.1.1` made this
+   * readable by moving the shell build behind the workspace context, so an absent surface is
+   * an answer rather than a not-yet.
+   *
+   * The stored workspace context types `viewSurfaces` as an unvalidated container, so this page
+   * narrows its own element. Only the surface's identity is required here; each nested section is
+   * validated where it is used, because each already has a page-local fallback.
+   * @returns {BrowserListsWorkspaceSurfaceDescriptor | null}
+   */
+  function listsViewSurfaceDescriptor() {
+    for (const surface of listsWorkspaceViewSurfaces()) {
+      if (isListsSurfaceDescriptor(surface)) {
+        return surface;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * The delivered view surfaces, as a list this page can walk.
+   *
+   * The namespace member is read as an unknown candidate rather than through a declared type: this
+   * boundary has to hold both before and after `0.33.33.38.2.2.5.2` declares it.
+   * @returns {unknown[]}
+   */
+  function listsWorkspaceViewSurfaces() {
+    /** @type {unknown} */
+    const context = window.LongtailForge?.workspaceContext;
+    if (!isResponseRecord(context)) {
+      return [];
+    }
+    const surfaces = context.viewSurfaces;
+    return Array.isArray(surfaces) ? surfaces : [];
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserListsWorkspaceSurfaceDescriptor}
+   */
+  function isListsSurfaceDescriptor(value) {
+    return isResponseRecord(value)
+      && value.id === "lists.workspace"
+      && value.moduleId === "lists";
+  }
+
+  /**
+   * One contributed action, or `null` when it carries no usable identity.
+   *
+   * The original object is returned, so a module's own action members survive into the renderer.
+   * @param {unknown} value
+   * @returns {BrowserListsActionDescriptor | null}
+   */
+  function readListsAction(value) {
+    if (!isResponseRecord(value) || !isListsText(value.id)) {
+      return null;
+    }
+    for (const member of ["behavior", "label", "role"]) {
+      if (value[member] !== undefined && typeof value[member] !== "string") {
+        return null;
+      }
+    }
+    return /** @type {BrowserListsActionDescriptor} */ (value);
+  }
+
+  /**
+   * A contributed action collection, or `null` when any member of it is unusable.
+   *
+   * **A collection with one unusable action is treated as absent**, so the page's own descriptor
+   * answers instead. Admitting the rest would render a control with no action name, which is the
+   * shape this rejects.
+   * @param {unknown} value
+   * @returns {BrowserListsActionDescriptor[] | null}
+   */
+  function readListsActions(value) {
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    const actions = [];
+    for (const candidate of value) {
+      const action = readListsAction(candidate);
+      if (!action) {
+        return null;
+      }
+      actions.push(action);
+    }
+    return actions;
+  }
+
+  /**
+   * A contributed field collection, or `null` when any member of it is unusable.
+   * @param {unknown} value
+   * @returns {BrowserListsFieldDescriptor[] | null}
+   */
+  function readListsFields(value) {
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    const fields = [];
+    for (const candidate of value) {
+      if (!isResponseRecord(candidate) || !isListsText(candidate.field)) {
+        return null;
+      }
+      if (candidate.width !== undefined && typeof candidate.width !== "string") {
+        return null;
+      }
+      fields.push(/** @type {BrowserListsFieldDescriptor} */ (candidate));
+    }
+    return fields;
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is string}
+   */
+  function isListsText(value) {
+    return typeof value === "string" && value !== "";
+  }
+
+  /**
+   * A contributed action strip, or `null` when the page should use its own.
+   * @param {unknown} value
+   * @returns {BrowserListsActionStripDescriptor | null}
+   */
+  function readListsActionStrip(value) {
+    if (!isResponseRecord(value)) {
+      return null;
+    }
+    if (value.label !== undefined && typeof value.label !== "string") {
+      return null;
+    }
+    if (value.actions !== undefined && !readListsActions(value.actions)) {
+      return null;
+    }
+    return /** @type {BrowserListsActionStripDescriptor} */ (value);
+  }
+
+  /**
+   * A contributed item form, or `null` when the page should use its own.
+   * @param {unknown} value
+   * @returns {BrowserListsItemFormDescriptor | null}
+   */
+  function readListsItemForm(value) {
+    if (!isResponseRecord(value)) {
+      return null;
+    }
+    if (value.title !== undefined && typeof value.title !== "string") {
+      return null;
+    }
+    if (value.actions !== undefined && !readListsActions(value.actions)) {
+      return null;
+    }
+    if (value.fields !== undefined && !readListsFields(value.fields)) {
+      return null;
+    }
+    return /** @type {BrowserListsItemFormDescriptor} */ (value);
+  }
+
+  /**
+   * A contributed item-rows descriptor, or `null` when the page should use its own.
+   *
+   * `actions` is required here: the row builder maps over it without a guard, so a fragment
+   * without one would throw rather than degrade.
+   * @param {unknown} value
+   * @returns {BrowserListsItemRowsDescriptor | null}
+   */
+  function readListsItemRows(value) {
+    if (!isResponseRecord(value) || !readListsActions(value.actions)) {
+      return null;
+    }
+    if (value.emptyState !== undefined) {
+      const emptyState = value.emptyState;
+      if (!isResponseRecord(emptyState)
+        || (emptyState.message !== undefined && typeof emptyState.message !== "string")) {
+        return null;
+      }
+    }
+    return /** @type {BrowserListsItemRowsDescriptor} */ (value);
+  }
+
+  /**
+   * The contributed modal Lists renders its editor from, or `null` for the page's own.
+   * @param {unknown} value
+   * @returns {BrowserListsModalDescriptor | null}
+   */
+  function readListsModal(value) {
+    if (!isResponseRecord(value) || !isListsText(value.id)) {
+      return null;
+    }
+    if (value.fields !== undefined && !readListsFields(value.fields)) {
+      return null;
+    }
+    if (value.footerActions !== undefined && !readListsActions(value.footerActions)) {
+      return null;
+    }
+    return /** @type {BrowserListsModalDescriptor} */ (value);
+  }
+
+  /**
+   * The contributed index panel, or an empty fragment.
+   *
+   * `collapseOnSelect` must be a real boolean: a contributed string would otherwise collapse the
+   * panel on every selection because it is truthy.
+   * @param {unknown} value
+   * @returns {BrowserListsIndexPanelDescriptor}
+   */
+  function readListsIndexPanel(value) {
+    if (!isResponseRecord(value)) {
+      return {};
+    }
+    /** @type {BrowserListsIndexPanelDescriptor} */
+    const panel = {};
+    if (typeof value.collapseOnSelect === "boolean") {
+      panel.collapseOnSelect = value.collapseOnSelect;
+    }
+    if (typeof value.title === "string") {
+      panel.title = value.title;
+    }
+    if (typeof value.label === "string") {
+      panel.label = value.label;
+    }
+    return panel;
+  }
+
+  /**
+   * One section of the contributed detail fragment.
+   * @param {unknown} descriptor
+   * @param {string} section
+   * @returns {unknown}
+   */
+  function listsDetailSection(descriptor, section) {
+    const detail = isResponseRecord(descriptor) ? descriptor.detail : undefined;
+    return isResponseRecord(detail) ? detail[section] : undefined;
+  }
+
+
+  function listsWorkflowActionStripDescriptor() {
+    return {
+      label: "List actions",
+      actions: [
+        { id: "duplicate-list", label: "Duplicate", role: "secondary", behavior: "lists.workflow.duplicate" },
+        { id: "edit-list", label: "Edit", role: "secondary", behavior: "lists.workflow.edit" },
+        { id: "complete-list", label: "Complete", role: "secondary", behavior: "lists.workflow.complete" },
+        { id: "finalize-list", label: "Finalize", role: "secondary", behavior: "lists.workflow.finalize" },
+        { id: "reopen-list", label: "Reopen", role: "secondary", behavior: "lists.workflow.reopen" },
+        { id: "mark-reusable-list", label: "Mark Reusable", role: "secondary", behavior: "lists.workflow.mark-reusable" },
+        { id: "unmark-reusable-list", label: "Unmark Reusable", role: "secondary", behavior: "lists.workflow.unmark-reusable" },
+        { id: "archive-list", label: "Archive", role: "secondary", behavior: "lists.workflow.archive" },
+        { id: "delete-list", label: "Delete", role: "destructive", behavior: "lists.workflow.delete" },
+        { id: "restore-list", label: "Restore", role: "secondary", behavior: "lists.workflow.restore" },
+      ],
+    };
+  }
+
+  function listsItemFormDescriptor() {
+    return {
+      title: "Items",
+      fields: [
+        { field: "item_name", type: "text", label: "Item", required: true, autocomplete: "off", behavior: "lists.catalog-suggestions", width: "full" },
+        { field: "catalog_item_id", type: "hidden", label: "Catalog Item" },
+        { field: "quantity", type: "number", label: "Qty", default: "1", min: "0", step: "0.01", width: "narrow" },
+        { field: "unit", type: "text", label: "Unit", width: "narrow" },
+        { field: "needed_by_date", type: "date", label: "Needed by", width: "compact" },
+        { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users", width: "compact" },
+        { field: "purchase_status", type: "select", label: "Status", default: "needed", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]), width: "compact" },
+        { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced", width: "wide" },
+        { field: "url", type: "url", label: "URL", placement: "advanced", width: "wide" },
+        { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
+        { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced", width: "compact" },
+        { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced", width: "wide" },
+        { field: "notes", type: "textarea", label: "Notes", rows: "2", width: "full" },
+        { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true", width: "full" },
+      ],
+      actions: [
+        { id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save" },
+      ],
+    };
+  }
+
+  function listsItemRowsDescriptor() {
+    return {
+      itemsField: "items",
+      columns: [
+        { id: "done", label: "Done", type: "checkbox" },
+        { id: "item", field: "item_name", label: "Item" },
+        { id: "quantity", field: "quantity", label: "Qty" },
+        { id: "cost", field: "estimated_cost", label: "Cost" },
+        { id: "needed", field: "needed_by_date", label: "Needed By" },
+        { id: "status", field: "purchase_status", label: "Status" },
+        { id: "actions", label: "Actions", type: "actions" },
+      ],
+      actions: [
+        { id: "edit-item", label: "Edit", role: "secondary", behavior: "lists.item.edit" },
+        { id: "move-item-up", label: "Up", role: "utility", behavior: "lists.item.move-up" },
+        { id: "move-item-down", label: "Down", role: "utility", behavior: "lists.item.move-down" },
+        { id: "delete-item", label: "Delete", role: "destructive", behavior: "lists.item.delete" },
+      ],
+      emptyState: {
+        message: "No items yet.",
+      },
+    };
+  }
+
+  function listsModalDescriptor() {
+    return {
+      id: "list-editor",
+      title: "List",
+      size: "wide",
+      fields: [
+        { field: "title", type: "text", label: "Title", required: true, width: "full" },
+        { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]), width: "compact" },
+        { field: "client_id", type: "select", label: "Client", optionsSource: "clients", width: "wide" },
+        { field: "project_id", type: "select", label: "Project", optionsSource: "projects", width: "wide" },
+        { field: "description", type: "textarea", label: "Description", rows: "4", width: "full" },
+      ],
+      footerActions: [
+        { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
+        { id: "save-list", label: "Save List", role: "primary", behavior: "lists.modal.save" },
+      ],
+    };
+  }
+
+  /** A property bag promises no member value or writability, only an object receiver.
+   * @param {unknown} value @returns {value is Record<string, unknown>}
+   */
+  function isListsDatasetBag(value) {
+    return (typeof value === "object" && value !== null) || typeof value === "function";
+  }
+
+  /** Preserve the original dataset assignment, including primitive receivers and ignored failed writes.
+   * @param {Element} element @param {string} key
+   */
+  function setListsSurfaceHook(element, key) {
+    const dataset = listEditorField(element, "dataset");
+    if (dataset === null || dataset === undefined) {
+      throw new TypeError("The Lists surface element has no dataset to decorate.");
+    }
+    if (isListsDatasetBag(dataset)) {
+      dataset[key] = "";
+    } else {
+      // Native assignment boxes the target but retains its original receiver, including legacy document.all.
+      Reflect.set(Object(dataset), key, "", dataset);
+    }
+  }
+
+  /** The descriptor renderer supplies the surface; optional query results keep their existing gates.
+   * @param {HTMLElement} surface
+   */
+  function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDescriptor) {
+    const view = requireView();
+    const pageHeading = surface.querySelector(".view-page-title");
+    if (pageHeading) {
+      setListsSurfaceHook(pageHeading, "listsTitle");
+    }
+
+    const createAction = surface.querySelector('[data-surface-action="lists.create"], [data-surface-action="create-list"]');
+    if (createAction) {
+      setListsSurfaceHook(createAction, "listCreate");
+    }
+
+    const header = surface.querySelector(".view-page-header");
+    header?.classList.add("lists-page-header");
+    const status = view.createStatusMessage({ className: "lists-status-message" });
+    status.dataset.listsStatus = "";
+    header?.after(status);
+
+    const filterPanel = surface.querySelector('[data-view-sidebar-panel="lists-filters"]')
+      || surface.querySelector(".view-filter-panel");
+    filterPanel?.classList.add("lists-filters-panel");
+    if (filterPanel) {
+      setListsSurfaceHook(filterPanel, "listsFiltersPanel");
+    }
+    const filterForm = surface.querySelector("[data-view-filter-form]");
+    filterForm?.classList.add("lists-filters");
+    if (filterForm) {
+      setListsSurfaceHook(filterForm, "listsFilters");
+    }
+
+    decorateFilterControl(surface, "status", "listFilterStatus");
+    decorateFilterControl(surface, "listType", "listFilterType");
+    decorateFilterControl(surface, "reusable", "listFilterReusable");
+    decorateFilterControl(surface, "clientId", "listFilterClient", "listBusinessControl");
+    decorateFilterControl(surface, "projectId", "listFilterProject", "listContextControl");
+    decorateFilterControl(surface, "assigneeId", "listFilterAssignee");
+    decorateFilterControl(surface, "neededByDate", "listFilterNeeded");
+    decorateFilterControl(surface, "archiveState", "listFilterArchive");
+    decorateFilterControl(surface, "sort", "listSort");
+
+    const workspace = surface.querySelector(".view-slideout-sidebar")
+      || surface.querySelector(".view-stacked");
+    workspace?.classList.add("lists-workspace");
+
+    const indexPanel = surface.querySelector('[data-view-sidebar-panel="lists-index"]')
+      || surface.querySelector(".view-collapsible-index");
+    indexPanel?.classList.add("lists-index-panel");
+    if (indexPanel) {
+      setListsSurfaceHook(indexPanel, "listsIndexPanel");
+    }
+    const summaryTitle = indexPanel?.querySelector(".view-collapsible-index-title");
+    if (summaryTitle) {
+      setListsSurfaceHook(summaryTitle, "listsCount");
+      summaryTitle.textContent = listSelectorTitle(descriptor);
+    }
+    const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
+    const mount = view.createElement("div", { className: "lists-index-content" });
+    mount.dataset.listsIndexContent = "";
+    mount.dataset.listsList = "";
+    indexBody?.replaceChildren(mount);
+
+    const detail = surface.querySelector(".view-slideout-sidebar-main")
+      || surface.querySelector(".view-stacked-detail");
+    detail?.classList.add("lists-detail-panel");
+    if (detail) {
+      setListsSurfaceHook(detail, "listDetail");
+    }
+    detail?.replaceChildren(view.createEmptyState({
+      message: "Select a list.",
+      className: "lists-empty-state",
+      headingLevel: 2,
+    }));
+  }
+
+  /**
+   * Stamp this page's own dataset hooks onto one contributed filter field.
+   *
+   * **`0.33.33.43.20` deferred this and `0.33.33.43.24` recorded why**: `querySelector` answers
+   * `Element`, which carries no `dataset`. The narrowing `0.33.33.43.25` established closes it
+   * without changing what runs - both writes already sit behind a truthiness guard, so a control
+   * that is not an HTML element takes the path an absent one already took.
+   * @param {Element} surface @param {string} fieldName @param {string} datasetName
+   * @param {string} [wrapperDatasetName]
+   */
+  function decorateFilterControl(surface, fieldName, datasetName, wrapperDatasetName = "") {
+    const wrapperNode = surface.querySelector(`[data-view-field="${fieldName}"]`);
+    const wrapper = wrapperNode instanceof HTMLElement ? wrapperNode : null;
+    const controlNode = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+    const control = controlNode instanceof HTMLElement ? controlNode : null;
+    if (control) {
+      control.dataset[datasetName] = "";
+    }
+    if (wrapperDatasetName && wrapper) {
+      wrapper.dataset[wrapperDatasetName] = "";
+    }
+  }
+
+  function createListDialogShell() {
+    const view = requireView();
+    const modal = listsEditorModalDescriptor();
+    const editorFields = requireDescriptorRenderers().renderDescriptorFieldGrid({ fields: modal.fields || [] }, {
+      surface: false,
+      className: "lists-editor-fields",
+    });
+    editorFields.dataset.viewFieldWidth = "full";
+    decorateListEditorField(editorFields, "title", "listTitle");
+    decorateListEditorField(editorFields, "list_type", "listType");
+    decorateListEditorField(editorFields, "client_id", "listClient", "listBusinessControl");
+    decorateListEditorField(editorFields, "project_id", "listProject", "listContextControl");
+    decorateListEditorField(editorFields, "description", "listDescription");
+
+    const picker = view.createLinkedContextPicker({
+      ariaLabel: "List linked records",
+      emptyMessage: "No linked records yet.",
+      linkedItems: [],
+      onRemove: handleListEditorLinkedContextRemove,
+      onSearchInput: queueListEditorLinkTargetSearch,
+      onTargetChange: loadListEditorLinkTargets,
+      onUseTarget: applyListEditorLinkTarget,
+      providers: listLinkProviderOptions(),
+      records: [],
+      rowsLabel: "Linked records",
+    });
+    picker.dataset.listLinkPicker = "";
+    picker.viewParts.targetSelect.dataset.listLinkTargetType = "";
+    picker.viewParts.searchInput.dataset.listLinkSearch = "";
+    picker.viewParts.recordSelect.dataset.listLinkResults = "";
+    picker.viewParts.useTargetButton.dataset.listLinkApply = "";
+    const linkedRecordsSection = view.createElement("div", {
+      className: "lists-editor-linked-records",
+      children: [
+        view.createElement("h3", { className: "surface-modal-section-heading", text: "Linked Records" }),
+        picker,
+      ],
+    });
+    linkedRecordsSection.dataset.viewFieldWidth = "full";
+
+    const formStatus = view.createStatusMessage({ className: "lists-form-status" });
+    formStatus.dataset.listFormStatus = "";
+    formStatus.dataset.viewFieldWidth = "full";
+
+    const cancelAction = modal.footerActions?.find((action) => action.id === "cancel-list");
+    const saveAction = modal.footerActions?.find((action) => action.id === "save-list");
+    const cancel = view.createActionButton({ label: cancelAction?.label || "Cancel", role: cancelAction?.role || "secondary" });
+    cancel.dataset.listCancel = "";
+    const save = view.createActionButton({ label: saveAction?.label || "Save List", type: "submit", role: saveAction?.role || "primary" });
+    save.dataset.listSave = "";
+
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
+      className: "lists-dialog",
+      formClassName: "lists-form",
+      fields: [editorFields, linkedRecordsSection, formStatus],
+      actions: [cancel, save],
+    });
+    dialog.dataset.listDialog = "";
+    dialog.viewParts.form.dataset.listForm = "";
+    dialog.viewParts.title.dataset.listDialogTitle = "";
+
+    const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
+    close.dataset.listDialogClose = "";
+    const heading = view.createElement("div", {
+      className: "surface-modal-heading",
+      children: [
+        dialog.viewParts.title,
+        view.createElement("div", {
+          className: "surface-modal-heading-actions",
+          children: [close],
+        }),
+      ],
+    });
+    dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
+    return dialog;
+  }
+
+  function listsEditorModalDescriptor() {
+    const contributed = listsViewSurfaceDescriptor()?.modals;
+    for (const candidate of Array.isArray(contributed) ? contributed : []) {
+      const modal = readListsModal(candidate);
+      if (modal && modal.id === "list-editor") {
+        return modal;
+      }
+    }
+    return listsModalDescriptor();
+  }
+
+  /**
+   * The editor twin of `decorateFilterControl`, closed by the same narrowing and for the same
+   * reason. The two bodies are identical apart from their parameter names; consolidating them is a
+   * refactor this slice does not make.
+   * @param {Element} grid @param {string} fieldName @param {string} dataName
+   * @param {string} [wrapperDataName]
+   */
+  function decorateListEditorField(grid, fieldName, dataName, wrapperDataName = "") {
+    const wrapperNode = grid.querySelector(`[data-view-field="${fieldName}"]`);
+    const wrapper = wrapperNode instanceof HTMLElement ? wrapperNode : null;
+    const controlNode = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+    const control = controlNode instanceof HTMLElement ? controlNode : null;
+    if (control) {
+      control.dataset[dataName] = "";
+    }
+    if (wrapper && wrapperDataName) {
+      wrapper.dataset[wrapperDataName] = "";
+    }
+  }
+
+  async function initialize() {
+    setStatus("Loading lists...");
 
     try {
-      setStatus("Adding link...");
-      await api.postJson(`/api/lists/${encodeURIComponent(listId)}/links`, payload);
-      form.reset();
+      await requireNamespace().workspaceContextReady;
+      applyWorkspaceContext();
+      await Promise.all([loadOptions(), loadLists()]);
+      populateFilters();
+      renderLists();
+      openListFromUrl();
+      setStatus("");
+    } catch (error) {
+      renderListPlaceholder(requireErrors().caughtMessage(error, "Lists could not be loaded."));
+      renderDetailPrompt(requireErrors().caughtMessage(error, "Lists could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Lists could not be loaded."), true);
+    }
+  }
+
+  /**
+   * The Lists entry in the stored context's module list.
+   *
+   * **The stored constructor validates the container, not the elements.** `modules` is declared
+   * `unknown[]` because `buildWorkspaceContext` proves it is a list and nothing about what is in
+   * it - each element belongs to the module that contributed it. This proves only what selecting
+   * the Lists entry needs: a plain object carrying `id === "lists"`. Every other field on that
+   * object is left exactly as the module wrote it.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isListsModuleDefinition(value) {
+    return isResponseRecord(value) && value.id === "lists";
+  }
+
+  /**
+   * One label the Lists chrome renders, or the empty string.
+   *
+   * **This is a deliberate tightening for malformed data, and only for malformed data.** A label
+   * that is a string renders exactly as before. A label that is a truthy *non-string* - a number,
+   * an object - used to be written into `textContent` and would have rendered as `"42"` or
+   * `"[object Object]"`; it now falls through to the same local default the missing case already
+   * used. Valid contexts are unaffected.
+   * @param {unknown} value @returns {string}
+   */
+  function readListsLabel(value) {
+    return typeof value === "string" ? value : "";
+  }
+
+  function applyWorkspaceContext() {
+    const context = window.LongtailForge?.workspaceContext;
+    const moduleDefinition = (context?.modules || []).find(isListsModuleDefinition);
+    const terminologies = isResponseRecord(moduleDefinition?.terminology)
+      ? moduleDefinition.terminology
+      : {};
+    // The same two-step truthiness chain as before: the workspace-specific entry when it is
+    // truthy, otherwise the default entry. Whatever it settles on is only read as a record.
+    const candidate = terminologies[context?.workspaceType || ""] || terminologies.default;
+    const terminology = isResponseRecord(candidate) ? candidate : {};
+    const label = readListsLabel(terminology.label) || readListsLabel(moduleDefinition?.displayName) || "Lists";
+
+    state.workspaceType = context?.workspaceType || "business";
+    // `buildWorkspaceContext` already folds an incoming `user_id` into `userId` before it
+    // publishes, so the alias arm was reading a field the publisher cannot emit.
+    state.currentUserId = context?.userId || "";
+    if (pageTitle) {
+      pageTitle.textContent = label;
+    }
+    if (createButton) {
+      createButton.textContent = readListsLabel(terminology.createButton) || "Create List";
+    }
+    document.body.dataset.listsWorkspaceType = state.workspaceType;
+    setBusinessControlsVisible(usesBusinessScope());
+    setContextControlsVisible(usesBusinessScope());
+  }
+
+  // Every page that loads this controller also loads `js/shared/client-project-options.js`,
+  // so this reads a dependency the page guarantees rather than probing for one.
+  function requireClientProjectOptions() {
+    const clientProjectOptions = window.LongtailForge?.clientProjectOptions;
+
+    if (!clientProjectOptions) {
+      throw new Error("Lists requires the client and project option helper.");
+    }
+
+    return clientProjectOptions;
+  }
+
+  async function loadOptions() {
+    const [clientProjects, users] = await Promise.all([
+      loadClientProjects(),
+      loadUsers(),
+    ]);
+
+    state.clients = requireClientProjectOptions().normalizeClients(clientProjects);
+    const usersPayload = /** @type {{ users?: { user_id?: unknown }[] }} */ (users);
+    state.users = usersPayload.users || [];
+  }
+
+  async function loadClientProjects() {
+    const api = requireApi();
+    try {
+      return await api.getJson("/api/client-projects?view=options", { cache: "no-store" });
+    } catch {
+      return { clients: [], workspaceProjects: [] };
+    }
+  }
+
+  async function loadUsers() {
+    const api = requireApi();
+    try {
+      return await api.getJson("/api/users", { cache: "no-store" });
+    } catch {
+      return { users: [] };
+    }
+  }
+
+  /**
+   * A detail load that produced a record.
+   *
+   * `filter(Boolean)` answered the same rows and told the compiler nothing, so the collection kept
+   * its nullable element type all the way into `state.lists`. The `null` here is the one
+   * `loadListDetail` answers when a detail request fails **and** there is no summary to fall back
+   * to - the same rows are dropped as before.
+   * @param {BrowserNormalizedListRecord | null} record
+   * @returns {record is BrowserNormalizedListRecord}
+   */
+  function isLoadedListRecord(record) {
+    return Boolean(record);
+  }
+
+  /**
+   * The collection `GET /api/lists` answers, read as a whole or not at all.
+   *
+   * **This collection decides which lists the page loads**, so a malformed summary is refused
+   * rather than filtered away: dropping one and rendering the rest would present a shortened
+   * collection as a complete one, and the user would have no way to tell. A body that cannot be
+   * read throws into the caller's existing load-error path, which leaves the previously displayed
+   * collection in place.
+   *
+   * **An empty `lists` array is a legitimate answer**, not a failure - a workspace with no lists,
+   * or a filter that matches none.
+   *
+   * **`isListSummary` is reused rather than copied.** `GET /api/lists` and `GET /api/lists/:id`
+   * both shape their rows through `shapeListsForBrowser`; the collection route only adds tag
+   * decoration, canonical filtering and sorting on top, none of which changes a shaped member. A
+   * second column table would have been a second thing to keep true.
+   *
+   * **Only `lists` is validated.** The service also returns `query`, and this consumer does not
+   * read it - so this is the portion of the response the page depends on, not a validated envelope.
+   * The array and its elements are returned by identity; nothing is rebuilt.
+   * @param {unknown} body
+   * @returns {BrowserListSummary[]}
+   */
+  function readListSummaries(body) {
+    if (!isResponseRecord(body) || !Array.isArray(body.lists) || !body.lists.every(isListSummary)) {
+      throw new Error("The list collection could not be read.");
+    }
+
+    return body.lists;
+  }
+
+  async function loadLists() {
+    const api = requireApi();
+    const result = await api.getJson(`/api/lists?${buildListQueryParams()}`, { cache: "no-store" });
+    const summaries = readListSummaries(result);
+    const details = await Promise.all(summaries.map((list) => loadListDetail(list.list_id || list.id, list)));
+    state.lists = details.filter(isLoadedListRecord);
+  }
+
+  /**
+   * One list's detail, or its summary when the detail request fails.
+   *
+   * **The fallback is the collection's own summary, and that path is load-bearing**: a rejected
+   * detail request still contributes a rendered list rather than dropping it. `null` is only
+   * answered when there is no summary to fall back to.
+   * @param {unknown} listId @param {BrowserListSummary | null} [fallback]
+   * @returns {Promise<BrowserNormalizedListRecord | null>}
+   */
+  async function loadListDetail(listId, fallback = null) {
+    const api = requireApi();
+    try {
+      const result = await api.getJson(`/api/lists/${encodeURIComponent(`${listId}`)}?includeDeleted=true&includeDeletedItems=true`, {
+        cache: "no-store",
+      });
+      const detail = readListDetail(result);
+      return normalizeListRecord(detail.list, detail.items, detail.links);
+    } catch {
+      return fallback ? normalizeListRecord(fallback, []) : null;
+    }
+  }
+
+  function buildListQueryParams() {
+    const params = new URLSearchParams();
+    const statusValue = statusFilter?.value || "active";
+    const typeValue = typeFilter?.value || "all";
+    const reusableValue = reusableFilter?.value || "no";
+    const archiveValue = archiveFilter?.value || "current";
+    const clientValue = usesBusinessScope() ? clientFilter?.value || "all" : "all";
+    const projectValue = projectFilter?.value || "all";
+    const assigneeValue = assigneeFilter?.value || "all";
+    const neededValue = neededFilter?.value || "";
+    const sortValue = sortSelect?.value || "updated_desc";
+
+    params.set("status", archiveValue === "archived" || archiveValue === "deleted" ? archiveValue : statusValue);
+    params.set("archiveState", archiveValue);
+    params.set("reusable", reusableValue);
+    params.set("sort", sortValue);
+
+    if (typeValue !== "all") {
+      params.set("listType", typeValue);
+    }
+    if (clientValue !== "all") {
+      params.set("clientId", clientValue);
+    }
+    if (projectValue !== "all") {
+      params.set("projectId", projectValue);
+    }
+    if (assigneeValue !== "all") {
+      params.set("assigneeId", assigneeValue);
+    }
+    if (neededValue) {
+      params.set("neededByDate", neededValue);
+    }
+    if (archiveValue === "all" || archiveValue === "deleted" || statusValue === "all") {
+      params.set("includeDeleted", "true");
+    }
+
+    return params;
+  }
+
+  function populateFilters() {
+    replaceOptions(clientFilter, [
+      option("all", "All clients"),
+      option("", "Workspace"),
+      ...state.clients.filter((client) => !client.isWorkspaceScope).map((client) => option(client.id, client.optionLabel || client.name)),
+    ]);
+    replaceOptions(projectFilter, [
+      option("all", "All projects"),
+      option("", "No project"),
+      ...allProjects().map((project) => option(project.id, project.optionLabel || project.name)),
+    ]);
+    replaceOptions(assigneeFilter, [
+      option("all", "All assignees"),
+      option("me", "Me"),
+      option("", "Unassigned"),
+      ...state.users.map((user) => option(user.user_id, displayUser(user))),
+    ]);
+  }
+
+  function renderLists() {
+    const view = requireView();
+    const lists = state.lists;
+    if (countLabel) {
+      countLabel.textContent = listSelectorTitle();
+    }
+
+    if (lists.length === 0) {
+      state.selectedListId = "";
+      renderListPlaceholder(emptyListMessage());
+      if (!selectedList()) {
+        renderDetailPrompt("Create a list or adjust filters to resume one.");
+      }
+      return;
+    }
+
+    requireListsHandle(listMount, "list index region").replaceChildren(view.createIndexList({
+      ariaLabel: "List index",
+      items: lists.map(listIndexItem),
+    }));
+
+    if (state.selectedListId && lists.some((list) => list.list_id === state.selectedListId)) {
+      renderDetail(selectedList());
+      updateListSelectionState();
+    } else {
+      state.selectedListId = "";
+      renderDetailPrompt("Select a list.");
+      updateListSelectionState();
+    }
+  }
+
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   */
+  function listIndexItem(list) {
+    const view = requireView();
+    const typeLabel = LIST_TYPE_LABELS[`${list.list_type}`] || list.list_type || "";
+    const needed = nextNeededDate(list);
+    const chips = [
+      statusBadge(list.status),
+      typeLabel,
+      needed ? `Needed ${needed}` : "",
+      itemSummary(list),
+      ...listBadges(list),
+    ];
+    const stateSummary = view.createElement("span", {
+      className: ["view-index-list-meta", "lists-state-summary"],
+      text: compactStateSummary(list),
+    });
+    stateSummary.dataset.listStateSummary = "";
+
+    const meta = [
+      listContextLabel(list),
+      listDescriptionExcerpt(list),
+      linkedRecordSummary(list),
+      listTimelineSummary(list),
+      listCostSummary(list),
+      stateSummary,
+    ];
+
+    return {
+      id: list.list_id,
+      label: list.title || "Untitled list",
+      selected: list.list_id === state.selectedListId,
+      onSelect: () => selectList(list.list_id),
+      chips,
+      meta,
+    };
+  }
+
+  /**
+   * Select one list, and by default reflect it in the address bar.
+   *
+   * `updateUrl` is compared against `false` rather than tested for truth, so an absent option
+   * updates the URL and only an explicit `false` suppresses it.
+   * @param {unknown} listId @param {{ updateUrl?: boolean }} [options]
+   */
+  function selectList(listId, options = {}) {
+    state.selectedListId = listId || "";
+    if (options.updateUrl !== false) {
+      const params = new URLSearchParams(window.location.search);
+      if (state.selectedListId) {
+        params.set("list", `${state.selectedListId}`);
+      } else {
+        params.delete("list");
+      }
+      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
+    }
+    renderDetail(selectedList());
+    collapseIndexAfterSelection();
+    updateListSelectionState();
+  }
+
+  function updateListSelectionState() {
+    requireListsHandle(listMount, "list index region").querySelectorAll(".view-index-list-button").forEach((button) => {
+      // The shared index list builds these as buttons. A match that is not an HTML element has no
+      // selection state this page writes, so it is skipped rather than read.
+      if (!(button instanceof HTMLElement)) {
+        return;
+      }
+      const selected = button.dataset.viewIndexId === state.selectedListId;
+      button.classList.toggle("is-selected", selected);
+      if (selected) {
+        button.setAttribute("aria-current", "true");
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  function collapseIndexAfterSelection() {
+    if (indexPanel && readListsIndexPanel(activeListsViewDescriptor?.indexPanel).collapseOnSelect && state.selectedListId) {
+      indexPanel.open = false;
+    }
+  }
+
+  function openListFromUrl() {
+    if (state.selectedListId && selectedList()) {
+      selectList(state.selectedListId, { updateUrl: false });
+    }
+  }
+
+  /**
+   * `null` is a real argument rather than an absence to guard against: the selection may hold no
+   * list, and this answers the prompt for it.
+   * @param {BrowserNormalizedListRecord | null} [list]
+   */
+  function renderDetail(list) {
+    const view = requireView();
+    if (!list) {
+      renderDetailPrompt("Select a list.");
+      return;
+    }
+
+    const locked = list.status === "archived" || list.status === "deleted" || list.status === "finalized";
+    const article = view.createElement("section", { className: "lists-detail-content" });
+    const header = createListDetailHeader(list, locked);
+    const listDetails = createListDetailsPanel(list);
+    const nextAction = createNextActionStrip(list);
+    const sourceContext = shouldShowSourceContext(list) ? createSourceContextPanel(list) : null;
+    const costSummary = createCostSummaryPanel(list);
+    const itemsHeader = createItemsHeader(list, locked);
+    const items = view.createElement("div", { className: "lists-items" });
+
+    items.appendChild(createItemsTable(list, locked));
+
+    // Detail order: identity -> details context -> what to do next -> provenance (only when meaningful) ->
+    // Items heading + Add Item -> the items table -> the cost rollup beneath the items it totals.
+    article.append(...[header, listDetails, nextAction, sourceContext, itemsHeader, items, costSummary]
+      .filter((node) => node !== null && node !== undefined));
+    requireListsHandle(detailPanel, "list detail panel").replaceChildren(article);
+  }
+
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
+  function createListDetailHeader(list, locked) {
+    const view = requireView();
+    // Mirrors the Notes detail header: a title row (title + badges on the left, a 3-dot action menu on
+    // the right), a rule, then a compact labeled meta line. Keeping the actions in a "..." menu stops the
+    // wide action row from overlapping the detail content.
+    const title = view.createElement("h2", { className: "lists-detail-title", text: list.title || "Untitled list" });
+    const titleGroup = view.createElement("div", {
+      className: "lists-detail-title-group",
+      children: [title, ...listBadges(list)],
+    });
+    const titleRow = view.createElement("div", {
+      className: "lists-detail-title-row",
+      children: [titleGroup, createListActionStrip(list, locked)],
+    });
+    const rule = view.createElement("hr", { className: "lists-detail-rule" });
+    const meta = view.createElement("p", { className: "lists-detail-meta", children: detailMetaItems(list) });
+    return view.createElement("header", { className: "lists-detail-header", children: [titleRow, rule, meta] });
+  }
+
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
+  function createListActionStrip(list, locked) {
+    const label = listsActionStripSurfaceDescriptor().label || "List actions";
+    return requireDescriptorRenderers().renderDescriptorActionMenu(detailActionButtons(list, locked), {
+      summaryLabel: "...",
+      ariaLabel: label,
+      title: label,
+    });
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function createListDetailsPanel(list) {
+    const view = requireView();
+    const panel = view.createInfoPanel({
+      title: "List Details",
+      className: "lists-details-panel",
+      collapsible: true,
+      open: true,
+      ariaLabel: "List details",
+    });
+    const description = view.createElement("p", { className: "lists-description" });
+    const linkedRecords = view.createLinkedContextList({
+      ariaLabel: "Linked records",
+      className: "lists-linked-context-list",
+      emptyMessage: "No linked records yet.",
+      items: linkedContextItems(list),
+      readonly: true,
+    });
+
+    description.textContent = list.description || "No description.";
+    panel.dataset.listDetailsPanel = "";
+    panel.append(description, linkedRecords);
+    return panel;
+  }
+
+  function listsActionStripSurfaceDescriptor() {
+    return readListsActionStrip(listsDetailSection(listsViewSurfaceDescriptor(), "actionStrip"))
+      || listsWorkflowActionStripDescriptor();
+  }
+
+  /** Same two-value membership test, accepting an absent status without converting it.
+   * @param {string | undefined} status
+   */
+  function isFinalizableListStatus(status) {
+    return status === "active" || status === "completed";
+  }
+
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   * @param {boolean} locked
+   */
+  function detailActionButtons(list, locked) {
+    const actions = listsActionStripSurfaceDescriptor().actions || [];
+    const buttons = [];
+    const actionById = new Map(actions.map((action) => [action.id, action]));
+
+    if (list.status !== "deleted") {
+      buttons.push(listWorkflowActionButton(actionById.get("duplicate-list"), list, {
+        label: duplicateActionLabel(list),
+      }));
+    }
+    if (!locked) {
+      buttons.push(listWorkflowActionButton(actionById.get("edit-list"), list));
+      if (list.status === "active") {
+        buttons.push(listWorkflowActionButton(actionById.get("complete-list"), list));
+      }
+      if (isFinalizableListStatus(list.status)) {
+        buttons.push(listWorkflowActionButton(actionById.get("finalize-list"), list));
+      }
+      const reusableActionId = list.is_reusable ? "unmark-reusable-list" : "mark-reusable-list";
+      buttons.push(listWorkflowActionButton(actionById.get(reusableActionId), list));
+      buttons.push(listWorkflowActionButton(actionById.get("archive-list"), list));
+      buttons.push(listWorkflowActionButton(actionById.get("delete-list"), list));
+    }
+    if (list.status === "completed") {
+      buttons.unshift(listWorkflowActionButton(actionById.get("reopen-list"), list));
+    }
+    if (list.status === "archived" || list.status === "deleted") {
+      buttons.push(listWorkflowActionButton(actionById.get("restore-list"), list));
+    }
+
+    return buttons.length > 0 ? buttons : [readonlyBadge(list.status)];
+  }
+
+  /**
+   * @param {BrowserListsActionDescriptor | undefined} action the contributed action, when the map held one
+   * @param {*} list
+   * @param {*} [options]
+   */
+  function listWorkflowActionButton(action, list, options = {}) {
+    const actionId = action?.id || options.actionId || "";
+    return actionButton(options.label || action?.label || actionId, actionId, list.list_id, action?.role === "destructive" ? "secondary" : "", {
+      behavior: action?.behavior,
+    });
+  }
+
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
+  function createItemsHeader(list, locked) {
+    const view = requireView();
+    // The item form now lives in a modal; the detail just carries an "Items" heading and an Add Item button
+    // that opens it (or a read-only notice when the list is locked).
+    const descriptor = listsItemFormSurfaceDescriptor();
+    const title = view.createElement("h3", { text: descriptor.title || "Items" });
+    /** @type {HTMLElement[]} */
+    const children = [title];
+    if (locked) {
+      children.push(view.createElement("p", { className: "lists-locked-note", text: readOnlyStateMessage(list) }));
+    } else {
+      const addAction = descriptor.actions?.[0];
+      const add = view.createActionButton({ label: addAction?.label || "Add Item", role: addAction?.role || "primary" });
+      add.dataset.listAction = "add-item";
+      add.dataset.listId = list.list_id;
+      children.push(add);
+    }
+    return view.createElement("div", { className: "lists-items-header", children });
+  }
+
+  // The add/edit item form is a framework-rendered modal (createModalForm via renderDescriptorModalForm);
+  // the module supplies the fields from the descriptor and owns the data, validation, and save routes.
+  function createItemDialogShell() {
+    const view = requireView();
+    const descriptor = listsItemFormSurfaceDescriptor();
+    const name = createItemFieldFromDescriptor(itemFormField("item_name"));
+    const catalogItemId = createItemFieldFromDescriptor(itemFormField("catalog_item_id"));
+    const sideBySide = requireDescriptorRenderers().renderDescriptorFieldGrid({ fields: [] }, {
+      surface: false,
+      className: "lists-item-fields",
+      fields: ["quantity", "unit", "needed_by_date", "assigned_user_id", "purchase_status"]
+        .map((fieldName) => createItemFieldFromDescriptor(itemFormField(fieldName))),
+    });
+    const advancedDescriptorFields = (descriptor.fields || []).filter((field) => field.placement === "advanced");
+    const advanced = view.createElement("details", { className: ["lists-item-advanced", "surface-modal-group"] });
+    const advancedSummary = view.createElement("summary", {
+      className: "surface-modal-section-heading",
+      text: "Details",
+    });
+    const advancedFields = requireDescriptorRenderers().renderDescriptorFieldGrid({ fields: advancedDescriptorFields }, {
+      surface: false,
+      className: ["lists-item-advanced-fields", "surface-modal-section-body"],
+      fields: advancedDescriptorFields.map((field) => createItemFieldFromDescriptor(field)),
+    });
+    advanced.append(advancedSummary, advancedFields);
+    const notes = createItemFieldFromDescriptor(itemFormField("notes"));
+    const saveToCatalog = createItemFieldFromDescriptor(itemFormField("save_to_catalog"));
+    const formStatus = view.createStatusMessage({ className: "lists-form-status" });
+    formStatus.dataset.listItemFormStatus = "";
+
+    const saveAction = descriptor.actions?.[0];
+    const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+    cancel.dataset.listItemCancel = "";
+    const save = view.createActionButton({ label: saveAction?.label || "Add Item", type: "submit", role: saveAction?.role || "primary" });
+    save.dataset.listItemSave = "";
+
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(descriptor, {
+      title: descriptor.title || "Item",
+      size: "wide",
+      className: "lists-item-dialog",
+      formClassName: "lists-item-form",
+      fields: [name, catalogItemId, sideBySide, advanced, notes, saveToCatalog, formStatus],
+      actions: [cancel, save],
+    });
+    dialog.dataset.listItemDialog = "";
+    dialog.viewParts.form.dataset.listItemForm = "";
+    dialog.viewParts.title.dataset.listItemDialogTitle = "";
+
+    const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
+    close.dataset.listItemDialogClose = "";
+    const heading = view.createElement("div", {
+      className: "surface-modal-heading",
+      children: [
+        dialog.viewParts.title,
+        view.createElement("div", {
+          className: "surface-modal-heading-actions",
+          children: [close],
+        }),
+      ],
+    });
+    dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
+    return dialog;
+  }
+
+  /** @param {BrowserNormalizedListRecord | null | undefined} list @param {BrowserListItem | null} [item] */
+  async function openItemDialog(list, item = null) {
+    if (!itemDialog || !list) {
+      return;
+    }
+    state.itemDialogList = list;
+    requireListsHandle(itemDialogForm, "item form").reset();
+    requireListsHandle(itemDialogForm, "item form").dataset.listId = list.list_id;
+    requireListsHandle(itemDialogForm, "item form").dataset.editingItemId = item?.list_item_id || "";
+    populateItemAssigneeOptions();
+    setFormValue(itemDialogForm, "catalog_item_id", item?.catalog_item_id || "");
+    requireListsHandle(itemDialogTitle, "item dialog title").textContent = item ? "Edit Item" : "Add Item";
+    requireListsHandle(itemDialogSave, "item save button").textContent = item ? "Save Item" : (listsItemFormSurfaceDescriptor().actions?.[0]?.label || "Add Item");
+    requireListsHandle(itemDialogFormStatus, "item form status").textContent = "";
+    const advanced = requireListsHandle(itemDialogForm, "item form").querySelector(".lists-item-advanced");
+    if (item) {
+      fillItemForm(itemDialogForm, item);
+      advanced?.setAttribute("open", "open");
+    } else {
+      advanced?.removeAttribute("open");
+    }
+    await loadItemSuggestions(list);
+    updateSuggestionDatalist(itemDialog, list);
+    if (typeof itemDialog.showModal === "function") {
+      itemDialog.showModal();
+    } else {
+      itemDialog.setAttribute("open", "open");
+    }
+    requireCheckedDom().find(requireListsHandle(itemDialogForm, "item form"), "[name='item_name']", HTMLInputElement)?.focus();
+  }
+
+  function populateItemAssigneeOptions(selectedUserId = "") {
+    // `elements.assigned_user_id` and `elements.namedItem("assigned_user_id")` are the same
+    // lookup: the named-property getter on a form's controls collection is specified to behave as
+    // `namedItem`. This spelling is the one the collection publishes.
+    // The same narrowing the handle lookups use, for the same reason: the descriptor builds this
+    // control as a select, and the existing early return is already the path an absent one takes.
+    const control = itemDialogForm?.elements.namedItem("assigned_user_id");
+    const select = control instanceof HTMLSelectElement ? control : null;
+    if (!select) {
+      return;
+    }
+    replaceOptions(select, [
+      option("", "Unassigned"),
+      ...state.users.map((user) => option(user.user_id, displayUser(user))),
+    ]);
+    select.value = selectedUserId || "";
+  }
+
+  function closeItemDialog() {
+    itemDialog?.close?.();
+    itemDialog?.removeAttribute("open");
+  }
+
+
+  // Operator-approved extra intrinsic operation at each existing FormData argument boundary.
+  // Capture the untampered native receiver check; it accepts forms from other documents
+  // without reading their own properties. It neither constructs FormData nor reads payloads.
+  const listFormElementsGetter = Object.getOwnPropertyDescriptor(HTMLFormElement.prototype, "elements")?.get;
+
+  /** @param {unknown} value @returns {value is HTMLFormElement} */
+  function isListEventForm(value) {
+    if (!listFormElementsGetter) {
+      throw new TypeError("The list submission requires a form.");
+    }
+    try {
+      Reflect.apply(listFormElementsGetter, value, []);
+      return true;
+    } catch (error) {
+      if (error instanceof TypeError) return false;
+      throw error;
+    }
+  }
+
+  /** @param {unknown} value */
+  function requireListEventForm(value) {
+    if (!isListEventForm(value)) throw new TypeError("The list submission requires a form.");
+    return value;
+  }
+
+  /** @param {unknown} value @param {string} key @returns {unknown} */
+  function listEventField(value, key) {
+    if (value === null || value === undefined) throw new TypeError("The list event target cannot be read.");
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @param {string} key @param {unknown[]} args @returns {unknown} */
+  function callListEventMember(value, key, args) {
+    const method = listEventField(value, key);
+    if (typeof method !== "function") throw new TypeError(`The list event target has no callable ${key}.`);
+    return Reflect.apply(method, value, args);
+  }
+
+  /** @param {Event} event */
+  async function saveItem(event) {
+    const api = requireApi();
+    event.preventDefault();
+    const form = event.target;
+    const listId = listEventField(listEventField(form, "dataset"), "listId");
+    const editingItemId = listEventField(listEventField(form, "dataset"), "editingItemId") || "";
+    /**
+     * Form entries, plus the two members the next two lines rewrite.
+     *
+     * `FormData` answers only strings and files; a missing quantity becomes the number `1` and the
+     * catalog flag becomes a real boolean, both before this is sent as JSON. The wider declaration
+     * is what the bag actually holds by the time it leaves, not a loosening.
+     * @type {Record<string, FormDataEntryValue | boolean | number>}
+     */
+    const payload = Object.fromEntries(new FormData(requireListEventForm(form)).entries());
+
+    payload.quantity = payload.quantity || 1;
+    payload.save_to_catalog = payload.save_to_catalog === "true";
+    try {
+      requireListsHandle(itemDialogSave, "item save button").disabled = true;
+      requireListsHandle(itemDialogFormStatus, "item form status").textContent = "Saving item...";
+      if (editingItemId) {
+        await api.putJson(`/api/lists/${encodeURIComponent(`${listId}`)}/items/${encodeURIComponent(`${editingItemId}`)}`, payload);
+      } else {
+        await api.postJson(`/api/lists/${encodeURIComponent(`${listId}`)}/items`, payload);
+      }
+      closeItemDialog();
       await refreshLists(listId);
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Link could not be added.", true);
+      requireListsHandle(itemDialogFormStatus, "item form status").textContent = requireErrors().caughtMessage(error, "Item could not be saved.");
+    } finally {
+      requireListsHandle(itemDialogSave, "item save button").disabled = false;
     }
   }
-  // The item add/edit form is a modal appended to the body (saved via saveItem); only the linked-records
-  // form is submitted from inside the detail panel.
-}
 
-function fillItemForm(form, item) {
-  setFormValue(form, "item_name", item.item_name);
-  setFormValue(form, "quantity", item.quantity ?? 1);
-  setFormValue(form, "unit", item.unit);
-  setFormValue(form, "needed_by_date", item.needed_by_date);
-  setFormValue(form, "assigned_user_id", item.assigned_user_id);
-  setFormValue(form, "catalog_item_id", item.catalog_item_id);
-  setFormValue(form, "purchase_status", item.purchase_status || "needed");
-  setFormValue(form, "vendor_name", item.vendor_name);
-  setFormValue(form, "url", item.url);
-  setFormValue(form, "estimated_cost", item.estimated_cost);
-  setFormValue(form, "actual_cost", item.actual_cost);
-  setFormValue(form, "tracking_id", item.tracking_id);
-  setFormValue(form, "notes", item.notes);
-  setFormValue(form, "save_to_catalog", "");
-}
-
-async function loadItemSuggestions(list) {
-  if (!list?.list_id) {
-    return [];
+  function listsItemFormSurfaceDescriptor() {
+    return readListsItemForm(listsDetailSection(listsViewSurfaceDescriptor(), "itemForm"))
+      || listsItemFormDescriptor();
   }
 
-  const params = new URLSearchParams({
-    limit: "12",
-    listId: list.list_id,
-  });
-  try {
-    const result = await api.getJson(`/api/lists/item-suggestions?${params}`, { cache: "no-store" });
-    const suggestions = result.suggestions || [];
-    state.itemSuggestions.set(list.list_id, suggestions);
-    return suggestions;
-  } catch {
-    state.itemSuggestions.set(list.list_id, []);
-    return [];
-  }
-}
-
-function updateSuggestionDatalist(container, list) {
-  const dataList = container.querySelector("[data-list-item-suggestions]");
-  if (!dataList) {
-    return;
+  /** A field name from the item editor; contributed members remain opaque.
+   * @param {string} fieldName
+   */
+  function itemFormField(fieldName) {
+    return listsItemFormSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
   }
 
-  dataList.replaceChildren(...itemSuggestionsForList(list).map((suggestion) => {
-    const entry = option(suggestion.item_name, suggestionLabel(suggestion));
-    entry.dataset.catalogItemId = suggestion.catalog_item_id;
-    return entry;
-  }));
-}
-
-function applySuggestionSelection(form, list, value) {
-  const suggestion = itemSuggestionsForList(list).find((entry) => (
-    (entry.item_name || "").toLowerCase() === String(value || "").trim().toLowerCase()
-  ));
-
-  setFormValue(form, "catalog_item_id", suggestion?.catalog_item_id || "");
-  if (!suggestion) {
-    return;
+  /**
+   * One item-form field node.
+   *
+   * `field` is `ReturnType<typeof itemFormField>` - the descriptor entry when the surface
+   * contributed one, and that reader's own fallback when it did not. Derived rather than restated,
+   * so a contributed field shape cannot drift from what this builds out of it.
+   *
+   * The intersection is the width: a contributed `BrowserListsFieldDescriptor` declares `width`
+   * optional, while several of the reader's own fallback shapes declare none at all. Saying "may
+   * carry one" describes both without claiming either sends it.
+   * @param {ReturnType<typeof itemFormField> & { width?: string }} field
+   */
+  function createItemFieldFromDescriptor(field) {
+    const node = buildItemFieldNode(field);
+    if (field.width && node && node.dataset) {
+      node.dataset.viewFieldWidth = field.width;
+    }
+    return node;
   }
 
-  setFormValue(form, "quantity", suggestion.quantity ?? 1);
-  setFormValue(form, "unit", suggestion.unit || "");
-  setFormValue(form, "vendor_name", suggestion.vendor_name || "");
-  setFormValue(form, "url", suggestion.url || "");
-  setFormValue(form, "estimated_cost", suggestion.estimated_cost ?? "");
-  setFormValue(form, "notes", suggestion.notes || "");
-}
+  /** @param {ReturnType<typeof itemFormField> & { width?: string }} field */
+  function buildItemFieldNode(field) {
+    const view = requireView();
+    if (field.field === "item_name") {
+      return createItemNameField(field);
+    }
+    if (field.field === "catalog_item_id") {
+      const input = view.createElement("input");
+      input.type = "hidden";
+      input.name = field.field;
+      input.dataset.listCatalogItemId = "";
+      return input;
+    }
+    if (field.field === "assigned_user_id") {
+      // Built once (before users load) with just the placeholder; openItemDialog fills the user options.
+      return selectField(field.label || "Assigned", field.field, [option("", "Unassigned")]);
+    }
+    if (field.type === "select") {
+      const node = selectField(field.label || field.field, field.field, itemFieldOptionControls(field));
+      applySelectDefault(node, field.default);
+      return node;
+    }
+    if (field.type === "textarea") {
+      return textareaField(field.label || field.field, field.field, { rows: field.rows });
+    }
+    if (field.type === "checkbox") {
+      // For checkboxes the descriptor `default` carries the checked-by-default state; the submitted value
+      // stays "true" so the save handler's `=== "true"` check is unaffected.
+      return checkboxField(field.label || field.field, field.field, "true", { checked: field.default === "true" || field.default === true });
+    }
+    return inputField(field.label || field.field, field.type || "text", field.field, {
+      autocomplete: field.autocomplete,
+      min: field.min,
+      required: field.required,
+      step: field.step,
+      value: field.default,
+    });
+  }
 
-function itemSuggestionsForList(list) {
-  return state.itemSuggestions.get(list?.list_id) || [];
-}
+  /**
+   * The `[value, label]` pairs one descriptor field offers.
+   *
+   * The contributor owns both map operations; neither result has a promised collection shape.
+   * @param {BrowserListsFieldDescriptor | { options?: unknown }} [field]
+   * @returns {unknown}
+   */
+  function optionsFromDescriptor(field = {}) {
+    const collection = field.options || [];
+    /** @type {unknown} */
+    const map = Reflect.get(Object(collection), "map", collection);
+    if (typeof map !== "function") {
+      throw new TypeError("The list item options collection has no callable map.");
+    }
+    /** @param {unknown} entry @returns {unknown} */
+    const readEntry = (entry) => {
+      if (Array.isArray(entry)) {
+        return entry;
+      }
+      return [listItemOptionEntryField(entry, "value") ?? listItemOptionEntryField(entry, "id") ?? "",
+        listItemOptionEntryField(entry, "label") ?? listItemOptionEntryField(entry, "text") ?? listItemOptionEntryField(entry, "value") ?? ""];
+    };
+    /** @type {unknown} */
+    const result = Reflect.apply(map, collection, [readEntry]);
+    return result;
+  }
 
-function suggestionLabel(suggestion) {
-  const pieces = [
-    [suggestion.quantity ?? "", suggestion.unit || ""].filter(Boolean).join(" "),
-    suggestion.vendor_name || "",
-    suggestion.use_count ? `used ${suggestion.use_count}` : "",
-  ].filter(Boolean);
+  /** Required entry reads preserve primitive boxing and the original receiver.
+   * @param {unknown} entry @param {string} key @returns {unknown}
+   */
+  function listItemOptionEntryField(entry, key) {
+    if (entry === null || entry === undefined) {
+      throw new TypeError("A list item option entry cannot be read.");
+    }
+    return Reflect.get(Object(entry), key, entry);
+  }
 
-  return pieces.length > 0 ? `${suggestion.item_name} - ${pieces.join(" / ")}` : suggestion.item_name;
-}
+  /** @param {BrowserListsFieldDescriptor | { options?: unknown }} field @returns {unknown} */
+  function itemFieldOptionControls(field) {
+    const mapped = optionsFromDescriptor(field);
+    /** @type {unknown} */
+    const map = mapped === null || mapped === undefined ? undefined : Reflect.get(Object(mapped), "map", mapped);
+    if (typeof map !== "function") {
+      throw new TypeError("The mapped list item options have no callable map.");
+    }
+    /** @param {unknown} entry */
+    const render = (entry) => {
+      const [value, label] = readListItemOptionValues(entry, true);
+      return option(value, label);
+    };
+    /** @type {unknown} */
+    const result = Reflect.apply(map, mapped, [render]);
+    return result;
+  }
 
-function formatToken(value) {
-  return String(value || "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
+  /** Two local protocol sites: pair binding closes after two values; controls spread exhausts.
+   * Next/done/value failures do not close. Simple binding has no throwing assignment target,
+   * so IteratorClose with an existing throw completion is unreachable here.
+   * @param {unknown} input @param {boolean} pair @returns {unknown[]}
+   */
+  function readListItemOptionValues(input, pair) {
+    const subject = pair ? "pair" : "controls";
+    /** @type {unknown} */
+    const method = input === null || input === undefined ? undefined : Reflect.get(Object(input), Symbol.iterator, input);
+    if (typeof method !== "function") {
+      throw new TypeError(`The list item option ${subject} ${pair ? "is" : "are"} not iterable.`);
+    }
+    /** @type {unknown} */
+    const iterator = Reflect.apply(method, input, []);
+    if ((typeof iterator !== "object" || iterator === null) && typeof iterator !== "function") {
+      throw new TypeError(`The list item option ${subject} iterator method did not return an object.`);
+    }
+    /** @type {unknown} */
+    const next = Reflect.get(iterator, "next", iterator);
+    /** @type {unknown[]} */
+    const values = [];
+    while (!pair || values.length < 2) {
+      if (typeof next !== "function") {
+        throw new TypeError(`The list item option ${subject} iterator has no callable next.`);
+      }
+      /** @type {unknown} */
+      const step = Reflect.apply(next, iterator, []);
+      if ((typeof step !== "object" || step === null) && typeof step !== "function") {
+        throw new TypeError(`The list item option ${subject} iterator next method did not return an object.`);
+      }
+      /** @type {unknown} */
+      const done = Reflect.get(step, "done", step);
+      if (done) {
+        return values;
+      }
+      /** @type {unknown} */
+      const value = Reflect.get(step, "value", step);
+      values.push(value);
+    }
+    // Only pair binding stops early. Native spread has no IteratorClose on these failures.
+    /** @type {unknown} */
+    const close = Reflect.get(iterator, "return", iterator);
+    if (close !== undefined && close !== null) {
+      if (typeof close !== "function") {
+        throw new TypeError("The list item option pair iterator has no callable return.");
+      }
+      /** @type {unknown} */
+      const result = Reflect.apply(close, iterator, []);
+      if ((typeof result !== "object" || result === null) && typeof result !== "function") {
+        throw new TypeError("The list item option pair iterator return method did not return an object.");
+      }
+    }
+    return values;
+  }
 
-function listEditorPickerParts() {
-  return listLinkPicker?.viewParts || {};
-}
+  /** Collect before conversion, inside append's argument evaluation (after its method lookup).
+   * @param {unknown} options @returns {(Node | string)[]}
+   */
+  function listItemOptionChildren(options) {
+    const values = readListItemOptionValues(options, false);
+    return values.map((child) => child instanceof Node ? child : `${child}`);
+  }
 
-function listLinkProviderOptions(providers = []) {
-  const source = providers.length > 0
-    ? providers
-    : LIST_LINK_TARGET_ORDER.map((targetType) => ({
-        label: LIST_LINK_TYPE_LABELS[targetType],
-        moduleId: moduleIdForListLinkTarget(targetType),
+  /** @param {Partial<ReturnType<typeof itemFormField>>} [field] */
+  function createItemNameField(field = {}) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    const dataList = document.createElement("datalist");
+    // Fixed datalist id (the modal is built once and reused); suggestions are repopulated per open for the
+    // list currently in the dialog (state.itemDialogList).
+    const listId = "list-item-suggestions";
+
+    input.type = "text";
+    input.name = "item_name";
+    input.required = true;
+    input.setAttribute("list", listId);
+    input.autocomplete = "off";
+    input.dataset.listItemName = "";
+    dataList.id = listId;
+    dataList.dataset.listItemSuggestions = "";
+    const labelValue = field.label || "Item";
+    label.append(labelValue instanceof Node ? labelValue : `${labelValue}`, input, dataList);
+    input.addEventListener("input", () => applySuggestionSelection(input.form, state.itemDialogList, input.value));
+    return label;
+  }
+
+  /**
+   * One labelled checkbox.
+   *
+   * Name and submitted value come from local string producers. Labels stay opaque until the
+   * native append boundary; same-realm Nodes retain identity. `checked` stays `unknown` - it is only
+   * ever tested for truthiness.
+   * @param {unknown} labelText @param {string} name @param {string} value
+   * @param {{ checked?: unknown }} [options]
+   */
+  function checkboxField(labelText, name, value, options = {}) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+
+    label.className = "lists-checkbox-field";
+    input.type = "checkbox";
+    input.name = name;
+    input.value = value;
+    if (options.checked) {
+      // defaultChecked so form.reset() (after adding an item) restores the on state.
+      input.checked = true;
+      input.defaultChecked = true;
+    }
+    label.append(input, labelText instanceof Node ? labelText : `${labelText}`);
+    return label;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
+  function createItemsTable(list, locked) {
+    const items = visibleItems(list);
+    const descriptor = listsItemRowsSurfaceDescriptor();
+    const table = requireDescriptorRenderers().renderDescriptorDataTable(descriptor, {
+      rows: [],
+      emptyMessage: descriptor.emptyState?.message || "No items yet.",
+      className: "lists-items-table-wrap",
+      tableClassName: "list-table lists-items-table",
+    });
+    const tbody = table.querySelector("tbody");
+
+    if (items.length > 0 && tbody) {
+      tbody.replaceChildren(...items.map((item, index) => createItemRow(list, item, index, items.length, locked)));
+    }
+
+    return table;
+  }
+
+  function listsItemRowsSurfaceDescriptor() {
+    return readListsItemRows(listsDetailSection(listsViewSurfaceDescriptor(), "itemRows"))
+      || listsItemRowsDescriptor();
+  }
+
+  /**
+   * The linked-context rows for one list.
+   *
+   * **The nested `target` appears on no List contract.** `BrowserListLink` declares the pair
+   * `target_type`/`target_id` and stops there; the wire link carries this bag beside them and the
+   * shaper does not declare it, so it is described here as tolerated. Every member of it is
+   * `unknown`, because each is only tested for truthiness before falling through `||`.
+   * @param {{ links?: (BrowserListLink & { target?: {
+   *   id?: unknown, label?: unknown, moduleId?: unknown,
+   *   module_id?: unknown, target_id?: unknown, url?: unknown
+   * } })[] }} list
+   */
+  function linkedContextItems(list) {
+    return (list.links || []).map((link) => {
+      const target = link.target || {};
+      const targetType = link.target_type || "";
+      const typeLabel = LIST_LINK_TYPE_LABELS[targetType] || formatToken(targetType);
+      const displayLabel = target.label || unavailableLinkedRecordLabel(targetType);
+      return {
+        className: "lists-linked-context-row",
+        displayLabel,
+        fullLabel: displayLabel,
+        hintLabel: typeLabel,
+        isAvailable: Boolean(target.label),
+        moduleId: target.moduleId || target.module_id || targetType || "lists",
+        removable: false,
+        secondaryLabel: typeLabel,
+        sourceUrl: target.url || "",
+        targetId: target.id || target.target_id || "",
         targetType,
-      }));
-  const providersByType = new Map(source.map((provider) => [provider.targetType, provider]));
-
-  return LIST_LINK_TARGET_ORDER
-    .filter((targetType) => targetType !== "client" || usesBusinessScope())
-    .map((targetType) => providersByType.get(targetType))
-    .filter(Boolean)
-    .map((provider) => ({
-      label: provider.label || LIST_LINK_TYPE_LABELS[provider.targetType] || formatToken(provider.targetType),
-      moduleId: provider.moduleId || moduleIdForListLinkTarget(provider.targetType),
-      providerId: provider.providerId || provider.provider || provider.id || "",
-      targetType: provider.targetType,
-      value: provider.targetType,
-    }));
-}
-
-function moduleIdForListLinkTarget(targetType) {
-  return {
-    client: "client-projects",
-    note: "notes",
-    project: "client-projects",
-    task: "tasks",
-  }[targetType] || "";
-}
-
-function queueListEditorLinkTargetSearch() {
-  window.clearTimeout(state.linkTargetSearchTimer);
-  state.linkTargetSearchTimer = window.setTimeout(() => loadListEditorLinkTargets(), 180);
-}
-
-async function loadListEditorLinkTargets() {
-  const parts = listEditorPickerParts();
-  const targetType = listLinkTargetTypeInput?.value || "task";
-  if (!parts.setRecords || !canManageListLinks()) {
-    parts.setRecords?.([]);
-    return;
+      };
+    });
   }
 
-  listLinkResultsInput.disabled = true;
-  listLinkApplyButton.disabled = true;
-  parts.setRecords([{ targetId: "", displayLabel: "Loading records...", disabled: true }]);
-
-  const params = new URLSearchParams({
-    limit: "40",
-    targetType,
-  });
-  if (listLinkSearchInput?.value.trim()) {
-    params.set("q", listLinkSearchInput.value.trim());
+  /** Opaque host records retain their own collection map. The normalized page projection above
+   * keeps its writer-derived contract; this editor path promises neither a row nor an array.
+   * @param {unknown} list @returns {unknown}
+   */
+  function listEditorContextItems(list) {
+    return callListEditorMember(listEditorField(list, "links") || [], "map", [(/** @type {unknown} */ link) => {
+      const target = listEditorField(link, "target") || {};
+      const targetType = listEditorField(link, "target_type") || "";
+      const typeLabel = listEditorLinkTypeLabel(targetType) || formatToken(targetType);
+      const displayLabel = listEditorField(target, "label") || unavailableLinkedRecordLabel(targetType);
+      return {
+        className: "lists-linked-context-row",
+        displayLabel,
+        fullLabel: displayLabel,
+        hintLabel: typeLabel,
+        isAvailable: Boolean(listEditorField(target, "label")),
+        moduleId: listEditorField(target, "moduleId") || listEditorField(target, "module_id") || targetType || "lists",
+        removable: false,
+        secondaryLabel: typeLabel,
+        sourceUrl: listEditorField(target, "url") || "",
+        targetId: listEditorField(target, "id") || listEditorField(target, "target_id") || "",
+        targetType,
+      };
+    }]);
   }
 
-  try {
-    const result = await api.getJson(`/api/lists/link-targets?${params.toString()}`, { cache: "no-store" });
-    const providerOptions = listLinkProviderOptions(result.providers || []);
-    parts.setTargets?.(providerOptions);
-    if (listLinkTargetTypeInput) {
-      listLinkTargetTypeInput.value = providerOptions.some((provider) => provider.targetType === targetType)
-        ? targetType
-        : providerOptions[0]?.targetType || "";
+  /** @param {unknown} targetType */
+  function unavailableLinkedRecordLabel(targetType) {
+    const typeLabel = listEditorLinkTypeLabel(targetType) || formatToken(targetType);
+    return typeLabel ? `Unavailable ${callListEditorMember(typeLabel, "toLowerCase", [])}` : "Unavailable linked record";
+  }
+
+  /**
+   * One item row.
+   *
+   * `item` is `ReturnType<typeof visibleItems>[number]` rather than the published item contract
+   * spelled again: the row renders what that projection produced, so it cannot drift from it.
+   * @param {BrowserNormalizedListRecord} list @param {ReturnType<typeof visibleItems>[number]} item
+   * @param {number} index @param {number} total @param {boolean} locked
+   */
+  function createItemRow(list, item, index, total, locked) {
+    const row = document.createElement("tr");
+    const doneCell = document.createElement("td");
+    const itemCell = document.createElement("td");
+    const qtyCell = document.createElement("td");
+    const costCell = document.createElement("td");
+    const neededCell = document.createElement("td");
+    const statusCell = document.createElement("td");
+    const actionsCell = document.createElement("td");
+    const checkbox = document.createElement("input");
+    const itemTitle = document.createElement("strong");
+
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(item.checked_at);
+    checkbox.disabled = locked;
+    checkbox.dataset.itemAction = checkbox.checked ? "uncheck-item" : "check-item";
+    checkbox.dataset.listId = list.list_id;
+    checkbox.dataset.itemId = item.list_item_id;
+    doneCell.appendChild(checkbox);
+
+    // Show only the item name (truncated past 20 chars, full name in the cell title); vendor/url/tracking/
+    // notes live in the item editor and the cost surfaces in its own column below.
+    const itemName = item.item_name || "Untitled item";
+    itemTitle.textContent = truncateItemName(itemName, 20);
+    if (itemTitle.textContent !== itemName) {
+      itemCell.title = itemName;
     }
-    state.linkTargets = result.targets || [];
-    parts.setRecords(state.linkTargets);
-    listLinkApplyButton.disabled = state.linkTargets.length === 0;
-    listFormStatus.textContent = "";
-  } catch (error) {
-    state.linkTargets = [];
-    parts.setRecords([]);
-    listLinkApplyButton.disabled = true;
-    listFormStatus.textContent = error.message || "Linked records could not be loaded.";
-  } finally {
-    listLinkResultsInput.disabled = false;
-  }
-}
-
-function selectedListEditorLinkTarget() {
-  const targetId = listLinkResultsInput?.value || "";
-  const targetType = listLinkTargetTypeInput?.value || "";
-  return state.linkTargets.find((target) => target.targetId === targetId && target.targetType === targetType) || null;
-}
-
-async function applyListEditorLinkTarget() {
-  const target = selectedListEditorLinkTarget();
-  if (!target?.targetType || !target.targetId || listEditorHasLinkTarget(target)) {
-    listFormStatus.textContent = target ? "Linked record is already added." : "Choose a linked record first.";
-    return;
+    itemCell.appendChild(itemTitle);
+    qtyCell.textContent = [item.quantity ?? "", item.unit || ""].filter(Boolean).join(" ") || "-";
+    applyItemCostCell(costCell, item);
+    neededCell.textContent = item.needed_by_date || "-";
+    statusCell.textContent = PURCHASE_STATUS_LABELS[item.purchase_status] || item.purchase_status || "-";
+    actionsCell.appendChild(createItemRowActions(list, item, index, total, locked));
+    row.append(doneCell, itemCell, qtyCell, costCell, neededCell, statusCell, actionsCell);
+    return row;
   }
 
-  if (!state.editingListId) {
-    state.editorStagedTargets = [...state.editorStagedTargets, target];
-    renderListEditorLinkedItems();
-    listFormStatus.textContent = "";
-    return;
+  /**
+   * The reorder, edit and delete controls for one row.
+   * @param {BrowserNormalizedListRecord} list @param {ReturnType<typeof visibleItems>[number]} item
+   * @param {number} index @param {number} total @param {boolean} locked
+   */
+  function createItemRowActions(list, item, index, total, locked) {
+    // The reorder controls stay inline (up/down icons); edit and delete fold into a "..." overflow menu.
+    const actionById = new Map(listsItemRowsSurfaceDescriptor().actions.map((action) => [action.id, action]));
+    /** @param {string} id @param {{ menu?: boolean }} [options] */
+    const rowActionButton = (id, options) => itemRowActionButton(actionById.get(id), list, item, index, total, locked, options);
+    const ariaLabel = `${item.item_name || "Item"} actions`;
+    const menu = requireDescriptorRenderers().renderDescriptorActionMenu(
+      [rowActionButton("edit-item", { menu: true }), rowActionButton("delete-item", { menu: true })],
+      { summaryLabel: "...", ariaLabel, title: "Item actions" },
+    );
+    return requireDescriptorRenderers().renderDescriptorInlineActions(
+      [rowActionButton("move-item-up"), rowActionButton("move-item-down"), menu],
+      { className: "lists-item-actions", ariaLabel },
+    );
   }
 
-  listLinkApplyButton.disabled = true;
-  listFormStatus.textContent = "Adding linked record...";
-  try {
-    await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links`, listLinkPayload(target));
-    await refreshListEditor(state.editingListId);
-    listFormStatus.textContent = "";
-  } catch (error) {
-    listFormStatus.textContent = error.message || "Linked record could not be added.";
-  } finally {
-    listLinkApplyButton.disabled = false;
-  }
-}
-
-function handleListEditorLinkedContextRemove(item = {}) {
-  if (item.link) {
-    void removeListEditorLink(item.link);
-    return;
-  }
-  if (item.target) {
-    state.editorStagedTargets = state.editorStagedTargets.filter((target) => !sameListLinkTarget(target, item.target));
-    renderListEditorLinkedItems();
-  }
-}
-
-async function removeListEditorLink(link = {}) {
-  const linkId = link.list_link_id || link.id || "";
-  if (!state.editingListId || !linkId) {
-    return;
+  /**
+   * The item name, shortened past `max` characters with an ellipsis.
+   * @param {unknown} text @param {number} max
+   */
+  function truncateItemName(text, max) {
+    const value = String(text || "");
+    return value.length > max ? `${value.slice(0, max)}…` : value;
   }
 
-  listFormStatus.textContent = "Removing linked record...";
-  try {
-    await api.postJson(`/api/lists/${encodeURIComponent(state.editingListId)}/links/${encodeURIComponent(linkId)}/remove`, {});
-    await refreshListEditor(state.editingListId);
-    listFormStatus.textContent = "";
-  } catch (error) {
-    listFormStatus.textContent = error.message || "Linked record could not be removed.";
+  /**
+   * Write one item's cost into its cell, showing the actual when there is one.
+   * @param {HTMLElement} cell @param {ReturnType<typeof visibleItems>[number]} item
+   */
+  function applyItemCostCell(cell, item) {
+    const estimated = Number(item.estimated_cost) || 0;
+    const actual = Number(item.actual_cost) || 0;
+    const display = actual || estimated;
+    cell.textContent = display ? formatCurrency(display) : "-";
+    if (estimated && actual) {
+      cell.title = `Estimated ${formatCurrency(estimated)} · Actual ${formatCurrency(actual)}`;
+    } else if (estimated) {
+      cell.title = `Estimated ${formatCurrency(estimated)}`;
+    } else if (actual) {
+      cell.title = `Actual ${formatCurrency(actual)}`;
+    }
   }
-}
 
-function listEditorHasLinkTarget(target = {}) {
-  return [
-    ...(state.editorList?.links || []),
-    ...state.editorStagedTargets,
-  ].some((entry) => sameListLinkTarget(entry, target));
-}
-
-function sameListLinkTarget(left = {}, right = {}) {
-  const leftType = left.targetType || left.target_type || left.target?.target_type || "";
-  const rightType = right.targetType || right.target_type || right.target?.target_type || "";
-  const leftId = left.targetId || left.target_id || left.target?.target_id || "";
-  const rightId = right.targetId || right.target_id || right.target?.target_id || "";
-  return leftType === rightType && leftId === rightId;
-}
-
-function listLinkPayload(target = {}) {
-  return {
-    moduleId: target.moduleId || moduleIdForListLinkTarget(target.targetType),
-    targetId: target.targetId,
-    targetType: target.targetType,
+  /**
+   * Read by a contributed action's id, which is plain text rather than one of the four keys, so an
+   * action this page does not know falls through to no icon.
+   * @type {Record<string, string>}
+   */
+  const ITEM_ROW_ACTION_ICONS = {
+    "edit-item": "edit",
+    "move-item-up": "up",
+    "move-item-down": "down",
+    "delete-item": "delete",
   };
-}
 
-function renderListEditorLinkedItems() {
-  const parts = listEditorPickerParts();
-  const removable = canManageListLinks();
-  const savedItems = linkedContextItems(state.editorList || {}).map((item, index) => ({
-    ...item,
-    link: state.editorList?.links?.[index],
-    removable,
-  }));
-  const stagedItems = state.editorStagedTargets.map((target) => ({
-    ...target,
-    displayLabel: target.displayLabel || unavailableLinkedRecordLabel(target.targetType),
-    removable,
-    target,
-  }));
-  parts.setLinkedItems?.([...savedItems, ...stagedItems]);
-}
+  /**
+   * @param {BrowserListsActionDescriptor | undefined} action the contributed action, when the map held one
+   * @param {*} list @param {*} item @param {number} index @param {number} total @param {*} locked
+   * @param {*} [options]
+   */
+  function itemRowActionButton(action, list, item, index, total, locked, options = {}) {
+    const disabledByPosition = (action?.id === "move-item-up" && index === 0) ||
+      (action?.id === "move-item-down" && index >= total - 1);
+    return actionButton(action?.label || action?.id, action?.id, list.list_id, action?.role === "destructive" ? "secondary" : "", {
+      itemId: item.list_item_id,
+      disabled: locked || disabledByPosition,
+      behavior: action?.behavior,
+      // Menu items render as labeled buttons (Edit/Delete); the inline up/down stay icon-only.
+      icon: options.menu || !action ? undefined : ITEM_ROW_ACTION_ICONS[action.id],
+    });
+  }
 
-async function refreshListEditor(listId) {
-  const list = await loadListDetail(listId);
-  if (!list) {
-    throw new Error("List could not be refreshed.");
-  }
-  state.editorList = list;
-  const index = state.lists.findIndex((entry) => entry.list_id === listId);
-  if (index >= 0) {
-    state.lists.splice(index, 1, list);
-    renderLists();
-  }
-  if (state.selectedListId === listId) {
-    renderDetail(list);
-  }
-  renderListEditorLinkedItems();
-  return list;
-}
+  /** @param {Event} event */
+  async function handleDetailClick(event) {
+    const actionElement = callListEventMember(event.target, "closest", ["[data-list-action], [data-item-action]"]);
+    if (!actionElement) {
+      return;
+    }
 
-function configureListEditorPicker(list = null) {
-  const parts = listEditorPickerParts();
-  state.linkTargets = [];
-  state.editorStagedTargets = [];
-  parts.setTargets?.(listLinkProviderOptions());
-  if (listLinkTargetTypeInput) {
-    listLinkTargetTypeInput.value = "task";
-  }
-  if (listLinkSearchInput) {
-    listLinkSearchInput.value = "";
-  }
-  parts.setRecords?.([]);
-  parts.setReadonly?.(!canManageListLinks(list));
-  renderListEditorLinkedItems();
-  if (canManageListLinks(list)) {
-    void loadListEditorLinkTargets();
-  }
-}
+    const list = state.lists.find((entry) => entry.list_id === listEventField(listEventField(actionElement, "dataset"), "listId"));
+    const itemId = listEventField(listEventField(actionElement, "dataset"), "itemId") || "";
+    const linkId = listEventField(listEventField(actionElement, "dataset"), "linkId") || "";
+    const action = listEventField(listEventField(actionElement, "dataset"), "listAction") || listEventField(listEventField(actionElement, "dataset"), "itemAction");
 
-function canManageListLinks(list = state.editorList) {
-  if (list && ["archived", "deleted", "finalized"].includes(list.status)) {
-    return false;
+    try {
+      setStatus("Saving...");
+      if (action === "edit-list") {
+        openListDialog(list);
+        setStatus("");
+        return;
+      }
+      if (action === "add-item") {
+        await openItemDialog(list);
+        setStatus("");
+        return;
+      }
+      if (action === "edit-item") {
+        await openItemDialog(list, list?.items?.find((entry) => entry.list_item_id === itemId) || null);
+        setStatus("");
+        return;
+      }
+      const selectedId = await runAction(action, list, itemId, linkId);
+      await refreshLists(selectedId || list?.list_id || state.selectedListId);
+      setStatus("");
+    } catch (error) {
+      setStatus(requireErrors().caughtMessage(error, "List action failed."), true);
+    }
   }
-  const permissionValues = window.LongtailForge?.workspaceContext?.permissionIds
-    || window.LongtailForge?.workspaceContext?.permissions;
-  if (!permissionValues) {
-    return true;
+
+  /** Run one list or item action against the server and return the list identifier to reselect.
+   * The seven readers share one optional-record boundary: runAction, moveItem, listIndexItem,
+   * detailActionButtons, detailMetaItems, listState and readOnlyStateMessage.
+   * Discharged without claiming savedness: unreadable successful details remain incomplete records.
+   * Only a missing record is refused at the existing required read, with approved visible wording.
+   * @param {BrowserNormalizedListRecord | undefined} list
+   * @param {unknown} action @param {unknown} [itemId] @param {unknown} [linkId]
+   */
+  async function runAction(action, list, itemId, linkId = "") {
+    const api = requireApi();
+    if (list === undefined) {
+      throw new TypeError("The list action no longer has a record to read.");
+    }
+    const listId = encodeURIComponent(`${list.list_id}`);
+    const itemPath = itemId ? `/items/${encodeURIComponent(`${itemId}`)}` : "";
+
+    if (action === "complete-list") {
+      await api.postJson(`/api/lists/${listId}/complete`, {});
+    } else if (action === "finalize-list") {
+      await api.postJson(`/api/lists/${listId}/finalize`, {});
+    } else if (action === "reopen-list") {
+      await api.postJson(`/api/lists/${listId}/reopen`, {});
+    } else if (action === "duplicate-list") {
+      const result = await api.postJson(`/api/lists/${listId}/duplicate`, {});
+      if (reusableFilter) {
+        reusableFilter.value = "no";
+      }
+      if (statusFilter) {
+        statusFilter.value = "active";
+      }
+      if (archiveFilter) {
+        archiveFilter.value = "current";
+      }
+      setStatus("Created active working copy.");
+      return readSavedListId(result);
+    } else if (action === "mark-reusable-list") {
+      await api.postJson(`/api/lists/${listId}/mark-reusable`, {});
+    } else if (action === "unmark-reusable-list") {
+      await api.postJson(`/api/lists/${listId}/unmark-reusable`, {});
+    } else if (action === "archive-list") {
+      await api.postJson(`/api/lists/${listId}/archive`, {});
+    } else if (action === "restore-list") {
+      await api.postJson(`/api/lists/${listId}/restore`, {});
+    } else if (action === "delete-list") {
+      await api.deleteJson(`/api/lists/${listId}`);
+    } else if (action === "check-item" || action === "uncheck-item") {
+      await api.postJson(`/api/lists/${listId}${itemPath}/${action.replace("-item", "")}`, {});
+    } else if (action === "delete-item") {
+      await api.deleteJson(`/api/lists/${listId}${itemPath}`);
+    } else if (action === "move-item-up" || action === "move-item-down") {
+      await moveItem(list, itemId, action === "move-item-up" ? -1 : 1);
+    } else if (action === "remove-link") {
+      if (linkId) {
+        await api.postJson(`/api/lists/${listId}/links/${encodeURIComponent(`${linkId}`)}/remove`, {});
+      }
+    }
+    return "";
   }
-  const permissions = permissionValues instanceof Set
-    ? permissionValues
-    : new Set(Array.isArray(permissionValues)
-        ? permissionValues
-        : Object.entries(permissionValues).filter(([, allowed]) => Boolean(allowed)).map(([permissionId]) => permissionId));
-  return permissions.has("lists.manage_links");
-}
 
-function openListDialog(list = null, options = {}) {
-  const defaults = options.defaults || {};
-  state.editingListId = list?.list_id || "";
-  state.editorList = list;
-  state.listDialogHostContext = options.hostContext || null;
-  state.listDialogHostContextSettled = false;
-  listDialogTitle.textContent = list ? "Edit List" : "Create List";
-  listTitleInput.value = list?.title || defaults.title || "";
-  listDescriptionInput.value = list?.description || defaults.description || "";
-  listTypeInput.value = list?.list_type || defaults.list_type || defaultListType();
-  setContextControlsVisible(shouldShowContextControls(listTypeInput.value));
-  populateClientOptions(list?.client_id || defaults.client_id || "");
-  populateProjectOptions(listProjectInput, list?.client_id || defaults.client_id || "", list?.project_id || defaults.project_id || "");
-  listFormStatus.textContent = "";
-  listSaveButton.textContent = list ? "Save List" : "Create List";
-  configureListEditorPicker(list);
-  const closeResult = new Promise((resolve) => {
-    listDialog?.addEventListener("close", () => resolve(listDialog.returnValue || "closed"), { once: true });
-  });
-  view.showModal(listDialog, { trigger: options.trigger || null });
-  listTitleInput.focus();
-  return closeResult;
-}
+  /** Move one item by a signed index step and persist the resulting whole order.
+   * A negative direction moves toward the start; a positive direction moves toward the end.
+   * A missing item or a target outside either bound returns without sending a reorder request.
+   * itemId may be absent because runAction forwards its optional argument unchanged.
+   * Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   * @param {unknown} itemId @param {number} direction
+   */
+  async function moveItem(list, itemId, direction) {
+    const api = requireApi();
+    const items = visibleItems(list);
+    const index = items.findIndex((item) => item.list_item_id === itemId);
+    const targetIndex = index + direction;
 
-function closeListDialog(options = {}) {
-  if (options.cancelHost) {
+    if (index < 0 || targetIndex < 0 || targetIndex >= items.length) {
+      return;
+    }
+
+    const ordered = [...items];
+    const [item] = ordered.splice(index, 1);
+    ordered.splice(targetIndex, 0, item);
+    await api.postJson(`/api/lists/${encodeURIComponent(`${list.list_id}`)}/items/reorder`, {
+      items: ordered.map((entry, orderIndex) => ({
+        list_item_id: entry.list_item_id,
+        sort_order: orderIndex * 10,
+      })),
+    });
+  }
+
+  /** @param {Event} event */
+  async function handleDetailSubmit(event) {
+    const api = requireApi();
+    if (callListEventMember(event.target, "matches", ["[data-list-link-form]"])) {
+      event.preventDefault();
+      const form = event.target;
+      const listId = listEventField(listEventField(form, "dataset"), "listId");
+      const payload = Object.fromEntries(new FormData(requireListEventForm(form)).entries());
+      if (payload.target_type === "task" && !payload.target_id) {
+        setStatus("Select a task to link.", true);
+        return;
+      }
+
+      try {
+        setStatus("Adding link...");
+        await api.postJson(`/api/lists/${encodeURIComponent(`${listId}`)}/links`, payload);
+        callListEventMember(form, "reset", []);
+        await refreshLists(listId);
+        setStatus("");
+      } catch (error) {
+        setStatus(requireErrors().caughtMessage(error, "Link could not be added."), true);
+      }
+    }
+    // The item add/edit form is a modal appended to the body (saved via saveItem); only the linked-records
+    // form is submitted from inside the detail panel.
+  }
+
+  /**
+   * Seed the item form from one existing item.
+   * @param {HTMLFormElement | null} form @param {ReturnType<typeof visibleItems>[number]} item
+   */
+  function fillItemForm(form, item) {
+    setFormValue(form, "item_name", item.item_name);
+    setFormValue(form, "quantity", item.quantity ?? 1);
+    setFormValue(form, "unit", item.unit);
+    setFormValue(form, "needed_by_date", item.needed_by_date);
+    setFormValue(form, "assigned_user_id", item.assigned_user_id);
+    setFormValue(form, "catalog_item_id", item.catalog_item_id);
+    setFormValue(form, "purchase_status", item.purchase_status || "needed");
+    setFormValue(form, "vendor_name", item.vendor_name);
+    setFormValue(form, "url", item.url);
+    setFormValue(form, "estimated_cost", item.estimated_cost);
+    setFormValue(form, "actual_cost", item.actual_cost);
+    setFormValue(form, "tracking_id", item.tracking_id);
+    setFormValue(form, "notes", item.notes);
+    setFormValue(form, "save_to_catalog", "");
+  }
+
+  /** The suggestion columns `list_item_catalog` declares nullable and the picker reads as text. */
+  const SUGGESTION_NULLABLE_COLUMNS = Object.freeze(["notes", "unit", "url", "vendor_name"]);
+
+  /**
+   * A count the catalogue guarantees is a finite number at or above zero.
+   *
+   * `quantity` and `use_count` are both `NOT NULL` with `CHECK (>= 0)`, and `estimated_cost`
+   * carries the same check when it is not null. `Number.isFinite` rather than `typeof` because a
+   * `NaN` reaching a quantity field would autofill an unusable value.
+   * @param {unknown} value
+   * @returns {value is number}
+   */
+  function isCatalogAmount(value) {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  }
+
+  /**
+   * One catalog suggestion, in the nine members this picker reads.
+   *
+   * **A structural minimum over an extensible record.** `shapeCatalogItemForBrowser` answers
+   * `{ ...item, id }`, so the suggestion carries every catalogue column and whatever it grows
+   * next. Promising more than the picker reads would make this page the owner of the catalogue's
+   * persistence shape; promising less would let an unusable candidate into a form.
+   * @param {unknown} value
+   * @returns {value is BrowserListItemSuggestion}
+   */
+  function isItemSuggestion(value) {
+    return isResponseRecord(value)
+      && typeof value.catalog_item_id === "string"
+      && value.catalog_item_id !== ""
+      && typeof value.item_name === "string"
+      && value.item_name !== ""
+      && isCatalogAmount(value.quantity)
+      && isCatalogAmount(value.use_count)
+      && (value.estimated_cost === null || isCatalogAmount(value.estimated_cost))
+      && hasListNullableText(value, SUGGESTION_NULLABLE_COLUMNS);
+  }
+
+  /**
+   * The usable suggestions of an item-suggestions body, or `null` when it is not one.
+   *
+   * **The envelope and the element are judged differently, and deliberately.** A missing or
+   * non-array `suggestions` means the body is not one this producer sent, and there is nothing
+   * to show; a single malformed suggestion is one unusable candidate among usable ones.
+   *
+   * Suggestions are advisory - a shortcut for filling a form the viewer can fill by hand - so
+   * dropping a candidate costs a convenience, not an account of anything. That is why this
+   * differs from an authoritative list, where a short answer presented as a complete one is the
+   * misleading outcome. What must not happen is a malformed candidate reaching the datalist, the
+   * autofill or the `catalog_item_id` the form submits, and refusing per element is what prevents
+   * that while leaving the usable ones usable.
+   *
+   * **The producer's own objects are answered, not rebuilt**, so the `id` alias, the list-type
+   * and context columns, the usage metadata and anything the catalogue adds later all survive.
+   * @param {unknown} body
+   * @returns {BrowserListItemSuggestion[] | null}
+   */
+  function readItemSuggestions(body) {
+    if (!isResponseRecord(body) || !Array.isArray(body.suggestions)) {
+      return null;
+    }
+
+    return /** @type {BrowserListItemSuggestion[]} */ (body.suggestions.filter(isItemSuggestion));
+  }
+
+  /** @param {BrowserNormalizedListRecord | null} [list] */
+  async function loadItemSuggestions(list) {
+    const api = requireApi();
+    if (!list?.list_id) {
+      return [];
+    }
+
+    const params = new URLSearchParams({
+      limit: "12",
+      listId: list.list_id,
+    });
+    try {
+      const suggestions = readItemSuggestions(await api.getJson(`/api/lists/item-suggestions?${params}`, { cache: "no-store" }));
+
+      if (!suggestions) {
+        throw new Error("The item suggestions could not be read.");
+      }
+
+      state.itemSuggestions.set(list.list_id, suggestions);
+      return suggestions;
+    } catch {
+      state.itemSuggestions.set(list.list_id, []);
+      return [];
+    }
+  }
+
+  /**
+   * Refill the item-name datalist for one list's cached suggestions.
+   * @param {Element} container @param {BrowserNormalizedListRecord | null} [list]
+   */
+  function updateSuggestionDatalist(container, list) {
+    const dataList = container.querySelector("[data-list-item-suggestions]");
+    if (!dataList) {
+      return;
+    }
+
+    dataList.replaceChildren(...itemSuggestionsForList(list).map((suggestion) => {
+      const entry = option(suggestion.item_name, suggestionLabel(suggestion));
+      entry.dataset.catalogItemId = suggestion.catalog_item_id;
+      return entry;
+    }));
+  }
+
+  /**
+   * One catalog suggestion, as the page holds it.
+   *
+   * The cache now derives its rows from `readItemSuggestions`. This smaller consumer vocabulary
+   * describes only the members passed to `setFormValue`; it adds no validation or cache writes.
+   * `item_name` remains text-or-absent in this consumer because the match lowercases it.
+   * @typedef {{
+   *   catalog_item_id?: unknown, estimated_cost?: unknown, item_name?: string,
+   *   notes?: unknown, quantity?: unknown, unit?: unknown, url?: unknown, vendor_name?: unknown
+   * }} ListItemSuggestion
+   *
+   * `form` is nullable because the caller reads it off an input, and the DOM types that member
+   * `HTMLFormElement | null` for an input that is not inside a form.
+   * @param {HTMLFormElement | null} form @param {BrowserNormalizedListRecord | null} list
+   * @param {unknown} value
+   */
+  function applySuggestionSelection(form, list, value) {
+    const suggestion = itemSuggestionsForList(list).find((/** @type {ListItemSuggestion} */ entry) => (
+      (entry.item_name || "").toLowerCase() === String(value || "").trim().toLowerCase()
+    ));
+
+    setFormValue(form, "catalog_item_id", suggestion?.catalog_item_id || "");
+    if (!suggestion) {
+      return;
+    }
+
+    setFormValue(form, "quantity", suggestion.quantity ?? 1);
+    setFormValue(form, "unit", suggestion.unit || "");
+    setFormValue(form, "vendor_name", suggestion.vendor_name || "");
+    setFormValue(form, "url", suggestion.url || "");
+    setFormValue(form, "estimated_cost", suggestion.estimated_cost ?? "");
+    setFormValue(form, "notes", suggestion.notes || "");
+  }
+
+  /** @param {BrowserNormalizedListRecord | null} [list] */
+  function itemSuggestionsForList(list) {
+    return state.itemSuggestions.get(list?.list_id) || [];
+  }
+
+  /** @param {ListItemSuggestion & { use_count?: unknown }} suggestion */
+  function suggestionLabel(suggestion) {
+    const pieces = [
+      [suggestion.quantity ?? "", suggestion.unit || ""].filter(Boolean).join(" "),
+      suggestion.vendor_name || "",
+      suggestion.use_count ? `used ${suggestion.use_count}` : "",
+    ].filter(Boolean);
+
+    return pieces.length > 0 ? `${suggestion.item_name} - ${pieces.join(" / ")}` : suggestion.item_name;
+  }
+
+  /**
+   * One snake_case or kebab-case token as title-cased words.
+   * @param {unknown} value
+   */
+  function formatToken(value) {
+    return String(value || "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewLinkedContextPickerParts} BrowserViewLinkedContextPickerParts */
+
+  /**
+   * The link picker's parts, from the framework's own record of the picker it built
+   * (`0.33.33.38.3.11`). `Partial`, because an absent or unrecognised picker answers `{}` as it
+   * always did, and every caller already guards or optionally calls each member.
+   * @returns {Partial<BrowserViewLinkedContextPickerParts>}
+   */
+  function listEditorPickerParts() {
+    return (listLinkPicker && requireView().partsOf(listLinkPicker, "linkedContextPicker")) || {};
+  }
+
+  /**
+   * Validated wire providers or the page's three-member fallback, kept distinct.
+   * The source projection admits absent provider identifiers because the fallback has none;
+   * it does not populate them or change the published wire contract. The legacy provider read
+   * remains optional, including inherited values, in the same fallback order.
+   * @typedef {Pick<BrowserListLinkTargetProvider, "label" | "moduleId" | "targetType">
+   *   & Partial<Pick<BrowserListLinkTargetProvider, "id" | "providerId">>
+   *   & { provider?: string }} ListPickerProvider
+   * @param {BrowserListLinkTargetProvider[]} [providers]
+   */
+  function listLinkProviderOptions(providers = []) {
+    /** @type {ListPickerProvider[]} */
+    const source = providers.length > 0
+      ? providers
+      : LIST_LINK_TARGET_ORDER.map((targetType) => ({
+          label: LIST_LINK_TYPE_LABELS[targetType],
+          moduleId: moduleIdForListLinkTarget(targetType),
+          targetType,
+        }));
+    const providersByType = new Map(source.map((provider) => [provider.targetType, provider]));
+
+    return LIST_LINK_TARGET_ORDER
+      .filter((targetType) => targetType !== "client" || usesBusinessScope())
+      .map((targetType) => providersByType.get(targetType))
+      .filter((provider) => provider !== undefined)
+      .map((provider) => ({
+        label: provider.label || LIST_LINK_TYPE_LABELS[provider.targetType] || formatToken(provider.targetType),
+        moduleId: provider.moduleId || moduleIdForListLinkTarget(provider.targetType),
+        providerId: provider.providerId || provider.provider || provider.id || "",
+        targetType: provider.targetType,
+        value: provider.targetType,
+      }));
+  }
+
+  /**
+   * The module a linked target belongs to, or `""` for a type with no module.
+   * @param {string} [targetType]
+   */
+  function moduleIdForListLinkTarget(targetType = "") {
+    /** @type {Record<string, string>} */
+    const modulesByTargetType = {
+      client: "client-projects",
+      note: "notes",
+      project: "client-projects",
+      task: "tasks",
+    };
+    return modulesByTargetType[targetType] || "";
+  }
+
+  function queueListEditorLinkTargetSearch() {
+    window.clearTimeout(state.linkTargetSearchTimer ?? undefined);
+    state.linkTargetSearchTimer = window.setTimeout(() => loadListEditorLinkTargets(), 180);
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTargetType} BrowserListLinkTargetType */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTargetProvider} BrowserListLinkTargetProvider */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTarget} BrowserListLinkTarget */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTargetsEnvelope} BrowserListLinkTargetsEnvelope */
+
+  /**
+   * The four types `LIST_LINK_TARGET_TYPES` admits before a provider can be advertised.
+   * @type {readonly BrowserListLinkTargetType[]}
+   */
+  const LIST_LINK_TARGET_TYPES = Object.freeze(["client", "note", "project", "task"]);
+
+  /** The five members the provider projection names. */
+  const LINK_PROVIDER_MEMBERS = Object.freeze(["id", "label", "moduleId", "providerId"]);
+
+  /** The members the shared contract refuses unless they are present and non-empty. */
+  const LINK_TARGET_REQUIRED_TEXT = Object.freeze([
+    "displayLabel", "moduleId", "sortKey", "targetId", "workspaceId",
+  ]);
+
+  /** The members it reconstructs but allows to be empty. */
+  const LINK_TARGET_OPTIONAL_TEXT = Object.freeze([
+    "clientId", "projectId", "secondaryLabel", "sourceUrl",
+  ]);
+
+  /** The three labels Lists names on top of the reconstruction. */
+  const LINK_TARGET_LIST_LABELS = Object.freeze(["ariaLabel", "fullLabel", "title"]);
+
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isLinkTargetRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One advertised provider, or `null` when it cannot be vouched for.
+   * @param {unknown} entry
+   * @returns {BrowserListLinkTargetProvider | null}
+   */
+  function readLinkTargetProvider(entry) {
+    if (!isLinkTargetRecord(entry)) {
+      return null;
+    }
+    const targetType = LIST_LINK_TARGET_TYPES.find((word) => word === entry.targetType);
+    if (!targetType || !LINK_PROVIDER_MEMBERS.every((key) => typeof entry[key] === "string" && entry[key] !== "")) {
+      return null;
+    }
+    return {
+      id: String(entry.id),
+      label: String(entry.label),
+      moduleId: String(entry.moduleId),
+      providerId: String(entry.providerId),
+      targetType,
+    };
+  }
+
+  /**
+   * The hint map, or `null` when it is present and unreadable.
+   *
+   * Absent is a real answer - the shared contract only builds hints when the raw target carried
+   * them - so `undefined` is returned for a target that simply has none.
+   * @param {unknown} value
+   * @returns {Record<string, string> | null | undefined}
+   */
+  function readPrimaryContextHints(value) {
+    if (value === undefined) {
+      return undefined;
+    }
+    if (!isLinkTargetRecord(value)) {
+      return null;
+    }
+    /** @type {Record<string, string>} */
+    const hints = {};
+    for (const [key, hint] of Object.entries(value)) {
+      if (typeof hint !== "string") {
+        return null;
+      }
+      hints[key] = hint;
+    }
+    return hints;
+  }
+
+  /**
+   * One linked-context target, or `null` when it cannot be vouched for.
+   *
+   * Every member the contract claims is checked, including the four the server allows to be
+   * empty and the hint values it requires to be text. The two safe labels are checked as
+   * non-empty text here; what makes them *safe* is the server contract that refused a raw
+   * identifier or an echoed id, which this reader relies on rather than re-implements.
+   * @param {unknown} entry
+   * @returns {BrowserListLinkTarget | null}
+   */
+  function readListLinkTarget(entry) {
+    if (!isLinkTargetRecord(entry)) {
+      return null;
+    }
+    const targetType = LIST_LINK_TARGET_TYPES.find((word) => word === entry.targetType);
+    const hints = readPrimaryContextHints(entry.primaryContextHints);
+    if (!targetType || hints === null
+      || typeof entry.isAvailable !== "boolean"
+      || !LINK_TARGET_REQUIRED_TEXT.every((key) => typeof entry[key] === "string" && entry[key] !== "")
+      || !LINK_TARGET_LIST_LABELS.every((key) => typeof entry[key] === "string" && entry[key] !== "")
+      || !LINK_TARGET_OPTIONAL_TEXT.every((key) => typeof entry[key] === "string")) {
+      return null;
+    }
+    /** @type {BrowserListLinkTarget} */
+    const target = {
+      ariaLabel: String(entry.ariaLabel),
+      clientId: String(entry.clientId),
+      displayLabel: String(entry.displayLabel),
+      fullLabel: String(entry.fullLabel),
+      isAvailable: entry.isAvailable,
+      moduleId: String(entry.moduleId),
+      projectId: String(entry.projectId),
+      secondaryLabel: String(entry.secondaryLabel),
+      sortKey: String(entry.sortKey),
+      sourceUrl: String(entry.sourceUrl),
+      targetId: String(entry.targetId),
+      targetType,
+      title: String(entry.title),
+      workspaceId: String(entry.workspaceId),
+    };
+    if (hints !== undefined) {
+      target.primaryContextHints = hints;
+    }
+    return target;
+  }
+
+  /**
+   * What the link-target route answered, or `null` when it cannot be vouched for.
+   *
+   * **The provider catalogue is refused rather than filtered, and an empty one is refused too.**
+   * The page's own `listLinkProviderOptions` falls back to a locally ordered set of choices when
+   * it is handed nothing, which predates this boundary - so a body this browser cannot read must
+   * not reach it, or the picker would advertise link types the server never said were available.
+   * The service cannot answer a success with no provider, so an empty list did not come from it.
+   *
+   * Targets are refused whole for a different reason: every target the producer emits has
+   * already passed the shared linked-context contract, so a malformed one is not an unusable
+   * candidate to drop, it is evidence the body is not this producer's. Filtering would also let
+   * a broken response arrive as "nothing matched your search", which is a specific claim.
+   * @param {unknown} body
+   * @returns {BrowserListLinkTargetsEnvelope | null}
+   */
+  function readListLinkTargetsEnvelope(body) {
+    if (!isLinkTargetRecord(body) || !Array.isArray(body.providers) || !Array.isArray(body.targets)) {
+      return null;
+    }
+    /** @type {BrowserListLinkTargetProvider[]} */
+    const providers = [];
+    for (const entry of body.providers) {
+      const provider = readLinkTargetProvider(entry);
+      if (!provider) {
+        return null;
+      }
+      providers.push(provider);
+    }
+    if (providers.length === 0) {
+      return null;
+    }
+    /** @type {BrowserListLinkTarget[]} */
+    const targets = [];
+    for (const entry of body.targets) {
+      const target = readListLinkTarget(entry);
+      if (!target) {
+        return null;
+      }
+      targets.push(target);
+    }
+    return { providers, targets };
+  }
+
+  async function loadListEditorLinkTargets() {
+    const api = requireApi();
+    const parts = listEditorPickerParts();
+    const targetType = listLinkTargetTypeInput?.value || "task";
+    if (!parts.setRecords || !canManageListLinks()) {
+      parts.setRecords?.([]);
+      return;
+    }
+
+    requireListsHandle(listLinkResultsInput, "linked record results control").disabled = true;
+    requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = true;
+    parts.setRecords([{ targetId: "", displayLabel: "Loading records...", disabled: true }]);
+
+    const params = new URLSearchParams({
+      limit: "40",
+      targetType,
+    });
+    if (listLinkSearchInput?.value.trim()) {
+      params.set("q", listLinkSearchInput.value.trim());
+    }
+
+    try {
+      const envelope = readListLinkTargetsEnvelope(
+        await api.getJson(`/api/lists/link-targets?${params.toString()}`, { cache: "no-store" }),
+      );
+      if (!envelope) {
+        throw new Error("Linked target options could not be read.");
+      }
+      const providerOptions = listLinkProviderOptions(envelope.providers);
+      parts.setTargets?.(providerOptions);
+      if (listLinkTargetTypeInput) {
+        listLinkTargetTypeInput.value = providerOptions.some((provider) => provider.targetType === targetType)
+          ? targetType
+          : providerOptions[0]?.targetType || "";
+      }
+      state.linkTargets = envelope.targets;
+      parts.setRecords(state.linkTargets);
+      requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = state.linkTargets.length === 0;
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
+    } catch (error) {
+      state.linkTargets = [];
+      parts.setRecords([]);
+      requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = true;
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "Linked records could not be loaded.");
+    } finally {
+      requireListsHandle(listLinkResultsInput, "linked record results control").disabled = false;
+    }
+  }
+
+  function selectedListEditorLinkTarget() {
+    const targetId = listLinkResultsInput?.value || "";
+    const targetType = listLinkTargetTypeInput?.value || "";
+    return state.linkTargets.find((target) => target.targetId === targetId && target.targetType === targetType) || null;
+  }
+
+  async function applyListEditorLinkTarget() {
+    const api = requireApi();
+    const target = selectedListEditorLinkTarget();
+    if (!target?.targetType || !target.targetId || listEditorHasLinkTarget(target)) {
+      requireListsHandle(listFormStatus, "list form status").textContent = target ? "Linked record is already added." : "Choose a linked record first.";
+      return;
+    }
+
+    if (!state.editingListId) {
+      state.editorStagedTargets = [...state.editorStagedTargets, target];
+      renderListEditorLinkedItems();
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
+      return;
+    }
+
+    requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = true;
+    requireListsHandle(listFormStatus, "list form status").textContent = "Adding linked record...";
+    try {
+      await api.postJson(`/api/lists/${encodeURIComponent(`${state.editingListId}`)}/links`, listLinkPayload(target));
+      await refreshListEditor(state.editingListId);
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
+    } catch (error) {
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "Linked record could not be added.");
+    } finally {
+      requireListsHandle(listLinkApplyButton, "linked record apply button").disabled = false;
+    }
+  }
+
+  /**
+   * One linked-context row, as the shared picker hands it back.
+   *
+   * A saved row carries `link`, the wire link it was built from; a staged row carries `target`,
+   * the target still waiting on a list that does not exist yet. Exactly one is present, and the
+   * two branches below are how this reader tells them apart.
+   * @typedef {Partial<BrowserListLink> & { id?: string }} ListSavedLink
+   * @param {{ link?: ListSavedLink, target?: ListLinkComparable }} [item]
+   */
+  function handleListEditorLinkedContextRemove(item = {}) {
+    if (item.link) {
+      void removeListEditorLink(item.link);
+      return;
+    }
+    if (item.target) {
+      state.editorStagedTargets = state.editorStagedTargets.filter((target) => !sameListLinkTarget(target, item.target));
+      renderListEditorLinkedItems();
+    }
+  }
+
+  /**
+   * The saved link to remove, in either identifier spelling.
+   *
+   * `list_link_id` is what the wire link carries and `id` is what `normalizeListRecord` writes on
+   * its way past, so both reach this. **Both are text rather than `unknown`, and the contract is
+   * why**: `BrowserListLink.list_link_id` is a required string, the `id` beside it is copied from
+   * it, and the identifier goes straight into `encodeURIComponent`. `Partial` is earned by the
+   * `{}` default, not by any doubt about the members.
+   * @param {ListSavedLink} [link]
+   */
+  async function removeListEditorLink(link = {}) {
+    const api = requireApi();
+    const linkId = link.list_link_id || link.id || "";
+    if (!state.editingListId || !linkId) {
+      return;
+    }
+
+    requireListsHandle(listFormStatus, "list form status").textContent = "Removing linked record...";
+    try {
+      await api.postJson(`/api/lists/${encodeURIComponent(`${state.editingListId}`)}/links/${encodeURIComponent(linkId)}/remove`, {});
+      await refreshListEditor(state.editingListId);
+      requireListsHandle(listFormStatus, "list form status").textContent = "";
+    } catch (error) {
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "Linked record could not be removed.");
+    }
+  }
+
+  /**
+   * A link as either side of the identity test may hold it.
+   *
+   * Both published shapes reach this: a saved `BrowserListLink`, which spells the pair
+   * `target_type`/`target_id`, and a staged `BrowserListLinkTarget`, which spells it
+   * `targetType`/`targetId`. The nested `target` is the third case and appears on **no** List
+   * contract - the wire link carries it, the shaper does not declare it - so it is described here
+   * as tolerated rather than claimed. Every member is `unknown`: the comparison falls each one
+   * through `||` to `""` before testing it, and converts nothing.
+   * @typedef {{
+   *   targetId?: unknown, target_id?: unknown,
+   *   targetType?: unknown, target_type?: unknown,
+   *   target?: { target_id?: unknown, target_type?: unknown } | null
+   * }} ListLinkComparable
+   */
+
+  /** @param {ListLinkComparable} [target] */
+  function listEditorHasLinkTarget(target = {}) {
+    return [
+      ...listEditorValues(listEditorField(state.editorList, "links", true) || []),
+      ...state.editorStagedTargets,
+    ].some((entry) => sameListLinkTarget(entry, target));
+  }
+
+  /** @param {unknown} [left] @param {unknown} [right] */
+  function sameListLinkTarget(left = {}, right = {}) {
+    const leftType = listEditorField(left, "targetType") || listEditorField(left, "target_type") || listEditorField(listEditorField(left, "target"), "target_type", true) || "";
+    const rightType = listEditorField(right, "targetType") || listEditorField(right, "target_type") || listEditorField(listEditorField(right, "target"), "target_type", true) || "";
+    const leftId = listEditorField(left, "targetId") || listEditorField(left, "target_id") || listEditorField(listEditorField(left, "target"), "target_id", true) || "";
+    const rightId = listEditorField(right, "targetId") || listEditorField(right, "target_id") || listEditorField(listEditorField(right, "target"), "target_id", true) || "";
+    return leftType === rightType && leftId === rightId;
+  }
+
+  /**
+   * The link-creation payload for one picker target.
+   *
+   * `Partial` is earned by the `{}` default rather than by the callers: both hand this a
+   * `BrowserListLinkTarget` - one from the guarded picker selection, one from the staged list -
+   * so every member is present in practice and none is claimed to be.
+   * @param {Partial<BrowserListLinkTarget>} [target]
+   */
+  function listLinkPayload(target = {}) {
+    return {
+      moduleId: target.moduleId || moduleIdForListLinkTarget(target.targetType),
+      targetId: target.targetId,
+      targetType: target.targetType,
+    };
+  }
+
+  function renderListEditorLinkedItems() {
+    const parts = listEditorPickerParts();
+    const removable = canManageListLinks();
+    const savedItems = callListEditorMember(listEditorContextItems(state.editorList || {}), "map", [(/** @type {unknown} */ item, /** @type {unknown} */ index) => ({
+      ...Object(item),
+      link: listEditorIndex(listEditorField(state.editorList, "links", true), index),
+      removable,
+    })]);
+    const stagedItems = state.editorStagedTargets.map((target) => ({
+      ...target,
+      displayLabel: target.displayLabel || unavailableLinkedRecordLabel(target.targetType),
+      removable,
+      target,
+    }));
+    parts.setLinkedItems?.([...listEditorValues(savedItems), ...stagedItems]);
+  }
+
+  /** @param {unknown} listId */
+  async function refreshListEditor(listId) {
+    const list = await loadListDetail(listId);
+    if (!list) {
+      throw new Error("List could not be refreshed.");
+    }
+    state.editorList = list;
+    const index = state.lists.findIndex((entry) => entry.list_id === listId);
+    if (index >= 0) {
+      state.lists.splice(index, 1, list);
+      renderLists();
+    }
+    if (state.selectedListId === listId) {
+      renderDetail(list);
+    }
+    renderListEditorLinkedItems();
+    return list;
+  }
+
+  /** @param {unknown} [list] */
+  function configureListEditorPicker(list = null) {
+    const parts = listEditorPickerParts();
+    state.linkTargets = [];
+    state.editorStagedTargets = [];
+    parts.setTargets?.(listLinkProviderOptions());
+    if (listLinkTargetTypeInput) {
+      listLinkTargetTypeInput.value = "task";
+    }
+    if (listLinkSearchInput) {
+      listLinkSearchInput.value = "";
+    }
+    parts.setRecords?.([]);
+    parts.setReadonly?.(!canManageListLinks(list));
+    renderListEditorLinkedItems();
+    if (canManageListLinks(list)) {
+      void loadListEditorLinkTargets();
+    }
+  }
+
+  /**
+   * A draft has no status, and a record whose status is not text never matched one of the three
+   * anyway - so the added `typeof` test answers exactly what `includes` already answered.
+   * @param {unknown} [list]
+   */
+  function canManageListLinks(list = state.editorList) {
+    return !(list && typeof listEditorField(list, "status") === "string" && isListEditorClosedStatus(listEditorField(list, "status")));
+  }
+
+  /**
+   * `null` opens the editor on an unsaved draft, which is a real entry point rather than an
+   * absence to guard against.
+   * `options` is the dialog's own bag rather than a published shape.
+   *
+   * **`0.33.33.43.23` deferred this and `0.33.33.43.30` discharged it.** The obstacle was the
+   * seeded `defaults`, whose members were `{}` because the module-action bag is published
+   * `unknown`; naming the bag then turned one diagnostic into five, because the local's reads
+   * reach two option populators that require text. The defaults reader now answers text, so the
+   * shape it produces is the shape this declares.
+   * @param {unknown} [list]
+   * @param {{
+   *   defaults?: ReturnType<typeof normalizeListEditorDefaults>,
+   *   hostContext?: ListDialogHostContext | null,
+   *   trigger?: unknown
+   * }} [options]
+   */
+  function openListDialog(list = null, options = {}) {
+    const view = requireView();
+    // `Partial`, because the `|| {}` is the draft case: a dialog opened without seeded defaults
+    // reads every member as absent and falls through to the record's own value or `""`. This is
+    // what `0.33.33.43.23` could not write, because the members were `{}` rather than text.
+    /** @type {Partial<ReturnType<typeof normalizeListEditorDefaults>>} */
+    const defaults = options.defaults || {};
+    state.editingListId = listEditorField(list, "list_id", true) || "";
+    state.editorList = list;
+    state.listDialogHostContext = options.hostContext || null;
+    state.listDialogHostContextSettled = false;
+    requireListsHandle(listDialogTitle, "list dialog title").textContent = list ? "Edit List" : "Create List";
+    requireListsHandle(listTitleInput, "list title control").value = `${listEditorField(list, "title", true) || defaults.title || ""}`;
+    requireListsHandle(listDescriptionInput, "list description control").value = `${listEditorField(list, "description", true) || defaults.description || ""}`;
+    requireListsHandle(listTypeInput, "list type control").value = `${listEditorField(list, "list_type", true) || defaults.list_type || defaultListType()}`;
+    setContextControlsVisible(shouldShowContextControls(requireListsHandle(listTypeInput, "list type control").value));
+    populateClientOptions(listEditorField(list, "client_id", true) || defaults.client_id || "");
+    populateProjectOptions(listProjectInput, listEditorField(list, "client_id", true) || defaults.client_id || "", listEditorField(list, "project_id", true) || defaults.project_id || "");
+    requireListsHandle(listFormStatus, "list form status").textContent = "";
+    requireListsHandle(listSaveButton, "list save button").textContent = list ? "Save List" : "Create List";
+    configureListEditorPicker(list);
+    const openDialog = listDialog;
+    const closeResult = new Promise((resolve) => {
+      openDialog?.addEventListener("close", () => resolve(openDialog.returnValue || "closed"), { once: true });
+    });
+    view.showModal(listDialog, { trigger: options.trigger || null });
+    requireListsHandle(listTitleInput, "list title control").focus();
+    return closeResult;
+  }
+
+  /**
+   * `cancelHost` reports the cancellation to a module action that opened this; `returnValue` is
+   * what the dialog's close promise resolves with.
+   * @param {{ cancelHost?: unknown, returnValue?: string }} [options]
+   */
+  function closeListDialog(options = {}) {
+    const view = requireView();
+    if (options.cancelHost) {
+      cancelListDialogHostContext({
+        actionId: state.editingListId ? "lists.edit" : "lists.add",
+        recordId: state.editingListId || "",
+      });
+    }
+    view.closeModal(listDialog, options.returnValue || "");
+  }
+
+  function cancelListDialog() {
+    closeListDialog({ cancelHost: true, returnValue: "cancel" });
+  }
+
+  function handleListDialogClose() {
     cancelListDialogHostContext({
       actionId: state.editingListId ? "lists.edit" : "lists.add",
       recordId: state.editingListId || "",
     });
   }
-  view.closeModal(listDialog, options.returnValue || "");
-}
 
-function cancelListDialog() {
-  closeListDialog({ cancelHost: true, returnValue: "cancel" });
-}
-
-function handleListDialogClose() {
-  cancelListDialogHostContext({
-    actionId: state.editingListId ? "lists.edit" : "lists.add",
-    recordId: state.editingListId || "",
-  });
-}
-
-function completeListDialogHostContext(detail = {}) {
-  if (!state.listDialogHostContext || state.listDialogHostContextSettled) {
-    return;
-  }
-
-  state.listDialogHostContextSettled = true;
-  state.listDialogHostContext.complete?.(detail);
-  state.listDialogHostContext = null;
-}
-
-function cancelListDialogHostContext(detail = {}) {
-  if (!state.listDialogHostContext || state.listDialogHostContextSettled) {
-    return;
-  }
-
-  state.listDialogHostContextSettled = true;
-  state.listDialogHostContext.cancel?.(detail);
-  state.listDialogHostContext = null;
-}
-
-async function saveList(event) {
-  event.preventDefault();
-  const payload = {
-    client_id: usesBusinessScope() ? listClientInput.value : "",
-    description: listDescriptionInput.value,
-    list_type: listTypeInput.value,
-    project_id: listProjectInput.value,
-    title: listTitleInput.value,
-  };
-  const wasEditing = Boolean(state.editingListId);
-  let savedListId = state.editingListId || "";
-  let createdDuringSave = false;
-
-  try {
-    listSaveButton.disabled = true;
-    listFormStatus.textContent = "Saving...";
-    if (state.editingListId) {
-      await api.putJson(`/api/lists/${encodeURIComponent(state.editingListId)}`, payload);
-    } else {
-      const result = await api.postJson("/api/lists", payload);
-      savedListId = result.list?.list_id || "";
-      createdDuringSave = Boolean(savedListId);
-      state.editingListId = savedListId;
-      state.editorList = normalizeListRecord(result.list, [], []);
-      state.selectedListId = savedListId || state.selectedListId;
-    }
-    for (const target of state.editorStagedTargets) {
-      await api.postJson(`/api/lists/${encodeURIComponent(savedListId)}/links`, listLinkPayload(target));
-    }
-    state.editorStagedTargets = [];
-    if (typeof state.listDialogHostContext?.refresh === "function") {
-      await state.listDialogHostContext.refresh({ list: { ...payload, list_id: savedListId } });
-    }
-    completeListDialogHostContext({
-      actionId: wasEditing ? "lists.edit" : "lists.add",
-      recordId: savedListId,
-      title: payload.title || "",
-    });
-    closeListDialog({ returnValue: "complete" });
-    if (isListsWorkspaceSurface) {
-      await refreshLists(state.selectedListId);
-    }
-    setStatus("");
-  } catch (error) {
-    listFormStatus.textContent = error.message || "List could not be saved.";
-    if (createdDuringSave && savedListId) {
-      listDialogTitle.textContent = "Edit List";
-      listSaveButton.textContent = "Save List";
-      try {
-        await refreshListEditor(savedListId);
-      } catch {
-        // Preserve the original save/link error; the normal page refresh can recover the created list.
-      }
-    }
-  } finally {
-    listSaveButton.disabled = false;
-  }
-}
-
-async function refreshLists(selectedId = state.selectedListId) {
-  setStatus("Loading lists...");
-  await loadLists();
-  state.selectedListId = selectedId || state.selectedListId;
-  renderLists();
-  setStatus("");
-}
-
-function populateClientOptions(selectedClientId = "") {
-  replaceOptions(listClientInput, [
-    option("", "Workspace"),
-    ...state.clients.filter((client) => !client.isWorkspaceScope).map((client) => option(client.id, client.optionLabel || client.name)),
-  ]);
-  listClientInput.value = selectedClientId || "";
-}
-
-function populateProjectOptions(select, selectedClientId = "all", selectedProjectId = "") {
-  const projects = allProjects().filter((project) => {
-    if (!usesBusinessScope()) {
-      return true;
-    }
-    if (!selectedClientId || selectedClientId === "all") {
-      return true;
-    }
-    return (project.client_id || "") === selectedClientId;
-  });
-
-  replaceOptions(select, [
-    option("", "No project"),
-    ...projects.map((project) => option(project.id, project.optionLabel || project.name)),
-  ]);
-  select.value = projects.some((project) => project.id === selectedProjectId) ? selectedProjectId : "";
-}
-
-function syncClientFromProject() {
-  const project = allProjects().find((entry) => entry.id === listProjectInput.value);
-  if (project?.client_id && listClientInput) {
-    listClientInput.value = project.client_id;
-  }
-}
-
-function setBusinessControlsVisible(visible) {
-  document.querySelectorAll("[data-list-business-control]").forEach((element) => {
-    element.hidden = !visible;
-  });
-}
-
-function setContextControlsVisible(visible) {
-  document.querySelectorAll("[data-list-context-control]").forEach((element) => {
-    element.hidden = !visible;
-  });
-}
-
-function shouldShowContextControls(listType = defaultListType()) {
-  return !usesBusinessScope() || ["procurement", "parts", "supplies", "bill_of_materials"].includes(listType);
-}
-
-function normalizeListRecord(list = {}, items = [], links = []) {
-  const normalizedItems = items.map((item) => ({ ...item, id: item.list_item_id || item.id }));
-  const progress = normalizeListProgress(list.progress, normalizedItems);
-  const normalizedLinks = links.map((link) => ({ ...link, id: link.list_link_id || link.id }));
-  const resumeContext = list.resumeContext || list.resume_context || {};
-
-  return {
-    ...list,
-    id: list.list_id || list.id,
-    isBillOfMaterials: Boolean(list.isBillOfMaterials || list.list_type === "bill_of_materials"),
-    is_reusable: Boolean(list.is_reusable ?? list.isReusable),
-    items: normalizedItems,
-    links: normalizedLinks,
-    list_id: list.list_id || list.id,
-    progress,
-    resumeContext: {
-      ...resumeContext,
-      progress: resumeContext.progress || progress,
-      sourceUrl: resumeContext.sourceUrl || resumeContext.source_url || `lists.html?list=${encodeURIComponent(list.list_id || list.id || "")}`,
-    },
-    sourceContext: list.sourceContext || list.source_context || { duplicatedFrom: null, sourceList: null },
-  };
-}
-
-function normalizeListProgress(progress = {}, items = []) {
-  const visible = items.filter((item) => !item.deleted_at);
-  const checkedCount = visible.filter((item) => item.checked_at).length;
-  const completedCount = visible.filter((item) => item.completed_at).length;
-  const nextUnchecked = visible
-    .slice()
-    .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
-    .find((item) => !item.checked_at && !item.completed_at);
-
-  return {
-    assignedUserIds: progress.assignedUserIds || progress.assigned_user_ids || [],
-    checkedItemCount: Number(progress.checkedItemCount ?? progress.checked_item_count ?? checkedCount),
-    completedItemCount: Number(progress.completedItemCount ?? progress.completed_item_count ?? completedCount),
-    earliestNeededByDate: progress.earliestNeededByDate || progress.earliest_needed_by_date || nextNeededDateFromItems(visible) || null,
-    incompleteItemCount: Number(progress.incompleteItemCount ?? progress.incomplete_item_count ?? visible.filter((item) => !item.checked_at && !item.completed_at).length),
-    lastActivityAt: progress.lastActivityAt || progress.last_activity_at || "",
-    neededByDates: progress.neededByDates || progress.needed_by_dates || [],
-    nextUncheckedItemLabel: progress.nextUncheckedItemLabel || progress.next_unchecked_item_label || nextUnchecked?.item_name || "",
-    totalItemCount: Number(progress.totalItemCount ?? progress.total_item_count ?? visible.length),
-    unassignedItemCount: Number(progress.unassignedItemCount ?? progress.unassigned_item_count ?? visible.filter((item) => !item.assigned_user_id).length),
-  };
-}
-
-function renderListPlaceholder(message) {
-  const placeholder = view.createElement("p", {
-    className: "view-index-list-empty",
-    text: message,
-    attrs: { role: "status", "aria-live": "polite" },
-  });
-  listMount.replaceChildren(placeholder);
-}
-
-function emptyListMessage() {
-  if (reusableFilter?.value === "yes") {
-    return "No reusable lists match the current filters. Create a reusable checklist so routine work does not have to be rebuilt from memory.";
-  }
-  if (archiveFilter?.value === "archived") {
-    return "No archived lists match the current filters.";
-  }
-  if (archiveFilter?.value === "deleted") {
-    return "No deleted lists match the current filters.";
-  }
-  return "No lists match the current filters. Create a list or adjust filters to resume work.";
-}
-
-function renderDetailPrompt(message) {
-  const prompt = view.createEmptyState({
-    message,
-    className: "lists-empty-state",
-    headingLevel: 2,
-  });
-  prompt.dataset.listNextAction = "";
-  detailPanel.replaceChildren(prompt);
-}
-
-function actionButton(label, action, listId, variant = "", options = {}) {
-  const button = view.createActionButton({
-    label,
-    text: options.icon ? "" : undefined,
-    role: variant === "secondary" ? "secondary" : "",
-    disabled: Boolean(options.disabled),
-    icon: options.icon,
-    iconOnly: Boolean(options.icon),
-    title: options.icon ? label : undefined,
-  });
-  if (options.itemId) {
-    button.dataset.itemAction = action;
-    button.dataset.itemId = options.itemId;
-  } else {
-    button.dataset.listAction = action;
-  }
-  button.dataset.listId = listId;
-  if (variant) {
-    button.classList.add(variant);
-  }
-  if (options.behavior) {
-    button.dataset.surfaceAction = options.behavior;
-  }
-  return button;
-}
-
-function readonlyBadge(status) {
-  const badge = document.createElement("span");
-  badge.className = "lists-readonly-badge";
-  badge.textContent = `${STATUS_LABELS[status] || "Read-only"}`;
-  return badge;
-}
-
-function statusBadge(status) {
-  const badge = document.createElement("span");
-  badge.className = `lists-status-badge is-${status || "unknown"}`;
-  badge.textContent = STATUS_LABELS[status] || status || "Unknown";
-  return badge;
-}
-
-function createNextActionStrip(list) {
-  const section = view.createInfoPanel({
-    title: "Next",
-    message: nextActionText(list),
-    className: "lists-next-action",
-    ariaLabel: "Next list action",
-  });
-  const facts = view.createElement("div", { className: "lists-next-action-facts" });
-
-  section.dataset.listNextAction = "";
-  facts.append(...stateFacts(list).map((fact) => {
-    return view.createElement("span", { text: fact });
-  }));
-  section.appendChild(facts);
-  return section;
-}
-
-function createCostSummaryPanel(list) {
-  const costText = listCostSummary(list);
-  const section = view.createInfoPanel({
-    title: "Costs",
-    message: costText || "No item costs recorded.",
-    className: "lists-cost-summary",
-    ariaLabel: "List cost summary",
-  });
-
-  section.dataset.listCostSummary = "";
-  return section;
-}
-
-function nextActionText(list) {
-  const state = listState(list);
-  if (list.status === "deleted") {
-    return "Restore this list if it still belongs in the workspace.";
-  }
-  if (list.status === "archived") {
-    return "Restore to resume work, or duplicate it as a new active list.";
-  }
-  if (list.status === "finalized") {
-    return "Create an active working copy when this historical record should be used again.";
-  }
-  if (list.status === "completed") {
-    return "Reopen if more work is needed, or duplicate this list for a new run.";
-  }
-  if (state.totalItems === 0) {
-    return list.is_reusable
-      ? "Add starter items so this reusable list can become a useful working copy later."
-      : "Add the first item so this list is ready to use.";
-  }
-  if (state.incompleteItems > 0) {
-    return `Resume with ${state.incompleteItems} incomplete ${state.incompleteItems === 1 ? "item" : "items"}.`;
-  }
-  return "Everything is checked. Complete or finalize the list when it is ready.";
-}
-
-function shouldShowSourceContext(list) {
-  // Only surface the Source panel when it carries real provenance or usage context. For a plain
-  // independent active list it would just repeat the "independent list" boilerplate already implied by
-  // the badges and the Next panel, so the section is deprecated for that case.
-  return Boolean(sourceContextLabel(list)) ||
-    list.is_reusable ||
-    list.status === "finalized" ||
-    list.isBillOfMaterials ||
-    list.list_type === "bill_of_materials";
-}
-
-function createSourceContextPanel(list) {
-  const sourceContext = sourceContextLabel(list);
-  const section = view.createInfoPanel({
-    title: list.is_reusable ? "Reusable workflow" : "Source",
-    message: sourceContext || defaultSourceContextText(list),
-    className: "lists-source-context",
-    ariaLabel: "List source context",
-  });
-
-  section.dataset.listSourceContext = "";
-  return section;
-}
-
-function sourceContextLabel(list) {
-  const context = list.sourceContext || {};
-  const duplicatedFrom = context.duplicatedFrom || context.duplicated_from;
-  const sourceList = context.sourceList || context.source_list;
-
-  if (duplicatedFrom?.title && sourceList?.title && duplicatedFrom.list_id !== sourceList.list_id) {
-    return `Independent working copy from ${duplicatedFrom.title}; original template ${sourceList.title}.`;
-  }
-  if (duplicatedFrom?.title) {
-    return `Independent working copy from ${duplicatedFrom.title}.`;
-  }
-  if (sourceList?.title) {
-    return `Independent working copy from reusable source ${sourceList.title}.`;
-  }
-  return "";
-}
-
-function defaultSourceContextText(list) {
-  if (list.is_reusable) {
-    return "Template for repeatable work. Duplicate it to create an independent active list.";
-  }
-  if (list.status === "finalized" || list.isBillOfMaterials || list.list_type === "bill_of_materials") {
-    return "Historical context is preserved here. Duplicate it to start new active work.";
-  }
-  return "This active list is independent. Future template edits will not change it.";
-}
-
-function duplicateActionLabel(list) {
-  if (list.is_reusable) {
-    return "Create Working Copy";
-  }
-  if (list.status === "finalized" || list.isBillOfMaterials || list.list_type === "bill_of_materials") {
-    return "Duplicate into Active Work";
-  }
-  return "Duplicate";
-}
-
-function compactStateSummary(list) {
-  const state = listState(list);
-  const pieces = [
-    `${state.checkedItems} checked`,
-    `${state.incompleteItems} open`,
-  ];
-  if (state.nextNeededDate) {
-    pieces.push(`next ${state.nextNeededDate}`);
-  }
-  if (state.assignedUsers > 0) {
-    pieces.push(`${state.assignedUsers} assigned`);
-  }
-  pieces.push(state.resumeLabel);
-  return pieces.join(" / ");
-}
-
-function listDescriptionExcerpt(list) {
-  const text = String(list.description || "").trim().replace(/\s+/g, " ");
-  if (!text) {
-    return "";
-  }
-  return text.length > 96 ? `${text.slice(0, 93)}...` : text;
-}
-
-function linkedRecordSummary(list) {
-  const links = list.links || [];
-  const available = links.filter((link) => link.target?.label).length;
-  const unavailable = links.length - available;
-  if (links.length === 0) {
-    return "";
-  }
-  return `${available} linked ${available === 1 ? "record" : "records"}${unavailable > 0 ? `, ${unavailable} unavailable` : ""}`;
-}
-
-function listTimelineSummary(list) {
-  const pieces = [];
-  if (list.updated_at) {
-    pieces.push(`Updated ${formatDateTime(list.updated_at)}`);
-  }
-  if (list.finalized_at) {
-    pieces.push(`Finalized ${formatDateTime(list.finalized_at)}`);
-  }
-  return pieces.join(" / ");
-}
-
-function listCostSummary(list) {
-  const totals = visibleItems(list).reduce((accumulator, item) => {
-    accumulator.estimated += Number(item.estimated_cost) || 0;
-    accumulator.actual += Number(item.actual_cost) || 0;
-    return accumulator;
-  }, { actual: 0, estimated: 0 });
-  const pieces = [];
-  if (totals.estimated > 0) {
-    pieces.push(`Estimated ${formatCurrency(totals.estimated)}`);
-  }
-  if (totals.actual > 0) {
-    pieces.push(`Actual ${formatCurrency(totals.actual)}`);
-  }
-  return pieces.join(" / ");
-}
-
-function stateFacts(list) {
-  // A short fact run for the (now half-width) Next panel: progress, the next date, and assignment.
-  // The context chip lives in the meta line and the source/independent chip in the Source panel, so
-  // they are no longer repeated here.
-  const state = listState(list);
-  return [
-    `${state.checkedItems}/${state.totalItems} checked`,
-    `${state.incompleteItems} incomplete`,
-    state.nextNeededDate ? `Next needed ${state.nextNeededDate}` : "No needed date",
-    state.assignedUsers > 0 ? `${state.assignedUsers} assigned` : "No assignee",
-  ];
-}
-
-function listState(list) {
-  const items = visibleItems(list);
-  const checkedItems = list.progress
-    ? Math.max(list.progress.checkedItemCount || 0, list.progress.completedItemCount || 0)
-    : items.filter((item) => item.checked_at || item.completed_at).length;
-  const totalItems = list.progress?.totalItemCount ?? items.length;
-  const incompleteItems = Math.max(totalItems - checkedItems, 0);
-  const assignedUsers = new Set(items.map((item) => item.assigned_user_id).filter(Boolean)).size;
-  const nextDate = nextNeededDate(list);
-  const context = listContextLabel(list);
-  const interrupted = list.status === "active" && totalItems > 0 && incompleteItems > 0 && checkedItems > 0;
-  const resumeLabel = interrupted ? "Resume" : STATUS_LABELS[list.status] || "Review";
-  return {
-    assignedUsers,
-    checkedItems,
-    contextLabel: context,
-    incompleteItems,
-    interrupted,
-    nextNeededDate: nextDate,
-    resumeLabel,
-    totalItems,
-  };
-}
-
-function readOnlyStateMessage(list) {
-  if (list.status === "finalized") {
-    return "Finalized lists are read-only. Duplicate this record to start new active work.";
-  }
-  if (list.status === "archived") {
-    return "Archived lists are read-only. Restore or duplicate this list to resume work.";
-  }
-  if (list.status === "deleted") {
-    return "Deleted lists are read-only. Restore this list before continuing.";
-  }
-  return `${STATUS_LABELS[list.status] || "Locked"} lists are read-only.`;
-}
-
-function listBadges(list) {
-  const badges = [];
-  if (list.is_reusable) {
-    badges.push(badge("Reusable List", "is-reusable"));
-  }
-  if (list.isBillOfMaterials || list.list_type === "bill_of_materials") {
-    badges.push(badge("BOM", "is-bom"));
-  }
-  if (list.duplicated_from_list_id) {
-    badges.push(badge("Working Copy", "is-duplicated"));
-  }
-  return badges;
-}
-
-function badge(label, modifier) {
-  const element = document.createElement("span");
-  element.className = `lists-badge ${modifier}`;
-  element.textContent = label;
-  return element;
-}
-
-function inputField(labelText, type, name, attributes = {}) {
-  const label = document.createElement("label");
-  const input = document.createElement("input");
-  input.type = type;
-  input.name = name;
-  Object.entries(attributes).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === false) {
+  function completeListDialogHostContext(detail = {}) {
+    if (!state.listDialogHostContext || state.listDialogHostContextSettled) {
       return;
     }
-    input.setAttribute(key, value);
-  });
-  label.append(labelText, input);
-  return label;
-}
 
-function textareaField(labelText, name, attributes = {}) {
-  const label = document.createElement("label");
-  const textarea = document.createElement("textarea");
-  textarea.name = name;
-  Object.entries(attributes).forEach(([key, value]) => {
-    textarea.setAttribute(key, value);
-  });
-  label.append(labelText, textarea);
-  return label;
-}
-
-function selectField(labelText, name, options) {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-  select.name = name;
-  select.append(...options);
-  label.append(labelText, select);
-  return label;
-}
-
-function applySelectDefault(node, value) {
-  if (value === undefined || value === null || value === "") {
-    return;
+    state.listDialogHostContextSettled = true;
+    state.listDialogHostContext.complete?.(detail);
+    state.listDialogHostContext = null;
   }
-  const select = node.querySelector?.("select");
-  const optionEl = select ? [...select.options].find((entry) => entry.value === String(value)) : null;
-  if (select && optionEl) {
-    // defaultSelected so a new item starts on this option and form.reset() restores it.
-    optionEl.defaultSelected = true;
-    select.value = String(value);
-  }
-}
 
-function setFormValue(form, name, value) {
-  const input = form.elements[name];
-  if (input) {
-    if (input.type === "checkbox") {
-      input.checked = value === true || value === "true";
+  function cancelListDialogHostContext(detail = {}) {
+    if (!state.listDialogHostContext || state.listDialogHostContextSettled) {
+      return;
+    }
+
+    state.listDialogHostContextSettled = true;
+    state.listDialogHostContext.cancel?.(detail);
+    state.listDialogHostContext = null;
+  }
+
+  /** @param {Event} event */
+  async function saveList(event) {
+    const api = requireApi();
+    event.preventDefault();
+    const payload = {
+      client_id: usesBusinessScope() ? requireListsHandle(listClientInput, "list client select").value : "",
+      description: requireListsHandle(listDescriptionInput, "list description control").value,
+      list_type: requireListsHandle(listTypeInput, "list type control").value,
+      project_id: requireListsHandle(listProjectInput, "list project select").value,
+      title: requireListsHandle(listTitleInput, "list title control").value,
+    };
+    const wasEditing = Boolean(state.editingListId);
+    let savedListId = state.editingListId || "";
+    let createdDuringSave = false;
+
+    try {
+      requireListsHandle(listSaveButton, "list save button").disabled = true;
+      requireListsHandle(listFormStatus, "list form status").textContent = "Saving...";
+      if (state.editingListId) {
+        await api.putJson(`/api/lists/${encodeURIComponent(`${state.editingListId}`)}`, payload);
+      } else {
+        const result = await api.postJson("/api/lists", payload);
+        savedListId = readSavedListId(result);
+        createdDuringSave = Boolean(savedListId);
+        state.editingListId = savedListId;
+        state.editorList = normalizeListRecord(readListDetail(result).list, [], []);
+        state.selectedListId = savedListId || state.selectedListId;
+      }
+      for (const target of state.editorStagedTargets) {
+        await api.postJson(`/api/lists/${encodeURIComponent(`${savedListId}`)}/links`, listLinkPayload(target));
+      }
+      state.editorStagedTargets = [];
+      if (typeof state.listDialogHostContext?.refresh === "function") {
+        await state.listDialogHostContext.refresh({ list: { ...payload, list_id: savedListId } });
+      }
+      completeListDialogHostContext({
+        actionId: wasEditing ? "lists.edit" : "lists.add",
+        recordId: savedListId,
+        title: payload.title || "",
+      });
+      closeListDialog({ returnValue: "complete" });
+      if (isListsWorkspaceSurface) {
+        await refreshLists(state.selectedListId);
+      }
+      setStatus("");
+    } catch (error) {
+      requireListsHandle(listFormStatus, "list form status").textContent = requireErrors().caughtMessage(error, "List could not be saved.");
+      if (createdDuringSave && savedListId) {
+        requireListsHandle(listDialogTitle, "list dialog title").textContent = "Edit List";
+        requireListsHandle(listSaveButton, "list save button").textContent = "Save List";
+        try {
+          await refreshListEditor(savedListId);
+        } catch {
+          // Preserve the original save/link error; the normal page refresh can recover the created list.
+        }
+      }
+    } finally {
+      requireListsHandle(listSaveButton, "list save button").disabled = false;
+    }
+  }
+
+  /** @param {unknown} [selectedId] */
+  async function refreshLists(selectedId = state.selectedListId) {
+    setStatus("Loading lists...");
+    await loadLists();
+    state.selectedListId = selectedId || state.selectedListId;
+    renderLists();
+    setStatus("");
+  }
+
+  /** @param {unknown} [selectedClientId] */
+  function populateClientOptions(selectedClientId = "") {
+    replaceOptions(listClientInput, [
+      option("", "Workspace"),
+      ...state.clients.filter((client) => !client.isWorkspaceScope).map((client) => option(client.id, client.optionLabel || client.name)),
+    ]);
+    requireListsHandle(listClientInput, "list client select").value = `${selectedClientId || ""}`;
+  }
+
+  // The optional checked select may be absent. Preserve option replacement and RHS work
+  // before refusing the final required write, where the original null assignment threw.
+  /** @param {HTMLSelectElement | null} select @param {unknown} [selectedClientId] @param {unknown} [selectedProjectId] */
+  function populateProjectOptions(select, selectedClientId = "all", selectedProjectId = "") {
+    const projects = allProjects().filter((project) => {
+      if (!usesBusinessScope()) {
+        return true;
+      }
+      if (!selectedClientId || selectedClientId === "all") {
+        return true;
+      }
+      return (project.client_id || "") === selectedClientId;
+    });
+
+    replaceOptions(select, [
+      option("", "No project"),
+      ...projects.map((project) => option(project.id, project.optionLabel || project.name)),
+    ]);
+    const selectedValue = projects.some((project) => project.id === selectedProjectId) ? selectedProjectId : "";
+    requireListsHandle(select, "project select").value = `${selectedValue}`;
+  }
+
+  function syncClientFromProject() {
+    const project = allProjects().find((entry) => entry.id === requireListsHandle(listProjectInput, "list project select").value);
+    if (project?.client_id && listClientInput) {
+      listClientInput.value = project.client_id;
+    }
+  }
+
+  /** @param {boolean} visible */
+  function setBusinessControlsVisible(visible) {
+    document.querySelectorAll("[data-list-business-control]").forEach((element) => {
+      // Writing `hidden` onto a node that is not an HTML element only set an inert property.
+      if (element instanceof HTMLElement) {
+        element.hidden = !visible;
+      }
+    });
+  }
+
+  /** @param {boolean} visible */
+  function setContextControlsVisible(visible) {
+    document.querySelectorAll("[data-list-context-control]").forEach((element) => {
+      // Writing `hidden` onto a node that is not an HTML element only set an inert property.
+      if (element instanceof HTMLElement) {
+        element.hidden = !visible;
+      }
+    });
+  }
+
+  function shouldShowContextControls(listType = defaultListType()) {
+    return !usesBusinessScope() || ["procurement", "parts", "supplies", "bill_of_materials"].includes(listType);
+  }
+
+  /**
+   * One list as this page holds it.
+   *
+   * **The input is the wire record and the output is not.** Nine members are overwritten,
+   * `is_reusable` among them - coerced again here, although the wire already sends a boolean - so the result cannot extend
+   * `BrowserListSummary`. The `{}` default is the draft case and is genuinely reachable:
+   * `readListDetail` answers `list: undefined` for a body it cannot read.
+   * **`0.33.33.43.2` left its inputs alone, naming the cost as "twenty `unknown` reads and two
+   * snake_case aliases the shaper does not emit". Both halves were still true**, and
+   * `0.33.33.43.19` paid the first: the progress reader below now declares those twenty. The two
+   * aliases are `resume_context` and `source_context`, which appear on no List contract.
+   *
+   * **`0.33.33.43.21` typed `list`, which `0.33.33.43.19` could not.** That checkpoint's blocker
+   * was `list.progress`: published `unknown`, and pushing it straight through the progress reader's
+   * narrower door opened a diagnostic the shrink-only gate refuses. `readListProgressBag` now
+   * vouches for it at the readers, so the published member stays `unknown` and this reader still
+   * gets something it can name.
+   *
+   * `items` and `links` were already typed: `readListDetail` filters them through `isListItem` and
+   * `isListLink`, so the published element contracts hold, and the only addition is the `id` this
+   * normaliser writes on its way past.
+   * @typedef {Partial<BrowserListSummary> & {
+   *   resume_context?: unknown, source_context?: unknown
+   * }} ListRecordInput
+   * @param {ListRecordInput} [list]
+   * @param {ListItemInput[]} [items] @param {(BrowserListLink & { id?: unknown })[]} [links]
+   * @returns {BrowserNormalizedListRecord}
+   */
+  function normalizeListRecord(list = {}, items = [], links = []) {
+    const normalizedItems = items.map((item) => ({ ...item, id: item.list_item_id || item.id }));
+    const progress = normalizeListProgress(readListProgressBag(list.progress), normalizedItems);
+    const normalizedLinks = links.map((link) => ({ ...link, id: link.list_link_id || link.id }));
+    // The shape belongs to this local rather than to the parameter: narrowing the published
+    // `resumeContext` member makes `BrowserListSummary` - which `readListDetail` validates and
+    // hands over - unassignable at both callers, and the validated handoff is worth more.
+    /** @type {ListResumeContextInput} */
+    const resumeContext = list.resumeContext || list.resume_context || {};
+
+    return {
+      ...list,
+      id: list.list_id || list.id,
+      isBillOfMaterials: Boolean(list.isBillOfMaterials || list.list_type === "bill_of_materials"),
+      is_reusable: Boolean(list.is_reusable ?? list.isReusable),
+      items: normalizedItems,
+      links: normalizedLinks,
+      list_id: list.list_id || list.id,
+      progress,
+      resumeContext: {
+        ...resumeContext,
+        progress: resumeContext.progress || progress,
+        sourceUrl: resumeContext.sourceUrl || resumeContext.source_url || `lists.html?list=${encodeURIComponent(list.list_id || list.id || "")}`,
+      },
+      sourceContext: list.sourceContext || list.source_context || { duplicatedFrom: null, sourceList: null },
+    };
+  }
+
+  /**
+   * The progress bag as a producer may send it, which is **not** the summary this builds.
+   *
+   * Ten members, each in the two spellings the reader accepts, and every one `unknown`: the
+   * normaliser itself converts. `checkedItemCount` and its four siblings pass through `Number(...)`,
+   * and the remaining five fall through `||` to a computed default, so declaring any of them
+   * `number` or `string` here would claim of the producer what only the **return** establishes.
+   *
+   * **Nothing is proved.** `BrowserListSummary` types `progress` as `unknown`, so this shape
+   * describes what the reader tolerates, not what arrived.
+   *
+   * **`normalizeListRecord`'s `list` is deliberately not typed against this.** Doing so forces the
+   * published `progress` member through this narrower door; narrowing the member itself instead
+   * makes `BrowserListSummary` - which `readListDetail` validates and hands over - unassignable at
+   * both callers. Either way the shrink-only ledger refuses the result, and the validated handoff
+   * is the thing worth keeping.
+   * @typedef {{
+   *   assignedUserIds?: unknown, assigned_user_ids?: unknown,
+   *   checkedItemCount?: unknown, checked_item_count?: unknown,
+   *   completedItemCount?: unknown, completed_item_count?: unknown,
+   *   earliestNeededByDate?: unknown, earliest_needed_by_date?: unknown,
+   *   incompleteItemCount?: unknown, incomplete_item_count?: unknown,
+   *   lastActivityAt?: unknown, last_activity_at?: unknown,
+   *   neededByDates?: unknown, needed_by_dates?: unknown,
+   *   nextUncheckedItemLabel?: unknown, next_unchecked_item_label?: unknown,
+   *   totalItemCount?: unknown, total_item_count?: unknown,
+   *   unassignedItemCount?: unknown, unassigned_item_count?: unknown
+   * }} ListProgressInput
+   */
+
+  /**
+   * One item as this normaliser receives it.
+   *
+   * `readListDetail` filters through `isListItem`, so the published guarantees hold in full - this
+   * is `BrowserListItem`, not a partial of it. The one addition is `id`, which the record
+   * normaliser writes on its way past and which a producer may also send; it stays `unknown`
+   * because nothing here proves it.
+   * @typedef {BrowserListItem & { id?: unknown }} ListItemInput
+   */
+
+  /**
+   * The resume context as a producer may send it.
+   *
+   * `BrowserListSummary` types `resumeContext` `unknown`, so this is what the reader tolerates and
+   * not what arrived: a bag carrying its own progress and either spelling of the source URL, each
+   * `unknown` because the reader only tests them for truthiness before falling through.
+   * @typedef {{ progress?: unknown, sourceUrl?: unknown, source_url?: unknown }} ListResumeContextInput
+   */
+
+  /** @param {unknown} value @returns {value is object} */
+  function isListSortObject(value) {
+    if (value === undefined || value === null) return false;
+    return typeof value === "object" || typeof value === "function" || typeof value === "undefined";
+  }
+
+  /** Native ToNumeric with the subtraction operator's number hint and conversion order.
+   * BigInt stays BigInt; Number on an object would otherwise silently admit it.
+   * @param {unknown} value @returns {number | bigint}
+   */
+  function listSortNumeric(value) {
+    if (isListSortObject(value)) {
+      const exotic = listEditorField(value, Symbol.toPrimitive);
+      if (exotic !== null && exotic !== undefined) {
+        /** @type {unknown} */
+        const primitive = Reflect.apply(Function.prototype.call, exotic, [value, "number"]);
+        if (isListSortObject(primitive)) {
+          throw new TypeError("The list sort order cannot be converted to a primitive.");
+        }
+        return listSortNumeric(primitive);
+      }
+      for (const key of ["valueOf", "toString"]) {
+        const method = listEditorField(value, key);
+        if (typeof method !== "function" && !(isListSortObject(method) && typeof new Proxy(method, {}) === "function")) continue;
+        /** @type {unknown} */
+        const primitive = Reflect.apply(Function.prototype.call, method, [value]);
+        if (!isListSortObject(primitive)) {
+          return listSortNumeric(primitive);
+        }
+      }
+      throw new TypeError("The list sort order cannot be converted to a primitive.");
+    }
+    return typeof value === "bigint" ? value : Number(value);
+  }
+
+  /** Both member reads precede left then right conversion, just as in native subtraction.
+   * @param {unknown} left @param {unknown} right @returns {number}
+   */
+  function compareListSortOrders(left, right) {
+    const leftNumeric = listSortNumeric(left);
+    const rightNumeric = listSortNumeric(right);
+    let difference;
+    if (typeof leftNumeric === "number" && typeof rightNumeric === "number") {
+      difference = leftNumeric - rightNumeric;
+    } else if (typeof leftNumeric === "bigint" && typeof rightNumeric === "bigint") {
+      difference = leftNumeric - rightNumeric;
     } else {
-      input.value = value ?? "";
+      // Native subtraction refuses mixed numeric kinds before producing a result.
+      throw new TypeError("Lists cannot mix BigInt and number sort orders.");
     }
-  }
-}
-
-function replaceOptions(select, options) {
-  if (!select) {
-    return;
-  }
-  const previousValue = select.value;
-  select.replaceChildren(...options);
-  if ([...select.options].some((entry) => entry.value === previousValue)) {
-    select.value = previousValue;
-  }
-}
-
-function option(value, label) {
-  const element = document.createElement("option");
-  element.value = value;
-  element.textContent = label;
-  return element;
-}
-
-function selectedList() {
-  return state.lists.find((list) => list.list_id === state.selectedListId) || null;
-}
-
-function listSelectorTitle(descriptor = activeListsViewDescriptor) {
-  return descriptor?.indexPanel?.title || descriptor?.indexPanel?.label || "List Selector";
-}
-
-function visibleItems(list) {
-  return (list.items || []).filter((item) => !item.deleted_at);
-}
-
-function allProjects() {
-  return state.clients.flatMap((client) => (client.projects || []).map((project) => ({
-    ...project,
-    client_id: client.isWorkspaceScope ? "" : client.id,
-    optionLabel: `${client.isWorkspaceScope ? "" : `${client.name} / `}${project.name}`,
-  })));
-}
-
-function usesBusinessScope() {
-  return state.workspaceType === "business";
-}
-
-function defaultListType() {
-  return usesBusinessScope() ? "procurement" : "shopping";
-}
-
-function nextNeededDate(list) {
-  if (list.progress?.earliestNeededByDate) {
-    return list.progress.earliestNeededByDate;
-  }
-  return nextNeededDateFromItems(visibleItems(list));
-}
-
-function nextNeededDateFromItems(items = []) {
-  return items
-    .map((item) => item.needed_by_date)
-    .filter(Boolean)
-    .sort()[0] || "";
-}
-
-function itemSummary(list) {
-  if (list.progress) {
-    const checked = Math.max(list.progress.checkedItemCount || 0, list.progress.completedItemCount || 0);
-    return `${checked}/${list.progress.totalItemCount || 0}`;
-  }
-  const items = visibleItems(list);
-  const checked = items.filter((item) => item.checked_at || item.completed_at).length;
-  return `${checked}/${items.length}`;
-}
-
-function listContextLabel(list) {
-  const client = state.clients.find((entry) => entry.id === list.client_id);
-  const project = allProjects().find((entry) => entry.id === list.project_id);
-  return [client?.name, project?.name, list.is_reusable ? "Reusable" : ""].filter(Boolean).join(" / ") || "Workspace";
-}
-
-function detailMetaItems(list) {
-  // Compact labeled meta line (Notes format): each value is a span with a "Label: value" tooltip,
-  // separated by " - ", instead of the long pre-labeled run the header used to print.
-  const items = [
-    ["Status", STATUS_LABELS[list.status] || list.status],
-    ["Type", LIST_TYPE_LABELS[list.list_type] || list.list_type],
-    ["Context", listContextLabel(list)],
-    ["Created", list.created_at ? formatDateTime(list.created_at) : ""],
-    ["Updated", list.updated_at ? formatDateTime(list.updated_at) : ""],
-    ["Finalized", list.finalized_at ? formatDateTime(list.finalized_at) : ""],
-  ].filter(([, value]) => value);
-
-  return items.flatMap(([label, value], index) => {
-    const item = document.createElement("span");
-    const nodes = [];
-
-    item.textContent = value;
-    item.title = `${label}: ${value}`;
-    item.setAttribute("aria-label", `${label}: ${value}`);
-    nodes.push(item);
-    if (index < items.length - 1) {
-      nodes.push(document.createTextNode(" - "));
+    // Sort would refuse this primitive result immediately, without another observable read.
+    if (typeof difference === "bigint") {
+      throw new TypeError("The list item sort order difference is not a number.");
     }
-    return nodes;
-  });
-}
+    return difference;
+  }
 
-function displayUser(user) {
-  if (!user) {
+  /**
+   * The progress summary the page holds, from whichever spellings arrived.
+   *
+   * Every count falls back to one derived from the items, so the return is total: the five numeric
+   * members are `Number(...)` of the first spelling present, and the five opaque ones fall through
+   * `||`. Deleted items are filtered first, and the next-unchecked label is taken in `sort_order`
+   * order with `?? 0` for an absent one.
+   * @param {ListProgressInput} [progress]
+   * @param {ListItemInput[]} [items]
+   * @returns {BrowserListProgressSummary}
+   */
+  function normalizeListProgress(progress = {}, items = []) {
+    const visible = items.filter((item) => !item.deleted_at);
+    const checkedCount = visible.filter((item) => item.checked_at).length;
+    const completedCount = visible.filter((item) => item.completed_at).length;
+    const nextUnchecked = visible
+      .slice()
+      .sort((left, right) => compareListSortOrders(left.sort_order ?? 0, right.sort_order ?? 0))
+      .find((item) => !item.checked_at && !item.completed_at);
+
+    return {
+      assignedUserIds: progress.assignedUserIds || progress.assigned_user_ids || [],
+      checkedItemCount: Number(progress.checkedItemCount ?? progress.checked_item_count ?? checkedCount),
+      completedItemCount: Number(progress.completedItemCount ?? progress.completed_item_count ?? completedCount),
+      earliestNeededByDate: progress.earliestNeededByDate || progress.earliest_needed_by_date || nextNeededDateFromItems(visible) || null,
+      incompleteItemCount: Number(progress.incompleteItemCount ?? progress.incomplete_item_count ?? visible.filter((item) => !item.checked_at && !item.completed_at).length),
+      lastActivityAt: progress.lastActivityAt || progress.last_activity_at || "",
+      neededByDates: progress.neededByDates || progress.needed_by_dates || [],
+      nextUncheckedItemLabel: progress.nextUncheckedItemLabel || progress.next_unchecked_item_label || nextUnchecked?.item_name || "",
+      totalItemCount: Number(progress.totalItemCount ?? progress.total_item_count ?? visible.length),
+      unassignedItemCount: Number(progress.unassignedItemCount ?? progress.unassigned_item_count ?? visible.filter((item) => !item.assigned_user_id).length),
+    };
+  }
+
+  /** @param {BrowserViewTextValue} message */
+  function renderListPlaceholder(message) {
+    const view = requireView();
+    const placeholder = view.createElement("p", {
+      className: "view-index-list-empty",
+      text: message,
+      attrs: { role: "status", "aria-live": "polite" },
+    });
+    requireListsHandle(listMount, "list index region").replaceChildren(placeholder);
+  }
+
+  function emptyListMessage() {
+    if (reusableFilter?.value === "yes") {
+      return "No reusable lists match the current filters. Create a reusable checklist so routine work does not have to be rebuilt from memory.";
+    }
+    if (archiveFilter?.value === "archived") {
+      return "No archived lists match the current filters.";
+    }
+    if (archiveFilter?.value === "deleted") {
+      return "No deleted lists match the current filters.";
+    }
+    return "No lists match the current filters. Create a list or adjust filters to resume work.";
+  }
+
+  /** @param {BrowserViewTextValue} message */
+  function renderDetailPrompt(message) {
+    const view = requireView();
+    const prompt = view.createEmptyState({
+      message,
+      className: "lists-empty-state",
+      headingLevel: 2,
+    });
+    prompt.dataset.listNextAction = "";
+    requireListsHandle(detailPanel, "list detail panel").replaceChildren(prompt);
+  }
+
+  /**
+   * One list or item action button.
+   *
+   * `icon` and `disabled` are derived from the factory descriptor this forwards them to, so they
+   * cannot drift from it. `behavior` and `itemId` are Lists' own and are text because each is
+   * written to `dataset`.
+   * @typedef {{
+   *   behavior?: string,
+   *   disabled?: BrowserViewActionButtonOptions["disabled"],
+   *   icon?: BrowserViewActionButtonOptions["icon"],
+   *   itemId?: string
+   * }} ListActionButtonOptions
+   *
+   * `action` is `string | undefined` because a contributed descriptor's `id` is, and one caller
+   * forwards it straight through. `dataset` is where it lands, and that map already admits both.
+   * @param {BrowserViewActionButtonOptions["label"]} label @param {string | undefined} action
+   * @param {string} listId @param {string} [variant] @param {ListActionButtonOptions} [options]
+   */
+  function actionButton(label, action, listId, variant = "", options = {}) {
+    const view = requireView();
+    const button = view.createActionButton({
+      label,
+      text: options.icon ? "" : undefined,
+      role: variant === "secondary" ? "secondary" : "",
+      disabled: Boolean(options.disabled),
+      icon: options.icon,
+      iconOnly: Boolean(options.icon),
+      title: options.icon ? label : undefined,
+    });
+    if (options.itemId) {
+      button.dataset.itemAction = action;
+      button.dataset.itemId = options.itemId;
+    } else {
+      button.dataset.listAction = action;
+    }
+    button.dataset.listId = listId;
+    if (variant) {
+      button.classList.add(variant);
+    }
+    if (options.behavior) {
+      button.dataset.surfaceAction = options.behavior;
+    }
+    return button;
+  }
+
+  /**
+   * Normalized records may omit status; preserve the label lookup and its Read-only fallback.
+   * @param {string | undefined} status
+   */
+  function readonlyBadge(status) {
+    const badge = document.createElement("span");
+    badge.className = "lists-readonly-badge";
+    badge.textContent = `${STATUS_LABELS[`${status}`] || "Read-only"}`;
+    return badge;
+  }
+
+  /** @param {string | undefined} status */
+  function statusBadge(status) {
+    const badge = document.createElement("span");
+    badge.className = `lists-status-badge is-${status || "unknown"}`;
+    badge.textContent = STATUS_LABELS[`${status}`] || status || "Unknown";
+    return badge;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function createNextActionStrip(list) {
+    const view = requireView();
+    const section = view.createInfoPanel({
+      title: "Next",
+      message: nextActionText(list),
+      className: "lists-next-action",
+      ariaLabel: "Next list action",
+    });
+    const facts = view.createElement("div", { className: "lists-next-action-facts" });
+
+    section.dataset.listNextAction = "";
+    facts.append(...stateFacts(list).map((fact) => {
+      return view.createElement("span", { text: fact });
+    }));
+    section.appendChild(facts);
+    return section;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function createCostSummaryPanel(list) {
+    const view = requireView();
+    const costText = listCostSummary(list);
+    const section = view.createInfoPanel({
+      title: "Costs",
+      message: costText || "No item costs recorded.",
+      className: "lists-cost-summary",
+      ariaLabel: "List cost summary",
+    });
+
+    section.dataset.listCostSummary = "";
+    return section;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function nextActionText(list) {
+    const state = listState(list);
+    if (list.status === "deleted") {
+      return "Restore this list if it still belongs in the workspace.";
+    }
+    if (list.status === "archived") {
+      return "Restore to resume work, or duplicate it as a new active list.";
+    }
+    if (list.status === "finalized") {
+      return "Create an active working copy when this historical record should be used again.";
+    }
+    if (list.status === "completed") {
+      return "Reopen if more work is needed, or duplicate this list for a new run.";
+    }
+    if (state.totalItems === 0) {
+      return list.is_reusable
+        ? "Add starter items so this reusable list can become a useful working copy later."
+        : "Add the first item so this list is ready to use.";
+    }
+    if (state.incompleteItems > 0) {
+      return `Resume with ${state.incompleteItems} incomplete ${state.incompleteItems === 1 ? "item" : "items"}.`;
+    }
+    return "Everything is checked. Complete or finalize the list when it is ready.";
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function shouldShowSourceContext(list) {
+    // Only surface the Source panel when it carries real provenance or usage context. For a plain
+    // independent active list it would just repeat the "independent list" boilerplate already implied by
+    // the badges and the Next panel, so the section is deprecated for that case.
+    return Boolean(sourceContextLabel(list)) ||
+      list.is_reusable ||
+      list.status === "finalized" ||
+      list.isBillOfMaterials ||
+      list.list_type === "bill_of_materials";
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function createSourceContextPanel(list) {
+    const view = requireView();
+    const sourceContext = sourceContextLabel(list);
+    const section = view.createInfoPanel({
+      title: list.is_reusable ? "Reusable workflow" : "Source",
+      message: sourceContext || defaultSourceContextText(list),
+      className: "lists-source-context",
+      ariaLabel: "List source context",
+    });
+
+    section.dataset.listSourceContext = "";
+    return section;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function sourceContextLabel(list) {
+    /**
+     * `BrowserListSummary` types `sourceContext` `unknown`, so this is what the reader tolerates
+     * and not what arrived: two spellings of each half, and every member of those `unknown`
+     * because this only tests them and interpolates them.
+     * @type {{
+     *   duplicatedFrom?: { list_id?: unknown, title?: unknown } | null,
+     *   duplicated_from?: { list_id?: unknown, title?: unknown } | null,
+     *   sourceList?: { list_id?: unknown, title?: unknown } | null,
+     *   source_list?: { list_id?: unknown, title?: unknown } | null
+     * }}
+     */
+    const context = list.sourceContext || {};
+    const duplicatedFrom = context.duplicatedFrom || context.duplicated_from;
+    const sourceList = context.sourceList || context.source_list;
+
+    if (duplicatedFrom?.title && sourceList?.title && duplicatedFrom.list_id !== sourceList.list_id) {
+      return `Independent working copy from ${duplicatedFrom.title}; original template ${sourceList.title}.`;
+    }
+    if (duplicatedFrom?.title) {
+      return `Independent working copy from ${duplicatedFrom.title}.`;
+    }
+    if (sourceList?.title) {
+      return `Independent working copy from reusable source ${sourceList.title}.`;
+    }
     return "";
   }
-  return user.display_name || user.displayName || user.username || user.user_id || "";
-}
 
-function formatDateTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
-
-function formatCurrency(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) {
-    return "";
+  /** @param {BrowserNormalizedListRecord} list */
+  function defaultSourceContextText(list) {
+    if (list.is_reusable) {
+      return "Template for repeatable work. Duplicate it to create an independent active list.";
+    }
+    if (list.status === "finalized" || list.isBillOfMaterials || list.list_type === "bill_of_materials") {
+      return "Historical context is preserved here. Duplicate it to start new active work.";
+    }
+    return "This active list is independent. Future template edits will not change it.";
   }
-  return new Intl.NumberFormat(undefined, {
-    currency: "USD",
-    maximumFractionDigits: 2,
-    style: "currency",
-  }).format(number);
-}
 
-function setStatus(message, isError = false) {
-  if (!statusMessage) {
-    return;
+  /**
+   * The label the duplicate action carries for this list.
+   *
+   * This only tests the record's members - it turns none of them into text the platform requires -
+   * so it takes the record as declared rather than joining the deferral recorded on `runAction`.
+   * @param {BrowserNormalizedListRecord} list
+   */
+  function duplicateActionLabel(list) {
+    if (list.is_reusable) {
+      return "Create Working Copy";
+    }
+    if (list.status === "finalized" || list.isBillOfMaterials || list.list_type === "bill_of_materials") {
+      return "Duplicate into Active Work";
+    }
+    return "Duplicate";
   }
-  statusMessage.textContent = message;
-  statusMessage.classList.toggle("is-error", isError);
-}
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function compactStateSummary(list) {
+    const state = listState(list);
+    const pieces = [
+      `${state.checkedItems} checked`,
+      `${state.incompleteItems} open`,
+    ];
+    if (state.nextNeededDate) {
+      pieces.push(`next ${state.nextNeededDate}`);
+    }
+    if (state.assignedUsers > 0) {
+      pieces.push(`${state.assignedUsers} assigned`);
+    }
+    pieces.push(state.resumeLabel);
+    return pieces.join(" / ");
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function listDescriptionExcerpt(list) {
+    const text = String(list.description || "").trim().replace(/\s+/g, " ");
+    if (!text) {
+      return "";
+    }
+    return text.length > 96 ? `${text.slice(0, 93)}...` : text;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function linkedRecordSummary(list) {
+    // The nested `target` appears on no List contract - the wire link carries it and the shaper
+    // does not declare it - so it is described here as tolerated, exactly as `linkedContextItems`
+    // describes it. Only its presence is tested.
+    /** @type {(BrowserListLink & { target?: { label?: unknown } | null })[]} */
+    const links = list.links || [];
+    const available = links.filter((link) => link.target?.label).length;
+    const unavailable = links.length - available;
+    if (links.length === 0) {
+      return "";
+    }
+    return `${available} linked ${available === 1 ? "record" : "records"}${unavailable > 0 ? `, ${unavailable} unavailable` : ""}`;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function listTimelineSummary(list) {
+    const pieces = [];
+    if (list.updated_at) {
+      pieces.push(`Updated ${formatDateTime(list.updated_at)}`);
+    }
+    if (list.finalized_at) {
+      pieces.push(`Finalized ${formatDateTime(list.finalized_at)}`);
+    }
+    return pieces.join(" / ");
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function listCostSummary(list) {
+    const totals = visibleItems(list).reduce((accumulator, item) => {
+      accumulator.estimated += Number(item.estimated_cost) || 0;
+      accumulator.actual += Number(item.actual_cost) || 0;
+      return accumulator;
+    }, { actual: 0, estimated: 0 });
+    const pieces = [];
+    if (totals.estimated > 0) {
+      pieces.push(`Estimated ${formatCurrency(totals.estimated)}`);
+    }
+    if (totals.actual > 0) {
+      pieces.push(`Actual ${formatCurrency(totals.actual)}`);
+    }
+    return pieces.join(" / ");
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function stateFacts(list) {
+    // A short fact run for the (now half-width) Next panel: progress, the next date, and assignment.
+    // The context chip lives in the meta line and the source/independent chip in the Source panel, so
+    // they are no longer repeated here.
+    const state = listState(list);
+    return [
+      `${state.checkedItems}/${state.totalItems} checked`,
+      `${state.incompleteItems} incomplete`,
+      state.nextNeededDate ? `Next needed ${state.nextNeededDate}` : "No needed date",
+      state.assignedUsers > 0 ? `${state.assignedUsers} assigned` : "No assignee",
+    ];
+  }
+
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   */
+  function listState(list) {
+    const items = visibleItems(list);
+    const checkedItems = list.progress
+      ? Math.max(list.progress.checkedItemCount || 0, list.progress.completedItemCount || 0)
+      : items.filter((item) => item.checked_at || item.completed_at).length;
+    const totalItems = list.progress?.totalItemCount ?? items.length;
+    const incompleteItems = Math.max(totalItems - checkedItems, 0);
+    const assignedUsers = new Set(items.map((item) => item.assigned_user_id).filter(Boolean)).size;
+    const nextDate = nextNeededDate(list);
+    const context = listContextLabel(list);
+    const interrupted = list.status === "active" && totalItems > 0 && incompleteItems > 0 && checkedItems > 0;
+    const resumeLabel = interrupted ? "Resume" : STATUS_LABELS[`${list.status}`] || "Review";
+    return {
+      assignedUsers,
+      checkedItems,
+      contextLabel: context,
+      incompleteItems,
+      interrupted,
+      nextNeededDate: nextDate,
+      resumeLabel,
+      totalItems,
+    };
+  }
+
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   */
+  function readOnlyStateMessage(list) {
+    if (list.status === "finalized") {
+      return "Finalized lists are read-only. Duplicate this record to start new active work.";
+    }
+    if (list.status === "archived") {
+      return "Archived lists are read-only. Restore or duplicate this list to resume work.";
+    }
+    if (list.status === "deleted") {
+      return "Deleted lists are read-only. Restore this list before continuing.";
+    }
+    return `${STATUS_LABELS[`${list.status}`] || "Locked"} lists are read-only.`;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function listBadges(list) {
+    const badges = [];
+    if (list.is_reusable) {
+      badges.push(badge("Reusable List", "is-reusable"));
+    }
+    if (list.isBillOfMaterials || list.list_type === "bill_of_materials") {
+      badges.push(badge("BOM", "is-bom"));
+    }
+    if (list.duplicated_from_list_id) {
+      badges.push(badge("Working Copy", "is-duplicated"));
+    }
+    return badges;
+  }
+
+  /** @param {string} label @param {string} modifier */
+  function badge(label, modifier) {
+    const element = document.createElement("span");
+    element.className = `lists-badge ${modifier}`;
+    element.textContent = label;
+    return element;
+  }
+
+  /**
+   * One labelled input. Name comes from a checked field name; label and type remain opaque
+   * until their approved native conversion boundaries. Existing attribute work precedes append.
+   * @param {unknown} labelText @param {unknown} type @param {string} name
+   */
+  function inputField(labelText, type, name, attributes = {}) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = `${type}`;
+    input.name = name;
+    Object.entries(attributes).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === false) {
+        return;
+      }
+      input.setAttribute(key, value);
+    });
+    label.append(labelText instanceof Node ? labelText : `${labelText}`, input);
+    return label;
+  }
+
+  /** @param {unknown} labelText @param {string} name */
+  function textareaField(labelText, name, attributes = {}) {
+    const label = document.createElement("label");
+    const textarea = document.createElement("textarea");
+    textarea.name = name;
+    Object.entries(attributes).forEach(([key, value]) => {
+      textarea.setAttribute(key, value);
+    });
+    label.append(labelText instanceof Node ? labelText : `${labelText}`, textarea);
+    return label;
+  }
+
+  /**
+   * One labelled select, filled with options the caller already built.
+   * @param {unknown} labelText @param {string} name @param {unknown} options
+   */
+  function selectField(labelText, name, options) {
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+    select.name = name;
+    select.append(...listItemOptionChildren(options));
+    label.append(labelText instanceof Node ? labelText : `${labelText}`, select);
+    return label;
+  }
+
+  /**
+   * Preselect one option on a freshly built field, so a new item starts on it and `form.reset()`
+   * restores it.
+   * @param {Element} node @param {unknown} value
+   */
+  function applySelectDefault(node, value) {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    const select = node.querySelector?.("select");
+    const optionEl = select ? [...select.options].find((entry) => entry.value === String(value)) : null;
+    if (select && optionEl) {
+      // defaultSelected so a new item starts on this option and form.reset() restores it.
+      optionEl.defaultSelected = true;
+      select.value = String(value);
+    }
+  }
+
+  /**
+   * Write one value into a form control, by the control's own name.
+   *
+   * `elements[name]` and `elements.namedItem(name)` are the same lookup - a form controls
+   * collection's named-property getter is specified to behave as `namedItem` - and this is the
+   * spelling the collection publishes.
+   *
+   * The `instanceof` refuses nothing that can occur and the existing truthiness guard already
+   * handles it: only an input can carry `type === "checkbox"`, and a control the page cannot write
+   * to takes the path an absent one already took.
+   * @param {HTMLFormElement | null} form @param {string} name @param {unknown} value
+   */
+  function setFormValue(form, name, value) {
+    const found = form?.elements.namedItem(name);
+    const input = found instanceof HTMLInputElement
+      || found instanceof HTMLSelectElement
+      || found instanceof HTMLTextAreaElement
+      ? found
+      : null;
+    if (input) {
+      if (input instanceof HTMLInputElement && input.type === "checkbox") {
+        input.checked = value === true || value === "true";
+      } else {
+        input.value = `${value ?? ""}`;
+      }
+    }
+  }
+
+  /**
+   * Refill a select, keeping the current choice when it is still offered.
+   *
+   * **`0.33.33.43.24` deferred this, and `0.33.33.43.25` discharged it by doing what that deferral
+   * named**: narrowing the handles where they are declared. The parameter is a select because this
+   * reads `.options`, which no other control carries.
+   *
+   * `option` accepts opaque values from user rows and contributed descriptors. Its native setter
+   * conversions are made explicit there, without imposing a text precondition on those callers.
+   * @param {HTMLSelectElement | null} [select] @param {HTMLOptionElement[]} [options]
+   */
+  function replaceOptions(select, options = []) {
+    if (!select) {
+      return;
+    }
+    const previousValue = select.value;
+    select.replaceChildren(...options);
+    if ([...select.options].some((entry) => entry.value === previousValue)) {
+      select.value = previousValue;
+    }
+  }
+
+  /**
+   * Preserve the native setters' conversions, including nullable textContent and their order.
+   * Intrinsic conversion errors lose their native setter prefix; conversion-hook throws survive.
+   * @param {unknown} value @param {unknown} label
+   */
+  function option(value, label) {
+    const element = document.createElement("option");
+    element.value = `${value}`;
+    element.textContent =
+      label === null || label === undefined ? null : `${label}`;
+    return element;
+  }
+
+  function selectedList() {
+    return state.lists.find((list) => list.list_id === state.selectedListId) || null;
+  }
+
+  function listSelectorTitle(descriptor = activeListsViewDescriptor) {
+    const panel = readListsIndexPanel(descriptor?.indexPanel);
+    return panel.title || panel.label || "List Selector";
+  }
+
+  /**
+   * The items a list shows, which is every item it holds minus the deleted ones.
+   *
+   * Typed here rather than in each row builder, so those derive their element type from this
+   * projection instead of restating the published item contract five times.
+   * @param {{ items?: BrowserListItem[] }} list
+   */
+  function visibleItems(list) {
+    return (list.items || []).filter((item) => !item.deleted_at);
+  }
+
+  function allProjects() {
+    return state.clients.flatMap((client) => (client.projects || []).map((project) => ({
+      ...project,
+      client_id: client.isWorkspaceScope ? "" : client.id,
+      optionLabel: `${client.isWorkspaceScope ? "" : `${client.name} / `}${project.name}`,
+    })));
+  }
+
+  function usesBusinessScope() {
+    return state.workspaceType === "business";
+  }
+
+  function defaultListType() {
+    return usesBusinessScope() ? "procurement" : "shopping";
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function nextNeededDate(list) {
+    if (list.progress?.earliestNeededByDate) {
+      return list.progress.earliestNeededByDate;
+    }
+    return nextNeededDateFromItems(visibleItems(list));
+  }
+
+  /** @param {ReturnType<typeof visibleItems>} [items] */
+  function nextNeededDateFromItems(items = []) {
+    return items
+      .map((item) => item.needed_by_date)
+      .filter(Boolean)
+      .sort()[0] || "";
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function itemSummary(list) {
+    if (list.progress) {
+      const checked = Math.max(list.progress.checkedItemCount || 0, list.progress.completedItemCount || 0);
+      return `${checked}/${list.progress.totalItemCount || 0}`;
+    }
+    const items = visibleItems(list);
+    const checked = items.filter((item) => item.checked_at || item.completed_at).length;
+    return `${checked}/${items.length}`;
+  }
+
+  /** @param {BrowserNormalizedListRecord} list */
+  function listContextLabel(list) {
+    const client = state.clients.find((entry) => entry.id === list.client_id);
+    const project = allProjects().find((entry) => entry.id === list.project_id);
+    return [client?.name, project?.name, list.is_reusable ? "Reusable" : ""].filter(Boolean).join(" / ") || "Workspace";
+  }
+
+  /** Normalized records can have absent columns, including on a successful unreadable detail response.
+   * @param {BrowserNormalizedListRecord} list
+   */
+  function detailMetaItems(list) {
+    // Compact labeled meta line (Notes format): each value is a span with a "Label: value" tooltip,
+    // separated by " - ", instead of the long pre-labeled run the header used to print.
+    const items = [
+      ["Status", STATUS_LABELS[`${list.status}`] || list.status],
+      ["Type", LIST_TYPE_LABELS[`${list.list_type}`] || list.list_type],
+      ["Context", listContextLabel(list)],
+      ["Created", list.created_at ? formatDateTime(list.created_at) : ""],
+      ["Updated", list.updated_at ? formatDateTime(list.updated_at) : ""],
+      ["Finalized", list.finalized_at ? formatDateTime(list.finalized_at) : ""],
+    ].filter(([, value]) => value);
+
+    return items.flatMap(([label, value], index) => {
+      const item = document.createElement("span");
+      const nodes = [];
+
+      // The truthy filter above excludes nullish values before this DOM string setter.
+      item.textContent = `${value}`;
+      item.title = `${label}: ${value}`;
+      item.setAttribute("aria-label", `${label}: ${value}`);
+      nodes.push(item);
+      if (index < items.length - 1) {
+        nodes.push(document.createTextNode(" - "));
+      }
+      return nodes;
+    });
+  }
+
+  /**
+   * The name to show for one user row, in the order the page prefers them.
+   *
+   * Every member is `unknown` because nothing validates the options payload these rows come from;
+   * this only picks the first present spelling and hands it on.
+   * @param {{
+   *   displayName?: unknown, display_name?: unknown, user_id?: unknown, username?: unknown
+   * } | null} [user]
+   */
+  function displayUser(user) {
+    if (!user) {
+      return "";
+    }
+    return user.display_name || user.displayName || user.username || user.user_id || "";
+  }
+
+  /**
+   * One timestamp as local text, or the value unchanged when it is not a date.
+   *
+   * The parameter names what `Date` accepts - a **precondition of this formatter**, not a claim
+   * that any producer has been validated. Every caller reads it off a record this page does not
+   * vouch for, and an unusable value already returns unchanged.
+   * @param {string | number | Date} value
+   */
+  function formatDateTime(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  }
+
+  /**
+   * One amount as currency, or `""` for anything that is not a finite number.
+   * @param {unknown} value
+   */
+  function formatCurrency(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) {
+      return "";
+    }
+    return new Intl.NumberFormat(undefined, {
+      currency: "USD",
+      maximumFractionDigits: 2,
+      style: "currency",
+    }).format(number);
+  }
+
+  /** The status line writes `textContent` directly, which is why this is text.
+   * @param {string} message @param {boolean} [isError] */
+  function setStatus(message, isError = false) {
+    if (!statusMessage) {
+      return;
+    }
+    statusMessage.textContent = message;
+    statusMessage.classList.toggle("is-error", isError);
+  }
+
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  //
+  // The dialog-only path reads no descriptor - buildListsViewShell() returns early without a
+  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
+  // it lazily imports this controller for a module action, and it must stay immediate.
+  //
+  // **Last, because the dialog-only branch runs synchronously** (`0.33.33.43.45`). It reaches the
+  // module's `let` and `const` bindings - the cached handles, the published dialog surface, the
+  // link-target tables - so every one of them must already be initialized. Placed above them, it
+  // threw "Cannot access 'pageTitle' before initialization", which rejected the lazy import and
+  // left every other page unable to open the Lists dialog. The workspace branch is unaffected by
+  // the move: before its first `await` it only reads the readiness promise.
+  if (isListsWorkspaceSurface) {
+    initializeListsWorkspace();
+  } else {
+    ensureListsDialogShell();
+    cacheListsElements();
+    bindListsEvents();
+  }
+})();

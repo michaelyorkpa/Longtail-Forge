@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-help-content-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-content-test.db");
@@ -340,15 +341,15 @@ ORDER BY record_id;
     assert.equal(summary.counts.failed, 0);
     assert.deepEqual(rows.map((row) => row.record_id).sort(), [...expectedFrameworkArticles].sort());
     assert.ok(rows.every((row) => row.source === HELP_SEARCH_SOURCE));
-    assert.ok(rows.every((row) => row.body.length >= 120));
-    assert.ok(rows.some((row) => /Search results are permission-shaped/.test(row.body)));
-    assert.ok(rows.some((row) => /Protected internal files are the default/.test(row.body)));
+    assert.ok(rows.every((row) => fixtureString(row.body, "Help search body").length >= 120));
+    assert.ok(rows.some((row) => /Search results are permission-shaped/.test(fixtureString(row.body, "Help search body"))));
+    assert.ok(rows.some((row) => /Protected internal files are the default/.test(fixtureString(row.body, "Help search body"))));
     assert.deepEqual(
       moduleActionRows.map((row) => row.record_id),
       ["lists.actions", "notes.actions", "tasks.actions", "tasks.reminders-calendar", "time-tracking.actions"],
     );
     assert.ok(moduleActionRows.every((row) => row.source === HELP_SEARCH_SOURCE));
-    assert.ok(moduleActionRows.every((row) => row.body.length >= 120));
+    assert.ok(moduleActionRows.every((row) => fixtureString(row.body, "Help module action body").length >= 120));
   });
 
   console.log(`Help content regression passed ${checks} checks.`);
@@ -368,16 +369,10 @@ LIMIT 1;
 
   assert.ok(user, "protected user fixture is required");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
+/** @param {string} name @param {() => void | Promise<void>} assertion */
 async function check(name, assertion) {
   await assertion();
   checks += 1;

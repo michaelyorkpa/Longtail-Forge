@@ -18,18 +18,68 @@ const EXCLUDED_FILES = new Set([
 ]);
 const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
 
+/**
+ * @typedef {object} VersionLiteralLineRule
+ * @property {string} path
+ * @property {string} pattern
+ */
+
+/**
+ * @typedef {object} VersionLiteralAllowlist
+ * @property {number} schemaVersion
+ * @property {string[]} currentVersionLiteralFiles
+ * @property {VersionLiteralLineRule[]} currentVersionLiteralLineRules
+ * @property {string[]} historicalLabelDirectories
+ * @property {string[]} historicalLabelFiles
+ */
+
+/**
+ * @typedef {object} NormalizedVersionLiteralAllowlist
+ * @property {Set<string>} currentVersionLiteralFiles
+ * @property {{ path: string, pattern: RegExp }[]} currentVersionLiteralLineRules
+ * @property {string[]} historicalLabelDirectories
+ * @property {Set<string>} historicalLabelFiles
+ */
+
+/** @typedef {Partial<VersionLiteralAllowlist> | NormalizedVersionLiteralAllowlist} VersionLiteralAllowlistInput */
+
+/**
+ * @typedef {object} WorkspaceTextEntry
+ * @property {string} path
+ * @property {string} source
+ */
+
+/**
+ * @typedef {object} WorkspaceTextEntryOptions
+ * @property {VersionLiteralAllowlistInput} [allowlist]
+ * @property {string[]} [candidateFiles]
+ * @property {number} [maxTextFileBytes]
+ */
+
+/**
+ * @typedef {object} VersionLiteralViolation
+ * @property {number} column
+ * @property {number} line
+ * @property {string} path
+ */
+
+/**
+ * @param {string} rootDir
+ * @returns {Promise<NormalizedVersionLiteralAllowlist>}
+ */
 async function loadVersionLiteralAllowlist(rootDir) {
   const allowlistPath = path.join(rootDir, "scripts", "version-literal-allowlist.json");
+  /** @type {VersionLiteralAllowlist} */
   const allowlist = JSON.parse(await fs.readFile(allowlistPath, "utf8"));
 
   if (allowlist.schemaVersion !== 1) {
     throw new Error(`Unsupported version literal allowlist schema: ${allowlist.schemaVersion}`);
   }
-  for (const field of [
+  for (const field of /** @type {("currentVersionLiteralFiles" | "historicalLabelFiles" | "historicalLabelDirectories")[]} */ ([
     "currentVersionLiteralFiles",
     "historicalLabelFiles",
     "historicalLabelDirectories",
-  ]) {
+  ])) {
     if (!Array.isArray(allowlist[field]) || allowlist[field].some((value) => typeof value !== "string")) {
       throw new Error(`Version literal allowlist field ${field} must be an array of paths.`);
     }
@@ -43,11 +93,24 @@ async function loadVersionLiteralAllowlist(rootDir) {
   return normalizeAllowlist(allowlist);
 }
 
+/**
+ * @param {string} rootDir
+ * @param {string} version
+ * @param {VersionLiteralAllowlistInput} allowlist
+ * @param {{ candidateFiles?: string[], maxTextFileBytes?: number }} [options]
+ * @returns {Promise<VersionLiteralViolation[]>}
+ */
 async function scanWorkspaceForCurrentVersion(rootDir, version, allowlist, options = {}) {
   const entries = await readWorkspaceTextEntries(rootDir, { ...options, allowlist });
   return scanEntriesForCurrentVersion(entries, version, allowlist);
 }
 
+/**
+ * @param {WorkspaceTextEntry[]} entries
+ * @param {string} version
+ * @param {VersionLiteralAllowlistInput} allowlist
+ * @returns {VersionLiteralViolation[]}
+ */
 function scanEntriesForCurrentVersion(entries, version, allowlist) {
   const currentVersion = String(version || "").trim();
   if (!currentVersion) {
@@ -55,6 +118,7 @@ function scanEntriesForCurrentVersion(entries, version, allowlist) {
   }
 
   const normalizedAllowlist = normalizeAllowlist(allowlist);
+  /** @type {VersionLiteralViolation[]} */
   const violations = [];
 
   for (const entry of entries) {
@@ -86,12 +150,23 @@ function scanEntriesForCurrentVersion(entries, version, allowlist) {
   return violations;
 }
 
+/**
+ * @param {string} source
+ * @param {number} index
+ * @param {number} length
+ * @returns {boolean}
+ */
 function isExactDottedVersionToken(source, index, length) {
   const precedingCharacter = source[index - 1] || "";
   const followingCharacter = source[index + length] || "";
   return !/[0-9.]/.test(precedingCharacter) && !/[0-9.]/.test(followingCharacter);
 }
 
+/**
+ * @param {string} filePath
+ * @param {NormalizedVersionLiteralAllowlist} allowlist
+ * @returns {boolean}
+ */
 function isHistoricalLabelPath(filePath, allowlist) {
   if (allowlist.historicalLabelFiles.has(filePath)) {
     return true;
@@ -99,13 +174,20 @@ function isHistoricalLabelPath(filePath, allowlist) {
   return allowlist.historicalLabelDirectories.some((directory) => filePath.startsWith(directory));
 }
 
+/**
+ * @param {string} rootDir
+ * @param {WorkspaceTextEntryOptions} [options]
+ * @returns {Promise<WorkspaceTextEntry[]>}
+ */
 async function readWorkspaceTextEntries(rootDir, {
   allowlist,
   candidateFiles,
   maxTextFileBytes = MAX_TEXT_FILE_BYTES,
 } = {}) {
   const normalizedAllowlist = normalizeAllowlist(allowlist);
+  /** @type {WorkspaceTextEntry[]} */
   const entries = [];
+  /** @type {{ path: string, size: number }[]} */
   const oversizedFiles = [];
   const root = path.resolve(rootDir);
   const files = candidateFiles || listGitVisibleFiles(root) || await listWalkedFiles(root);
@@ -121,7 +203,7 @@ async function readWorkspaceTextEntries(rootDir, {
     try {
       stat = await fs.stat(filePath);
     } catch (error) {
-      if (error?.code === "ENOENT") {
+      if (/** @type {NodeJS.ErrnoException} */ (error)?.code === "ENOENT") {
         continue;
       }
       throw error;
@@ -150,6 +232,10 @@ async function readWorkspaceTextEntries(rootDir, {
   return entries;
 }
 
+/**
+ * @param {string} rootDir
+ * @returns {string[] | null}
+ */
 function listGitVisibleFiles(rootDir) {
   const result = spawnSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
     cwd: rootDir,
@@ -162,12 +248,22 @@ function listGitVisibleFiles(rootDir) {
   return result.stdout.split("\0").filter(Boolean);
 }
 
+/**
+ * @param {string} rootDir
+ * @returns {Promise<string[]>}
+ */
 async function listWalkedFiles(rootDir) {
+  /** @type {string[]} */
   const files = [];
   await walkDirectory(rootDir, "", files);
   return files;
 }
 
+/**
+ * @param {string} rootDir
+ * @param {string} relativeDir
+ * @param {string[]} files
+ */
 async function walkDirectory(rootDir, relativeDir, files) {
   const directoryPath = path.join(rootDir, relativeDir);
   const directoryEntries = await fs.readdir(directoryPath, { withFileTypes: true });
@@ -188,16 +284,25 @@ async function walkDirectory(rootDir, relativeDir, files) {
   }
 }
 
+/**
+ * @param {string} filePath
+ * @param {NormalizedVersionLiteralAllowlist} allowlist
+ * @returns {boolean}
+ */
 function shouldExcludeWorkspacePath(filePath, allowlist) {
   const normalizedPath = normalizeRepoPath(filePath);
   const segments = normalizedPath.split("/");
   return segments.some((segment) => EXCLUDED_DIRECTORIES.has(segment))
-    || EXCLUDED_FILES.has(segments.at(-1))
-    || segments.at(-1).startsWith(".node-server")
+    || EXCLUDED_FILES.has(/** @type {string} */ (segments.at(-1)))
+    || /** @type {string} */ (segments.at(-1)).startsWith(".node-server")
     || allowlist.currentVersionLiteralFiles.has(normalizedPath)
     || isHistoricalLabelPath(normalizedPath, allowlist);
 }
 
+/**
+ * @param {VersionLiteralAllowlistInput} [allowlist]
+ * @returns {NormalizedVersionLiteralAllowlist}
+ */
 function normalizeAllowlist(allowlist = {}) {
   return {
     currentVersionLiteralFiles: new Set(
@@ -216,6 +321,13 @@ function normalizeAllowlist(allowlist = {}) {
   };
 }
 
+/**
+ * @param {string} filePath
+ * @param {string} source
+ * @param {number} lineNumber
+ * @param {NormalizedVersionLiteralAllowlist} allowlist
+ * @returns {boolean}
+ */
 function isAllowedCurrentVersionLine(filePath, source, lineNumber, allowlist) {
   const line = (String(source || "").split("\n")[lineNumber - 1] || "").replace(/\r$/, "");
   return allowlist.currentVersionLiteralLineRules.some((rule) => (
@@ -223,15 +335,24 @@ function isAllowedCurrentVersionLine(filePath, source, lineNumber, allowlist) {
   ));
 }
 
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
 function normalizeRepoPath(filePath) {
   return String(filePath || "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
+/**
+ * @param {string} source
+ * @param {number} index
+ * @returns {{ column: number, line: number }}
+ */
 function sourceLocation(source, index) {
   const prefix = source.slice(0, index);
   const lines = prefix.split("\n");
   return {
-    column: lines.at(-1).length + 1,
+    column: /** @type {string} */ (lines.at(-1)).length + 1,
     line: lines.length,
   };
 }

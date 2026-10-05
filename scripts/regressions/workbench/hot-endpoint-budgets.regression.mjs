@@ -10,10 +10,15 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { readPayload } from "../../test-support/http-payload-assertions.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-hot-endpoint-budgets-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "hot-endpoint-budgets.db");
@@ -25,6 +30,7 @@ const { readSqliteStatementCount } = await import("../../../src/db/sqlite.js");
 const { createSession } = await import("../../../src/security/sessions.js");
 const { tasksService } = await import("../../../src/modules/tasks/tasks.service.js");
 
+/** @type {import("node:http").Server | null} */
 let server = null;
 
 try {
@@ -35,14 +41,7 @@ FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
 `))[0];
-  const session = {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  const session = workspaceSessionFixture(user);
 
   for (let index = 0; index < 30; index += 1) {
     await tasksService.create({
@@ -63,16 +62,20 @@ LIMIT 1;
     const instance = http.createServer(createApp());
     instance.listen(0, "127.0.0.1", () => resolve(instance));
   });
-  const base = `http://127.0.0.1:${server.address().port}`;
+  assert.ok(server, "the budget fixture server should be listening");
+  const address = server.address();
+  assert.ok(address && typeof address === "object", "the budget fixture server should bind a TCP port");
+  const base = `http://127.0.0.1:${address.port}`;
   const headers = { cookie: `longtail_forge_session=${httpSession.sessionId}` };
 
+  /** @param {string} url */
   async function measure(url) {
     const before = readSqliteStatementCount();
     const response = await fetch(base + url, { headers });
     const text = await response.text();
     assert.equal(response.status, 200, `${url} should return 200`);
     return {
-      body: JSON.parse(text),
+      body: /** @type {unknown} */ (JSON.parse(text)),
       bytes: text.length,
       statements: readSqliteStatementCount() - before,
     };
@@ -87,18 +90,21 @@ LIMIT 1;
   const bootstrap = await measure("/api/workbench/bootstrap");
   assert.ok(bootstrap.statements <= 25, `bootstrap issued ${bootstrap.statements} statements; budget is 25`);
   assert.ok(bootstrap.bytes <= 10000, `bootstrap payload was ${bootstrap.bytes} bytes; budget is 10000`);
-  assert.deepEqual(bootstrap.body.workCandidates, [], "bootstrap must not compute focus candidates");
+  assert.deepEqual(readPayload(bootstrap, ["workCandidates"], "workbench bootstrap").workCandidates, [], "bootstrap must not compute focus candidates");
 
   const focusModes = await measure("/api/workbench/focus-modes");
   assert.ok(focusModes.statements <= 5, `focus-modes issued ${focusModes.statements} statements; budget is 5`);
 
   const workbenchItems = await measure("/api/tasks/workbench-items");
   assert.ok(workbenchItems.statements <= 40, `workbench-items issued ${workbenchItems.statements} statements; budget is 40`);
-  assert.equal(Object.hasOwn(workbenchItems.body, "options"), false, "workbench-items must not compute the options payload");
-  const itemCount = workbenchItems.body.items.length;
+  const workbenchItemsPayload = readPayload(workbenchItems, ["items"], "workbench items");
+  assert.equal(Object.hasOwn(workbenchItemsPayload, "options"), false, "workbench-items must not compute the options payload");
+  const items = workbenchItemsPayload.items;
+  assert.ok(Array.isArray(items), "workbench-items should publish an items list");
+  const itemCount = items.length;
   assert.ok(itemCount >= 30, "seeded tasks should appear as work items");
   assert.ok(
-    workbenchItems.body.items.every((item) => !Object.hasOwn(item, "description")),
+    items.every((/** @type {object} */ item) => !Object.hasOwn(item, "description")),
     "work items must not ship the full description",
   );
   assert.ok(
@@ -108,7 +114,9 @@ LIMIT 1;
 
   const taskOptions = await measure("/api/tasks/options");
   assert.ok(taskOptions.statements <= 30, `tasks/options issued ${taskOptions.statements} statements; budget is 30`);
-  assert.ok(Array.isArray(taskOptions.body.options?.tasks), "the options endpoint should return the task picker");
+  const taskOptionsPayload = readPayload(taskOptions, ["options"], "task options");
+  const optionGroups = requireJsonRecord(taskOptionsPayload.options, "the task options envelope");
+  assert.ok(Array.isArray(optionGroups.tasks), "the options endpoint should return the task picker");
 
   // Query counts stay near-constant as the task list grows: forty more tasks
   // may add at most a handful of statements (batched enrichment, no N+1).
@@ -128,7 +136,8 @@ LIMIT 1;
   console.log("hot endpoint budgets regression passed.");
 } finally {
   if (server) {
-    await new Promise((resolve) => server.close(resolve));
+    const listening = server;
+    await new Promise((resolve) => listening.close(() => resolve(undefined)));
   }
   await closeSqlite();
   await fs.rm(tempDir, { force: true, recursive: true });

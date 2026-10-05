@@ -13,6 +13,7 @@
 // regressions; call assertRoadmapCursorAtLeast with the cursor value that is
 // current when the branch closes.
 
+import { escapeRegExp } from "../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -104,14 +105,20 @@ function isDocumentedOutOfOrderRoadmapCloseout(completedVersion, options = {}) {
     && archiveSection.includes(preservedCursorStatement);
 }
 
+/**
+ * Build the anchored live-roadmap heading matcher for one version.
+ * @param {string} version dotted numeric version
+ * @returns {RegExp}
+ */
 function versionHeadingPattern(version) {
   return new RegExp(`^## Version ${escapeRegExp(version)}(?:\\s+-|\\s*$)`, "m");
 }
 
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
+/**
+ * Parse a dotted numeric version into its numeric segments.
+ * @param {string} value dotted numeric version, for example "0.33.8"
+ * @returns {number[]} the numeric segments
+ */
 function parseDottedVersion(value) {
   const text = String(value || "").trim();
 

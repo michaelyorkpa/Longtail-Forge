@@ -1,4 +1,3 @@
-// @ts-check
 import { Router } from "express";
 import { createScopedPermissionResource } from "../core/permission-resource.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
@@ -167,7 +166,7 @@ async function canReadSearchResult(session, result, target) {
 
   return permissionsService.can(
     session,
-    target.requiredReadPermission,
+    String(target.requiredReadPermission || ""),
     createScopedPermissionResource(session.workspace_id, "read", {
       clientId: resolvePermissionClientId(result),
       projectId: resolvePermissionProjectId(result),
@@ -421,8 +420,8 @@ async function readResultContext(workspaceId, results) {
       id: project.id,
       name: project.name,
       status: project.status,
-      clientId: project.client_id || project.clientId || "",
-      clientName: project.client_name || project.clientName || "",
+      clientId: project.client_id || "",
+      clientName: project.client_name || "",
     });
   }
 

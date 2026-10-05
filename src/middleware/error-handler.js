@@ -1,5 +1,3 @@
-// @ts-check
-
 import { AppError } from "../utils/app-error.js";
 import {
   errorCodeForStatus,
@@ -139,7 +137,7 @@ function normalizeStatusCode(value) {
  */
 function readErrorProperty(error, property) {
   return error && typeof error === "object" && property in error
-    ? error[property]
+    ? Reflect.get(error, property)
     : undefined;
 }
 

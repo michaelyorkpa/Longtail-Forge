@@ -25,6 +25,85 @@ import { hashPassword } from "../src/security/passwords.js";
 
 loadRuntimeEnvFile();
 
+/** @typedef {typeof import("../src/db/index.js")} DatabaseModule */
+/** @typedef {DatabaseModule["db"]} SeedDatabase */
+/** @typedef {import("../src/types/database-contracts.js").TransactionClient} SeedTransaction */
+/** @typedef {import("../src/types/database-contracts.js").DatabaseNamedParameterInput} SeedColumnValue */
+/** @typedef {Record<string, SeedColumnValue>} SeedRow */
+/** @typedef {ReturnType<typeof resolveSeedTarget>} SeedTarget */
+/** @typedef {NonNullable<Awaited<ReturnType<typeof loadSanitizedDemoRoleFixtures>>>} RoleFixtureSet */
+/** @typedef {RoleFixtureSet["fixtures"][number]} RoleFixture */
+/** @typedef {RoleFixture & { passwordHash: string | null, userId: string, usesBootstrapOperator: boolean }} RoleFixtureRow */
+/** @typedef {Record<string, string>} SeedUserMap */
+/** @typedef {Record<string, number>} SeedCounts */
+/** @typedef {{ bytes: string, key: string }} SeedFile */
+/** @typedef {{ row: SeedRow, table: string }} SeedLedgerEntry */
+/** @typedef {(table: string, row: SeedRow, options?: { ignore?: boolean }) => Promise<void>} SeedInserter */
+
+/**
+ * Parsed command line for the seed/reset commands. Every value option stays
+ * optional because the parser only records the flags the operator supplied.
+ * @typedef {object} SeedCliOptions
+ * @property {string} [anchorDate]
+ * @property {string} [command]
+ * @property {string} [confirm]
+ * @property {string} [database]
+ * @property {string} [dataDir]
+ * @property {string} [environment]
+ * @property {string} [filesRoot]
+ * @property {boolean} [help]
+ * @property {string} [profile]
+ * @property {string} [roleFixtures]
+ * @property {string} [roleFixtureBinding]
+ */
+/** @typedef {"anchorDate" | "confirm" | "database" | "dataDir" | "environment" | "filesRoot" | "profile" | "roleFixtures" | "roleFixtureBinding"} SeedCliValueOptionKey */
+
+/** @typedef {{ workspace_id: string }} WorkspaceIdRow */
+/** @typedef {{ user_id: string }} UserIdRow */
+/** @typedef {{ count: number | string }} CountRow */
+/** @typedef {{ integrity_check?: string }} IntegrityCheckRow */
+/** @typedef {{ scenario_manifest_json: string, semantic_fingerprint: string }} SeedRunRow */
+/** @typedef {{ password: string | null, protected_user: string, user_id: string, username: string, user_status: string }} SeedActiveUserRow */
+/** @typedef {{ status: string, workspace_id: string }} SeedMembershipRow */
+/** @typedef {{ permission_overrides_json: string | null, role_id: string, scope_id: string, scope_type: string }} SeedRoleAssignmentRow */
+/** @typedef {{ alt_email: string | null, user_id: string, username: string }} SeedIdentityRow */
+
+/** @typedef {SeedRow & { archived_at: string | null, archived_by_user_id: string | null, blocked_reason: string, client_id: string | null, completed_at: string | null, completed_by_user_id: string | null, created_by_user_id: string, description: string, due_at_utc: string | null, due_date: string | null, due_time: string | null, last_worked_at: string | null, next_action: string, priority: string, project_id: string | null, resume_note: string, status: string, task_id: string, title: string, updated_by_user_id: string, workspace_id: string }} SeedTaskRow */
+/** @typedef {SeedRow & { body_excerpt: string, body_markdown: string, client_id: string | null, created_by_user_id: string, library_bucket: string, note_id: string, note_type: string, project_id: string | null, status: string, title: string, visibility: string, workspace_id: string }} SeedNoteRow */
+/** @typedef {SeedRow & { client_id: string | null, description: string, list_id: string, project_id: string | null, status: string, title: string, workspace_id: string }} SeedListRow */
+/** @typedef {[SeedListRow, string, string]} SeedListItemSpec */
+/** @typedef {[string, string, string, string, string, string, string | null, string | null, string]} SeedSearchTuple */
+/** @typedef {{ clientId: string | null, clientName: string, projectId: string, projectName: string, workspaceId: string }} ProjectDescriptor */
+/** @typedef {{ clientId: string, name: string }} SeedClientReference */
+
+/**
+ * Generated-volume scenario buckets produced by the fat Northwind profile.
+ * @typedef {object} FatScenarioSet
+ * @property {SeedRow[]} checklistItems
+ * @property {string[][]} clients
+ * @property {string[][]} collections
+ * @property {SeedListItemSpec[]} listItems
+ * @property {SeedListRow[]} lists
+ * @property {string[][]} memberships
+ * @property {SeedNoteRow[]} notes
+ * @property {SeedRow[]} notifications
+ * @property {(string | null)[][]} projects
+ * @property {SeedRow[]} resumeRows
+ * @property {string[][]} roles
+ * @property {SeedRow[]} tags
+ * @property {SeedRow[]} taskAssignees
+ * @property {SeedTaskRow[]} tasks
+ * @property {SeedRow[]} tagAssignments
+ * @property {SeedRow[]} timeEntries
+ */
+
+/** @typedef {{ anchorDate: string, business: string, family: string, now: string, personal: string, recurrenceId: string, users: SeedUserMap }} TaskScenarioOptions */
+/** @typedef {{ business: string, family: string, heroTask: string, now: string, personal: string, users: SeedUserMap }} NoteScenarioOptions */
+/** @typedef {{ business: string, family: string, now: string, personal: string, users: SeedUserMap }} ListScenarioOptions */
+/** @typedef {{ anchorDate: string, business: string, family: string, fieldOps: string, now: string, personal: string, priyaPersonal: string, users: SeedUserMap }} FatScenarioOptions */
+/** @typedef {{ businessWorkspaceId: string, operatorUserId: string }} SeedIdentityScope */
+/** @typedef {{ anchorDate: string, counts: SeedCounts, files: SeedFile[], semanticFingerprint: string, workbench: unknown }} SeedResult */
+
 const DISABLED_PERSONA_PASSWORD = "!development-persona-login-disabled!";
 const SEED_CONTRACT = "development-data-v2";
 
@@ -36,6 +115,7 @@ function currentAnchorDate() {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 const scriptPath = fileURLToPath(import.meta.url);
+/** @type {DatabaseModule | null} */
 let databaseApi = null;
 
 async function main() {
@@ -46,7 +126,7 @@ async function main() {
   }
   const target = resolveSeedTarget(options);
   if (options.command === "reset") {
-    print(await resetSeedTarget(target, options.confirm));
+    print(await resetSeedTarget(target, /** @type {string} */ (options.confirm)));
     return;
   }
   if (options.command !== "seed") {
@@ -103,6 +183,9 @@ async function main() {
   });
 }
 
+/**
+ * @param {number} expectedCount canonical search documents the seed produced
+ */
 async function repairSeedSearchIndex(expectedCount) {
   const { searchService } = await import("../src/services/search.service.js");
   const result = await searchService.repairSearchBackendIndex({}, { refresh: true });
@@ -115,7 +198,12 @@ async function repairSeedSearchIndex(expectedCount) {
   };
 }
 
+/**
+ * @param {string[]} args
+ * @returns {SeedCliOptions}
+ */
 function parseArgs(args) {
+  /** @type {SeedCliOptions} */
   const options = { command: args[0] };
   for (let index = 1; index < args.length; index += 1) {
     const arg = args[index];
@@ -127,7 +215,7 @@ function parseArgs(args) {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value.`);
       const key = arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-      options[key] = value;
+      options[/** @type {SeedCliValueOptionKey} */ (key)] = value;
       index += 1;
       continue;
     }
@@ -157,6 +245,10 @@ Profiles: ${DEVELOPMENT_PROFILE}, ${DEMO_PROFILE}
 Development seed requires a unique SUPER_ADMIN_PASSWORD for its existing operator plus --role-fixtures ${LOCAL_ROLE_FIXTURE_MODE} for seven additional private role accounts; every fictional persona stays login-disabled. Local sanitized-demo uses that same seven-secret private fixture. The bound --role-fixtures ${PUBLIC_DEMO_ROLE_FIXTURE_MODE} profile accepts only the private Super Administrator password from its protected version 2 credential file and supplies six deterministic public visitor passwords from source. No password is accepted on the command line or printed. The data directory must contain the profile's exact marker segment and must be empty.`);
 }
 
+/**
+ * @param {RoleFixtureSet | null} roleFixtures
+ * @param {NodeJS.ProcessEnv} [env]
+ */
 function assertOperatorPasswordIsDistinctFromRoleFixtures(roleFixtures, env = process.env) {
   if (!roleFixtures) return;
   const operatorPassword = String(env.SUPER_ADMIN_PASSWORD || "");
@@ -165,6 +257,9 @@ function assertOperatorPasswordIsDistinctFromRoleFixtures(roleFixtures, env = pr
   }
 }
 
+/**
+ * @param {SeedTarget} target
+ */
 function configureRuntime(target) {
   process.env.LONGTAIL_ENV = "development";
   process.env.LONGTAIL_DATABASE_PROVIDER = "sqlite";
@@ -175,10 +270,19 @@ function configureRuntime(target) {
   delete process.env.SECURE_NOTES_MASTER_KEY;
 }
 
+/**
+ * Seed the deterministic development workspace through the real service layer.
+ * @param {SeedDatabase} db
+ * @param {SeedTarget} target
+ * @param {string} anchorDate
+ * @param {RoleFixtureSet | null} [roleFixtures]
+ * @returns {Promise<SeedResult>}
+ */
 async function seed(db, target, anchorDate, roleFixtures = null) {
+  /** @type {SeedLedgerEntry[]} */
   const ledger = [];
-  const bootstrapWorkspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at, workspace_id LIMIT 1;");
-  const operator = await db.get("SELECT user_id FROM users WHERE protected_user = 'yes' ORDER BY username LIMIT 1;");
+  const bootstrapWorkspace = /** @type {WorkspaceIdRow | null} */ (await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at, workspace_id LIMIT 1;"));
+  const operator = /** @type {UserIdRow | null} */ (await db.get("SELECT user_id FROM users WHERE protected_user = 'yes' ORDER BY username LIMIT 1;"));
   if (!bootstrapWorkspace?.workspace_id || !operator?.user_id) throw new Error("Fresh development bootstrap was not created.");
   const roleFixtureRows = roleFixtures
     ? await createRoleFixtureRows(roleFixtures, operator.user_id)
@@ -189,6 +293,7 @@ async function seed(db, target, anchorDate, roleFixtures = null) {
   const family = id("workspace", "family");
   const fieldOps = id("workspace", "field-ops");
   const priyaPersonal = id("workspace", "priya-personal");
+  /** @type {SeedUserMap} */
   const users = {
     alex: operator.user_id,
     priya: id("user", "priya"),
@@ -376,6 +481,7 @@ WHERE user_id = :userId;
 
     const lists = [...listScenarios({ now, business, personal, family, users }), ...fat.lists];
     for (const list of lists) await add("lists", list);
+    /** @type {SeedListItemSpec[]} */
     const listItems = [
       [lists[0], "Confirm workspace contacts", "received"], [lists[0], "Create kickoff agenda", "received"], [lists[1], "Retest mobile checkout", "received"], [lists[1], "Publish launch checklist", "needed"], [lists[2], "Archive final approval", "received"], [lists[3], "Label storage bins", "needed"], [lists[4], "Bring reusable cups", "planned"],
       ...fat.listItems,
@@ -422,10 +528,11 @@ WHERE user_id = :userId;
     await add("notifications", { notification_id: id("notification", "completed"), workspace_id: business, module_id: "tasks", event_type: "task.completed", recipient_user_id: users.alex, actor_user_id: users.priya, record_type: "task", record_id: id("task", "completed"), title: "Launch copy approved", body: "Priya completed a safe fake task.", url: "tasks.html", status: "read", priority: "normal", created_at: now, read_at: now, dismissed_at: null, metadata_json: JSON.stringify({ fake: true }) });
     for (const notification of fat.notifications) await add("notifications", notification);
 
+    /** @type {SeedSearchTuple[]} */
     const searchable = [
-      ...tasks.map((row) => [row.workspace_id, "tasks", "task", row.task_id, row.title, row.description, row.client_id, row.project_id, row.status]),
-      ...notes.map((row) => [row.workspace_id, "notes", "note", row.note_id, row.title, row.body_excerpt || "", row.client_id, row.project_id, row.status]),
-      ...lists.map((row) => [row.workspace_id, "lists", "list", row.list_id, row.title, row.description || "", row.client_id, row.project_id, row.status]),
+      .../** @type {SeedSearchTuple[]} */ (tasks.map((row) => [row.workspace_id, "tasks", "task", row.task_id, row.title, row.description, row.client_id, row.project_id, row.status])),
+      .../** @type {SeedSearchTuple[]} */ (notes.map((row) => [row.workspace_id, "notes", "note", row.note_id, row.title, row.body_excerpt || "", row.client_id, row.project_id, row.status])),
+      .../** @type {SeedSearchTuple[]} */ (lists.map((row) => [row.workspace_id, "lists", "list", row.list_id, row.title, row.description || "", row.client_id, row.project_id, row.status])),
     ];
     for (const [workspaceId, moduleId, recordType, recordId, title, summary, clientId, projectId, status] of searchable) {
       await add("search_index", { search_index_id: id("search", moduleId, recordId), workspace_id: workspaceId, module_id: moduleId, record_type: recordType, record_id: recordId, title, summary, body: summary, tags_text: "fake deterministic", client_id: clientId, project_id: projectId, visibility: "normal", record_status: status === "complete" ? "completed" : "active", source: "development-data", record_created_at: now, record_updated_at: now, indexed_at: now, library_bucket: moduleId === "notes" ? "reference" : null, note_collection_id: null, collection_path: null });
@@ -451,14 +558,15 @@ WHERE user_id = :userId;
     await add("development_data_seed_runs", { seed_run_id: id("seed-run", target.profile), contract_version: SEED_CONTRACT, profile: target.profile, anchor_date: anchorDate, semantic_fingerprint: fingerprint, scenario_manifest_json: JSON.stringify(scenarios), seeded_at: now });
   });
 
-  const row = await db.get("SELECT semantic_fingerprint, scenario_manifest_json FROM development_data_seed_runs LIMIT 1;");
+  const row = /** @type {SeedRunRow} */ (await db.get("SELECT semantic_fingerprint, scenario_manifest_json FROM development_data_seed_runs LIMIT 1;"));
+  /** @type {SeedCounts} */
   const counts = {};
   for (const table of ["workspaces", "users", "clients", "projects", "tasks", "task_checklist_items", "work_resume_state", "active_work_timers", "time_entries", "notes", "note_revisions", "lists", "list_items", "files", "notifications", "search_index"]) {
-    counts[table] = Number((await db.get(`SELECT COUNT(*) AS count FROM ${table};`)).count);
+    counts[table] = Number(/** @type {CountRow} */ ((await db.get(`SELECT COUNT(*) AS count FROM ${table};`))).count);
   }
-  const secure = await db.get("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL;");
+  const secure = /** @type {CountRow} */ (await db.get("SELECT COUNT(*) AS count FROM notes WHERE security_mode = 'secure' OR secure_payload IS NOT NULL OR encrypted_data_key IS NOT NULL;"));
   if (Number(secure.count) !== 0) throw new Error("Seed contract violation: Secure Notes material was created.");
-  const integrity = await db.get("PRAGMA integrity_check;");
+  const integrity = /** @type {IntegrityCheckRow} */ (await db.get("PRAGMA integrity_check;"));
   if (Object.values(integrity)[0] !== "ok") throw new Error("Seeded database failed PRAGMA integrity_check.");
   const foreignKeyViolations = await db.query("PRAGMA foreign_key_check;");
   if (foreignKeyViolations.length !== 0) throw new Error("Seeded database failed PRAGMA foreign_key_check.");
@@ -470,8 +578,18 @@ WHERE user_id = :userId;
   return { anchorDate, semanticFingerprint: row.semantic_fingerprint, counts, workbench: JSON.parse(row.scenario_manifest_json), files };
 }
 
+/**
+ * @param {TaskScenarioOptions} scenario
+ * @returns {SeedTaskRow[]}
+ */
 function taskScenarios({ anchorDate, now, business, personal, family, users, recurrenceId }) {
   const common = { description: "Deterministic fake scenario data only.", priority: "normal", due_time: null, due_timezone: "America/New_York", source_type: "manual", source_id: null, archived_at: null, created_by_user_id: users.alex, updated_by_user_id: users.alex, completed_by_user_id: null, archived_by_user_id: null, reminder_override_enabled: 0, recurrence_template_id: null, recurrence_instance_date: null, billable: "yes", created_at: now, updated_at: now, next_action: "", blocked_reason: "", resume_note: "", last_worked_at: null };
+  /**
+   * @param {string} key
+   * @param {string} workspace_id
+   * @param {string} title
+   * @returns {SeedTaskRow}
+   */
   const make = (key, workspace_id, title, extra = {}) => ({ task_id: id("task", key), workspace_id, client_id: null, project_id: null, title, status: "open", due_date: null, due_at_utc: null, completed_at: null, ...common, ...extra });
   return [
     make("hero", business, "Fix mobile checkout overlap", { client_id: id("client", "cedar"), project_id: id("project", "website"), status: "in_progress", priority: "high", due_date: anchorDate, due_time: "17:00", due_at_utc: `${anchorDate}T21:00:00.000Z`, next_action: "Retest the cart button at 380px and attach the clean capture.", resume_note: "Paused after isolating the narrow-width header collision.", last_worked_at: `${date(anchorDate, -1)}T19:10:00.000Z` }),
@@ -489,7 +607,18 @@ function taskScenarios({ anchorDate, now, business, personal, family, users, rec
   ];
 }
 
+/**
+ * @param {NoteScenarioOptions} scenario
+ * @returns {SeedNoteRow[]}
+ */
 function noteScenarios({ now, business, personal, family, users, heroTask }) {
+  /**
+   * @param {string} key
+   * @param {string} workspace_id
+   * @param {string} title
+   * @param {string} body
+   * @returns {SeedNoteRow}
+   */
   const make = (key, workspace_id, title, body, extra = {}) => ({ note_id: id("note", key), workspace_id, title, slug: key, body_markdown: body, body_excerpt: body.replace(/[#*_`\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 180), body_plaintext_index: body.replace(/[#*_`]/g, " "), note_type: "general", library_bucket: "reference", library_bucket_source: "manual", status: "active", visibility: "workspace", security_mode: "normal", secure_payload: null, secure_payload_version: null, encrypted_data_key: null, encryption_key_version: null, encryption_algorithm: null, key_wrapping_algorithm: null, encryption_nonce: null, encryption_auth_tag: null, key_wrapping_nonce: null, key_wrapping_auth_tag: null, encrypted_at: null, client_id: null, project_id: null, task_id: null, ticket_id: null, linked_user_id: null, note_collection_id: null, owner_user_id: users.alex, created_by_user_id: users.alex, updated_by_user_id: users.alex, created_at: now, updated_at: now, archived_at: null, deleted_at: null, metadata_json: JSON.stringify({ fake: true }), import_source: null, import_source_id: null, import_source_path: null, imported_at: null, import_batch_id: null, original_notebook: null, original_section_group: null, original_section: null, original_page_id: null, ...extra });
   return [
     make("checkout-findings", business, "Checkout responsive findings", "# Checkout findings\n\nThe fake storefront header overlaps the cart button below **380px**.\n\n## Next test\n\n- [ ] Retest with the compact navigation\n- [ ] Capture a sanitized screenshot", { note_type: "research", library_bucket: "active_work", client_id: id("client", "cedar"), project_id: id("project", "website"), task_id: heroTask, note_collection_id: id("collection", "active") }),
@@ -499,11 +628,29 @@ function noteScenarios({ now, business, personal, family, users, heroTask }) {
   ];
 }
 
+/**
+ * @param {SeedNoteRow} note
+ * @param {string} userId
+ * @param {string} now
+ * @param {number} number
+ * @param {string} summary
+ * @returns {SeedRow}
+ */
 function revisionRow(note, userId, now, number, summary) {
   return { note_revision_id: id("note-revision", note.note_id, number), workspace_id: note.workspace_id, note_id: note.note_id, revision_number: number, title: note.title, body_markdown: note.body_markdown, body_excerpt: note.body_excerpt, note_type: note.note_type, library_bucket: note.library_bucket, status: note.status, visibility: note.visibility, security_mode: "normal", secure_payload: null, secure_payload_version: null, encrypted_data_key: null, encryption_key_version: null, encryption_algorithm: null, key_wrapping_algorithm: null, encryption_nonce: null, encryption_auth_tag: null, key_wrapping_nonce: null, key_wrapping_auth_tag: null, encrypted_at: null, changed_by_user_id: userId, change_summary: summary, change_reason: "development_seed", created_at: now, metadata_json: JSON.stringify({ fake: true }), import_source: null, import_source_id: null, import_source_path: null, imported_at: null, import_batch_id: null, original_notebook: null, original_section_group: null, original_section: null, original_page_id: null };
 }
 
+/**
+ * @param {ListScenarioOptions} scenario
+ * @returns {SeedListRow[]}
+ */
 function listScenarios({ now, business, personal, family, users }) {
+  /**
+   * @param {string} key
+   * @param {string} workspace_id
+   * @param {string} title
+   * @returns {SeedListRow}
+   */
   const make = (key, workspace_id, title, extra = {}) => ({ list_id: id("list", key), workspace_id, client_id: null, project_id: null, title, description: "Deterministic safe fake list.", list_type: "checklist", status: "active", is_reusable: 0, source_list_id: null, duplicated_from_list_id: null, created_by_user_id: users.alex, updated_by_user_id: users.alex, finalized_by_user_id: null, created_at: now, updated_at: now, completed_at: null, finalized_at: null, archived_at: null, deleted_at: null, metadata_json: JSON.stringify({ fake: true }), ...extra });
   return [
     make("onboarding", business, "New client onboarding", { client_id: id("client", "cedar"), project_id: id("project", "website"), is_reusable: 1 }),
@@ -560,6 +707,10 @@ const DUE_OFFSETS = [-30, -21, -14, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3, 5, 7, 1
 const DUE_TIMES = [["10:00", "14:00"], ["14:30", "18:30"], ["16:00", "20:00"]];
 const NOTE_TOPICS = ["kickoff summary", "shoot day checklist", "asset naming rules", "feedback round notes", "vendor comparison", "retro highlights", "budget snapshot", "style references", "delivery checklist", "maintenance log"];
 
+/**
+ * @param {number} seedValue
+ * @returns {() => number}
+ */
 function mulberry32(seedValue) {
   let state = seedValue >>> 0;
   return () => {
@@ -571,10 +722,24 @@ function mulberry32(seedValue) {
   };
 }
 
+/**
+ * @param {FatScenarioOptions} scenario
+ * @returns {FatScenarioSet}
+ */
 function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, priyaPersonal, users }) {
   const random = mulberry32(0x0f2a11d5);
+  /**
+   * @template PoolValue
+   * @param {readonly PoolValue[]} list
+   * @returns {PoolValue}
+   */
   const pick = (list) => list[Math.floor(random() * list.length)];
+  /**
+   * @param {number} probability
+   * @returns {boolean}
+   */
   const chance = (probability) => random() < probability;
+  /** @type {FatScenarioSet} */
   const result = {
     checklistItems: [], clients: [], collections: [], listItems: [], lists: [], memberships: [], notes: [],
     notifications: [], projects: [], resumeRows: [], roles: [], tags: [], taskAssignees: [], tasks: [], tagAssignments: [], timeEntries: [],
@@ -597,12 +762,25 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
   }
   result.memberships.push([users.mika, fieldOps], [users.sofia, business]);
 
+  /** @type {ProjectDescriptor[]} */
   const projectDescriptors = [];
+  /**
+   * @param {string} slug
+   * @param {string} name
+   * @param {string} workspaceId
+   * @returns {SeedClientReference}
+   */
   const registerClient = (slug, name, workspaceId) => {
     const clientId = id("client", slug);
     result.clients.push([clientId, workspaceId, name]);
     return { clientId, name };
   };
+  /**
+   * @param {string} slug
+   * @param {string} name
+   * @param {string} workspaceId
+   * @param {SeedClientReference | null} client
+   */
   const registerProject = (slug, name, workspaceId, client) => {
     const projectId = id("project", slug);
     result.projects.push([projectId, workspaceId, client ? client.clientId : null, name]);
@@ -615,7 +793,7 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
     });
   };
 
-  for (const [workspaceKey, clientPool] of [["business", GENERATED_CLIENTS.business], ["fieldOps", GENERATED_CLIENTS.fieldOps]]) {
+  for (const [workspaceKey, clientPool] of /** @type {[string, string[][]][]} */ ([["business", GENERATED_CLIENTS.business], ["fieldOps", GENERATED_CLIENTS.fieldOps]])) {
     const workspaceId = workspaceKey === "business" ? business : fieldOps;
     for (const [slug, name] of clientPool) {
       const client = registerClient(slug, name, workspaceId);
@@ -634,7 +812,7 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
   businessPersonas.forEach((userId, index) => {
     const descriptor = businessRoleTargets[index % businessRoleTargets.length];
     result.roles.push(index % 3 === 0
-      ? [business, userId, "client_user", "client", descriptor.clientId]
+      ? [business, userId, "client_user", "client", /** @type {string} */ (descriptor.clientId)]
       : [business, userId, "project_user", "project", descriptor.projectId]);
   });
   fieldPersonas.forEach((userId, index) => {
@@ -642,6 +820,7 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
     result.roles.push([fieldOps, userId, "project_user", "project", descriptor.projectId]);
   });
 
+  /** @type {[string, number][]} */
   const taskCounts = [[business, 258], [fieldOps, 80], [personal, 20], [priyaPersonal, 10], [family, 20]];
   const taskDefaults = { archived_at: null, billable: "yes", blocked_reason: "", completed_at: null, completed_by_user_id: null, archived_by_user_id: null, description: "Deterministic fake scenario data only.", due_at_utc: null, due_date: null, due_time: null, due_timezone: "America/New_York", last_worked_at: null, next_action: "", recurrence_instance_date: null, recurrence_template_id: null, reminder_override_enabled: 0, resume_note: "", source_id: null, source_type: "manual" };
 
@@ -662,6 +841,7 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
       const dueOffset = chance(0.16) ? null : terminal ? pick(DUE_OFFSETS.filter((offset) => offset <= 0)) : pick(DUE_OFFSETS);
       const dueDate = dueOffset === null ? null : date(anchorDate, dueOffset);
       const timed = dueDate !== null && chance(0.3) ? pick(DUE_TIMES) : null;
+      /** @type {SeedTaskRow} */
       const task = {
         task_id: id("task", key),
         workspace_id: workspaceId,
@@ -733,6 +913,7 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
     [family]: [id("collection", "family"), id("collection", "gen-family-areas")],
   };
 
+  /** @type {[string, number][]} */
   const noteCounts = [[business, 120], [fieldOps, 30], [personal, 20], [priyaPersonal, 10], [family, 16]];
   for (const [workspaceId, count] of noteCounts) {
     const workspaceProjects = projectDescriptors.filter((descriptor) => descriptor.workspaceId === workspaceId);
@@ -761,6 +942,7 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
     }
   }
 
+  /** @type {[string, number][]} */
   const listCounts = [[business, 10], [fieldOps, 4], [personal, 2], [priyaPersonal, 1], [family, 2]];
   for (const [workspaceId, count] of listCounts) {
     const workspaceProjects = projectDescriptors.filter((descriptor) => descriptor.workspaceId === workspaceId);
@@ -787,9 +969,9 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
   const billableProjects = projectDescriptors.filter((descriptor) => descriptor.workspaceId === business || descriptor.workspaceId === fieldOps);
   for (let index = 0; index < 600; index += 1) {
     const personalEntry = index % 12 === 0;
-    const descriptor = personalEntry
+    const descriptor = /** @type {ProjectDescriptor} */ (personalEntry
       ? projectDescriptors.find((candidate) => candidate.workspaceId === personal)
-      : pick(billableProjects);
+      : pick(billableProjects));
     const workspaceId = descriptor.workspaceId;
     const userId = pick(assigneePools[workspaceId]);
     const dayOffset = -Math.floor(random() * 30);
@@ -858,7 +1040,13 @@ function fatScenarios({ anchorDate, business, family, fieldOps, now, personal, p
   return result;
 }
 
+/**
+ * @param {RoleFixtureSet} roleFixtures
+ * @param {string} operatorUserId
+ * @returns {Promise<RoleFixtureRow[]>}
+ */
 async function createRoleFixtureRows(roleFixtures, operatorUserId) {
+  /** @type {RoleFixtureRow[]} */
   const rows = [];
   for (const fixture of roleFixtures.fixtures) {
     const credential = roleFixtures.credentials.get(fixture.roleId);
@@ -876,6 +1064,11 @@ async function createRoleFixtureRows(roleFixtures, operatorUserId) {
   return rows;
 }
 
+/**
+ * @param {RoleFixture} fixture
+ * @param {{ business: string }} scope
+ * @returns {string}
+ */
 function resolveRoleFixtureScopeId(fixture, { business }) {
   if (fixture.scopeKey === "all") return "all";
   if (fixture.scopeKey === "northwind") return business;
@@ -884,17 +1077,22 @@ function resolveRoleFixtureScopeId(fixture, { business }) {
   throw new Error(`Unknown sanitized-demo role scope key: ${fixture.scopeKey}`);
 }
 
+/**
+ * @param {SeedDatabase} db
+ * @param {RoleFixtureSet | null} roleFixtures
+ * @param {SeedIdentityScope} scope
+ */
 async function verifySeededRoleFixtureContract(db, roleFixtures, {
   businessWorkspaceId,
   operatorUserId,
 }) {
   if (!roleFixtures) {
-    const activePersonas = await db.get(`
+    const activePersonas = /** @type {CountRow} */ (await db.get(`
 SELECT COUNT(*) AS count
 FROM users
 WHERE protected_user = 'no'
   AND (user_status != 'inactive' OR password != :disabledPassword);
-`, { disabledPassword: DISABLED_PERSONA_PASSWORD });
+`, { disabledPassword: DISABLED_PERSONA_PASSWORD }));
     if (Number(activePersonas.count) !== 0) {
       throw new Error("Development seed contract violation: a fictional persona login was enabled.");
     }
@@ -911,12 +1109,12 @@ WHERE protected_user = 'no'
       userId,
     }];
   }));
-  const activeUsers = await db.query(`
+  const activeUsers = /** @type {SeedActiveUserRow[]} */ (await db.query(`
 SELECT user_id, username, user_status, protected_user, password
 FROM users
 WHERE user_status = 'active'
 ORDER BY username;
-`);
+`));
   const expectedActiveUserCount = roleFixtures.fixtures.length + (roleFixtures.usesBootstrapSuperAdmin ? 0 : 1);
   if (activeUsers.length !== expectedActiveUserCount) {
     throw new Error("Pretty development/demo role fixture contract has an unexpected active-login count.");
@@ -938,12 +1136,12 @@ ORDER BY username;
       throw new Error("Pretty development/demo role fixture identity contract is inconsistent.");
     }
 
-    const memberships = await db.query(`
+    const memberships = /** @type {SeedMembershipRow[]} */ (await db.query(`
 SELECT workspace_id, status
 FROM user_workspaces
 WHERE user_id = :userId
 ORDER BY workspace_id;
-`, { userId: user.user_id });
+`, { userId: user.user_id }));
     if (expected.roleId !== "super_admin" && (
       memberships.length !== 1
       || memberships[0].workspace_id !== businessWorkspaceId
@@ -952,12 +1150,12 @@ ORDER BY workspace_id;
       throw new Error("Pretty development/demo role fixture membership contract is inconsistent.");
     }
 
-    const assignments = await db.query(`
+    const assignments = /** @type {SeedRoleAssignmentRow[]} */ (await db.query(`
 SELECT role_id, scope_type, scope_id, permission_overrides_json
 FROM user_role_assignments
 WHERE user_id = :userId
 ORDER BY role_id, scope_type, scope_id;
-`, { userId: user.user_id });
+`, { userId: user.user_id }));
     if (
       assignments.length !== 1
       || assignments[0].role_id !== expected.roleId
@@ -969,7 +1167,7 @@ ORDER BY role_id, scope_type, scope_id;
     }
   }
 
-  const unexpectedActivePersonas = await db.get(`
+  const unexpectedActivePersonas = /** @type {CountRow} */ (await db.get(`
 SELECT COUNT(*) AS count
 FROM users
 WHERE protected_user = 'no'
@@ -980,12 +1178,12 @@ WHERE protected_user = 'no'
     .join(", ")});
 `, Object.fromEntries([...expectedByUserId.keys()]
     .filter((userId) => userId !== operatorUserId)
-    .map((userId, index) => [`roleUser${index}`, userId])));
+    .map((userId, index) => [`roleUser${index}`, userId]))));
   if (Number(unexpectedActivePersonas.count) !== 0) {
     throw new Error("Pretty development/demo role fixture contract enabled an ordinary fictional persona.");
   }
 
-  const identityRows = await db.query("SELECT user_id, username, alt_email FROM users;");
+  const identityRows = /** @type {SeedIdentityRow[]} */ (await db.query("SELECT user_id, username, alt_email FROM users;"));
   for (const identity of identityRows) {
     if (!roleFixtures.usesBootstrapSuperAdmin && identity.user_id === operatorUserId) continue;
     for (const value of [identity.username, identity.alt_email].filter(Boolean)) {
@@ -997,18 +1195,61 @@ WHERE protected_user = 'no'
   }
 }
 
+/**
+ * @param {string} clientId
+ * @param {string} workspaceId
+ * @param {string} name
+ * @param {string} now
+ * @returns {SeedRow}
+ */
 function clientRow(clientId, workspaceId, name, now) {
   return { id: clientId, workspace_id: workspaceId, parent_client_id: null, name, status: "Active", billable: "yes", billing_rate: null, billing_period_type: null, billing_period_start_day: null, billing_rounding_enabled: null, billing_rounding_increment: null, billing_contact_name: "", billing_contact_email: "", billing_contact_alternate_name: "", billing_contact_alternate_email: "", billing_contact_phone_number: "", billing_contact_alternate_phone_number: "", billing_contact_street_address_1: "", billing_contact_street_address_2: "", billing_contact_city: "", billing_contact_state: "", billing_contact_zip_code: "", created_at: now, updated_at: now };
 }
 
+/**
+ * @param {string} key
+ * @param {string} workspaceId
+ * @param {string} userId
+ * @param {string} taskId
+ * @param {string} clientId
+ * @param {string} projectId
+ * @param {string} clientName
+ * @param {string} projectName
+ * @param {string} taskTitle
+ * @param {string} now
+ * @param {string} status
+ * @param {number} seconds
+ * @param {Record<string, boolean | string>} taskTimerStatusTransition
+ * @returns {SeedRow}
+ */
 function timerRow(key, workspaceId, userId, taskId, clientId, projectId, clientName, projectName, taskTitle, now, status, seconds, taskTimerStatusTransition) {
   return { active_timer_id: id("timer", key), workspace_id: workspaceId, user_id: userId, timer_slot: `source:tasks:task:${taskId}`, source_module_id: "tasks", source_type: "task", source_id: taskId, source_label: taskTitle, source_url: `tasks.html?task=${taskId}`, client_id: clientId, client_name: clientName, project_id: projectId, project_name: projectName, description: taskTitle, billable: "yes", accumulated_elapsed_seconds: seconds, last_active_start_time: status === "running" ? now : null, timer_status: status, created_at: now, updated_at: now, source_metadata_json: JSON.stringify({ fake: true, taskTimerStatusTransition }) };
 }
 
+/**
+ * @param {string} key
+ * @param {string} workspaceId
+ * @param {string} userId
+ * @param {string} clientId
+ * @param {string} projectId
+ * @param {string | null} taskId
+ * @param {string} description
+ * @param {string} start
+ * @param {string} end
+ * @param {number} seconds
+ * @param {string} billable
+ * @param {string} now
+ * @returns {SeedRow}
+ */
 function timeEntry(key, workspaceId, userId, clientId, projectId, taskId, description, start, end, seconds, billable, now) {
   return { entry_id: id("time-entry", key), workspace_id: workspaceId, user_id: userId, client_id: clientId, client_name: clientId === id("client", "cedar") ? "Cedar & Bloom" : "Ridgeline IT", project_id: projectId, project_name: projectId === id("project", "website") ? "Website Refresh" : "Monthly Maintenance", description, start_time: start, end_time: end, duration_seconds: seconds, duration_hours: (seconds / 3600).toFixed(2), billable, invoice_status: "not_invoiced", task_id: taskId, created_at: now, updated_at: now };
 }
 
+/**
+ * @param {SeedTransaction} db
+ * @param {SeedLedgerEntry[]} ledger
+ * @returns {SeedInserter}
+ */
 function createInserter(db, ledger) {
   return async (table, row, options = {}) => {
     const columns = Object.keys(row);
@@ -1018,24 +1259,42 @@ function createInserter(db, ledger) {
   };
 }
 
+/**
+ * @param {SeedLedgerEntry[]} ledger
+ * @param {Record<string, string>} replacements
+ * @returns {string}
+ */
 function semanticFingerprint(ledger, replacements) {
   const normalized = ledger.map(({ table, row }) => [table, Object.fromEntries(Object.entries(row)
     .filter(([key]) => key !== "id" && key !== "password" && !key.endsWith("_id"))
-    .map(([key, value]) => [key, replacements[value] || value]))]);
+    .map(([key, value]) => [key, replacements[/** @type {string} */ (value)] || value]))]);
   return createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
 }
 
+/**
+ * @param {...(string | number)} parts
+ * @returns {string}
+ */
 function id(...parts) {
   const hex = createHash("sha256").update(parts.join(":"), "utf8").digest("hex").slice(0, 32);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20)}`;
 }
 
+/**
+ * @param {string} anchor
+ * @param {number} offset
+ * @returns {string}
+ */
 function date(anchor, offset) {
   const value = new Date(`${anchor}T12:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + offset);
   return value.toISOString().slice(0, 10);
 }
 
+/**
+ * @param {SeedTarget} target
+ * @param {SeedFile[]} files
+ */
 async function writeFiles(target, files) {
   for (const file of files) {
     const destination = path.join(target.filesRoot, "seed", file.key);
@@ -1044,6 +1303,9 @@ async function writeFiles(target, files) {
   }
 }
 
+/**
+ * @param {unknown} value
+ */
 function print(value) {
   console.log(JSON.stringify(value, null, 2));
 }
@@ -1052,11 +1314,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
     await main();
   } catch (error) {
-    console.error(error?.message || error);
+    console.error(/** @type {Error | null} */ (error)?.message || error);
     process.exitCode = 1;
   } finally {
-    if (databaseApi?.closeDatabase) {
-      await databaseApi.closeDatabase();
+    if (/** @type {DatabaseModule | null} */ (databaseApi)?.closeDatabase) {
+      await /** @type {DatabaseModule} */ (/** @type {unknown} */ (databaseApi)).closeDatabase();
     }
   }
 }

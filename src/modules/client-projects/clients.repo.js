@@ -8,6 +8,16 @@ import {
   normalizeBillingRounding,
 } from "../../utils/normalizers.js";
 
+/** @typedef {import("../../types/client-project-contracts.js").ClientAggregateRecord} ClientAggregateRecord */
+/** @typedef {import("../../types/client-project-contracts.js").ClientProjectsRepository} ClientProjectsRepository */
+/** @typedef {import("../../types/client-project-contracts.js").ClientRecord} ClientRecord */
+/** @typedef {import("../../types/client-project-contracts.js").ClientRow} ClientRow */
+/** @typedef {import("../../types/client-project-contracts.js").ClientWriteContext} ClientWriteContext */
+/** @typedef {import("../../types/client-project-contracts.js").ClientWriteParameters} ClientWriteParameters */
+/** @typedef {import("../../types/client-project-contracts.js").ClientWriteRecord} ClientWriteRecord */
+/** @typedef {import("../../types/client-project-contracts.js").RepositoryReadOptions} RepositoryReadOptions */
+/** @typedef {import("../../types/database-contracts.js").TransactionClient} TransactionClient */
+
 const CLIENT_COLUMNS = [
   "id",
   "workspace_id",
@@ -67,20 +77,22 @@ VALUES (
 );
 `;
 
+/** @param {string} workspaceId @param {RepositoryReadOptions} [options] @returns {Promise<ClientRecord[]>} */
 async function readAll(workspaceId, options = {}) {
   const statusSql = options.activeOnly === true ? "\n  AND status != 'Inactive'" : "";
-  const rows = await db.query(`
+  const rows = /** @type {ClientRow[]} */ (await db.query(`
 SELECT ${CLIENT_COLUMNS.join(", ")}
 FROM clients
 WHERE workspace_id = :workspaceId${statusSql}
 ORDER BY ${db.dialect.comparison.orderByNoCase("name", "ASC")};
-`, { workspaceId: text(workspaceId) });
+`, { workspaceId: text(workspaceId) }));
 
   return rows.map(clientRowToAppClient);
 }
 
+/** @param {string} workspaceId @param {unknown} clientId @returns {Promise<ClientRecord | null>} */
 async function readById(workspaceId, clientId) {
-  const row = await db.get(`
+  const row = /** @type {ClientRow | null} */ (await db.get(`
 SELECT ${CLIENT_COLUMNS.join(", ")}
 FROM clients
 WHERE workspace_id = :workspaceId
@@ -89,11 +101,12 @@ LIMIT 1;
 `, {
     clientId: text(clientId),
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return row ? clientRowToAppClient(row) : null;
 }
 
+/** @param {string} workspaceId @param {unknown[]} [clientIds] @returns {Promise<ClientRecord[]>} */
 async function readByIds(workspaceId, clientIds = []) {
   const ids = normalizeIdList(clientIds);
 
@@ -101,7 +114,7 @@ async function readByIds(workspaceId, clientIds = []) {
     return [];
   }
 
-  const rows = await db.query(`
+  const rows = /** @type {ClientRow[]} */ (await db.query(`
 SELECT ${CLIENT_COLUMNS.join(", ")}
 FROM clients
 WHERE workspace_id = :workspaceId
@@ -110,11 +123,12 @@ ORDER BY ${db.dialect.comparison.orderByNoCase("name", "ASC")};
 `, {
     clientIds: ids,
     workspaceId: text(workspaceId),
-  });
+  }));
 
   return rows.map(clientRowToAppClient);
 }
 
+/** @param {string} workspaceId @param {ClientWriteRecord} client */
 async function create(workspaceId, client) {
   const now = new Date().toISOString();
 
@@ -126,6 +140,7 @@ async function create(workspaceId, client) {
   }));
 }
 
+/** @param {string} workspaceId @param {ClientWriteRecord} client */
 async function update(workspaceId, client) {
   const now = new Date().toISOString();
 
@@ -163,6 +178,7 @@ WHERE workspace_id = :workspaceId
   }));
 }
 
+/** @param {string} workspaceId @param {unknown} clientId */
 async function archive(workspaceId, clientId) {
   const now = new Date().toISOString();
 
@@ -194,6 +210,7 @@ WHERE workspace_id = :workspaceId
   });
 }
 
+/** @param {string} workspaceId @param {ClientAggregateRecord[]} clients */
 async function replaceAll(workspaceId, clients) {
   const now = new Date().toISOString();
 
@@ -218,6 +235,7 @@ WHERE workspace_id = :workspaceId;
   });
 }
 
+/** @param {TransactionClient} databaseClient @param {string} workspaceId @param {ClientWriteRecord} client @param {string} now */
 async function insertClient(databaseClient, workspaceId, client, now) {
   await databaseClient.run(CLIENT_INSERT_SQL, clientWriteParams({
     client,
@@ -227,8 +245,10 @@ async function insertClient(databaseClient, workspaceId, client, now) {
   }));
 }
 
+/** @param {ClientWriteContext} context @returns {ClientWriteParameters} */
 function clientWriteParams({ client, createdAt = undefined, updatedAt, workspaceId }) {
   const contact = normalizeBillingContact(client.billing_contact);
+  /** @type {ClientWriteParameters} */
   const params = {
     billable: text(client.billable),
     billingContactAlternateEmail: text(contact.alternate_email),
@@ -262,6 +282,7 @@ function clientWriteParams({ client, createdAt = undefined, updatedAt, workspace
   return params;
 }
 
+/** @param {ClientRow} row @returns {ClientRecord} */
 function clientRowToAppClient(row) {
   return {
     id: row.id,
@@ -274,23 +295,24 @@ function clientRowToAppClient(row) {
     billing_period: billingPeriodRowToAppValue(row),
     billing_rounding: billingRoundingRowToAppValue(row),
     billing_contact: {
-      name: row.billing_contact_name,
-      email: row.billing_contact_email,
-      alternate_name: row.billing_contact_alternate_name,
-      alternate_email: row.billing_contact_alternate_email,
-      phone_number: row.billing_contact_phone_number,
-      alternate_phone_number: row.billing_contact_alternate_phone_number,
-      street_address_1: row.billing_contact_street_address_1,
-      street_address_2: row.billing_contact_street_address_2,
-      city: row.billing_contact_city,
-      state: row.billing_contact_state,
-      zip_code: row.billing_contact_zip_code,
+      name: row.billing_contact_name || "",
+      email: row.billing_contact_email || "",
+      alternate_name: row.billing_contact_alternate_name || "",
+      alternate_email: row.billing_contact_alternate_email || "",
+      phone_number: row.billing_contact_phone_number || "",
+      alternate_phone_number: row.billing_contact_alternate_phone_number || "",
+      street_address_1: row.billing_contact_street_address_1 || "",
+      street_address_2: row.billing_contact_street_address_2 || "",
+      city: row.billing_contact_city || "",
+      state: row.billing_contact_state || "",
+      zip_code: row.billing_contact_zip_code || "",
     },
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
 }
 
+/** @param {ClientRow} row */
 function billingPeriodRowToAppValue(row) {
   if (!row.billing_period_type) {
     return null;
@@ -302,6 +324,7 @@ function billingPeriodRowToAppValue(row) {
   });
 }
 
+/** @param {ClientRow} row */
 function billingRoundingRowToAppValue(row) {
   if (row.billing_rounding_enabled === null || row.billing_rounding_enabled === undefined) {
     return null;
@@ -313,35 +336,41 @@ function billingRoundingRowToAppValue(row) {
   });
 }
 
+/** @param {unknown} value @param {unknown} owner */
 function bindNullableBoolean(value, owner) {
   return owner ? db.dialect.boolean.bind(value === true) : null;
 }
 
+/** @param {unknown[]} ids @returns {string[]} */
 function normalizeIdList(ids) {
   return [...new Set((Array.isArray(ids) ? ids : [])
     .map((id) => text(id).trim())
     .filter(Boolean))];
 }
 
+/** @param {unknown} value @returns {number | null} */
 function nullableInteger(value) {
   if (value === null || value === undefined || value === "") {
     return null;
   }
 
-  const numberValue = Number.parseInt(value, 10);
+  const numberValue = Number.parseInt(String(value), 10);
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
+/** @param {unknown} value @returns {string | null} */
 function nullableText(value) {
   return value === null || value === undefined || String(value).trim() === ""
     ? null
     : String(value);
 }
 
+/** @param {unknown} value @returns {string} */
 function text(value) {
   return String(value ?? "");
 }
 
+/** @type {ClientProjectsRepository} */
 export const clientsRepository = {
   archive,
   create,

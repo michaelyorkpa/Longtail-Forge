@@ -1,6 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 
+/** @param {string} databaseFile @param {{ entrypoint?: string, tempDirectory?: string }} [options] */
 function assertRegressionDatabaseTarget(databaseFile, options = {}) {
   const entrypoint = path.resolve(options.entrypoint || process.argv[1] || "");
 

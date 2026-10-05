@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { settingsCatalogService } from "../services/settings-catalog.service.js";
 import { settingsService } from "../services/settings.service.js";

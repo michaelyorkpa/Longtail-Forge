@@ -1,5 +1,3 @@
-// @ts-check
-
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
@@ -13,6 +11,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 
 let publicDemoIdentityState = createPublicDemoIdentityState(false, []);
 
+/** @param {{ demo?: { enabled?: boolean }, dataDir?: string }} [options] */
 async function assertPublicDemoRuntimeReady(options = {}) {
   const demo = options.demo || config.demo;
   if (!demo?.enabled) {
@@ -52,12 +51,16 @@ async function assertPublicDemoRuntimeReady(options = {}) {
   return Object.freeze({ enabled: true, marker: "verified" });
 }
 
+/**
+ * @param {string} userId
+ */
 function isPublicDemoVisitorIdentity(userId) {
   const normalizedUserId = String(userId || "").trim().toLowerCase();
   return publicDemoIdentityState.enabled
     && publicDemoIdentityState.publicVisitorUserIds.includes(normalizedUserId);
 }
 
+/** @param {unknown} value */
 function normalizePublicVisitorUserIds(value) {
   if (!Array.isArray(value) || value.length !== PUBLIC_DEMO_VISITOR_ID_COUNT) {
     return null;
@@ -69,6 +72,10 @@ function normalizePublicVisitorUserIds(value) {
   return Object.freeze([...normalized].sort());
 }
 
+/**
+ * @param {boolean} enabled
+ * @param {readonly string[]} publicVisitorUserIds
+ */
 function createPublicDemoIdentityState(enabled, publicVisitorUserIds) {
   return Object.freeze({
     enabled: Boolean(enabled),

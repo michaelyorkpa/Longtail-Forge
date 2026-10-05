@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const roadmap = readText("ROADMAP.md");
 const notesDocs = readText("docs/notes-module.md");
@@ -8,11 +9,9 @@ const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 
-
 assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.6\.11 - Notes slide-out sidebar regression pass and docs closeout/, "Live roadmap should not keep the prior completed Notes closeout slice after Tasks 7.1 completes");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.10\.7 - Notes List slide-out behavior/, "Live roadmap should not keep the prior completed slice after the closeout");
-
 
 assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes developer guide should retain its canonical owning document");
 assert.match(notesDocs, /layout: "slide-out-sidebar"/, "Notes guide should document the slide-out descriptor layout");
@@ -40,7 +39,3 @@ assert.match(surfaceContract, /The trigger stays near the lower-left viewport ed
 assert.match(surfaceContract, /opening the drawer must not squeeze or re-center the selected-record view/, "Surface contract should document central detail behavior");
 
 console.log("Notes slide-out closeout regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}

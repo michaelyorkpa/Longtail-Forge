@@ -4,8 +4,12 @@ import { getSessionIdFromRequest } from "../security/sessions.js";
 import { authService } from "../services/auth.service.js";
 import { usersService } from "../services/users.service.js";
 import { sessionsService } from "../services/sessions.service.js";
-import { asyncRoute, readJsonBody } from "../utils/http.js";
+import { readJsonBody, workspaceAsyncRoute as asyncRoute } from "../utils/http.js";
 import { getRequestContext } from "../core/request-context.js";
+import { AppError } from "../utils/app-error.js";
+
+/** @typedef {import("../types/users-service-contracts.js").UserPayload} UserPayload */
+/** @typedef {import("../types/route-contracts.js").WorkspaceRouteRequest} WorkspaceRouteRequest */
 
 const usersRoutes = Router();
 
@@ -25,7 +29,7 @@ usersRoutes.get("/users/add-options", asyncRoute(async (request, response) => {
 }));
 
 usersRoutes.post("/users/lookup", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readUserPayload(request);
   const result = await usersService.lookupAddUserAccount(payload, request.session);
   response.status(200).json(result);
 }));
@@ -36,7 +40,7 @@ usersRoutes.get("/workspaces", asyncRoute(async (request, response) => {
 }));
 
 usersRoutes.post("/workspaces", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readUserPayload(request);
   const result = await usersService.createWorkspace(payload, request.session, getSessionIdFromRequest(request));
   response.status(201).json(result);
 }));
@@ -57,7 +61,7 @@ usersRoutes.delete("/user/account", asyncRoute(async (request, response) => {
 }));
 
 usersRoutes.post("/users", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readUserPayload(request);
   const result = await usersService.create(payload, request.session);
   response.status(result.accountCreated ? 201 : 200).json(result);
 }));
@@ -91,7 +95,7 @@ usersRoutes.delete("/users/:userId/sessions", asyncRoute(async (request, respons
 }));
 
 usersRoutes.put("/users/:userId/:action", asyncRoute(async (request, response) => {
-  const payload = request.params.action === "update" ? await readJsonBody(request) : {};
+  const payload = request.params.action === "update" ? await readUserPayload(request) : {};
   const result = await usersService.action({
     payload,
     session: request.session,
@@ -125,7 +129,7 @@ usersRoutes.get("/user/settings", asyncRoute(async (request, response) => {
 }));
 
 usersRoutes.put("/user/settings", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readUserPayload(request);
   const result = await usersService.saveSettings(payload, request.session);
 
   response.setHeader("Set-Cookie", [
@@ -136,7 +140,7 @@ usersRoutes.put("/user/settings", asyncRoute(async (request, response) => {
 }));
 
 usersRoutes.put("/user/password", asyncRoute(async (request, response) => {
-  const payload = await readJsonBody(request);
+  const payload = await readUserPayload(request);
   const result = await authService.changePassword(payload, request.session, {
     currentSessionId: getSessionIdFromRequest(request),
     ipAddress: getRequestContext(request).ipAddress,
@@ -144,4 +148,17 @@ usersRoutes.put("/user/password", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+/** @param {WorkspaceRouteRequest} request @returns {Promise<UserPayload>} */
+async function readUserPayload(request) {
+  const payload = await readJsonBody(request);
+  if (!isUserPayload(payload)) {
+    throw new AppError("Request body must contain a JSON object.", 400);
+  }
+  return payload;
+}
+
+/** @param {unknown} value @returns {value is UserPayload} */
+function isUserPayload(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
 export { usersRoutes };

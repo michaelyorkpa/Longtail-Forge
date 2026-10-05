@@ -1,3 +1,4 @@
+import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { get } from "node:http";
@@ -16,10 +17,16 @@ import {
   scanWorkspaceForCurrentVersion,
 } from "./test-support/version-literal-guardrail.mjs";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { requirePackageLock, requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+/** @typedef {import("./test-support/version-literal-guardrail.mjs").VersionLiteralViolation} VersionLiteralViolation */
 
 const root = process.cwd();
-const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
-const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8")));
+const packageLock = requirePackageLock(JSON.parse(await fs.readFile("package-lock.json", "utf8")));
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
 const roadmap = await fs.readFile("ROADMAP.md", "utf8");
 const roadmapArchive = await fs.readFile("ROADMAP-ARCHIVE.md", "utf8");
@@ -31,7 +38,12 @@ const { closeDatabase } = await import("../src/db/provider.js");
 try {
 assert.equal(appVersion, packageJson.version, "the runtime helper should match package metadata");
 assert.equal(packageLock.version, packageJson.version, "the lock root should match package metadata");
-assert.equal(packageLock.packages[""].version, packageJson.version, "the lock package entry should match package metadata");
+// The lockfile's root package entry is proven present rather than assumed:
+// a lockfile that stopped carrying one would otherwise compare undefined
+// against the version and pass.
+const rootLockEntry = packageLock.packages?.[""];
+assert.ok(rootLockEntry, "package-lock.json should carry a root package entry");
+assert.equal(rootLockEntry.version, packageJson.version, "the lock package entry should match package metadata");
 assert.match(changelog, new RegExp(`^## Version ${escapeRegExp(appVersion)} - `, "m"), "CHANGELOG should carry the current version heading");
 const activeRoadmapCursor = readActiveRoadmapCursor({ roadmapSource: roadmap });
 assert.ok(
@@ -77,6 +89,43 @@ assert.deepEqual(
   ], appVersion, allowlist).map(({ path }) => path),
   ["ROADMAP.md"],
   "the live roadmap should not silently treat a current-version planning label as historical",
+);
+
+// `0.33.33.48`: that release's version equals the series label its record uses throughout.
+// Narrow path-and-context rules keep the few structured and historical lines that must name it:
+// - the checkpoint validator's series constant;
+// - the coverage rationales that record the live roadmap cursor;
+// - four historical changelog lines.
+// No rule exempts a literal anywhere else, and each admits only the shape it names.
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "src/core/example.js", source: `export const releaseVersion = "${appVersion}";` },
+  ], appVersion, allowlist).map(({ path }) => path),
+  ["src/core/example.js"],
+  "an unauthorized runtime version literal must still fail",
+);
+for (const [label, entry] of /** @type {const} */ ([
+  ["the series constant outside the checkpoint validator", { path: "scripts/release/other-release-tool.mjs", source: `const CHECKPOINT_SERIES = "${appVersion}";` }],
+  ["the checkpoint validator outside its series constant", { path: "scripts/release/checkpoint-commits.mjs", source: `const RELEASE = "${appVersion}";` }],
+  ["a coverage rationale that does not record the cursor", { path: "scripts/regression-coverage-exceptions.json", source: `      "rationale": "The ${appVersion} release pinned a literal.",` }],
+  ["the cursor phrase in another coverage field", { path: "scripts/regression-coverage-exceptions.json", source: `      "assertionDisposition": "The live cursor is ${appVersion}, so nothing re-enters.",` }],
+  ["a changelog body line outside the four historical lines", { path: "CHANGELOG.md", source: `- Shipped ${appVersion} with a new feature.` }],
+])) {
+  assert.deepEqual(
+    scanEntriesForCurrentVersion([entry], appVersion, allowlist).map(({ path }) => path),
+    [entry.path],
+    `${label} must still fail`,
+  );
+}
+assert.deepEqual(
+  scanEntriesForCurrentVersion([
+    { path: "scripts/release/checkpoint-commits.mjs", source: `const CHECKPOINT_SERIES = "${appVersion}";` },
+    { path: "scripts/regression-coverage-exceptions.json", source: `      "rationale": "The live cursor is ${appVersion}, so an archived section can never re-enter.",` },
+    { path: "scripts/regression-coverage-manifest.json", source: `      "rationale": "A cursor floor that a live ${appVersion} cursor can never fail.",` },
+    { path: "CHANGELOG.md", source: `  public-hosting review scope is now an explicit \`${appVersion}\` decision gate.` },
+  ], appVersion, allowlist),
+  [],
+  "each anchored rule must admit exactly the line shape it names",
 );
 
 const scanFixture = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-version-scan-"));
@@ -137,9 +186,13 @@ assert.deepEqual(
 
 const server = await listen(createApp());
 try {
-  const response = await readJson(`http://127.0.0.1:${server.address().port}/api/app-info`);
+  const address = server.address();
+  assert.ok(address && typeof address === "object", "the fixture server should be listening on a TCP address");
+  const response = await readJson(`http://127.0.0.1:${address.port}/api/app-info`);
   assert.equal(response.statusCode, 200);
-  const appInfo = response.body;
+  // The route's body is parsed JSON, so it crosses the boundary through the
+  // shared payload narrowing and proves the envelope this owner reads.
+  const appInfo = readPayload(response, ["version"], "/api/app-info");
   assert.equal(appInfo.version, packageJson.version, "/api/app-info should report package metadata");
   assert.equal(appInfo.version, appVersion, "/api/app-info should report the runtime helper value");
 } finally {
@@ -152,6 +205,7 @@ console.log("Version literal guardrail regression passed.");
   await fixture.cleanup();
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve, reject) => {
     const server = app.listen(0, "127.0.0.1", () => resolve(server));
@@ -159,6 +213,12 @@ function listen(app) {
   });
 }
 
+/**
+ * Read one JSON route through the bare node:http client this owner already
+ * uses. The body stays `unknown` so the caller narrows it deliberately.
+ * @param {string} url
+ * @returns {Promise<{ body: unknown, statusCode: number | undefined }>}
+ */
 function readJson(url) {
   return new Promise((resolve, reject) => {
     get(url, (response) => {
@@ -178,12 +238,14 @@ function readJson(url) {
   });
 }
 
+/** @param {HttpFixtureServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
 }
 
+/** @param {readonly VersionLiteralViolation[]} violations */
 function formatViolations(violations) {
   if (violations.length === 0) {
     return "current-version literal guardrail should pass";
@@ -191,8 +253,4 @@ function formatViolations(violations) {
   return `Unapproved current-version literals:\n${violations
     .map((violation) => `- ${violation.path}:${violation.line}:${violation.column}`)
     .join("\n")}`;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -8,13 +8,13 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+
 import { randomUUID } from "node:crypto";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+const { readText } = createProjectTextReader();
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const fixture = await createDisposableDatabaseFixture("permission-resource-catalog");
 const { closeSqlite, initializeDatabase, querySql } = await import("../../../src/db/index.js");
 const { modulesService } = await import("../../../src/core/modules/modules.service.js");
@@ -40,6 +40,7 @@ try {
   assert.equal(initialKeys.has("knowledge_base"), false, "future modules must not be anticipated by User Admin");
 
   const tasks = initialCatalog.find((resource) => resource.key === "tasks");
+  assert.ok(tasks, "the initial catalog should declare the Tasks resource");
   assert.deepEqual(
     tasks.operations,
     ["read", "create", "update", "delete", "archive", "restore", "assign", "manage"],
@@ -76,7 +77,7 @@ try {
   );
   await assert.rejects(
     usersService.listPermissionResources(unauthorizedSession),
-    (error) => error?.statusCode === 403,
+    (error) => /** @type {{ statusCode?: number }} */ (error)?.statusCode === 403,
     "the User Admin catalog endpoint should retain the users.manage route boundary",
   );
 
@@ -115,18 +116,5 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name || user.username,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
-}
-
-function readText(relativePath) {
-  return fs.readFile(path.join(root, relativePath), "utf8");
+  return workspaceSessionFixture(user);
 }

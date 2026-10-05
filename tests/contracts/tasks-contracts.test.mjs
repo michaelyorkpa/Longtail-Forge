@@ -37,7 +37,7 @@ describe("CreateTaskSchema / UpdateTaskSchema", () => {
     expect(parsed.status).toBe("active");
     expect(parsed.priority).toBe("high");
     expect(parsed.assignee_ids).toEqual(["user-1", "user-2"]);
-    expect(parsed.recurrence.applyTo).toBe("future");
+    expect(parsed.recurrence?.applyTo).toBe("future");
     expect(parsed.tagIds).toEqual(["tag-1"]);
   });
 
@@ -97,7 +97,9 @@ describe("CreateTaskSchema / UpdateTaskSchema", () => {
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);
-      expect(error.statusCode).toBe(400);
+      if (error instanceof AppError) {
+        expect(error.statusCode).toBe(400);
+      }
     }
   });
 });

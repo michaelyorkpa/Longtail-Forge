@@ -7,10 +7,11 @@
 // mobile drawer's own focus-return contract is asserted in mobile-nav.spec.mjs.
 
 import { expect, test } from "@playwright/test";
-import { SHELL, SMOKE_SURFACES } from "./support/surfaces.mjs";
+import { SHELL, requireSmokeSurface } from "./support/surfaces.mjs";
 
-const dashboard = SMOKE_SURFACES.find((surface) => surface.name === "Dashboard");
+const dashboard = requireSmokeSurface("Dashboard");
 
+/** @param {import("@playwright/test").Page} page */
 async function activeElementInfo(page) {
   return page.evaluate(() => {
     const element = document.activeElement;

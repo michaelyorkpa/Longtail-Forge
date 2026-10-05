@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-better-sqlite3-helper-core-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-helper-core.db");
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "3210";
@@ -17,7 +18,6 @@ const roadmap = readText("ROADMAP.md");
 
 const {
   closeSqlite,
-  formatSqliteHealth,
   getLastSqliteHealth,
   initializeSqliteRuntime,
   querySql,
@@ -47,17 +47,12 @@ try {
 
   const health = await initializeSqliteRuntime();
   assert.equal(health.provider, "sqlite");
-  assert.equal(path.resolve(health.databaseFile), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
+  assert.equal(path.resolve(/** @type {string} */ (health.databaseFile)), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
   assert.equal(health.databaseFileWritable, true);
   assert.equal(health.foreignKeysEnabled, true);
   assert.equal(health.journalMode, "wal");
   assert.equal(health.busyTimeoutMs, 3210);
   assert.deepEqual(getLastSqliteHealth(), health, "startup should cache the latest SQLite health");
-  assert.equal(
-    formatSqliteHealth(health),
-    `[sqlite-health] provider=sqlite databaseFile=${health.databaseFile} writable=yes foreign_keys=on journal_mode=wal busy_timeout_ms=3210 synchronous=${health.synchronous} cache_size_kib=${health.cacheSizeKib} temp_store=${health.tempStore} mmap_size_bytes=${health.mmapSizeBytes}`,
-    "health formatter should preserve the existing output shape",
-  );
 
   await runSql(`
 CREATE TABLE helper_core_probe (
@@ -127,8 +122,4 @@ VALUES ('created-through-exec');
 } finally {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createChangedRegressionPlan } from "../../scripts/lib/changed-regression-runner.mjs";
 import {
+  NOTHING_VERIFIED_STATUS,
   createSliceVerificationPlan,
   executeSliceVerificationPlan,
   formatSliceVerificationSummary,
 } from "../../scripts/lib/slice-verification-plan.mjs";
 
+/** @param {string[]} paths */
 function planFor(paths) {
   return createSliceVerificationPlan(createChangedRegressionPlan(paths));
 }
@@ -16,6 +18,7 @@ describe("slice verification planning", () => {
 
     expect(plan.commands).toEqual([
       "npm run closeout",
+      "npm run typecheck",
       "npm run test:regressions:tasks",
     ]);
     expect(plan.fullCheckIncluded).toBe(false);
@@ -25,7 +28,7 @@ describe("slice verification planning", () => {
   it("keeps changelog bookkeeping on its focused release owner", () => {
     const plan = planFor(["CHANGELOG.md"]);
 
-    expect(plan.commands).toEqual(["npm run closeout", "npm run test:regressions:release"]);
+    expect(plan.commands).toEqual(["npm run closeout", "npm run typecheck", "npm run test:regressions:release"]);
     expect(plan.fullCheckIncluded).toBe(false);
   });
 
@@ -34,18 +37,52 @@ describe("slice verification planning", () => {
 
     expect(plan.commands).toEqual(["npm run closeout", "npm run check:fast", "npm run test:regressions"]);
     expect(plan.fullCheckIncluded).toBe(true);
+    expect(plan.commands).not.toContain("npm run typecheck");
   });
 
-  it("fully escalates permission changes and adds the separate permission harness exactly once", () => {
+  it("enforces the strict typecheck exactly once in every plan that runs", () => {
+    // `0.33.33.25.11`: an empty selection runs nothing at all, so it schedules no typecheck either.
+    expect(planFor([]).commands).toEqual([]);
+    for (const paths of [
+      ["CHANGELOG.md"],
+      ["src/modules/tasks/tasks.service.js"],
+      ["src/core/shared-context.js"],
+    ]) {
+      const plan = planFor(paths);
+      const typecheckCommands = plan.commands.filter((command) => (
+        command === "npm run typecheck" || command === "npm run check:fast"
+      ));
+
+      expect(typecheckCommands).toHaveLength(1);
+    }
+  });
+
+  it("fails a focused slice when the unconditional strict typecheck gate fails", () => {
+    const plan = planFor(["src/modules/tasks/tasks.service.js"]);
+    /** @type {string[]} */
+    const invocations = [];
+    const result = executeSliceVerificationPlan(plan, {
+      /** @param {string} command */
+      runCommand(command) {
+        invocations.push(command);
+        return { status: command === "npm run typecheck" ? 5 : 0 };
+      },
+    });
+
+    expect(result.status).toBe(5);
+    expect(invocations).toEqual(["npm run closeout", "npm run typecheck"]);
+  });
+
+  it("fully escalates permission changes and discovers the permission harness exactly once", () => {
     const plan = planFor(["src/services/permissions.service.js"]);
 
     expect(plan.commands).toEqual([
       "npm run closeout",
       "npm run check:fast",
       "npm run test:regressions",
-      "npm run test:permissions",
     ]);
-    expect(plan.commands.filter((command) => command === "npm run test:permissions")).toHaveLength(1);
+    expect(plan.permissionHarnessIncluded).toBe(true);
+    expect(plan.commands).not.toContain("npm run test:permissions");
   });
 
   it("combines full-check escalation and permissions without duplicates or area commands", () => {
@@ -55,7 +92,6 @@ describe("slice verification planning", () => {
       "npm run closeout",
       "npm run check:fast",
       "npm run test:regressions",
-      "npm run test:permissions",
     ]);
     expect(new Set(plan.commands).size).toBe(plan.commands.length);
     expect(plan.commands.some((command) => command.startsWith("npm run test:regressions:"))).toBe(false);
@@ -63,8 +99,10 @@ describe("slice verification planning", () => {
 
   it("stops after a hard closeout failure", () => {
     const plan = planFor(["CHANGELOG.md"]);
+    /** @type {string[]} */
     const invocations = [];
     const result = executeSliceVerificationPlan(plan, {
+      /** @param {string} command */
       runCommand(command) {
         invocations.push(command);
         return { status: command === "npm run closeout" ? 7 : 0 };
@@ -75,13 +113,28 @@ describe("slice verification planning", () => {
     expect(invocations).toEqual(["npm run closeout"]);
   });
 
-  it("runs closeout without inventing an expensive regression for an empty change set", () => {
+  it("refuses an empty change set rather than reporting a pass", () => {
+    // `0.33.33.25.11`: closeout and the strict typecheck alone used to report `Status: passed`, which a
+    // committed checkpoint without a base reached every time. Nothing runs and the run fails.
     const plan = planFor([]);
+    /** @type {string[]} */
+    const invocations = [];
+    const result = executeSliceVerificationPlan(plan, {
+      runCommand: (command) => {
+        invocations.push(command);
+        return { status: 0 };
+      },
+    });
+    const summary = formatSliceVerificationSummary(plan, result);
 
     expect(plan.mode).toBe("empty");
-    expect(plan.commands).toEqual(["npm run closeout"]);
-    expect(plan.fullCheckIncluded).toBe(false);
-    expect(plan.permissionHarnessIncluded).toBe(false);
+    expect(plan.refused).toBe(true);
+    expect(plan.commands).toEqual([]);
+    expect(invocations).toEqual([]);
+    expect(result.status).toBe(NOTHING_VERIFIED_STATUS);
+    expect(summary).toMatch(/Status: not verified/);
+    expect(summary).toMatch(/LTF_REGRESSION_BASE_SHA/);
+    expect(summary).not.toMatch(/pass/i);
   });
 
   it("formats the mode, executed commands, escalation, permissions, and no-rerun guidance", () => {
@@ -94,7 +147,7 @@ describe("slice verification planning", () => {
     expect(summary).toMatch(/\[PASSED\] Typecheck\/unit\/lint/);
     expect(summary).toMatch(/\[PASSED\] Regression buckets/);
     expect(summary).toMatch(/Full-check escalation included: yes/);
-    expect(summary).toMatch(/Permission harness included: yes/);
+    expect(summary).toMatch(/Permission harness discovered through regression buckets: yes/);
     expect(summary).toMatch(/Do not run an equivalent local verification command again unless files change/);
   });
 });

@@ -1,4 +1,3 @@
-// @ts-check
 import { AppError } from "./app-error.js";
 
 /** @typedef {import("../types/http-contracts.js").JsonBodyRequest} JsonBodyRequest */

@@ -1,38 +1,69 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext, createFakeEvent } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const viewBuilderJs = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
-
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js/, "Notes should reference the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js/, "Notes should reference the shared view renderer modal opener");
 assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference stacked modal warning styles");
 assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the Notes modal wiring");
 
-assert.match(notesJs, /label: "Tags"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Tags"[\s\S]*title: "Tags"/, "Tags utility should use the concise icon plus text label");
-assert.match(notesJs, /label: "Files"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Files"[\s\S]*title: "Files"/, "Files utility should use the concise icon plus text label");
+// 0.33.33.35.1.2: these matched across the whole file, so they spanned from a `label:` inside
+// the deleted descriptor fallback into the live shell below it - passing for the wrong
+// reason and in an order the real code never had. They are scoped to the shell that builds
+// the buttons, in the order it declares them.
+const noteDialogShell = extractFunctionSpan(notesJs, "createNoteDialogShell");
+assert.match(noteDialogShell, /icon: "tag",[\s\S]*iconOnly: false,[\s\S]*label: "Tags",[\s\S]*role: "utility",[\s\S]*text: "Tags",[\s\S]*title: "Tags"/, "Tags utility should use the concise icon plus text label");
+assert.match(noteDialogShell, /icon: "file",[\s\S]*iconOnly: false,[\s\S]*label: "Files",[\s\S]*role: "utility",[\s\S]*text: "Files",[\s\S]*title: "Files"/, "Files utility should use the concise icon plus text label");
 assert.doesNotMatch(notesJs, /Note tags|Note files/, "Notes utility buttons should not expose the old longer labels");
 assert.match(notesJs, /view\.showModal\(dialog, \{ trigger: options\.trigger \|\| options\.hostContext\?\.trigger \|\| null \}\)/, "The Add/Edit Note dialog should open through the shared modal stack helper with focus-return trigger context");
 assert.match(notesJs, /view\.closeModal\(dialog, options\.returnValue \|\| ""\)/, "Closing or saving the Add/Edit Note dialog should close child modals safely");
 assert.match(notesJs, /view\.showModal\(collectionDialog, \{ parent: null \}\)/, "Collection dialogs should use the shared modal stack helper without inheriting the action-modal parent");
 assert.match(notesJs, /view\.closeModal\(collectionDialog\)/, "Collection dialogs should close through the shared modal stack helper");
 
-assert.match(viewBuilderJs, /const modalStack = \[\]/, "View builder should own a modal stack");
-assert.match(viewBuilderJs, /function showModal\(dialog, options = \{\}\)/, "View builder should expose showModal");
-assert.match(viewBuilderJs, /function closeModal\(dialog, value = ""\)/, "View builder should expose closeModal");
-assert.match(viewBuilderJs, /function closeChildModals\(parent, value = "parent-closed"\)/, "View builder should close child modals when a parent closes");
-assert.match(viewBuilderJs, /function isTopModal\(dialog\)/, "View builder should expose top-modal checks");
-assert.match(viewBuilderJs, /event\.target === dialog && !isTopModal\(dialog\)/, "Backdrop-style clicks on non-top dialogs should be guarded");
-assert.match(viewBuilderJs, /"cancel"[\s\S]*!isTopModal\(dialog\)[\s\S]*event\.preventDefault\(\)/, "Escape/cancel on non-top dialogs should be guarded");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. These read as
+// ownership rather than as source location: the stack state and lifecycle live in the extracted
+// module, the builder still publishes the same four members on the frozen view factory and
+// delegates each of them, and the extracted module never writes that factory. The behavioural
+// proof further down executes real nested dialogs and is what actually pins the semantics.
+assert.match(viewModalStackSource, /const modalStack = \[\]/, "The modal-stack module should own the stack");
+assert.match(viewModalStackSource, /const modalEntries = new WeakMap\(\)/, "The modal-stack module should own its per-dialog entries");
+assert.match(viewModalStackSource, /namespace\.viewModalStack = Object\.freeze\(\{\s*\n\s*closeChildModals,\s*\n\s*closeModal,\s*\n\s*isTopModal,\s*\n\s*showModal,\s*\n\s*\}\)/, "The modal-stack module should publish exactly what the builder delegates");
+assert.doesNotMatch(viewModalStackSource, /\.view\s*=/, "The modal-stack module must not write the frozen LongtailForge.view factory");
+assert.doesNotMatch(viewModalStackSource, /function createModal(Form|Footer)?\(/, "Modal constructors stay in the builder with its element factory");
+
+for (const member of ["showModal", "closeModal", "closeChildModals", "isTopModal"]) {
+  assert.match(
+    viewBuilderJs,
+    new RegExp(`function ${member}\\([^)]*\\) \\{[\\s\\S]{0,120}?requireModalStack\\(\\)\\.${member}\\(`),
+    `View builder should keep publishing ${member} and delegate it to the modal-stack module`,
+  );
+}
+assert.match(viewBuilderJs, /root\.view = Object\.freeze\(\{[\s\S]*closeChildModals,[\s\S]*closeModal,[\s\S]*isTopModal,[\s\S]*showModal,/, "The frozen view factory should still carry all four modal members");
+assert.match(viewModalStackSource, /event\.target === dialog && !isTopModal\(dialog\)/, "Backdrop-style clicks on non-top dialogs should be guarded");
+assert.match(viewModalStackSource, /"cancel"[\s\S]*!isTopModal\(dialog\)[\s\S]*event\.preventDefault\?\.\(\)/, "Escape/cancel on non-top dialogs should be guarded");
 assert.match(viewRendererJs, /state\.view\.showModal\(dialog\)/, "Descriptor modal opening should route through the shared stack helper");
 
-const context = createBrowserContext();
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/**
+ * The published `LongtailForge.view` modal-stack helper catalog under test.
+ * @typedef {Record<string, (...args: unknown[]) => FakeNode>} ModalStackSurface
+ */
+
+const context = createFakeBrowserContext({ globals: { WeakMap } });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(viewBuilderJs, context, { filename: "view-builder.js" });
-const view = context.window.LongtailForge.view;
+const view = /** @type {ModalStackSurface} */ (context.window.LongtailForge.view);
 
 for (const helperName of ["showModal", "closeModal", "closeChildModals", "isTopModal"]) {
   assert.equal(typeof view[helperName], "function", `LongtailForge.view.${helperName} should be exposed`);
@@ -55,11 +86,11 @@ assert.equal(childDialog.dataset.viewModalStackTop, "true", "Child should become
 assert.equal(view.isTopModal(parentDialog), false, "Parent should not be top while child is open");
 assert.equal(view.isTopModal(childDialog), true, "Child should be top while open");
 
-const parentCancel = createEvent("cancel", parentDialog);
+const parentCancel = createFakeEvent("cancel", { target: parentDialog });
 parentDialog.dispatchEvent(parentCancel);
 assert.equal(parentCancel.defaultPrevented, true, "Non-top parent cancel should be prevented");
 
-const childCancel = createEvent("cancel", childDialog);
+const childCancel = createFakeEvent("cancel", { target: childDialog });
 childDialog.dispatchEvent(childCancel);
 assert.equal(childCancel.defaultPrevented, false, "Top child cancel should not be prevented by the stack guard");
 
@@ -75,164 +106,3 @@ assert.equal(parentDialog.open, true, "closeModal without a dialog should not cl
 view.closeModal(parentDialog);
 
 console.log("Notes modal stack guardrails regression passed.");
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    document,
-    LongtailForge: {
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          if (options.iconOnly !== false && !options.text) {
-            button.classList.add("icon-button");
-            button.setAttribute("aria-label", options.label);
-            button.title = options.title || options.label;
-          }
-          if (options.text) {
-            button.textContent = options.text;
-          }
-          button.dataset.icon = options.icon;
-          return button;
-        },
-      },
-    },
-  };
-  return { window, document, WeakMap };
-}
-
-function FakeDocument() {
-  this.body = new FakeElement("body");
-  this.activeElement = null;
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this.eventListeners = new Map();
-  this._textContent = "";
-  this.open = false;
-  this.returnValue = "";
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "id") {
-      this.id = String(value);
-    }
-    if (name === "class") {
-      this.className = String(value);
-    }
-    if (name === "open") {
-      this.open = true;
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-  this.hasAttribute = (name) => this.attributes.has(name);
-  this.removeAttribute = (name) => {
-    this.attributes.delete(name);
-    if (name === "open") {
-      this.open = false;
-    }
-  };
-
-  this.addEventListener = (type, listener) => {
-    const listeners = this.eventListeners.get(type) || [];
-    listeners.push(listener);
-    this.eventListeners.set(type, listeners);
-  };
-
-  this.dispatchEvent = (event) => {
-    event.target = event.target || this;
-    for (const listener of this.eventListeners.get(event.type) || []) {
-      listener(event);
-    }
-    return !event.defaultPrevented;
-  };
-
-  this.showModal = () => {
-    this.setAttribute("open", "");
-  };
-
-  this.close = (value = "") => {
-    this.returnValue = String(value);
-    this.removeAttribute("open");
-    this.dispatchEvent(createEvent("close", this));
-  };
-
-  this.focus = () => {};
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => {
-      if (this._textContent) {
-        return this._textContent;
-      }
-      return this.children.map((child) => child.textContent).join("");
-    },
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => this.values.add(String(name)));
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
-function createEvent(type, target) {
-  return {
-    defaultPrevented: false,
-    propagationStopped: false,
-    target,
-    type,
-    preventDefault() {
-      this.defaultPrevented = true;
-    },
-    stopPropagation() {
-      this.propagationStopped = true;
-    },
-  };
-}

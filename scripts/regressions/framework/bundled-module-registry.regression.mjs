@@ -8,18 +8,22 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { owningProgram } from "../../test-support/typecheck-ownership.mjs";
+const { readText: read } = createProjectTextReader();
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
-const EXPECTED_INVENTORY_SHA256 = "481fa207b3ca33c73e088bf2f77a63c0f89d92b3fb95eaf6d5c377786bb61c8d";
+const EXPECTED_INVENTORY_SHA256 = "1c50a1ef61673e9b462ad41a6c4cd9f15f515d73ef88a8261a6161b3e4d85c63";
 const fixture = await createDisposableDatabaseFixture("bundled-module-registry-regression");
 const { listModuleEntries, listModules } = await import("../../../src/core/modules/registry.js");
 const { createModuleEntry, validateAndOrderBundledModuleCatalog } = await import("../../../src/core/modules/module-entry.js");
@@ -51,7 +55,7 @@ check("every bundled manifest is a checked ModuleManifest declaration", () => {
   for (const { directoryName } of listModuleEntries()) {
     const modulePath = `src/modules/${directoryName}/module.js`;
     const source = read(modulePath);
-    assert.match(source, /^\/\/ @ts-check\r?\n/, `${modulePath} must remain opted in to the fast typecheck gate`);
+    assert.equal(owningProgram(modulePath), "server-tests", `${modulePath} must remain strict-clean in the checked program`);
     assert.match(
       source,
       /\/\*\* @type \{import\("\.\.\/\.\.\/types\/framework-contracts\.js"\)\.ModuleManifest\} \*\//,
@@ -59,9 +63,9 @@ check("every bundled manifest is a checked ModuleManifest declaration", () => {
     );
   }
 
-  const packageJson = JSON.parse(read("package.json"));
+  const packageJson = requirePackageManifest(JSON.parse(read("package.json")));
   assert.match(
-    packageJson.scripts["check:fast"],
+    requireScripts(packageJson)["check:fast"],
     /^npm run typecheck\s*&&/,
     "the fast gate must typecheck bundled declarations before unit and lint work",
   );
@@ -108,7 +112,7 @@ check("Tasks and Notes compose substantial concerns through one canonical entry 
       const concernPath = `src/modules/${moduleId}/${fileName}`;
       const concernSource = read(concernPath);
       assert.match(entrySource, new RegExp(`import \\{ ${bindingName} \\} from "\\./${fileName.replaceAll(".", "\\.")}";`));
-      assert.ok(concernSource.split(/\r?\n/).length >= minimumLines, `${concernPath} should own substantial content`);
+      assert.ok(concernSource.split(/\r?\n/).length >= /** @type {number} */ (minimumLines), `${concernPath} should own substantial content`);
       assert.match(concernSource, new RegExp(`export \\{ ${bindingName} \\};`));
       assert.doesNotMatch(concernSource, /createModuleEntry|moduleEntry/, `${concernPath} must not become another registry entry`);
     }
@@ -204,7 +208,7 @@ check("module entry import is side-effect free and explicit app activation resto
     console.log(JSON.stringify({ before, after }));
   `);
   assert.equal(probe.status, 0, probe.stderr || probe.stdout);
-  const result = JSON.parse(probe.stdout.trim());
+  const result = requireJsonRecord(JSON.parse(probe.stdout.trim()), "bundled module registry probe output");
   assert.deepEqual(result.before, {
     search: [],
     reports: [],
@@ -212,7 +216,10 @@ check("module entry import is side-effect free and explicit app activation resto
     taskSettings: false,
     timeSettings: false,
   });
-  assert.deepEqual(result.after.search, [
+  // The probe emits { before, after }; `after` is the half this owner reads
+  // members off, so it is proven a record rather than indexed through unknown.
+  const after = requireJsonRecord(result.after, "bundled module registry probe after-state");
+  assert.deepEqual(after.search, [
     "client-projects.clients",
     "client-projects.projects",
     "framework.help-articles",
@@ -221,11 +228,11 @@ check("module entry import is side-effect free and explicit app activation resto
     "tasks.records",
     "time-tracking.time-entries",
   ]);
-  assert.deepEqual(result.after.reports, ["time-tracking.project-time-billing"]);
-  assert.equal(result.after.reminderJob, true);
-  assert.equal(result.after.recurrenceJob, true);
-  assert.equal(result.after.taskSettings, true);
-  assert.equal(result.after.timeSettings, true);
+  assert.deepEqual(after.reports, ["time-tracking.project-time-billing"]);
+  assert.equal(after.reminderJob, true);
+  assert.equal(after.recurrenceJob, true);
+  assert.equal(after.taskSettings, true);
+  assert.equal(after.timeSettings, true);
 });
 
 check("framework app and worker bootstraps contain no Tasks-specific activation imports", () => {
@@ -237,17 +244,20 @@ check("framework app and worker bootstraps contain no Tasks-specific activation 
   }
 });
 
+/** @template Result @param {string} name @param {() => Result} assertion @returns {Result} */
 function check(name, assertion) {
   const result = assertion();
   checks += 1;
   return result;
 }
 
+/** @param {string} name @param {() => Promise<unknown>} assertion */
 async function checkAsync(name, assertion) {
   await assertion();
   checks += 1;
 }
 
+/** @param {string} id @param {string[]} [dependencies] */
 function fixtureEntry(id, dependencies = []) {
   return {
     directoryName: id,
@@ -266,19 +276,27 @@ function fixtureEntry(id, dependencies = []) {
   };
 }
 
+/**
+ * Reduce any inventory value to a stable, comparable form: URLs normalize to
+ * repository-relative markers, functions to a router summary or a name marker,
+ * and objects to key-sorted plain records.
+ * @param {unknown} value @param {WeakSet<object>} [seen] @returns {unknown}
+ */
 function stableValue(value, seen = new WeakSet()) {
   if (value instanceof URL) {
     return normalizeInventoryUrl(value);
   }
   if (typeof value === "function") {
-    if (Array.isArray(value.stack)) {
+    // An Express router is a function carrying its matched-route layer stack.
+    const router = /** @type {{ name?: string, stack?: { route?: { methods?: Record<string, boolean>, path?: string } }[] }} */ (value);
+    if (Array.isArray(router.stack)) {
       return {
-        router: value.stack.flatMap((layer) => layer.route?.path
-          ? Object.keys(layer.route.methods || {}).sort().map((method) => `${method.toUpperCase()} ${layer.route.path}`)
+        router: router.stack.flatMap((layer) => layer.route?.path
+          ? Object.keys(layer.route.methods || {}).sort().map((method) => `${method.toUpperCase()} ${/** @type {{ path?: string }} */ (layer.route).path}`)
           : []),
       };
     }
-    return `[function:${value.name || "anonymous"}]`;
+    return `[function:${router.name || "anonymous"}]`;
   }
   if (!value || typeof value !== "object") {
     return value;
@@ -290,9 +308,11 @@ function stableValue(value, seen = new WeakSet()) {
   if (Array.isArray(value)) {
     return value.map((item) => stableValue(item, seen));
   }
-  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key], seen)]));
+  const record = /** @type {Record<string, unknown>} */ (value);
+  return Object.fromEntries(Object.keys(record).sort().map((key) => [key, stableValue(record[key], seen)]));
 }
 
+/** @param {URL} value @returns {string} */
 function normalizeInventoryUrl(value) {
   if (value.protocol !== "file:") {
     return value.href;
@@ -307,6 +327,7 @@ function normalizeInventoryUrl(value) {
     : "repository-file:[external]";
 }
 
+/** @param {string} fixtureRoot @param {string} [argument] */
 function runGenerator(fixtureRoot, argument = "") {
   return spawnSync(process.execPath, [path.join(rootDir, "scripts", "generate-bundled-module-catalog.mjs"), argument].filter(Boolean), {
     cwd: rootDir,
@@ -315,6 +336,7 @@ function runGenerator(fixtureRoot, argument = "") {
   });
 }
 
+/** @param {string} source */
 function runNode(source) {
   return spawnSync(process.execPath, ["--input-type=module", "-e", source], {
     cwd: rootDir,
@@ -322,14 +344,11 @@ function runNode(source) {
   });
 }
 
+/** @param {string} fixtureRoot @param {string} directoryName */
 async function writeFixtureModule(fixtureRoot, directoryName) {
   const moduleDir = path.join(fixtureRoot, "src", "modules", directoryName);
   await fsPromises.mkdir(moduleDir, { recursive: true });
   await fsPromises.writeFile(path.join(moduleDir, "module.js"), "export const moduleEntry = {};\n", "utf8");
-}
-
-function read(relativePath) {
-  return fs.readFileSync(path.join(rootDir, relativePath), "utf8");
 }
 
 console.log(`Bundled module registry regression passed ${checks} checks.`);

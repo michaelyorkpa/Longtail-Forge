@@ -1,26 +1,28 @@
+import { escapeRegExp, extractFunctionBlock } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const dialectContractVersion = "0.33.6.14a";
-const booleanTimeSliceVersion = "0.33.5.27.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-boolean-time-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-boolean-time-seams.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Boolean-Time-Seams-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
 const activeTimersRepoSource = readText("src/modules/time-tracking/active-timers.repo.js");
-const parameterBindingBaseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
+/** @type {import("./lib/parameter-binding-audit.mjs").ParameterBindingBaseline} */
+const parameterBindingBaseline = requireJsonRecord(JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json")), "parameter binding baseline");
 
 const {
   closeDatabase,
@@ -56,8 +58,8 @@ function assertStaticContract() {
   assert.doesNotMatch(settingsRepoSource, /Number\(row\.audit_logging_enabled\) === 1/, "workspace settings should not own SQLite integer boolean row mapping");
   assert.doesNotMatch(settingsRepoSource, /\? 1 : 0/, "workspace settings save path should not own SQLite integer boolean binding");
 
-  const pauseOtherRunningTimers = functionBlock(activeTimersRepoSource, "pauseOtherRunningTimers");
-  const pauseRunningForUser = functionBlock(activeTimersRepoSource, "pauseRunningForUser");
+  const pauseOtherRunningTimers = extractFunctionBlock(activeTimersRepoSource, "pauseOtherRunningTimers");
+  const pauseRunningForUser = extractFunctionBlock(activeTimersRepoSource, "pauseRunningForUser");
   for (const proofPath of [pauseOtherRunningTimers, pauseRunningForUser]) {
     assert.match(proofPath, /db\.run\(`/, "active timer pause proof paths should use the bound database API");
     assert.match(proofPath, /db\.dialect\.time\.elapsedSecondsSince/, "active timer pause proof paths should use the timestamp seam");
@@ -67,16 +69,14 @@ function assertStaticContract() {
 
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*1,481 runtime literal-helper invocations[\s\S]*230 direct interpolated SQL operation sites/, "parameter-binding audit should retain the boolean/time proof burndown");
   assert.ok(
-    parameterBindingBaseline.findings.some((finding) => finding.file === "src/modules/time-tracking/active-timers.repo.js"),
+    parameterBindingBaseline.findings.some((/** @type {Record<string, unknown>} */ finding) => finding.file === "src/modules/time-tracking/active-timers.repo.js"),
     "parameter-binding baseline should track reviewed active-timer dynamic SQL composition by stable file/signature",
   );
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.5 - Boolean and timestamp\/interval seams[\s\S]*- \[x\] Implement adapter-owned logical boolean normalization[\s\S]*- \[x\] Implement the provider date\/time helper[\s\S]*- \[x\] Convert one small proof path/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.5[\s\S]*`db\.dialect\.boolean\.bindFields\(\.\.\.\)`[\s\S]*`db\.dialect\.time\.elapsedSecondsSince\(\.\.\.\)`/, "database docs should describe the boolean and timestamp seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*`settings\.repo`[\s\S]*`time-tracking\/active-timers\.repo`/, "audit docs should record the boolean/time proof paths");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(booleanTimeSliceVersion)} - [\\s\\S]*Boolean and timestamp\\/interval seams[\\s\\S]*active timer pause`), "changelog should record the boolean/time seam slice");
 }
 
-async function assertBooleanHelpers(dialect) {
+async function assertBooleanHelpers(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE boolean_time_seam_records (
   record_id TEXT PRIMARY KEY,
@@ -125,7 +125,7 @@ WHERE record_id = :recordId;
   assert.deepEqual(
     dialect.boolean.readFields(stored, ["enabled", "hidden", "optional_flag"], {
       fallbacks: {
-        missing_flag: true,
+        ...(/** @type {Record<string, boolean>} */ ({ missing_flag: true })),
       },
     }),
     {
@@ -142,20 +142,20 @@ WHERE record_id = :recordId;
     "boolean bind helper should reject unrecognized string values",
   );
   assert.throws(
-    () => dialect.boolean.readFields(stored, ["bad.field"]),
+    () => dialect.boolean.readFields(stored, /** @type {never[]} */ (["bad.field"])),
     /Invalid boolean read field/,
     "boolean row-mapping helpers should reject dotted or dynamic row keys",
   );
 }
 
-async function assertTimestampHelpers(dialect) {
+async function assertTimestampHelpers(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   assert.equal(
     dialect.time.elapsedSecondsSince("started_at", ":now"),
     "MAX(0, CAST((julianday(:now) - julianday(started_at)) * 86400 AS INTEGER))",
     "elapsed-seconds helper should lower to the SQLite timestamp interval seam",
   );
 
-  const row = await db.get(`
+  const row = requireRow(await db.get(`
 SELECT
   ${dialect.time.elapsedSecondsSince("started_at", ":now")} AS elapsed_seconds,
   ${dialect.time.elapsedSecondsSince("started_at", ":beforeStart")} AS clamped_seconds
@@ -165,7 +165,7 @@ WHERE record_id = :recordId;
     beforeStart: "2026-07-05T18:59:30.000Z",
     now: "2026-07-05T19:02:00.000Z",
     recordId: "boolean-one",
-  });
+  }), "row");
 
   assert.ok(
     Number(row.elapsed_seconds) >= 119 && Number(row.elapsed_seconds) <= 120,
@@ -175,16 +175,17 @@ WHERE record_id = :recordId;
 }
 
 async function assertWorkspaceSettingsProofPath() {
-  const workspace = await db.get(`
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireRow(await db.get(`
 SELECT workspace_id
 FROM workspaces
 ORDER BY created_at
 LIMIT 1;
-`);
+`), "workspace");
   assert.ok(workspace, "fresh database should have a default workspace");
 
-  const original = await settingsRepository.readWorkspaceSettings(workspace.workspace_id);
-  await settingsRepository.saveWorkspaceSettings(workspace.workspace_id, {
+  const original = await settingsRepository.readWorkspaceSettings(/** @type {string} */ (workspace.workspace_id));
+  await settingsRepository.saveWorkspaceSettings(/** @type {string} */ (workspace.workspace_id), {
     ...original,
     audit: {
       ...original.audit,
@@ -201,10 +202,10 @@ WHERE workspace_id = :workspaceId;
     audit_logging_enabled: 0,
   }, "framework workspace settings should store false booleans through the dialect seam");
 
-  const readFalse = await settingsRepository.readWorkspaceSettings(workspace.workspace_id);
+  const readFalse = await settingsRepository.readWorkspaceSettings(/** @type {string} */ (workspace.workspace_id));
   assert.equal(readFalse.audit.loggingEnabled, false);
 
-  await settingsRepository.saveWorkspaceSettings(workspace.workspace_id, {
+  await settingsRepository.saveWorkspaceSettings(/** @type {string} */ (workspace.workspace_id), {
     ...readFalse,
     audit: {
       ...readFalse.audit,
@@ -221,46 +222,11 @@ WHERE workspace_id = :workspaceId;
     audit_logging_enabled: 1,
   }, "framework workspace settings should store true booleans through the dialect seam");
 
-  const readTrue = await settingsRepository.readWorkspaceSettings(workspace.workspace_id);
+  const readTrue = await settingsRepository.readWorkspaceSettings(/** @type {string} */ (workspace.workspace_id));
   assert.equal(readTrue.audit.loggingEnabled, true);
 }
 
 async function assertIntegrity() {
   const row = await db.get("PRAGMA integrity_check;");
   assert.equal(row?.integrity_check, "ok", "boolean/time seam regression database should pass integrity check");
-}
-
-function functionBlock(source, functionName) {
-  const marker = `function ${functionName}`;
-  let start = source.indexOf(marker);
-  if (start < 0) {
-    start = source.indexOf(`async ${marker}`);
-  }
-  assert.notEqual(start, -1, `Could not find ${functionName} in source.`);
-
-  const braceStart = source.indexOf("{", start);
-  assert.notEqual(braceStart, -1, `Could not find ${functionName} body.`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract ${functionName} body.`);
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

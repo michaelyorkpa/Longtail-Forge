@@ -3,7 +3,38 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { owningProgram } from "./test-support/typecheck-ownership.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
+const [
+  ,
+  catalogItemsServiceSource,
+  catalogItemsTypesSource,
+  listItemsServiceSource,
+  listItemsTypesSource,
+  listsDomainTypesSource,
+  ,
+  listsRoutesSource,
+  listsServiceSource,
+  ,
+  publicApiServiceSource,
+  searchIndexersSource,
+] = await Promise.all([
+  fs.readFile(new URL("../src/modules/lists/access-policy.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/catalog-items.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-catalog-item-contracts.d.ts", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/list-items.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-item-contracts.d.ts", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/types/lists-domain-contracts.d.ts", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/lists.repo.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/lists.routes.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/lists.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/public-api.routes.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/public-api.service.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/search-indexers.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("../src/modules/lists/storage-contract.js", import.meta.url), "utf8"),
+]);
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-service.db");
 process.env.SUPER_ADMIN_PASSWORD = "Lists-Service-Test-123!";
@@ -37,7 +68,44 @@ try {
 }
 
 async function assertManifestContracts() {
+  for (const ownerPath of [
+    "src/modules/lists/access-policy.js",
+    "src/modules/lists/catalog-items.service.js",
+    "src/modules/lists/list-items.service.js",
+    "src/modules/lists/lists.repo.js",
+    "src/modules/lists/lists.routes.js",
+    "src/modules/lists/lists.service.js",
+    "src/modules/lists/public-api.routes.js",
+    "src/modules/lists/public-api.service.js",
+    "src/modules/lists/search-indexers.js",
+    "src/modules/lists/storage-contract.js",
+  ]) {
+    assert.equal(owningProgram(ownerPath), "server-tests", `${ownerPath} must remain a strict-clean checked owner now that program-level checking replaces pragma markers`);
+  }
+  assert.match(listsDomainTypesSource, /interface ListsNormalizedQuery[\s\S]*repositoryFilters: ListsRepositoryFilters/, "Lists should retain a precise normalized query contract");
+  assert.match(listsDomainTypesSource, /interface ListsRepository[\s\S]*createItem\(workspaceId: string, item: ListsItemPersistenceInput\)/, "Lists should retain precise repository and persistence contracts");
+  assert.match(listsRoutesSource, /function workspaceSession\(request\)[\s\S]*Workspace session is required/, "browser routes should narrow the authenticated workspace session at the HTTP edge");
+  assert.match(publicApiServiceSource, /@param \{ApiSession\} context[\s\S]*@returns \{Promise<ListsPublicApiListResult>\}/, "the public API should retain its typed ApiSession boundary");
+  assert.match(searchIndexersSource, /@returns \{Promise<ListsSearchDocument>\}/, "search indexing should consume the typed Lists search document seam");
+  assert.equal(owningProgram("src/modules/lists/catalog-items.service.js"), "server-tests", "the extracted catalog-item aggregate should remain strict-clean");
+  assert.match(catalogItemsServiceSource, /function createCatalogItemsService\(dependencies\)/, "Lists should expose one typed catalog aggregate factory");
+  assert.match(catalogItemsServiceSource, /listCatalogSuggestions[\s\S]*normalizeSuggestionLimit[\s\S]*normalizeCatalogName/, "catalog ranking should remain repository-owned behind normalized suggestion inputs");
+  assert.match(catalogItemsServiceSource, /readCatalogItemOrThrow[\s\S]*archived_at[\s\S]*Catalog item not found/, "catalog snapshots should reject archived rows");
+  assert.match(catalogItemsTypesSource, /interface ListsCatalogAggregateService[\s\S]*createFromListItem[\s\S]*readSnapshot[\s\S]*recordUsage[\s\S]*suggestItems/, "the catalog seam should declare explicit list-item orchestration and suggestion contracts");
+  assert.equal(owningProgram("src/modules/lists/list-items.service.js"), "server-tests", "the extracted list-item aggregate should remain strict-clean");
+  assert.match(listItemsServiceSource, /function createListItemsService\(dependencies\)/, "Lists should expose one typed item aggregate factory");
+  assert.match(listItemsServiceSource, /repository\.reorderItems[\s\S]*recordListAudit[\s\S]*emitListEvent/, "item reordering should retain repository transaction, audit, and event owners");
+  assert.match(listItemsServiceSource, /assertCanManageItem[\s\S]*repository\.updateItem[\s\S]*recordItemAudit[\s\S]*emitItemEvent/, "item lifecycle transitions should retain permission, repository, audit, and event owners");
+  assert.match(listItemsServiceSource, /readProgressSummaries[\s\S]*listItemsForLists/, "item progress should retain one batched repository read");
+  assert.match(listItemsTypesSource, /interface ListsItemAggregateService[\s\S]*createItem[\s\S]*readProgressSummaries[\s\S]*reorderItems/, "the aggregate seam should declare mutation and progress contracts");
+  assert.match(listItemsServiceSource, /catalogItems\.recordUsage[\s\S]*catalogItems\.readSnapshot/, "the list-item aggregate should consume catalog snapshots and usage only through explicit Lists orchestration");
+  assert.doesNotMatch(listItemsServiceSource, /repository\.incrementCatalogUsage|readCatalogItemById|listCatalogSuggestions/, "the list-item aggregate should not reach through the catalog repository boundary");
+  assert.match(listsServiceSource, /const catalogItemsService = createCatalogItemsService\([\s\S]*repository: listsRepository[\s\S]*catalogItems: catalogItemsService/, "the route-facing Lists service should compose independent catalog and item aggregates");
+  assert.match(listsServiceSource, /const listItemsService = createListItemsService\([\s\S]*repository: listsRepository/, "the route-facing Lists service should compose the extracted aggregate with the established repository");
+  assert.match(listsServiceSource, /function createItem\([\s\S]*listItemsService\.createItem[\s\S]*function updateItem\([\s\S]*listItemsService\.updateItem/, "the public Lists facade should delegate item writes without changing its API");
+
   const listsModule = modulesService.getModule("lists");
+  assert.ok(listsModule, "the Lists module should be registered");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
   assert.equal(listsModule.version, appVersion, "lists");
@@ -95,7 +163,11 @@ ORDER BY permission_id;
   assert.deepEqual(rows.map((row) => row.permission_id), Object.values(LIST_PERMISSIONS).sort());
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ListsSession */
+
+/** @param {ListsSession} session */
 async function assertServiceLifecycle(session) {
+  /** @type {import("../src/types/framework-contracts.js").InternalEvent[]} */
   const capturedEvents = [];
   const unsubscribe = modulesService.onInternalEvent("lists.list.created", (event) => {
     capturedEvents.push(event);
@@ -160,6 +232,8 @@ async function assertServiceLifecycle(session) {
       listId: created.list.list_id,
       q: "catalog",
     });
+    assert.ok(updated, "updating a list should answer the persisted list");
+    assert.ok(updated, "updating a list should answer the persisted list");
     assert.equal(usedSuggestions.suggestions[0].catalog_item_id, catalog.catalogItem.catalog_item_id);
     assert.equal(usedSuggestions.suggestions[0].use_count, 1);
 
@@ -172,12 +246,12 @@ async function assertServiceLifecycle(session) {
     }, session);
     assert.ok(capturedEvents.some((event) => (
       event.record_type === "list_item_catalog" &&
-      event.metadata.catalog_item_id === catalog.catalogItem.catalog_item_id &&
+      event.metadata?.catalog_item_id === catalog.catalogItem.catalog_item_id &&
       !JSON.stringify(event.metadata).includes("example.invalid")
     )), "Catalog create events should use safe metadata");
     assert.ok(capturedEvents.some((event) => (
       event.record_type === "list_item_catalog" &&
-      event.metadata.catalog_item_id === catalog.catalogItem.catalog_item_id &&
+      event.metadata?.catalog_item_id === catalog.catalogItem.catalog_item_id &&
       !JSON.stringify(event.new_value).includes("example.invalid")
     )), "Catalog update events should sanitize raw URL metadata");
     const catalogAuditRows = await querySql(`
@@ -192,6 +266,7 @@ ORDER BY created_at;
     assert.ok(catalogAuditRows.every((row) => !JSON.stringify(row).includes("example.invalid")));
     const catalogSnapshotRead = await listsService.read(created.list.list_id, session);
     const catalogSnapshotItem = catalogSnapshotRead.items.find((entry) => entry.list_item_id === catalogItem.item.list_item_id);
+    assert.ok(catalogSnapshotItem, "the catalog-sourced item should appear in the list read");
     assert.equal(catalogSnapshotItem.item_name, "Catalog Fastener");
     assert.equal(catalogSnapshotItem.quantity, 12);
     assert.equal(catalogSnapshotItem.unit, "pack");
@@ -236,12 +311,16 @@ ORDER BY created_at;
       targetId: linkedTask.task.task_id,
       targetType: "task",
     }, session);
+    assert.ok(taskLink, "creating the task link should answer the persisted link");
+    if (!taskLink.link.target) throw new Error("Created task link should include its target summary.");
     assert.equal(taskLink.link.target.label, "Linked List Task");
     assert.equal(taskLink.link.target.target_type, "task");
     const noteLink = await listsService.createLink(created.list.list_id, {
       targetId: linkedNote.note.note_id,
       targetType: "note",
     }, session);
+    assert.ok(noteLink, "creating the note link should answer the persisted link");
+    if (!noteLink.link.target) throw new Error("Created note link should include its target summary.");
     assert.equal(noteLink.link.target.label, "Linked List Note");
     await assert.rejects(
       () => listsService.createLink(created.list.list_id, {
@@ -252,9 +331,11 @@ ORDER BY created_at;
       /not supported for Lists/,
       "Strict link creation must reject a module/type mismatch",
     );
+    assert.ok(noteLink, "creating the note link should answer the persisted link");
+    assert.ok(taskLink, "creating the task link should answer the persisted link");
     const linkedRead = await listsService.read(created.list.list_id, session);
     assert.equal(linkedRead.links.length, 2);
-    assert.ok(linkedRead.links.every((link) => link.target?.label));
+    assert.ok(linkedRead.links.every((link) => /** @type {{label?: string}|null} */ (link.target)?.label));
     assert.equal(linkedRead.list.progress.totalItemCount, 3);
     assert.equal(linkedRead.list.progress.checkedItemCount, 0);
     assert.equal(linkedRead.list.progress.completedItemCount, 0);
@@ -310,6 +391,8 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     assert.equal(duplicated.list.is_reusable, false);
     assert.equal(duplicated.list.source_list_id, created.list.list_id);
     assert.equal(duplicated.list.duplicated_from_list_id, created.list.list_id);
+    assert.ok(duplicated.list.sourceContext.duplicatedFrom);
+    assert.ok(duplicated.list.sourceContext.sourceList);
     assert.equal(duplicated.list.sourceContext.duplicatedFrom.title, "R&D Procurement Updated");
     assert.equal(duplicated.list.sourceContext.sourceList.title, "R&D Procurement Updated");
     assert.equal(duplicated.items.length, 3);
@@ -327,6 +410,7 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     const duplicatedRead = await listsService.read(duplicated.list.list_id, session);
     assert.equal(duplicatedRead.items[0].item_name, "Aluminum extrusion");
     assert.equal(duplicatedRead.items[0].quantity, 4);
+    assert.ok(duplicatedRead.list.sourceContext.duplicatedFrom);
     assert.equal(duplicatedRead.list.sourceContext.duplicatedFrom.title, "R&D Procurement Updated");
 
     const normalAgain = await listsService.unmarkReusable(created.list.list_id, session);
@@ -351,6 +435,7 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     const duplicatedBom = await listsService.duplicate(bom.list.list_id, {}, session);
     assert.equal(duplicatedBom.list.status, "active");
     assert.equal(duplicatedBom.list.list_type, "bill_of_materials");
+    assert.ok(duplicatedBom.list.sourceContext.duplicatedFrom);
     assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.title, "Prototype BOM");
     assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.status, "finalized");
     assert.equal(duplicatedBom.items[0].actual_cost, null);
@@ -379,6 +464,8 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     );
 
     const archived = await listsService.archive(created.list.list_id, session);
+    assert.ok(archived, "archiving a list should answer the persisted list");
+    assert.ok(archived, "archiving a list should answer the persisted list");
     assert.equal(archived.list.status, "archived");
 
     const restored = await listsService.restore(created.list.list_id, session);
@@ -400,22 +487,24 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     assert.ok(capturedEvents.some((event) => (
       event.module_id === "lists" &&
       event.record_type === "list" &&
-      event.metadata.title === "R&D Procurement"
+      event.metadata?.title === "R&D Procurement"
     )), "List created event should use safe list metadata");
     assert.ok(capturedEvents.some((event) => (
       event.module_id === "lists" &&
       event.record_type === "list_item" &&
-      event.metadata.item_name === "Aluminum extrusion" &&
-      !("url" in event.metadata)
+      event.metadata?.item_name === "Aluminum extrusion" &&
+      !("url" in (event.metadata || {}))
     )), "Item checked event should use safe item metadata");
-    const createdEvent = capturedEvents.find((event) => event.record_type === "list" && event.metadata.title === "R&D Procurement");
-    assert.equal(createdEvent?.metadata.source_url, `lists.html?list=${encodeURIComponent(created.list.list_id)}`);
-    assert.equal(createdEvent?.metadata.total_item_count, 0);
-    const checkedEvent = capturedEvents.find((event) => event.record_type === "list_item" && event.metadata.item_name === "Aluminum extrusion");
-    assert.equal(checkedEvent?.metadata.total_item_count, 3);
-    assert.equal(checkedEvent?.metadata.checked_item_count, 1);
-    assert.equal(checkedEvent?.metadata.next_unchecked_item_label, "Catalog Fastener");
-    assert.equal(checkedEvent?.metadata.project_id, "");
+    const createdEvent = capturedEvents.find((event) => event.record_type === "list" && event.metadata?.title === "R&D Procurement");
+    assert.ok(createdEvent?.metadata, "the list created event should carry safe metadata");
+    assert.equal(createdEvent.metadata.source_url, `lists.html?list=${encodeURIComponent(created.list.list_id)}`);
+    assert.equal(createdEvent.metadata.total_item_count, 0);
+    const checkedEvent = capturedEvents.find((event) => event.record_type === "list_item" && event.metadata?.item_name === "Aluminum extrusion");
+    assert.ok(checkedEvent?.metadata, "the item checked event should carry safe metadata");
+    assert.equal(checkedEvent.metadata.total_item_count, 3);
+    assert.equal(checkedEvent.metadata.checked_item_count, 1);
+    assert.equal(checkedEvent.metadata.next_unchecked_item_label, "Catalog Fastener");
+    assert.equal(checkedEvent.metadata.project_id, "");
 
     const auditRows = await querySql(`
 SELECT action, record_type, record_label, metadata_json
@@ -516,9 +605,10 @@ function assertAccessPolicy() {
   });
 }
 
+/** @param {ListsSession} session */
 async function assertDisabledModuleWriteBlocking(session) {
   const created = await listsService.create({ title: "Disable Test" }, session);
-  await modulesService.setModuleStatus(session.workspace_id, "lists", false, { actorUserId: session.user_id });
+  await modulesService.setModuleStatus(session.workspace_id, "lists", false, { session });
 
   const readResult = await listsService.read(created.list.list_id, session);
   assert.equal(readResult.list.title, "Disable Test");
@@ -527,9 +617,10 @@ async function assertDisabledModuleWriteBlocking(session) {
     /This module is disabled for this workspace/,
   );
 
-  await modulesService.setModuleStatus(session.workspace_id, "lists", true, { actorUserId: session.user_id });
+  await modulesService.setModuleStatus(session.workspace_id, "lists", true, { session });
 }
 
+/** @returns {Promise<ListsSession>} */
 async function readSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, workspaces.workspace_id
@@ -540,12 +631,7 @@ ORDER BY users.user_id, workspaces.workspace_id
 LIMIT 1;
 `);
 
-  return {
-    timezone: "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "protected user fixture is required"));
 }
 
 async function assertIntegrity() {

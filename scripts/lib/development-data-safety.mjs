@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { requireJsonRecord } from "../test-support/json-record-assertions.mjs";
 
 export const DEVELOPMENT_PROFILE = "development";
 export const DEMO_PROFILE = "sanitized-demo";
@@ -10,8 +11,28 @@ export const PROFILE_MARKERS = Object.freeze({
 
 const LIVE_PATH_PATTERN = /(?:^|[\\/\s._-])(prod|production|live|customer|customers)(?:[\\/\s._-]|$)/i;
 
+/**
+ * A data profile name with a defined marker segment.
+ * @typedef {keyof typeof PROFILE_MARKERS} KnownDataProfile
+ */
+
+/**
+ * Fully resolved, marker-verified seed/reset target.
+ * @typedef {object} SeedTarget
+ * @property {string} profile
+ * @property {string} marker
+ * @property {string} dataDir
+ * @property {string} database
+ * @property {string} filesRoot
+ */
+
+/**
+ * Resolve and safety-check the requested seed/reset target directories.
+ * @param {Record<string, unknown> & { profile?: string, environment?: string, dataDir?: string, database?: string | null, filesRoot?: string | null, cwd?: string }} request parsed CLI options; only the listed keys are read
+ * @returns {SeedTarget}
+ */
 export function resolveSeedTarget({ profile, environment, dataDir, database, filesRoot, cwd = process.cwd() }) {
-  const marker = PROFILE_MARKERS[profile];
+  const marker = PROFILE_MARKERS[/** @type {KnownDataProfile} */ (profile)];
   if (!marker) {
     throw new Error(`Unknown data profile "${profile}". Use development or sanitized-demo.`);
   }
@@ -40,7 +61,7 @@ export function resolveSeedTarget({ profile, environment, dataDir, database, fil
   assertInside(resolvedDataDir, resolvedFilesRoot, "files root");
 
   return {
-    profile,
+    profile: /** @type {KnownDataProfile} */ (profile),
     marker,
     dataDir: resolvedDataDir,
     database: resolvedDatabase,
@@ -48,6 +69,12 @@ export function resolveSeedTarget({ profile, environment, dataDir, database, fil
   };
 }
 
+/**
+ * Assert a path is strictly inside the marked data directory.
+ * @param {string} parent
+ * @param {string} child
+ * @param {string} label
+ */
 export function assertInside(parent, child, label) {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
@@ -55,6 +82,11 @@ export function assertInside(parent, child, label) {
   }
 }
 
+/**
+ * Require a strong, non-placeholder operator SUPER_ADMIN_PASSWORD.
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ context?: string }} [options]
+ */
 export function assertOperatorPassword(env = process.env, options = {}) {
   const context = String(options.context || "local").trim();
   const password = String(env.SUPER_ADMIN_PASSWORD || "");
@@ -67,6 +99,10 @@ export function assertOperatorPassword(env = process.env, options = {}) {
   }
 }
 
+/**
+ * Refuse to seed into a non-empty marked data directory.
+ * @param {SeedTarget} target
+ */
 export async function assertSeedDirectoryEmpty(target) {
   try {
     const entries = await fs.readdir(target.dataDir);
@@ -74,24 +110,33 @@ export async function assertSeedDirectoryEmpty(target) {
       throw new Error(`Refusing to seed non-empty marked data directory: ${target.dataDir}. Run the matching reset command first.`);
     }
   } catch (error) {
-    if (error?.code !== "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (error)?.code !== "ENOENT") {
       throw error;
     }
   }
 }
 
+/**
+ * Read and verify the seed marker for the requested target.
+ * @param {SeedTarget} target
+ */
 export async function readSeedMarker(target) {
   const markerFile = path.join(target.dataDir, ".longtail-development-data.json");
-  const parsed = JSON.parse(await fs.readFile(markerFile, "utf8"));
+  const parsed = requireJsonRecord(JSON.parse(await fs.readFile(markerFile, "utf8")), markerFile);
   if (parsed.profile !== target.profile || parsed.marker !== target.marker) {
     throw new Error("Seed marker does not match the requested profile; refusing reset.");
   }
-  if (path.resolve(parsed.database) !== target.database || path.resolve(parsed.filesRoot) !== target.filesRoot) {
+  if (path.resolve(String(parsed.database)) !== target.database || path.resolve(String(parsed.filesRoot)) !== target.filesRoot) {
     throw new Error("Seed marker paths do not match the requested target; refusing reset.");
   }
   return { markerFile, parsed };
 }
 
+/**
+ * Write the seed marker documenting the seeded target.
+ * @param {SeedTarget} target
+ * @param {Record<string, unknown>} metadata
+ */
 export async function writeSeedMarker(target, metadata) {
   const markerFile = path.join(target.dataDir, ".longtail-development-data.json");
   await fs.writeFile(markerFile, `${JSON.stringify({
@@ -104,6 +149,11 @@ export async function writeSeedMarker(target, metadata) {
   }, null, 2)}\n`, "utf8");
 }
 
+/**
+ * Remove a previously seeded, marker-verified data directory.
+ * @param {SeedTarget} target
+ * @param {string} confirmation exact marker confirmation supplied by the operator
+ */
 export async function resetSeedTarget(target, confirmation) {
   if (confirmation !== target.marker) {
     throw new Error(`Reset requires --confirm ${target.marker}.`);

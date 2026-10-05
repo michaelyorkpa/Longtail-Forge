@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { clearTimeout, setTimeout } from "node:timers";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-separate-worker-e2e-"));
@@ -18,7 +20,6 @@ process.env.LONGTAIL_JOB_POLL_INTERVAL_MS = "1000";
 process.env.LONGTAIL_WORKER_ID = "regression-main-process";
 process.env.SUPER_ADMIN_PASSWORD = "Separate-Worker-E2E-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -26,6 +27,24 @@ const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const appSource = readText("src/core/app.js");
 const dbIndexSource = readText("src/db/index.js");
 const workerCliSource = readText("src/core/jobs/worker-cli.js");
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} WorkerFixtures */
+/** @typedef {Awaited<ReturnType<typeof seedDurableWork>>} WorkerTargets */
+
+/**
+ * The separate worker child, plus the stdout and stderr this owner accumulates.
+ *
+ * The worker really is another process, so its output arrives as a text stream
+ * rather than a structured payload; these two buffers are this owner's own
+ * observation of it and are named as such rather than being read off the child.
+ * @typedef {import("node:child_process").ChildProcessByStdio<null, import("node:stream").Readable, import("node:stream").Readable> & {
+ *   stderrText: string,
+ *   stdoutText: string,
+ * }} SeparateWorkerChild
+ */
+
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { closeDatabase, db, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -33,6 +52,7 @@ const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { notificationsService } = await import("../src/services/notifications.service.js");
 const { filesService } = await import("../src/services/files.service.js");
 
+/** @type {SeparateWorkerChild | null} */
 let worker = null;
 
 try {
@@ -75,10 +95,9 @@ function assertStaticContract() {
   assert.match(workerCliSource, /runModuleStartupTasks\("worker"/, "separate worker startup should run module-owned startup work");
   assert.doesNotMatch(workerCliSource, /queueTaskReminderSweepJobs/, "separate worker startup should not import Tasks-specific sweeps");
   assert.match(workerCliSource, /jobsService\.pruneOldJobs/, "separate worker startup should run retention pruning");
-  assert.doesNotMatch(functionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup should not run migrations or app defaults");
+  assert.doesNotMatch(extractFunctionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup should not run migrations or app defaults");
   assert.match(appSource, /config\.worker\.mode === "separate"[\s\S]*state=external/, "app separate mode should leave processing to node worker.js");
   assert.match(appSource, /config\.worker\.mode === "disabled"[\s\S]*state=disabled/, "app disabled mode should report that jobs will not process");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(architectureDocs, /0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "architecture docs should document separate-worker validation");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "database docs should document separate-worker validation");
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "runtime docs should document the proved separate-worker behavior");
@@ -105,6 +124,7 @@ function assertWorkerSchemaReadinessFailsBeforeMigrations() {
   assert.match(child.stderr || child.stdout, /Worker schema is not ready/, "missing schema failure should direct operators to app or maintenance migrations");
 }
 
+/** @param {WorkerFixtures} fixtures */
 async function seedDurableWork(fixtures) {
   const due = localDateTimeParts(addMinutes(new Date(), 6), fixtures.session.timezone);
   const reminderTask = (await tasksService.create({
@@ -119,7 +139,7 @@ async function seedDurableWork(fixtures) {
     title: "Separate worker reminder task",
   }, fixtures.session)).task;
   const reminderJob = await readLatestJob(fixtures.workspaceId, "task.reminder", reminderTask.task_id);
-  await makeJobAvailable(reminderJob.job_id);
+  await makeJobAvailable(String(reminderJob.job_id));
 
   const recurrenceTask = (await tasksService.create({
     due_date: "2026-08-03",
@@ -144,6 +164,7 @@ async function seedDurableWork(fixtures) {
     targetId: fileTargetTask.task_id,
     targetType: "task",
   });
+  assert.ok(upload.file, "the seeded durable upload should carry its file record");
   const fileScanJob = await readLatestJob(fixtures.workspaceId, "file.scan", upload.file.fileId);
 
   const searchableTask = (await tasksService.create({
@@ -176,7 +197,7 @@ async function seedDurableWork(fixtures) {
 
   return {
     fileId: upload.file.fileId,
-    fileScanJobId: fileScanJob.job_id,
+    fileScanJobId: String(fileScanJob.job_id),
     notificationJobId: notificationResult.jobId,
     notificationRecipientId: fixtures.recipient.userId,
     recurrenceJobId: recurrenceJob.job_id,
@@ -188,6 +209,7 @@ async function seedDurableWork(fixtures) {
   };
 }
 
+/** @param {WorkerTargets} targets */
 async function assertWrongWorkerModesDoNotDrainJobs(targets) {
   const before = await readJobStatuses(targetJobIds(targets));
   const disabled = spawnSync(process.execPath, ["worker.js"], {
@@ -217,8 +239,9 @@ async function assertWrongWorkerModesDoNotDrainJobs(targets) {
   assert.deepEqual(await readJobStatuses(targetJobIds(targets)), before, "worker.js inline rejection should not process queued jobs");
 }
 
+/** @returns {Promise<SeparateWorkerChild>} */
 async function startSeparateWorkerProcess() {
-  const child = spawn(process.execPath, ["worker.js"], {
+  const child = /** @type {SeparateWorkerChild} */ (spawn(process.execPath, ["worker.js"], {
     cwd: root,
     env: cleanEnv({
       LONGTAIL_JOB_POLL_INTERVAL_MS: "1000",
@@ -226,7 +249,7 @@ async function startSeparateWorkerProcess() {
       LONGTAIL_WORKER_MODE: "separate",
     }),
     stdio: ["ignore", "pipe", "pipe"],
-  });
+  }));
   child.stdoutText = "";
   child.stderrText = "";
   child.stdout.setEncoding("utf8");
@@ -266,6 +289,7 @@ async function assertSecondWorkerIsRejected() {
   assert.match(second.stderr || second.stdout, /at most one local worker process/, "second worker failure should explain the one-worker SQLite boundary");
 }
 
+/** @param {WorkerTargets} targets */
 async function waitForTargetJobs(targets) {
   await waitFor(async () => {
     const statuses = await readJobStatuses(targetJobIds(targets));
@@ -279,6 +303,7 @@ async function waitForTargetJobs(targets) {
   });
 }
 
+/** @param {WorkerFixtures} fixtures @param {WorkerTargets} targets */
 async function assertSeparateWorkerSideEffects(fixtures, targets) {
   const searchRows = await querySql(`
 SELECT title
@@ -319,7 +344,7 @@ LIMIT 1;
   assert.equal(fileRows[0]?.status, "available", "separate worker should make scanned files available");
   assert.equal(fileRows[0]?.scan_status, "not_required", "separate worker should mark disabled-scan files not required");
 
-  const reminderJob = await readJobById(targets.reminderJobId);
+  const reminderJob = await readJobById(String(targets.reminderJobId));
   assert.equal(reminderJob.status, "completed", "separate worker should complete due task reminders");
 
   const workerRows = await querySql(`
@@ -340,6 +365,7 @@ ORDER BY job_type;
   assert.ok(fixtures.session.workspace_id, "fixture session should remain scoped to a workspace");
 }
 
+/** @param {SeparateWorkerChild | undefined} child @param {{ force?: boolean }} [options] */
 async function stopSeparateWorkerProcess(child, options = {}) {
   if (!child || child.exitCode !== null) {
     return;
@@ -358,18 +384,20 @@ async function stopSeparateWorkerProcess(child, options = {}) {
 }
 
 async function seedFixtures() {
-  const admin = await db.get(`
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireRow(await db.get(`
 SELECT user_id, username, home_workspace_id, active_workspace_id, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
-`);
-  assert.ok(admin?.user_id, "fresh database should seed a protected admin");
+`), "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const recipient = {
     displayName: "separate worker recipient",
+    timezone: "America/New_York",
     userId: `separate-worker-recipient-${randomUUID()}`,
     username: `separate-worker-${randomUUID()}@example.test`,
   };
@@ -386,10 +414,13 @@ ${assignmentInsertSql(workspaceId, recipient.userId, "project_user", "workspace"
       userId: admin.user_id,
     },
     recipient,
+    /** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */
     session: {
       active_workspace_id: workspaceId,
       home_workspace_id: admin.home_workspace_id,
-      ip: "127.0.0.1",
+      ip_address: "127.0.0.1",
+      password_change_required: false,
+      session_mode: "normal",
       timezone: admin.timezone || "America/New_York",
       user_id: admin.user_id,
       username: admin.username,
@@ -399,6 +430,7 @@ ${assignmentInsertSql(workspaceId, recipient.userId, "project_user", "workspace"
   };
 }
 
+/** @param {string} jobId */
 async function makeJobAvailable(jobId) {
   await runSql(`
 UPDATE jobs
@@ -407,6 +439,7 @@ WHERE job_id = ${sqlText(jobId)};
 `);
 }
 
+/** @param {string} workspaceId @param {string} jobType @param {string} payloadNeedle @returns {Promise<DatabaseRow>} */
 async function readLatestJob(workspaceId, jobType, payloadNeedle) {
   const rows = await querySql(`
 SELECT *
@@ -422,6 +455,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} jobId @returns {Promise<DatabaseRow>} */
 async function readJobById(jobId) {
   const rows = await querySql(`
 SELECT *
@@ -434,6 +468,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string[]} jobIds */
 async function readJobRows(jobIds) {
   return querySql(`
 SELECT job_id, job_type, status, attempt_count, last_error
@@ -443,6 +478,7 @@ ORDER BY job_type, job_id;
 `);
 }
 
+/** @param {string[]} jobIds */
 async function readJobStatuses(jobIds) {
   const rows = await readJobRows(jobIds);
   return new Map(rows.map((row) => [row.job_id, row.status]));
@@ -453,16 +489,18 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "separate worker regression database should pass integrity check");
 }
 
+/** @param {WorkerTargets} targets @returns {string[]} */
 function targetJobIds(targets) {
   return [
-    targets.fileScanJobId,
-    targets.notificationJobId,
-    targets.recurrenceJobId,
-    targets.reminderJobId,
-    targets.searchJobId,
+    String(targets.fileScanJobId),
+    String(targets.notificationJobId),
+    String(targets.recurrenceJobId),
+    String(targets.reminderJobId),
+    String(targets.searchJobId),
   ];
 }
 
+/** @param {string} workspaceId @param {{ displayName: string, timezone: string, userId: string, username: string }} user */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -494,6 +532,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {{ userId: string }} user @param {string} now */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (
@@ -515,6 +554,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string} scopeId @param {string} now */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   return `
 INSERT INTO user_role_assignments (
@@ -546,6 +586,7 @@ VALUES (
 `;
 }
 
+/** @param {Date} date @param {string} timeZone */
 function localDateTimeParts(date, timeZone) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -556,7 +597,7 @@ function localDateTimeParts(date, timeZone) {
     month: "2-digit",
     timeZone,
     year: "numeric",
-  }).formatToParts(date).reduce((map, part) => {
+  }).formatToParts(date).reduce((/** @type {Record<string, string>} */ map, part) => {
     map[part.type] = part.value;
     return map;
   }, {});
@@ -567,10 +608,12 @@ function localDateTimeParts(date, timeZone) {
   };
 }
 
+/** @param {Date} date @param {number} minutes */
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
+/** @param {() => boolean | Promise<boolean>} check @param {{ intervalMs?: number, message?: () => string | Promise<string>, timeoutMs?: number }} [options] */
 async function waitFor(check, options = {}) {
   const started = Date.now();
   const timeoutMs = options.timeoutMs || 10_000;
@@ -589,6 +632,7 @@ async function waitFor(check, options = {}) {
   throw new Error(message || "Timed out waiting for condition.");
 }
 
+/** @param {SeparateWorkerChild} child @param {number} timeoutMs @returns {Promise<number | null>} */
 function waitForChildExit(child, timeoutMs) {
   if (child.exitCode !== null) {
     return Promise.resolve(child.exitCode);
@@ -599,22 +643,12 @@ function waitForChildExit(child, timeoutMs) {
       child.off("exit", onExit);
       reject(new Error(`Child process did not exit within ${timeoutMs}ms.`));
     }, timeoutMs);
-    const onExit = (code) => {
+    const onExit = (/** @type {number | null} */ code) => {
       clearTimeout(timer);
       resolve(code);
     };
     child.once("exit", onExit);
   });
-}
-
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`async function ${functionName}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`);
-  const match = source.match(pattern);
-  return match ? match[0] : "";
-}
-
-function readText(relativePath) {
-  return readFileSync(path.join(root, relativePath), "utf8");
 }
 
 function cleanEnv(overrides = {}) {

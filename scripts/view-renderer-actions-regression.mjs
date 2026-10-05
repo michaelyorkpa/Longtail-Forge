@@ -1,31 +1,129 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFileSync } from "node:fs";
+
+import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
-const changelog = readText("CHANGELOG.md");
-
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
-assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");
-assert.match(renderer, /requiredPermissions/, "Renderer should read action permission metadata");
+// 0.33.33.35.2 moved confirmation and route interpolation into LongtailForge.viewActionSecurity.
+// The renderer keeps the dispatch, so what this owns is the order: confirm, then run the route -
+// never the reverse. 0.33.33.39.22 retired the permission step that used to sit between them; it
+// returned true unconditionally and could not throw, so no gate was removed from this sequence.
+assert.match(
+  renderer,
+  /actionSecurity\.confirmDescriptorAction\(action\)[\s\S]*actionSecurity\.runRouteAction\(action, \{[\s\S]*api: requireApiClient\(\)[\s\S]*readValue: readDescriptorValue/,
+  "Renderer should confirm, then dispatch declarative route actions through the published security contract",
+);
+assert.doesNotMatch(renderer, /assertActionPermissions|actionPermissionsAllowed/,
+  "Renderer must not reintroduce a permission hook that enforces nothing");
+// The metadata keeps its owners; the renderer was never one of them.
+assert.match(surfaceDescriptor, /requiredPermissions: stringArraySpec\(\)/,
+  "The descriptor contract should still admit and validate action permission metadata");
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
 
-const context = createBrowserContext();
+/**
+ * The action API this owner installs into the fake browser context.
+ *
+ * Declared here because the shared harness casts a caller-supplied API to its
+ * own `FakeQueuedJsonApi` shape, which declares only `calls` and `getJson`.
+ * The installation is proven below and the assertions then read this typed
+ * local, so nothing is read back through that cast.
+ * @typedef {{
+ *   deleteCalls: string[],
+ *   getCalls: string[],
+ *   postCalls: Array<{ body: unknown, url: string }>,
+ *   deleteJson: (url: string) => Promise<unknown>,
+ *   getJson: (url: string) => Promise<unknown>,
+ *   postJson: (url: string, body: unknown) => Promise<unknown>,
+ * }} ActionApi
+ */
+
+/** @type {string[]} */
+const confirmMessages = [];
+
+/** @type {ActionApi} */
+const actionApi = {
+  deleteCalls: [],
+  getCalls: [],
+  postCalls: [],
+  async getJson(url) {
+    this.getCalls.push(url);
+    return { records: [{ id: "alpha", title: "Alpha" }] };
+  },
+  async deleteJson(url) {
+    this.deleteCalls.push(url);
+    return { ok: true };
+  },
+  async postJson(url, body) {
+    this.postCalls.push({ url, body });
+    return { ok: true };
+  },
+};
+const context = createFakeBrowserContext({
+  api: actionApi,
+  /** @param {string} message */
+  confirm(message) {
+    confirmMessages.push(message);
+    return true;
+  },
+  iconButton: { iconClass: false, iconOnlyText: true },
+  window: { confirmMessages },
+  workspaceContext: {
+    workspaceId: "actions-workspace",
+  },
+});
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, context, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, context, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
-const { view } = context.window.LongtailForge;
+/** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
+/** @typedef {import("./test-support/fake-dom.mjs").FakeLongtailForgeGlobal} FakeLongtailForgeGlobal */
+/**
+ * A rendered action surface: fake-DOM anatomy plus the renderer-owned refresh
+ * path this regression awaits.
+ * @typedef {FakeNode & { refresh: () => Promise<unknown> }} ActionSurface
+ */
+/**
+ * The published `LongtailForge.view` action entry points under test.
+ * @typedef {{ registerBehavior: (id: string, handler: Function) => void, renderSurface: (descriptor: object, host: FakeNode) => ActionSurface }} ActionsViewSurface
+ */
+const { view } = /** @type {FakeLongtailForgeGlobal & { view: ActionsViewSurface }} */ (context.window.LongtailForge);
 assert.equal(typeof view.registerBehavior, "function", "LongtailForge.view.registerBehavior should be exposed");
 
+/**
+ * One behavior invocation, as the renderer hands it to a registered handler.
+ * @typedef {{
+ *   openModal: (modalId: string, record?: unknown) => unknown,
+ *   record: { title?: unknown },
+ *   refresh: () => unknown,
+ *   workspaceContext: { workspaceId?: unknown },
+ * }} BehaviorContext
+ */
+
+/** @type {BehaviorContext[]} */
 const behaviorCalls = [];
-view.registerBehavior("sample.open", async (actionContext) => {
+view.registerBehavior("sample.open", /** @param {BehaviorContext} actionContext */ async (actionContext) => {
   behaviorCalls.push(actionContext);
   actionContext.openModal("edit-sample", actionContext.record);
 });
@@ -38,31 +136,48 @@ const openButton = findButtonByText(surface, "Open selected");
 assert.equal(openButton.disabled, false, "Behavior actions should be enabled after rendering");
 await openButton.click();
 assert.equal(behaviorCalls.length, 1, "Registered behavior should run once");
-assert.equal(behaviorCalls[0].record.title, "Alpha", "Behavior context should include the selected record");
-assert.equal(typeof behaviorCalls[0].refresh, "function", "Behavior context should include refresh");
-assert.equal(typeof behaviorCalls[0].openModal, "function", "Behavior context should include openModal");
-assert.equal(behaviorCalls[0].workspaceContext.workspaceId, "actions-workspace", "Behavior context should include workspace context");
+const behaviorContext = behaviorCalls[0];
+assert.ok(behaviorContext, "the registered behavior should have captured its action context");
+assert.equal(behaviorContext.record.title, "Alpha", "Behavior context should include the selected record");
+assert.equal(typeof behaviorContext.refresh, "function", "Behavior context should include refresh");
+assert.equal(typeof behaviorContext.openModal, "function", "Behavior context should include openModal");
+assert.equal(behaviorContext.workspaceContext.workspaceId, "actions-workspace", "Behavior context should include workspace context");
 assert(context.document.body.querySelector("dialog"), "Behavior openModal should append a descriptor modal");
 
 const routeButton = findButtonByText(surface, "Delete selected");
 await routeButton.click();
 assert.deepEqual(context.window.confirmMessages, ["Delete this record?"], "Route actions should honor confirm metadata");
-assert.deepEqual(context.window.LongtailForge.api.deleteCalls, ["/api/sample/alpha"], "Route actions should call the shared API client");
-assert.equal(context.window.LongtailForge.api.getCalls.length, 2, "Route actions should refresh after mutation");
+// The harness casts a caller-supplied API to its own shape, so the install is
+// proven here and the counters are then read off the typed local rather than
+// back through that cast.
+assert.equal(context.window.LongtailForge.api, actionApi, "the fake browser context should install the provided action API");
+assert.deepEqual(actionApi.deleteCalls, ["/api/sample/alpha"], "Route actions should call the shared API client");
+assert.equal(actionApi.getCalls.length, 2, "Route actions should refresh after mutation");
 
 const missingButton = findButtonByText(surface, "Missing behavior");
 await missingButton.click();
 assert.match(surface.textContent, /Missing view behavior handler: sample\.missing/, "Missing behavior handlers should render a recoverable status");
 
-assert.equal(hasButtonByText(surface, "Denied route"), false, "Actions with absent declared permissions should not render");
-assert.equal(hasButtonByText(surface, "Denied row"), false, "Row actions with absent declared permissions should not render");
+// 0.33.33.38.2.2.5.2. These four assertions used to prove that a declared permission withholds
+// a control and then blocks its dispatch. They passed because this harness injected
+// `workspaceContext.permissionIds` into a fake context; no production publication path supplies
+// one, so the gate they described could never fire in the application. They are retargeted onto
+// what is true rather than deleted, and the denial itself is proved server-side - see
+// `permission-regression`, which refuses the same descriptor-driven mutation at the real route
+// for a user without the permission, invoked directly with no browser in the path.
+assert.ok(hasButtonByText(surface, "Denied route"), "Declared permissions do not withhold a control, because no client-side grant source exists");
+assert.ok(hasButtonByText(surface, "Denied row"), "The same is true of row actions");
+// 0.33.33.39.22 retired the two hooks, so the renderer no longer reads the metadata at all. The
+// claim this line owns - that the metadata survives with an owner and the server enforces it -
+// moves to the contract that actually admits and validates it.
+assert.doesNotMatch(renderer, /requiredPermissions/, "The renderer reads no permission metadata, because nothing there acts on it");
+assert.equal(context.window.LongtailForge.workspaceContext.permissionIds, undefined, "and the canonical context still publishes no grant list");
 
-context.window.LongtailForge.workspaceContext.permissionIds = [];
+const deniedBefore = behaviorCalls.length;
 await openButton.click();
-assert.match(surface.textContent, /You do not have permission to run this action/, "A rendered action should still recheck live permission hints before dispatch");
-assert.equal(behaviorCalls.length, 1, "A permission hint removed after render should block the behavior dispatch");
+assert.equal(behaviorCalls.length, deniedBefore + 1, "there is no permission hook, so dispatch proceeds");
+assert.doesNotMatch(surface.textContent, /You do not have permission to run this action/, "and nothing claims a client-side refusal that did not happen");
 
-assert.match(changelog, /## Version 0\.33\.5\.16\.8 - /, "Changelog should include renderer action version");
 
 console.log("View renderer actions regression passed.");
 
@@ -133,192 +248,14 @@ function descriptor() {
   };
 }
 
-function createBrowserContext() {
-  const document = new FakeDocument();
-  const window = {
-    confirmMessages: [],
-    confirm(message) {
-      this.confirmMessages.push(message);
-      return true;
-    },
-    document,
-    LongtailForge: {
-      workspaceContext: {
-        permissionIds: ["sample.view"],
-        workspaceId: "actions-workspace",
-      },
-      api: {
-        deleteCalls: [],
-        getCalls: [],
-        postCalls: [],
-        async getJson(url) {
-          this.getCalls.push(url);
-          return { records: [{ id: "alpha", title: "Alpha" }] };
-        },
-        async deleteJson(url) {
-          this.deleteCalls.push(url);
-          return { ok: true };
-        },
-        async postJson(url, body) {
-          this.postCalls.push({ url, body });
-          return { ok: true };
-        },
-      },
-      icons: {
-        createIconButton(options = {}) {
-          const button = document.createElement("button");
-          button.type = options.type || "button";
-          button.classList.add("action-button");
-          button.textContent = options.text || options.label || "";
-          return button;
-        },
-      },
-    },
-  };
-  document.body = document.createElement("body");
-  return { window, document };
-}
-
-function FakeDocument() {
-  this.createElement = (tagName) => new FakeElement(tagName);
-  this.createTextNode = (text) => {
-    const node = new FakeElement("#text");
-    node.textContent = String(text);
-    return node;
-  };
-}
-
-function FakeElement(tagName) {
-  this.tagName = String(tagName).toUpperCase();
-  this.nodeType = this.tagName === "#TEXT" ? 3 : 1;
-  this.children = [];
-  this.parentNode = null;
-  this.attributes = new Map();
-  this.dataset = {};
-  this.classList = new FakeClassList(this);
-  this.listeners = {};
-  this._textContent = "";
-  this.disabled = false;
-  this.open = false;
-  this.type = "";
-  this.colSpan = 1;
-
-  this.append = (...children) => {
-    children.forEach((child) => this.appendChild(child));
-  };
-
-  this.appendChild = (child) => {
-    this.children.push(child);
-    child.parentNode = this;
-    return child;
-  };
-
-  this.removeChild = (child) => {
-    this.children = this.children.filter((existing) => existing !== child);
-    child.parentNode = null;
-    return child;
-  };
-
-  this.setAttribute = (name, value) => {
-    this.attributes.set(name, String(value));
-    if (name === "class") {
-      this.className = String(value);
-    }
-  };
-
-  this.getAttribute = (name) => (this.attributes.has(name) ? this.attributes.get(name) : null);
-
-  this.addEventListener = (eventName, handler) => {
-    this.listeners[eventName] = handler;
-  };
-
-  this.click = async () => {
-    if (!this.disabled && this.listeners.click) {
-      await this.listeners.click({ currentTarget: this, preventDefault() {} });
-    }
-  };
-
-  this.showModal = () => {
-    this.open = true;
-  };
-
-  this.querySelector = (selector) => findElement(this, selector);
-  this.querySelectorAll = (selector) => findElements(this, selector);
-
-  Object.defineProperty(this, "firstChild", {
-    get: () => this.children[0] || null,
-  });
-
-  Object.defineProperty(this, "className", {
-    get: () => this.classList.toString(),
-    set: (value) => {
-      this.classList = new FakeClassList(this);
-      String(value || "").split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
-    },
-  });
-
-  Object.defineProperty(this, "textContent", {
-    get: () => this._textContent || this.children.map((child) => child.textContent).join(""),
-    set: (value) => {
-      this._textContent = String(value ?? "");
-      this.children = [];
-    },
-  });
-}
-
-function FakeClassList(element) {
-  this.element = element;
-  this.values = new Set();
-
-  this.add = (...names) => {
-    names.filter(Boolean).forEach((name) => {
-      const token = String(name);
-      if (/\s/.test(token)) {
-        throw new Error("The token can not contain whitespace.");
-      }
-      this.values.add(token);
-    });
-    this.element.attributes.set("class", this.toString());
-  };
-
-  this.contains = (name) => this.values.has(name);
-  this.toString = () => [...this.values].join(" ");
-}
-
+/** @param {FakeNode} root @param {string} text @returns {FakeNode} */
 function findButtonByText(root, text) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.textContent === text);
   assert.ok(button, `Expected button '${text}'`);
   return button;
 }
 
+/** @param {FakeNode} root @param {string} text @returns {boolean} */
 function hasButtonByText(root, text) {
   return root.querySelectorAll("button").some((candidate) => candidate.textContent === text);
-}
-
-function findElement(root, selector) {
-  return findElements(root, selector)[0] || null;
-}
-
-function findElements(root, selector) {
-  const queue = [...root.children];
-  const matches = [];
-  while (queue.length) {
-    const element = queue.shift();
-    if (matchesSelector(element, selector)) {
-      matches.push(element);
-    }
-    queue.push(...element.children);
-  }
-  return matches;
-}
-
-function matchesSelector(element, selector) {
-  if (selector.startsWith(".")) {
-    return element.classList.contains(selector.slice(1));
-  }
-  return element.tagName.toLowerCase() === selector.toLowerCase();
-}
-
-function readText(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }

@@ -17,7 +17,7 @@ permissive and compatible with distributing Longtail Forge under
 | --- | --- | --- | --- | --- |
 | accepts | 2.0.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L01](#l01) |
 | argparse | 3.0.0 | Python-2.0 | Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam, | [L02](#l02) |
-| better-sqlite3 | 13.0.1 | MIT | Copyright (c) 2017 Joshua Wise | [L03](#l03) |
+| better-sqlite3 | 13.0.3 | MIT | Copyright (c) 2017 Joshua Wise | [L03](#l03) |
 | body-parser | 2.3.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
 | busboy | 1.6.0 | MIT | Brian White | [L05](#l05) |
 | bytes | 3.1.2 | MIT | Copyright (c) 2012-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015 Jed Watson &lt;jed.watson@me.com&gt; | [L06](#l06) |
@@ -44,7 +44,7 @@ permissive and compatible with distributing Longtail Forge under
 | es-object-atoms | 1.1.2 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | escape-html | 1.0.3 | MIT | Copyright (c) 2012-2013 TJ Holowaychuk; Copyright (c) 2015 Andreas Lubbe; Copyright (c) 2015 Tiancheng "Timothy" Gu | [L21](#l21) |
 | etag | 1.8.1 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L22](#l22) |
-| express-rate-limit | 8.6.1 | MIT | Copyright 2023 Nathan Friedly, Vedant K | [L23](#l23) |
+| express-rate-limit | 8.7.0 | MIT | Copyright 2023 Nathan Friedly, Vedant K | [L23](#l23) |
 | express | 5.2.1 | MIT | Copyright (c) 2009-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2013-2014 Roman Shtylman &lt;shtylman+expressjs@gmail.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L24](#l24) |
 | finalhandler | 2.1.1 | MIT | Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L25](#l25) |
 | forwarded | 0.2.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
@@ -58,12 +58,12 @@ permissive and compatible with distributing Longtail Forge under
 | http-errors | 2.0.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com; Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com | [L33](#l33) |
 | iconv-lite | 0.7.3 | MIT | Copyright (c) 2011 Alexander Shtuchkin | [L34](#l34) |
 | inherits | 2.0.4 | ISC | Copyright (c) Isaac Z. Schlueter | [L35](#l35) |
-| ip-address | 10.3.1 | MIT | Copyright (C) 2011 by Beau Gunderson | [L36](#l36) |
+| ip-address | 10.7.2 | MIT | Copyright (C) 2011 by Beau Gunderson | [L36](#l36) |
 | ipaddr.js | 1.9.1 | MIT | Copyright (C) 2011-2017 whitequark &lt;whitequark@whitequark.org&gt; | [L37](#l37) |
 | is-promise | 4.0.0 | MIT | Copyright (c) 2014 Forbes Lindesay | [L38](#l38) |
 | linkify-it | 6.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L39](#l39) |
 | Lucide Icons (bundled inline SVG subset) | local subset first recorded 2026-06-06 | ISC AND MIT | Lucide Icons and Contributors; Cole Bemis | [L40](#l40) |
-| markdown-it | 15.0.0 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L41](#l41) |
+| markdown-it | 15.0.2 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L41](#l41) |
 | math-intrinsics | 1.1.0 | MIT | Copyright (c) 2024 ECMAScript Shims | [L17](#l17) |
 | mdurl | 2.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.; Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [L42](#l42) |
 | media-typer | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
@@ -83,7 +83,7 @@ permissive and compatible with distributing Longtail Forge under
 | path-to-regexp | 8.4.2 | MIT | Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com) | [L54](#l54) |
 | proxy-addr | 2.0.7 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L22](#l22) |
 | punycode.js | 2.3.1 | MIT | Mathias Bynens and contributors | [L55](#l55) |
-| qs | 6.15.3 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L56](#l56) |
+| qs | 6.16.0 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L56](#l56) |
 | range-parser | 1.3.0 | MIT | Copyright (c) 2012-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015-2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com | [L57](#l57) |
 | raw-body | 3.0.2 | MIT | Copyright (c) 2013-2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L58](#l58) |
 | router | 2.2.0 | MIT | Copyright (c) 2013 Roman Shtylman; Copyright (c) 2014-2022 Douglas Christopher Wilson | [L59](#l59) |
@@ -102,7 +102,7 @@ permissive and compatible with distributing Longtail Forge under
 | type-is | 2.1.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
 | uc.micro | 3.0.0 | MIT | Copyright Mathias Bynens &lt;https://mathiasbynens.be/&gt; | [L68](#l68) |
 | unpipe | 1.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L69](#l69) |
-| uuid | 14.0.1 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [L70](#l70) |
+| uuid | 14.0.2 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [L70](#l70) |
 | vary | 1.1.2 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | wrappy | 1.0.2 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors | [L52](#l52) |
 | zod | 4.4.3 | MIT | Copyright (c) 2025 Colin McDonnell | [L71](#l71) |
@@ -412,7 +412,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ### L03
 
-Applies to: better-sqlite3@13.0.1
+Applies to: better-sqlite3@13.0.3
 
 ```text
 The MIT License (MIT)
@@ -975,10 +975,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L23
 
-Applies to: express-rate-limit@8.6.1
+Applies to: express-rate-limit@8.7.0
 
 ```text
-# MIT License
+MIT License
 
 Copyright 2023 Nathan Friedly, Vedant K
 
@@ -993,11 +993,12 @@ The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ### L24
@@ -1336,7 +1337,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ### L36
 
-Applies to: ip-address@10.3.1
+Applies to: ip-address@10.7.2
 
 ```text
 Copyright (C) 2011 by Beau Gunderson
@@ -1510,7 +1511,7 @@ SOFTWARE.
 
 ### L41
 
-Applies to: markdown-it@15.0.0
+Applies to: markdown-it@15.0.2
 
 ```text
 Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
@@ -1937,7 +1938,7 @@ SOFTWARE.
 
 ### L56
 
-Applies to: qs@6.15.3
+Applies to: qs@6.16.0
 
 ```text
 BSD 3-Clause License
@@ -2341,7 +2342,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L70
 
-Applies to: uuid@14.0.1
+Applies to: uuid@14.0.2
 
 ```text
 The MIT License (MIT)

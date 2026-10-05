@@ -1,6 +1,11 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
+/** @typedef {{ resolve(value: string): string, basename(value: string): string, dirname(value: string): string }} TarPathApi */
+/** @typedef {{ archivePath: unknown, flags: string, trailingArgs?: string[], pathApi?: TarPathApi }} BuildTarCommandOptions */
+/** @typedef {{ archivePath: unknown, failureMessagePrefix: string, flags: string, missingCommandMessage: string, trailingArgs?: string[] }} RunTarCommandOptions */
+
+/** @param {BuildTarCommandOptions} options */
 function buildLocalTarArchiveCommand({ archivePath, flags, trailingArgs = [], pathApi = path }) {
   const archivePathText = String(archivePath || "").trim();
   if (!archivePathText) {
@@ -17,6 +22,7 @@ function buildLocalTarArchiveCommand({ archivePath, flags, trailingArgs = [], pa
   });
 }
 
+/** @param {RunTarCommandOptions} options */
 function runLocalTarArchiveCommand({
   archivePath,
   failureMessagePrefix,
@@ -30,7 +36,7 @@ function runLocalTarArchiveCommand({
     encoding: "utf8",
     windowsHide: true,
   });
-  if (result.error?.code === "ENOENT") {
+  if (/** @type {NodeJS.ErrnoException | undefined} */ (result.error)?.code === "ENOENT") {
     throw new Error(missingCommandMessage);
   }
   if (result.status !== 0) {

@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.32.45",
+  "version": "0.33.33",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -8,6 +8,7 @@
     "node": ">=24.7 <25"
   },
   "scripts": {
+    "module:create": "node scripts/create-module.mjs",
     "start": "node server.js",
     "artifact:build": "node scripts/build-runtime-artifact.mjs",
     "artifact:smoke": "node scripts/runtime-artifact-smoke.mjs",
@@ -33,13 +34,16 @@
     "maintenance:rehearse": "node scripts/release/rehearse-maintenance-boundary.mjs",
     "check": "npm run check:fast && npm run test:regressions",
     "check:fast": "npm run typecheck && npm run test:unit && npm run lint",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.public.json",
+    "checkpoint:validate": "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly",
+    "typecheck": "node scripts/typecheck-governance.mjs",
     "test:unit": "vitest run",
     "test:watch": "vitest",
-    "test:contracts": "vitest run --passWithNoTests contracts",
+    "test:contracts": "vitest run tests/contracts/files-contracts.test.mjs tests/contracts/lists-contracts.test.mjs tests/contracts/normalizers-timezones.test.mjs tests/contracts/notes-contracts.test.mjs tests/contracts/tasks-contracts.test.mjs tests/contracts/time-tracking-contracts.test.mjs",
     "test:files": "vitest run tests/contracts/files-contracts.test.mjs",
-    "test:tasks": "vitest run --passWithNoTests tasks",
-    "test:time-tracking": "vitest run --passWithNoTests time-tracking",
+    "test:lists": "vitest run tests/contracts/lists-contracts.test.mjs",
+    "test:notes": "vitest run tests/contracts/notes-contracts.test.mjs tests/unit/notes-effective-security.test.mjs",
+    "test:tasks": "vitest run tests/contracts/tasks-contracts.test.mjs tests/unit/task-block-recovery-engine.test.mjs tests/unit/task-list-engine.test.mjs",
+    "test:time-tracking": "vitest run tests/contracts/time-tracking-contracts.test.mjs tests/time-tracking/time-tracking-billing.test.mjs",
     "test:e2e": "node scripts/run-playwright-e2e.mjs",
     "test:e2e:install": "playwright install chromium",
     "test:e2e:ui": "node scripts/run-playwright-e2e.mjs --ui",
@@ -73,6 +77,9 @@
     "audit:params": "node scripts/audit-parameter-bindings.mjs",
     "audit:params:update-baseline": "node scripts/audit-parameter-bindings.mjs --update-baseline",
     "audit:params:check": "node scripts/audit-parameter-bindings.mjs --check",
+    "audit:cycles": "node scripts/audit-dependency-cycles.mjs",
+    "audit:cycles:check": "node scripts/audit-dependency-cycles.mjs --check",
+    "audit:cycles:update-baseline": "node scripts/audit-dependency-cycles.mjs --update-baseline",
     "docs:suggest": "node scripts/suggest-docs-for-changes.mjs",
     "agent:brief": "node scripts/agent-brief.mjs",
     "docs:check": "node scripts/suggest-docs-for-changes.mjs --check",
@@ -105,25 +112,26 @@
     "version:guard": "node scripts/version-literal-guardrail-regression.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "13.0.1",
+    "better-sqlite3": "13.0.3",
     "busboy": "^1.6.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.6.1",
-    "markdown-it": "^15.0.0",
-    "uuid": "^14.0.1",
+    "express-rate-limit": "^8.7.0",
+    "markdown-it": "^15.0.2",
+    "uuid": "^14.0.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
-    "@types/node": "^26.1.2",
-    "eslint": "^10.8.0",
+    "@types/node": "^26.6.3",
+    "eslint": "^10.11.0",
+    "espree": "^11.2.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "allowScripts": {
-    "better-sqlite3@13.0.1": true
+    "better-sqlite3@13.0.3": true
   }
 }

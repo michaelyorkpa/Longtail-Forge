@@ -6,6 +6,8 @@ import {
   MARKDOWN_RENDER_MODES,
   renderMarkdownToHtml,
 } from "../src/core/markdown/markdown.service.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-markdown-soft-break-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-markdown-soft-break.db");
@@ -16,8 +18,8 @@ const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/in
 
 try {
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertFrameworkModes();
   await assertNotesSoftBreaks(session);
@@ -38,6 +40,9 @@ async function assertFrameworkModes() {
   assert.match(userAuthoredHtml, /Alpha<br\s*\/?>\s*Beta/, "user-authored Markdown mode should render soft line breaks visibly");
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+
+/** @param {NotesSession} session */
 async function assertNotesSoftBreaks(session) {
   const bodyMarkdown = [
     "12v side",
@@ -74,6 +79,7 @@ async function assertNotesSoftBreaks(session) {
   }
 }
 
+/** @param {NotesSession} session */
 async function assertRawHtmlStaysEscaped(session) {
   const preview = await notesService.previewMarkdown({ body_markdown: "Line one\n<br>\nLine two" }, session);
 
@@ -81,6 +87,7 @@ async function assertRawHtmlStaysEscaped(session) {
   assert.doesNotMatch(preview.bodyHtml, /Line one<br\s*\/?>\s*<br\s*\/?>\s*Line two/, "raw break markup should not be accepted as active HTML");
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -89,10 +96,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -102,15 +111,10 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    protected_user: true,
-  };
+    workspace_id: workspaceId,
+  });
 }

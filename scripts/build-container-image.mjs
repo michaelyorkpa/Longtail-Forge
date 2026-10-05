@@ -10,6 +10,114 @@ const scriptPath = fileURLToPath(import.meta.url);
 const defaultRoot = path.resolve(path.dirname(scriptPath), "..");
 const supportedPlatform = "linux/amd64";
 
+/**
+ * Options accepted by the container image build entry point and produced by its CLI parser.
+ * @typedef {object} ContainerBuildOptions
+ * @property {string} [rootDir]
+ * @property {string} [artifactPath]
+ * @property {string} [releaseMetadataPath]
+ * @property {string} [provenanceOutput]
+ * @property {string} [tag]
+ * @property {boolean} [pull]
+ * @property {boolean} [noCache]
+ * @property {import("node:child_process").StdioOptions} [stdio]
+ */
+
+/**
+ * Options forwarded to a single `docker` invocation.
+ * @typedef {object} DockerCommandOptions
+ * @property {string} [cwd]
+ * @property {import("node:child_process").StdioOptions} [stdio]
+ */
+
+/**
+ * The runtime artifact payload a container image is built around.
+ * @typedef {object} RuntimeArtifactDescriptor
+ * @property {string} checksum
+ * @property {string} path
+ * @property {string | null} sourceBranch
+ * @property {string} version
+ */
+
+/**
+ * The release metadata document fields this build reads.
+ * @typedef {object} ReleaseMetadataDocument
+ * @property {number} schemaVersion
+ * @property {string} application
+ * @property {string} version
+ * @property {{ filename: string, sha256: string } | undefined} artifact
+ * @property {string} commitSha
+ * @property {string} sourceBranch
+ */
+
+/**
+ * The reviewed release identity bound into the built image labels.
+ * @typedef {object} ReleaseMetadataIdentity
+ * @property {string} commitSha
+ * @property {string} sourceBranch
+ */
+
+/**
+ * The immutable base image digest the Dockerfile pins.
+ * @typedef {object} BaseImageIdentity
+ * @property {string} digest
+ * @property {string} reference
+ */
+
+/**
+ * The `docker image inspect` record fields this build reads.
+ * @typedef {object} DockerImageInspectRecord
+ * @property {string} Architecture
+ * @property {{ Labels: Record<string, string> | undefined } | undefined} Config
+ * @property {string} Id
+ * @property {string} Os
+ */
+
+/**
+ * The reviewed identity the built image labels and digest must match.
+ * @typedef {object} ExpectedImageIdentity
+ * @property {string} artifactChecksum
+ * @property {string | null} commitSha
+ * @property {string | null} sourceBranch
+ * @property {string} version
+ */
+
+/**
+ * The verified identity of the locally built container image.
+ * @typedef {object} BuiltImageIdentity
+ * @property {string} architecture
+ * @property {string} digest
+ * @property {Record<string, string>} labels
+ * @property {string} os
+ */
+
+/**
+ * The inputs the image provenance document is derived from.
+ * @typedef {object} ImageProvenanceInput
+ * @property {RuntimeArtifactDescriptor} artifact
+ * @property {BaseImageIdentity} baseImage
+ * @property {string | null} commitSha
+ * @property {BuiltImageIdentity} image
+ * @property {string | null} sourceBranch
+ * @property {string} tag
+ */
+
+/**
+ * The published outcome of a container image build.
+ * @typedef {object} ContainerImageBuildResult
+ * @property {string} artifactPath
+ * @property {string} checksum
+ * @property {string} image
+ * @property {string} imageDigest
+ * @property {string} platform
+ * @property {string} provenancePath
+ * @property {string} version
+ */
+
+/**
+ * @param {ContainerBuildOptions} [options]
+ * @returns {Promise<ContainerImageBuildResult>}
+ */
 async function buildContainerImage(options = {}) {
   const rootDir = path.resolve(options.rootDir || defaultRoot);
   const artifact = options.artifactPath
@@ -86,6 +194,10 @@ async function buildContainerImage(options = {}) {
   });
 }
 
+/**
+ * @param {string} rootDir
+ * @returns {Promise<RuntimeArtifactDescriptor>}
+ */
 async function buildCurrentArtifact(rootDir) {
   const result = await buildRuntimeArtifact({ rootDir, outputDir: "dist" });
   return {
@@ -96,6 +208,10 @@ async function buildCurrentArtifact(rootDir) {
   };
 }
 
+/**
+ * @param {string} artifactPath
+ * @returns {Promise<RuntimeArtifactDescriptor>}
+ */
 async function inspectRuntimeArtifact(artifactPath) {
   const match = path.basename(artifactPath).match(/^longtail-forge-(.+)\.tgz$/);
   if (!match) {
@@ -114,8 +230,13 @@ async function inspectRuntimeArtifact(artifactPath) {
   return { checksum, path: artifactPath, sourceBranch: null, version: match[1] };
 }
 
+/**
+ * @param {string} metadataPath
+ * @param {RuntimeArtifactDescriptor} artifact
+ * @returns {Promise<ReleaseMetadataIdentity>}
+ */
 async function inspectReleaseMetadata(metadataPath, artifact) {
-  const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  const metadata = /** @type {ReleaseMetadataDocument} */ (JSON.parse(await fs.readFile(metadataPath, "utf8")));
   if (metadata.schemaVersion !== 1 || metadata.application !== "longtail-forge") {
     throw new Error("Release metadata must use the Longtail Forge schema version 1 contract.");
   }
@@ -135,6 +256,10 @@ async function inspectReleaseMetadata(metadataPath, artifact) {
   });
 }
 
+/**
+ * @param {string} rootDir
+ * @returns {Promise<BaseImageIdentity>}
+ */
 async function inspectPinnedBaseImage(rootDir) {
   const dockerfile = await fs.readFile(path.join(rootDir, "Dockerfile"), "utf8");
   const match = dockerfile.match(/^ARG NODE_IMAGE=([^\s@]+)@(sha256:[a-f0-9]{64})$/m);
@@ -144,13 +269,18 @@ async function inspectPinnedBaseImage(rootDir) {
   return Object.freeze({ digest: match[2], reference: match[1] });
 }
 
+/**
+ * @param {string} tag
+ * @param {ExpectedImageIdentity} expected
+ * @returns {BuiltImageIdentity}
+ */
 function inspectBuiltImage(tag, expected) {
-  const inspected = JSON.parse(runDocker(["image", "inspect", tag]));
+  const inspected = /** @type {DockerImageInspectRecord[]} */ (JSON.parse(runDocker(["image", "inspect", tag])));
   const image = inspected[0];
   if (!image || image.Os !== "linux" || image.Architecture !== "amd64") {
     throw new Error(`Built image platform must be ${supportedPlatform}.`);
   }
-  const labels = image.Config?.Labels || {};
+  const labels = /** @type {Record<string, string>} */ (image.Config?.Labels || {});
   if (labels["org.opencontainers.image.version"] !== expected.version
       || labels["org.opencontainers.image.licenses"] !== "AGPL-3.0-only"
       || labels["com.longtailforge.runtime-artifact.sha256"] !== expected.artifactChecksum
@@ -174,6 +304,9 @@ function inspectBuiltImage(tag, expected) {
   });
 }
 
+/**
+ * @param {ImageProvenanceInput} provenanceInput
+ */
 function createImageProvenance({ artifact, baseImage, commitSha, image, sourceBranch, tag }) {
   return Object.freeze({
     schemaVersion: 1,
@@ -202,6 +335,11 @@ function createImageProvenance({ artifact, baseImage, commitSha, image, sourceBr
   });
 }
 
+/**
+ * @param {string} rootDir
+ * @param {string} artifactPath
+ * @returns {string}
+ */
 function normalizeBuildContextPath(rootDir, artifactPath) {
   const relativePath = path.relative(rootDir, artifactPath);
   if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
@@ -210,13 +348,18 @@ function normalizeBuildContextPath(rootDir, artifactPath) {
   return relativePath.replaceAll("\\", "/");
 }
 
+/**
+ * @param {string[]} args
+ * @param {DockerCommandOptions} [options]
+ * @returns {string}
+ */
 function runDocker(args, options = {}) {
   const result = spawnSync("docker", args, {
     cwd: options.cwd || defaultRoot,
     encoding: options.stdio === "inherit" ? undefined : "utf8",
     stdio: options.stdio || "pipe",
   });
-  if (result.error?.code === "ENOENT") {
+  if (/** @type {NodeJS.ErrnoException | undefined} */ (result.error)?.code === "ENOENT") {
     throw new Error("Docker is required for this command, but the docker executable was not found.");
   }
   if (result.status !== 0) {
@@ -225,8 +368,12 @@ function runDocker(args, options = {}) {
   return String(result.stdout || "").trim();
 }
 
+/**
+ * @param {string[]} args
+ * @returns {ContainerBuildOptions}
+ */
 function parseCliArgs(args) {
-  const options = {};
+  const options = /** @type {ContainerBuildOptions} */ ({});
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (["--tag", "--artifact", "--release-metadata", "--provenance-output"].includes(argument)) {
@@ -265,7 +412,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     console.log(`Image platform: ${result.platform}`);
     console.log(`Image provenance: ${result.provenancePath}`);
   } catch (error) {
-    console.error(error.message);
+    console.error(/** @type {Error} */ (error).message);
     process.exitCode = 1;
   }
 }

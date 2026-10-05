@@ -1,5 +1,6 @@
 import { NOTE_PERMISSIONS } from "./access-policy.js";
 
+/** @type {Pick<import("../../types/framework-contracts.js").ModuleManifest, "help">} */
 const notesHelp = {
   help: {
       sections: [

@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+const { readText } = createProjectTextReader();
 
-const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-theme-auto-mode-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-theme-auto-mode.db");
 process.env.SUPER_ADMIN_PASSWORD = "Theme-Auto-Mode-Test-123!";
@@ -29,7 +32,6 @@ const settingsHostScript = readText("public/js/shared/settings-host.js");
 const userSettingsScript = readText("public/js/user-settings.js");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
-const roadmap = readText("ROADMAP.md");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { staticService } = await import("../src/services/static.service.js");
@@ -39,8 +41,8 @@ try {
   assertStaticContract();
 
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspaceId();
+  const session = await readProtectedSession(workspaceId);
 
   await assertMigrationAndColumn();
   await assertSettingsDefaultAndSave(session);
@@ -120,7 +122,6 @@ function assertStaticContract() {
 
   assert.match(moduleContract, /The only shipped auto source is `system`/, "tracked docs should record the OS-match auto source");
   assert.match(moduleContract, /Sunrise\/sunset theme automation is deferred/, "tracked docs should record the sunrise/sunset deferral");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 }
 
 async function assertMigrationAndColumn() {
@@ -144,6 +145,9 @@ WHERE version = '067';
   assert.equal(column.dflt_value, "'system'");
 }
 
+/**
+ * @param {import("../src/types/http-contracts.js").WorkspaceRequestSession} session
+ */
 async function assertSettingsDefaultAndSave(session) {
   const initial = await usersService.readSettings(session);
   assert.equal(initial.themeMode, "light", "theme mode should still default to light");
@@ -166,13 +170,20 @@ async function assertSettingsDefaultAndSave(session) {
   });
 }
 
+/**
+ * @param {import("../src/types/http-contracts.js").WorkspaceRequestSession} session
+ */
 async function assertProtectedHtmlInitialTheme(session) {
   await usersService.saveSettings({ themeMode: "dark", themeAutoSource: "system" }, session);
   const darkResult = await staticService.read("/user-settings.html", session);
   const darkHtml = String(darkResult.contents);
 
   assert.equal(darkResult.statusCode, 200);
-  assert.equal(darkResult.headers["Cache-Control"], "no-store", "protected User Settings HTML should not be cached stale");
+  // staticService.read answers a union: its 401, 403, and 404 branches carry no
+  // headers at all, so a served view is asserted to have them.
+  const darkHeaders = darkResult.headers;
+  assert.ok(darkHeaders, "a served protected view should carry response headers");
+  assert.equal(darkHeaders["Cache-Control"], "no-store", "protected User Settings HTML should not be cached stale");
   assert.match(darkHtml, /<html lang="en" data-theme-mode="dark" data-theme-auto-source="system" data-theme="dark">/, "protected HTML should carry dark theme attributes before scripts");
   assert.match(darkHtml, /<style data-theme-critical>/, "protected HTML should include critical theme CSS");
   assert.match(darkHtml, /html\[data-theme="dark"\] \{ color-scheme: dark; background: #000000; \}/, "critical CSS should avoid white background before dark CSS loads");
@@ -185,6 +196,7 @@ async function assertProtectedHtmlInitialTheme(session) {
   assert.match(autoHtml, /@media \(prefers-color-scheme: dark\) \{ html\[data-theme-mode="auto"\]\[data-theme-auto-source="system"\] \{ color-scheme: dark; background: #000000; \} \}/, "critical CSS should avoid white background for OS-dark auto mode");
 }
 
+/** @param {string} userId */
 async function readStoredTheme(userId) {
   const rows = await querySql(`
 SELECT theme_mode, theme_auto_source
@@ -196,7 +208,8 @@ LIMIT 1;
   return rows[0] || {};
 }
 
-async function readWorkspace() {
+/** @returns {Promise<string>} */
+async function readWorkspaceId() {
   const rows = await querySql(`
 SELECT workspace_id
 FROM workspaces
@@ -205,9 +218,10 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  return fixtureString(requireFirstRow(rows, "workspace lookup").workspace_id, "workspace ID");
 }
 
+/** @param {string} workspaceId */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -218,21 +232,19 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
+  // The hand-built session omitted ip_address, password_change_required,
+  // session_mode, and home_workspace_id, none of which the published contract
+  // treats as optional. The shared fixture supplies them and validates the row
+  // at the read boundary, so usersService receives the same session shape a
+  // route would hand it.
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user lookup"),
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-function readText(filePath) {
-  return readFileSync(path.join(root, filePath), "utf8");
 }

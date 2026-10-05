@@ -7,6 +7,11 @@ import {
 import { DUMMY_PASSWORD_HASH, verifyPassword } from "./passwords.js";
 import { AppError } from "../utils/app-error.js";
 
+/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
+/** @typedef {import("../types/users-service-contracts.js").UserRow} UserRow */
+/** @typedef {{ ipAddress?: unknown, scope?: unknown }} CurrentPasswordVerificationContext */
+
+/** @param {RequestSession} session @param {unknown} password @param {CurrentPasswordVerificationContext} [context] @returns {Promise<UserRow>} */
 async function verifyCurrentPasswordForSensitiveAction(session, password, context = {}) {
   const currentPassword = String(password || "");
   if (!currentPassword) {

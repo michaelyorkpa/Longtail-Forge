@@ -65,6 +65,7 @@ export interface PrivateFeedAuthorizationSession extends AuthenticatedIdentity {
 }
 
 export type PermissionSession = RequestSession | PrivateFeedAuthorizationSession;
+export type AuthorizationSession = PermissionSession | ApiSession | ServiceAuthorizationSession;
 
 export interface LogoutSession {
   ip_address: string | null;
@@ -76,6 +77,11 @@ export interface LogoutSession {
 export interface ApiSession extends AuthenticatedIdentity {
   workspace_id: string;
   api_key_id: string;
+}
+
+export interface ServiceAuthorizationSession extends AuthenticatedIdentity {
+  workspace_id: string;
+  authorization_source: "notification";
 }
 
 export interface PermissionResource {
@@ -122,6 +128,16 @@ export type SupportViewGateReasonClass =
   | "sensitive_read_excluded"
   | "declared_read_safe"
   | "undeclared_read_denied";
+
+export interface RequestContext {
+  hostname: string;
+  ipAddress: string;
+  isSecure: boolean;
+  origin: string;
+  protocol: string;
+  requestId: string;
+  socketPeerAddress: string;
+}
 
 export interface HttpIdentityRequest extends Express.Request {
   method: string;

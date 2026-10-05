@@ -10,7 +10,88 @@ const HELPER_DEFINITION_FILE = "src/db/sql-literals.js";
 const HELPER_CALL_PATTERN = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/g;
 const OPERATION_PATTERN = /\b(?:db|transaction)\.(?:query|get|run)\s*\(|\b(?:querySql|getSql|runSql)\s*\(/g;
 
+/**
+ * One scanned runtime source entry (project file or synthetic fixture).
+ * @typedef {object} SourceScanEntry
+ * @property {string} [absolutePath]
+ * @property {string} [file]
+ * @property {string} [filePath]
+ * @property {string} [source]
+ */
+
+/**
+ * One candidate parameter-binding finding before id assignment.
+ * @typedef {object} ParameterBindingFinding
+ * @property {string} file
+ * @property {string} kind
+ * @property {number} line
+ * @property {string} operation
+ * @property {string} signature
+ */
+
+/**
+ * A finding carrying its stable baseline id.
+ * @typedef {ParameterBindingFinding & { id: string }} IdentifiedParameterBindingFinding
+ */
+
+/**
+ * Aggregate scan report over the runtime sources.
+ * @typedef {object} ParameterBindingReport
+ * @property {readonly IdentifiedParameterBindingFinding[]} candidateFindings
+ * @property {number} safeBoundSites
+ * @property {number} totalScannedSites
+ */
+
+/**
+ * One reviewed baseline entry.
+ * @typedef {object} ParameterBindingBaselineFinding
+ * @property {string} id
+ * @property {string} file
+ * @property {string} kind
+ * @property {string} operation
+ * @property {string} signature
+ */
+
+/**
+ * A reviewed-finding field name checked during baseline validation.
+ * @typedef {keyof ParameterBindingBaselineFinding} ParameterBindingBaselineField
+ */
+
+/**
+ * The reviewed parameter-binding baseline document.
+ * @typedef {object} ParameterBindingBaseline
+ * @property {number} schemaVersion
+ * @property {string} scope
+ * @property {string} reviewRule
+ * @property {ParameterBindingBaselineFinding[]} findings
+ */
+
+/**
+ * Baseline evaluation outcome consumed by the audit gate.
+ * @typedef {object} ParameterBindingAuditResult
+ * @property {readonly IdentifiedParameterBindingFinding[]} knownBaselineExceptions
+ * @property {readonly IdentifiedParameterBindingFinding[]} newViolations
+ * @property {readonly ParameterBindingBaselineFinding[]} resolvedLegacyFindings
+ * @property {number} safeBoundSites
+ * @property {number} totalScannedSites
+ */
+
+/**
+ * A finding row the formatter can print (line is optional for baseline rows).
+ * @typedef {object} ParameterBindingFindingSummary
+ * @property {string} id
+ * @property {string} file
+ * @property {string} kind
+ * @property {number} [line]
+ */
+
+/**
+ * Scan runtime sources for dynamic SQL composition and legacy helper calls.
+ * @param {{ entries?: readonly SourceScanEntry[] }} [options] source entries override for fixtures
+ * @returns {ParameterBindingReport}
+ */
 function scanParameterBindings({ entries = readRuntimeSourceEntries() } = {}) {
+  /** @type {ParameterBindingFinding[]} */
   const findings = [];
   let safeBoundSites = 0;
   let totalScannedSites = 0;
@@ -65,12 +146,23 @@ function scanParameterBindings({ entries = readRuntimeSourceEntries() } = {}) {
   });
 }
 
+/**
+ * Build one finding with its content-derived signature.
+ * @param {{ file: string, kind: string, line: number, operation: string, sourceSignature: string }} input
+ * @returns {ParameterBindingFinding}
+ */
 function createFinding({ file, kind, line, operation, sourceSignature }) {
   const signature = hash(`${file}\n${kind}\n${operation}\n${sourceSignature}`);
   return { file, kind, line, operation, signature };
 }
 
+/**
+ * Sort findings deterministically and assign stable occurrence-aware ids.
+ * @param {ParameterBindingFinding[]} findings
+ * @returns {IdentifiedParameterBindingFinding[]}
+ */
 function assignStableFindingIds(findings) {
+  /** @type {Map<string, number>} */
   const occurrences = new Map();
   return findings
     .sort((left, right) => (
@@ -90,6 +182,11 @@ function assignStableFindingIds(findings) {
     });
 }
 
+/**
+ * Build the serializable reviewed baseline from a scan report.
+ * @param {ParameterBindingReport} report
+ * @returns {ParameterBindingBaseline}
+ */
 function buildParameterBindingBaseline(report) {
   return {
     schemaVersion: 1,
@@ -105,11 +202,18 @@ function buildParameterBindingBaseline(report) {
   };
 }
 
+/**
+ * Evaluate the current scan report against the reviewed baseline.
+ * @param {{ baseline: ParameterBindingBaseline, report: ParameterBindingReport }} input
+ * @returns {ParameterBindingAuditResult}
+ */
 function evaluateParameterBindingBaseline({ baseline, report }) {
   validateBaseline(baseline);
   const baselineById = new Map(baseline.findings.map((finding) => [finding.id, finding]));
   const currentById = new Map(report.candidateFindings.map((finding) => [finding.id, finding]));
+  /** @type {IdentifiedParameterBindingFinding[]} */
   const knownBaselineExceptions = [];
+  /** @type {IdentifiedParameterBindingFinding[]} */
   const newViolations = [];
 
   for (const finding of report.candidateFindings) {
@@ -137,13 +241,18 @@ function evaluateParameterBindingBaseline({ baseline, report }) {
   });
 }
 
+/**
+ * Validate the reviewed baseline document shape.
+ * @param {ParameterBindingBaseline} baseline
+ */
 function validateBaseline(baseline) {
   if (baseline?.schemaVersion !== 1 || !Array.isArray(baseline.findings)) {
     throw new Error("Parameter-binding baseline must use schemaVersion 1 and define findings.");
   }
+  /** @type {Set<string>} */
   const ids = new Set();
   for (const finding of baseline.findings) {
-    for (const field of ["id", "file", "kind", "operation", "signature"]) {
+    for (const field of /** @type {ParameterBindingBaselineField[]} */ (["id", "file", "kind", "operation", "signature"])) {
       if (!String(finding?.[field] || "").trim()) {
         throw new Error(`Parameter-binding baseline finding is missing ${field}.`);
       }
@@ -155,10 +264,20 @@ function validateBaseline(baseline) {
   }
 }
 
+/**
+ * Serialize the baseline document with its canonical formatting.
+ * @param {ParameterBindingBaseline} baseline
+ * @returns {string}
+ */
 function serializeParameterBindingBaseline(baseline) {
   return `${JSON.stringify(baseline, null, 2)}\n`;
 }
 
+/**
+ * Render the audit result in its exact gate-report format.
+ * @param {ParameterBindingAuditResult} result
+ * @returns {string}
+ */
 function formatParameterBindingAudit(result) {
   const lines = [
     "Parameter-binding audit",
@@ -174,6 +293,12 @@ function formatParameterBindingAudit(result) {
   return lines.join("\n");
 }
 
+/**
+ * Append one labeled finding section to the report lines.
+ * @param {string[]} lines
+ * @param {string} label
+ * @param {readonly ParameterBindingFindingSummary[]} findings
+ */
 function appendFindingSection(lines, label, findings) {
   if (findings.length === 0) {
     return;
@@ -184,14 +309,29 @@ function appendFindingSection(lines, label, findings) {
   }
 }
 
+/**
+ * Normalized project-relative path of one scan entry.
+ * @param {SourceScanEntry} entry
+ * @returns {string}
+ */
 function entryPath(entry) {
   return String(entry.filePath || entry.file || "").replaceAll("\\", "/");
 }
 
+/**
+ * Collapse whitespace in a source excerpt to its signature form.
+ * @param {string} value
+ * @returns {string}
+ */
 function normalizeSignature(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Stable sha256 digest of a signature payload.
+ * @param {string} value
+ * @returns {string}
+ */
 function hash(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }

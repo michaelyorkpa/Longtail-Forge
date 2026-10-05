@@ -1,5 +1,3 @@
-// @ts-check
-
 import { Router } from "express";
 import { runtimeDiagnosticsService } from "../services/runtime-diagnostics.service.js";
 import { workspaceAsyncRoute as asyncRoute } from "../utils/http.js";

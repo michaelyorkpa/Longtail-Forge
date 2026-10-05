@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-modal-complete-action-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-modal-complete-action.db");
@@ -17,6 +23,13 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const tasksRoutesSource = readText("src/modules/tasks/tasks.routes.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const workbenchScript = readText("public/js/workbench.js");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+const moduleActionsScript = readText("public/js/shared/module-actions.js");
+// 0.33.33.37 moved status legality into LongtailForge.taskLifecycleLegality; the dialog
+// composes it with its own saved-task check. 0.33.33.38.2.2.5.2 removed the permission half:
+// it read a grant list the canonical stored context has never published, so it was constant
+// true. Permission enforcement is server-side, and permission-regression proves it there.
+const taskLifecycleLegality = readText("public/js/shared/task-lifecycle-legality.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
 
@@ -48,38 +61,48 @@ function assertStaticContract() {
   assert.doesNotMatch(taskDialogScript, /function taskEditorModalDescriptor[\s\S]*footerActions: \[[\s\S]*id: "complete"/, "Task editor footer should no longer declare the Complete action");
   assert.match(taskDialogScript, /complete:\s*dialog\.querySelector\("\[data-complete-task\]"\)/, "Task dialog should keep a Complete button hook");
   assert.match(taskDialogScript, /fields\.complete\?\.addEventListener\("click", saveAndCompleteTask\)/, "Complete action should dispatch to the save-and-complete handler");
-  assert.match(taskDialogScript, /TASK_COMPLETE_VISIBLE_STATUSES = new Set\(\["open", "in_progress", "blocked"\]\)/, "Complete action should be visible only for active task statuses");
-  assert.match(taskDialogScript, /currentTaskId[\s\S]*TASK_COMPLETE_VISIBLE_STATUSES\.has\(status\)[\s\S]*hasTaskCompletePermission\(\)/, "Complete action should require a saved active task and completion permission");
-  assert.match(taskDialogScript, /permissions\.has\("tasks\.complete"\)/, "Complete action should check tasks.complete before showing");
+  assert.match(taskLifecycleLegality, /const ACTIVE_STATUSES = Object\.freeze\(\["open", "in_progress", "blocked"\]\)/, "Complete action should be visible only for active task statuses");
+  assert.match(taskLifecycleLegality, /function canCompleteStatus\(status\)[\s\S]*ACTIVE_STATUS_SET\.has\(status\)/, "Completability should be decided from the shared active-status vocabulary");
+  // 0.33.33.38.2.2.5.2 deleted hasTaskCompletePermission. It read a permission set the
+  // canonical stored context has never published, so it was constant true and this assertion
+  // was pinning a gate that could not fire. The half that was ever real is kept; the
+  // permission itself is enforced server-side, which permission-regression proves.
+  assert.match(taskDialogScript, /currentTaskId[\s\S]*canCompleteStatus\(status\)/, "Complete action should require a saved active task in a completable status");
+  assert.doesNotMatch(taskDialogScript, /hasTaskCompletePermission/, "and must not reintroduce a browser gate with no grant source");
+  assert.doesNotMatch(taskDialogScript, /permissions\.has\("tasks\.complete"\)/, "and must not check a grant list the browser is never given");
   assert.match(taskDialogScript, /complete\.dataset\.completeTask = ""[\s\S]*complete\.hidden = true/, "Complete header button should start hidden until state gating passes");
   assert.match(taskDialogScript, /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\(\{[\s\S]*closeOnSuccess: false,[\s\S]*statusMessage: "Saving task before completion\.\.\."/,
     "Save-and-complete should persist only real pending edits before completion");
-  assert.match(taskDialogScript, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)/,
+  assert.match(taskDialogScript, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/complete`, \{\}\)/,
     "Save-and-complete should call the dedicated protected complete route");
-  assert.match(taskDialogScript, /hostContext\?\.complete\?\.\(taskCompletionHostDetail\(result\)\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
+  assert.match(taskDialogScript, /const host = context\?\.hostContext;[\s\S]*const callback = optionalTaskProjectionFields\(host\)\?\.complete;[\s\S]*callback !== null && callback !== undefined[\s\S]*const args = \[taskCompletionHostDetail\(result\)\];[\s\S]*typeof callback !== "function"[\s\S]*Reflect\.apply\(callback, host, args\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
     "Save-and-complete should report completion to its host and close without a follow-up editor state");
   assert.doesNotMatch(taskDialogScript, /offerCompletionNextAction|pendingTaskCompletionDetail/,
     "Task completion should not retain or refocus the editor for Next Action");
   assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*taskLifecycleAction: "complete"/,
     "Complete action should pass safe lifecycle detail to host surfaces");
-  assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*recurrenceQueued: result\.recurrenceJob\?\.queued === true/,
+  assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*recurrenceQueued: optionalTaskProjectionFields\(taskProjectionFields\(result\)\.recurrenceJob\)\?\.queued === true/,
     "Complete action should pass safe recurrence detail to host surfaces");
-  assert.match(workbenchScript, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/,
+  // `0.33.33.42.6` reads the lifecycle action through the detail's own receiver, because the
+  // modal's result is opaque to this consumer. The claim - the Workbench routes a completion
+  // detail to its completion-specific status - is unchanged, and the opener suites execute it.
+  assert.match(workbenchScript, /Reflect\.get\(Object\(detail\), "taskLifecycleAction", detail\) === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/,
     "Workbench should preserve completion-specific status messages from the modal");
-  assert.match(tasksRoutesSource, /tasksRoutes\.post\("\/tasks\/:taskId\/complete"[\s\S]*tasksService\.complete\(request\.params\.taskId, request\.session\)/,
-    "Protected completion should remain route-backed through tasksService.complete");
+  assert.match(tasksRoutesSource, /tasksRoutes\.post\("\/tasks\/:taskId\/complete"[\s\S]*tasksService\.complete\(request\.params\.taskId, readTaskSession\(request\)\)/,
+    "Protected completion should remain route-backed through tasksService.complete and the checked session boundary");
   assert.match(tasksServiceSource, /taskTimersService\.hasActiveTaskTimers[\s\S]*Tasks cannot be completed while they have active task timers/,
     "Complete route should preserve the active-timer guard");
 
   assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should load the updated Task dialog cache key");
   assert.match(workbenchView, /js\/workbench\.js/, "Workbench should load the Workbench cache keys");
-  assert.match(workbenchScript, /src: "js\/task-dialog\.js"/, "Workbench should lazy-load the updated Task dialog");
+  assert.match(moduleActionsScript, /src: "js\/task-dialog\.js"/, "The registry should lazy-load the updated Task dialog");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
     "live roadmap should not carry completed-history breadcrumbs");
   assert.match(docs, /As of 0\.33\.5\.21\.9\.2[\s\S]*Complete[\s\S]*dedicated `POST \/api\/tasks\/:taskId\/complete` route/,
     "Tasks docs should document the modal Complete action contract");
 }
 
+/** @param {TasksSession} session */
 async function assertSaveThenCompleteServiceSequence(session) {
   const task = (await tasksService.create({
     due_date: "2026-11-02",
@@ -106,6 +129,7 @@ async function assertSaveThenCompleteServiceSequence(session) {
   assert.equal(completed.recurrenceJob?.queued, true, "recurring completion should queue recurrence generation");
 }
 
+/** @param {TasksSession} session @param {string} projectId */
 async function assertActiveTimerCompletionGuard(session, projectId) {
   const task = (await tasksService.create({
     assignee_ids: [session.user_id],
@@ -126,6 +150,7 @@ async function assertActiveTimerCompletionGuard(session, projectId) {
   );
 }
 
+/** @param {string} workspaceId */
 async function createProject(workspaceId) {
   const now = new Date().toISOString();
   const projectId = randomUUID();
@@ -181,20 +206,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
-}
-
-function readText(pathname) {
-  return readFileSync(new URL(`../${pathname}`, import.meta.url), "utf8");
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

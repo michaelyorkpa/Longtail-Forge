@@ -1,10 +1,65 @@
 // Dashboard is the first protected page loaded through one native ES-module
 // entry. The bridge keeps existing classic-compatible browser files working
 // while their globals are retired incrementally.
+// This file is a native ES module at runtime: the browser loads it as one and its
+// top-level await depends on that. TypeScript decides module scope from syntax alone,
+// so without an export marker it modelled this file as a global script and offered every
+// declaration below to the classic shared scope. The marker exports nothing; this module's
+// public behaviour is its explicit window.LongtailForge.* publication.
+export {};
+
 const namespace = window.LongtailForge = window.LongtailForge || {};
 const loadedScripts = new Map();
 const loadedStyles = new Map();
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserCachedFetch} BrowserCachedFetch */
+
+/**
+ * A value read as a record, or `null` when it is not one.
+ *
+ * **The `unknown` parameters below are the published contract's, not a choice made here.**
+ * `BrowserEsModuleBridge` and `BrowserDashboardBootstrap` were written from this file and
+ * deliberately declare what the writers actually check rather than what they hope to receive -
+ * the bridge's own comment says naming the manifest's shape would be stronger than the runtime.
+ * Honouring that means proving a value is a record before reading members off it, which is what
+ * this does.
+ * It answers an **empty record rather than null** for anything else, because every reader here
+ * went on to read a member and get `undefined`. That keeps the readers free of optional chains
+ * that would only ever be describing the same answer.
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function dashboardRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
+}
+
+/**
+ * The API client this file cannot run without.
+ *
+ * Acquired per call rather than once at module scope, so a missing client still fails at
+ * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+ * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+ * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+ * @returns {BrowserApi}
+ */
+function requireApi() {
+  const apiClient = namespace?.api;
+  if (!apiClient) {
+    throw new Error("The Dashboard bridge requires LongtailForge.api.");
+  }
+  return apiClient;
+}
+/**
+ * The versioned, origin-checked URL for one local asset.
+ *
+ * Signatures here match what BrowserEsModuleBridge publishes for this file, rather than a
+ * narrower guess: the declaration was written from these writers and says what they check.
+ * @param {unknown} [assetPath]
+ * @returns {string}
+ */
 function versionedAssetUrl(assetPath) {
   const url = new URL(String(assetPath || ""), document.baseURI);
 
@@ -12,9 +67,14 @@ function versionedAssetUrl(assetPath) {
     throw new Error(`Dashboard refused non-local browser asset: ${url.href}`);
   }
 
+  // The asset-version meta is a real `meta` element - `src/core/asset-version.js` injects
+  // `<meta data-asset-version content="…">` into every served page - but this function is lifted
+  // and executed by `dashboard-entry-bridge`, so it may acquire no free variable and cannot name
+  // `HTMLMetaElement`. The member read below is the narrowing instead: `Object()` absorbs the
+  // absent element exactly as `?.` did, and the receiver is preserved for the real getter.
   const version = String(
     namespace.assetVersion?.value ||
-    document.querySelector("meta[data-asset-version]")?.content ||
+    Reflect.get(Object(document.querySelector("meta[data-asset-version]")), "content") ||
     "",
   ).trim();
 
@@ -25,6 +85,7 @@ function versionedAssetUrl(assetPath) {
   return url.href;
 }
 
+/** @param {unknown} [assetPath] @returns {Promise<unknown>} */
 async function importScript(assetPath) {
   const url = versionedAssetUrl(assetPath);
 
@@ -39,6 +100,7 @@ async function importScript(assetPath) {
   return loadedScripts.get(url);
 }
 
+/** @param {unknown} [assetPath] @returns {Promise<Event>} */
 async function loadStyle(assetPath) {
   const url = versionedAssetUrl(assetPath);
 
@@ -61,10 +123,12 @@ async function loadStyle(assetPath) {
   return loadedStyles.get(url);
 }
 
+/** @param {readonly unknown[]} assetPaths @returns {Promise<void>} */
 async function importScripts(assetPaths) {
   await Promise.all(assetPaths.map((assetPath) => importScript(assetPath)));
 }
 
+/** @param {unknown} [assets] @returns {Promise<void>} */
 async function loadContributedAssets(assets) {
   await Promise.all((Array.isArray(assets) ? assets : []).map((asset) => {
     if (asset?.type === "style") {
@@ -129,11 +193,30 @@ await importScripts([
   "/js/footer.js",
 ]);
 
+/**
+ * The cache this manifest read uses **only when there is a workspace to key it by**.
+ *
+ * **Required on one branch and irrelevant on the other, which is why it is not acquired at the
+ * top.** Without a usable workspace id `loadDashboardManifest` goes straight to `BrowserApi` and
+ * never touches this member; hoisting the check above the id test would make the uncached path
+ * fail on a dependency it does not use. Read at the invocation point, per call, exactly as the
+ * property access was - so a cache published between two manifest loads is still seen by the
+ * second.
+ * @returns {BrowserCachedFetch}
+ */
+function requireCachedFetch() {
+  const cache = namespace.cachedFetch;
+  if (!cache) {
+    throw new Error("The Dashboard bridge requires LongtailForge.cachedFetch.");
+  }
+  return cache;
+}
+
 async function loadDashboardManifest() {
   const workspaceId = String(namespace.workspaceContext?.workspaceId || "").trim();
 
   if (!workspaceId) {
-    const revalidated = namespace.api.getJson("/api/dashboard", { cache: "no-store" });
+    const revalidated = requireApi().getJson("/api/dashboard", { cache: "no-store" });
     return {
       data: await revalidated,
       fromCache: false,
@@ -141,13 +224,21 @@ async function loadDashboardManifest() {
     };
   }
 
-  return namespace.cachedFetch.getJson("/api/dashboard", {
+  return requireCachedFetch().getJson("/api/dashboard", {
     cacheKey: `${workspaceId}:dashboard:${dashboardAssetVersion()}:manifest`,
   });
 }
 
+/**
+ * Start each contributed panel's data request, so the panel finds it already in flight.
+ *
+ * The manifest body is `unknown` where it is produced and stays `unknown` here, so the two
+ * hops to the panel list are proved rather than assumed. Every value the optional chain used
+ * to answer `undefined` for still reaches the same empty loop.
+ * @param {unknown} data
+ */
 function warmDashboardPanelData(data) {
-  const panels = data?.extensionPoints?.dashboardPanels;
+  const panels = dashboardRecord(dashboardRecord(data).extensionPoints).dashboardPanels;
 
   for (const panel of Array.isArray(panels) ? panels : []) {
     loadDashboardRoute(dashboardPanelRoute(panel)).catch(() => {});
@@ -156,6 +247,7 @@ function warmDashboardPanelData(data) {
   return data;
 }
 
+/** @param {unknown} [routeValue] @returns {Promise<unknown>} */
 function loadDashboardRoute(routeValue) {
   const route = String(routeValue || "").trim();
 
@@ -164,21 +256,38 @@ function loadDashboardRoute(routeValue) {
   }
 
   if (!dashboardDataPromises.has(route)) {
-    dashboardDataPromises.set(route, namespace.api.getJson(route, { cache: "no-store" }));
+    dashboardDataPromises.set(route, requireApi().getJson(route, { cache: "no-store" }));
   }
 
   return dashboardDataPromises.get(route);
 }
 
+/**
+ * The data route a panel descriptor names, with the calendar panel's range folded in.
+ *
+ * `BrowserDashboardBootstrap` publishes this as `routeForPanel(panel?: unknown)`, so the
+ * descriptor is proved to be a record here instead of being read through a default that
+ * inferred an empty shape. A descriptor that is not a record answers the empty route, which is
+ * what reading `dataRoute` off `{}` already produced.
+ * @param {unknown} [panel]
+ * @returns {string}
+ */
 function dashboardPanelRoute(panel = {}) {
-  const route = String(panel.dataRoute || "").trim();
+  // Narrowed into its own name, because assigning back into the parameter does not narrow a
+  // declared `unknown` - measured, not assumed. The parameter keeps the spelling three suites
+  // slice this function by, and the declared type stays `unknown`, which is what the published
+  // surface promises to accept. A descriptor that is not a record becomes the empty record,
+  // which is what reading `dataRoute` off the old `{}` default already produced.
+  const descriptor = dashboardRecord(panel);
+  const route = String(descriptor.dataRoute || "").trim();
 
-  if (panel.renderer !== "tasks.calendar" || route !== "/api/tasks/calendar") {
+  if (descriptor.renderer !== "tasks.calendar" || route !== "/api/tasks/calendar") {
     return route;
   }
 
-  const view = ["day", "week", "month"].includes(namespace.userPreferences?.preferredCalendarView)
-    ? namespace.userPreferences.preferredCalendarView
+  const preferred = namespace.userPreferences?.preferredCalendarView || "";
+  const view = ["day", "week", "month"].includes(preferred)
+    ? preferred
     : window.matchMedia?.("(max-width: 700px)")?.matches ? "day" : "month";
   const range = dashboardCalendarRange(view, new Date());
   const params = new URLSearchParams({
@@ -189,6 +298,7 @@ function dashboardPanelRoute(panel = {}) {
   return `${route}?${params.toString()}`;
 }
 
+/** @param {string} view @param {Date} anchor */
 function dashboardCalendarRange(view, anchor) {
   if (view === "day") {
     const day = dashboardDateKey(anchor);
@@ -207,10 +317,12 @@ function dashboardCalendarRange(view, anchor) {
   return { start: dashboardDateKey(start), end: dashboardDateKey(end) };
 }
 
+/** @param {Date} date @param {number} days */
 function dashboardAddDays(date, days) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
+/** @param {Date} date */
 function dashboardDateKey(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -219,9 +331,12 @@ function dashboardDateKey(date) {
 }
 
 function dashboardAssetVersion() {
+  // Read exactly as `versionedAssetUrl` reads it. This function is **not** lifted and could name
+  // `HTMLMetaElement`, but the two are the same read of the same element, and letting them drift
+  // into two different idioms would suggest a difference that does not exist.
   return String(
     namespace.assetVersion?.value ||
-    document.querySelector("meta[data-asset-version]")?.content ||
+    Reflect.get(Object(document.querySelector("meta[data-asset-version]")), "content") ||
     "",
   ).trim() || "current";
 }
