@@ -594,7 +594,8 @@ function runtimeProbe(host) {
 
 /** @param {string} prefix */
 function latestBackup(prefix) {
-  const names = fs.readdirSync(BACKUP_ROOT).filter((name) => name.startsWith(prefix)).sort();
+  // Each archive sits beside a `.sha256` checksum sidecar; select the archive itself.
+  const names = fs.readdirSync(BACKUP_ROOT).filter((name) => name.startsWith(prefix) && name.endsWith(".ltfbackup.tgz")).sort();
   const name = names.at(-1);
   assert.ok(name, `no ${prefix} backup was created`);
   return path.join(BACKUP_ROOT, name);
