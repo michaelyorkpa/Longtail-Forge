@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["dependencies", "markdown", "release", "tooling"],
-  description: "Pins the reviewed ESLint 10.11, Node types 26.2.0, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
+  description: "Pins the reviewed ESLint 10.11, Node types 26.6.3, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
   runMode: "static",
 });
 
@@ -75,11 +75,12 @@ assert.equal(requireDevDependencies(rootLock, "package-lock.json root").espree, 
 assert.equal(espreeLock.version, "11.2.0", "the resolved espree should remain the version ESLint already uses");
 assert.equal(espreeLock.dev, true, "the resolved espree package must remain development-only");
 
-assert.equal(requireDevDependencies(packageJson)["@types/node"], "^26.2.0", "Node types should use the reviewed 26.2.0 development baseline");
+assert.equal(requireDevDependencies(packageJson)["@types/node"], "^26.6.3", "Node types should use the reviewed 26.6.3 development baseline");
 assert.equal(requireDependencies(packageJson)["@types/node"], undefined, "Node types must remain development-only tooling");
-assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@types/node"], "^26.2.0", "the lockfile root should match the Node types package contract");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@types/node"], "^26.6.3", "the lockfile root should match the Node types package contract");
 assert.equal(requireDependencies(rootLock, "package-lock.json root")["@types/node"], undefined, "the lockfile root must not promote Node types to a runtime dependency");
-assert.equal(nodeTypesLock.version, "26.2.0", "the resolved Node types baseline should remain 26.2.0");
+// `0.33.33.49`: newer Node declarations do not widen the supported runtime; the engine pin below stays Node 24.
+assert.equal(nodeTypesLock.version, "26.6.3", "the resolved Node types baseline should remain 26.6.3");
 assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must remain development-only");
 assert.equal(requireEngines(packageJson).node, ">=24.7 <25", "the repository should retain its supported Node 24 range");
 assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.3": true }, "the approved lifecycle-script allowlist must remain unchanged");
