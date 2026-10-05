@@ -1,12 +1,15 @@
 import { escapeRegExp } from "../test-support/source-scan.mjs";
 import { spawnSync } from "node:child_process";
-import { requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
+import { requireLockEntry, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const CHECKPOINT_SERIES = "0.33.33";
 const CLOSEOUT_CHECKPOINT = `${CHECKPOINT_SERIES}.48`;
+// The release-preparation addendum declared after the branch closeout. It may change what the
+// application depends on, never what the application is: see RELEASE_PREPARATION_PATHS.
+const RELEASE_PREPARATION_CHECKPOINT = `${CHECKPOINT_SERIES}.49`;
 const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
 const TRAILER_NAMES = Object.freeze({
@@ -17,6 +20,14 @@ const TRAILER_NAMES = Object.freeze({
 const DEFERRED_RELEASE_PATHS = new Set([
   "CHANGELOG.md",
   "DECISIONS.md",
+  "package-lock.json",
+  "package.json",
+]);
+// The deferred release paths the release-preparation addendum may change, alongside owning
+// documentation. Its package changes are further limited to dependency declarations (or scripts)
+// with the application version fixed in both package files; `DECISIONS.md` stays reserved.
+const RELEASE_PREPARATION_PATHS = new Set([
+  "CHANGELOG.md",
   "package-lock.json",
   "package.json",
 ]);
@@ -44,11 +55,14 @@ function parseCheckpointTrailers(message) {
 
 /**
  * @param {{
+ *   lockAfterSource?: string,
+ *   lockBeforeSource?: string,
  *   message?: string,
  *   packageAfterSource?: string,
  *   packageBeforeSource?: string,
  *   parentCount?: number,
  *   paths?: string[],
+ *   releasePreparationCheckpoint?: string,
  *   roadmapArchiveSource?: string,
  *   roadmapSource?: string,
  *   series?: string,
@@ -56,11 +70,14 @@ function parseCheckpointTrailers(message) {
  * }} options
  */
 function validateCheckpointCommit({
+  lockAfterSource = "",
+  lockBeforeSource = "",
   message,
   packageAfterSource = "",
   packageBeforeSource = "",
   parentCount = 1,
   paths = [],
+  releasePreparationCheckpoint = RELEASE_PREPARATION_CHECKPOINT,
   roadmapArchiveSource = "",
   roadmapSource = "",
   series = CHECKPOINT_SERIES,
@@ -114,6 +131,7 @@ function validateCheckpointCommit({
 
   const ceremonyPaths = normalizedPaths.filter(isCeremonyPath);
   const isCloseout = checkpoint === closeoutCheckpoint;
+  const isReleasePreparation = checkpoint === releasePreparationCheckpoint;
   if (!isCloseout && ceremonyPaths.length > 2) {
     errors.push(`internal checkpoint ${checkpoint} changes ${ceremonyPaths.length} ceremony files; maximum is 2 (${ceremonyPaths.join(", ")})`);
   }
@@ -122,13 +140,26 @@ function validateCheckpointCommit({
       if (filePath === "package.json" && isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)) {
         continue;
       }
+      if (isReleasePreparation && RELEASE_PREPARATION_PATHS.has(filePath)) {
+        continue;
+      }
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
         errors.push(`${filePath} is reserved for ${closeoutCheckpoint} branch closeout`);
       }
-      if (checkpoint !== `${series}.1` && isDocumentationPath(filePath) && !isGeneratedDocumentationPath(filePath)) {
+      if (checkpoint !== `${series}.1` && !isReleasePreparation && isDocumentationPath(filePath) && !isGeneratedDocumentationPath(filePath)) {
         errors.push(`${filePath} durable documentation is reserved for ${closeoutCheckpoint} branch closeout`);
       }
     }
+  }
+  if (!isCloseout && isReleasePreparation) {
+    validateReleasePreparationPackages({
+      lockAfterSource,
+      lockBeforeSource,
+      packageAfterSource,
+      packageBeforeSource,
+      paths: normalizedPaths,
+      releasePreparationCheckpoint,
+    }, errors);
   }
 
   return Object.freeze({
@@ -155,6 +186,76 @@ function isScriptOnlyPackageChange(beforeSource, afterSource) {
     delete afterPackage.scripts;
     return JSON.stringify(beforePackage) === JSON.stringify(afterPackage)
       && JSON.stringify(beforeScripts) !== JSON.stringify(afterScripts);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The release-preparation addendum may change what the application depends on, never what it is.
+ * Its `package.json` change must be dependency-only (or script-only, like any checkpoint's), and
+ * its lockfile must keep both application version fields.
+ * @param {{
+ *   lockAfterSource: string,
+ *   lockBeforeSource: string,
+ *   packageAfterSource: string,
+ *   packageBeforeSource: string,
+ *   paths: readonly string[],
+ *   releasePreparationCheckpoint: string,
+ * }} change
+ * @param {string[]} errors
+ */
+function validateReleasePreparationPackages({
+  lockAfterSource,
+  lockBeforeSource,
+  packageAfterSource,
+  packageBeforeSource,
+  paths,
+  releasePreparationCheckpoint,
+}, errors) {
+  if (
+    paths.includes("package.json")
+    && !isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)
+    && !isDependencyOnlyPackageChange(packageBeforeSource, packageAfterSource)
+  ) {
+    errors.push(`package.json under ${releasePreparationCheckpoint} may change only dependency declarations or scripts; the application version and every other field stay fixed`);
+  }
+  if (paths.includes("package-lock.json") && !preservesLockApplicationVersion(lockBeforeSource, lockAfterSource)) {
+    errors.push(`package-lock.json under ${releasePreparationCheckpoint} must keep its application version fields unchanged`);
+  }
+}
+
+/** @param {string} beforeSource @param {string} afterSource */
+function isDependencyOnlyPackageChange(beforeSource, afterSource) {
+  if (!beforeSource || !afterSource) return false;
+  try {
+    const beforePackage = requirePackageManifest(JSON.parse(beforeSource), "the previous package.json");
+    const afterPackage = requirePackageManifest(JSON.parse(afterSource), "package.json in the working tree");
+    if (typeof beforePackage.version !== "string" || beforePackage.version !== afterPackage.version) return false;
+    const beforeDeclarations = JSON.stringify([beforePackage.dependencies, beforePackage.devDependencies]);
+    const afterDeclarations = JSON.stringify([afterPackage.dependencies, afterPackage.devDependencies]);
+    delete beforePackage.dependencies;
+    delete beforePackage.devDependencies;
+    delete afterPackage.dependencies;
+    delete afterPackage.devDependencies;
+    return JSON.stringify(beforePackage) === JSON.stringify(afterPackage) && beforeDeclarations !== afterDeclarations;
+  } catch {
+    return false;
+  }
+}
+
+/** @param {string} beforeSource @param {string} afterSource */
+function preservesLockApplicationVersion(beforeSource, afterSource) {
+  if (!beforeSource || !afterSource) return false;
+  try {
+    const beforeLock = requirePackageLock(JSON.parse(beforeSource), "the previous package-lock.json");
+    const afterLock = requirePackageLock(JSON.parse(afterSource), "package-lock.json in the working tree");
+    const beforeRoot = requireLockEntry(beforeLock, "", "the previous package-lock.json");
+    const afterRoot = requireLockEntry(afterLock, "", "package-lock.json in the working tree");
+    return typeof beforeLock.version === "string"
+      && beforeLock.version === afterLock.version
+      && typeof beforeRoot.version === "string"
+      && beforeRoot.version === afterRoot.version;
   } catch {
     return false;
   }
@@ -272,6 +373,8 @@ function inspectCheckpointRange({ baseSha, cwd = process.cwd(), head = "HEAD", r
     const message = runGit(["show", "-s", "--format=%B", sha], cwd);
     const paths = runGit(["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "--find-renames", sha], cwd).split(/\r?\n/).filter(Boolean);
     return Object.freeze({ sha, validation: validateCheckpointCommit({
+      lockAfterSource: paths.includes("package-lock.json") ? runGit(["show", `${sha}:package-lock.json`], cwd) : "",
+      lockBeforeSource: paths.includes("package-lock.json") && parents[0] ? runGit(["show", `${parents[0]}:package-lock.json`], cwd) : "",
       message,
       packageAfterSource: paths.includes("package.json") ? runGit(["show", `${sha}:package.json`], cwd) : "",
       packageBeforeSource: paths.includes("package.json") && parents[0] ? runGit(["show", `${parents[0]}:package.json`], cwd) : "",
@@ -309,6 +412,7 @@ if (isMain) await main();
 export {
   CHECKPOINT_SERIES,
   CLOSEOUT_CHECKPOINT,
+  RELEASE_PREPARATION_CHECKPOINT,
   TRAILER_NAMES,
   formatCheckpointRange,
   inspectCheckpointRange,

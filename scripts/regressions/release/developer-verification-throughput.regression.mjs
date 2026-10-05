@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import { requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -17,6 +18,7 @@ import { createSliceVerificationPlan, executeSliceVerificationPlan, formatSliceV
 import { enforceZero } from "../../typecheck-governance.mjs";
 import {
   CLOSEOUT_CHECKPOINT,
+  RELEASE_PREPARATION_CHECKPOINT,
   TRAILER_NAMES,
   parseCheckpointTrailers,
   resolveCheckpointBaseSha,
@@ -403,6 +405,138 @@ const closeoutCheckpoint = validateCheckpointCommit({
 });
 assert.deepEqual(closeoutCheckpoint.errors, [], "branch closeout may own the deferred release and documentation ceremony");
 
+// `0.33.33.49`: the release-preparation addendum after the branch closeout may change what the
+// application depends on - dependency declarations, the resolved lockfile, the current changelog
+// entry, and owning documentation - but never what it is. Its declaration comes from a synthetic
+// archive fixture, like the closeout's, so these cases do not depend on where its section lives.
+assert.notEqual(RELEASE_PREPARATION_CHECKPOINT, CLOSEOUT_CHECKPOINT, "the addendum must own its work under its own checkpoint");
+const releasePreparationArchive = `${roadmapArchiveSource}\n## Version ${RELEASE_PREPARATION_CHECKPOINT} - Synthetic release preparation fixture`;
+const preparationPackageBefore = {
+  allowScripts: { "native-addon@1.0.0": true },
+  dependencies: { "markdown-it": "^15.0.0" },
+  devDependencies: { eslint: "^10.8.1" },
+  engines: { node: ">=24.7 <25" },
+  name: "longtail-forge",
+  scripts: { check: "npm run check:fast" },
+  version: "9.8.7.6",
+};
+const preparationLockBefore = {
+  lockfileVersion: 3,
+  name: "longtail-forge",
+  packages: {
+    "": { dependencies: { "markdown-it": "^15.0.0" }, name: "longtail-forge", version: "9.8.7.6" },
+    "node_modules/markdown-it": { version: "15.0.0" },
+  },
+  version: "9.8.7.6",
+};
+const preparationPackageAfter = { ...preparationPackageBefore, dependencies: { "markdown-it": "^15.0.2" } };
+const preparationLockAfter = structuredClone(preparationLockBefore);
+preparationLockAfter.packages[""].dependencies["markdown-it"] = "^15.0.2";
+preparationLockAfter.packages["node_modules/markdown-it"].version = "15.0.2";
+
+/**
+ * @param {{
+ *   checkpoint?: string,
+ *   docs?: string,
+ *   lockAfter?: object,
+ *   packageAfter?: object,
+ *   paths: string[],
+ * }} change
+ */
+function releasePreparationCommit({
+  checkpoint = RELEASE_PREPARATION_CHECKPOINT,
+  docs = "No docs change needed: synthetic release-preparation proof.",
+  lockAfter = preparationLockAfter,
+  packageAfter = preparationPackageAfter,
+  paths,
+}) {
+  return validateCheckpointCommit({
+    lockAfterSource: JSON.stringify(lockAfter),
+    lockBeforeSource: JSON.stringify(preparationLockBefore),
+    message: checkpointMessage({ checkpoint, docs, summary: "Advance a reviewed dependency without changing release identity" }),
+    packageAfterSource: JSON.stringify(packageAfter),
+    packageBeforeSource: JSON.stringify(preparationPackageBefore),
+    paths,
+    roadmapArchiveSource: releasePreparationArchive,
+    roadmapSource,
+  });
+}
+
+assert.deepEqual(
+  releasePreparationCommit({ paths: ["package-lock.json", "package.json"] }).errors,
+  [],
+  "the addendum may change dependency declarations and the resolved lockfile with the application version fixed",
+);
+assert.deepEqual(
+  releasePreparationCommit({ paths: [".github/workflows/codeql.yml", "CHANGELOG.md", "scripts/regressions/release/github-release-operations.regression.mjs"] }).errors,
+  [],
+  "the addendum may change a reviewed workflow, its owning regression, and the current changelog entry",
+);
+assert.deepEqual(
+  releasePreparationCommit({ docs: "Docs updated: docs/versioning.md.", paths: ["docs/versioning.md"] }).errors,
+  [],
+  "the addendum may update the documentation that owns a changed contract",
+);
+
+const preparationVersionErrors = releasePreparationCommit({
+  packageAfter: { ...preparationPackageAfter, version: "9.8.7.7" },
+  paths: ["package.json"],
+}).errors.join("\n");
+assert.match(
+  preparationVersionErrors,
+  new RegExp(`package\\.json under ${escapeRegExp(RELEASE_PREPARATION_CHECKPOINT)} may change only dependency declarations or scripts`),
+  "the addendum must refuse an application version change, even beside a dependency change",
+);
+for (const [field, value] of /** @type {const} */ ([
+  ["engines", { node: ">=26" }],
+  ["allowScripts", { "native-addon@1.0.0": true, "unreviewed-addon@2.0.0": true }],
+  ["name", "renamed-application"],
+])) {
+  const fieldErrors = releasePreparationCommit({ packageAfter: { ...preparationPackageAfter, [field]: value }, paths: ["package.json"] }).errors;
+  assert.ok(
+    fieldErrors.some((error) => error.startsWith(`package.json under ${RELEASE_PREPARATION_CHECKPOINT} may change only`)),
+    `the addendum must refuse a ${field} change, which is not a dependency declaration`,
+  );
+}
+const preparationLockRootVersion = structuredClone(preparationLockAfter);
+preparationLockRootVersion.version = "9.8.7.7";
+const preparationLockPackageVersion = structuredClone(preparationLockAfter);
+preparationLockPackageVersion.packages[""].version = "9.8.7.7";
+for (const [label, lockAfter] of /** @type {const} */ ([
+  ["top-level version", preparationLockRootVersion],
+  ["root package version", preparationLockPackageVersion],
+])) {
+  assert.ok(
+    releasePreparationCommit({ lockAfter, paths: ["package-lock.json"] }).errors
+      .includes(`package-lock.json under ${RELEASE_PREPARATION_CHECKPOINT} must keep its application version fields unchanged`),
+    `the addendum must refuse a lockfile ${label} change`,
+  );
+}
+
+const unrelatedOwnerErrors = releasePreparationCommit({ checkpoint: "0.33.33.2", paths: ["package-lock.json", "package.json"] }).errors.join("\n");
+for (const filePath of ["package.json", "package-lock.json"]) {
+  assert.match(
+    unrelatedOwnerErrors,
+    new RegExp(`${escapeRegExp(filePath)} is reserved for ${escapeRegExp(CLOSEOUT_CHECKPOINT)} branch closeout`),
+    `an ordinary checkpoint must still be refused ${filePath}; only the addendum owns the dependency change`,
+  );
+}
+assert.match(
+  releasePreparationCommit({ checkpoint: "0.33.33.2", docs: "Docs updated: docs/versioning.md.", paths: ["docs/versioning.md"] }).errors.join("\n"),
+  /durable documentation is reserved/,
+  "an ordinary checkpoint must still be refused durable documentation",
+);
+assert.match(
+  releasePreparationCommit({ paths: ["DECISIONS.md"] }).errors.join("\n"),
+  new RegExp(`DECISIONS\\.md is reserved for ${escapeRegExp(CLOSEOUT_CHECKPOINT)} branch closeout`),
+  "the addendum must not take over durable decisions",
+);
+assert.match(
+  releasePreparationCommit({ paths: ["CHANGELOG.md", "package-lock.json", "package.json"] }).errors.join("\n"),
+  /maximum is 2/,
+  "the addendum keeps the two-ceremony-file ceiling",
+);
+
 assert.match(workflowSource, /LTF_CHECKPOINT_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
 assert.match(workflowSource, /node scripts\/release\/checkpoint-commits\.mjs/);
 assert.match(agentGuide, /LTF-Checkpoint: <slice-id>/);
@@ -415,6 +549,8 @@ assert.match(versioning, /Version-wide Internal Checkpoints/);
 assert.match(versioning, /final bookkeeping commit in the same protected pull request/);
 assert.match(versioning, /becomes authoritative only when that pull request merges/);
 assert.match(versioning, /npm run checkpoint:validate/);
+assert.match(versioning, /release-preparation addendum declared after the branch closeout/, "the versioning contract should document the addendum's narrow ownership");
+assert.match(versioning, /refuses any change to the application version in either package file/, "the versioning contract should record that the addendum never changes release identity");
 assert.equal(requireScripts(packageSource)["checkpoint:validate"], "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly");
 
 const syntheticBaseSha = "a".repeat(40);
