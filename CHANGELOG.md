@@ -1,3 +1,41 @@
+## Version 0.33.33.50 - 2026-10-05
+
+- **Post-release repair of `v0.33.33`.** That release could not be deployed: its own Compose host helper accepted only `better-sqlite3` 13.0.1, while the release ships 13.0.3, so the friends-and-family preview deployment was stopped before dispatch. This patch is a new release identity. The `v0.33.33` tag, image, checksums, and assets are unchanged.
+- **Release-aware native-dependency contract.** The host helper now accepts a reviewed set of `better-sqlite3:SQLite` profiles instead of one version. The set holds the current pin (13.0.3 with SQLite 3.53.4) and the previous known-good release that rollback still selects (13.0.1 with SQLite 3.53.3).
+  - Before any pull, it refuses a profile outside that set, or a claim without published-digest `linux`/`x64` proof.
+  - After the pull and before the deployment marker, it runs the selected digest natively, without network or privileges, and refuses any disagreement with the claim.
+  - The publisher reads its expected driver from `package.json`.
+  - A unit test checks that the package pin, the installed driver's real SQLite version, the publisher, the helper's profiles, and the retained published metadata all agree.
+- **Earlier refusals.** These requests are now refused before any pull or curtain:
+  - a rollback target that differs from the recorded previous release;
+  - a missing recorded baseline or rollback backup;
+  - a missing Secure Notes recovery-key backup.
+
+  Previously the first two were refused only after the deployment marker was set.
+- **Explicit demo classification.** The resolved Compose `DEMO_MODE` must be exactly `true` or `false`. A missing or other value is refused before the curtain, including spellings the application itself reads as true. A demo can no longer run without its isolation.
+- **Executable helper proof.** `scripts/release/compose-helper-contract-harness.mjs` runs the actual helper bytes as root on native Linux, against the retained published metadata of `v0.33.32.45` and `v0.33.33`. Only Docker and HTTP are faked. It runs as the `helper-contract` stage of the required maintenance release rehearsal. Its 47 scenarios include:
+  - the published `v0.33.33` helper rejecting its own release;
+  - upgrade, and explicit rollback;
+  - automatic recovery from a failed candidate, an unrecovered failure, and recovery from a failed rollback target;
+  - 20 tampered-metadata refusals before any pull, and native-execution refusals before the curtain;
+  - 14 demo classification cases, and lock contention.
+- **Runtime image security baseline.**
+  - **New base.** It moves from `node:24.18.0-bookworm-slim` to `node:24.21.0-bookworm-slim` (`sha256:0e0ff40c…`), which includes the Node 24.18.1 security release.
+  - **No package managers.** The final stage removes npm, npx, corepack, and yarn, and the build fails if any of them remains. The system `tar` and `gzip` used by archive, backup, and restore stay.
+  - **Container smoke.** It checks both of those, and accepts only the helper's reviewed native profiles.
+- **Operator tooling packaged again.** Since `v0.33.33`, four packaged operator scripts had imported two validation helpers from `scripts/test-support/` that the runtime artifact did not carry. Inside the image, every public-demo candidate and activation command, and so every demo reset, stopped with `ERR_MODULE_NOT_FOUND`. The development-data and historical `demo:data:host` commands stopped the same way. The artifact now packages both helpers, and the runtime-artifact boundary regression refuses any build in which a packaged file imports a relative module the artifact does not carry.
+- **Native lifecycle qualification.** A new workflow, `native-lifecycle-qualification.yml`, runs the actual helpers on native Linux Docker against the distinct previous release, `v0.33.32.45`. For a pull request that touches the deployment path, it publishes the candidate through a disposable TLS registry with the real publisher. Dispatch qualifies published releases from GHCR instead. It is not a required check.
+  - **Preview:** upgrade, automatic recovery from a failing candidate, explicit rollback with restored data, the original helper's refusal, and the re-upgrade, through a TLS edge.
+  - **Demo:** the guarded upgrade with isolation, a manual reset whose every container runs the candidate image, a reset interrupted after activation that restores and verifies the prior unit, and a rerun.
+  - **Image evidence:** the final image's Trivy findings, both npm audits, the Node core advisory index, and its runtime tool listing.
+- **Checkpoint ownership.** `0.33.33.50` may set the application version in both package files to exactly its own identity, and may change the changelog entry and owning documentation. Dependencies, the resolved lockfile graph, and `DECISIONS.md` stay fixed.
+- **Documentation corrections:**
+  - the stale `better-sqlite3` 13.0.1 statements;
+  - the Compose operation-lock path;
+  - the repository owner in the reset service's documentation link.
+- Docs updated: `docs/compose.env.example`, `docs/development/github-workflow.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/releasing.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/upgrading.md`, and `docs/versioning.md`.
+- No docs change needed: Help, visitor workflows, permissions, the public API, schema and migrations, and application runtime configuration are unchanged.
+
 ## Version 0.33.33 - 2026-10-01
 
 - **Closed the Lean Core, Full Strict TypeScript, and Verification Simplification branch,** from `0.33.33.1` through `0.33.33.48.3`. Every numbered checkpoint was verified and merged through its own protected pull request into `nightly`.
