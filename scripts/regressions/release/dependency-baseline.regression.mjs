@@ -64,10 +64,11 @@ assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must rema
 assert.equal(requireEngines(packageJson).node, ">=24.7 <25", "the repository should retain its supported Node 24 range");
 assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.3": true }, "the approved lifecycle-script allowlist must remain unchanged");
 
-assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.0", "Markdown-it should use the reviewed 15.0 runtime baseline");
+assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.2", "Markdown-it should use the reviewed 15.0.2 runtime baseline");
 assert.equal(requireDevDependencies(packageJson)["markdown-it"], undefined, "Markdown-it must remain runtime parser infrastructure");
-assert.equal(requireDependencies(rootLock, "package-lock.json root")["markdown-it"], "^15.0.0", "the lockfile root should match the Markdown-it package contract");
-assert.equal(markdownItLock.version, "15.0.0", "the resolved Markdown-it baseline should remain 15.0.0");
+assert.equal(requireDependencies(rootLock, "package-lock.json root")["markdown-it"], "^15.0.2", "the lockfile root should match the Markdown-it package contract");
+// `0.33.33.49`: 15.0.2 is outside GHSA-253c-mchw-3w2r (=15.0.0) and keeps the reviewed v15 graph below.
+assert.equal(markdownItLock.version, "15.0.2", "the resolved Markdown-it baseline should remain 15.0.2");
 assert.deepEqual(markdownItLock.dependencies, {
   argparse: "^3.0.0",
   entities: "^8.0.0",

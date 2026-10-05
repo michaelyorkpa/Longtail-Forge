@@ -63,7 +63,7 @@ permissive and compatible with distributing Longtail Forge under
 | is-promise | 4.0.0 | MIT | Copyright (c) 2014 Forbes Lindesay | [L38](#l38) |
 | linkify-it | 6.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L39](#l39) |
 | Lucide Icons (bundled inline SVG subset) | local subset first recorded 2026-06-06 | ISC AND MIT | Lucide Icons and Contributors; Cole Bemis | [L40](#l40) |
-| markdown-it | 15.0.0 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L41](#l41) |
+| markdown-it | 15.0.2 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L41](#l41) |
 | math-intrinsics | 1.1.0 | MIT | Copyright (c) 2024 ECMAScript Shims | [L17](#l17) |
 | mdurl | 2.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.; Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [L42](#l42) |
 | media-typer | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
@@ -1511,7 +1511,7 @@ SOFTWARE.
 
 ### L41
 
-Applies to: markdown-it@15.0.0
+Applies to: markdown-it@15.0.2
 
 ```text
 Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
