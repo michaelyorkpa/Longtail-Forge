@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19101,
+    "activeAssertionCount": 19136,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 77,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19940,
+    "effectiveAssertionCount": 19975,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -5652,11 +5652,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 37,
+      "assertionCount": 47,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves demo-only global/client/mutation/search limits, NAT fairness, recovery, bounded bodies, trusted edge correlation, generic responses, and redacted evidence.",
-      "entryPointAssertionCount": 37,
+      "entryPointAssertionCount": 47,
       "id": "framework.public-demo-perimeter",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-perimeter.regression.mjs",
@@ -6461,11 +6461,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 46,
+      "assertionCount": 49,
       "contractAssertionCount": 0,
       "contractModules": [],
-      "description": "Pins the reviewed ESLint 10.8, Node types 26.2.0, and Markdown-it 15 dependency baseline, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
-      "entryPointAssertionCount": 46,
+      "description": "Pins the reviewed ESLint 10.11, Node types 26.6.3, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
+      "entryPointAssertionCount": 49,
       "id": "release.dependency-baseline",
       "legacy": false,
       "path": "scripts/regressions/release/dependency-baseline.regression.mjs",
@@ -6481,11 +6481,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 89,
+      "assertionCount": 102,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
-      "entryPointAssertionCount": 89,
+      "entryPointAssertionCount": 102,
       "id": "release.developer-verification-throughput",
       "legacy": false,
       "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",
@@ -6542,11 +6542,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 67,
+      "assertionCount": 68,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
-      "entryPointAssertionCount": 67,
+      "entryPointAssertionCount": 68,
       "id": "release.github-release-operations",
       "legacy": false,
       "path": "scripts/regressions/release/github-release-operations.regression.mjs",
@@ -7469,8 +7469,8 @@
     },
     {
       "area": "views",
-      "assertionCount": 1010,
-      "contractAssertionCount": 996,
+      "assertionCount": 1018,
+      "contractAssertionCount": 1004,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
@@ -7514,7 +7514,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
-          "assertionCount": 52
+          "assertionCount": 60
         },
         {
           "path": "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs",
