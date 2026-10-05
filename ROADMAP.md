@@ -43,6 +43,17 @@ These open findings were carried out of the Lean Core branch when its closeout, 
   - **Owner:** browser test maintenance.
   - **Consequence:** an occasional retry. It must never be green-controlled.
 
+The post-release patch `0.33.33.50` carried these findings forward. The same rule applies: each needs its own roadmap slice.
+
+- **The runtime's bundled OpenSSL trails upstream.** Node 24.21.0, the newest Node 24 release, bundles OpenSSL 3.5.8. OpenSSL 3.5.9, released on 2026-09-29, fixes thirteen issues that affect 3.5.8, one rated High (DTLS retransmission). No Node release bundles 3.5.9 yet. None of the thirteen is reachable from the deployed application's call paths: it uses no DTLS, QUIC, CMP, SM2, or non-NIST ECDSA signing, runs no TLS server, and makes no TLS client connection. The only packaged TLS client is the historical `demo:data:host` command's health check of the operator's own public edge, which the Compose deployment does not run.
+  - **Owner:** the next runtime base refresh.
+  - **Consequence:** adopt the first Node 24 release that bundles OpenSSL 3.5.9 or later, with its native lifecycle qualification.
+- **Fixable Debian packages await the next official base rebuild.** The current `node:24.21.0-bookworm-slim` build, of 2026-09-19, carries `perl-base` `5.36.0-7+deb12u3`, `libpcre2-8-0` `10.42-1+deb12u1`, and `tzdata` `2026b`. Debian has published fixes: thirteen `perl-base` advisories, three of them Critical, one High `pcre2` advisory, and a timezone update. No application or operator path runs perl, compiles an attacker-supplied PCRE2 pattern, or relies on the system timezone database; Node uses its bundled ICU time zones.
+  - **Owner:** the next runtime base refresh, unless the operator chooses a reviewed targeted package upgrade.
+- **Public-demo reset history has no retention bound.** The demo host's `demo-reset-operations/` held 1,392 operation directories on 2026-10-05, one per hourly reset since 2026-08-08, and nothing prunes them. Their disk and inode use is still to be measured.
+  - **Owner:** public-demo operations.
+  - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
+
 ## Post-release Patch
 
 ### 0.33.33.50 - Deployment contract repair and runtime security baseline
