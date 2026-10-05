@@ -711,11 +711,27 @@ async function runReset(host, ordinal, interruptAtPhase) {
   let stderr = "";
   child.stdout.on("data", (chunk) => { stdout += String(chunk); });
   child.stderr.on("data", (chunk) => { stderr += String(chunk); });
-  const exited = new Promise((resolve) => child.once("exit", (code, signal) => resolve(code ?? (signal ? 128 : 1))));
+  let finished = false;
+  const exited = new Promise((resolve) => child.once("exit", (code, signal) => { finished = true; resolve(code ?? (signal ? 128 : 1)); }));
   if (interruptAtPhase) {
+    // A phase lasts one Compose run, so poll closely and refuse a missed window rather than
+    // signalling a later phase whose recovery would prove something else.
     const statePath = path.join(host.deployRoot, "demo-reset-operations", operationId, "state.json");
-    await waitFor(`reset phase ${interruptAtPhase}`, () => fs.existsSync(statePath)
-      && /** @type {{ phase?: string }} */ (JSON.parse(fs.readFileSync(statePath, "utf8"))).phase === interruptAtPhase, 600_000);
+    const phases = ["preflight", "curtained", "quiescent", "backed-up", "activated", "started", "verified", "completed"];
+    const deadline = Date.now() + 600_000;
+    for (;;) {
+      let phase = "";
+      try {
+        phase = String(/** @type {{ phase?: string }} */ (JSON.parse(fs.readFileSync(statePath, "utf8"))).phase || "");
+      } catch {
+        // Not written yet, or between the helper's write and install.
+      }
+      if (phase === interruptAtPhase) break;
+      assert.ok(phases.indexOf(phase) < phases.indexOf(interruptAtPhase), `the reset passed ${interruptAtPhase} (now ${phase}) before it could be interrupted`);
+      assert.ok(!finished, `the reset exited before reaching ${interruptAtPhase}:\n${stderr}`);
+      assert.ok(Date.now() < deadline, `timed out waiting for reset phase ${interruptAtPhase}`);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
     child.kill("SIGTERM");
   }
   const status = /** @type {number} */ (await exited);
@@ -908,7 +924,9 @@ async function waitHealthy(host, release) {
 
 /** @param {Host} host */
 function composeContainer(host) {
-  const result = spawnSync("docker", ["ps", "--quiet", "--filter", "label=com.docker.compose.project=longtail-forge", "--filter", "label=com.docker.compose.service=longtail-forge"], { encoding: "utf8" });
+  // The full ID, as `compose ps -q` gives the deploy helper: the isolation check matches the
+  // network's peer table, which is keyed by full container ID.
+  const result = spawnSync("docker", ["ps", "--quiet", "--no-trunc", "--filter", "label=com.docker.compose.project=longtail-forge", "--filter", "label=com.docker.compose.service=longtail-forge"], { encoding: "utf8" });
   void host;
   return String(result.stdout || "").trim().split("\n")[0] || "";
 }
