@@ -23,7 +23,9 @@ const workflowPaths = [
   ".github/workflows/codeql.yml",
 ];
 const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
-const REVIEWED_CODEQL_SHA = "5595ccaf912efad79be6eef63a5619ff05969be3";
+// `0.33.33.49`: v4.38.2, the annotated tag 88585263 on signed commit 2892aa5e. `init` and `analyze` move
+// together: a split pair fails analysis because each loads the other version's configuration.
+const REVIEWED_CODEQL_SHA = "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2";
 const REVIEWED_CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
 const [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
   ...workflowPaths.map(read),
@@ -153,6 +155,7 @@ assert.equal(
   "CodeQL analyze must use the reviewed immutable SHA exactly once",
 );
 assert.doesNotMatch(codeql, /github\/codeql-action\/(?:init|analyze)@99df26d4f13ea111d4ec1a7dddef6063f76b97e9/);
+assert.doesNotMatch(codeql, /github\/codeql-action\/(?:init|analyze)@5595ccaf912efad79be6eef63a5619ff05969be3/, "the retired v4.37.6 CodeQL SHA must not return");
 assert.match(codeql, /security-events: write/);
 assert.doesNotMatch(codeql, /^\s*push:/m);
 for (const workflow of [development, promotion, nightly]) {
