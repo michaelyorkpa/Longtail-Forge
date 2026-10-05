@@ -56,6 +56,16 @@ const GATEWAY = "172.30.17.1";
 const DATA_VOLUME = "longtail-forge-qualification-data";
 const REGISTRY_CONTAINER = "ltf-qual-registry";
 const BUILDER = "ltf-qual-builder";
+const DEMO_ORIGIN = "https://demo.longtailforge.com";
+const DEMO_NETWORK = "longtail-forge-public-demo-internal";
+const DEMO_BRIDGE = "ltf-demo0";
+const DEMO_SUBNET = "172.30.31.0/24";
+const DEMO_GATEWAY = "172.30.31.1";
+const DEMO_VOLUME = "longtail-forge-public-demo-data";
+const DEMO_TARGET = "rt-ltf-demo";
+const RESET_CONFIRMATION = "RESET RT-LTF-DEMO COMPOSE DATA";
+const ISOLATION_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-isolation-host.example");
+const RESET_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-reset-host.example");
 const REPAIRED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-compose-deploy-host.example");
 const ORIGINAL_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/v0.33.33-longtail-forge-compose-deploy-host.example");
 const ADMIN_USERNAME = "qualification-admin@example.test";
@@ -81,7 +91,7 @@ async function main() {
     const elevated = spawnSync("sudo", ["-n", "--preserve-env=PATH", process.execPath, scriptPath, ...process.argv.slice(2)], { stdio: "inherit" });
     process.exit(elevated.status ?? 1);
   }
-  assert.equal(options.profile, "preview", "only the preview profile is implemented by this entry point");
+  assert.ok(["preview", "demo"].includes(options.profile), "--profile must be preview or demo");
   for (const command of ["bash", "jq", "flock", "curl", "openssl", "docker", options.caddy, ...(options.hermetic ? ["skopeo"] : [])]) {
     assert.equal(spawnSync("bash", ["-c", `command -v ${shellQuote(command)}`]).status, 0, `${command} is required`);
   }
@@ -107,8 +117,9 @@ async function main() {
     const candidate = options.hermetic
       ? await publishHermeticCandidate(work, tls, previous)
       : (installEdgeHosts(), loadRelease(options.candidateMetadata, "candidate"));
-    record("releases", { previous: identityOf(previous), candidate: identityOf(candidate) });
-    await runPreviewLifecycle(work, tls, previous, candidate);
+    record("releases", { profile: options.profile, previous: identityOf(previous), candidate: identityOf(candidate) });
+    if (options.profile === "demo") await runDemoLifecycle(work, tls, previous, candidate);
+    else await runPreviewLifecycle(work, tls, previous, candidate);
   } catch (error) {
     failure = error;
   } finally {
@@ -283,13 +294,13 @@ function publishFailingCandidate(work, candidate) {
  */
 async function runPreviewLifecycle(work, tls, previous, candidate) {
   const host = prepareHost(work);
-  startScanner(work);
-  startEdge(work, tls, host.maintenanceRoot);
+  startScanner(work, GATEWAY);
+  startEdge(work, tls, host.maintenanceRoot, PREVIEW_ORIGIN);
 
   // The known-good baseline the initial cutover records, with representative data and Files.
   bootstrapBaseline(host, previous);
   await waitHealthy(host, previous);
-  const api = createApiClient(tls.ca);
+  const api = createApiClient(tls.ca, PREVIEW_ORIGIN);
   await api.expectIdentity(previous);
   const cookie = await api.login();
   const baseline = await api.createList(cookie, "Qualification baseline list");
@@ -308,8 +319,10 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
   assert.deepEqual(upgraded.archiveTools, ["tar", "gzip"], "the candidate runtime must keep tar and gzip");
   await api.expectList(await api.login(), baseline.listId, 200);
   await api.expectFile(await api.login(), file);
+  // Archives are bound to the application version that wrote them, and the helper restores each with
+  // its own release, so the prior release inspects the backup it took before the upgrade.
   const preUpgradeBackup = latestBackup("pre-upgrade-");
-  const inspected = inspectBackup(candidate, preUpgradeBackup);
+  const inspected = inspectBackup(previous, preUpgradeBackup);
   assert.equal(inspected.status, "verified");
   assert.equal(inspected.restorable, true);
   assert.equal(inspected.manifest?.appVersion, previous.metadata.version, "the prior release must have backed itself up before the upgrade");
@@ -464,9 +477,9 @@ function prepareHost(work) {
   };
 }
 
-/** @param {string} work */
-function startScanner(work) {
-  const script = path.join(work, "clamd-stub.mjs");
+/** @param {string} work @param {string} gateway */
+function startScanner(work, gateway) {
+  const script = path.join(work, `clamd-stub-${gateway}.mjs`);
   fs.writeFileSync(script, [
     "import net from 'node:net';",
     "net.createServer((socket) => {",
@@ -478,15 +491,15 @@ function startScanner(work) {
     "    if (!scanning && buffer.length >= 10 && buffer.subarray(0, 10).toString() === 'zINSTREAM\\0') { scanning = true; buffer = buffer.subarray(10); }",
     "    while (scanning && buffer.length >= 4) { const size = buffer.readUInt32BE(0); if (size === 0) { socket.end('stream: OK\\0'); return; } if (buffer.length < 4 + size) return; buffer = buffer.subarray(4 + size); }",
     "  });",
-    `}).listen(3310, ${JSON.stringify(GATEWAY)});`,
+    `}).listen(3310, ${JSON.stringify(gateway)});`,
     "",
   ].join("\n"));
   const scanner = spawn(process.execPath, [script], { stdio: "ignore" });
   cleanups.push(() => { scanner.kill("SIGTERM"); });
 }
 
-/** @param {string} work @param {{ dir: string }} tls @param {string} maintenanceRoot */
-function startEdge(work, tls, maintenanceRoot) {
+/** @param {string} work @param {{ dir: string }} tls @param {string} maintenanceRoot @param {string} origin */
+function startEdge(work, tls, maintenanceRoot, origin) {
   const caddyfile = path.join(work, "Caddyfile");
   const site = (/** @type {string} */ origin) => `${origin} {
   bind ${EDGE_ADDRESS}
@@ -507,7 +520,7 @@ function startEdge(work, tls, maintenanceRoot) {
   }
 }
 `;
-  fs.writeFileSync(caddyfile, `{\n  admin off\n  auto_https disable_redirects\n  skip_install_trust\n}\n\n${site(PREVIEW_ORIGIN)}`);
+  fs.writeFileSync(caddyfile, `{\n  admin off\n  auto_https disable_redirects\n  skip_install_trust\n}\n\n${site(origin)}`);
   run(options.caddy, ["validate", "--config", caddyfile, "--adapter", "caddyfile"]);
   const edge = spawn(options.caddy, ["run", "--config", caddyfile, "--adapter", "caddyfile"], { stdio: "ignore" });
   cleanups.push(() => { edge.kill("SIGTERM"); });
@@ -636,9 +649,9 @@ function readState(host, name) {
 // Public-origin API client (HTTPS through the edge, trusting only the disposable CA).
 // ---------------------------------------------------------------------------------------------
 
-/** @param {Buffer} ca */
-function createApiClient(ca) {
-  const hostname = new URL(PREVIEW_ORIGIN).hostname;
+/** @param {Buffer} ca @param {string} origin */
+function createApiClient(ca, origin) {
+  const hostname = new URL(origin).hostname;
   /**
    * @param {string} pathname @param {{ method?: string, body?: Buffer | string, cookie?: string, headers?: Record<string, string> }} [request]
    * @returns {Promise<HttpResult>}
@@ -648,7 +661,7 @@ function createApiClient(ca) {
       host: EDGE_ADDRESS, port: 443, servername: hostname, path: pathname, method: request.method || "GET", ca,
       headers: {
         Host: hostname,
-        Origin: PREVIEW_ORIGIN,
+        Origin: origin,
         Accept: "application/json",
         ...(request.cookie ? { Cookie: request.cookie } : {}),
         ...(request.body ? { "Content-Length": String(Buffer.byteLength(request.body)) } : {}),
