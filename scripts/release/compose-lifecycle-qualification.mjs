@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Native Compose lifecycle qualification for a candidate image and the host helper together
-// (0.33.33.50).
+// (the `v0.33.33` post-release patch).
 //
 // The executable helper contract fakes Docker. This qualification does not: on a disposable native
 // Linux host, as root, it runs the actual repaired helper and real `linux/amd64` images through the

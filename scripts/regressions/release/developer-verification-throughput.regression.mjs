@@ -538,7 +538,7 @@ assert.match(
   "the addendum keeps the two-ceremony-file ceiling",
 );
 
-// `0.33.33.50`: the post-release patch published after the release may give the application its own
+// The post-release patch published after the release may give the application its own
 // new identity - the version fields in both package files, set to exactly its checkpoint - plus the
 // changelog entry and owning documentation, and nothing else the packages declare.
 for (const checkpoint of [CLOSEOUT_CHECKPOINT, RELEASE_PREPARATION_CHECKPOINT]) {

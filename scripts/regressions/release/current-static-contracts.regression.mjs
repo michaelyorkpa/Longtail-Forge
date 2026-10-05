@@ -226,7 +226,7 @@ const pullCall = composeHelper.indexOf('\nverify_image "$IMAGE_REFERENCE"\n');
 const curtainCall = composeHelper.indexOf("\nassert_marker\n");
 const rollbackStart = composeHelper.indexOf('\nCURRENT_BACKUP="$BACKUP_ROOT/pre-rollback-');
 assert.ok(pullCall > 0 && curtainCall > pullCall && rollbackStart > curtainCall, "the helper must pull, then curtain, then branch to rollback");
-// `0.33.33.50`: refusals that need no image are made before any pull or curtain, and the selected
+// The `v0.33.33` post-release patch: refusals that need no image are made before any pull or curtain, and the selected
 // digest's native execution is checked after the pull but before the curtain.
 for (const precondition of [
   'fail "automated deployment requires the recorded known-good Compose baseline',

@@ -42,7 +42,7 @@ const [development, promotion, nightly, mainRelease, manualImageCandidate, manua
 ]);
 const workflows = [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, nativeQualification];
 
-// `0.33.33.50`: native lifecycle qualification is evidence beside the required gates. It runs the
+// The `v0.33.33` post-release patch: native lifecycle qualification is evidence beside the required gates. It runs the
 // actual helpers and published or disposable images, and never receives publication, deployment,
 // or repository-write authority.
 for (const requirement of [

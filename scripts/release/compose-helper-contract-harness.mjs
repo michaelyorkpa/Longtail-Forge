@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Executable contract for the root-owned Compose host helper (0.33.33.50).
+// Executable contract for the root-owned Compose host helper (the `v0.33.33` post-release patch).
 //
 // The helper validates release identity, native proof, demo classification, and the ordering of its
 // curtain, backup, recovery, and rollback paths. A source-text contract cannot prove any of that:

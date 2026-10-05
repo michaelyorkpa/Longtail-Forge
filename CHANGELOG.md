@@ -28,7 +28,7 @@
   - **Preview:** upgrade, automatic recovery from a failing candidate, explicit rollback with restored data, the original helper's refusal, and the re-upgrade, through a TLS edge.
   - **Demo:** the guarded upgrade with isolation, a manual reset whose every container runs the candidate image, a reset interrupted after activation that restores and verifies the prior unit, and a rerun.
   - **Image evidence:** the final image's Trivy findings, both npm audits, the Node core advisory index, and its runtime tool listing.
-- **Checkpoint ownership.** `0.33.33.50` may set the application version in both package files to exactly its own identity, and may change the changelog entry and owning documentation. Dependencies, the resolved lockfile graph, and `DECISIONS.md` stay fixed.
+- **Checkpoint ownership.** This post-release patch may set the application version in both package files to exactly its own identity, and may change the changelog entry and owning documentation. Dependencies, the resolved lockfile graph, and `DECISIONS.md` stay fixed.
 - **Documentation corrections:**
   - the stale `better-sqlite3` 13.0.1 statements;
   - the Compose operation-lock path;

@@ -43,7 +43,7 @@ These open findings were carried out of the Lean Core branch when its closeout, 
   - **Owner:** browser test maintenance.
   - **Consequence:** an occasional retry. It must never be green-controlled.
 
-The post-release patch `0.33.33.50` carried these findings forward. The same rule applies: each needs its own roadmap slice.
+The post-release patch to `v0.33.33` carried these findings forward. The same rule applies: each needs its own roadmap slice.
 
 - **The runtime's bundled OpenSSL trails upstream.** Node 24.21.0, the newest Node 24 release, bundles OpenSSL 3.5.8. OpenSSL 3.5.9, released on 2026-09-29, fixes thirteen issues that affect 3.5.8, one rated High (DTLS retransmission). No Node release bundles 3.5.9 yet. None of the thirteen is reachable from the deployed application's call paths: it uses no DTLS, QUIC, CMP, SM2, or non-NIST ECDSA signing, runs no TLS server, and makes no TLS client connection. The only packaged TLS client is the historical `demo:data:host` command's health check of the operator's own public edge, which the Compose deployment does not run.
   - **Owner:** the next runtime base refresh.

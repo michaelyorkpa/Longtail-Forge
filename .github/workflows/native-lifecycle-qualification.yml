@@ -32,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_tag:
-        description: Published release tag to qualify, for example v0.33.33.50
+        description: Published release tag to qualify
         required: true
         type: string
       previous_tag:

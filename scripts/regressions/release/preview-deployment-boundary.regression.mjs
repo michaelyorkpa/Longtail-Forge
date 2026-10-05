@@ -55,7 +55,7 @@ for (const requirement of [
 ]) {
   assert.match(dockerfile, requirement);
 }
-// `0.33.33.50`: the final stage ships no package manager, and keeps the system archive tools that
+// The `v0.33.33` post-release patch: the final stage ships no package manager, and keeps the system archive tools that
 // backup, inspection, and restore use. The build fails if either half of that is untrue.
 const runtimeStage = dockerfile.slice(dockerfile.indexOf("FROM ${NODE_IMAGE} AS runtime\n"));
 assert.match(runtimeStage, /rm -rf \/usr\/local\/lib\/node_modules\/npm \/usr\/local\/lib\/node_modules\/corepack \/opt\/yarn-v\* \\\n\s+\/usr\/local\/bin\/npm \/usr\/local\/bin\/npx \/usr\/local\/bin\/corepack \/usr\/local\/bin\/yarn \/usr\/local\/bin\/yarnpkg/);

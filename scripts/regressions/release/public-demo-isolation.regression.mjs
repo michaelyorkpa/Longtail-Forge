@@ -83,7 +83,7 @@ assert.match(
   /prepare_public_demo_data_root\(\) \{\n\s+local release_env="\$1"\n\s+test "\$PUBLIC_DEMO" = 'true' \|\| return 0\n\s+compose "\$release_env" run --rm --no-deps --user 0:0 --cap-add CHOWN --cap-add DAC_OVERRIDE \\\n\s+longtail-forge node -e/,
   "The stopped exact-demo volume should regain only the two filesystem capabilities needed for its root ownership handoff.",
 );
-// `0.33.33.50`: the application reads several DEMO_MODE spellings as true, so the helper classifies
+// The `v0.33.33` post-release patch: the application reads several DEMO_MODE spellings as true, so the helper classifies
 // the installation once, exactly, before the curtain, and both demo-gated steps use that result.
 assert.match(
   deploy,
