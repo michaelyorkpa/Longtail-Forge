@@ -1,21 +1,50 @@
-name: Scratch helper harness (temporary; never merged)
+name: Scratch native qualification (temporary; never merged)
 on:
   push:
     branches: [scratch/0.33.33.50-harness]
 permissions:
   contents: read
 jobs:
-  harness:
+  preview-lifecycle:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build the candidate runtime artifact
+        run: npm run artifact:build -- --source-branch main
+      - name: Install pinned Caddy
+        env:
+          CADDY_ARCHIVE_SHA512: 8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9
+          CADDY_VERSION: 2.11.4
+        run: |
+          mkdir -p "$RUNNER_TEMP/caddy"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$RUNNER_TEMP/caddy.tgz" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          echo "${CADDY_ARCHIVE_SHA512}  $RUNNER_TEMP/caddy.tgz" | sha512sum --check --strict
+          tar --extract --gzip --file "$RUNNER_TEMP/caddy.tgz" --directory "$RUNNER_TEMP/caddy" caddy
+          chmod 0755 "$RUNNER_TEMP/caddy/caddy"
       - name: Tool versions
-        run: bash --version | head -1; jq --version; flock --version | head -1; sudo -n true && echo "sudo ok"
-      - name: Executable Compose helper contract
-        run: node scripts/release/compose-helper-contract-harness.mjs
-      - name: Mutation campaign against the executable harness
-        run: node scratch-mutate-harness.mjs
+        run: |
+          docker version --format 'docker {{.Server.Version}} {{.Server.Os}}/{{.Server.Arch}}'; docker buildx version; docker compose version
+          command -v skopeo && skopeo --version || { sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo && skopeo --version; }
+          jq --version; openssl version; "$RUNNER_TEMP/caddy/caddy" version
+      - name: Native preview lifecycle qualification (hermetic registry)
+        run: |
+          node scripts/release/compose-lifecycle-qualification.mjs --hermetic \
+            --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" \
+            --commit "$GITHUB_SHA" \
+            --previous-metadata tests/fixtures/release-metadata/v0.33.32.45-release-metadata.json \
+            --caddy "$RUNNER_TEMP/caddy/caddy" \
+            --evidence "$RUNNER_TEMP/qualification"
+      - name: Retain qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scratch-lifecycle-qualification
+          retention-days: 7
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/qualification
