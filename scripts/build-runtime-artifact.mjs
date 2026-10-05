@@ -117,6 +117,9 @@ const RUNTIME_PATHS = Object.freeze([
   "scripts/lib/public-demo-baseline-activation.mjs",
   "scripts/lib/development-data-safety.mjs",
   "scripts/lib/sanitized-demo-role-fixtures.mjs",
+  // The packaged operator scripts validate JSON records and package manifests with these helpers.
+  "scripts/test-support/json-record-assertions.mjs",
+  "scripts/test-support/package-manifest-assertions.mjs",
   "src",
   "help",
   "legal",
