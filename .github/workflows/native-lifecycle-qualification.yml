@@ -1,0 +1,225 @@
+name: Native lifecycle qualification
+
+# Native evidence for the deployment contract, beside the required gates and not replacing them. On a
+# pull request that changes the image, the host helpers, or their lifecycle tooling, the candidate
+# is built from the proposed tree and published to a disposable registry that impersonates ghcr.io.
+# Dispatched for a published release tag, it uses real GHCR. Either way the actual helpers run as root
+# through the preview and public-demo lifecycles, and the final image's vulnerability evidence is
+# retained.
+
+on:
+  pull_request:
+    branches: [nightly, main]
+    paths:
+      - Dockerfile
+      - compose.yaml
+      - .github/workflows/native-lifecycle-qualification.yml
+      - scripts/release/longtail-forge-compose-deploy-host.example
+      - scripts/release/longtail-forge-public-demo-isolation-host.example
+      - scripts/release/longtail-forge-public-demo-reset-host.example
+      - scripts/release/compose-lifecycle-qualification.mjs
+      - scripts/release/published-container-image.mjs
+      - scripts/build-container-image.mjs
+      - scripts/build-runtime-artifact.mjs
+      - scripts/backup.mjs
+      - scripts/lib/backup-archive.mjs
+      - scripts/lib/demo-data-operation.mjs
+      - scripts/public-demo-baseline-*.mjs
+      - scripts/lib/public-demo-baseline-*.mjs
+      - scripts/test-support/json-record-assertions.mjs
+      - scripts/test-support/package-manifest-assertions.mjs
+      - tests/fixtures/release-metadata/**
+  workflow_dispatch:
+    inputs:
+      candidate_tag:
+        description: Published release tag to qualify, for example v0.33.33.50
+        required: true
+        type: string
+      previous_tag:
+        description: Previous known-good release tag that rollback selects, for example v0.33.32.45
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-lifecycle-qualification-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lifecycle:
+    name: Native ${{ matrix.profile }} lifecycle qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [preview, demo]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The exact proposed commit, or the release tag being qualified, rather than a merge ref.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_tag || github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install pinned Caddy
+        env:
+          CADDY_ARCHIVE_SHA512: 8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9
+          CADDY_VERSION: 2.11.4
+        run: |
+          mkdir -p "$RUNNER_TEMP/caddy"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$RUNNER_TEMP/caddy.tgz" "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          echo "${CADDY_ARCHIVE_SHA512}  $RUNNER_TEMP/caddy.tgz" | sha512sum --check --strict
+          tar --extract --gzip --file "$RUNNER_TEMP/caddy.tgz" --directory "$RUNNER_TEMP/caddy" caddy
+          chmod 0755 "$RUNNER_TEMP/caddy/caddy"
+      - name: Record tool versions
+        run: |
+          docker version --format 'docker {{.Server.Version}} {{.Server.Os}}/{{.Server.Arch}}'
+          docker buildx version
+          docker compose version
+          command -v skopeo >/dev/null || { sudo apt-get update && sudo apt-get install --yes --no-install-recommends skopeo; }
+          skopeo --version
+          jq --version
+          openssl version
+          "$RUNNER_TEMP/caddy/caddy" version
+      - name: Qualify the proposed candidate through a disposable registry
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          npm ci
+          npm run artifact:build -- --source-branch main
+          node scripts/release/compose-lifecycle-qualification.mjs --profile "$PROFILE" --hermetic \
+            --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" \
+            --commit "$HEAD_SHA" \
+            --previous-metadata tests/fixtures/release-metadata/v0.33.32.45-release-metadata.json \
+            --caddy "$RUNNER_TEMP/caddy/caddy" \
+            --evidence "$RUNNER_TEMP/qualification"
+      - name: Qualify a published release from GHCR
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+          PREVIOUS_TAG: ${{ inputs.previous_tag }}
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/candidate" "$RUNNER_TEMP/previous"
+          gh release download "$CANDIDATE_TAG" --pattern release-metadata.json --dir "$RUNNER_TEMP/candidate"
+          gh release download "$PREVIOUS_TAG" --pattern release-metadata.json --dir "$RUNNER_TEMP/previous"
+          # The helpers and Compose file that run below are the tag's sources; prove they are the
+          # exact bytes the release publishes for operators to install.
+          for asset in longtail-forge-compose-deploy-host.example longtail-forge-public-demo-isolation-host.example longtail-forge-public-demo-reset-host.example; do
+            gh release download "$CANDIDATE_TAG" --pattern "$asset" --dir "$RUNNER_TEMP/candidate"
+            cmp "$RUNNER_TEMP/candidate/$asset" "scripts/release/$asset"
+          done
+          gh release download "$CANDIDATE_TAG" --pattern compose.yaml --dir "$RUNNER_TEMP/candidate"
+          cmp "$RUNNER_TEMP/candidate/compose.yaml" compose.yaml
+          sha256sum "$RUNNER_TEMP"/candidate/*.example "$RUNNER_TEMP/candidate/compose.yaml"
+          node scripts/release/compose-lifecycle-qualification.mjs --profile "$PROFILE" \
+            --candidate-metadata "$RUNNER_TEMP/candidate/release-metadata.json" \
+            --previous-metadata "$RUNNER_TEMP/previous/release-metadata.json" \
+            --caddy "$RUNNER_TEMP/caddy/caddy" \
+            --evidence "$RUNNER_TEMP/qualification"
+      - name: Retain qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-${{ matrix.profile }}-lifecycle-qualification
+          retention-days: 30
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/qualification
+
+  image-security:
+    name: Final image vulnerability evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The exact proposed commit, or the release tag being qualified, rather than a merge ref.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_tag || github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install pinned Trivy
+        env:
+          TRIVY_VERSION: 0.74.0
+          TRIVY_ARCHIVE_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "$RUNNER_TEMP/trivy.tgz" "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_ARCHIVE_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum --check --strict
+          tar --extract --gzip --file "$RUNNER_TEMP/trivy.tgz" --directory "$RUNNER_TEMP/trivy" trivy
+      - name: Select the final image and the published images it replaces
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/security"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            gh release download "$CANDIDATE_TAG" --pattern release-metadata.json --dir "$RUNNER_TEMP/security/candidate"
+            echo "CANDIDATE_IMAGE=$(jq -r '.image.reference' "$RUNNER_TEMP/security/candidate/release-metadata.json")" >> "$GITHUB_ENV"
+          else
+            npm ci
+            npm run artifact:build -- --source-branch main
+            ARTIFACT="dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
+            node scripts/release/create-release-metadata.mjs --artifact "$ARTIFACT" --commit "${{ github.event.pull_request.head.sha }}" --channel main --source-branch main --output dist/release-metadata-base.json
+            npm run container:build -- --artifact "$ARTIFACT" --release-metadata dist/release-metadata-base.json --tag longtail-forge:qualification-candidate --no-cache --pull
+            echo "CANDIDATE_IMAGE=longtail-forge:qualification-candidate" >> "$GITHUB_ENV"
+          fi
+          echo "PUBLISHED_IMAGE=$(jq -r '.image.reference' tests/fixtures/release-metadata/v0.33.33-release-metadata.json)" >> "$GITHUB_ENV"
+          echo "PREVIOUS_IMAGE=$(jq -r '.image.reference' tests/fixtures/release-metadata/v0.33.32.45-release-metadata.json)" >> "$GITHUB_ENV"
+      - name: Scan the final image and the images it replaces
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/security"
+          date -u +%FT%TZ > "$out/scan-started-at.txt"
+          docker pull --platform linux/amd64 "$PUBLISHED_IMAGE"
+          docker pull --platform linux/amd64 "$PREVIOUS_IMAGE"
+          for label in candidate published previous; do
+            case "$label" in candidate) image="$CANDIDATE_IMAGE" ;; published) image="$PUBLISHED_IMAGE" ;; previous) image="$PREVIOUS_IMAGE" ;; esac
+            docker image inspect "$image" --format '{{.Id}} {{json .RepoDigests}} {{json .Config.Env}}' > "$out/$label-image.txt"
+            "$RUNNER_TEMP/trivy/trivy" image --quiet --scanners vuln --format json --output "$out/$label-trivy.json" "$image"
+          done
+          "$RUNNER_TEMP/trivy/trivy" version --format json > "$out/trivy-version.json"
+          docker run --rm --entrypoint sh "$CANDIDATE_IMAGE" -c 'for tool in npm npx corepack yarn yarnpkg tar gzip node; do printf "%s=%s\n" "$tool" "$(command -v "$tool" || echo absent)"; done; ls /usr/local/lib/node_modules 2>/dev/null || echo "no global node_modules"' > "$out/candidate-runtime-tools.txt"
+          docker run --rm --entrypoint node "$CANDIDATE_IMAGE" -p 'JSON.stringify(process.versions)' > "$out/candidate-node-versions.json"
+          date -u +%FT%TZ > "$out/scan-finished-at.txt"
+      - name: Audit the application dependency graphs
+        run: |
+          out="$RUNNER_TEMP/security"
+          [ -d node_modules ] || npm ci
+          npm audit --json > "$out/npm-audit-full.json" || true
+          npm audit --omit=dev --json > "$out/npm-audit-production.json" || true
+          node -e 'for (const f of process.argv.slice(1)) { const a = JSON.parse(require("fs").readFileSync(f, "utf8")); console.log(f, JSON.stringify(a.metadata?.vulnerabilities)); }' "$out/npm-audit-full.json" "$out/npm-audit-production.json"
+      - name: Check Node.js core advisories for the final runtime
+        run: |
+          # Range evaluation uses the semver package bundled with the runner's npm.
+          SEMVER_PATH="$(npm root -g)/npm/node_modules/semver" node -e '
+            (async () => {
+              const fs = require("node:fs");
+              const semver = require(process.env.SEMVER_PATH);
+              const out = process.env.RUNNER_TEMP + "/security";
+              const versions = JSON.parse(fs.readFileSync(out + "/candidate-node-versions.json", "utf8"));
+              const index = await (await fetch("https://raw.githubusercontent.com/nodejs/security-wg/main/vuln/core/index.json")).json();
+              const affecting = Object.entries(index)
+                .filter(([, v]) => v.vulnerable && semver.satisfies(versions.node, v.vulnerable) && !(v.patched && semver.satisfies(versions.node, v.patched)))
+                .map(([id, v]) => ({ id, cve: v.cve, severity: v.severity, vulnerable: v.vulnerable, patched: v.patched }));
+              const report = { node: versions.node, openssl: versions.openssl, zlib: versions.zlib, checkedAt: new Date().toISOString(), indexed: Object.keys(index).length, affecting };
+              fs.writeFileSync(out + "/node-core-advisories.json", JSON.stringify(report, null, 2));
+              console.log(JSON.stringify(report));
+            })();
+          '
+      - name: Retain vulnerability evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: final-image-vulnerability-evidence
+          retention-days: 30
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/security

@@ -21,13 +21,14 @@ const workflowPaths = [
   ".github/workflows/manual-release.yml",
   ".github/workflows/manual-preview.yml",
   ".github/workflows/codeql.yml",
+  ".github/workflows/native-lifecycle-qualification.yml",
 ];
 const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
 // `0.33.33.49`: v4.38.2, the annotated tag 88585263 on signed commit 2892aa5e. `init` and `analyze` move
 // together: a split pair fails analysis because each loads the other version's configuration.
 const REVIEWED_CODEQL_SHA = "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2";
 const REVIEWED_CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
-const [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
+const [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, nativeQualification, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
   ...workflowPaths.map(read),
   read(".github/dependabot.yml"),
   read("scripts/release/configure-github-release-operations.mjs"),
@@ -39,7 +40,28 @@ const [development, promotion, nightly, mainRelease, manualImageCandidate, manua
   read("src/config.js"),
   read("package.json"),
 ]);
-const workflows = [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql];
+const workflows = [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, nativeQualification];
+
+// `0.33.33.50`: native lifecycle qualification is evidence beside the required gates. It runs the
+// actual helpers and published or disposable images, and never receives publication, deployment,
+// or repository-write authority.
+for (const requirement of [
+  /^permissions:\n  contents: read\n\n/m,
+  /profile: \[preview, demo\]/,
+  /node scripts\/release\/compose-lifecycle-qualification\.mjs --profile "\$PROFILE" --hermetic/,
+  /node scripts\/release\/compose-lifecycle-qualification\.mjs --profile "\$PROFILE" \\\n\s+--candidate-metadata/,
+  /CADDY_ARCHIVE_SHA512: [a-f0-9]{128}/,
+  /TRIVY_ARCHIVE_SHA256: [a-f0-9]{64}/,
+  /sha256sum --check --strict/,
+  /npm audit --omit=dev --json/,
+  /vuln\/core\/index\.json/,
+  // Both jobs check out the exact proposed commit or the release tag, never a merge ref, and a
+  // published release runs only helpers and Compose bytes identical to its operator assets.
+  /(?:ref: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.candidate_tag \|\| github\.event\.pull_request\.head\.sha \}\}[\s\S]*){2}/,
+  /cmp "\$RUNNER_TEMP\/candidate\/\$asset" "scripts\/release\/\$asset"/,
+  /cmp "\$RUNNER_TEMP\/candidate\/compose\.yaml" compose\.yaml/,
+]) assert.match(nativeQualification, requirement);
+assert.doesNotMatch(nativeQualification, /packages: write|contents: write|id-token: write|secrets\.|environment:/, "native qualification must hold no publication, deployment, or secret authority");
 const { createConfig } = await import("../../../src/config.js");
 
 for (const [index, source] of workflows.entries()) {
