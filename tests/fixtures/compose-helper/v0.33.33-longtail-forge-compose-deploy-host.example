@@ -4,10 +4,6 @@ umask 077
 
 HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
 readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_DEMO_ISOLATION_HELPER|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
-# Reviewed native SQLite profiles, as `better-sqlite3:SQLite`, that a selected release may declare.
-# One installed helper deploys, rolls back to, and recovers several releases, so keep the profile of
-# the current package pin and of every previous known-good release that rollback may still select.
-readonly NATIVE_DEPENDENCY_PROFILES='13.0.1:3.53.3 13.0.3:3.53.4'
 
 fail() {
   printf 'longtail-forge-compose-deploy: %s\n' "$*" >&2
@@ -52,15 +48,6 @@ require_safe_absolute_path() {
   local target="$1" label="$2"
   [[ "$target" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a safe absolute path"
   [[ "$target" != *'/../'* && "$target" != */.. && "$target" != *'//'* ]] || fail "$label contains unsafe traversal"
-}
-
-native_profile_reviewed() {
-  local claimed="$1" profile
-  [[ "$claimed" =~ ^[0-9]+\.[0-9]+\.[0-9]+:[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
-  for profile in $NATIVE_DEPENDENCY_PROFILES; do
-    test "$claimed" = "$profile" && return 0
-  done
-  return 1
 }
 
 load_helper_environment
@@ -180,31 +167,9 @@ test "$(metadata_value '.image.platformManifest.digest')" = "$EXPECTED_PLATFORM_
 test "$(metadata_value '.image.platformManifest.os')" = "linux" || fail "release metadata platform OS is unsupported"
 test "$(metadata_value '.image.platformManifest.architecture')" = "amd64" || fail "release metadata platform architecture is unsupported"
 test "$(metadata_value '.image.nativeDependency.execution')" = "published-digest" || fail "native dependency proof is missing"
-test "$(metadata_value '.image.nativeDependency.platform')" = "linux" || fail "native dependency proof platform is unsupported"
-test "$(metadata_value '.image.nativeDependency.architecture')" = "x64" || fail "native dependency proof architecture is unsupported"
-NATIVE_DRIVER_VERSION="$(metadata_value '.image.nativeDependency.betterSqlite3Version')" || fail "native better-sqlite3 proof is missing"
-NATIVE_SQLITE_VERSION="$(metadata_value '.image.nativeDependency.sqliteVersion')" || fail "native better-sqlite3 proof is missing its SQLite version"
-native_profile_reviewed "$NATIVE_DRIVER_VERSION:$NATIVE_SQLITE_VERSION" \
-  || fail "native better-sqlite3 proof is missing or names an unreviewed profile: $NATIVE_DRIVER_VERSION:$NATIVE_SQLITE_VERSION"
+test "$(metadata_value '.image.nativeDependency.betterSqlite3Version')" = "13.0.1" || fail "native better-sqlite3 proof is missing"
 test "$(metadata_value '.image.attestations.sbom.predicateType')" = "https://spdx.dev/Document" || fail "registry SBOM attestation is missing"
 metadata_value '.image.attestations.provenance.predicateType | startswith("https://slsa.dev/provenance/")' | grep -qx true || fail "registry provenance attestation is missing"
-
-# Preconditions that need no image or service. An inconsistent request is refused here, before any
-# pull, curtain, or data change, instead of after the deployment marker is asserted.
-if test -n "$SECURE_KEY_BACKUP"; then
-  test -f "$SECURE_KEY_BACKUP" && test ! -L "$SECURE_KEY_BACKUP" || fail "Secure Notes recovery-key backup is missing"
-fi
-TARGET_BACKUP=''
-if test "$MODE" = "deploy"; then
-  test -f "$CURRENT_STATE" || fail "automated deployment requires the recorded known-good Compose baseline established by the initial cutover"
-else
-  test -f "$CURRENT_STATE" || fail "rollback requires a recorded current release"
-  test -f "$PREVIOUS_STATE" || fail "rollback requires a recorded previous release and backup"
-  test "$(jq -er '.commitSha' "$PREVIOUS_STATE")" = "$EXPECTED_COMMIT" || fail "rollback target does not match the recorded previous release"
-  test "$(jq -er '.image.digest' "$PREVIOUS_STATE")" = "$EXPECTED_IMAGE_DIGEST" || fail "rollback digest does not match the recorded previous release"
-  TARGET_BACKUP="$(jq -er '.deployment.rollbackBackup' "$PREVIOUS_STATE")" || fail "recorded rollback backup is missing"
-  test -f "$TARGET_BACKUP" && test ! -L "$TARGET_BACKUP" || fail "recorded rollback backup is missing"
-fi
 
 IMAGE_REFERENCE="$IMAGE_REPOSITORY@$EXPECTED_IMAGE_DIGEST"
 RELEASE_KEY="${EXPECTED_IMAGE_DIGEST#sha256:}"
@@ -237,25 +202,6 @@ verify_image() {
   test "$(docker image inspect "$reference" --format '{{index .Config.Labels "com.longtailforge.source-branch"}}')" = "main" || fail "pulled image source label mismatch"
 }
 
-# Executes the pulled digest natively, without network or privileges, and requires the release's
-# native proof to name exactly the driver and SQLite versions the image really loads.
-verify_native_dependency() {
-  local reference="$1" proof
-  proof="$(docker run --rm --pull never --platform linux/amd64 --network none --read-only \
-    --cap-drop ALL --security-opt no-new-privileges:true --user 10001:10001 \
-    --entrypoint node "$reference" -e '
-      const Database = require("better-sqlite3");
-      const packageVersion = require("better-sqlite3/package.json").version;
-      const db = new Database(":memory:");
-      const sqliteVersion = db.prepare("SELECT sqlite_version() AS version").get().version;
-      db.close();
-      process.stdout.write(JSON.stringify({ architecture: process.arch, packageVersion, platform: process.platform, sqliteVersion }));
-    ')" || fail "selected image failed the native better-sqlite3 execution check"
-  jq -e --arg driver "$NATIVE_DRIVER_VERSION" --arg sqlite "$NATIVE_SQLITE_VERSION" \
-    '.platform == "linux" and .architecture == "x64" and .packageVersion == $driver and .sqliteVersion == $sqlite' \
-    <<<"$proof" >/dev/null || fail "selected image native better-sqlite3 execution does not match the release metadata"
-}
-
 assert_marker() {
   test -d "$(dirname "$DEPLOYMENT_MARKER")" && test ! -L "$(dirname "$DEPLOYMENT_MARKER")" || fail "deployment marker parent is unsafe"
   if test -e "$DEPLOYMENT_MARKER"; then
@@ -271,8 +217,9 @@ clear_marker() {
 }
 
 prepare_public_demo_data_root() {
-  local release_env="$1"
-  test "$PUBLIC_DEMO" = 'true' || return 0
+  local release_env="$1" demo_mode
+  demo_mode="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.DEMO_MODE')"
+  test "$demo_mode" = 'true' || return 0
   compose "$release_env" run --rm --no-deps --user 0:0 --cap-add CHOWN --cap-add DAC_OVERRIDE \
     longtail-forge node -e '
       const fs = require("node:fs");
@@ -397,8 +344,9 @@ verify_candidate_scanner() {
 }
 
 public_demo_isolation() {
-  local mode="$1" release_env="$2" container="${3:-}" scanner_host scanner_port network volume
-  test "$PUBLIC_DEMO" = 'true' || return 0
+  local mode="$1" release_env="$2" container="${3:-}" demo_mode scanner_host scanner_port network volume
+  demo_mode="$(compose "$release_env" config --format json | jq -er '.services["longtail-forge"].environment.DEMO_MODE')"
+  test "$demo_mode" = 'true' || return 0
   test "$PUBLIC_URL" = 'https://demo.longtailforge.com' || fail 'public-demo isolation requires the exact demo origin'
   test -f "$PUBLIC_DEMO_ISOLATION_HELPER" && test ! -L "$PUBLIC_DEMO_ISOLATION_HELPER" \
     && test -x "$PUBLIC_DEMO_ISOLATION_HELPER" && test "$(stat -c '%u' "$PUBLIC_DEMO_ISOLATION_HELPER")" = '0' \
@@ -440,7 +388,6 @@ write_state() {
 }
 
 verify_image "$IMAGE_REFERENCE"
-verify_native_dependency "$IMAGE_REFERENCE"
 compose "$RELEASE_ENV" config --quiet
 compose "$RELEASE_ENV" config --format json | jq -e --arg backup "$BACKUP_ROOT" '
   .services["longtail-forge"].volumes
@@ -456,16 +403,6 @@ compose "$RELEASE_ENV" config --format json | jq -e '
     (.tmpfs | index("/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001") != null) and
     (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and .[0].target == 8001 and .[0].published == "8001")
 ' >/dev/null || fail "resolved Compose application posture is not the reviewed non-root read-only loopback contract"
-# The application reads several spellings of DEMO_MODE as true, so only the exact `true` or `false`
-# classification is accepted here. Anything else stops before the curtain rather than letting a demo
-# run without isolation, or treating an unclassified installation as either profile.
-DEMO_MODE_VALUE="$(compose "$RELEASE_ENV" config --format json | jq -r '.services["longtail-forge"].environment.DEMO_MODE // "missing"')" \
-  || fail "resolved Compose environment could not be read for the DEMO_MODE classification"
-case "$DEMO_MODE_VALUE" in
-  true|false) readonly PUBLIC_DEMO="$DEMO_MODE_VALUE" ;;
-  missing) fail "resolved Compose DEMO_MODE is missing; classify the installation explicitly as true or false" ;;
-  *) fail "resolved Compose DEMO_MODE must be exactly true or false" ;;
-esac
 public_demo_isolation enforce "$RELEASE_ENV"
 verify_candidate_scanner "$RELEASE_ENV"
 assert_marker
@@ -474,6 +411,7 @@ CURRENT_BACKUP=''
 RECOVERY_SUCCEEDED=false
 
 if test "$MODE" = "deploy"; then
+  test -f "$CURRENT_STATE" || fail "automated deployment requires the recorded known-good Compose baseline established by the initial cutover"
   CURRENT_BACKUP="$BACKUP_ROOT/pre-upgrade-$OPERATION_ID.ltfbackup.tgz"
   backup_with_state "$CURRENT_STATE" "$CURRENT_BACKUP"
   install -o root -g root -m 0600 "$CURRENT_STATE" "$OPERATION_DIR/prior-state.json"
@@ -507,6 +445,12 @@ if test "$MODE" = "deploy"; then
   fail "candidate and verified recovery did not complete; deployment marker and protected evidence remain"
 fi
 
+test -f "$CURRENT_STATE" || fail "rollback requires a recorded current release"
+test -f "$PREVIOUS_STATE" || fail "rollback requires a recorded previous release and backup"
+test "$(state_value "$PREVIOUS_STATE" '.commitSha')" = "$EXPECTED_COMMIT" || fail "rollback target does not match the recorded previous release"
+test "$(state_value "$PREVIOUS_STATE" '.image.digest')" = "$EXPECTED_IMAGE_DIGEST" || fail "rollback digest does not match the recorded previous release"
+TARGET_BACKUP="$(state_value "$PREVIOUS_STATE" '.deployment.rollbackBackup')"
+test -f "$TARGET_BACKUP" && test ! -L "$TARGET_BACKUP" || fail "recorded rollback backup is missing"
 CURRENT_BACKUP="$BACKUP_ROOT/pre-rollback-$OPERATION_ID.ltfbackup.tgz"
 backup_with_state "$CURRENT_STATE" "$CURRENT_BACKUP"
 current_digest="$(state_value "$CURRENT_STATE" '.image.digest')"
