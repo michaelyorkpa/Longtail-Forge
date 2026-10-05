@@ -117,16 +117,16 @@
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.6.2",
-    "markdown-it": "^15.0.0",
-    "uuid": "^14.0.1",
+    "express-rate-limit": "^8.7.0",
+    "markdown-it": "^15.0.2",
+    "uuid": "^14.0.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
-    "@types/node": "^26.2.0",
-    "eslint": "^10.8.1",
+    "@types/node": "^26.6.3",
+    "eslint": "^10.11.0",
     "espree": "^11.2.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"

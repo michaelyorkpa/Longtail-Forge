@@ -34,6 +34,7 @@ await assertLoginCannotEvadeIpLimit();
 await assertSearchLimit();
 await assertForwardingAndCorrelationTrust();
 await assertHostnameCannotSplitBucket();
+await assertIpv6ClientKeys();
 await assertBodyLimitsAndRedaction();
 
 await databaseFixture.cleanup();
@@ -171,6 +172,37 @@ async function assertHostnameCannotSplitBucket() {
       429,
       "changing the hostname must not create a fresh client bucket",
     );
+  });
+}
+
+// `0.33.33.49`: the client limit keys an address through express-rate-limit's
+// `ipKeyGenerator`, which parses it with `ip-address`. An IPv4 client must share
+// one bucket in every IPv4-mapped IPv6 spelling, and native IPv6 clients must
+// share one bucket per /56, so a change in either library can neither split one
+// client's capacity across spellings nor merge separate networks.
+async function assertIpv6ClientKeys() {
+  await withServer({
+    settings: { ...DEFAULT_SETTINGS, clientRequestLimit: 2, windowSeconds: 30 },
+    trustedProxies: ["127.0.0.1/32", "::1/128"],
+  }, async (origin) => {
+    /** @param {string} forwardedFor */
+    const read = (forwardedFor) => request(origin, "/api/read", { headers: { "x-forwarded-for": forwardedFor } });
+
+    assert.equal((await read("203.0.113.70")).status, 200);
+    assert.equal((await read("::ffff:203.0.113.70")).status, 200);
+    const mappedBlocked = await read("::ffff:cb00:7146");
+    assert.equal(mappedBlocked.status, 429, "an IPv4 client in any IPv4-mapped IPv6 spelling must share its IPv4 bucket");
+    // express-rate-limit 8.7.0 reworked the `Retry-After` path; the refusal must still carry the
+    // window's remaining seconds and the draft-8 policy and state of the client limit it hit.
+    const retryAfter = Number(mappedBlocked.headers["retry-after"]);
+    assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= 30, `Retry-After should count the remaining window seconds (got ${mappedBlocked.headers["retry-after"]})`);
+    assert.match(String(mappedBlocked.headers["ratelimit-policy"]), /"2-in-30sec"; q=2; w=30;/, "the refusal should publish the client limit's draft-8 policy");
+    assert.match(String(mappedBlocked.headers.ratelimit), /"2-in-30sec"; r=0; t=\d+/, "the refusal should report the exhausted client limit");
+
+    assert.equal((await read("2001:db8:1234:5600::1")).status, 200);
+    assert.equal((await read("2001:db8:1234:56ff::2")).status, 200);
+    assert.equal((await read("2001:db8:1234:5600::3")).status, 429, "native IPv6 clients in one /56 must share one client bucket");
+    assert.equal((await read("2001:db8:1234:5700::1")).status, 200, "a different /56 must keep its own client capacity");
   });
 }
 

@@ -10,7 +10,7 @@ const packageJson = requirePackageManifest(JSON.parse(await readText("package.js
 const contract = await readText("docs/markdown-platform-contract.md");
 const serviceSource = await readText("src/core/markdown/markdown.service.js");
 
-assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.0", "markdown-it should use the reviewed 15.0 baseline");
+assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.2", "markdown-it should use the reviewed 15.0.2 baseline");
 assert.doesNotMatch(serviceSource, /from\s+["']markdown-it\//, "the service should use the supported package-root export rather than removed internal subpaths");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
@@ -114,6 +114,39 @@ assert.match(entityHtml, /&amp;copy © &amp;amp &amp;/, "named entities should r
 
 const plainUrlHtml = renderMarkdownToHtml("Visit https://example.com/path");
 assert.doesNotMatch(plainUrlHtml, /<a\s/i, "plain URLs should remain text because automatic linkification is disabled");
+
+// `0.33.33.49`: cases markdown-it 15.0.1 changed, through this service's own configuration. Each
+// renders differently under 15.0.0, so a dependency regression cannot pass unnoticed.
+for (const mode of [MARKDOWN_RENDER_MODES.DOCUMENT, MARKDOWN_RENDER_MODES.USER_AUTHORED]) {
+  assert.equal(renderMarkdownToHtml("`   `", { mode }).trim(), "<p><code>   </code></p>", `${mode} rendering should keep an all-space code span intact (CommonMark 6.1)`);
+  assert.equal(
+    renderMarkdownToHtml("[foo `bar` baz`", { mode }).trim(),
+    "<p>[foo <code>bar</code> baz`</p>",
+    `${mode} rendering should still find a code span after an unclosed link label`,
+  );
+  assert.equal(
+    renderMarkdownToHtml("![alt `code` x`", { mode }).trim(),
+    "<p>![alt <code>code</code> x`</p>",
+    `${mode} rendering should still find a code span after an unclosed image label`,
+  );
+}
+assert.equal(
+  renderMarkdownToHtml("[v6](http://[2001:db8::1]:1896/a[b]?x=[y])").trim(),
+  "<p><a href=\"http://[2001:db8::1]:1896/a%5Bb%5D?x=%5By%5D\">v6</a></p>",
+  "an IPv6 literal should keep its brackets through link normalization while other brackets stay encoded",
+);
+assert.equal(markdownToPlainText("[local](http://[::1]:8080/path)"), "local", "plain-text extraction should keep an IPv6 link's label like any other link");
+assert.equal(
+  renderMarkdownToHtml("[rel](//[::ffff:192.0.2.1]/)").trim(),
+  "<p>rel</p>",
+  "a protocol-relative IPv6 destination should still degrade to inert label text",
+);
+assert.equal(renderMarkdownToHtml("![v6 image](https://[2001:db8::1]/a.png)").trim(), "<p>v6 image</p>", "an IPv6 image should still degrade to alt text unless images are allowed");
+assert.equal(
+  renderMarkdownToHtml("![v6 image](https://[2001:db8::1]/a.png)", { allowImages: true }).trim(),
+  "<p><img src=\"https://[2001:db8::1]/a.png\" alt=\"v6 image\"></p>",
+  "an allowed IPv6 image should keep its literal source",
+);
 
 const plain = markdownToPlainText(markdown);
 for (const expected of ["Heading", "strong", "emphasis", "underlined text", "safe link", "inline code", "Quote", "Parent", "Child", "Ordered child", "Open task", "Done task", "Alpha", "Ready", "const value = 1;"]) {

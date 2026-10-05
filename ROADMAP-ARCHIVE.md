@@ -1,5 +1,39 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.49 - Release preparation for promotion to main
+
+**Model: High Effort** — Dependency, workflow, and checkpoint-policy changes on the unpublished release candidate carry supply-chain, perimeter, and protected-gate risk.
+
+Completed on 2026-10-05 at the operator's instruction, as an addendum to the closed branch, before the `nightly` to `main` promotion. The application version stays `0.33.33`; new commit SHAs and artifact digests identify the changed candidate. Nothing here is attributed to the closeout `0.33.33.48`, whose dated evidence stands as recorded.
+
+Scope:
+
+- [x] **Ancestry.** `main`'s only exclusive commit, the #218 promotion merge `5b5c5ad4`, has exactly the merge base's tree (`6b0ab43d`, with 0 differing paths). Merging it into the preparation branch as `e05de229` left the candidate tree identical to `nightly` `c772b2b2` (`3ed47f09`). The preparation pull request merges with a merge commit, so that ancestry is preserved.
+- [x] **Ownership policy.** `scripts/release/checkpoint-commits.mjs` gives `0.33.33.49` a narrow rule. It may change dependency declarations (or scripts) in `package.json`, the resolved `package-lock.json`, the current `CHANGELOG.md` entry, and owning documentation. The application version fields in both package files, and every other `package.json` field, stay fixed. `DECISIONS.md` stays reserved, and the ceremony ceiling, trailers, and declaration check are unchanged. `release.developer-verification-throughput` proves both sides, and seven validator mutations were each caught. `docs/versioning.md` documents the rule.
+- [x] **Dependencies.** Every open Dependabot proposal is dispositioned from upstream release and advisory evidence and the exact lockfile changes. Each included update was applied to the current lockfile only, and every new or changed package's integrity matches the registry with no install script.
+  - **#838** `ip-address` 10.3.1 to 10.7.2, and **#455** `express-rate-limit` 8.6.2 to 8.7.0: included together, because #455 alone kept the vulnerable `ip-address`. 10.7.2 clears GHSA-rpw4-54j3-4h4q, GHSA-2vr4-cq9g-pvrc, GHSA-j6r3-76f7-8jcv, and GHSA-h3mg-xc3c-68pw. It stays transitive, pinned to the reviewed 10.7.2 rather than the 10.7.3 of 2026-10-01, whose only change hardens in-addr.arpa parsing that neither the limiter nor this application calls. Limiter keys for twelve addresses in three subnet modes are identical before and after.
+  - **#840** `markdown-it` 15.0.0 to 15.0.1: superseded by the reviewed 15.0.2, which is included. It clears GHSA-253c-mchw-3w2r and keeps the v15 graph.
+  - **#378** `uuid` 14.0.1 to 14.0.2: included. Only v7's default random-sequence derivation changes.
+  - **#635** ESLint 10.8.1 to 10.11.0: included at exactly 10.11.0, not the unreviewed 10.12.0. Its new cache graph comes from the `jaredwray/cacheable` and `jaredwray/keyv` packages compromised on 2026-08-04. Every resolved version predates that compromise, every poisoned version is gone from npm, and all 14 new or changed tarballs were inspected without execution. Lint findings are unchanged.
+  - **#634** `@types/node` 26.2.0 to 26.6.3, with `undici-types` 8.9.0: included at exactly 26.6.3, not the unreviewed 26.6.4. Every strict program and the declaration probe stay at zero, and the Node `>=24.7 <25` engine is unchanged.
+  - **#281** `@axe-core/playwright` and `axe-core` 4.12.1 to 4.13.0: included. The desktop and mobile findings are identical on both engines.
+  - **#845** and **#846** CodeQL `init` and `analyze` 4.37.6 to 4.38.2: included together at the signed commit `2892aa5e`. Each bot pull request moved one of the pair and failed analysis on the split configuration.
+  - **#558** Vitest and `@vitest/mocker` 4.1.11: already satisfied by `nightly`. Its remaining transitive differences are deferred: rolldown 1.2.5 to 1.2.8 with its 15 native platform bindings, `@oxc-project/types` 0.146.0 to 0.149.0, `@jridgewell/sourcemap-codec` 1.5.5 to 1.6.0, `picomatch` 4.0.5 to 4.0.7, and `postcss` 8.5.26 to 8.5.28. None carries an advisory or is required by an included update, and the native-binary churn has no demonstrated need. An ordinary later dependency refresh owns them.
+  - **#478** `qs` 6.15.3 to 6.16.0: already satisfied by `nightly`.
+- [x] **Owning tests and documentation.**
+  - `framework.public-demo-perimeter` proves mapped and native IPv6 client keys and the refusal headers; four production mutations were caught.
+  - `views.current-static-contracts` pins Markdown's upstream-changed cases, and fails against the saved 15.0.0.
+  - `release.dependency-baseline` holds the exact pins, ESLint's range that skips 11.1.6, and the pre-compromise cache graph; three drift mutations were caught.
+  - `release.github-release-operations` pins the reviewed CodeQL pair and refuses the retired SHA; four mutations were caught.
+  - The third-party notices are regenerated, the effective assertion floor ratchets from 19,940 to 19,975, and the changelog entry records the preparation. `npm audit` reports no findings at any level.
+- [x] **Carried finding resolved.** The `ip-address` and `markdown-it` updates close the "two moderate runtime dependency advisories" finding, which leaves the live Carried Findings list.
+
+Acceptance criteria:
+
+- [ ] **Pending at merge.** One canonical `npm run verify:slice`, `npm run checkpoint:validate`, a clean `npm ci`, `npm audit --audit-level=high`, and the protected pull-request checks, including a successful CodeQL analysis on the reviewed pair. These run on this final tree, and their results are recorded on the pull request, because this entry is written before them.
+- [ ] **Pending at merge.** The merged `nightly` commit's own exact-SHA Nightly run, artifact, metadata, checksums, and proof.
+- [ ] **Pending at merge.** The `nightly` to `main` promotion pull request, open with its required gates green and not merged.
+
 ## Version 0.33.33 - Lean Core, Full Strict TypeScript, and Verification Simplification
 
 Completed on 2026-10-01 at package release `0.33.33`. The branch closed every numbered checkpoint through protected pull requests into `nightly`, retired the temporary typecheck ledger behind an absolute zero gate, and restored the exact-SHA Nightly proof. Two branch-level targets were not met and are recorded as such: the 250-300 entry-point target, and the expected `scripts/` reduction.

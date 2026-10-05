@@ -42,11 +42,6 @@ These open findings were carried out of the Lean Core branch when its closeout, 
 - **`tag-picker-workflows` `[mobile]` is intermittent.** Tag accumulation was disproved as the cause, and cross-worker contention remains the hypothesis.
   - **Owner:** browser test maintenance.
   - **Consequence:** an occasional retry. It must never be green-controlled.
-- **Two moderate runtime dependency advisories remain, recorded and not upgraded.**
-  - **`ip-address` 10.3.1,** through `express-rate-limit`. Its in-range fix is 10.7.2.
-  - **`markdown-it` 15.0.0.** The shipped parser runs with `linkify: false`, so its advisory does not apply. Its in-range fix is 15.0.2, but the reviewed baseline pins 15.0.0.
-  - **Owner:** the operator's dependency decision.
-  - **Consequence:** `npm audit` reports two moderates; `npm audit --audit-level=high` passes.
 
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 

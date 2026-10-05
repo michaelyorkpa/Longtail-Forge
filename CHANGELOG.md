@@ -22,7 +22,7 @@
 - **Dependencies.**
   - `espree` is a declared development dependency.
   - The development-only `brace-expansion` 5.0.12 clears the high audit finding.
-  - The moderate `ip-address` and `markdown-it` findings are recorded, not upgraded. The shipped Markdown parser runs with `linkify: false`.
+  - The moderate `ip-address` and `markdown-it` findings recorded at the branch closeout are resolved by the release preparation below.
 - **Workbench corrections,** made under explicit operator authorization while the code was typed:
   - a related action needs a nonempty action ID before dependencies load;
   - a supplied card `listRoute` must be a string;
@@ -30,11 +30,19 @@
   - a malformed timer start keeps the accumulated time without a running increment.
 - **Lists.** Two regressions introduced and fixed within the branch never reached a release: the Lists page refusing every real list, and other pages being unable to open the Lists dialog.
 - **Measured honestly.** The `scripts/` directory grew from 152,785 to 187,207 lines. Most of the growth is JSDoc for full strict and coverage-policy data. The expected reduction was not achieved. The discovered regression owners shrank 6.9% structurally.
+- **Release preparation (`0.33.33.49`, 2026-10-05).** Readied the unpublished release for promotion to `main` without changing its version.
+  - **Ancestry.** `main`'s only exclusive commit, the content-free #218 promotion merge, is merged in, so `nightly` is current with `main`.
+  - **Ownership.** The checkpoint validator gives this addendum its own narrow rule: dependency declarations, the lockfile, this entry and owning documentation, never the application version.
+  - **Runtime dependencies:** `express-rate-limit` 8.7.0 with `ip-address` 10.7.2, `markdown-it` 15.0.2, and `uuid` 14.0.2. `npm audit` now reports no findings at any level.
+  - **Development tooling:** ESLint 10.11.0, over a cache graph pinned at its releases from before the August 2026 `cacheable`/`keyv` compromise; `@types/node` 26.6.3, with the Node 24 engine unchanged; and `axe-core` and `@axe-core/playwright` 4.13.0.
+  - **CI.** CodeQL `init` and `analyze` move together to v4.38.2.
+  - **Behavior.** Markdown keeps all-space code spans, finds code spans after unclosed link and image labels, and renders IPv6-literal links that pass the safe-URL check. Limiter keys, identifier format, lint findings and accessibility findings are unchanged.
+  - **Dependabot.** #838, #455, #840 (as 15.0.2), #378, #635, #634, #281, #845 and #846 are incorporated. #558 (Vitest 4.1.11) and #478 (`qs` 6.16.0) were already satisfied.
 - **Docs updated:**
   - `AGENTS.md`;
   - `docs/architecture.md`, `docs/e2e-testing.md`, `docs/files-strict-guardrail-inventory.md`;
   - `docs/module-contract.md`, `docs/module-development.md`;
-  - `docs/regression-suite.md`, `docs/view-building-contract.md`;
+  - `docs/regression-suite.md`, `docs/versioning.md`, `docs/view-building-contract.md`;
   - `DECISIONS.md`.
 - **No docs change needed** for user-facing Help, runtime configuration, deployment topology or database migrations. The branch changed none of them.
 
