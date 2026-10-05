@@ -40,7 +40,7 @@ const [dockerfile, dockerignore, compose, docs, envExample, packageJsonSource, c
 ]);
 
 for (const requirement of [
-  /node:24\.18\.0-bookworm-slim@sha256:[a-f0-9]{64}/,
+  /node:24\.21\.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6/,
   /FROM \$\{NODE_IMAGE\} AS runtime-build/,
   /apt-get install --yes --no-install-recommends python3 make g\+\+/,
   /ARG LTF_RUNTIME_ARTIFACT/,
@@ -55,6 +55,13 @@ for (const requirement of [
 ]) {
   assert.match(dockerfile, requirement);
 }
+// `0.33.33.50`: the final stage ships no package manager, and keeps the system archive tools that
+// backup, inspection, and restore use. The build fails if either half of that is untrue.
+const runtimeStage = dockerfile.slice(dockerfile.indexOf("FROM ${NODE_IMAGE} AS runtime\n"));
+assert.match(runtimeStage, /rm -rf \/usr\/local\/lib\/node_modules\/npm \/usr\/local\/lib\/node_modules\/corepack \/opt\/yarn-v\* \\\n\s+\/usr\/local\/bin\/npm \/usr\/local\/bin\/npx \/usr\/local\/bin\/corepack \/usr\/local\/bin\/yarn \/usr\/local\/bin\/yarnpkg/);
+assert.match(runtimeStage, /for tool in npm npx corepack yarn yarnpkg; do if command -v "\$tool"[^\n]*exit 1; fi; done/);
+assert.match(runtimeStage, /command -v tar >\/dev\/null && command -v gzip >\/dev\/null && command -v node >\/dev\/null/);
+assert.doesNotMatch(runtimeStage, /(?:\bRUN|&&|;)\s+(?:npm|npx|corepack|yarn|yarnpkg)\s/, "the runtime stage must not run a package manager");
 assert.doesNotMatch(dockerfile, /COPY \. /, "the image must consume the runtime artifact instead of copying the repository");
 assert.doesNotMatch(dockerfile, /postgres/i, "the image must not add PostgreSQL before its implementation branch");
 assert.match(dockerignore, /^\*\*/m);
@@ -173,8 +180,8 @@ assert.deepEqual(parseCliArgs(["--tag", "ltf:test", "--artifact", "dist/example.
 assert.throws(() => parseCliArgs(["--release-metadata"]), /requires a value/);
 assert.equal(supportedPlatform, "linux/amd64");
 assert.deepEqual(await inspectPinnedBaseImage(process.cwd()), {
-  digest: "sha256:cb4e8f7c443347358b7875e717c29e27bf9befc8f5a26cf18af3c3dec80e58c5",
-  reference: "node:24.18.0-bookworm-slim",
+  digest: "sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6",
+  reference: "node:24.21.0-bookworm-slim",
 });
 assert.equal(normalizeBuildContextPath(process.cwd(), path.join(process.cwd(), "dist", "example.tgz")), "dist/example.tgz");
 assert.throws(() => normalizeBuildContextPath(process.cwd(), path.resolve(process.cwd(), "..", "example.tgz")), /inside the repository Docker build context/);
