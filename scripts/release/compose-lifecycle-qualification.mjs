@@ -626,6 +626,13 @@ function initializeDemoVolume(host, release) {
   } finally {
     spawnSync("docker", ["rm", "--force", name]);
   }
+  // A live demo's first unit came from the historical provision and the Compose cutover. Activation
+  // retires the active unit untouched once its three members exist, so a placeholder marker stands in
+  // for that history here; the first real demo unit is still built, validated, activated, and
+  // finalized by the release's own tools, and this placeholder leaves with the retired unit.
+  docker(["run", "--rm", "--network", "none", "--read-only", "--user", "10001:10001", "--volume", `${DEMO_VOLUME}:/var/lib/longtail-forge`,
+    "--entrypoint", "node", release.metadata.image.reference, "-e",
+    "require('node:fs').writeFileSync('/var/lib/longtail-forge/.longtail-demo-data.json', JSON.stringify({ placeholder: 'disposable qualification bootstrap' }), { mode: 0o600 })"]);
 }
 
 /**
