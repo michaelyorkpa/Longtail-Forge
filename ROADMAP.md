@@ -48,6 +48,29 @@ These open findings were carried out of the Lean Core branch when its closeout, 
   - **Owner:** the operator's dependency decision.
   - **Consequence:** `npm audit` reports two moderates; `npm audit --audit-level=high` passes.
 
+## Release Preparation Addendum
+
+### 0.33.33.49 - Release preparation for promotion to main
+
+**Model: High Effort** — Dependency, workflow, and checkpoint-policy changes on the unpublished release candidate carry supply-chain, perimeter, and protected-gate risk.
+
+Added on 2026-10-05 at the operator's instruction, after the branch closeout `0.33.33.48` and before the `nightly` to `main` promotion. The application version does not change; new commit SHAs and artifact digests identify the changed candidate. This addendum owns its own work: nothing in it is attributed to the archived closeout, whose dated evidence stays as recorded.
+
+Scope:
+
+- [ ] **Ancestry.** Merge `main` into the preparation branch as a real merge. Its only exclusive commit is the content-free #218 promotion merge `5b5c5ad4`. Prove the candidate tree unchanged, and preserve that merge when the preparation pull request merges into `nightly`.
+- [ ] **Ownership policy.** Give `0.33.33.49` a narrow rule in `scripts/release/checkpoint-commits.mjs`. It may change dependency declarations in `package.json`, the resolved `package-lock.json`, the current `CHANGELOG.md` entry, and owning documentation. The application version fields in both package files, and every other `package.json` field, stay fixed. `DECISIONS.md` stays reserved, and the two-ceremony-file ceiling and every other check stay. Prove the rule with positive and negative cases.
+- [ ] **Dependencies.** Disposition every open Dependabot proposal (#838, #455, #840, #378, #635, #634, #281, #845, #846, #558, #478) as included, already satisfied, or deferred with a reason. Base each disposition on upstream release and advisory evidence and on the exact direct and transitive changes. Apply included updates to the current lockfile only.
+- [ ] **Owning tests and documentation.** Update the reviewed dependency baselines, the CodeQL reviewed-SHA contract, the generated third-party notices, the regression metadata, and only the documentation that genuinely changes. Add focused coverage only for a concrete uncovered risk.
+
+Out of scope: an application version change; rewriting the `0.33.33.48` evidence; the 0.33.34 scope; carried findings other than the dependency advisories this addendum resolves; merging the promotion, publishing a release or tag, and deploying.
+
+Acceptance criteria:
+
+- [ ] The candidate passes one canonical `npm run verify:slice`, `npm run checkpoint:validate`, a clean `npm ci`, `npm audit --audit-level=high`, and the protected pull-request checks. Those include a successful CodeQL analysis with `init` and `analyze` on the same reviewed SHA.
+- [ ] The merged `nightly` commit has its own successful exact-SHA Nightly run, artifact, metadata, checksums, and proof.
+- [ ] The `nightly` to `main` promotion pull request is open with its required gates green, and is not merged.
+
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
