@@ -495,10 +495,15 @@ function prepareDemoHost(work) {
   fs.copyFileSync(path.join(repoRoot, "compose.yaml"), path.join(composeDir, "compose.yaml"));
   const isolationHelper = path.join(sbin, "longtail-forge-public-demo-isolation");
   const resetHelper = path.join(sbin, "longtail-forge-public-demo-reset");
-  fs.copyFileSync(ISOLATION_HELPER, isolationHelper);
-  fs.copyFileSync(RESET_HELPER, resetHelper);
-  fs.chmodSync(isolationHelper, 0o755);
-  fs.chmodSync(resetHelper, 0o755);
+  for (const [source, target] of [[ISOLATION_HELPER, isolationHelper], [RESET_HELPER, resetHelper]]) {
+    fs.writeFileSync(String(target), fs.readFileSync(String(source)));
+    fs.chownSync(String(target), 0, 0);
+    fs.chmodSync(String(target), 0o755);
+    const installed = fs.lstatSync(String(target));
+    const access = spawnSync("bash", ["-c", 'test -f "$1" && test ! -L "$1" && test -x "$1" && stat -c "%u %a %F" "$1"', "installed-helper", String(target)], { encoding: "utf8" });
+    record("demo-helper-installed", { path: target, uid: installed.uid, mode: (installed.mode & 0o7777).toString(8), access: access.status, stat: String(access.stdout).trim(), stderr: String(access.stderr).trim() });
+    assert.equal(access.status, 0, `the installed helper ${target} must be a root-owned executable regular file`);
+  }
 
   const roleCredentials = path.join(secrets, "demo-role-credentials.json");
   writePrivate(roleCredentials, `${JSON.stringify({ version: 2, binding: { publicUrl: DEMO_ORIGIN, target: DEMO_TARGET }, passwords: { super_admin: strongSecret() } })}\n`);
@@ -913,6 +918,8 @@ function composeContainer(host) {
  * @returns {HelperRun}
  */
 function runHelper(host, helper, mode, release) {
+  // Operation identities have one-second resolution; never let two runs share one.
+  spawnSync("sleep", ["1.05"]);
   const staged = path.join(host.inbox, "release-metadata.json");
   fs.copyFileSync(release.path, staged);
   run("chown", [`${DEPLOY_ACCOUNT}:${DEPLOY_ACCOUNT}`, staged]);
