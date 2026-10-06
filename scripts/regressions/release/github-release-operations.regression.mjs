@@ -60,6 +60,11 @@ for (const requirement of [
   /(?:ref: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.candidate_tag \|\| github\.event\.pull_request\.head\.sha \}\}[\s\S]*){2}/,
   /cmp "\$RUNNER_TEMP\/candidate\/\$asset" "scripts\/release\/\$asset"/,
   /cmp "\$RUNNER_TEMP\/candidate\/compose\.yaml" compose\.yaml/,
+  // The final image's evidence records every installed package against the pinned base, Debian's
+  // published source for the updated packages, and an SPDX SBOM.
+  /--entrypoint dpkg-query "\$image" -W -f='\$\{Package\}\\t\$\{Version\}\\t\$\{source:Package\}\\t\$\{source:Version\}\\n'/,
+  /apt-cache policy perl-base libpcre2-8-0 tzdata/,
+  /--format spdx-json --output "\$out\/candidate-sbom\.spdx\.json"/,
 ]) assert.match(nativeQualification, requirement);
 assert.doesNotMatch(nativeQualification, /packages: write|contents: write|id-token: write|secrets\.|environment:/, "native qualification must hold no publication, deployment, or secret authority");
 const { createConfig } = await import("../../../src/config.js");

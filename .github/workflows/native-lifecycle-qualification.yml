@@ -190,6 +190,25 @@ jobs:
           docker run --rm --entrypoint sh "$CANDIDATE_IMAGE" -c 'for tool in npm npx corepack yarn yarnpkg tar gzip node; do printf "%s=%s\n" "$tool" "$(command -v "$tool" || echo absent)"; done; ls /usr/local/lib/node_modules 2>/dev/null || echo "no global node_modules"' > "$out/candidate-runtime-tools.txt"
           docker run --rm --entrypoint node "$CANDIDATE_IMAGE" -p 'JSON.stringify(process.versions)' > "$out/candidate-node-versions.json"
           date -u +%FT%TZ > "$out/scan-finished-at.txt"
+      - name: Record the final image's Debian package changes and SBOM
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/security"
+          base_image="$(sed -n 's/^ARG NODE_IMAGE=//p' Dockerfile)"
+          echo "$base_image" > "$out/base-image-reference.txt"
+          docker pull --platform linux/amd64 "$base_image"
+          # Every installed package, with its source, in the pinned base and in the final image.
+          for label in base candidate; do
+            case "$label" in base) image="$base_image" ;; candidate) image="$CANDIDATE_IMAGE" ;; esac
+            docker run --rm --entrypoint dpkg-query "$image" -W -f='${Package}\t${Version}\t${source:Package}\t${source:Version}\n' | sort > "$out/$label-packages.tsv"
+          done
+          diff "$out/base-packages.tsv" "$out/candidate-packages.tsv" > "$out/package-changes.diff" || test "$?" -eq 1
+          cat "$out/package-changes.diff"
+          # What Debian publishes for the updated packages at this moment, and from which archive.
+          docker run --rm --entrypoint bash "$base_image" -c 'apt-get update -qq >/dev/null && apt-cache policy perl-base libpcre2-8-0 tzdata' > "$out/debian-update-policy.txt"
+          cat "$out/debian-update-policy.txt"
+          "$RUNNER_TEMP/trivy/trivy" image --quiet --format spdx-json --output "$out/candidate-sbom.spdx.json" "$CANDIDATE_IMAGE"
+          jq -r '"SBOM: \(.spdxVersion), \(.packages | length) packages, created \(.creationInfo.created)"' "$out/candidate-sbom.spdx.json"
       - name: Audit the application dependency graphs
         run: |
           out="$RUNNER_TEMP/security"
