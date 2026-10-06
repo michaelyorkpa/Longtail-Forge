@@ -465,22 +465,30 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
   assertDemoIsolation(host);
   record("demo-manual-reset", { seconds: reset.seconds, operationId: reset.operationId, fingerprint: resetResult.semanticFingerprint, images: reset.images, candidateAppVersion: build.appVersion });
 
+  // A visitor change made before the interrupted reset tells the prior unit apart from any fresh one:
+  // the recovery must bring it back, and the completed rerun must clear it again.
+  const visitor = await api.visitorAccount("Workspace Administrator");
+  const visitorList = await api.createList(await api.login(visitor), `Qualification visitor change ${randomBytes(6).toString("hex")}`);
+
   // An interrupted reset: stopped after activation, the exit trap must restore and verify the prior unit.
   const interrupted = await runReset(host, 2, "activated");
   assert.notEqual(interrupted.status, 0);
   assert.match(interrupted.stderr, /reset failed; prior unit was restored and verified/);
   assert.equal(fs.existsSync(host.marker), false, "a verified recovery must clear the deployment marker");
   assert.equal(/** @type {{ phase?: string }} */ (readOperationJson(host, interrupted.operationId, "state.json")).phase, "recovered");
+  assert.deepEqual(interrupted.images, [candidate.metadata.image.reference], "every interrupted-reset container must run the newly deployed image");
   await api.expectIdentity(candidate);
   assertDemoIsolation(host);
-  record("demo-interrupted-reset", { seconds: interrupted.seconds, operationId: interrupted.operationId, refusal: lastLine(interrupted.stderr), images: interrupted.images });
+  await api.expectList(await api.login(visitor), visitorList.listId, 200);
+  record("demo-interrupted-reset", { seconds: interrupted.seconds, operationId: interrupted.operationId, refusal: lastLine(interrupted.stderr), images: interrupted.images, visitorChangeRestored: visitorList.listId });
 
   // A deliberate rerun after the recovery completes normally.
   const rerun = await runReset(host, 3);
   assert.equal(rerun.status, 0, `demo reset rerun failed:\n${rerun.stderr}`);
   assert.deepEqual(rerun.images, [candidate.metadata.image.reference]);
   await api.expectIdentity(candidate);
-  record("demo-reset-rerun", { seconds: rerun.seconds, operationId: rerun.operationId, fingerprint: /** @type {{ semanticFingerprint?: string }} */ (JSON.parse(lastJsonLine(rerun.stdout))).semanticFingerprint });
+  await api.expectList(await api.login(visitor), visitorList.listId, 404);
+  record("demo-reset-rerun", { seconds: rerun.seconds, operationId: rerun.operationId, fingerprint: /** @type {{ semanticFingerprint?: string }} */ (JSON.parse(lastJsonLine(rerun.stdout))).semanticFingerprint, visitorChangeCleared: visitorList.listId });
 }
 
 /** @typedef {Host & { resetHelper: string, isolationHelper: string, roleCredentials: string }} DemoHost */
@@ -1120,14 +1128,27 @@ function createApiClient(ca, origin) {
       assert.equal(info.artifactSha256, release.metadata.artifact.sha256);
       assert.equal(info.sourceBranch, "main");
     },
-    async login() {
-      const body = JSON.stringify({ username: ADMIN_USERNAME, password: adminPassword });
+    /** @param {{ username: string, password: string }} [credentials] */
+    async login(credentials = { username: ADMIN_USERNAME, password: adminPassword }) {
+      const body = JSON.stringify({ username: credentials.username, password: credentials.password });
       const result = await send("/api/login", { method: "POST", body, headers: { "Content-Type": "application/json" } });
       assert.equal(result.status, 200, result.body.toString("utf8"));
       const cookies = [result.headers["set-cookie"] ?? []].flat();
       const session = cookies.map((value) => String(value).split(";", 1)[0]).find((value) => value.startsWith("longtail_forge_session="));
       assert.ok(session, "login must set the session cookie");
       return session;
+    },
+    /**
+     * A visitor account exactly as the public demo publishes it.
+     * @param {string} roleName @returns {Promise<{ username: string, password: string }>}
+     */
+    async visitorAccount(roleName) {
+      const result = await send("/api/public-demo/accounts");
+      assert.equal(result.status, 200, result.body.toString("utf8"));
+      const catalog = /** @type {{ accounts?: { roleName?: string, username?: string, password?: string }[] }} */ (json(result));
+      const account = catalog.accounts?.find((entry) => entry.roleName === roleName);
+      assert.ok(account?.username && account.password, `the public demo must publish the ${roleName} account`);
+      return { username: account.username, password: account.password };
     },
     /** @param {string} cookie @param {string} title */
     async createList(cookie, title) {
