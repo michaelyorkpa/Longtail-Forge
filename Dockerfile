@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG NODE_IMAGE=node:24.18.0-bookworm-slim@sha256:cb4e8f7c443347358b7875e717c29e27bf9befc8f5a26cf18af3c3dec80e58c5
+ARG NODE_IMAGE=node:24.21.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 FROM ${NODE_IMAGE} AS runtime-build
 
 ARG LTF_RUNTIME_ARTIFACT
@@ -36,7 +36,26 @@ ENV NODE_ENV=production \
 
 WORKDIR /opt/longtail-forge
 
-RUN groupadd --gid 10001 longtail-forge \
+# Debian LTS security fixes that the pinned base predates, from bookworm-security: perl-base
+# (DLA-4821-1), libpcre2-8-0 (DLA-4816-1), and tzdata (DLA-4792-1). Each already-installed package
+# is upgraded to its exact fixed version and nothing new is installed; the build fails unless every
+# installed version matches. A newer Debian fix, or a refreshed base, needs a reviewed change here.
+RUN debian_security_updates="perl-base=5.36.0-7+deb12u4 libpcre2-8-0=10.42-1+deb12u2 tzdata=2026c-0+deb12u1" \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends --only-upgrade ${debian_security_updates} \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && for expected in ${debian_security_updates}; do installed="${expected%%=*}=$(dpkg-query -W -f='${Version}' "${expected%%=*}")"; if [ "$installed" != "$expected" ]; then echo "expected $expected, installed $installed" >&2; exit 1; fi; done
+
+# The runtime never runs a package manager: dependencies are installed in the build stage, and the
+# application, worker, backup, and public-demo tooling all run directly under node. Remove the base
+# image's npm, npx, corepack, and yarn so their bundled packages are not shipped, and keep the system
+# tar and gzip that archive creation, inspection, backup, and restore use.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-v* \
+        /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+    && for tool in npm npx corepack yarn yarnpkg; do if command -v "$tool" >/dev/null 2>&1; then echo "$tool must be absent from the runtime image" >&2; exit 1; fi; done \
+    && command -v tar >/dev/null && command -v gzip >/dev/null && command -v node >/dev/null \
+    && groupadd --gid 10001 longtail-forge \
     && useradd --uid 10001 --gid 10001 --home-dir /nonexistent --shell /usr/sbin/nologin longtail-forge \
     && mkdir -p /var/lib/longtail-forge /var/backups/longtail-forge \
     && chown -R 10001:10001 /var/lib/longtail-forge /var/backups/longtail-forge \

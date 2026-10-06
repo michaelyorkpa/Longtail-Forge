@@ -8,9 +8,10 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { requireDependencies, requireDevDependencies, requireEngines, requireLockEntry, requireLockPackages, requirePackageLock, requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
+import { requireDependencies, requireDevDependencies, requireEngines, requireLockEntry, requireLockPackages, requireManifestString, requirePackageLock, requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import MarkdownIt from "markdown-it";
+import { compareDottedVersions } from "../../lib/roadmap-cursor.mjs";
 
 const packageJson = requirePackageManifest(JSON.parse(readFileSync("package.json", "utf8")));
 const packageLock = requirePackageLock(JSON.parse(readFileSync("package-lock.json", "utf8")));
@@ -137,5 +138,18 @@ assert.equal(requireDependencies(packageJson)["js-yaml"], undefined, "js-yaml sh
 assert.equal(requireDevDependencies(packageJson)["js-yaml"], undefined, "js-yaml should not become a direct development dependency");
 assert.equal(requireLockPackages(packageLock)["node_modules/js-yaml"], undefined, "ESLint 10 should remove obsolete js-yaml from the resolved graph");
 
+// The `v0.33.33` post-release patch took the fixed releases for three advisories published on
+// 2026-10-05: compression 1.8.2 (GHSA-vc2v-76pw-4v95), proxy-addr 2.0.8 (GHSA-jqcg-44mw-7w3h), and
+// the development-only source-map-js 1.2.2 (GHSA-68fv-2mgg-jv7q). A later refresh may move past
+// them, but never back below.
+for (const [packagePath, fixedVersion] of /** @type {readonly (readonly [string, string])[]} */ ([
+  ["node_modules/compression", "1.8.2"],
+  ["node_modules/proxy-addr", "2.0.8"],
+  ["node_modules/source-map-js", "1.2.2"],
+])) {
+  const resolvedVersion = requireManifestString(requireLockEntry(packageLock, packagePath), "version", `${packagePath} lock entry`);
+  assert.ok(compareDottedVersions(resolvedVersion, fixedVersion) >= 0, `${packagePath} must stay at or above its fixed ${fixedVersion}, not ${resolvedVersion}`);
+}
+assert.equal(requireLockEntry(packageLock, "node_modules/source-map-js").dev, true, "source-map-js must remain development-only");
 
 console.log("Dependency baseline regression passed.");

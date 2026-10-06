@@ -14,6 +14,16 @@ Each non-merge implementation commit carries exactly one `LTF-Checkpoint`, `LTF-
 
 A release-preparation addendum declared after the branch closeout prepares the still-unpublished release for promotion without changing its identity. For the Lean Core branch it is `0.33.33.49`. Its commits may change the dependency declarations in `package.json` (or its scripts, as any checkpoint may), the resolved `package-lock.json`, the current `CHANGELOG.md` entry, and the documentation that owns a changed contract. The validator refuses any change to the application version in either package file, or to any other `package.json` field. `DECISIONS.md` stays reserved, and the two-ceremony-file ceiling, trailer rules, and declaration check still apply. No other checkpoint gains these paths. New commit SHAs and artifact digests, not a version change, identify the changed candidate.
 
+A post-release patch declared after a release is published repairs that release under a new release identity. It never replaces the published tag, image, checksums, or release assets. For the `0.33.33` release it is `0.33.33.50`.
+
+- **What its commits may change.** They may move the application version fields in both package files to exactly its own checkpoint identity. They may also change the `CHANGELOG.md` entry and the documentation that owns a changed contract.
+- **Dependency security updates.** The lockfile may also take the dependency security updates that the validator enumerates, as one reviewed transition. The validator holds each package's complete lock entry from before and after the update, and every listed entry must match both exactly. Any other field change is refused just as a version, tarball, or integrity change is, including a development or optional flag, dependencies, engines, `bin`, or funding. The entries must all move together. For `0.33.33.50` these are:
+  - `compression` 1.8.2, with its one new dependency, `destroy` 1.2.0;
+  - `proxy-addr` 2.0.8;
+  - the development-only `source-map-js` 1.2.2.
+- **What stays fixed.** The validator refuses any other change to either package file: dependency declarations, every other resolved lock entry, and every other `package.json` field. `DECISIONS.md` stays reserved.
+- **What still applies.** The two-ceremony-file ceiling, the trailer rules, and the declaration check. No other checkpoint gains these paths.
+
 After all intended checkpoint commits are present, run `npm run checkpoint:validate` before the first push and after amending any checkpoint commit message. The command resolves `merge-base(origin/nightly, HEAD)` locally and validates the same complete branch range as protected CI. It does not repeat `npm run verify:slice`; a message-only amend leaves a prior green tree verification valid, while any file change requires verification again.
 
 ## Asset Cache Version

@@ -1,15 +1,19 @@
 import { escapeRegExp } from "../test-support/source-scan.mjs";
 import { spawnSync } from "node:child_process";
-import { requireLockEntry, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
+import { requireLockEntry, requireLockPackages, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 
 const CHECKPOINT_SERIES = "0.33.33";
 const CLOSEOUT_CHECKPOINT = `${CHECKPOINT_SERIES}.48`;
 // The release-preparation addendum declared after the branch closeout. It may change what the
 // application depends on, never what the application is: see RELEASE_PREPARATION_PATHS.
 const RELEASE_PREPARATION_CHECKPOINT = `${CHECKPOINT_SERIES}.49`;
+// The post-release patch declared after the release was published. It gives the application its own
+// new release identity and changes nothing else the packages declare: see POST_RELEASE_PATCH_PATHS.
+const POST_RELEASE_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.50`;
 const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
 const TRAILER_NAMES = Object.freeze({
@@ -31,6 +35,91 @@ const RELEASE_PREPARATION_PATHS = new Set([
   "package-lock.json",
   "package.json",
 ]);
+// The deferred release paths the post-release patch may change, alongside owning documentation. Its
+// package changes move only the application version, in both files, to exactly its own identity;
+// dependency declarations, the resolved graph, and `DECISIONS.md` stay fixed.
+const POST_RELEASE_PATCH_PATHS = new Set([
+  "CHANGELOG.md",
+  "package-lock.json",
+  "package.json",
+]);
+// The dependency security updates the post-release patch may also take, as one reviewed
+// transition. Each listed lock entry must equal its complete reviewed entry before (or be absent) and
+// after, so no field of a reviewed package - development or optional flags, dependencies, engines,
+// bin, funding - can move beside its version, and the four entries move together. compression 1.8.2
+// fixes GHSA-vc2v-76pw-4v95 and adds destroy 1.2.0; proxy-addr 2.0.8 fixes GHSA-jqcg-44mw-7w3h; the
+// development-only source-map-js 1.2.2 fixes GHSA-68fv-2mgg-jv7q. Every other lock entry, and every
+// package.json field, stays as it was.
+/** @typedef {Readonly<Record<string, unknown>>} ReviewedLockEntry */
+/** @type {Readonly<Record<string, Readonly<{ before: ReviewedLockEntry | null, after: ReviewedLockEntry }>>>} */
+const POST_RELEASE_PATCH_DEPENDENCY_UPDATES = deepFreeze({
+  "node_modules/compression": {
+    before: {
+      version: "1.8.1",
+      resolved: "https://registry.npmjs.org/compression/-/compression-1.8.1.tgz",
+      integrity: "sha512-9mAqGPHLakhCLeNyxPkK4xVo746zQ/czLH1Ky+vkitMnWfWZps8r0qXuwhwizagCRttsL4lfG4pIOvaWLpAP0w==",
+      license: "MIT",
+      dependencies: { bytes: "3.1.2", compressible: "~2.0.18", debug: "2.6.9", negotiator: "~0.6.4", "on-headers": "~1.1.0", "safe-buffer": "5.2.1", vary: "~1.1.2" },
+      engines: { node: ">= 0.8.0" },
+    },
+    after: {
+      version: "1.8.2",
+      resolved: "https://registry.npmjs.org/compression/-/compression-1.8.2.tgz",
+      integrity: "sha512-o8vI5RE5A6EVVOd9o41jKp41aJom+QTEO/Bx8MYNjexMo/Bv2WOjUfZr+aL0WnYSgymUy6zeguqLTsIhV0gMvQ==",
+      license: "MIT",
+      dependencies: { bytes: "3.1.2", compressible: "~2.0.18", debug: "2.6.9", destroy: "1.2.0", negotiator: "~0.6.4", "on-headers": "~1.1.0", "safe-buffer": "5.2.1", vary: "~1.1.2" },
+      engines: { node: ">= 0.8.0" },
+      funding: { type: "opencollective", url: "https://opencollective.com/express" },
+    },
+  },
+  "node_modules/destroy": {
+    before: null,
+    after: {
+      version: "1.2.0",
+      resolved: "https://registry.npmjs.org/destroy/-/destroy-1.2.0.tgz",
+      integrity: "sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==",
+      license: "MIT",
+      engines: { node: ">= 0.8", npm: "1.2.8000 || >= 1.4.16" },
+    },
+  },
+  "node_modules/proxy-addr": {
+    before: {
+      version: "2.0.7",
+      resolved: "https://registry.npmjs.org/proxy-addr/-/proxy-addr-2.0.7.tgz",
+      integrity: "sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==",
+      license: "MIT",
+      dependencies: { forwarded: "0.2.0", "ipaddr.js": "1.9.1" },
+      engines: { node: ">= 0.10" },
+    },
+    after: {
+      version: "2.0.8",
+      resolved: "https://registry.npmjs.org/proxy-addr/-/proxy-addr-2.0.8.tgz",
+      integrity: "sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==",
+      license: "MIT",
+      dependencies: { forwarded: "0.2.0", "ipaddr.js": "1.9.1" },
+      engines: { node: ">= 0.10" },
+      funding: { type: "opencollective", url: "https://opencollective.com/express" },
+    },
+  },
+  "node_modules/source-map-js": {
+    before: {
+      version: "1.2.1",
+      resolved: "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz",
+      integrity: "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==",
+      dev: true,
+      license: "BSD-3-Clause",
+      engines: { node: ">=0.10.0" },
+    },
+    after: {
+      version: "1.2.2",
+      resolved: "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz",
+      integrity: "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
+      dev: true,
+      license: "BSD-3-Clause",
+      engines: { node: ">=0.10.0" },
+    },
+  },
+});
 
 /** @typedef {{ ceremonyPaths: readonly string[], checkpoint?: string, docsDisposition?: string, errors: readonly string[], kind: string, paths: readonly string[], summary?: string }} CheckpointValidation */
 /** @typedef {{ sha: string, validation: CheckpointValidation }} CheckpointRangeEntry */
@@ -62,6 +151,7 @@ function parseCheckpointTrailers(message) {
  *   packageBeforeSource?: string,
  *   parentCount?: number,
  *   paths?: string[],
+ *   postReleasePatchCheckpoint?: string,
  *   releasePreparationCheckpoint?: string,
  *   roadmapArchiveSource?: string,
  *   roadmapSource?: string,
@@ -77,6 +167,7 @@ function validateCheckpointCommit({
   packageBeforeSource = "",
   parentCount = 1,
   paths = [],
+  postReleasePatchCheckpoint = POST_RELEASE_PATCH_CHECKPOINT,
   releasePreparationCheckpoint = RELEASE_PREPARATION_CHECKPOINT,
   roadmapArchiveSource = "",
   roadmapSource = "",
@@ -132,6 +223,7 @@ function validateCheckpointCommit({
   const ceremonyPaths = normalizedPaths.filter(isCeremonyPath);
   const isCloseout = checkpoint === closeoutCheckpoint;
   const isReleasePreparation = checkpoint === releasePreparationCheckpoint;
+  const isPostReleasePatch = checkpoint === postReleasePatchCheckpoint;
   if (!isCloseout && ceremonyPaths.length > 2) {
     errors.push(`internal checkpoint ${checkpoint} changes ${ceremonyPaths.length} ceremony files; maximum is 2 (${ceremonyPaths.join(", ")})`);
   }
@@ -143,10 +235,13 @@ function validateCheckpointCommit({
       if (isReleasePreparation && RELEASE_PREPARATION_PATHS.has(filePath)) {
         continue;
       }
+      if (isPostReleasePatch && POST_RELEASE_PATCH_PATHS.has(filePath)) {
+        continue;
+      }
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
         errors.push(`${filePath} is reserved for ${closeoutCheckpoint} branch closeout`);
       }
-      if (checkpoint !== `${series}.1` && !isReleasePreparation && isDocumentationPath(filePath) && !isGeneratedDocumentationPath(filePath)) {
+      if (checkpoint !== `${series}.1` && !isReleasePreparation && !isPostReleasePatch && isDocumentationPath(filePath) && !isGeneratedDocumentationPath(filePath)) {
         errors.push(`${filePath} durable documentation is reserved for ${closeoutCheckpoint} branch closeout`);
       }
     }
@@ -159,6 +254,16 @@ function validateCheckpointCommit({
       packageBeforeSource,
       paths: normalizedPaths,
       releasePreparationCheckpoint,
+    }, errors);
+  }
+  if (!isCloseout && isPostReleasePatch) {
+    validatePostReleasePatchPackages({
+      lockAfterSource,
+      lockBeforeSource,
+      packageAfterSource,
+      packageBeforeSource,
+      paths: normalizedPaths,
+      postReleasePatchCheckpoint,
     }, errors);
   }
 
@@ -222,6 +327,122 @@ function validateReleasePreparationPackages({
   }
   if (paths.includes("package-lock.json") && !preservesLockApplicationVersion(lockBeforeSource, lockAfterSource)) {
     errors.push(`package-lock.json under ${releasePreparationCheckpoint} must keep its application version fields unchanged`);
+  }
+}
+
+/**
+ * The post-release patch gives the published release's repair its own identity and nothing else. Its
+ * `package.json` change must move only the application version to exactly the patch identity (or be
+ * script-only, like any checkpoint's), and its lockfile must move only its two application version
+ * fields to that identity, so no dependency or resolved package changes under it.
+ * @param {{
+ *   lockAfterSource: string,
+ *   lockBeforeSource: string,
+ *   packageAfterSource: string,
+ *   packageBeforeSource: string,
+ *   paths: readonly string[],
+ *   postReleasePatchCheckpoint: string,
+ * }} change
+ * @param {string[]} errors
+ */
+function validatePostReleasePatchPackages({
+  lockAfterSource,
+  lockBeforeSource,
+  packageAfterSource,
+  packageBeforeSource,
+  paths,
+  postReleasePatchCheckpoint,
+}, errors) {
+  if (
+    paths.includes("package.json")
+    && !isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)
+    && !isVersionOnlyPackageChange(packageBeforeSource, packageAfterSource, postReleasePatchCheckpoint)
+  ) {
+    errors.push(`package.json under ${postReleasePatchCheckpoint} may change only the application version, to exactly ${postReleasePatchCheckpoint}, or scripts`);
+  }
+  if (
+    paths.includes("package-lock.json")
+    && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)
+    && !isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource)
+  ) {
+    errors.push(`package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`);
+  }
+}
+
+/**
+ * Whether a lockfile change is exactly the post-release patch's reviewed dependency security
+ * transition: every listed entry equals its complete reviewed entry before (or is absent) and after,
+ * and every other entry and top-level field is unchanged. Comparison is by value, not key order.
+ * @param {string} beforeSource
+ * @param {string} afterSource
+ * @returns {boolean}
+ */
+function isReviewedDependencyUpdateLockChange(beforeSource, afterSource) {
+  if (!beforeSource || !afterSource) return false;
+  try {
+    const beforeLock = requirePackageLock(JSON.parse(beforeSource), "the previous package-lock.json");
+    const afterLock = requirePackageLock(JSON.parse(afterSource), "package-lock.json in the working tree");
+    const beforePackages = requireLockPackages(beforeLock, "the previous package-lock.json");
+    const afterPackages = requireLockPackages(afterLock, "package-lock.json in the working tree");
+    for (const [packagePath, update] of Object.entries(POST_RELEASE_PATCH_DEPENDENCY_UPDATES)) {
+      const beforeMatches = update.before === null
+        ? !Object.hasOwn(beforePackages, packagePath)
+        : isDeepStrictEqual(beforePackages[packagePath], update.before);
+      if (!beforeMatches || !isDeepStrictEqual(afterPackages[packagePath], update.after)) return false;
+    }
+    /** @param {import("../test-support/package-manifest-assertions.mjs").PackageLockManifest} lock @param {Record<string, import("../test-support/package-manifest-assertions.mjs").PackageLockEntry>} packages */
+    const unlisted = (lock, packages) => ({
+      ...lock,
+      packages: Object.fromEntries(Object.entries(packages).filter(([packagePath]) => !Object.hasOwn(POST_RELEASE_PATCH_DEPENDENCY_UPDATES, packagePath))),
+    });
+    return isDeepStrictEqual(unlisted(beforeLock, beforePackages), unlisted(afterLock, afterPackages));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Freeze a reviewed value and everything it holds.
+ * @template {object} Value
+ * @param {Value} value
+ * @returns {Value}
+ */
+function deepFreeze(value) {
+  for (const member of Object.values(value)) {
+    if (member && typeof member === "object") deepFreeze(member);
+  }
+  return Object.freeze(value);
+}
+
+/** @param {string} beforeSource @param {string} afterSource @param {string} version */
+function isVersionOnlyPackageChange(beforeSource, afterSource, version) {
+  if (!beforeSource || !afterSource) return false;
+  try {
+    const beforePackage = requirePackageManifest(JSON.parse(beforeSource), "the previous package.json");
+    const afterPackage = requirePackageManifest(JSON.parse(afterSource), "package.json in the working tree");
+    if (afterPackage.version !== version || beforePackage.version === version) return false;
+    delete beforePackage.version;
+    delete afterPackage.version;
+    return JSON.stringify(beforePackage) === JSON.stringify(afterPackage);
+  } catch {
+    return false;
+  }
+}
+
+/** @param {string} beforeSource @param {string} afterSource @param {string} version */
+function isVersionOnlyLockChange(beforeSource, afterSource, version) {
+  if (!beforeSource || !afterSource) return false;
+  try {
+    const beforeLock = requirePackageLock(JSON.parse(beforeSource), "the previous package-lock.json");
+    const afterLock = requirePackageLock(JSON.parse(afterSource), "package-lock.json in the working tree");
+    const beforeRoot = requireLockEntry(beforeLock, "", "the previous package-lock.json");
+    const afterRoot = requireLockEntry(afterLock, "", "package-lock.json in the working tree");
+    if (afterLock.version !== version || afterRoot.version !== version) return false;
+    afterLock.version = beforeLock.version;
+    afterRoot.version = beforeRoot.version;
+    return JSON.stringify(beforeLock) === JSON.stringify(afterLock);
+  } catch {
+    return false;
   }
 }
 
@@ -412,6 +633,8 @@ if (isMain) await main();
 export {
   CHECKPOINT_SERIES,
   CLOSEOUT_CHECKPOINT,
+  POST_RELEASE_PATCH_CHECKPOINT,
+  POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
   TRAILER_NAMES,
   formatCheckpointRange,

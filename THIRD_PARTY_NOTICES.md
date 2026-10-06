@@ -24,7 +24,7 @@ permissive and compatible with distributing Longtail Forge under
 | call-bind-apply-helpers | 1.0.2 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | call-bound | 1.0.4 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | compressible | 2.0.18 | MIT | Copyright (c) 2013 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014 Jeremiah Senkpiel &lt;fishrock123@rocketmail.com&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L08](#l08) |
-| compression | 1.8.1 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
+| compression | 1.8.2 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
 | content-disposition | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | content-type | 1.0.5 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
 | content-type | 2.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
@@ -35,77 +35,78 @@ permissive and compatible with distributing Longtail Forge under
 | debug | 2.6.9 | MIT | Copyright (c) 2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt; | [L14](#l14) |
 | debug | 4.4.3 | MIT | Copyright (c) 2014-2017 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2018-2021 Josh Junon | [L15](#l15) |
 | depd | 2.0.0 | MIT | Copyright (c) 2014-2018 Douglas Christopher Wilson | [L16](#l16) |
-| dunder-proto | 1.0.1 | MIT | Copyright (c) 2024 ECMAScript Shims | [L17](#l17) |
-| ee-first | 1.1.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com | [L18](#l18) |
-| encodeurl | 2.0.0 | MIT | Copyright (c) 2016 Douglas Christopher Wilson | [L19](#l19) |
-| entities | 8.0.0 | BSD-2-Clause | Copyright (c) Felix Böhm | [L20](#l20) |
+| destroy | 1.2.0 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com; Copyright (c) 2015-2022 Douglas Christopher Wilson doug@somethingdoug.com | [L17](#l17) |
+| dunder-proto | 1.0.1 | MIT | Copyright (c) 2024 ECMAScript Shims | [L18](#l18) |
+| ee-first | 1.1.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com | [L19](#l19) |
+| encodeurl | 2.0.0 | MIT | Copyright (c) 2016 Douglas Christopher Wilson | [L20](#l20) |
+| entities | 8.0.0 | BSD-2-Clause | Copyright (c) Felix Böhm | [L21](#l21) |
 | es-define-property | 1.0.1 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | es-errors | 1.3.0 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | es-object-atoms | 1.1.2 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
-| escape-html | 1.0.3 | MIT | Copyright (c) 2012-2013 TJ Holowaychuk; Copyright (c) 2015 Andreas Lubbe; Copyright (c) 2015 Tiancheng "Timothy" Gu | [L21](#l21) |
-| etag | 1.8.1 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L22](#l22) |
-| express-rate-limit | 8.7.0 | MIT | Copyright 2023 Nathan Friedly, Vedant K | [L23](#l23) |
-| express | 5.2.1 | MIT | Copyright (c) 2009-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2013-2014 Roman Shtylman &lt;shtylman+expressjs@gmail.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L24](#l24) |
-| finalhandler | 2.1.1 | MIT | Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L25](#l25) |
+| escape-html | 1.0.3 | MIT | Copyright (c) 2012-2013 TJ Holowaychuk; Copyright (c) 2015 Andreas Lubbe; Copyright (c) 2015 Tiancheng "Timothy" Gu | [L22](#l22) |
+| etag | 1.8.1 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L23](#l23) |
+| express-rate-limit | 8.7.0 | MIT | Copyright 2023 Nathan Friedly, Vedant K | [L24](#l24) |
+| express | 5.2.1 | MIT | Copyright (c) 2009-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2013-2014 Roman Shtylman &lt;shtylman+expressjs@gmail.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L25](#l25) |
+| finalhandler | 2.1.1 | MIT | Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L26](#l26) |
 | forwarded | 0.2.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
-| fresh | 2.0.0 | MIT | Copyright (c) 2012 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2016-2017 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L26](#l26) |
-| function-bind | 1.1.2 | MIT | Copyright (c) 2013 Raynos. | [L27](#l27) |
-| get-intrinsic | 1.3.0 | MIT | Copyright (c) 2020 Jordan Harband | [L28](#l28) |
-| get-proto | 1.0.1 | MIT | Copyright (c) 2025 Jordan Harband | [L29](#l29) |
-| gopd | 1.2.0 | MIT | Copyright (c) 2022 Jordan Harband | [L30](#l30) |
-| has-symbols | 1.1.0 | MIT | Copyright (c) 2016 Jordan Harband | [L31](#l31) |
-| hasown | 2.0.4 | MIT | Copyright (c) Jordan Harband and contributors | [L32](#l32) |
-| http-errors | 2.0.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com; Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com | [L33](#l33) |
-| iconv-lite | 0.7.3 | MIT | Copyright (c) 2011 Alexander Shtuchkin | [L34](#l34) |
-| inherits | 2.0.4 | ISC | Copyright (c) Isaac Z. Schlueter | [L35](#l35) |
-| ip-address | 10.7.2 | MIT | Copyright (C) 2011 by Beau Gunderson | [L36](#l36) |
-| ipaddr.js | 1.9.1 | MIT | Copyright (C) 2011-2017 whitequark &lt;whitequark@whitequark.org&gt; | [L37](#l37) |
-| is-promise | 4.0.0 | MIT | Copyright (c) 2014 Forbes Lindesay | [L38](#l38) |
-| linkify-it | 6.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L39](#l39) |
-| Lucide Icons (bundled inline SVG subset) | local subset first recorded 2026-06-06 | ISC AND MIT | Lucide Icons and Contributors; Cole Bemis | [L40](#l40) |
-| markdown-it | 15.0.2 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L41](#l41) |
-| math-intrinsics | 1.1.0 | MIT | Copyright (c) 2024 ECMAScript Shims | [L17](#l17) |
-| mdurl | 2.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.; Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [L42](#l42) |
+| fresh | 2.0.0 | MIT | Copyright (c) 2012 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2016-2017 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L27](#l27) |
+| function-bind | 1.1.2 | MIT | Copyright (c) 2013 Raynos. | [L28](#l28) |
+| get-intrinsic | 1.3.0 | MIT | Copyright (c) 2020 Jordan Harband | [L29](#l29) |
+| get-proto | 1.0.1 | MIT | Copyright (c) 2025 Jordan Harband | [L30](#l30) |
+| gopd | 1.2.0 | MIT | Copyright (c) 2022 Jordan Harband | [L31](#l31) |
+| has-symbols | 1.1.0 | MIT | Copyright (c) 2016 Jordan Harband | [L32](#l32) |
+| hasown | 2.0.4 | MIT | Copyright (c) Jordan Harband and contributors | [L33](#l33) |
+| http-errors | 2.0.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com; Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com | [L34](#l34) |
+| iconv-lite | 0.7.3 | MIT | Copyright (c) 2011 Alexander Shtuchkin | [L35](#l35) |
+| inherits | 2.0.4 | ISC | Copyright (c) Isaac Z. Schlueter | [L36](#l36) |
+| ip-address | 10.7.2 | MIT | Copyright (C) 2011 by Beau Gunderson | [L37](#l37) |
+| ipaddr.js | 1.9.1 | MIT | Copyright (C) 2011-2017 whitequark &lt;whitequark@whitequark.org&gt; | [L38](#l38) |
+| is-promise | 4.0.0 | MIT | Copyright (c) 2014 Forbes Lindesay | [L39](#l39) |
+| linkify-it | 6.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L40](#l40) |
+| Lucide Icons (bundled inline SVG subset) | local subset first recorded 2026-06-06 | ISC AND MIT | Lucide Icons and Contributors; Cole Bemis | [L41](#l41) |
+| markdown-it | 15.0.2 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L42](#l42) |
+| math-intrinsics | 1.1.0 | MIT | Copyright (c) 2024 ECMAScript Shims | [L18](#l18) |
+| mdurl | 2.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.; Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [L43](#l43) |
 | media-typer | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
-| merge-descriptors | 2.0.0 | MIT | Copyright (c) Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt;; Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [L43](#l43) |
-| mime-db | 1.54.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2015-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L44](#l44) |
+| merge-descriptors | 2.0.0 | MIT | Copyright (c) Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt;; Copyright (c) Sindre Sorhus &lt;sindresorhus@gmail.com&gt; (https://sindresorhus.com) | [L44](#l44) |
+| mime-db | 1.54.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2015-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L45](#l45) |
 | mime-types | 3.0.2 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L01](#l01) |
-| ms | 2.0.0 | MIT | Copyright (c) 2016 Zeit, Inc. | [L45](#l45) |
-| ms | 2.1.3 | MIT | Copyright (c) 2020 Vercel, Inc. | [L46](#l46) |
-| negotiator | 0.6.4 | MIT | Copyright (c) 2012-2014 Federico Romero; Copyright (c) 2012-2014 Isaac Z. Schlueter; Copyright (c) 2014-2015 Douglas Christopher Wilson | [L47](#l47) |
-| negotiator | 1.0.0 | MIT | Copyright (c) 2012-2014 Federico Romero; Copyright (c) 2012-2014 Isaac Z. Schlueter; Copyright (c) 2014-2015 Douglas Christopher Wilson | [L47](#l47) |
-| node-addon-api | 8.9.0 | MIT | Copyright (c) 2017 [Node.js API collaborators](https://github.com/nodejs/node-addon-api#collaborators) | [L48](#l48) |
-| object-inspect | 1.13.4 | MIT | Copyright (c) 2013 James Halliday | [L49](#l49) |
-| on-finished | 2.4.1 | MIT | Copyright (c) 2013 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L50](#l50) |
-| on-headers | 1.1.0 | MIT | Copyright (c) 2014 Douglas Christopher Wilson | [L51](#l51) |
-| once | 1.4.0 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors | [L52](#l52) |
-| parseurl | 1.3.3 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2017 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L53](#l53) |
-| path-to-regexp | 8.4.2 | MIT | Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com) | [L54](#l54) |
-| proxy-addr | 2.0.7 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L22](#l22) |
-| punycode.js | 2.3.1 | MIT | Mathias Bynens and contributors | [L55](#l55) |
-| qs | 6.16.0 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L56](#l56) |
-| range-parser | 1.3.0 | MIT | Copyright (c) 2012-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015-2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com | [L57](#l57) |
-| raw-body | 3.0.2 | MIT | Copyright (c) 2013-2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L58](#l58) |
-| router | 2.2.0 | MIT | Copyright (c) 2013 Roman Shtylman; Copyright (c) 2014-2022 Douglas Christopher Wilson | [L59](#l59) |
-| safe-buffer | 5.2.1 | MIT | Copyright (c) Feross Aboukhadijeh | [L60](#l60) |
-| safer-buffer | 2.1.2 | MIT | Copyright (c) 2018 Nikita Skovoroda &lt;chalkerx@gmail.com&gt; | [L61](#l61) |
-| send | 1.2.1 | MIT | Copyright (c) 2012 TJ Holowaychuk; Copyright (c) 2014-2022 Douglas Christopher Wilson | [L62](#l62) |
-| serve-static | 2.2.1 | MIT | Copyright (c) 2010 Sencha Inc.; Copyright (c) 2011 LearnBoost; Copyright (c) 2011 TJ Holowaychuk; Copyright (c) 2014-2016 Douglas Christopher Wilson | [L63](#l63) |
-| setprototypeof | 1.2.0 | ISC | Copyright (c) 2015, Wes Todd | [L64](#l64) |
+| ms | 2.0.0 | MIT | Copyright (c) 2016 Zeit, Inc. | [L46](#l46) |
+| ms | 2.1.3 | MIT | Copyright (c) 2020 Vercel, Inc. | [L47](#l47) |
+| negotiator | 0.6.4 | MIT | Copyright (c) 2012-2014 Federico Romero; Copyright (c) 2012-2014 Isaac Z. Schlueter; Copyright (c) 2014-2015 Douglas Christopher Wilson | [L48](#l48) |
+| negotiator | 1.0.0 | MIT | Copyright (c) 2012-2014 Federico Romero; Copyright (c) 2012-2014 Isaac Z. Schlueter; Copyright (c) 2014-2015 Douglas Christopher Wilson | [L48](#l48) |
+| node-addon-api | 8.9.0 | MIT | Copyright (c) 2017 [Node.js API collaborators](https://github.com/nodejs/node-addon-api#collaborators) | [L49](#l49) |
+| object-inspect | 1.13.4 | MIT | Copyright (c) 2013 James Halliday | [L50](#l50) |
+| on-finished | 2.4.1 | MIT | Copyright (c) 2013 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L51](#l51) |
+| on-headers | 1.1.0 | MIT | Copyright (c) 2014 Douglas Christopher Wilson | [L52](#l52) |
+| once | 1.4.0 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors | [L53](#l53) |
+| parseurl | 1.3.3 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2017 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L54](#l54) |
+| path-to-regexp | 8.4.2 | MIT | Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com) | [L55](#l55) |
+| proxy-addr | 2.0.8 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L23](#l23) |
+| punycode.js | 2.3.1 | MIT | Mathias Bynens and contributors | [L56](#l56) |
+| qs | 6.16.0 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L57](#l57) |
+| range-parser | 1.3.0 | MIT | Copyright (c) 2012-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015-2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com | [L58](#l58) |
+| raw-body | 3.0.2 | MIT | Copyright (c) 2013-2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L59](#l59) |
+| router | 2.2.0 | MIT | Copyright (c) 2013 Roman Shtylman; Copyright (c) 2014-2022 Douglas Christopher Wilson | [L60](#l60) |
+| safe-buffer | 5.2.1 | MIT | Copyright (c) Feross Aboukhadijeh | [L61](#l61) |
+| safer-buffer | 2.1.2 | MIT | Copyright (c) 2018 Nikita Skovoroda &lt;chalkerx@gmail.com&gt; | [L62](#l62) |
+| send | 1.2.1 | MIT | Copyright (c) 2012 TJ Holowaychuk; Copyright (c) 2014-2022 Douglas Christopher Wilson | [L63](#l63) |
+| serve-static | 2.2.1 | MIT | Copyright (c) 2010 Sencha Inc.; Copyright (c) 2011 LearnBoost; Copyright (c) 2011 TJ Holowaychuk; Copyright (c) 2014-2016 Douglas Christopher Wilson | [L64](#l64) |
+| setprototypeof | 1.2.0 | ISC | Copyright (c) 2015, Wes Todd | [L65](#l65) |
 | side-channel-list | 1.0.1 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | side-channel-map | 1.0.1 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
-| side-channel-weakmap | 1.0.2 | MIT | Copyright (c) 2019 Jordan Harband | [L65](#l65) |
-| side-channel | 1.1.1 | MIT | Copyright (c) 2019 Jordan Harband | [L65](#l65) |
-| statuses | 2.0.2 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L66](#l66) |
+| side-channel-weakmap | 1.0.2 | MIT | Copyright (c) 2019 Jordan Harband | [L66](#l66) |
+| side-channel | 1.1.1 | MIT | Copyright (c) 2019 Jordan Harband | [L66](#l66) |
+| statuses | 2.0.2 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L67](#l67) |
 | streamsearch | 1.1.0 | MIT | Brian White | [L05](#l05) |
-| toidentifier | 1.0.1 | MIT | Copyright (c) 2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L67](#l67) |
+| toidentifier | 1.0.1 | MIT | Copyright (c) 2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L68](#l68) |
 | type-is | 2.1.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
-| uc.micro | 3.0.0 | MIT | Copyright Mathias Bynens &lt;https://mathiasbynens.be/&gt; | [L68](#l68) |
-| unpipe | 1.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L69](#l69) |
-| uuid | 14.0.2 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [L70](#l70) |
+| uc.micro | 3.0.0 | MIT | Copyright Mathias Bynens &lt;https://mathiasbynens.be/&gt; | [L69](#l69) |
+| unpipe | 1.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L70](#l70) |
+| uuid | 14.0.2 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [L71](#l71) |
 | vary | 1.1.2 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
-| wrappy | 1.0.2 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors | [L52](#l52) |
-| zod | 4.4.3 | MIT | Copyright (c) 2025 Colin McDonnell | [L71](#l71) |
+| wrappy | 1.0.2 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors | [L53](#l53) |
+| zod | 4.4.3 | MIT | Copyright (c) 2025 Colin McDonnell | [L72](#l72) |
 
 ## Bundled-asset audit
 
@@ -440,7 +441,7 @@ SOFTWARE.
 
 ### L04
 
-Applies to: body-parser@2.3.0, compression@1.8.1, type-is@2.1.0
+Applies to: body-parser@2.3.0, compression@1.8.2, type-is@2.1.0
 
 ```text
 (The MIT License)
@@ -812,6 +813,35 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L17
 
+Applies to: destroy@1.2.0
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2014 Jonathan Ong me@jongleberry.com
+Copyright (c) 2015-2022 Douglas Christopher Wilson doug@somethingdoug.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+### L18
+
 Applies to: dunder-proto@1.0.1, math-intrinsics@1.1.0
 
 ```text
@@ -838,7 +868,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L18
+### L19
 
 Applies to: ee-first@1.1.1
 
@@ -866,7 +896,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L19
+### L20
 
 Applies to: encodeurl@2.0.0
 
@@ -895,7 +925,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L20
+### L21
 
 Applies to: entities@8.0.0
 
@@ -913,7 +943,7 @@ THIS IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRE
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### L21
+### L22
 
 Applies to: escape-html@1.0.3
 
@@ -944,9 +974,9 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L22
+### L23
 
-Applies to: etag@1.8.1, proxy-addr@2.0.7
+Applies to: etag@1.8.1, proxy-addr@2.0.8
 
 ```text
 (The MIT License)
@@ -973,7 +1003,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L23
+### L24
 
 Applies to: express-rate-limit@8.7.0
 
@@ -1001,7 +1031,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L24
+### L25
 
 Applies to: express@5.2.1
 
@@ -1032,7 +1062,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L25
+### L26
 
 Applies to: finalhandler@2.1.1
 
@@ -1061,7 +1091,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L26
+### L27
 
 Applies to: fresh@2.0.0
 
@@ -1091,7 +1121,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L27
+### L28
 
 Applies to: function-bind@1.1.2
 
@@ -1117,7 +1147,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L28
+### L29
 
 Applies to: get-intrinsic@1.3.0
 
@@ -1145,7 +1175,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L29
+### L30
 
 Applies to: get-proto@1.0.1
 
@@ -1173,7 +1203,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L30
+### L31
 
 Applies to: gopd@1.2.0
 
@@ -1201,7 +1231,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L31
+### L32
 
 Applies to: has-symbols@1.1.0
 
@@ -1229,7 +1259,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L32
+### L33
 
 Applies to: hasown@2.0.4
 
@@ -1257,7 +1287,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L33
+### L34
 
 Applies to: http-errors@2.0.1
 
@@ -1286,7 +1316,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L34
+### L35
 
 Applies to: iconv-lite@0.7.3
 
@@ -1313,7 +1343,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L35
+### L36
 
 Applies to: inherits@2.0.4
 
@@ -1335,7 +1365,7 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### L36
+### L37
 
 Applies to: ip-address@10.7.2
 
@@ -1361,7 +1391,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L37
+### L38
 
 Applies to: ipaddr.js@1.9.1
 
@@ -1387,7 +1417,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L38
+### L39
 
 Applies to: is-promise@4.0.0
 
@@ -1413,7 +1443,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L39
+### L40
 
 Applies to: linkify-it@6.1.0
 
@@ -1442,7 +1472,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L40
+### L41
 
 Applies to: Lucide Icons (bundled inline SVG subset)@local subset first recorded 2026-06-06
 
@@ -1509,7 +1539,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L41
+### L42
 
 Applies to: markdown-it@15.0.2
 
@@ -1538,7 +1568,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L42
+### L43
 
 Applies to: mdurl@2.1.0
 
@@ -1590,7 +1620,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 ```
 
-### L43
+### L44
 
 Applies to: merge-descriptors@2.0.0
 
@@ -1608,7 +1638,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L44
+### L45
 
 Applies to: mime-db@1.54.0
 
@@ -1638,7 +1668,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L45
+### L46
 
 Applies to: ms@2.0.0
 
@@ -1666,7 +1696,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L46
+### L47
 
 Applies to: ms@2.1.3
 
@@ -1694,7 +1724,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L47
+### L48
 
 Applies to: negotiator@0.6.4, negotiator@1.0.0
 
@@ -1725,7 +1755,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L48
+### L49
 
 Applies to: node-addon-api@8.9.0
 
@@ -1741,7 +1771,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L49
+### L50
 
 Applies to: object-inspect@1.13.4
 
@@ -1769,7 +1799,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L50
+### L51
 
 Applies to: on-finished@2.4.1
 
@@ -1799,7 +1829,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L51
+### L52
 
 Applies to: on-headers@1.1.0
 
@@ -1828,7 +1858,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L52
+### L53
 
 Applies to: once@1.4.0, wrappy@1.0.2
 
@@ -1850,7 +1880,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
 IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### L53
+### L54
 
 Applies to: parseurl@1.3.3
 
@@ -1880,7 +1910,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L54
+### L55
 
 Applies to: path-to-regexp@8.4.2
 
@@ -1908,7 +1938,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L55
+### L56
 
 Applies to: punycode.js@2.3.1
 
@@ -1936,7 +1966,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L56
+### L57
 
 Applies to: qs@6.16.0
 
@@ -1972,7 +2002,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### L57
+### L58
 
 Applies to: range-parser@1.3.0
 
@@ -2002,7 +2032,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L58
+### L59
 
 Applies to: raw-body@3.0.2
 
@@ -2031,7 +2061,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L59
+### L60
 
 Applies to: router@2.2.0
 
@@ -2061,7 +2091,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L60
+### L61
 
 Applies to: safe-buffer@5.2.1
 
@@ -2089,7 +2119,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L61
+### L62
 
 Applies to: safer-buffer@2.1.2
 
@@ -2117,7 +2147,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L62
+### L63
 
 Applies to: send@1.2.1
 
@@ -2147,7 +2177,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L63
+### L64
 
 Applies to: serve-static@2.2.1
 
@@ -2179,7 +2209,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L64
+### L65
 
 Applies to: setprototypeof@1.2.0
 
@@ -2199,7 +2229,7 @@ OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### L65
+### L66
 
 Applies to: side-channel-weakmap@1.0.2, side-channel@1.1.1
 
@@ -2227,7 +2257,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L66
+### L67
 
 Applies to: statuses@2.0.2
 
@@ -2256,7 +2286,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### L67
+### L68
 
 Applies to: toidentifier@1.0.1
 
@@ -2284,7 +2314,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### L68
+### L69
 
 Applies to: uc.micro@3.0.0
 
@@ -2311,7 +2341,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L69
+### L70
 
 Applies to: unpipe@1.0.0
 
@@ -2340,7 +2370,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L70
+### L71
 
 Applies to: uuid@14.0.2
 
@@ -2356,7 +2386,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### L71
+### L72
 
 Applies to: zod@4.4.3
 

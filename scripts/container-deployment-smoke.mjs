@@ -85,16 +85,23 @@ import {
  * The in-container proof that native better-sqlite3 runs from the published image.
  * @typedef {object} RuntimeProofRecord
  * @property {boolean} compiler
+ * @property {boolean} corepack
  * @property {boolean} database
  * @property {string} driver
  * @property {boolean} eslint
+ * @property {boolean} gzip
  * @property {boolean} make
  * @property {string} nativeBinding
+ * @property {boolean} npm
+ * @property {boolean} npx
  * @property {boolean} python
  * @property {boolean} shm
+ * @property {string} sqlite
+ * @property {boolean} tar
  * @property {boolean} typescript
  * @property {boolean} vitest
  * @property {boolean} wal
+ * @property {boolean} yarn
  */
 
 /**
@@ -210,6 +217,8 @@ const smokeUsername = "container-smoke-admin@example.test";
 const smokePassword = "Container-Smoke-Password-123!";
 const smokeSecureNotesKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const publicOrigin = "https://container-smoke.example.test";
+// The native `better-sqlite3:SQLite` profiles the host helper reviews; every booted image must load one.
+const REVIEWED_NATIVE_PROFILES = readReviewedNativeProfiles();
 const fileBody = `Compose lifecycle evidence ${token}`;
 const backupArchive = "/var/backups/longtail-forge/pre-upgrade.ltfbackup.tgz";
 const preRestoreArchive = "/var/backups/longtail-forge/pre-restore-clean.ltfbackup.tgz";
@@ -693,13 +702,21 @@ async function verifyContainer(name, port, version, expectedImageDigest, expecte
 
   const runtimeProof = /** @type {RuntimeProofRecord} */ (JSON.parse(runDocker([
     "exec", name, "node", "-e",
-    `const fs=require("node:fs");const Database=require("better-sqlite3");const database=new Database(":memory:");database.close();const nativeBinding=Object.keys(require.cache).find((key)=>key.endsWith(".node"));process.stdout.write(JSON.stringify({driver:require("better-sqlite3/package.json").version,nativeBinding:nativeBinding?.replaceAll("\\\\","/"),database:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db"),wal:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db-wal"),shm:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db-shm"),python:fs.existsSync("/usr/bin/python3"),make:fs.existsSync("/usr/bin/make"),compiler:fs.existsSync("/usr/bin/g++"),vitest:fs.existsSync("node_modules/vitest"),typescript:fs.existsSync("node_modules/typescript"),eslint:fs.existsSync("node_modules/eslint")}));`,
+    `const fs=require("node:fs");const Database=require("better-sqlite3");const database=new Database(":memory:");const sqlite=database.prepare("SELECT sqlite_version() AS version").get().version;database.close();const nativeBinding=Object.keys(require.cache).find((key)=>key.endsWith(".node"));const any=(...paths)=>paths.some((target)=>fs.existsSync(target));process.stdout.write(JSON.stringify({driver:require("better-sqlite3/package.json").version,sqlite,nativeBinding:nativeBinding?.replaceAll("\\\\","/"),database:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db"),wal:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db-wal"),shm:fs.existsSync("/var/lib/longtail-forge/longtail-forge.db-shm"),python:fs.existsSync("/usr/bin/python3"),make:fs.existsSync("/usr/bin/make"),compiler:fs.existsSync("/usr/bin/g++"),vitest:fs.existsSync("node_modules/vitest"),typescript:fs.existsSync("node_modules/typescript"),eslint:fs.existsSync("node_modules/eslint"),npm:any("/usr/local/bin/npm","/usr/local/lib/node_modules/npm"),npx:any("/usr/local/bin/npx"),corepack:any("/usr/local/bin/corepack","/usr/local/lib/node_modules/corepack"),yarn:any("/usr/local/bin/yarn","/usr/local/bin/yarnpkg")||fs.readdirSync("/opt").some((entry)=>entry.startsWith("yarn")),tar:any("/usr/bin/tar","/bin/tar"),gzip:any("/usr/bin/gzip","/bin/gzip")}));`,
   ])));
   assert.equal(runtimeProof.database, true);
   assert.equal(runtimeProof.wal, true, "the live SQLite WAL should stay inside the durable data volume");
   assert.equal(runtimeProof.shm, true, "the live SQLite SHM should stay inside the durable data volume");
-  assert.match(runtimeProof.driver, /^(?:12\.11\.1|13.0.3)$/);
+  assert.ok(
+    REVIEWED_NATIVE_PROFILES.includes(`${runtimeProof.driver}:${runtimeProof.sqlite}`),
+    `the image must load a reviewed native profile; it loaded ${runtimeProof.driver}:${runtimeProof.sqlite}`,
+  );
   assert.match(runtimeProof.nativeBinding, /\/(?:prebuilds\/linux-x64|build\/Release\/better_sqlite3)\.node$/);
+  assert.deepEqual(
+    { corepack: runtimeProof.corepack, gzip: runtimeProof.gzip, npm: runtimeProof.npm, npx: runtimeProof.npx, tar: runtimeProof.tar, yarn: runtimeProof.yarn },
+    { corepack: false, gzip: true, npm: false, npx: false, tar: true, yarn: false },
+    "the final runtime image should ship no package manager and keep the archive tools that backup and restore use",
+  );
   assert.deepEqual(
     {
       compiler: runtimeProof.compiler,
@@ -1228,6 +1245,18 @@ function requestHeaders(cookie = "") {
  */
 function inspectImageUser(image) {
   return runDocker(["image", "inspect", "--format", "{{.Config.User}}", image]);
+}
+
+/**
+ * The host helper's reviewed native profiles, so this smoke accepts exactly the drivers the helper may
+ * deploy or roll back to, including a distinct previous release's.
+ * @returns {string[]}
+ */
+function readReviewedNativeProfiles() {
+  const helper = fs.readFileSync(new URL("./release/longtail-forge-compose-deploy-host.example", import.meta.url), "utf8");
+  const declared = helper.match(/^readonly NATIVE_DEPENDENCY_PROFILES='([^']*)'$/m)?.[1];
+  if (!declared) throw new Error("The Compose host helper must declare its reviewed native profiles.");
+  return declared.split(/\s+/).filter(Boolean);
 }
 
 /**

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,9 @@ const PROVENANCE_PREDICATES = new Set([
   "https://slsa.dev/provenance/v0.2",
   "https://slsa.dev/provenance/v1",
 ]);
+// The exact native SQLite driver this revision publishes, read from its `package.json` pin. The
+// execution proof, the metadata check, and the host helper's reviewed profiles share that one source.
+const PUBLISHED_BETTER_SQLITE3_VERSION = readPinnedNativeDriverVersion();
 
 /**
  * The reviewed schema-1 release metadata record, reused from the writer that
@@ -441,7 +445,7 @@ function inspectNativeDependency(reference, rootDir) {
     "--entrypoint", "node", reference, "-e", proofScript,
   ], { cwd: rootDir })));
   if (result.platform !== "linux" || result.architecture !== "x64"
-      || result.packageVersion !== "13.0.3" || result.returning !== "ok"
+      || result.packageVersion !== PUBLISHED_BETTER_SQLITE3_VERSION || result.returning !== "ok"
       || !/^\d+\.\d+\.\d+$/.test(result.sqliteVersion || "")) {
     throw new Error("Published digest failed the native better-sqlite3 linux/amd64 execution proof.");
   }
@@ -538,7 +542,7 @@ function validatePublishedReleaseMetadata(metadata, expected = {}) {
   if (nativeDependency?.execution !== "published-digest"
       || nativeDependency?.platform !== "linux"
       || nativeDependency?.architecture !== "x64"
-      || nativeDependency?.betterSqlite3Version !== "13.0.3") {
+      || nativeDependency?.betterSqlite3Version !== PUBLISHED_BETTER_SQLITE3_VERSION) {
     throw new Error("Published release metadata is missing the native better-sqlite3 digest proof.");
   }
   if (metadata.image.attestations?.sbom?.predicateType !== SBOM_PREDICATE
@@ -562,6 +566,21 @@ function validatePublishedReleaseMetadata(metadata, expected = {}) {
     repository,
     version: metadata.version,
   });
+}
+
+/**
+ * Read this revision's exact `better-sqlite3` pin from the repository `package.json`.
+ * @returns {string}
+ */
+function readPinnedNativeDriverVersion() {
+  const manifest = /** @type {{ dependencies?: Record<string, unknown> }} */ (
+    JSON.parse(readFileSync(path.join(path.dirname(scriptPath), "..", "..", "package.json"), "utf8"))
+  );
+  const version = manifest.dependencies?.["better-sqlite3"];
+  if (typeof version !== "string" || !/^\d+\.\d+\.\d+$/.test(version)) {
+    throw new Error("package.json must pin better-sqlite3 to one exact release for the native publication proof.");
+  }
+  return version;
 }
 
 /**
@@ -679,6 +698,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
 
 export {
   PROVENANCE_PREDICATES,
+  PUBLISHED_BETTER_SQLITE3_VERSION,
   SBOM_PREDICATE,
   createPlatformManifest,
   createPublishedReleaseMetadata,

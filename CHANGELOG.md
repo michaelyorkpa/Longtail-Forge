@@ -1,3 +1,47 @@
+## Version 0.33.33.50 - 2026-10-05
+
+- **Post-release repair of `v0.33.33`.** That release could not be deployed: its own Compose host helper accepted only `better-sqlite3` 13.0.1, while the release ships 13.0.3, so the friends-and-family preview deployment was stopped before dispatch. This patch is a new release identity. The `v0.33.33` tag, image, checksums, and assets are unchanged.
+- **Release-aware native-dependency contract.** The host helper now accepts a reviewed set of `better-sqlite3:SQLite` profiles instead of one version. The set holds the current pin (13.0.3 with SQLite 3.53.4) and the previous known-good release that rollback still selects (13.0.1 with SQLite 3.53.3).
+  - Before any pull, it refuses a profile outside that set, or a claim without published-digest `linux`/`x64` proof.
+  - After the pull and before the deployment marker, it runs the selected digest natively, without network or privileges, and refuses any disagreement with the claim.
+  - The publisher reads its expected driver from `package.json`.
+  - A unit test checks that the package pin, the installed driver's real SQLite version, the publisher, the helper's profiles, and the retained published metadata all agree.
+- **Earlier refusals.** These requests are now refused before any pull or curtain:
+  - a rollback target that differs from the recorded previous release;
+  - a missing recorded baseline or rollback backup;
+  - a missing Secure Notes recovery-key backup.
+
+  Previously the first two were refused only after the deployment marker was set.
+- **Recovery before any data change.** A deploy or rollback can now fail or be interrupted behind the curtain before any data has changed, for example on a protected backup that cannot be created or inspected, or a state record the next step cannot read. It then restarts the current release unchanged, and lifts the curtain only once that release's direct and public identity verify. Previously such a failure left the application stopped behind the curtain.
+- **Explicit demo classification.** The resolved Compose `DEMO_MODE` must be exactly `true` or `false`. A missing or other value is refused before the curtain, including spellings the application itself reads as true. A demo can no longer run without its isolation.
+- **Executable helper proof.** `scripts/release/compose-helper-contract-harness.mjs` runs the actual helper bytes as root on native Linux, against the retained published metadata of `v0.33.32.45` and `v0.33.33`. Only Docker and HTTP are faked. It runs as the `helper-contract` stage of the required maintenance release rehearsal. Its 57 scenarios include:
+  - the published `v0.33.33` helper rejecting its own release;
+  - upgrade, and explicit rollback;
+  - automatic recovery from a failed candidate, an unrecovered failure, and recovery from a failed rollback target;
+  - a pre-upgrade backup that fails for lack of space, for a missing Secure Notes key backup, at inspection, or without an archive, or that is interrupted; a failed copy of the prior state; a failed pre-rollback backup; and an unreadable rollback record. Each restarts the current release unchanged behind the curtain, and a restart that does not verify keeps the curtain;
+  - 20 tampered-metadata refusals before any pull, and native-execution refusals before the curtain;
+  - 14 demo classification cases, and lock contention.
+- **Runtime image security baseline.**
+  - **New base.** It moves from `node:24.18.0-bookworm-slim` to `node:24.21.0-bookworm-slim` (`sha256:0e0ff40c…`), which includes the Node 24.18.1 security release.
+  - **No JavaScript package managers.** The final stage removes npm, npx, corepack, and yarn, and the build fails if any of them remains. The system `tar` and `gzip` used by archive, backup, and restore stay.
+  - **Debian security updates.** The final stage upgrades the base's `perl-base`, `libpcre2-8-0`, and `tzdata` to Debian's exact LTS fixes from `bookworm-security`: `5.36.0-7+deb12u4` (DLA-4821-1), `10.42-1+deb12u2` (DLA-4816-1), and `2026c-0+deb12u1` (DLA-4792-1). It keeps the base digest, installs nothing new, and fails the build unless each installed version matches. This clears the image's 15 fixable Debian findings.
+  - **Container smoke.** It checks both of those, and accepts only the helper's reviewed native profiles.
+- **Dependency security updates.** Three advisories published on 2026-10-05 affected the release candidate. `compression` 1.8.2 fixes GHSA-vc2v-76pw-4v95: aborted compressed responses leaked native zlib memory, which was reachable through the application's `compression()` middleware. `proxy-addr` 2.0.8 fixes GHSA-jqcg-44mw-7w3h, which was not exploitable with the documented IPv4 trust settings. The development-only `source-map-js` 1.2.2 fixes GHSA-68fv-2mgg-jv7q.
+  - Only the lockfile changes, plus `compression`'s one new dependency, `destroy` 1.2.0. Each package is reviewed by exact version, registry tarball, and integrity, with no install script, and `npm audit` reports no finding at any level.
+  - The post-release patch rule accepts only this exact transition. Each package's complete lock entry must match its reviewed entry before and after the update, so a changed flag, dependency, engine, `bin`, or funding field is refused, and the four entries move together. `release.dependency-baseline` keeps all three at or above their fixed releases, and the third-party notices are regenerated.
+- **Operator tooling packaged again.** Since `v0.33.33`, four packaged operator scripts had imported two validation helpers from `scripts/test-support/` that the runtime artifact did not carry. Inside the image, every public-demo candidate and activation command, and so every demo reset, stopped with `ERR_MODULE_NOT_FOUND`. The development-data and historical `demo:data:host` commands stopped the same way. The artifact now packages both helpers, and the runtime-artifact boundary regression refuses any build in which a packaged file imports a relative module the artifact does not carry.
+- **Native lifecycle qualification.** A new workflow, `native-lifecycle-qualification.yml`, runs the actual helpers on native Linux Docker against the distinct previous release, `v0.33.32.45`. For a pull request that touches the deployment path, it publishes the candidate through a disposable TLS registry with the real publisher. Dispatch qualifies published releases from GHCR instead. It is not a required check.
+  - **Preview:** a pre-upgrade backup that really fails on a full backup filesystem and restarts the current release unchanged; then upgrade, automatic recovery from a failing candidate, explicit rollback with restored data, the original helper's refusal, and the re-upgrade, through a TLS edge.
+  - **Demo:** the same failed pre-upgrade backup, with isolation checked again on the restarted release; the guarded upgrade with isolation; a manual reset whose every container runs the candidate image; a reset interrupted after activation, whose every container also runs the candidate image, that restores and verifies the prior unit and brings back a visitor change made before it; and a rerun that clears that change.
+  - **Image evidence:** the final image's Trivy findings, both npm audits, the Node core advisory index, its runtime tool listing, its package changes against the pinned base, Debian's published source for them, and an SPDX SBOM.
+- **Checkpoint ownership.** This post-release patch may set the application version in both package files to exactly its own identity, and may change the changelog entry and owning documentation. Its lockfile may also take exactly the reviewed dependency security transition above. Dependency declarations, every other resolved lock entry, and `DECISIONS.md` stay fixed.
+- **Documentation corrections:**
+  - the stale `better-sqlite3` 13.0.1 statements;
+  - the Compose operation-lock path;
+  - the repository owner in the reset service's documentation link.
+- Docs updated: `docs/compose.env.example`, `docs/development/github-workflow.md`, `docs/preview-deployment.md`, `docs/regression-suite.md`, `docs/releasing.md`, `docs/runtime-artifact.md`, `docs/runtime-configuration.md`, `docs/upgrading.md`, and `docs/versioning.md`.
+- No docs change needed: Help, visitor workflows, permissions, the public API, schema and migrations, and application runtime configuration are unchanged.
+
 ## Version 0.33.33 - 2026-10-01
 
 - **Closed the Lean Core, Full Strict TypeScript, and Verification Simplification branch,** from `0.33.33.1` through `0.33.33.48.3`. Every numbered checkpoint was verified and merged through its own protected pull request into `nightly`.

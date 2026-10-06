@@ -1,6 +1,6 @@
 [Unit]
 Description=Longtail Forge public demo hourly reset
-Documentation=https://github.com/michaelyork/longtail-forge/blob/nightly/docs/demo-data-operations.md
+Documentation=https://github.com/michaelyorkpa/Longtail-Forge/blob/main/docs/demo-data-operations.md
 After=docker.service network-online.target
 Wants=network-online.target
 

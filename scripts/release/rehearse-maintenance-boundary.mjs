@@ -43,12 +43,17 @@ const stages = [
     label: "deploy, failed-candidate recovery, rollback, and stale-state recovery",
     args: ["scripts/regressions/release/current-static-contracts.regression.mjs"],
   },
+  {
+    id: "helper-contract",
+    label: "actual Compose helper as root: native profiles, refusal before pull or curtain, automatic recovery, rollback, and demo classification",
+    args: ["scripts/release/compose-helper-contract-harness.mjs"],
+  },
 ];
 
 if (options.plan) {
   console.log("Longtail Forge maintenance release rehearsal plan");
   console.log("Required platform: native Linux");
-  console.log("Required executables: Node.js, Caddy 2, Nginx, OpenSSL");
+  console.log("Required executables: Node.js, Caddy 2, Nginx, OpenSSL, jq, flock, and passwordless sudo on a disposable host");
   for (const [index, stage] of stages.entries()) {
     console.log(`${index + 1}. ${stage.id}: ${stage.label}`);
   }
