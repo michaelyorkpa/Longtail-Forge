@@ -106,7 +106,7 @@ assert.match(gateReport, /do not fail ordinary development/);
 
 const noticeCheck = inspectThirdPartyNotices();
 assert.equal(noticeCheck.current, true, noticeCheck.message);
-assert.equal(noticeCheck.componentCount, 91);
+assert.equal(noticeCheck.componentCount, 92);
 const generatedNotices = generateThirdPartyNotices();
 assert.equal(
   escapeTable("one\\two|three\\\\four"),

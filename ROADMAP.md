@@ -43,6 +43,21 @@ These open findings were carried out of the Lean Core branch when its closeout, 
   - **Owner:** browser test maintenance.
   - **Consequence:** an occasional retry. It must never be green-controlled.
 
+The post-release patch to `v0.33.33` carried these findings forward. The same rule applies: each needs its own roadmap slice.
+
+- **The runtime's bundled OpenSSL trails upstream.** Node 24.21.0, the newest Node 24 release, bundles OpenSSL 3.5.8. OpenSSL 3.5.9, released on 2026-09-29, fixes thirteen issues that affect 3.5.8, one rated High (DTLS retransmission). As re-checked on 2026-10-06, no Node release bundles 3.5.9 yet. None of the thirteen is reachable from the deployed application's call paths: it uses no DTLS, QUIC, CMP, SM2, or non-NIST ECDSA signing, runs no TLS server, and makes no TLS client connection. The only packaged TLS client is the historical `demo:data:host` command's health check of the operator's own public edge, which the Compose deployment does not run.
+  - **Owner:** the next runtime base refresh.
+  - **Consequence:** adopt the first Node 24 release that bundles OpenSSL 3.5.9 or later, with its native lifecycle qualification.
+- **Debian findings without a published fix remain in the runtime image.** The final stage now takes Debian's exact fixes for `perl-base`, `libpcre2-8-0`, and `tzdata`, so no Debian finding with a fix remains. The 222 that remain have none: 171 are `affected`, 37 `fix_deferred`, and 14 `will_not_fix`. They include `gzip`'s LZH decompression (CVE-2026-41992), the util-linux mount and nsenter group, `libacl1`, and `zlib1g`'s minizip. None was found reachable from the application or operator paths.
+  - **Owner:** the next runtime base refresh.
+  - **Consequence:** re-scan each release, and take Debian's fixes as they are published, through a reviewed base refresh or targeted update. The pinned Debian updates fail the build once Debian stops publishing those versions.
+- **A failure after a new release verifies, but before its state is recorded, needs a manual state reconstruction.** The Compose helper's last steps record the previous and current state, then clear its marker. If one of them fails, for example on a full root filesystem, the verified new release keeps serving behind the curtain while the protected state record is incomplete. A later rollback reads that record, and the helper does not reconstruct it.
+  - **Owner:** deployment tooling.
+  - **Consequence:** until it is automated and fault-tested in the executable harness, the curtain stays up and the operator rebuilds the record from the operation's retained evidence.
+- **Public-demo reset history has no retention bound.** The demo host's `demo-reset-operations/` held 1,392 operation directories on 2026-10-05, one per hourly reset since 2026-08-08, and nothing prunes them. Their disk and inode use is still to be measured.
+  - **Owner:** public-demo operations.
+  - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
+
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.

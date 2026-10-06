@@ -1,5 +1,69 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.50 - Deployment contract repair and runtime security baseline
+
+**Model: High Effort** — A root-owned deployment helper, its rollback and recovery paths, the runtime image baseline, and checkpoint policy change together; a subtle error blocks deployment, breaks rollback, or weakens demo isolation.
+
+Completed on 2026-10-05 at the operator's instruction (choice B), as a post-release patch with its own release identity. `v0.33.33` had been published, and its friends-and-family preview deployment was stopped before dispatch: both the installed preview helper and the published `v0.33.33` helper asset required `better-sqlite3` 13.0.1, while the release ships 13.0.3. Nothing here reuses the closeout `0.33.33.48` or the pre-publication addendum `0.33.33.49`, and no `v0.33.33` tag, image, checksum, or release asset is replaced.
+
+Scope:
+
+- [x] **Ancestry.** `main`'s only exclusive commit, the #873 promotion merge `e1dd8477`, has exactly `nightly` `18cf40c8`'s tree (`9c2de6d6`). Merging it into the patch branch as `e5232bb8` left that tree unchanged, and the branch contains every `main` commit.
+- [x] **Ownership policy.** `scripts/release/checkpoint-commits.mjs` gives `0.33.33.50` a narrow rule: a version-only move of both package files to exactly its own identity, its changelog entry, and owning documentation. Dependency declarations, every other package field, and `DECISIONS.md` stay fixed, and the ceiling, trailers, and declaration check are unchanged. Its lockfile may also take exactly the reviewed dependency security transition below. Each listed package's complete lock entry must match its reviewed entry before and after the update, the four move together, and every other lock entry and top-level field must be unchanged. Codex's review of `1243d135` found that the first version compared only version, tarball, integrity, and install script, so it admitted any other field change, including a `dev` flag that would have dropped `compression` from the runtime shrinkwrap. `release.developer-verification-throughput` proves both sides: six validator mutations were caught for the version rule. For the dependency allowance, it refuses twenty variants, and each of thirteen seeded weakenings was caught by the assertion that names it; Codex's counterexamples on the real lock are each refused. `docs/versioning.md` documents the rule.
+- [x] **Release-aware native-dependency contract.** The helper's `NATIVE_DEPENDENCY_PROFILES` holds `13.0.3:3.53.4` and the previous release's `13.0.1:3.53.3`. Before any pull it refuses an unreviewed profile, or a claim without published-digest `linux`/`x64` proof; before the curtain it runs the selected digest natively and refuses any disagreement. The publisher reads its pin from `package.json`. `tests/unit/native-dependency-contract.test.mjs` ties the pin, the installed driver's real SQLite version, the publisher, the helper's profiles, and the byte-exact published metadata of `v0.33.32.45` and `v0.33.33` together; eight mutations were each caught.
+- [x] **Explicit demo classification.** The resolved Compose `DEMO_MODE` must be exactly `true` or `false`, and the preview resolves `false`. The public-demo isolation and static-contract regressions pin the classification and the refusals that precede any pull; five helper mutations were each caught.
+- [x] **Recovery before any data change.** Codex's review of `1243d135` found that a failed pre-upgrade or pre-rollback backup exited the root helper with the application stopped behind the curtain, outside the promised automatic recovery. Between the curtain and the first data change, an exit trap now restarts the current release unchanged, and clears the marker only once its direct and public identity verify; HUP, INT, and TERM take the same path. On deploy the window covers the backup and the prior-state copy, and on rollback the backup and the state reads the restore needs. Every later failure keeps its earlier behaviour. `release.current-static-contracts` previously banned every exit trap. It now permits only this one and pins its outcomes, and six seeded defects were each caught.
+- [x] **Executable helper proof.** `scripts/release/compose-helper-contract-harness.mjs` runs the actual helper bytes as root on native Linux in 57 scenarios. They cover:
+  - the published `v0.33.33` helper's refusal of its own release;
+  - upgrade, explicit rollback, and automatic recovery;
+  - recovery before any data change, for each backup, prior-state, interruption, and rollback-record failure, plus a restart that does not verify;
+  - 20 tampered identities refused before any pull, and false and unloadable native claims refused before the curtain;
+  - every classification case.
+
+  The first 47 passed in GitHub-hosted run 37380204032, which caught each of seven helper mutations in run 37380463782. After the review fixes, all 57 passed in run 37485250651, which caught each of eight recovery mutations, among them a missing signal trap and a curtain lifted before verification. It is the `helper-contract` stage of the required maintenance release rehearsal.
+- [x] **Runtime image.** The base is `node:24.21.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6`: the newest Node 24, and still that tag's current build on 2026-10-05. The final stage has no npm, npx, corepack, or yarn, keeps the system `tar` and `gzip`, and fails the build otherwise; three Dockerfile mutations were each caught.
+  - **Debian updates.** At the operator's direction on 2026-10-06, the final stage also upgrades exactly the base's `perl-base` to `5.36.0-7+deb12u4` (DLA-4821-1), `libpcre2-8-0` to `10.42-1+deb12u2` (DLA-4816-1), and `tzdata` to `2026c-0+deb12u1` (DLA-4792-1), all from `bookworm-security`. The base digest is kept. It installs nothing new, refuses a whole-system upgrade, and fails the build unless each version matches; seven seeded defects were each caught.
+  - **Package difference.** Against the pinned base, exactly those three packages differ.
+  - **The rebuilt base.** Docker Hub rebuilt the same tag on 2026-10-06, and that build still carries `perl-base` `deb12u3`.
+- [x] **Dependency security updates.** Three advisories were published on 2026-10-05:
+  - `compression` <1.8.2 (GHSA-vc2v-76pw-4v95, high). It applies: `app.use(compression())`, and the live sites serve app-compressed responses.
+  - `proxy-addr` <2.0.8 (GHSA-jqcg-44mw-7w3h, critical). It is not exploitable with the documented IPv4 trust settings.
+  - The development-only `source-map-js` <1.2.2 (GHSA-68fv-2mgg-jv7q).
+
+  At the operator's direction, only the lockfile moves:
+  - `compression` 1.8.2, with its new dependency `destroy` 1.2.0;
+  - `proxy-addr` 2.0.8;
+  - `source-map-js` 1.2.2.
+
+  Each tarball matched its integrity and had no install script, and its source change was reviewed. Both `npm audit` reports show no finding at any level. The third-party notices are regenerated, and `release.dependency-baseline` keeps all three at or above their fixes; four seeded reverts were each caught.
+- [x] **Operator tooling packaged again.** The demo qualification's first reset found that `v0.33.33`'s public-demo baseline, activation, development-data, and `demo:data:host` commands could not load inside the image: four packaged scripts imported two `scripts/test-support/` helpers that the artifact omitted. The artifact now carries both, and `release.runtime-artifact-boundary` refuses any unpackaged relative import. Against the `v0.33.33` packaging it names exactly those five imports.
+- [x] **Native lifecycle qualification.** `scripts/release/compose-lifecycle-qualification.mjs` and `.github/workflows/native-lifecycle-qualification.yml` run the actual helpers and real images as root against the distinct previous release `v0.33.32.45`. GitHub-hosted run 37386085884 qualified this branch's candidate, published through a disposable registry:
+  - **Preview:** upgrade in 8.2 s; automatic recovery from a failing candidate in 16.9 s; explicit rollback with the baseline restored in 8.7 s; the original helper's refusal before any pull; and a re-upgrade running `better-sqlite3` 13.0.3 with SQLite 3.53.4, no package manager, and `tar` and `gzip` present.
+  - **Demo:** the guarded deployment and upgrade kept isolation. A manual reset ran only the candidate image and built its candidate as `0.33.33.50`. A reset interrupted after activation restored and verified the prior unit, and a rerun completed.
+  - **The final candidate, with the Debian and dependency updates.** GitHub-hosted run 37469998478 repeated both lifecycles on tree `3d99b725`.
+    - **Preview:** upgrade 8.8 s; automatic recovery 18.0 s; explicit rollback 9.4 s; the original helper's refusal; re-upgrade on 13.0.3 with SQLite 3.53.4 and no package manager.
+    - **Demo:** upgrade 13.5 s; a manual reset that ran only the candidate image and built its candidate as `0.33.33.50`; an interrupted reset that restored the prior unit; and a rerun.
+  - **After the review fixes.** GitHub-hosted run 37485250651 repeated both lifecycles on tree `3ed0df0f`.
+    - **Preview:** before the upgrade, a real pre-upgrade backup failed on a full backup filesystem (`gzip: stdout: No space left on device`). The helper restarted `v0.33.32.45` unchanged and verified it in 8.4 s, with the state, list, and file intact. Then upgrade 8.9 s; automatic recovery 18 s; explicit rollback 9.6 s; the original helper's refusal; and re-upgrade 8.9 s.
+    - **Demo:** the same failed backup, restarted and verified with isolation in 12.9 s. Then upgrade 12.6 s, and a manual reset of 17.2 s using only the candidate image. A reset interrupted after activation ran only the candidate image, restored the prior unit, and brought back a visitor's list made before it. The rerun cleared that list.
+    - **Image:** unchanged from run 37469998478, apart from the configuration digest that commit labels change.
+- [x] **Vulnerability evidence.** For the final candidate (run 37469998478, Trivy 0.74.0 with its database of 2026-10-06):
+  - **No finding with a published fix remains.** It has 222 findings, all Debian 12.15: critical 1, high 48, medium 95, low 76, unknown 2. None has a fix: 171 `affected`, 37 `fix_deferred`, and 14 `will_not_fix`.
+  - **The image has no npm finding,** and both npm audits report none at any level. No Node core advisory affects 24.21.0. npm, npx, corepack, and yarn are absent.
+  - **Package difference and SBOM.** Against the pinned base, exactly the three updated Debian packages differ, and an SPDX-2.3 SBOM lists 183 packages.
+  - **Comparison.** Under the same database, `v0.33.33` has 281 findings, 58 of them fixable, and `v0.33.32.45` has 288, 65 fixable.
+  - **Records.** The protected operational record dispositions each finding by its prerequisites, including the eleven Node advisories and OpenSSL 3.5.9's thirteen issues. The open ones are carried in `ROADMAP.md`.
+- [x] **Owning documentation.** Corrected: the stale `better-sqlite3` 13.0.1 statements, the Compose operation-lock path, the reset service's documentation link, and the runtime-tooling, helper-installation, and release-qualification steps. Also documented: the Debian update step, the post-release patch's dependency allowance, and the helper's recovery before any data change, in the preview, workflow, and release guides. The `v0.33.33` release notes carry a correction.
+- [x] **Operator handoff.** The protected operational record holds the checksummed helper installation, its verification and recovery steps, and the privileged read-only preview preflight. It states which failures recover automatically, and gives a phase-specific procedure, which keeps the curtain until a release verifies, for those that do not.
+
+Acceptance criteria:
+
+- [ ] **Pending at merge.** One canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and the native lifecycle qualification of the pull request's exact head. These run on this final tree, and their results are recorded on the pull request, because this entry is written before them.
+- [ ] **Pending at merge.** An independent Codex review approves the patch.
+- [ ] **Pending after merge.** The merged `nightly` commit's exact-SHA Nightly run, and the promotion to `main` with its gates green.
+- [ ] **Pending after merge.** `Manual GitHub release` publishes `v0.33.33.50`, its assets and image are verified, the native lifecycle qualification passes against the published digests, and the `v0.33.33` release notes link the replacement.
+- [ ] **Pending after merge.** The operator installs the reviewed helper and completes the privileged read-only preflight before the preview deployment.
+
 ## Version 0.33.33.49 - Release preparation for promotion to main
 
 **Model: High Effort** — Dependency, workflow, and checkpoint-policy changes on the unpublished release candidate carry supply-chain, perimeter, and protected-gate risk.
