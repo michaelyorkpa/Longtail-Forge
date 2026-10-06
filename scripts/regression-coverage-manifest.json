@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19164,
+    "activeAssertionCount": 19169,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 77,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 20003,
+    "effectiveAssertionCount": 20008,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -6461,11 +6461,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 49,
+      "assertionCount": 51,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Pins the reviewed ESLint 10.11, Node types 26.6.3, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
-      "entryPointAssertionCount": 49,
+      "entryPointAssertionCount": 51,
       "id": "release.dependency-baseline",
       "legacy": false,
       "path": "scripts/regressions/release/dependency-baseline.regression.mjs",
@@ -6481,11 +6481,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 114,
+      "assertionCount": 117,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
-      "entryPointAssertionCount": 114,
+      "entryPointAssertionCount": 117,
       "id": "release.developer-verification-throughput",
       "legacy": false,
       "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",
