@@ -1,4 +1,4 @@
-name: Scratch native lifecycle qualification (temporary; never merged)
+name: Native lifecycle qualification
 
 # Native evidence for the deployment contract, beside the required gates and not replacing them. On a
 # pull request that changes the image, the host helpers, or their lifecycle tooling, the candidate
@@ -8,8 +8,37 @@ name: Scratch native lifecycle qualification (temporary; never merged)
 # retained.
 
 on:
-  push:
-    branches: [scratch/0.33.33.50-harness]
+  pull_request:
+    branches: [nightly, main]
+    paths:
+      - Dockerfile
+      - compose.yaml
+      - .github/workflows/native-lifecycle-qualification.yml
+      - scripts/release/longtail-forge-compose-deploy-host.example
+      - scripts/release/longtail-forge-public-demo-isolation-host.example
+      - scripts/release/longtail-forge-public-demo-reset-host.example
+      - scripts/release/compose-lifecycle-qualification.mjs
+      - scripts/release/published-container-image.mjs
+      - scripts/build-container-image.mjs
+      - scripts/build-runtime-artifact.mjs
+      - scripts/backup.mjs
+      - scripts/lib/backup-archive.mjs
+      - scripts/lib/demo-data-operation.mjs
+      - scripts/public-demo-baseline-*.mjs
+      - scripts/lib/public-demo-baseline-*.mjs
+      - scripts/test-support/json-record-assertions.mjs
+      - scripts/test-support/package-manifest-assertions.mjs
+      - tests/fixtures/release-metadata/**
+  workflow_dispatch:
+    inputs:
+      candidate_tag:
+        description: Published release tag to qualify
+        required: true
+        type: string
+      previous_tag:
+        description: Previous known-good release tag that rollback selects, for example v0.33.32.45
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -57,9 +86,9 @@ jobs:
           openssl version
           "$RUNNER_TEMP/caddy/caddy" version
       - name: Qualify the proposed candidate through a disposable registry
-        if: github.event_name == 'push'
+        if: github.event_name == 'pull_request'
         env:
-          HEAD_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PROFILE: ${{ matrix.profile }}
         run: |
           npm ci
@@ -139,7 +168,7 @@ jobs:
             npm ci
             npm run artifact:build -- --source-branch main
             ARTIFACT="dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
-            node scripts/release/create-release-metadata.mjs --artifact "$ARTIFACT" --commit "${{ github.sha }}" --channel main --source-branch main --output dist/release-metadata-base.json
+            node scripts/release/create-release-metadata.mjs --artifact "$ARTIFACT" --commit "${{ github.event.pull_request.head.sha }}" --channel main --source-branch main --output dist/release-metadata-base.json
             npm run container:build -- --artifact "$ARTIFACT" --release-metadata dist/release-metadata-base.json --tag longtail-forge:qualification-candidate --no-cache --pull
             echo "CANDIDATE_IMAGE=longtail-forge:qualification-candidate" >> "$GITHUB_ENV"
           fi
@@ -180,12 +209,6 @@ jobs:
           cat "$out/debian-update-policy.txt"
           "$RUNNER_TEMP/trivy/trivy" image --quiet --format spdx-json --output "$out/candidate-sbom.spdx.json" "$CANDIDATE_IMAGE"
           jq -r '"SBOM: \(.spdxVersion), \(.packages | length) packages, created \(.creationInfo.created)"' "$out/candidate-sbom.spdx.json"
-      - name: Informational - Debian packages in the rebuilt official base
-        run: |
-          rebuilt=node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
-          docker pull --platform linux/amd64 "$rebuilt"
-          docker run --rm --entrypoint dpkg-query "$rebuilt" -W -f='${Package}\t${Version}\n' perl-base libpcre2-8-0 tzdata | tee "$RUNNER_TEMP/security/rebuilt-base-packages.tsv"
-          docker run --rm --entrypoint node "$rebuilt" -p 'process.versions.node + " openssl " + process.versions.openssl' | tee -a "$RUNNER_TEMP/security/rebuilt-base-packages.tsv"
       - name: Audit the application dependency graphs
         run: |
           out="$RUNNER_TEMP/security"

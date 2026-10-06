@@ -222,12 +222,28 @@ assert.equal(requireDependencies(packageJson).vitest, undefined);
 assert.equal(scripts["bare-metal:smoke"], undefined);
 
 const composeHelper = readText("scripts/release/longtail-forge-compose-deploy-host.example");
-const deployStart = composeHelper.lastIndexOf("\nassert_marker\n", composeHelper.indexOf('if test "$MODE" = "deploy"'));
-const deployEnd = composeHelper.indexOf('test -f "$CURRENT_STATE" || fail "rollback requires a recorded current release"');
-assert.equal(sourceContainsInOrder(composeHelper.slice(deployStart, deployEnd), [
+const pullCall = composeHelper.indexOf('\nverify_image "$IMAGE_REFERENCE"\n');
+const curtainCall = composeHelper.indexOf("\nassert_marker\n");
+const rollbackStart = composeHelper.indexOf('\nCURRENT_BACKUP="$BACKUP_ROOT/pre-rollback-');
+assert.ok(pullCall > 0 && curtainCall > pullCall && rollbackStart > curtainCall, "the helper must pull, then curtain, then branch to rollback");
+// The `v0.33.33` post-release patch: refusals that need no image are made before any pull or curtain, and the selected
+// digest's native execution is checked after the pull but before the curtain.
+for (const precondition of [
+  'fail "automated deployment requires the recorded known-good Compose baseline',
+  'fail "rollback requires a recorded previous release and backup"',
+  'fail "rollback target does not match the recorded previous release"',
+  'fail "rollback digest does not match the recorded previous release"',
+  'fail "Secure Notes recovery-key backup is missing"',
+]) {
+  const index = composeHelper.indexOf(precondition);
+  assert.ok(index > 0 && index < pullCall, `${precondition} must be refused before any pull`);
+}
+const nativeCheck = composeHelper.indexOf('\nverify_native_dependency "$IMAGE_REFERENCE"\n');
+assert.ok(nativeCheck > pullCall && nativeCheck < curtainCall, "native execution must be checked between the pull and the curtain");
+assert.equal(sourceContainsInOrder(composeHelper.slice(curtainCall, rollbackStart), [
   "assert_marker", "backup_with_state", 'compose "$RELEASE_ENV" up -d', 'verify_runtime "$METADATA"', "clear_marker",
 ]), true, "deploy must remain curtained through backup, startup, and identity proof");
-assert.equal(sourceContainsInOrder(composeHelper.slice(composeHelper.indexOf('test -f "$PREVIOUS_STATE"')), [
+assert.equal(sourceContainsInOrder(composeHelper.slice(rollbackStart), [
   "backup_with_state", "restore_with_state", 'verify_runtime "$METADATA"', "clear_marker",
 ]), true, "rollback must remain curtained through backup, restore, and identity proof");
 

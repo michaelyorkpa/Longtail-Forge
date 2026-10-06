@@ -18,6 +18,7 @@ import { createSliceVerificationPlan, executeSliceVerificationPlan, formatSliceV
 import { enforceZero } from "../../typecheck-governance.mjs";
 import {
   CLOSEOUT_CHECKPOINT,
+  POST_RELEASE_PATCH_CHECKPOINT,
   RELEASE_PREPARATION_CHECKPOINT,
   TRAILER_NAMES,
   parseCheckpointTrailers,
@@ -537,6 +538,118 @@ assert.match(
   "the addendum keeps the two-ceremony-file ceiling",
 );
 
+// The post-release patch published after the release may give the application its own
+// new identity - the version fields in both package files, set to exactly its checkpoint - plus the
+// changelog entry and owning documentation, and nothing else the packages declare.
+for (const checkpoint of [CLOSEOUT_CHECKPOINT, RELEASE_PREPARATION_CHECKPOINT]) {
+  assert.notEqual(POST_RELEASE_PATCH_CHECKPOINT, checkpoint, "the post-release patch must own its work under its own checkpoint");
+}
+const postReleasePatchArchive = `${roadmapArchiveSource}\n## Version ${POST_RELEASE_PATCH_CHECKPOINT} - Synthetic post-release patch fixture`;
+const patchPackageBefore = { ...preparationPackageBefore, version: "9.8.7" };
+const patchPackageAfter = { ...patchPackageBefore, version: POST_RELEASE_PATCH_CHECKPOINT };
+const patchLockBefore = structuredClone(preparationLockBefore);
+patchLockBefore.version = "9.8.7";
+patchLockBefore.packages[""].version = "9.8.7";
+const patchLockAfter = structuredClone(patchLockBefore);
+patchLockAfter.version = POST_RELEASE_PATCH_CHECKPOINT;
+patchLockAfter.packages[""].version = POST_RELEASE_PATCH_CHECKPOINT;
+
+/**
+ * @param {{
+ *   checkpoint?: string,
+ *   docs?: string,
+ *   lockAfter?: object,
+ *   packageAfter?: object,
+ *   paths: string[],
+ * }} change
+ */
+function postReleasePatchCommit({
+  checkpoint = POST_RELEASE_PATCH_CHECKPOINT,
+  docs = "No docs change needed: synthetic post-release patch proof.",
+  lockAfter = patchLockAfter,
+  packageAfter = patchPackageAfter,
+  paths,
+}) {
+  return validateCheckpointCommit({
+    lockAfterSource: JSON.stringify(lockAfter),
+    lockBeforeSource: JSON.stringify(patchLockBefore),
+    message: checkpointMessage({ checkpoint, docs, summary: "Give the post-release repair its own release identity" }),
+    packageAfterSource: JSON.stringify(packageAfter),
+    packageBeforeSource: JSON.stringify(patchPackageBefore),
+    paths,
+    roadmapArchiveSource: postReleasePatchArchive,
+    roadmapSource,
+  });
+}
+
+assert.deepEqual(
+  postReleasePatchCommit({ paths: ["package-lock.json", "package.json"] }).errors,
+  [],
+  "the post-release patch may move both application version fields to exactly its own identity",
+);
+assert.deepEqual(
+  postReleasePatchCommit({ docs: "Docs updated: docs/preview-deployment.md.", paths: ["CHANGELOG.md", "docs/preview-deployment.md"] }).errors,
+  [],
+  "the post-release patch may change its changelog entry and the documentation that owns a changed contract",
+);
+assert.deepEqual(
+  postReleasePatchCommit({ paths: ["Dockerfile", "scripts/release/longtail-forge-compose-deploy-host.example"] }).errors,
+  [],
+  "the post-release patch may change the runtime image and the host helper",
+);
+for (const [label, packageAfter] of /** @type {const} */ ([
+  ["another version", { ...patchPackageAfter, version: `${POST_RELEASE_PATCH_CHECKPOINT}.1` }],
+  ["a dependency beside the version", { ...patchPackageAfter, dependencies: { "markdown-it": "^15.0.2" } }],
+  ["an engines change beside the version", { ...patchPackageAfter, engines: { node: ">=26" } }],
+  ["a lifecycle allowlist change beside the version", { ...patchPackageAfter, allowScripts: { "unreviewed-addon@2.0.0": true } }],
+  ["a dependency without the version", { ...patchPackageBefore, dependencies: { "markdown-it": "^15.0.2" } }],
+])) {
+  assert.ok(
+    postReleasePatchCommit({ packageAfter, paths: ["package.json"] }).errors
+      .includes(`package.json under ${POST_RELEASE_PATCH_CHECKPOINT} may change only the application version, to exactly ${POST_RELEASE_PATCH_CHECKPOINT}, or scripts`),
+    `the post-release patch must refuse ${label}`,
+  );
+}
+const patchLockOtherVersion = structuredClone(patchLockAfter);
+patchLockOtherVersion.version = "9.8.8";
+patchLockOtherVersion.packages[""].version = "9.8.8";
+const patchLockOneField = structuredClone(patchLockAfter);
+patchLockOneField.packages[""].version = "9.8.7";
+const patchLockGraph = structuredClone(patchLockAfter);
+patchLockGraph.packages["node_modules/markdown-it"].version = "15.0.2";
+for (const [label, lockAfter] of /** @type {const} */ ([
+  ["another version", patchLockOtherVersion],
+  ["only one version field", patchLockOneField],
+  ["a resolved package beside the version", patchLockGraph],
+])) {
+  assert.ok(
+    postReleasePatchCommit({ lockAfter, paths: ["package-lock.json"] }).errors
+      .includes(`package-lock.json under ${POST_RELEASE_PATCH_CHECKPOINT} may change only its application version fields, to exactly ${POST_RELEASE_PATCH_CHECKPOINT}`),
+    `the post-release patch must refuse a lockfile with ${label}`,
+  );
+}
+for (const checkpoint of [RELEASE_PREPARATION_CHECKPOINT, "0.33.33.2"]) {
+  assert.ok(
+    postReleasePatchCommit({ checkpoint, paths: ["package.json"] }).errors.length > 0,
+    `${checkpoint} must still be refused the post-release patch's version change`,
+  );
+}
+assert.match(
+  postReleasePatchCommit({ checkpoint: "0.33.33.2", docs: "Docs updated: docs/preview-deployment.md.", paths: ["docs/preview-deployment.md"] }).errors.join("\n"),
+  /durable documentation is reserved/,
+  "an ordinary checkpoint must still be refused durable documentation",
+);
+assert.match(
+  postReleasePatchCommit({ paths: ["DECISIONS.md"] }).errors.join("\n"),
+  new RegExp(`DECISIONS\\.md is reserved for ${escapeRegExp(CLOSEOUT_CHECKPOINT)} branch closeout`),
+  "the post-release patch must not take over durable decisions",
+);
+assert.match(
+  postReleasePatchCommit({ paths: ["CHANGELOG.md", "package-lock.json", "package.json"] }).errors.join("\n"),
+  /maximum is 2/,
+  "the post-release patch keeps the two-ceremony-file ceiling",
+);
+
 assert.match(workflowSource, /LTF_CHECKPOINT_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
 assert.match(workflowSource, /node scripts\/release\/checkpoint-commits\.mjs/);
 assert.match(agentGuide, /LTF-Checkpoint: <slice-id>/);
@@ -551,6 +664,8 @@ assert.match(versioning, /becomes authoritative only when that pull request merg
 assert.match(versioning, /npm run checkpoint:validate/);
 assert.match(versioning, /release-preparation addendum declared after the branch closeout/, "the versioning contract should document the addendum's narrow ownership");
 assert.match(versioning, /refuses any change to the application version in either package file/, "the versioning contract should record that the addendum never changes release identity");
+assert.match(versioning, /post-release patch declared after a release is published/, "the versioning contract should document the post-release patch's narrow ownership");
+assert.match(versioning, /application version fields in both package files to exactly its own checkpoint identity/, "the versioning contract should record the post-release patch's only package change");
 assert.equal(requireScripts(packageSource)["checkpoint:validate"], "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly");
 
 const syntheticBaseSha = "a".repeat(40);

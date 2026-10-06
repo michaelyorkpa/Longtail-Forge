@@ -43,74 +43,16 @@ These open findings were carried out of the Lean Core branch when its closeout, 
   - **Owner:** browser test maintenance.
   - **Consequence:** an occasional retry. It must never be green-controlled.
 
-## Post-release Patch
+The post-release patch to `v0.33.33` carried these findings forward. The same rule applies: each needs its own roadmap slice.
 
-### 0.33.33.50 - Deployment contract repair and runtime security baseline
-
-**Model: High Effort** — A root-owned deployment helper, its rollback and recovery paths, the runtime image baseline, and checkpoint policy change together; a subtle error blocks deployment, breaks rollback, or weakens demo isolation.
-
-Added on 2026-10-05 at the operator's instruction (choice B), after `v0.33.33` was published and its friends-and-family preview deployment was blocked before dispatch. The `v0.33.33` helper, both the installed preview copy and the published release asset, requires `better-sqlite3` `13.0.1`, while `v0.33.33` ships `13.0.3`. This focused post-release patch publishes as the new release identity `0.33.33.50`. It owns its own work: it does not reuse the closeout `0.33.33.48` or the pre-publication release-preparation addendum `0.33.33.49`, and it does not replace any `v0.33.33` tag, image, checksum, or release asset.
-
-Scope:
-
-- [ ] **Ancestry.** Merge `origin/main` into the patch branch as a real merge. Its only exclusive commit is the content-free #873 promotion merge `e1dd8477`. Prove the tree unchanged.
-- [ ] **Ownership policy.** Give `0.33.33.50` a narrow rule in `scripts/release/checkpoint-commits.mjs`. It may set the application version in `package.json` and `package-lock.json` to exactly its own identity, and change the `CHANGELOG.md` entry and owning documentation. Every other package field, the lockfile graph, and `DECISIONS.md` stay fixed. The two-ceremony-file ceiling, trailers, and declaration check are unchanged. Prove the rule with positive and negative cases, and document it in `docs/versioning.md`.
-- [ ] **Release-aware native-dependency contract.** The host helper accepts only reviewed native profiles: each release's `better-sqlite3` and bundled SQLite versions. These cover both this patch and the previous known-good release that rollback and recovery must still select.
-  - Before any image pull, the helper refuses a claim outside those profiles, or one without published-digest native proof.
-  - After the pull, and before the maintenance marker, it executes the selected digest natively and refuses any disagreement with the claim.
-  - The repository, commit, artifact, image-index, platform, and attestation checks stay exact.
-  - The publisher derives its expected driver from `package.json`. A test ties together the package declaration, the installed driver, the publisher, the helper profiles, and the retained previous-release metadata, so a driver change cannot leave them inconsistent.
-- [ ] **Explicit demo classification.** The resolved Compose `DEMO_MODE` must be exactly `true` or `false`. A missing or malformed value, including spellings the application itself reads as true, is refused before the maintenance marker, never treated silently as either profile. The preview must follow the non-demo path explicitly.
-- [ ] **Executable helper proof.** On native Linux, with real `bash`, `jq`, and coreutils as root, and fakes standing in only for Docker and HTTP, run the actual helper bytes against the retained published metadata of `v0.33.32.45` and `v0.33.33`. Prove that:
-  - the original `v0.33.33` helper rejects the published `13.0.3` release for the reported reason;
-  - the repaired helper accepts the new release, and the previous `13.0.1` release for explicit rollback;
-  - tampered or inconsistent native proof, commit, artifact, image, or platform identity is refused before any pull, marker, or data change;
-  - failed-deployment automatic recovery and explicit rollback each work, tested separately;
-  - every classification case behaves as specified.
-
-  The proof runs as a stage of the required maintenance release rehearsal.
-- [ ] **Runtime image.** Move the base to an exact patched Node 24 Debian Bookworm slim image by immutable digest. Remove npm, npx, corepack, and yarn from the final runtime stage, and keep the build-stage tooling. Keep system `tar` and `gzip`, which the archive, backup, and restore paths use. The container proof asserts both the absence and the presence.
-- [ ] **Native lifecycle qualification.** With real Docker and the actual repaired helper as root, in a disposable environment, qualify the new image and helper together:
-  - startup, readiness, and exact identity;
-  - native `better-sqlite3` execution;
-  - whole-instance backup creation and inspection;
-  - upgrade from the real previous release `v0.33.32.45`;
-  - failed-candidate automatic recovery;
-  - explicit restored rollback to `v0.33.32.45`;
-  - behavior with npm absent.
-
-  Separately, qualify the demo profile's guarded deployment, manual reset, and interrupted-reset recovery, proving that reset candidates are generated by the candidate image. Run these before merge, and again against the published digest before any deployment.
-- [ ] **Vulnerability evidence.** For the actual final image, record:
-  - full and production audits;
-  - Node and bundled-component status;
-  - OS-package findings from vendor data;
-  - proof that the removed components are absent;
-  - a before and after disposition of every reported finding, including any advisory without a fix;
-  - scanner and database versions, scan time, exact image identity, and coverage limits.
-- [ ] **Owning documentation.** Correct:
-  - the stale native-driver statements;
-  - the Compose operation-lock path;
-  - the reset service's documentation link owner;
-  - the runtime-tooling and host-helper installation instructions.
-
-  Add a correction to the `v0.33.33` release notes, and link the replacement release once it is published.
-- [ ] **Operator handoff.** In the protected operational record, give the checksummed helper installation, its verification and recovery steps, and the privileged read-only preflight for the preview.
-
-Out of scope:
-- the `0.33.34` scope;
-- dependency refreshes, including #634 and the drift #558 proposed;
-- browser flakes, analytics, and backlog cleanup;
-- any change to the live demo, which needs its own authorization;
-- broadening the deployment account's privileges;
-- pruning the demo's reset-operation history.
-
-Acceptance criteria:
-
-- [ ] One canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks pass on the final tree.
-- [ ] The executable helper proof and the native lifecycle qualification pass. Their evidence states what ran locally, in CI, and against published bytes.
-- [ ] An independent Codex review approves the patch before any merge, promotion, or publication.
-- [ ] The promotion gates pass. `Manual GitHub release` publishes `v0.33.33.50`, and its assets and image are verified.
-- [ ] The published digest passes the native lifecycle qualification, and its vulnerability evidence is recorded. The operator handoff is complete before any privileged host step.
+- **The runtime's bundled OpenSSL trails upstream.** Node 24.21.0, the newest Node 24 release, bundles OpenSSL 3.5.8. OpenSSL 3.5.9, released on 2026-09-29, fixes thirteen issues that affect 3.5.8, one rated High (DTLS retransmission). No Node release bundles 3.5.9 yet. None of the thirteen is reachable from the deployed application's call paths: it uses no DTLS, QUIC, CMP, SM2, or non-NIST ECDSA signing, runs no TLS server, and makes no TLS client connection. The only packaged TLS client is the historical `demo:data:host` command's health check of the operator's own public edge, which the Compose deployment does not run.
+  - **Owner:** the next runtime base refresh.
+  - **Consequence:** adopt the first Node 24 release that bundles OpenSSL 3.5.9 or later, with its native lifecycle qualification.
+- **Fixable Debian packages await the next official base rebuild.** The current `node:24.21.0-bookworm-slim` build, of 2026-09-19, carries `perl-base` `5.36.0-7+deb12u3`, `libpcre2-8-0` `10.42-1+deb12u1`, and `tzdata` `2026b`. Debian has published fixes: thirteen `perl-base` advisories, three of them Critical, one High `pcre2` advisory, and a timezone update. No application or operator path runs perl, compiles an attacker-supplied PCRE2 pattern, or relies on the system timezone database; Node uses its bundled ICU time zones.
+  - **Owner:** the next runtime base refresh, unless the operator chooses a reviewed targeted package upgrade.
+- **Public-demo reset history has no retention bound.** The demo host's `demo-reset-operations/` held 1,392 operation directories on 2026-10-05, one per hourly reset since 2026-08-08, and nothing prunes them. Their disk and inode use is still to be measured.
+  - **Owner:** public-demo operations.
+  - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
 
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 

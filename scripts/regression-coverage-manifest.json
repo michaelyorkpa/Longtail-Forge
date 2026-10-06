@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19136,
+    "activeAssertionCount": 19162,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 77,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19975,
+    "effectiveAssertionCount": 20001,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -6439,11 +6439,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 38,
+      "assertionCount": 41,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves current release command, Compose deployment, maintenance-curtain, and retired-path contracts through one table-driven source owner.",
-      "entryPointAssertionCount": 38,
+      "entryPointAssertionCount": 41,
       "id": "release.current-static-contracts",
       "legacy": false,
       "path": "scripts/regressions/release/current-static-contracts.regression.mjs",
@@ -6481,11 +6481,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 102,
+      "assertionCount": 114,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
-      "entryPointAssertionCount": 102,
+      "entryPointAssertionCount": 114,
       "id": "release.developer-verification-throughput",
       "legacy": false,
       "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",
@@ -6542,11 +6542,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 68,
+      "assertionCount": 70,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves protected nightly-to-main promotion, pinned Actions, isolated environments, immutable artifacts, and deliberate preview deployment remain enforced.",
-      "entryPointAssertionCount": 68,
+      "entryPointAssertionCount": 70,
       "id": "release.github-release-operations",
       "legacy": false,
       "path": "scripts/regressions/release/github-release-operations.regression.mjs",
@@ -6684,11 +6684,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 78,
+      "assertionCount": 82,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready after bare-metal production support retirement.",
-      "entryPointAssertionCount": 78,
+      "entryPointAssertionCount": 82,
       "id": "release.preview-deployment-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/preview-deployment-boundary.regression.mjs",
@@ -6725,11 +6725,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 23,
+      "assertionCount": 27,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves exact-demo outbound denial, environment and storage allowlists, loopback publishing, host firewall enforcement, and lifecycle-owned isolation smoke.",
-      "entryPointAssertionCount": 23,
+      "entryPointAssertionCount": 27,
       "id": "release.public-demo-isolation",
       "legacy": false,
       "path": "scripts/regressions/release/public-demo-isolation.regression.mjs",
@@ -6905,11 +6905,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 33,
+      "assertionCount": 34,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the versioned runtime artifact includes only the bootable runtime boundary and a checksum.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 34,
       "id": "release.runtime-artifact-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/runtime-artifact-boundary.regression.mjs",

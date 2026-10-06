@@ -20,6 +20,7 @@ import {
   createRuntimePackage,
   createArtifactManifest,
 } from "../../build-runtime-artifact.mjs";
+import { parseSource, readImports } from "../../lib/dependency-cycles.mjs";
 
 const packageJson = requireRuntimeSourceManifest(
   requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8"))),
@@ -125,6 +126,20 @@ try {
       `${forbiddenPrefix} should be excluded from the runtime artifact`,
     );
   }
+
+  // Every relative module a packaged file imports must be packaged too. A helper left out passes
+  // every source-tree test and fails only inside the image: v0.33.33's public-demo baseline tooling
+  // stopped there with ERR_MODULE_NOT_FOUND.
+  /** @type {string[]} */
+  const unpackagedImports = [];
+  for (const file of result.files.filter((name) => /\.(?:c|m)?js$/.test(name))) {
+    for (const { specifier } of readImports(parseSource(await fs.readFile(file, "utf8"))).specifiers) {
+      if (!specifier.startsWith("./") && !specifier.startsWith("../")) continue;
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
+      if (!fileSet.has(target)) unpackagedImports.push(`${file} -> ${specifier}`);
+    }
+  }
+  assert.deepEqual(unpackagedImports, [], "every module a packaged file imports must itself be packaged");
 
     const checksumText = await fs.readFile(result.checksumPath, "utf8");
   assert.equal(checksumText, `${result.checksum}  ${path.basename(result.artifactPath)}\n`);

@@ -42,6 +42,7 @@ for (const requirement of [
   /reference-caddy-security-smoke\.mjs/,
   /"--topology",\s*"multi-proxy"/,
   /current-static-contracts\.regression\.mjs/,
+  /compose-helper-contract-harness\.mjs/,
   /process\.platform !== "linux"/,
   /later stages were not run/,
   /without proxy reload/,
@@ -72,6 +73,7 @@ for (const requirement of [
   /direct-caddy/,
   /bounded-nginx-caddy/,
   /deploy-rollback-recovery/,
+  /helper-contract/,
 ]) {
   assert.match(plan.stdout, requirement);
 }
