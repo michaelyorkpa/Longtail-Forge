@@ -14,11 +14,11 @@
   Previously the first two were refused only after the deployment marker was set.
 - **Recovery before any data change.** A deploy or rollback can now fail or be interrupted behind the curtain before any data has changed, for example on a protected backup that cannot be created or inspected, or a state record the next step cannot read. It then restarts the current release unchanged, and lifts the curtain only once that release's direct and public identity verify. Previously such a failure left the application stopped behind the curtain.
 - **Explicit demo classification.** The resolved Compose `DEMO_MODE` must be exactly `true` or `false`. A missing or other value is refused before the curtain, including spellings the application itself reads as true. A demo can no longer run without its isolation.
-- **Executable helper proof.** `scripts/release/compose-helper-contract-harness.mjs` runs the actual helper bytes as root on native Linux, against the retained published metadata of `v0.33.32.45` and `v0.33.33`. Only Docker and HTTP are faked. It runs as the `helper-contract` stage of the required maintenance release rehearsal. Its 56 scenarios include:
+- **Executable helper proof.** `scripts/release/compose-helper-contract-harness.mjs` runs the actual helper bytes as root on native Linux, against the retained published metadata of `v0.33.32.45` and `v0.33.33`. Only Docker and HTTP are faked. It runs as the `helper-contract` stage of the required maintenance release rehearsal. Its 57 scenarios include:
   - the published `v0.33.33` helper rejecting its own release;
   - upgrade, and explicit rollback;
   - automatic recovery from a failed candidate, an unrecovered failure, and recovery from a failed rollback target;
-  - a pre-upgrade backup that fails for lack of space, for a missing Secure Notes key backup, at inspection, or without an archive, or that is interrupted; a failed pre-rollback backup; and an unreadable rollback record. Each restarts the current release unchanged behind the curtain, and a restart that does not verify keeps the curtain;
+  - a pre-upgrade backup that fails for lack of space, for a missing Secure Notes key backup, at inspection, or without an archive, or that is interrupted; a failed copy of the prior state; a failed pre-rollback backup; and an unreadable rollback record. Each restarts the current release unchanged behind the curtain, and a restart that does not verify keeps the curtain;
   - 20 tampered-metadata refusals before any pull, and native-execution refusals before the curtain;
   - 14 demo classification cases, and lock contention.
 - **Runtime image security baseline.**

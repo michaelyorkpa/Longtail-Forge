@@ -40,8 +40,8 @@ const CURRENT_METADATA = path.join(repoRoot, "tests/fixtures/release-metadata/v0
 
 /** @typedef {{ driver: string, sqlite: string }} NativeTruth */
 /** @typedef {{ platform: string, labels: { revision: string, artifact: string, branch: string }, native: NativeTruth | null, health: "healthy" | "unhealthy", identity: { version: string, commit: string, artifact: string } }} FakeImage */
-/** @typedef {"create" | "key-backup" | "inspect" | "missing-archive" | "hang"} BackupFault */
-/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, backupFails: BackupFault | null, markerPath: string, publicOrigin: string }} FakeScenario */
+/** @typedef {"create" | "key-backup" | "inspect" | "missing-archive" | "hang" | "state-copy"} BackupFault */
+/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, backupFails: BackupFault | null, operationsRoot: string, markerPath: string, publicOrigin: string }} FakeScenario */
 /** @typedef {{ running: string | null, state: "running" | "stopped" | "absent", records: string[] }} FakeRuntime */
 /** @typedef {{ tool: string, action: string, markerPresent: boolean, ref?: string, image?: string | null, archive?: string, preRestore?: string, keyBackup?: boolean, url?: string, mode?: string }} FakeCall */
 /** @typedef {{ version: string, commitSha: string, channel: string, sourceBranch: string, schemaVersion: number, application: string, artifact: { sha256: string }, image: { repository: string, digest: string, reference: string, platform: string, platformManifest: { digest: string, os: string, architecture: string }, nativeDependency?: { betterSqlite3Version: string, sqliteVersion: string, execution: string, platform: string, architecture: string }, attestations: { sbom?: { predicateType: string }, provenance?: { predicateType: string } } } }} ReleaseMetadata */
@@ -212,6 +212,11 @@ function fakeCompose(args, scenario, runtime, record, save) {
         record({ action: "backup-inspect", image, archive, keyBackup });
         if (scenario.backupFails === "inspect") return refuse("Backup checksum does not match its manifest: database/longtail-forge.db");
         if (scenario.backupFails === "missing-archive") return 0;
+        if (scenario.backupFails === "state-copy") {
+          // The backup is sound, but the operation record the helper copies the prior state into is gone.
+          const newest = fs.readdirSync(scenario.operationsRoot).sort().at(-1);
+          if (newest) fs.rmSync(path.join(scenario.operationsRoot, newest), { recursive: true, force: true });
+        }
         return fs.existsSync(archive) ? 0 : refuse(`archive is missing: ${archive}`);
       }
       if (action === "restore") {
@@ -480,6 +485,15 @@ async function main() {
       assertRecoveredBeforeDataChange(box, result, "deploy", null, previous, currentBefore);
       assert.equal(stateExists(box, "previous.json"), false, "an interrupted deployment must not create a rollback record");
       assert.deepEqual(readRuntime(box).records, ["baseline data"]);
+    });
+
+    await scenario("a prior-state copy that fails after the backup restarts the current release unchanged", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, backupFails: "state-copy" });
+      const currentBefore = stateHash(box, "current.json");
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assertRecoveredBeforeDataChange(box, result, "deploy", "prior-state.json", previous, currentBefore);
+      assert.ok(indexOfCall(result.calls, "backup-inspect") >= 0, "the failure must follow the inspected backup");
+      assert.equal(stateExists(box, "previous.json"), false, "a failed deployment must not create a rollback record");
     });
 
     await scenario("a failed pre-rollback backup restarts the current release unchanged before the curtain lifts", ({ sandbox }) => {
@@ -770,6 +784,7 @@ function createSandbox(work, ordinal, fakeBin, options) {
     demoMode: options.demoMode === undefined ? "false" : options.demoMode,
     restoreFails: options.restoreFails === true,
     backupFails: options.backupFails ?? null,
+    operationsRoot: path.join(deployRoot, "operations"),
     markerPath: sandbox.marker,
     publicOrigin: origin,
   };
