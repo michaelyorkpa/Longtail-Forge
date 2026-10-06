@@ -19,6 +19,7 @@ import { enforceZero } from "../../typecheck-governance.mjs";
 import {
   CLOSEOUT_CHECKPOINT,
   POST_RELEASE_PATCH_CHECKPOINT,
+  POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
   TRAILER_NAMES,
   parseCheckpointTrailers,
@@ -554,11 +555,14 @@ const patchLockAfter = structuredClone(patchLockBefore);
 patchLockAfter.version = POST_RELEASE_PATCH_CHECKPOINT;
 patchLockAfter.packages[""].version = POST_RELEASE_PATCH_CHECKPOINT;
 
+const postReleasePatchLockError = `package-lock.json under ${POST_RELEASE_PATCH_CHECKPOINT} may change only its application version fields, to exactly ${POST_RELEASE_PATCH_CHECKPOINT}, or take its reviewed dependency security updates`;
+
 /**
  * @param {{
  *   checkpoint?: string,
  *   docs?: string,
  *   lockAfter?: object,
+ *   lockBefore?: object,
  *   packageAfter?: object,
  *   paths: string[],
  * }} change
@@ -567,12 +571,13 @@ function postReleasePatchCommit({
   checkpoint = POST_RELEASE_PATCH_CHECKPOINT,
   docs = "No docs change needed: synthetic post-release patch proof.",
   lockAfter = patchLockAfter,
+  lockBefore = patchLockBefore,
   packageAfter = patchPackageAfter,
   paths,
 }) {
   return validateCheckpointCommit({
     lockAfterSource: JSON.stringify(lockAfter),
-    lockBeforeSource: JSON.stringify(patchLockBefore),
+    lockBeforeSource: JSON.stringify(lockBefore),
     message: checkpointMessage({ checkpoint, docs, summary: "Give the post-release repair its own release identity" }),
     packageAfterSource: JSON.stringify(packageAfter),
     packageBeforeSource: JSON.stringify(patchPackageBefore),
@@ -624,10 +629,59 @@ for (const [label, lockAfter] of /** @type {const} */ ([
 ])) {
   assert.ok(
     postReleasePatchCommit({ lockAfter, paths: ["package-lock.json"] }).errors
-      .includes(`package-lock.json under ${POST_RELEASE_PATCH_CHECKPOINT} may change only its application version fields, to exactly ${POST_RELEASE_PATCH_CHECKPOINT}`),
+      .includes(postReleasePatchLockError),
     `the post-release patch must refuse a lockfile with ${label}`,
   );
 }
+// The post-release patch may also take its reviewed dependency security updates, each pinned to one
+// lock entry by version, registry tarball, and integrity, and nothing else in the lock may move.
+/** @typedef {{ version?: string, resolved?: string, integrity?: string, hasInstallScript?: boolean, license?: string, name?: string, dependencies?: Record<string, string> }} SyntheticLockEntry */
+/** @typedef {{ lockfileVersion: number, name: string, version: string, packages: Record<string, SyntheticLockEntry> }} SyntheticLock */
+/** @param {string} packagePath @param {string} version @param {string} integrity @returns {SyntheticLockEntry} */
+function registryLockEntry(packagePath, version, integrity) {
+  const name = packagePath.slice("node_modules/".length);
+  return { version, resolved: `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`, integrity, license: "MIT" };
+}
+/** @type {SyntheticLock} */
+const securityLockBefore = structuredClone(patchLockAfter);
+/** @type {SyntheticLock} */
+const securityLockAfter = structuredClone(patchLockAfter);
+for (const [packagePath, update] of Object.entries(POST_RELEASE_PATCH_DEPENDENCY_UPDATES)) {
+  if (update.from !== null) securityLockBefore.packages[packagePath] = registryLockEntry(packagePath, update.from, "sha512-the-advisory's-affected-release");
+  securityLockAfter.packages[packagePath] = registryLockEntry(packagePath, update.to, update.integrity);
+}
+assert.deepEqual(
+  postReleasePatchCommit({ lockAfter: securityLockAfter, lockBefore: securityLockBefore, paths: ["THIRD_PARTY_NOTICES.md", "package-lock.json"] }).errors,
+  [],
+  "the post-release patch may take exactly its reviewed dependency security updates",
+);
+/** @param {(after: SyntheticLock, before: SyntheticLock) => void} mutate */
+function securityLockVariant(mutate) {
+  const lockBefore = structuredClone(securityLockBefore);
+  const lockAfter = structuredClone(securityLockAfter);
+  mutate(lockAfter, lockBefore);
+  return { lockAfter, lockBefore };
+}
+for (const [label, variant] of /** @type {const} */ ([
+  ["another version of a reviewed package", securityLockVariant((after) => { after.packages["node_modules/compression"].version = "1.8.3"; })],
+  ["a reviewed package with other bytes", securityLockVariant((after) => { after.packages["node_modules/proxy-addr"].integrity = "sha512-unreviewed"; })],
+  ["a reviewed package from another registry", securityLockVariant((after) => { after.packages["node_modules/destroy"].resolved = "https://registry.example.test/destroy/-/destroy-1.2.0.tgz"; })],
+  ["a reviewed package that gained an install script", securityLockVariant((after) => { after.packages["node_modules/source-map-js"].hasInstallScript = true; })],
+  ["an unexpected starting version", securityLockVariant((_after, before) => { before.packages["node_modules/compression"].version = "1.7.4"; })],
+  ["an unreviewed package moving beside them", securityLockVariant((after) => { after.packages["node_modules/markdown-it"].version = "15.0.3"; })],
+  ["an unreviewed package added beside them", securityLockVariant((after) => { after.packages["node_modules/left-pad"] = { version: "1.3.0" }; })],
+  ["a root dependency change beside them", securityLockVariant((after) => { after.packages[""].dependencies = { compression: "^1.8.2" }; })],
+  ["a reviewed package removed", securityLockVariant((after) => { delete after.packages["node_modules/proxy-addr"]; })],
+])) {
+  assert.ok(
+    postReleasePatchCommit({ ...variant, paths: ["package-lock.json"] }).errors.includes(postReleasePatchLockError),
+    `the post-release patch must refuse ${label}`,
+  );
+}
+assert.ok(
+  postReleasePatchCommit({ checkpoint: "0.33.33.2", lockAfter: securityLockAfter, lockBefore: securityLockBefore, paths: ["package-lock.json"] }).errors.length > 0,
+  "an ordinary internal checkpoint must still be refused the post-release patch's dependency security updates",
+);
 for (const checkpoint of [RELEASE_PREPARATION_CHECKPOINT, "0.33.33.2"]) {
   assert.ok(
     postReleasePatchCommit({ checkpoint, paths: ["package.json"] }).errors.length > 0,

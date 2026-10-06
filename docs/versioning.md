@@ -17,7 +17,11 @@ A release-preparation addendum declared after the branch closeout prepares the s
 A post-release patch declared after a release is published repairs that release under a new release identity. It never replaces the published tag, image, checksums, or release assets. For the `0.33.33` release it is `0.33.33.50`.
 
 - **What its commits may change.** They may move the application version fields in both package files to exactly its own checkpoint identity. They may also change the `CHANGELOG.md` entry and the documentation that owns a changed contract.
-- **What stays fixed.** The validator refuses any other change to either package file: dependency declarations, the resolved lockfile graph, and every other `package.json` field. `DECISIONS.md` stays reserved.
+- **Dependency security updates.** The lockfile may also take the dependency security updates that the validator enumerates. Each is one lock entry, pinned to its exact version, registry tarball, and integrity, with no install script. For `0.33.33.50` these are:
+  - `compression` 1.8.2, with its one new dependency, `destroy` 1.2.0;
+  - `proxy-addr` 2.0.8;
+  - the development-only `source-map-js` 1.2.2.
+- **What stays fixed.** The validator refuses any other change to either package file: dependency declarations, every other resolved lock entry, and every other `package.json` field. `DECISIONS.md` stays reserved.
 - **What still applies.** The two-ceremony-file ceiling, the trailer rules, and the declaration check. No other checkpoint gains these paths.
 
 After all intended checkpoint commits are present, run `npm run checkpoint:validate` before the first push and after amending any checkpoint commit message. The command resolves `merge-base(origin/nightly, HEAD)` locally and validates the same complete branch range as protected CI. It does not repeat `npm run verify:slice`; a message-only amend leaves a prior green tree verification valid, while any file change requires verification again.
