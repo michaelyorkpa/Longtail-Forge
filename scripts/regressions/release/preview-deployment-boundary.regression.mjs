@@ -62,6 +62,15 @@ assert.match(runtimeStage, /rm -rf \/usr\/local\/lib\/node_modules\/npm \/usr\/l
 assert.match(runtimeStage, /for tool in npm npx corepack yarn yarnpkg; do if command -v "\$tool"[^\n]*exit 1; fi; done/);
 assert.match(runtimeStage, /command -v tar >\/dev\/null && command -v gzip >\/dev\/null && command -v node >\/dev\/null/);
 assert.doesNotMatch(runtimeStage, /(?:\bRUN|&&|;)\s+(?:npm|npx|corepack|yarn|yarnpkg)\s/, "the runtime stage must not run a package manager");
+// The final stage takes Debian's fixes for installed packages that the pinned base predates: each by
+// exact version, as an upgrade only, verified once installed, and never as a whole-system upgrade.
+for (const requirement of [
+  /RUN debian_security_updates="perl-base=[0-9][A-Za-z0-9.+~:-]* libpcre2-8-0=[0-9][A-Za-z0-9.+~:-]* tzdata=[0-9][A-Za-z0-9.+~:-]*"/,
+  /apt-get install --yes --no-install-recommends --only-upgrade \$\{debian_security_updates\}/,
+  /for expected in \$\{debian_security_updates\}; do installed="\$\{expected%%=\*\}=\$\(dpkg-query -W -f='\$\{Version\}' "\$\{expected%%=\*\}"\)"; if \[ "\$installed" != "\$expected" \]; then [^\n]*exit 1; fi; done/,
+  /apt-get clean \\\n\s+&& rm -rf \/var\/lib\/apt\/lists\/\*/,
+]) assert.match(runtimeStage, requirement);
+assert.doesNotMatch(runtimeStage, /apt-get (?:upgrade|dist-upgrade|full-upgrade)\b|\bapt (?:upgrade|full-upgrade)\b|--allow-downgrades/, "the final stage must not upgrade or downgrade the whole system");
 assert.doesNotMatch(dockerfile, /COPY \. /, "the image must consume the runtime artifact instead of copying the repository");
 assert.doesNotMatch(dockerfile, /postgres/i, "the image must not add PostgreSQL before its implementation branch");
 assert.match(dockerignore, /^\*\*/m);

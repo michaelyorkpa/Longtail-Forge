@@ -36,6 +36,17 @@ ENV NODE_ENV=production \
 
 WORKDIR /opt/longtail-forge
 
+# Debian LTS security fixes that the pinned base predates, from bookworm-security: perl-base
+# (DLA-4821-1), libpcre2-8-0 (DLA-4816-1), and tzdata (DLA-4792-1). Each already-installed package
+# is upgraded to its exact fixed version and nothing new is installed; the build fails unless every
+# installed version matches. A newer Debian fix, or a refreshed base, needs a reviewed change here.
+RUN debian_security_updates="perl-base=5.36.0-7+deb12u4 libpcre2-8-0=10.42-1+deb12u2 tzdata=2026c-0+deb12u1" \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends --only-upgrade ${debian_security_updates} \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && for expected in ${debian_security_updates}; do installed="${expected%%=*}=$(dpkg-query -W -f='${Version}' "${expected%%=*}")"; if [ "$installed" != "$expected" ]; then echo "expected $expected, installed $installed" >&2; exit 1; fi; done
+
 # The runtime never runs a package manager: dependencies are installed in the build stage, and the
 # application, worker, backup, and public-demo tooling all run directly under node. Remove the base
 # image's npm, npx, corepack, and yarn so their bundled packages are not shipped, and keep the system
