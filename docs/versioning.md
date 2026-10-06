@@ -17,7 +17,7 @@ A release-preparation addendum declared after the branch closeout prepares the s
 A post-release patch declared after a release is published repairs that release under a new release identity. It never replaces the published tag, image, checksums, or release assets. For the `0.33.33` release it is `0.33.33.50`.
 
 - **What its commits may change.** They may move the application version fields in both package files to exactly its own checkpoint identity. They may also change the `CHANGELOG.md` entry and the documentation that owns a changed contract.
-- **Dependency security updates.** The lockfile may also take the dependency security updates that the validator enumerates. Each is one lock entry, pinned to its exact version, registry tarball, and integrity, with no install script. For `0.33.33.50` these are:
+- **Dependency security updates.** The lockfile may also take the dependency security updates that the validator enumerates, as one reviewed transition. The validator holds each package's complete lock entry from before and after the update, and every listed entry must match both exactly. Any other field change is refused just as a version, tarball, or integrity change is, including a development or optional flag, dependencies, engines, `bin`, or funding. The entries must all move together. For `0.33.33.50` these are:
   - `compression` 1.8.2, with its one new dependency, `destroy` 1.2.0;
   - `proxy-addr` 2.0.8;
   - the development-only `source-map-js` 1.2.2.

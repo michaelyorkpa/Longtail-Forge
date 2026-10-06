@@ -633,27 +633,23 @@ for (const [label, lockAfter] of /** @type {const} */ ([
     `the post-release patch must refuse a lockfile with ${label}`,
   );
 }
-// The post-release patch may also take its reviewed dependency security updates, each pinned to one
-// lock entry by version, registry tarball, and integrity, and nothing else in the lock may move.
-/** @typedef {{ version?: string, resolved?: string, integrity?: string, hasInstallScript?: boolean, license?: string, name?: string, dependencies?: Record<string, string> }} SyntheticLockEntry */
-/** @typedef {{ lockfileVersion: number, name: string, version: string, packages: Record<string, SyntheticLockEntry> }} SyntheticLock */
-/** @param {string} packagePath @param {string} version @param {string} integrity @returns {SyntheticLockEntry} */
-function registryLockEntry(packagePath, version, integrity) {
-  const name = packagePath.slice("node_modules/".length);
-  return { version, resolved: `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`, integrity, license: "MIT" };
-}
+// The post-release patch may also take its reviewed dependency security updates as one transition:
+// each listed lock entry must equal its complete reviewed entry before and after, and nothing else in
+// the lock may move. A field beside the version - a development or optional flag, dependencies,
+// engines, bin, funding - is as much a change as the version itself.
+/** @typedef {{ lockfileVersion: number, name: string, version: string, packages: Record<string, Record<string, unknown>> }} SyntheticLock */
 /** @type {SyntheticLock} */
 const securityLockBefore = structuredClone(patchLockAfter);
 /** @type {SyntheticLock} */
 const securityLockAfter = structuredClone(patchLockAfter);
 for (const [packagePath, update] of Object.entries(POST_RELEASE_PATCH_DEPENDENCY_UPDATES)) {
-  if (update.from !== null) securityLockBefore.packages[packagePath] = registryLockEntry(packagePath, update.from, "sha512-the-advisory's-affected-release");
-  securityLockAfter.packages[packagePath] = registryLockEntry(packagePath, update.to, update.integrity);
+  if (update.before !== null) securityLockBefore.packages[packagePath] = structuredClone(update.before);
+  securityLockAfter.packages[packagePath] = structuredClone(update.after);
 }
 assert.deepEqual(
   postReleasePatchCommit({ lockAfter: securityLockAfter, lockBefore: securityLockBefore, paths: ["THIRD_PARTY_NOTICES.md", "package-lock.json"] }).errors,
   [],
-  "the post-release patch may take exactly its reviewed dependency security updates",
+  "the post-release patch may take exactly its reviewed dependency security transition",
 );
 /** @param {(after: SyntheticLock, before: SyntheticLock) => void} mutate */
 function securityLockVariant(mutate) {
@@ -667,10 +663,21 @@ for (const [label, variant] of /** @type {const} */ ([
   ["a reviewed package with other bytes", securityLockVariant((after) => { after.packages["node_modules/proxy-addr"].integrity = "sha512-unreviewed"; })],
   ["a reviewed package from another registry", securityLockVariant((after) => { after.packages["node_modules/destroy"].resolved = "https://registry.example.test/destroy/-/destroy-1.2.0.tgz"; })],
   ["a reviewed package that gained an install script", securityLockVariant((after) => { after.packages["node_modules/source-map-js"].hasInstallScript = true; })],
+  ["a reviewed package marked development-only", securityLockVariant((after) => { after.packages["node_modules/compression"].dev = true; })],
+  ["a reviewed package marked optional", securityLockVariant((after) => { after.packages["node_modules/proxy-addr"].optional = true; })],
+  ["a reviewed package with other dependencies", securityLockVariant((after) => { after.packages["node_modules/compression"].dependencies = {}; })],
+  ["a reviewed package with other engines", securityLockVariant((after) => { after.packages["node_modules/destroy"].engines = { node: ">=99" }; })],
+  ["a reviewed package that gained a bin", securityLockVariant((after) => { after.packages["node_modules/source-map-js"].bin = { "source-map": "cli.js" }; })],
+  ["a reviewed package without its funding", securityLockVariant((after) => { delete after.packages["node_modules/compression"].funding; })],
+  ["a development package moved to production", securityLockVariant((after) => { delete after.packages["node_modules/source-map-js"].dev; })],
+  ["only part of the reviewed transition", securityLockVariant((after, before) => { after.packages["node_modules/proxy-addr"] = structuredClone(before.packages["node_modules/proxy-addr"]); })],
+  ["an unexpected starting entry", securityLockVariant((_after, before) => { before.packages["node_modules/compression"].integrity = "sha512-unreviewed-start"; })],
   ["an unexpected starting version", securityLockVariant((_after, before) => { before.packages["node_modules/compression"].version = "1.7.4"; })],
+  ["a reviewed addition already present", securityLockVariant((_after, before) => { before.packages["node_modules/destroy"] = { version: "1.2.0" }; })],
   ["an unreviewed package moving beside them", securityLockVariant((after) => { after.packages["node_modules/markdown-it"].version = "15.0.3"; })],
   ["an unreviewed package added beside them", securityLockVariant((after) => { after.packages["node_modules/left-pad"] = { version: "1.3.0" }; })],
   ["a root dependency change beside them", securityLockVariant((after) => { after.packages[""].dependencies = { compression: "^1.8.2" }; })],
+  ["a top-level lock field change beside them", securityLockVariant((after) => { after.lockfileVersion = 2; })],
   ["a reviewed package removed", securityLockVariant((after) => { delete after.packages["node_modules/proxy-addr"]; })],
 ])) {
   assert.ok(
