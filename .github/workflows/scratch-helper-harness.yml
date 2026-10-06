@@ -219,3 +219,19 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
           path: ${{ runner.temp }}/security
+
+  helper-contract:
+    name: Executable helper contract and recovery mutations (scratch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Tool versions
+        run: bash --version | head -1; jq --version; flock --version | head -1; sudo -n true && echo "sudo ok"
+      - name: Executable Compose helper contract
+        run: node scripts/release/compose-helper-contract-harness.mjs
+      - name: Recovery mutation campaign against the executable harness
+        run: node scratch-mutate-recovery.mjs

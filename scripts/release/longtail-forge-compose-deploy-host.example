@@ -439,6 +439,27 @@ write_state() {
   install -o root -g root -m 0600 "$OPERATION_DIR/state.json" "$output"
 }
 
+# A failure or signal between the curtain and the first data change exits through here: a backup
+# that cannot be created or inspected, the copy of the prior state, or a state read the next step
+# needs. The data is unchanged, so the current release is started again as it was, and the curtain
+# lifts only once that release verifies; otherwise the marker and the protected evidence remain.
+recover_before_data_change() {
+  local status="$1"
+  test "$status" -ne 0 && test "$PRELIMINARY_PHASE" = true || exit "$status"
+  PRELIMINARY_PHASE=false
+  trap - EXIT HUP INT TERM
+  if ( restart_env="$(state_value "$CURRENT_STATE" '.deployment.releaseEnv')" \
+      && restart_digest="$(state_value "$CURRENT_STATE" '.image.digest')" \
+      && compose "$restart_env" up -d --no-deps --force-recreate longtail-forge \
+      && verify_runtime "$RELEASE_ROOT/${restart_digest#sha256:}.json" "$restart_env" \
+      && clear_marker ); then
+    printf 'longtail-forge-compose-deploy: %s failed before any data change; the current release was restarted unchanged and verified\n' "$MODE" >&2
+  else
+    printf 'longtail-forge-compose-deploy: %s failed before any data change, and the current release could not be restarted and verified; deployment marker and protected evidence remain\n' "$MODE" >&2
+  fi
+  exit "$status"
+}
+
 verify_image "$IMAGE_REFERENCE"
 verify_native_dependency "$IMAGE_REFERENCE"
 compose "$RELEASE_ENV" config --quiet
@@ -472,11 +493,17 @@ assert_marker
 
 CURRENT_BACKUP=''
 RECOVERY_SUCCEEDED=false
+PRELIMINARY_PHASE=false
 
 if test "$MODE" = "deploy"; then
   CURRENT_BACKUP="$BACKUP_ROOT/pre-upgrade-$OPERATION_ID.ltfbackup.tgz"
+  PRELIMINARY_PHASE=true
+  trap 'recover_before_data_change "$?"' EXIT
+  trap 'exit 130' HUP INT TERM
   backup_with_state "$CURRENT_STATE" "$CURRENT_BACKUP"
   install -o root -g root -m 0600 "$CURRENT_STATE" "$OPERATION_DIR/prior-state.json"
+  trap - EXIT HUP INT TERM
+  PRELIMINARY_PHASE=false
 
   if compose "$RELEASE_ENV" up -d --no-deps --force-recreate longtail-forge \
       && verify_runtime "$METADATA" "$RELEASE_ENV"; then
@@ -508,11 +535,16 @@ if test "$MODE" = "deploy"; then
 fi
 
 CURRENT_BACKUP="$BACKUP_ROOT/pre-rollback-$OPERATION_ID.ltfbackup.tgz"
+PRELIMINARY_PHASE=true
+trap 'recover_before_data_change "$?"' EXIT
+trap 'exit 130' HUP INT TERM
 backup_with_state "$CURRENT_STATE" "$CURRENT_BACKUP"
 current_digest="$(state_value "$CURRENT_STATE" '.image.digest')"
 current_metadata="$RELEASE_ROOT/${current_digest#sha256:}.json"
 target_env="$(state_value "$PREVIOUS_STATE" '.deployment.releaseEnv')"
 pre_restore="$BACKUP_ROOT/pre-restore-$OPERATION_ID-target.ltfbackup.tgz"
+trap - EXIT HUP INT TERM
+PRELIMINARY_PHASE=false
 
 if restore_with_state "$PREVIOUS_STATE" "$TARGET_BACKUP" "$pre_restore" \
     && compose "$target_env" up -d --no-deps --force-recreate longtail-forge \

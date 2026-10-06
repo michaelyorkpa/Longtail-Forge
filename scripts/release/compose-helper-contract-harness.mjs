@@ -19,6 +19,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { clearTimeout, setTimeout } from "node:timers";
 import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -39,7 +40,8 @@ const CURRENT_METADATA = path.join(repoRoot, "tests/fixtures/release-metadata/v0
 
 /** @typedef {{ driver: string, sqlite: string }} NativeTruth */
 /** @typedef {{ platform: string, labels: { revision: string, artifact: string, branch: string }, native: NativeTruth | null, health: "healthy" | "unhealthy", identity: { version: string, commit: string, artifact: string } }} FakeImage */
-/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, markerPath: string, publicOrigin: string }} FakeScenario */
+/** @typedef {"create" | "key-backup" | "inspect" | "missing-archive" | "hang" | "state-copy"} BackupFault */
+/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, backupFails: BackupFault | null, operationsRoot: string, markerPath: string, publicOrigin: string }} FakeScenario */
 /** @typedef {{ running: string | null, state: "running" | "stopped" | "absent", records: string[] }} FakeRuntime */
 /** @typedef {{ tool: string, action: string, markerPresent: boolean, ref?: string, image?: string | null, archive?: string, preRestore?: string, keyBackup?: boolean, url?: string, mode?: string }} FakeCall */
 /** @typedef {{ version: string, commitSha: string, channel: string, sourceBranch: string, schemaVersion: number, application: string, artifact: { sha256: string }, image: { repository: string, digest: string, reference: string, platform: string, platformManifest: { digest: string, os: string, architecture: string }, nativeDependency?: { betterSqlite3Version: string, sqliteVersion: string, execution: string, platform: string, architecture: string }, attestations: { sbom?: { predicateType: string }, provenance?: { predicateType: string } } } }} ReleaseMetadata */
@@ -194,12 +196,27 @@ function fakeCompose(args, scenario, runtime, record, save) {
       if (action === "create") {
         const archive = hostBackupPath(valueAfter(program, "--output"));
         record({ action: "backup-create", image, archive, keyBackup });
-        fs.writeFileSync(archive, JSON.stringify({ image, records: runtime.records }));
+        if (scenario.backupFails === "create") return refuse("ENOSPC: no space left on device, write");
+        if (scenario.backupFails === "key-backup") return refuse("A separately protected Secure Notes key backup is required.");
+        if (scenario.backupFails === "hang") {
+          // Hold the backup open until the harness interrupts the helper's process group.
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60_000);
+          return refuse("backup was not interrupted");
+        }
+        // "missing-archive" reports success without the archive reaching the host destination.
+        if (scenario.backupFails !== "missing-archive") fs.writeFileSync(archive, JSON.stringify({ image, records: runtime.records }));
         return 0;
       }
       if (action === "inspect") {
         const archive = hostBackupPath(valueAfter(program, "--archive"));
         record({ action: "backup-inspect", image, archive, keyBackup });
+        if (scenario.backupFails === "inspect") return refuse("Backup checksum does not match its manifest: database/longtail-forge.db");
+        if (scenario.backupFails === "missing-archive") return 0;
+        if (scenario.backupFails === "state-copy") {
+          // The backup is sound, but the operation record the helper copies the prior state into is gone.
+          const newest = fs.readdirSync(scenario.operationsRoot).sort().at(-1);
+          if (newest) fs.rmSync(path.join(scenario.operationsRoot, newest), { recursive: true, force: true });
+        }
         return fs.existsSync(archive) ? 0 : refuse(`archive is missing: ${archive}`);
       }
       if (action === "restore") {
@@ -445,6 +462,91 @@ async function main() {
       assert.equal(fs.existsSync(box.marker), false);
     });
 
+    for (const [fault, cause] of /** @type {const} */ ([
+      ["create", "no space left on device"],
+      ["key-backup", "A separately protected Secure Notes key backup is required."],
+      ["inspect", "Backup checksum does not match its manifest"],
+      ["missing-archive", "Compose backup was not created at the protected host destination"],
+    ])) {
+      await scenario(`a failed pre-upgrade backup (${fault}) restarts the current release unchanged before the curtain lifts`, ({ sandbox }) => {
+        const box = sandbox({ images: [previous, current], baseline: previous, backupFails: fault });
+        const currentBefore = stateHash(box, "current.json");
+        const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+        assertRecoveredBeforeDataChange(box, result, "deploy", cause, previous, currentBefore);
+        assert.equal(stateExists(box, "previous.json"), false, "a failed deployment must not create a rollback record");
+        assert.deepEqual(readRuntime(box).records, ["baseline data"]);
+      });
+    }
+
+    await scenario("an interrupted pre-upgrade backup restarts the current release unchanged before the curtain lifts", async ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, backupFails: "hang" });
+      const currentBefore = stateHash(box, "current.json");
+      const result = await runHelperInterrupted(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity, "backup-create");
+      assertRecoveredBeforeDataChange(box, result, "deploy", null, previous, currentBefore);
+      assert.equal(stateExists(box, "previous.json"), false, "an interrupted deployment must not create a rollback record");
+      assert.deepEqual(readRuntime(box).records, ["baseline data"]);
+    });
+
+    await scenario("a prior-state copy that fails after the backup restarts the current release unchanged", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, backupFails: "state-copy" });
+      const currentBefore = stateHash(box, "current.json");
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assertRecoveredBeforeDataChange(box, result, "deploy", "prior-state.json", previous, currentBefore);
+      assert.ok(indexOfCall(result.calls, "backup-inspect") >= 0, "the failure must follow the inspected backup");
+      assert.equal(stateExists(box, "previous.json"), false, "a failed deployment must not create a rollback record");
+    });
+
+    await scenario("a failed pre-rollback backup restarts the current release unchanged before the curtain lifts", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous });
+      assert.equal(runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity).status, 0);
+      writeRuntime(box, { ...readRuntime(box), records: [...readRuntime(box).records, "post-upgrade write"] });
+      const currentBefore = stateHash(box, "current.json");
+      const previousBefore = stateHash(box, "previous.json");
+      setBackupFault(box, "create");
+      const result = runHelper(box, REPAIRED_HELPER, "rollback", previous.metadata, previous.identity);
+      assertRecoveredBeforeDataChange(box, result, "rollback", "no space left on device", current, currentBefore);
+      assert.equal(stateHash(box, "previous.json"), previousBefore, "the rollback record must not change");
+      assert.deepEqual(readRuntime(box).records, ["baseline data", "post-upgrade write"]);
+    });
+
+    await scenario("a rollback record unreadable after the pre-rollback backup restarts the current release unchanged", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous });
+      assert.equal(runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity).status, 0);
+      // The record keeps every field the preflight reads, but not the release environment the restore
+      // needs, so the failure arrives behind the curtain, after the backup.
+      const previousPath = path.join(box.stateRoot, "previous.json");
+      const rollbackRecord = /** @type {{ deployment: { releaseEnv?: string } }} */ (readJson(previousPath));
+      delete rollbackRecord.deployment.releaseEnv;
+      writePrivate(previousPath, JSON.stringify(rollbackRecord));
+      const currentBefore = stateHash(box, "current.json");
+      const result = runHelper(box, REPAIRED_HELPER, "rollback", previous.metadata, previous.identity);
+      assertRecoveredBeforeDataChange(box, result, "rollback", null, current, currentBefore);
+      assert.ok(indexOfCall(result.calls, "backup-inspect") >= 0, "the failure must follow the pre-rollback backup");
+    });
+
+    await scenario("a failed pre-upgrade backup whose restart cannot be verified keeps the curtain and the evidence", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, unhealthy: [previous], backupFails: "create" });
+      const currentBefore = stateHash(box, "current.json");
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /deploy failed before any data change, and the current release could not be restarted and verified; deployment marker and protected evidence remain/);
+      assert.equal(fs.existsSync(box.marker), true, "an unverified restart must keep the curtain");
+      assert.deepEqual(result.calls.filter((call) => call.action === "up").map((call) => call.image), [previous.identity.reference]);
+      assert.equal(indexOfCall(result.calls, "backup-restore"), -1);
+      assert.equal(stateHash(box, "current.json"), currentBefore);
+    });
+
+    await scenario("DEMO_MODE=true: a failed pre-upgrade backup restarts the current release and checks isolation before the curtain lifts", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, demoMode: "true", isolationHelper: true, origin: DEMO_ORIGIN, backupFails: "create" });
+      const currentBefore = stateHash(box, "current.json");
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assertRecoveredBeforeDataChange(box, result, "deploy", "no space left on device", previous, currentBefore);
+      const isolation = result.calls.filter((call) => call.tool === "isolation");
+      assert.deepEqual(isolation.map((call) => [call.mode, call.markerPresent]), [["enforce", false], ["check", true]]);
+      const check = result.calls.findIndex((call) => call.tool === "isolation" && call.mode === "check");
+      assert.ok(check > indexOfCall(result.calls, "up"), "isolation must be checked on the restarted release");
+    });
+
     for (const [label, mutate, message] of tamperCases(current)) {
       await scenario(`tampered metadata is refused before any pull: ${label}`, ({ sandbox }) => {
         const box = sandbox({ images: [previous, current], baseline: previous });
@@ -550,7 +652,7 @@ async function main() {
 }
 
 /** @typedef {{ name: string, metadata: ReleaseMetadata, identity: ReleaseIdentity }} Release */
-/** @typedef {{ images?: Release[], baseline?: Release | null, unhealthy?: Release[], brokenNative?: Release[], restoreFails?: boolean, demoMode?: string | null, isolationHelper?: boolean, origin?: string, secureKeyBackup?: boolean | "missing" }} SandboxOptions */
+/** @typedef {{ images?: Release[], baseline?: Release | null, unhealthy?: Release[], brokenNative?: Release[], restoreFails?: boolean, backupFails?: BackupFault, demoMode?: string | null, isolationHelper?: boolean, origin?: string, secureKeyBackup?: boolean | "missing" }} SandboxOptions */
 
 /** @param {string} filePath @returns {Release} */
 function loadRelease(filePath) {
@@ -681,6 +783,8 @@ function createSandbox(work, ordinal, fakeBin, options) {
     images,
     demoMode: options.demoMode === undefined ? "false" : options.demoMode,
     restoreFails: options.restoreFails === true,
+    backupFails: options.backupFails ?? null,
+    operationsRoot: path.join(deployRoot, "operations"),
     markerPath: sandbox.marker,
     publicOrigin: origin,
   };
@@ -719,24 +823,72 @@ function seedBaseline(sandbox, release) {
  * @returns {HelperResult}
  */
 function runHelper(sandbox, helper, mode, metadata, expected) {
+  const prepared = prepareHelperRun(sandbox, helper, mode, metadata, expected);
+  const result = spawnSync("/usr/bin/env", prepared.args, { encoding: "utf8", env: prepared.env, timeout: 120_000 });
+  return {
+    status: result.status ?? 1,
+    stdout: String(result.stdout || ""),
+    stderr: String(result.stderr || ""),
+    calls: callsSince(prepared),
+    backupsBefore: prepared.backupsBefore,
+    backupsAfter: listBackups(),
+  };
+}
+
+/**
+ * Run the helper in its own process group and, once the fakes record the named call, interrupt the
+ * whole group with SIGTERM, as a cancelled workflow or a dropped SSH session would.
+ * @param {Sandbox} sandbox @param {string} helper @param {"deploy" | "rollback"} mode
+ * @param {ReleaseMetadata} metadata @param {ReleaseIdentity} expected @param {string} interruptAt
+ * @returns {Promise<HelperResult>}
+ */
+async function runHelperInterrupted(sandbox, helper, mode, metadata, expected, interruptAt) {
+  const prepared = prepareHelperRun(sandbox, helper, mode, metadata, expected);
+  const child = spawn("/usr/bin/env", prepared.args, { env: prepared.env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+  child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+  /** @type {Promise<number>} */
+  const closed = new Promise((resolve) => child.once("close", (code, signal) => resolve(code ?? (signal ? 128 : 1))));
+  const group = child.pid;
+  assert.ok(group, "the interrupted helper must start");
+  const deadline = Date.now() + 60_000;
+  while (!callsSince(prepared).some((call) => call.action === interruptAt)) {
+    assert.ok(child.exitCode === null, `the helper exited before ${interruptAt}:\n${stderr}`);
+    assert.ok(Date.now() < deadline, `the helper never reached ${interruptAt}:\n${stderr}`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  process.kill(-group, "SIGTERM");
+  const stuck = setTimeout(() => { try { process.kill(-group, "SIGKILL"); } catch { /* already gone */ } }, 120_000);
+  const status = await closed;
+  clearTimeout(stuck);
+  return { status, stdout, stderr, calls: callsSince(prepared), backupsBefore: prepared.backupsBefore, backupsAfter: listBackups() };
+}
+
+/**
+ * Stage metadata in the private inbox as the deployment account, and build the helper invocation
+ * that runs as root with the fakes first on PATH.
+ * @param {Sandbox} sandbox @param {string} helper @param {"deploy" | "rollback"} mode
+ * @param {ReleaseMetadata} metadata @param {ReleaseIdentity} expected
+ */
+function prepareHelperRun(sandbox, helper, mode, metadata, expected) {
   waitForNextSecond();
   const staged = path.join(sandbox.inbox, "release-metadata.json");
   fs.writeFileSync(staged, JSON.stringify(metadata, null, 2));
   run("chown", [`${DEPLOY_ACCOUNT}:${DEPLOY_ACCOUNT}`, staged]);
   fs.chmodSync(staged, 0o600);
   const callsPath = path.join(sandbox.harnessState, "calls.jsonl");
-  const offset = fs.readFileSync(callsPath, "utf8").length;
-  const backupsBefore = listBackups();
-  const result = spawnSync("/usr/bin/env", ["bash", helper, mode,
-    "--metadata", "release-metadata.json",
-    "--expected-version", expected.version,
-    "--expected-source-branch", "main",
-    "--expected-commit", expected.commit,
-    "--expected-artifact-sha256", expected.artifact,
-    "--expected-image-digest", expected.digest,
-    "--expected-platform-manifest-digest", expected.platformManifestDigest,
-  ], {
-    encoding: "utf8",
+  return {
+    args: ["bash", helper, mode,
+      "--metadata", "release-metadata.json",
+      "--expected-version", expected.version,
+      "--expected-source-branch", "main",
+      "--expected-commit", expected.commit,
+      "--expected-artifact-sha256", expected.artifact,
+      "--expected-image-digest", expected.digest,
+      "--expected-platform-manifest-digest", expected.platformManifestDigest,
+    ],
     env: {
       PATH: `${sandbox.fakeBin}:/usr/sbin:/usr/bin:/sbin:/bin`,
       HOME: "/root",
@@ -744,18 +896,16 @@ function runHelper(sandbox, helper, mode, metadata, expected) {
       LTF_COMPOSE_HELPER_ENV: sandbox.helperEnv,
       HARNESS_STATE: sandbox.harnessState,
     },
-    timeout: 120_000,
-  });
-  const calls = fs.readFileSync(callsPath, "utf8").slice(offset).split("\n").filter(Boolean)
-    .map((line) => /** @type {FakeCall} */ (JSON.parse(line)));
-  return {
-    status: result.status ?? 1,
-    stdout: String(result.stdout || ""),
-    stderr: String(result.stderr || ""),
-    calls,
-    backupsBefore,
-    backupsAfter: listBackups(),
+    callsPath,
+    offset: fs.readFileSync(callsPath, "utf8").length,
+    backupsBefore: listBackups(),
   };
+}
+
+/** @param {{ callsPath: string, offset: number }} prepared @returns {FakeCall[]} */
+function callsSince(prepared) {
+  return fs.readFileSync(prepared.callsPath, "utf8").slice(prepared.offset).split("\n").filter(Boolean)
+    .map((line) => /** @type {FakeCall} */ (JSON.parse(line)));
 }
 
 /** @returns {string[]} */
@@ -787,6 +937,34 @@ function assertNoLiveChange(sandbox, result, running) {
   assert.deepEqual(result.backupsAfter, result.backupsBefore, "no backup may be created");
   assert.equal(readRuntime(sandbox).running, running.identity.reference, "the running release must not change");
   assert.equal(readRuntime(sandbox).state, "running");
+}
+
+/**
+ * A failure behind the curtain before any data change: nothing restored, only the current release
+ * started again, every call from the stop onward still curtained, both identities verified after the
+ * restart, the recorded state unchanged, and the marker cleared only at the end.
+ * @param {Sandbox} sandbox @param {HelperResult} result @param {"deploy" | "rollback"} mode
+ * @param {string | null} cause @param {Release} running @param {string} stateBefore
+ */
+function assertRecoveredBeforeDataChange(sandbox, result, mode, cause, running, stateBefore) {
+  assert.notEqual(result.status, 0, "a failure before any data change must still fail the operation");
+  if (cause !== null) assert.ok(result.stderr.includes(cause), `expected the cause "${cause}" in:\n${result.stderr}`);
+  assert.ok(
+    result.stderr.includes(`${mode} failed before any data change; the current release was restarted unchanged and verified`),
+    `expected a verified restart in:\n${result.stderr}`,
+  );
+  assert.equal(indexOfCall(result.calls, "backup-restore"), -1, "nothing may be restored when no data changed");
+  const stop = indexOfCall(result.calls, "stop");
+  const restart = indexOfCall(result.calls, "up");
+  assert.ok(stop >= 0 && restart > stop, "the current release must be restarted after it was stopped");
+  assert.deepEqual(result.calls.filter((call) => call.action === "up").map((call) => call.image), [running.identity.reference], "only the current release may be started");
+  assert.ok(result.calls.slice(stop).every((call) => call.markerPresent), "the curtain must stay up through the restart and its verification");
+  const appInfo = result.calls.slice(restart).filter((call) => call.action === "http" && String(call.url).endsWith("/api/app-info"));
+  assert.equal(appInfo.length, 2, "direct and public identity must both be verified before the curtain lifts");
+  assert.equal(stateHash(sandbox, "current.json"), stateBefore, "the recorded current release must not change");
+  assert.equal(readRuntime(sandbox).running, running.identity.reference);
+  assert.equal(readRuntime(sandbox).state, "running");
+  assert.equal(fs.existsSync(sandbox.marker), false, "a verified restart clears the deployment marker");
 }
 
 /** @param {FakeCall[]} calls @param {Release} previous @param {Release} current */
@@ -844,6 +1022,14 @@ function markUnhealthy(sandbox, release) {
   const image = scenario.images[release.identity.reference];
   assert.ok(image, `no fake image for ${release.identity.reference}`);
   image.health = "unhealthy";
+  writePublic(scenarioPath, JSON.stringify(scenario));
+}
+
+/** @param {Sandbox} sandbox @param {BackupFault | null} fault */
+function setBackupFault(sandbox, fault) {
+  const scenarioPath = path.join(sandbox.harnessState, "scenario.json");
+  const scenario = /** @type {FakeScenario} */ (readJson(scenarioPath));
+  scenario.backupFails = fault;
   writePublic(scenarioPath, JSON.stringify(scenario));
 }
 
