@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19162,
+    "activeAssertionCount": 19164,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 77,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 20001,
+    "effectiveAssertionCount": 20003,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -6684,11 +6684,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 82,
+      "assertionCount": 84,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the sole supported Compose path stays controlled-artifact-based, native, persistent, non-root, provenance-retained, and rollback-ready after bare-metal production support retirement.",
-      "entryPointAssertionCount": 82,
+      "entryPointAssertionCount": 84,
       "id": "release.preview-deployment-boundary",
       "legacy": false,
       "path": "scripts/regressions/release/preview-deployment-boundary.regression.mjs",

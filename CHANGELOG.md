@@ -21,13 +21,14 @@
   - 14 demo classification cases, and lock contention.
 - **Runtime image security baseline.**
   - **New base.** It moves from `node:24.18.0-bookworm-slim` to `node:24.21.0-bookworm-slim` (`sha256:0e0ff40c…`), which includes the Node 24.18.1 security release.
-  - **No package managers.** The final stage removes npm, npx, corepack, and yarn, and the build fails if any of them remains. The system `tar` and `gzip` used by archive, backup, and restore stay.
+  - **No JavaScript package managers.** The final stage removes npm, npx, corepack, and yarn, and the build fails if any of them remains. The system `tar` and `gzip` used by archive, backup, and restore stay.
+  - **Debian security updates.** The final stage upgrades the base's `perl-base`, `libpcre2-8-0`, and `tzdata` to Debian's exact LTS fixes from `bookworm-security`: `5.36.0-7+deb12u4` (DLA-4821-1), `10.42-1+deb12u2` (DLA-4816-1), and `2026c-0+deb12u1` (DLA-4792-1). It keeps the base digest, installs nothing new, and fails the build unless each installed version matches. This clears the image's 15 fixable Debian findings.
   - **Container smoke.** It checks both of those, and accepts only the helper's reviewed native profiles.
 - **Operator tooling packaged again.** Since `v0.33.33`, four packaged operator scripts had imported two validation helpers from `scripts/test-support/` that the runtime artifact did not carry. Inside the image, every public-demo candidate and activation command, and so every demo reset, stopped with `ERR_MODULE_NOT_FOUND`. The development-data and historical `demo:data:host` commands stopped the same way. The artifact now packages both helpers, and the runtime-artifact boundary regression refuses any build in which a packaged file imports a relative module the artifact does not carry.
 - **Native lifecycle qualification.** A new workflow, `native-lifecycle-qualification.yml`, runs the actual helpers on native Linux Docker against the distinct previous release, `v0.33.32.45`. For a pull request that touches the deployment path, it publishes the candidate through a disposable TLS registry with the real publisher. Dispatch qualifies published releases from GHCR instead. It is not a required check.
   - **Preview:** upgrade, automatic recovery from a failing candidate, explicit rollback with restored data, the original helper's refusal, and the re-upgrade, through a TLS edge.
   - **Demo:** the guarded upgrade with isolation, a manual reset whose every container runs the candidate image, a reset interrupted after activation that restores and verifies the prior unit, and a rerun.
-  - **Image evidence:** the final image's Trivy findings, both npm audits, the Node core advisory index, and its runtime tool listing.
+  - **Image evidence:** the final image's Trivy findings, both npm audits, the Node core advisory index, its runtime tool listing, its package changes against the pinned base, Debian's published source for them, and an SPDX SBOM.
 - **Checkpoint ownership.** This post-release patch may set the application version in both package files to exactly its own identity, and may change the changelog entry and owning documentation. Dependencies, the resolved lockfile graph, and `DECISIONS.md` stay fixed.
 - **Documentation corrections:**
   - the stale `better-sqlite3` 13.0.1 statements;
