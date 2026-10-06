@@ -6,6 +6,7 @@
 // Linux host, as root, it runs the actual repaired helper and real `linux/amd64` images through the
 // operations a preview performs:
 // - a real previous-release baseline;
+// - a pre-upgrade backup that fails for lack of space, which restarts the current release unchanged;
 // - a backup-first upgrade;
 // - automatic recovery from a failed candidate;
 // - an explicit restored rollback;
@@ -307,6 +308,23 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
   const file = await api.uploadFile(cookie, baseline.listId, "qualification-baseline.txt", `baseline file ${randomBytes(6).toString("hex")}`);
   record("baseline", { release: identityOf(previous), runtime: runtimeProbe(host), listId: baseline.listId, fileId: file.fileId });
 
+  // A pre-upgrade backup that really fails behind the curtain, on a full backup filesystem, must
+  // restart the current release unchanged and lift the curtain only once that release verifies.
+  const stateBefore = sha256File(path.join(host.stateRoot, "current.json"));
+  const preliminary = runHelperWithFullBackupRoot(host, "deploy", candidate);
+  assert.notEqual(preliminary.status, 0, "a failed pre-upgrade backup must fail the deployment");
+  assert.match(preliminary.stderr, /no space left on device/i, "the full backup filesystem must be the cause");
+  assert.match(preliminary.stderr, /deploy failed before any data change; the current release was restarted unchanged and verified/);
+  assert.equal(fs.existsSync(host.marker), false, "a verified restart must clear the deployment marker");
+  assert.equal(sha256File(path.join(host.stateRoot, "current.json")), stateBefore, "a failed deployment must not change the recorded release");
+  assert.equal(fs.existsSync(path.join(host.stateRoot, "previous.json")), false, "a failed deployment must not create a rollback record");
+  await api.expectIdentity(previous);
+  assert.equal(runtimeProbe(host).image, previous.metadata.image.reference);
+  const preliminaryCookie = await api.login();
+  await api.expectList(preliminaryCookie, baseline.listId, 200);
+  await api.expectFile(preliminaryCookie, file);
+  record("failed-preliminary-backup", { seconds: preliminary.seconds, cause: causeLine(preliminary.stderr), outcome: lastLine(preliminary.stderr) });
+
   // Backup-first upgrade with the actual repaired helper.
   const upgrade = runHelper(host, REPAIRED_HELPER, "deploy", candidate);
   assert.equal(upgrade.status, 0, `upgrade failed:\n${upgrade.stderr}`);
@@ -410,6 +428,19 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
   await api.expectIdentity(previous);
   assertDemoIsolation(host);
   record("demo-baseline", { seconds: baseline.seconds, release: identityOf(previous), runtime: runtimeProbe(host) });
+
+  // A pre-upgrade backup that really fails behind the curtain must restart the current release
+  // unchanged, with isolation checked again, before the curtain lifts.
+  const preliminary = runHelperWithFullBackupRoot(host, "deploy", candidate);
+  assert.notEqual(preliminary.status, 0, "a failed pre-upgrade backup must fail the deployment");
+  assert.match(preliminary.stderr, /no space left on device/i, "the full backup filesystem must be the cause");
+  assert.match(preliminary.stderr, /deploy failed before any data change; the current release was restarted unchanged and verified/);
+  assert.equal(fs.existsSync(host.marker), false, "a verified restart must clear the deployment marker");
+  assert.equal(readState(host, "current.json").commitSha, previous.metadata.commitSha, "a failed deployment must not change the recorded release");
+  await api.expectIdentity(previous);
+  assertDemoIsolation(host);
+  assert.equal(runtimeProbe(host).image, previous.metadata.image.reference);
+  record("demo-failed-preliminary-backup", { seconds: preliminary.seconds, cause: causeLine(preliminary.stderr), outcome: lastLine(preliminary.stderr) });
 
   // The guarded upgrade: isolation before the curtain, a backup by the running prior release.
   const upgrade = runHelper(host, REPAIRED_HELPER, "deploy", candidate);
@@ -960,6 +991,29 @@ function runHelper(host, helper, mode, release) {
   const outcome = { status: result.status ?? 1, stdout: String(result.stdout || ""), stderr: String(result.stderr || ""), seconds: Math.round((Date.now() - started) / 100) / 10 };
   console.log(`[helper ${mode} ${release.label}] exit ${outcome.status} in ${outcome.seconds}s${outcome.status === 0 ? "" : `: ${lastLine(outcome.stderr)}`}`);
   return outcome;
+}
+
+/**
+ * Run the repaired helper while a tiny tmpfs, owned as the helper requires, covers the protected
+ * backup root, so the backup it takes behind the curtain really fails for lack of space. The helper's
+ * own ownership and mode handoff leaves the mount usable but full. Unmounting brings back the real
+ * root and the backups beneath it; a container created meanwhile keeps its view until it is next
+ * recreated, and nothing in the application reads that root to become ready.
+ * @param {Host} host @param {"deploy" | "rollback"} mode @param {Release} release
+ * @returns {HelperRun}
+ */
+function runHelperWithFullBackupRoot(host, mode, release) {
+  run("mount", ["-t", "tmpfs", "-o", "size=16k,uid=10001,gid=10001,mode=0700", "ltf-qualification-full-backups", BACKUP_ROOT]);
+  try {
+    return runHelper(host, REPAIRED_HELPER, mode, release);
+  } finally {
+    run("umount", ["--lazy", BACKUP_ROOT]);
+  }
+}
+
+/** @param {string} text */
+function causeLine(text) {
+  return text.split("\n").find((line) => /no space left on device/i.test(line))?.trim() ?? "";
 }
 
 /** @param {Host} host */

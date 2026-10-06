@@ -94,8 +94,18 @@ const sourceContracts = [
       /automated deployment requires the recorded known-good Compose baseline/,
       /candidate and verified recovery did not complete; deployment marker and protected evidence remain/,
       /rollback and current-state recovery failed; deployment marker and all protected evidence remain/,
+      /trap 'recover_before_data_change "\$\?"' EXIT/,
+      /trap 'exit 130' HUP INT TERM/,
+      /failed before any data change; the current release was restarted unchanged and verified/,
+      /failed before any data change, and the current release could not be restarted and verified; deployment marker and protected evidence remain/,
     ],
-    excludes: [/systemctl|longtail-forge\.service|\/opt\/longtail-forge\/current/, /trap .*clear_marker|trap .* EXIT/],
+    // No exit trap may lift the curtain by itself. The one reviewed exit trap restarts the current
+    // release after a failure before any data change, and clears the marker only once it verifies.
+    excludes: [
+      /systemctl|longtail-forge\.service|\/opt\/longtail-forge\/current/,
+      /trap .*clear_marker/,
+      /trap (?!'recover_before_data_change "\$\?"' EXIT$|- EXIT HUP INT TERM$)[^\n]* EXIT/m,
+    ],
   },
   {
     path: "docs/longtail-forge-compose-deploy-helper.env.example",
