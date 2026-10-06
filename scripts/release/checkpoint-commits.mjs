@@ -1,6 +1,6 @@
 import { escapeRegExp } from "../test-support/source-scan.mjs";
 import { spawnSync } from "node:child_process";
-import { requireLockEntry, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
+import { requireLockEntry, requireLockPackages, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,6 +42,33 @@ const POST_RELEASE_PATCH_PATHS = new Set([
   "package-lock.json",
   "package.json",
 ]);
+// The dependency security updates the post-release patch may also take, each pinned to one reviewed
+// lock entry: its exact version, registry tarball, and integrity, with no install script. compression
+// 1.8.2 fixes GHSA-vc2v-76pw-4v95 and adds destroy 1.2.0; proxy-addr 2.0.8 fixes GHSA-jqcg-44mw-7w3h;
+// the development-only source-map-js 1.2.2 fixes GHSA-68fv-2mgg-jv7q. Every other lock entry, and
+// every package.json field, stays as it was.
+const POST_RELEASE_PATCH_DEPENDENCY_UPDATES = Object.freeze({
+  "node_modules/compression": Object.freeze({
+    from: "1.8.1",
+    to: "1.8.2",
+    integrity: "sha512-o8vI5RE5A6EVVOd9o41jKp41aJom+QTEO/Bx8MYNjexMo/Bv2WOjUfZr+aL0WnYSgymUy6zeguqLTsIhV0gMvQ==",
+  }),
+  "node_modules/destroy": Object.freeze({
+    from: null,
+    to: "1.2.0",
+    integrity: "sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==",
+  }),
+  "node_modules/proxy-addr": Object.freeze({
+    from: "2.0.7",
+    to: "2.0.8",
+    integrity: "sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==",
+  }),
+  "node_modules/source-map-js": Object.freeze({
+    from: "1.2.1",
+    to: "1.2.2",
+    integrity: "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
+  }),
+});
 
 /** @typedef {{ ceremonyPaths: readonly string[], checkpoint?: string, docsDisposition?: string, errors: readonly string[], kind: string, paths: readonly string[], summary?: string }} CheckpointValidation */
 /** @typedef {{ sha: string, validation: CheckpointValidation }} CheckpointRangeEntry */
@@ -282,8 +309,56 @@ function validatePostReleasePatchPackages({
   ) {
     errors.push(`package.json under ${postReleasePatchCheckpoint} may change only the application version, to exactly ${postReleasePatchCheckpoint}, or scripts`);
   }
-  if (paths.includes("package-lock.json") && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)) {
-    errors.push(`package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}`);
+  if (
+    paths.includes("package-lock.json")
+    && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)
+    && !isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource)
+  ) {
+    errors.push(`package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`);
+  }
+}
+
+/**
+ * Whether a lockfile change takes only the post-release patch's reviewed dependency security
+ * updates. Each changed entry must be a listed one, moving from its reviewed version (or from
+ * absent) to exactly its reviewed version, registry tarball, and integrity, with no install script.
+ * Every other entry and every top-level field must be unchanged.
+ * @param {string} beforeSource
+ * @param {string} afterSource
+ * @returns {boolean}
+ */
+function isReviewedDependencyUpdateLockChange(beforeSource, afterSource) {
+  if (!beforeSource || !afterSource) return false;
+  try {
+    const beforeLock = requirePackageLock(JSON.parse(beforeSource), "the previous package-lock.json");
+    const afterLock = requirePackageLock(JSON.parse(afterSource), "package-lock.json in the working tree");
+    const beforePackages = requireLockPackages(beforeLock, "the previous package-lock.json");
+    const afterPackages = requireLockPackages(afterLock, "package-lock.json in the working tree");
+    let updated = 0;
+    for (const [packagePath, update] of Object.entries(POST_RELEASE_PATCH_DEPENDENCY_UPDATES)) {
+      const before = beforePackages[packagePath];
+      const after = afterPackages[packagePath];
+      if (JSON.stringify(before) === JSON.stringify(after)) continue;
+      const name = packagePath.slice("node_modules/".length);
+      if (
+        (update.from === null ? before !== undefined : before?.version !== update.from)
+        || after?.version !== update.to
+        || after.resolved !== `https://registry.npmjs.org/${name}/-/${name}-${update.to}.tgz`
+        || after.integrity !== update.integrity
+        || after.hasInstallScript
+      ) {
+        return false;
+      }
+      updated += 1;
+    }
+    /** @param {import("../test-support/package-manifest-assertions.mjs").PackageLockManifest} lock @param {Record<string, import("../test-support/package-manifest-assertions.mjs").PackageLockEntry>} packages */
+    const unlisted = (lock, packages) => JSON.stringify({
+      ...lock,
+      packages: Object.fromEntries(Object.entries(packages).filter(([packagePath]) => !Object.hasOwn(POST_RELEASE_PATCH_DEPENDENCY_UPDATES, packagePath))),
+    });
+    return updated > 0 && unlisted(beforeLock, beforePackages) === unlisted(afterLock, afterPackages);
+  } catch {
+    return false;
   }
 }
 
@@ -507,6 +582,7 @@ export {
   CHECKPOINT_SERIES,
   CLOSEOUT_CHECKPOINT,
   POST_RELEASE_PATCH_CHECKPOINT,
+  POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
   TRAILER_NAMES,
   formatCheckpointRange,

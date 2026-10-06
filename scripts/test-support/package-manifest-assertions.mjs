@@ -36,8 +36,11 @@ import assert from "node:assert/strict";
  * @property {boolean} [dev]
  * @property {Record<string, string>} [devDependencies]
  * @property {Record<string, string>} [engines]
+ * @property {boolean} [hasInstallScript]
+ * @property {string} [integrity]
  * @property {string} [license]
  * @property {string} [name]
+ * @property {string} [resolved]
  * @property {string} [version]
  */
 
