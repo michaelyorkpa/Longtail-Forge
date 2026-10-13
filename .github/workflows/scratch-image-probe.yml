@@ -20,8 +20,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      ARTIFACT: dist/longtail-forge-0.33.33.50.tgz
-      ARTIFACT_SHA256: 73762e71b67dff3ccdeb46650edc8fb7bec034d7696dfd9e5fc8faa6462b803e
       FAILED_IMAGE: ghcr.io/michaelyorkpa/longtail-forge@sha256:c21b116f0f80b12172148b84e0fcdf936f6abd4ff0b328d8b6450d613be3559e
       CANDIDATE: longtail-forge:probe-candidate
       REFERENCE: longtail-forge:equivalence-reference
@@ -42,17 +40,13 @@ jobs:
           git rev-parse HEAD > "$out/probe-commit.txt"
           { docker version; docker info; } > "$out/docker.txt" 2>&1
           date -u +%FT%TZ > "$out/started-at.txt"
-      - name: Fetch and verify the published v0.33.33.50 runtime artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Build the runtime artifact from this tree, as the pull-request qualification does
         run: |
           set -euo pipefail
-          mkdir -p dist "$OUT/v0.33.33.50"
-          gh release download v0.33.33.50 --pattern 'longtail-forge-0.33.33.50.tgz*' --pattern release-metadata.json --dir "$OUT/v0.33.33.50"
-          echo "$ARTIFACT_SHA256  $OUT/v0.33.33.50/longtail-forge-0.33.33.50.tgz" | sha256sum --check --strict
-          cp "$OUT/v0.33.33.50/longtail-forge-0.33.33.50.tgz" "$OUT/v0.33.33.50/longtail-forge-0.33.33.50.tgz.sha256" dist/
-          commit="$(jq -r .commitSha "$OUT/v0.33.33.50/release-metadata.json")"
-          node scripts/release/create-release-metadata.mjs --artifact "$ARTIFACT" --commit "$commit" --channel main --source-branch main --output dist/release-metadata-base.json
+          npm run artifact:build -- --source-branch main
+          artifact="dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
+          echo "ARTIFACT=$artifact" >> "$GITHUB_ENV"
+          node scripts/release/create-release-metadata.mjs --artifact "$artifact" --commit "$(git rev-parse HEAD)" --channel main --source-branch main --output dist/release-metadata-base.json
           cp dist/release-metadata-base.json "$OUT/"
       - name: Build the runtime image through the normal container build
         run: |
