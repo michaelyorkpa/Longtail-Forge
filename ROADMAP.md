@@ -58,41 +58,6 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
   - **Owner:** public-demo operations.
   - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
 
-## Post-release Patch
-
-### 0.33.33.51 - Single-layer runtime image
-
-**Model: High Effort** — The published image's packaging changes under every deployment: a restated setting that drifts from the base image breaks startup or identity, and a missed whiteout blocks deployment again.
-
-Added on 2026-10-13 at the operator's instruction (option A), after the preview deployment of `v0.33.33.50` failed at the host's image pull. The host's Docker storage could not apply the whiteouts in the image's package-manager removal layer. The deployment stopped before any change, and the preview stayed on `v0.33.32.45`. This narrowly scoped image-packaging patch publishes as its own release identity. It changes how the runtime filesystem is packaged, not what it contains. It does not replace any `v0.33.33` or `v0.33.33.50` tag, image, checksum, or release asset.
-
-Scope:
-
-- [ ] **Ancestry.** Branch from `origin/main`. Its only commit beyond `origin/nightly` is the content-free #875 promotion merge, so the pull request into `nightly` carries real ancestry.
-- [ ] **Ownership policy.** Give this patch the post-release patch rule in `scripts/release/checkpoint-commits.mjs`. It may set the application version in both package files to exactly its own identity, and change the `CHANGELOG.md` entry and owning documentation. It takes no dependency update: the reviewed security transition stays the previous patch's alone. Prove the rule with positive and negative cases, and document it in `docs/versioning.md`.
-- [ ] **Single-layer image.** The published `runtime` stage becomes a `scratch` stage that copies the complete runtime filesystem stage as one filesystem layer, so the image carries no whiteout. It restates every effective setting, including the environment and entrypoint inherited from the base image. The runtime contents, the Debian security updates, the absence of JavaScript package managers, and non-root execution stay exactly as they are.
-- [ ] **Whiteout gate.** Image builds refuse any layer that carries an ordinary or opaque whiteout. Image publication applies the same check to the pushed digest after pulling it. Unit tests prove the layer reader and the refusal on synthetic layers, including one that mirrors the layer that failed.
-- [ ] **Equivalence proof.** A check builds the runtime filesystem stage with the image's exact build arguments. It proves that the published image has the same files as that stage, each with the same type, mode, ownership, link target, size, content, and extended attributes, and the same configuration, field by field.
-- [ ] **Qualification.** The native lifecycle qualification runs the equivalence proof and the whiteout scans. The candidate must carry no whiteout. Published `v0.33.33.50` must carry some, as a negative control on real bytes. Its image job also pulls the published candidate when dispatched: it omitted that pull when `v0.33.33.50` was qualified.
-- [ ] **Host probe.** Before the release is prepared, the operator pulls a probe image built through the normal pipeline on the affected preview host, and starts it in isolation with disposable data, through reviewed commands. The running preview is left untouched.
-- [ ] **Documentation.** Describe the single-layer image and the whiteout gate in `docs/preview-deployment.md` and `docs/releasing.md`.
-
-Out of scope:
-- any change to a host's Docker or storage configuration;
-- the `0.33.34` scope;
-- dependency refreshes, browser flakes, analytics, and backlog cleanup;
-- any change to the live demo, which needs its own authorization;
-- broadening the deployment account's privileges;
-- pruning the demo's reset-operation history.
-
-Acceptance criteria:
-
-- [ ] The probe image pulls and starts in isolation on the preview host before the release is prepared, and the running preview is unchanged.
-- [ ] One canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks pass on the final tree, including the native lifecycle qualification with its equivalence proof and whiteout scans.
-- [ ] An independent Codex review approves the patch before any merge, promotion, or publication.
-- [ ] The promotion gates pass. `Manual GitHub release` publishes the patch. Its assets, image, SBOM, provenance, and release metadata are verified, including that no layer of the published digest carries a whiteout.
-- [ ] The published digest passes the native lifecycle qualification, and its vulnerability evidence is recorded, before the supervised preview deployment. That deployment keeps the normal post-deployment identity, health, and recovery checks. Demo compatibility is claimed only once it is verified.
-
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
