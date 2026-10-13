@@ -18,7 +18,10 @@
 //   environment, entrypoint, command, healthcheck, user, working directory, ports, volumes, and
 //   labels.
 // Modification times and owner names are not compared. A reference that was not built from the
-// candidate's build cache differs in its Debian-generated files, and is reported as different.
+// candidate's build cache differs in its Debian-generated files, and is reported as different. A form
+// the filesystem model does not support is refused rather than guessed at. That includes a missing or
+// symlinked parent, a hard link to a symlink, and a hard link whose header changes its target's
+// metadata.
 
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -146,11 +149,19 @@ function applyArchive(state, archive, options) {
     }
     const existing = state.paths.get(key);
     if (entry.type === "1") {
-      // containerd removes what the link replaces, then links to a target that must still exist.
+      // containerd removes what the link replaces, then links to a target that must still exist. It then
+      // applies the link header's ownership, attributes, and mode to the shared file, and the ownership
+      // change also clears a file capability. A header that repeats its target's metadata leaves the
+      // shared file exactly as it was. Any other link is refused rather than modelled. So is a link to a
+      // symlink, because containerd's mode change would follow it.
       if (existing) removeTree(state, key);
       const targetKey = rootRelative(entry.linkname);
       const target = targetKey === null ? undefined : state.paths.get(targetKey);
       if (!target || target.type === "directory") throw new Error(`Hard link ${entry.name} names no file to share: ${entry.linkname}`);
+      if (target.type === "symlink") throw new Error(`Hard link ${entry.name} names the symlink ${entry.linkname}, which this check does not model.`);
+      if (target.mode !== entry.mode || target.uid !== entry.uid || target.gid !== entry.gid || !isDeepStrictEqual(target.xattrs, entry.xattrs)) {
+        throw new Error(`Hard link ${entry.name} carries metadata that differs from its target ${entry.linkname}, which this check does not model.`);
+      }
       state.paths.set(key, target);
       written.add(key);
       continue;

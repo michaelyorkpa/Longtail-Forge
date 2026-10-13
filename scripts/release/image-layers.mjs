@@ -17,9 +17,10 @@
 // - a whiteout is recognized by the base name of the cleaned path.
 // It validates framing as Go reads it: an unsigned or signed header checksum, strictly parsed numbers,
 // complete data and padding, well-formed PAX records, and the end-of-archive marker, after which only
-// zero bytes may follow. Rather than guess at forms that image layers do not use, it refuses them:
+// zero bytes may follow. It refuses the forms it does not support rather than guessing at them:
 // repeated or global metadata, sparse files, metadata with no entry to describe, entry types
-// containerd does not unpack, and pre-Go 1.8 GNU headers.
+// containerd does not unpack, and pre-Go 1.8 GNU headers. A layer that uses one fails the gate until a
+// reviewed change supports it.
 //
 // The reader is shared with the runtime image equivalence check. Every string holds the archive's
 // bytes one for one (latin1), so text decoding can neither lose nor merge a byte.
@@ -162,6 +163,19 @@ function parsePaxInteger(value, key, offset) {
   const number = /^[+-]?\d+$/.test(text) ? Number(text) : Number.NaN;
   if (!Number.isSafeInteger(number)) throw tarError(offset, `the PAX ${key} record is not an integer this reader supports`);
   return number;
+}
+
+/**
+ * A PAX time, validated as Go's `parsePAXTime` reads it: decimal seconds that fit a signed 64-bit
+ * integer, then an optional fraction of digits. The value itself is not compared, only validated.
+ * @param {Buffer} value
+ * @param {string} key
+ * @param {number} offset
+ */
+function verifyPaxTime(value, key, offset) {
+  const seconds = /^([+-]?\d+)(?:\.\d*)?$/.exec(value.toString("latin1"))?.[1];
+  const number = seconds === undefined ? null : BigInt(seconds);
+  if (number === null || number < -(2n ** 63n) || number > 2n ** 63n - 1n) throw tarError(offset, `the PAX ${key} record is not a time`);
 }
 
 /**
@@ -364,9 +378,7 @@ function* readTarEntries(archive) {
       else if (key === "uid") uid = parsePaxInteger(value, key, offset);
       else if (key === "gid") gid = parsePaxInteger(value, key, offset);
       else if (key === "size") size = parsePaxInteger(value, key, offset);
-      else if ((key === "mtime" || key === "atime" || key === "ctime") && !/^[+-]?\d+(?:\.\d*)?$/.test(value.toString("latin1"))) {
-        throw tarError(offset, `the PAX ${key} record is not a time`);
-      }
+      else if (key === "mtime" || key === "atime" || key === "ctime") verifyPaxTime(value, key, offset);
     }
     if (longName) name = longName;
     if (longLink) linkname = longLink;

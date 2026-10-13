@@ -292,6 +292,16 @@ describe("layer inspection", () => {
     expect(entry).toMatchObject({ name: longPath, size: 6 });
   });
 
+  it("accepts PAX times within a signed 64-bit range, and refuses any beyond it, as Go does", () => {
+    for (const value of ["9223372036854775807", "-9223372036854775808", "+0.5", "1700000000.123456789", "7."]) {
+      expect(inspectLayer(value, tar([pax(paxRecord("mtime", value)), { name: "opt/file", data: "x" }])).entries, value).toBe(1);
+    }
+    // Codex's reproduction, and each boundary overflowed by one.
+    for (const value of ["99999999999999999999999999999999999999", "9223372036854775808", "-9223372036854775809"]) {
+      expect(() => inspectLayer(value, tar([pax(paxRecord("atime", value)), { name: "opt/file", data: "x" }])), value).toThrow(/the PAX atime record is not a time/);
+    }
+  });
+
   it("accepts an empty archive, a lone zero block, and the empty WORKDIR layer with zero padding", () => {
     for (const archive of [Buffer.alloc(0), Buffer.alloc(512), Buffer.alloc(1024), Buffer.alloc(10240)]) {
       expect(inspectLayer("empty", archive)).toEqual({ layer: "empty", entries: 0, whiteouts: [] });
@@ -584,6 +594,30 @@ describe("flattened image equivalence", () => {
     // An opaque marker at the root removes everything below it that its own layer did not write.
     const rooted = layersManifest([base, tar([{ name: "fresh", data: "f" }, { name: ".wh..wh..opq" }, { name: "later", data: "l" }])]);
     expect([...rooted.files.keys()]).toEqual(["fresh", "later"]);
+  });
+
+  it("refuses a hard link whose header changes its target's metadata, and a hard link to a symlink", () => {
+    // Codex's reproductions: containerd applies a link header's mode, ownership, and attributes to the
+    // shared file, so a header that differs from its target would change it. The user attribute is one
+    // that Docker's export omits. Each is refused with the target in the same layer and in a lower one.
+    const directory = { name: "opt/", type: "5", mode: 0o755 };
+    const target = { name: "opt/a", data: "payload", mode: 0o644 };
+    const link = { name: "opt/b", type: "1", linkname: "opt/a", mode: 0o644 };
+    const changed = /** @type {const} */ ([
+      ["mode", [{ ...link, mode: 0o600 }]],
+      ["uid", [{ ...link, uid: 10001 }]],
+      ["gid", [{ ...link, gid: 10001 }]],
+      ["a user attribute", [pax(paxRecord("SCHILY.xattr.user.review", "changed")), link]],
+    ]);
+    for (const [label, linkEntries] of changed) {
+      expect(() => layersManifest([tar([directory, target, ...linkEntries])]), `${label} in the same layer`).toThrow(/carries metadata that differs from its target/);
+      expect(() => layersManifest([tar([directory, target]), tar(linkEntries)]), `${label} over a lower layer`).toThrow(/carries metadata that differs from its target/);
+    }
+    // A link that repeats its target's metadata, attribute bytes included, shares the file.
+    const capability = pax(paxRecord("SCHILY.xattr.security.capability", Buffer.from([0x01, 0x00, 0x00, 0x02, 0x80])));
+    const shared = layersManifest([tar([directory, capability, target, capability, link])]);
+    expect(shared.files.get("opt/b")).toMatchObject({ hardlinks: ["opt/a"], mode: 0o644, xattrs: { "security.capability": "0100000280" } });
+    expect(() => exportManifest(tar([directory, { name: "opt/symlink", type: "2", linkname: "a", mode: 0o777 }, { name: "opt/linked", type: "1", linkname: "opt/symlink", mode: 0o777 }]))).toThrow(/names the symlink opt\/symlink/);
   });
 
   it("refuses filesystems it cannot model: a dangling hard link, a missing or symlinked parent, an opaque marker without its directory, and a whiteout in an export", () => {
