@@ -1,0 +1,186 @@
+name: Scratch single-layer image probe (temporary; never merged)
+
+# Builds the single-layer runtime image through the normal container build, from this branch's
+# Dockerfile and the published v0.33.33.50 runtime artifact, so the probe differs from the image that
+# failed on the preview host only in its packaging. It proves the image equivalent to its
+# runtime-filesystem stage, runs the whiteout gate's positive and negative controls, starts the image
+# in isolation, and publishes it under a probe tag so the preview host can pull it.
+
+on:
+  push:
+    branches: [scratch/0.33.33.51-image-probe]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  probe:
+    name: Single-layer image probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ARTIFACT: dist/longtail-forge-0.33.33.50.tgz
+      ARTIFACT_SHA256: 73762e71b67dff3ccdeb46650edc8fb7bec034d7696dfd9e5fc8faa6462b803e
+      FAILED_IMAGE: ghcr.io/michaelyorkpa/longtail-forge@sha256:c21b116f0f80b12172148b84e0fcdf936f6abd4ff0b328d8b6450d613be3559e
+      CANDIDATE: longtail-forge:probe-candidate
+      REFERENCE: longtail-forge:equivalence-reference
+      REPOSITORY: ghcr.io/michaelyorkpa/longtail-forge
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies and record the tools
+        run: |
+          set -euo pipefail
+          npm ci
+          out="$RUNNER_TEMP/probe"
+          mkdir -p "$out"
+          echo "OUT=$out" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$out/probe-commit.txt"
+          { docker version; docker info; } > "$out/docker.txt" 2>&1
+          date -u +%FT%TZ > "$out/started-at.txt"
+      - name: Fetch and verify the published v0.33.33.50 runtime artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist "$OUT/v0.33.33.50"
+          gh release download v0.33.33.50 --pattern 'longtail-forge-0.33.33.50.tgz*' --pattern release-metadata.json --dir "$OUT/v0.33.33.50"
+          echo "$ARTIFACT_SHA256  $OUT/v0.33.33.50/longtail-forge-0.33.33.50.tgz" | sha256sum --check --strict
+          cp "$OUT/v0.33.33.50/longtail-forge-0.33.33.50.tgz" "$OUT/v0.33.33.50/longtail-forge-0.33.33.50.tgz.sha256" dist/
+          commit="$(jq -r .commitSha "$OUT/v0.33.33.50/release-metadata.json")"
+          node scripts/release/create-release-metadata.mjs --artifact "$ARTIFACT" --commit "$commit" --channel main --source-branch main --output dist/release-metadata-base.json
+          cp dist/release-metadata-base.json "$OUT/"
+      - name: Build the runtime image through the normal container build
+        run: |
+          set -euo pipefail
+          npm run container:build -- --artifact "$ARTIFACT" --release-metadata dist/release-metadata-base.json --tag "$CANDIDATE" --no-cache --pull 2>&1 | tee "$OUT/container-build.log"
+          cp dist/*-image-provenance.json "$OUT/" || true
+      - name: Prove the image equivalent to its runtime-filesystem stage
+        run: |
+          set -euo pipefail
+          node scripts/release/runtime-image-equivalence.mjs --artifact "$ARTIFACT" --release-metadata dist/release-metadata-base.json --candidate "$CANDIDATE" --report "$OUT/equivalence.json" 2>&1 | tee "$OUT/equivalence.log"
+      - name: Scan every layer for whiteouts, with negative controls on real images
+        run: |
+          set -euo pipefail
+          previous="$(jq -r '.image.reference' tests/fixtures/release-metadata/v0.33.32.45-release-metadata.json)"
+          docker pull --platform linux/amd64 "$FAILED_IMAGE"
+          docker pull --platform linux/amd64 "$previous"
+          node scripts/release/image-layers.mjs "$CANDIDATE" --expect absent --report "$OUT/whiteouts-candidate.json" | tee "$OUT/whiteouts-candidate.txt"
+          node scripts/release/image-layers.mjs "$REFERENCE" --expect present --report "$OUT/whiteouts-reference-stage.json" | tee "$OUT/whiteouts-reference-stage.txt"
+          node scripts/release/image-layers.mjs "$FAILED_IMAGE" --expect present --report "$OUT/whiteouts-v0.33.33.50.json" | tee "$OUT/whiteouts-v0.33.33.50.txt"
+          node scripts/release/image-layers.mjs "$previous" --expect absent --report "$OUT/whiteouts-v0.33.32.45.json" | tee "$OUT/whiteouts-v0.33.32.45.txt"
+          # The gate the build and publication call refuses the image that failed on the preview host.
+          node --input-type=module -e '
+            import { assertImageHasNoWhiteouts } from "./scripts/release/image-layers.mjs";
+            try {
+              await assertImageHasNoWhiteouts(process.env.FAILED_IMAGE);
+            } catch (error) {
+              if (!/carries 9 whiteout\(s\) in 2 of \d+ layer\(s\)/.test(error.message)) throw error;
+              console.log(`refused as expected: ${error.message}`);
+              process.exit(0);
+            }
+            console.error("the gate accepted the image that failed on the preview host");
+            process.exit(1);
+          ' | tee "$OUT/gate-refuses-v0.33.33.50.txt"
+      - name: Prove the container build refuses an unflattened image
+        run: |
+          set -euo pipefail
+          cp Dockerfile "$RUNNER_TEMP/Dockerfile.flattened"
+          sed -i '/^# The published runtime: exactly/,$d' Dockerfile
+          tail -n 3 Dockerfile
+          if npm run container:build -- --artifact "$ARTIFACT" --release-metadata dist/release-metadata-base.json --tag longtail-forge:probe-unflattened > "$OUT/unflattened-build.log" 2>&1; then
+            echo "the container build accepted an image that carries whiteouts" >&2
+            exit 1
+          fi
+          grep -E 'carries [0-9]+ whiteout\(s\) in [0-9]+ of [0-9]+ layer\(s\)' "$OUT/unflattened-build.log" | tee "$OUT/unflattened-build-refusal.txt"
+          cp "$RUNNER_TEMP/Dockerfile.flattened" Dockerfile
+          git diff --exit-code -- Dockerfile
+      - name: Prove the runtime contract and native execution
+        run: |
+          set -euo pipefail
+          docker image inspect "$CANDIDATE" > "$OUT/candidate-inspect.json"
+          docker image inspect "$REFERENCE" > "$OUT/reference-inspect.json"
+          docker run --rm --entrypoint sh "$CANDIDATE" -c 'id; for tool in npm npx corepack yarn yarnpkg tar gzip node; do printf "%s=%s\n" "$tool" "$(command -v "$tool" || echo absent)"; done; ls /usr/local/lib/node_modules 2>/dev/null || echo "no global node_modules"' | tee "$OUT/candidate-runtime-tools.txt"
+          cat > "$RUNNER_TEMP/native-proof.cjs" <<'PROOF'
+          const Database = require("better-sqlite3");
+          const packageVersion = require("better-sqlite3/package.json").version;
+          const db = new Database(":memory:");
+          const sqliteVersion = db.prepare("SELECT sqlite_version() AS version").get().version;
+          db.prepare("CREATE TABLE proof(id INTEGER PRIMARY KEY, value TEXT)").run();
+          const row = db.prepare("INSERT INTO proof(value) VALUES ('ok') RETURNING value").get();
+          db.close();
+          process.stdout.write(JSON.stringify({ architecture: process.arch, packageVersion, platform: process.platform, returning: row.value, sqliteVersion, node: process.version }));
+          PROOF
+          docker run --rm --entrypoint node "$CANDIDATE" -e "$(cat "$RUNNER_TEMP/native-proof.cjs")" | tee "$OUT/candidate-native-proof.json"
+          echo
+      - name: Start the image in isolation with disposable data
+        run: |
+          set -euo pipefail
+          name=ltf-probe-single-layer
+          password="$(openssl rand -hex 24)"
+          key="$(openssl rand -hex 32)"
+          docker run --detach --name "$name" --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --user 10001:10001 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001 \
+            --tmpfs /var/lib/longtail-forge:rw,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001 \
+            --tmpfs /var/backups/longtail-forge:rw,nosuid,nodev,size=64m,mode=0700,uid=10001,gid=10001 \
+            --env LONGTAIL_ENV=test --env LONGTAIL_FILE_SCANNER=none --env LONGTAIL_WORKER_MODE=inline \
+            --env SUPER_ADMIN_PASSWORD="$password" --env LONGTAIL_SECURE_NOTES_MASTER_KEY="$key" \
+            "$CANDIDATE"
+          status=starting
+          for attempt in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' "$name")"
+            [ "$status" = healthy ] && break
+            [ "$(docker inspect --format '{{.State.Running}}' "$name")" = true ] || break
+            sleep 2
+          done
+          docker inspect --format '{{json .State}}' "$name" | tee "$OUT/startup-state.json"
+          echo
+          docker logs "$name" > "$OUT/startup-logs.txt" 2>&1 || true
+          docker exec "$name" node --input-type=module -e '
+            const result = {};
+            for (const path of ["/healthz", "/readyz", "/api/app-info"]) {
+              const response = await fetch(`http://127.0.0.1:8001${path}`);
+              result[path] = { status: response.status, body: await response.text() };
+            }
+            console.log(JSON.stringify(result, null, 2));
+          ' | tee "$OUT/startup-endpoints.json"
+          docker exec "$name" sh -c 'id; if touch /opt/longtail-forge/probe-write 2>/dev/null; then echo "root filesystem accepted a write"; else echo "root filesystem refused a write"; fi' | tee "$OUT/startup-isolation.txt"
+          docker rm --force "$name"
+          test "$status" = healthy
+          grep -q 'root filesystem refused a write' "$OUT/startup-isolation.txt"
+      - name: Publish the probe image and prove the registry bytes
+        run: |
+          set -euo pipefail
+          short="$(git rev-parse --short=12 HEAD)"
+          probe="$REPOSITORY:probe-single-layer-$short"
+          candidate_id="$(docker image inspect --format '{{.Id}}' "$CANDIDATE")"
+          echo "${{ github.token }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+          if docker buildx imagetools inspect "$probe" > /dev/null 2>&1; then
+            echo "the probe tag already exists and will not be replaced: $probe" >&2
+            exit 1
+          fi
+          docker tag "$CANDIDATE" "$probe"
+          docker push "$probe" 2>&1 | tee "$OUT/probe-push.log"
+          docker logout ghcr.io
+          digest="$(docker buildx imagetools inspect "$probe" --format '{{json .Manifest}}' | jq -r .digest)"
+          docker buildx imagetools inspect --raw "$REPOSITORY@$digest" > "$OUT/probe-manifest.json"
+          docker image rm "$probe" "$CANDIDATE"
+          # Pull anonymously, by digest, as the preview host will.
+          docker pull --platform linux/amd64 "$REPOSITORY@$digest"
+          pulled_id="$(docker image inspect --format '{{.Id}}' "$REPOSITORY@$digest")"
+          test "$pulled_id" = "$candidate_id"
+          node scripts/release/image-layers.mjs "$REPOSITORY@$digest" --expect absent --report "$OUT/whiteouts-probe-registry.json" | tee "$OUT/whiteouts-probe-registry.txt"
+          printf 'tag=%s\nreference=%s\nimage-id=%s\n' "$probe" "$REPOSITORY@$digest" "$candidate_id" | tee "$OUT/probe-identity.txt"
+          date -u +%FT%TZ > "$OUT/finished-at.txt"
+      - name: Retain probe evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: single-layer-image-probe
+          retention-days: 30
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/probe
