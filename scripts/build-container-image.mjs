@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildRuntimeArtifact } from "./build-runtime-artifact.mjs";
+import { assertImageHasNoWhiteouts } from "./release/image-layers.mjs";
 import { normalizeReleaseBranch } from "../src/core/version.js";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -132,32 +133,18 @@ async function buildContainerImage(options = {}) {
     throw new Error("A non-empty container image tag is required.");
   }
 
-  const args = [
-    "build",
-    "--platform", supportedPlatform,
-    "--file", "Dockerfile",
-    "--build-arg", `LTF_RUNTIME_ARTIFACT=${relativeArtifactPath}`,
-    "--build-arg", `LTF_APP_VERSION=${artifact.version}`,
-    "--label", `org.opencontainers.image.version=${artifact.version}`,
-    "--label", `com.longtailforge.runtime-artifact.sha256=${artifact.checksum}`,
-    "--label", `com.longtailforge.image.platform=${supportedPlatform}`,
-    "--tag", tag,
-  ];
   const sourceBranch = releaseMetadata?.sourceBranch || artifact.sourceBranch || null;
   const commitSha = releaseMetadata?.commitSha || null;
-  if (sourceBranch) {
-    args.push("--label", `com.longtailforge.source-branch=${sourceBranch}`);
-  }
-  if (commitSha) {
-    args.push("--label", `org.opencontainers.image.revision=${commitSha}`);
-  }
-  if (options.pull) {
-    args.push("--pull");
-  }
-  if (options.noCache) {
-    args.push("--no-cache");
-  }
-  args.push(".");
+  const args = containerBuildArguments({
+    artifact,
+    commitSha,
+    noCache: options.noCache === true,
+    pull: options.pull === true,
+    relativeArtifactPath,
+    sourceBranch,
+    tag,
+    target: null,
+  });
   runDocker(args, { cwd: rootDir, stdio: options.stdio || "inherit" });
 
   const image = inspectBuiltImage(tag, {
@@ -166,6 +153,8 @@ async function buildContainerImage(options = {}) {
     sourceBranch,
     version: artifact.version,
   });
+  // The runtime image must unpack on Docker storage that cannot apply whiteouts.
+  await assertImageHasNoWhiteouts(tag, { cwd: rootDir });
   const baseImage = await inspectPinnedBaseImage(rootDir);
   const provenancePath = path.resolve(
     rootDir,
@@ -192,6 +181,53 @@ async function buildContainerImage(options = {}) {
     provenancePath,
     version: artifact.version,
   });
+}
+
+/**
+ * The `docker build` arguments for one image of this Dockerfile. The runtime image equivalence check
+ * builds its reference stage with exactly these arguments and a target, so both images carry the same
+ * build arguments and labels.
+ * @param {{
+ *   artifact: RuntimeArtifactDescriptor,
+ *   commitSha: string | null,
+ *   noCache: boolean,
+ *   pull: boolean,
+ *   relativeArtifactPath: string,
+ *   sourceBranch: string | null,
+ *   tag: string,
+ *   target: string | null,
+ * }} input
+ * @returns {string[]}
+ */
+function containerBuildArguments({ artifact, commitSha, noCache, pull, relativeArtifactPath, sourceBranch, tag, target }) {
+  const args = [
+    "build",
+    "--platform", supportedPlatform,
+    "--file", "Dockerfile",
+    "--build-arg", `LTF_RUNTIME_ARTIFACT=${relativeArtifactPath}`,
+    "--build-arg", `LTF_APP_VERSION=${artifact.version}`,
+    "--label", `org.opencontainers.image.version=${artifact.version}`,
+    "--label", `com.longtailforge.runtime-artifact.sha256=${artifact.checksum}`,
+    "--label", `com.longtailforge.image.platform=${supportedPlatform}`,
+    "--tag", tag,
+  ];
+  if (sourceBranch) {
+    args.push("--label", `com.longtailforge.source-branch=${sourceBranch}`);
+  }
+  if (commitSha) {
+    args.push("--label", `org.opencontainers.image.revision=${commitSha}`);
+  }
+  if (target) {
+    args.push("--target", target);
+  }
+  if (pull) {
+    args.push("--pull");
+  }
+  if (noCache) {
+    args.push("--no-cache");
+  }
+  args.push(".");
+  return args;
 }
 
 /**
@@ -419,6 +455,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
 
 export {
   buildContainerImage,
+  containerBuildArguments,
   createImageProvenance,
   inspectBuiltImage,
   inspectPinnedBaseImage,
