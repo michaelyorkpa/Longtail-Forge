@@ -8,13 +8,14 @@
     - a GNU long name overrides a PAX path;
     - header-only entries carry no data;
     - a whiteout is judged by the cleaned path.
-  - **Refusals.** It refuses broken framing and the forms image layers do not use, rather than guessing: repeated or global metadata, sparse entries, unsupported entry types, and zstd layers.
+  - **Refusals.** It refuses, rather than guessing, broken framing, out-of-range values such as a PAX time beyond 64 bits, and the forms it does not support: repeated or global metadata, sparse entries, unsupported entry types, and zstd layers. A layer that uses an unsupported form fails the gate until a reviewed change supports it.
   - **Tests.** Unit tests prove the reader and every refusal, including on a layer that mirrors the one that failed.
   - **Pins.** The deployment-boundary regression pins the stage structure and every restated setting.
 - **Equivalence proof.** `scripts/release/runtime-image-equivalence.mjs` builds the runtime filesystem stage with the image's build arguments.
   - **What it compares.** It applies each image's layers in order, as containerd does, and compares every image-owned path's type, mode, ownership, size, content hash, link target, device numbers, hard-link group, and extended attribute bytes.
   - **The cross-check.** It compares Docker's export of each image by the same fields, and every configuration field.
   - **What it does not compare.** Modification times and owner names.
+  - **What it refuses rather than models.** An entry whose parent is missing or is a symlink, a hard link to a symlink, and a hard link whose header changes its target's mode, ownership, or attributes.
 - **Native lifecycle qualification.**
   - For a proposed image, it now runs the equivalence proof.
   - For every final image, it proves that no layer carries a whiteout, while the same scan still finds them in published `v0.33.33.50` as a negative control.
