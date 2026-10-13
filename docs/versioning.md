@@ -24,6 +24,8 @@ A post-release patch declared after a release is published repairs that release 
 - **What stays fixed.** The validator refuses any other change to either package file: dependency declarations, every other resolved lock entry, and every other `package.json` field. `DECISIONS.md` stays reserved.
 - **What still applies.** The two-ceremony-file ceiling, the trailer rules, and the declaration check. No other checkpoint gains these paths.
 
+`v0.33.33.50` could not be deployed: the preview host's Docker storage could not apply its image's whiteouts. A second post-release patch, the image-packaging patch `0.33.33.51`, owns that repair. It follows the same rule under its own identity, except that it takes no dependency update: the reviewed security transition stays `0.33.33.50`'s alone, and the validator refuses it under `0.33.33.51`.
+
 After all intended checkpoint commits are present, run `npm run checkpoint:validate` before the first push and after amending any checkpoint commit message. The command resolves `merge-base(origin/nightly, HEAD)` locally and validates the same complete branch range as protected CI. It does not repeat `npm run verify:slice`; a message-only amend leaves a prior green tree verification valid, while any file change requires verification again.
 
 ## Asset Cache Version

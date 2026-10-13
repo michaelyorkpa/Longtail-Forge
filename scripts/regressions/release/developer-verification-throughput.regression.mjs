@@ -18,6 +18,7 @@ import { createSliceVerificationPlan, executeSliceVerificationPlan, formatSliceV
 import { enforceZero } from "../../typecheck-governance.mjs";
 import {
   CLOSEOUT_CHECKPOINT,
+  IMAGE_PACKAGING_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
@@ -711,6 +712,108 @@ assert.match(
   "the post-release patch keeps the two-ceremony-file ceiling",
 );
 
+// The image-packaging patch, declared after the post-release patch's release could not be deployed,
+// owns the same narrow paths under its own identity. It takes no dependency update: the reviewed
+// security transition stays the post-release patch's alone.
+for (const checkpoint of [CLOSEOUT_CHECKPOINT, RELEASE_PREPARATION_CHECKPOINT, POST_RELEASE_PATCH_CHECKPOINT]) {
+  assert.notEqual(IMAGE_PACKAGING_PATCH_CHECKPOINT, checkpoint, "the image-packaging patch must own its work under its own checkpoint");
+}
+const imagePackagingPatchArchive = `${postReleasePatchArchive}\n## Version ${IMAGE_PACKAGING_PATCH_CHECKPOINT} - Synthetic image-packaging patch fixture`;
+const imagePatchPackageAfter = { ...patchPackageAfter, version: IMAGE_PACKAGING_PATCH_CHECKPOINT };
+const imagePatchLockAfter = structuredClone(patchLockAfter);
+imagePatchLockAfter.version = IMAGE_PACKAGING_PATCH_CHECKPOINT;
+imagePatchLockAfter.packages[""].version = IMAGE_PACKAGING_PATCH_CHECKPOINT;
+const imagePackagingPatchLockError = `package-lock.json under ${IMAGE_PACKAGING_PATCH_CHECKPOINT} may change only its application version fields, to exactly ${IMAGE_PACKAGING_PATCH_CHECKPOINT}`;
+
+/**
+ * A commit under the image-packaging patch, starting from the post-release patch's released identity.
+ * @param {{
+ *   docs?: string,
+ *   lockAfter?: object,
+ *   lockBefore?: object,
+ *   packageAfter?: object,
+ *   paths: string[],
+ * }} change
+ */
+function imagePackagingPatchCommit({
+  docs = "No docs change needed: synthetic image-packaging patch proof.",
+  lockAfter = imagePatchLockAfter,
+  lockBefore = patchLockAfter,
+  packageAfter = imagePatchPackageAfter,
+  paths,
+}) {
+  return validateCheckpointCommit({
+    lockAfterSource: JSON.stringify(lockAfter),
+    lockBeforeSource: JSON.stringify(lockBefore),
+    message: checkpointMessage({ checkpoint: IMAGE_PACKAGING_PATCH_CHECKPOINT, docs, summary: "Give the image-packaging repair its own release identity" }),
+    packageAfterSource: JSON.stringify(packageAfter),
+    packageBeforeSource: JSON.stringify(patchPackageAfter),
+    paths,
+    roadmapArchiveSource: imagePackagingPatchArchive,
+    roadmapSource,
+  });
+}
+
+assert.deepEqual(
+  imagePackagingPatchCommit({ paths: ["package-lock.json", "package.json"] }).errors,
+  [],
+  "the image-packaging patch may move both application version fields to exactly its own identity",
+);
+assert.deepEqual(
+  imagePackagingPatchCommit({ docs: "Docs updated: docs/preview-deployment.md.", paths: ["CHANGELOG.md", "docs/preview-deployment.md"] }).errors,
+  [],
+  "the image-packaging patch may change its changelog entry and the documentation that owns a changed contract",
+);
+assert.deepEqual(
+  imagePackagingPatchCommit({ paths: ["Dockerfile", "scripts/release/image-layers.mjs"] }).errors,
+  [],
+  "the image-packaging patch may change the runtime image and its checks",
+);
+for (const [label, packageAfter] of /** @type {const} */ ([
+  ["another version", { ...imagePatchPackageAfter, version: `${IMAGE_PACKAGING_PATCH_CHECKPOINT}.1` }],
+  ["a dependency beside the version", { ...imagePatchPackageAfter, dependencies: { "markdown-it": "^15.0.2" } }],
+  ["an engines change beside the version", { ...imagePatchPackageAfter, engines: { node: ">=26" } }],
+])) {
+  assert.ok(
+    imagePackagingPatchCommit({ packageAfter, paths: ["package.json"] }).errors
+      .includes(`package.json under ${IMAGE_PACKAGING_PATCH_CHECKPOINT} may change only the application version, to exactly ${IMAGE_PACKAGING_PATCH_CHECKPOINT}, or scripts`),
+    `the image-packaging patch must refuse ${label}`,
+  );
+}
+// The reviewed dependency transition, alone or beside this patch's own version change.
+const imagePatchSecurityLockAfter = structuredClone(securityLockAfter);
+imagePatchSecurityLockAfter.version = IMAGE_PACKAGING_PATCH_CHECKPOINT;
+imagePatchSecurityLockAfter.packages[""].version = IMAGE_PACKAGING_PATCH_CHECKPOINT;
+for (const [label, lockBefore, lockAfter] of /** @type {const} */ ([
+  ["the post-release patch's dependency security transition", securityLockBefore, securityLockAfter],
+  ["that transition beside its own version change", securityLockBefore, imagePatchSecurityLockAfter],
+  ["a resolved package beside its version change", patchLockAfter, (() => {
+    const lock = structuredClone(imagePatchLockAfter);
+    lock.packages["node_modules/markdown-it"].version = "15.0.2";
+    return lock;
+  })()],
+])) {
+  assert.deepEqual(
+    imagePackagingPatchCommit({ lockAfter, lockBefore, paths: ["package-lock.json"] }).errors,
+    [imagePackagingPatchLockError],
+    `the image-packaging patch must refuse ${label}`,
+  );
+}
+assert.match(
+  imagePackagingPatchCommit({ paths: ["DECISIONS.md"] }).errors.join("\n"),
+  new RegExp(`DECISIONS\\.md is reserved for ${escapeRegExp(CLOSEOUT_CHECKPOINT)} branch closeout`),
+  "the image-packaging patch must not take over durable decisions",
+);
+assert.match(
+  imagePackagingPatchCommit({ paths: ["CHANGELOG.md", "package-lock.json", "package.json"] }).errors.join("\n"),
+  /maximum is 2/,
+  "the image-packaging patch keeps the two-ceremony-file ceiling",
+);
+assert.ok(
+  postReleasePatchCommit({ checkpoint: POST_RELEASE_PATCH_CHECKPOINT, packageAfter: imagePatchPackageAfter, paths: ["package.json"] }).errors.length > 0,
+  "the post-release patch must not take the image-packaging patch's identity",
+);
+
 assert.match(workflowSource, /LTF_CHECKPOINT_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
 assert.match(workflowSource, /node scripts\/release\/checkpoint-commits\.mjs/);
 assert.match(agentGuide, /LTF-Checkpoint: <slice-id>/);
@@ -727,6 +830,7 @@ assert.match(versioning, /release-preparation addendum declared after the branch
 assert.match(versioning, /refuses any change to the application version in either package file/, "the versioning contract should record that the addendum never changes release identity");
 assert.match(versioning, /post-release patch declared after a release is published/, "the versioning contract should document the post-release patch's narrow ownership");
 assert.match(versioning, /application version fields in both package files to exactly its own checkpoint identity/, "the versioning contract should record the post-release patch's only package change");
+assert.match(versioning, /image-packaging patch[^\n]*takes no dependency update/, "the versioning contract should record that the image-packaging patch takes no dependency update");
 assert.equal(requireScripts(packageSource)["checkpoint:validate"], "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly");
 
 const syntheticBaseSha = "a".repeat(40);
