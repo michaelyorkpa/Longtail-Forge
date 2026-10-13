@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Runtime image equivalence.
 //
-// The published `runtime` stage is the `runtime-filesystem` stage flattened into one layer, so that
-// the image carries no whiteouts. A scratch stage inherits nothing, which makes the restated
+// The published `runtime` stage is the `runtime-filesystem` stage flattened into one filesystem
+// layer, so that the image carries no whiteouts. A scratch stage inherits nothing, which makes the restated
 // configuration the risky part. This check builds the reference stage with exactly the image's build
 // arguments, and proves two things:
 // - every path has the same type, mode, ownership, link target, size, content, and extended

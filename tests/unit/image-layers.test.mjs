@@ -1,10 +1,11 @@
 // Runtime image layer inspection and flattened-image equivalence.
 //
 // The preview host's Docker storage could not unpack v0.33.33.50: its image removed the base image's
-// package managers in a later layer, and that layer's whiteouts named non-empty lower directories. The runtime image is now one layer, image builds refuse
-// any layer with a whiteout, and an equivalence check proves the flattened image keeps its reference
-// stage's files and configuration. These cases drive both checks with tar archives built here, so each
-// reader path - POSIX prefixes, GNU long names, PAX records, gzip, malformed input - is exercised.
+// package managers in a later layer, and that layer's whiteouts named non-empty lower directories. The
+// runtime image now carries its filesystem in one layer, image builds refuse any layer with a whiteout,
+// and an equivalence check proves the flattened image keeps its reference stage's files and
+// configuration. These cases drive both checks with tar archives built here, so each reader path -
+// POSIX prefixes, GNU long names, PAX records, gzip, malformed input - is exercised.
 
 import { describe, expect, it } from "vitest";
 import { gzipSync } from "node:zlib";

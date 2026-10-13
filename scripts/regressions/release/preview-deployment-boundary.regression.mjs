@@ -88,15 +88,15 @@ for (const requirement of [
 ]) assert.match(runtimeStage, requirement);
 assert.doesNotMatch(runtimeStage, /apt-get (?:upgrade|dist-upgrade|full-upgrade)\b|\bapt (?:upgrade|full-upgrade)\b|--allow-downgrades/, "the final stage must not upgrade or downgrade the whole system");
 // The image-packaging patch: Docker storage on the preview host cannot apply the whiteouts that removing the base image's
-// package managers records, so the published stage is the runtime filesystem flattened into one layer. It is the final
-// stage, adds exactly one layer, and restates every setting, because a scratch stage inherits none: the runtime
-// filesystem's own settings verbatim and in order, then the environment and entrypoint that stage inherits from the
-// pinned Node.js base.
+// package managers records, so the published stage is the runtime filesystem flattened into one filesystem layer. It is
+// the final stage, copies that filesystem whole, and restates every setting, because a scratch stage inherits none: the
+// runtime filesystem's own settings verbatim and in order, then the environment and entrypoint that stage inherits from
+// the pinned Node.js base.
 const publishedStage = dockerStage("FROM scratch AS runtime");
 assert.ok(dockerfile.endsWith(publishedStage), "the flattened stage must be the final, published stage");
 const publishedInstructions = instructionsOf(publishedStage);
 const runtimeInstructions = instructionsOf(runtimeStage);
-assert.deepEqual(publishedInstructions.filter((line) => /^(?:RUN|COPY|ADD) /.test(line)), ["COPY --from=runtime-filesystem / /"], "the published stage must add exactly one layer: the whole runtime filesystem");
+assert.deepEqual(publishedInstructions.filter((line) => /^(?:RUN|COPY|ADD) /.test(line)), ["COPY --from=runtime-filesystem / /"], "the published stage's only content must be one copy of the whole runtime filesystem");
 /** @param {readonly string[]} instructions */
 const settingsOf = (instructions) => instructions.filter((line) => !/^(?:FROM|RUN|COPY|ADD|ENV|ENTRYPOINT) /.test(line));
 assert.deepEqual(settingsOf(publishedInstructions), settingsOf(runtimeInstructions), "the published stage must restate every setting of the runtime filesystem, in order");

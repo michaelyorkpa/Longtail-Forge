@@ -4,8 +4,8 @@
 // An image layer deletes a path from the layers beneath it with a whiteout entry, `.wh.<name>`, and
 // hides a lower directory's whole contents with the opaque marker `.wh..wh..opq`. Docker storage that
 // cannot apply them refuses to unpack the image: the preview host's failed to remove a non-empty lower
-// directory that a whiteout named. The published runtime image is therefore one layer, and image
-// builds use this module to refuse any layer that carries either kind.
+// directory that a whiteout named. The published runtime image therefore carries its whole filesystem
+// in one layer, and image builds use this module to refuse any layer that carries either kind.
 //
 // The tar reader is shared with the runtime image equivalence check. It reads POSIX ustar names with
 // their prefix, GNU long names, and PAX records, and refuses a header whose checksum does not match
