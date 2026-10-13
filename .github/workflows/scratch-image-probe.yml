@@ -121,7 +121,8 @@ jobs:
         run: |
           set -euo pipefail
           name=ltf-probe-single-layer
-          password="$(openssl rand -hex 24)"
+          # The bootstrap password must carry an uppercase letter, a digit, and a symbol.
+          password="Probe-7-$(openssl rand -hex 16)"
           key="$(openssl rand -hex 32)"
           docker run --detach --name "$name" --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --user 10001:10001 \
             --tmpfs /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001 \
