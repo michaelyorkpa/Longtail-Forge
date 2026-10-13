@@ -17,11 +17,19 @@ Scope:
   - **Restated settings.** It restates the base's `PATH`, `NODE_VERSION`, `YARN_VERSION`, and `ENTRYPOINT ["docker-entrypoint.sh"]`, and every setting of `runtime-filesystem` in order.
   - **Layers.** BuildKit adds an empty 32-byte `WORKDIR` layer. The image therefore has one filesystem layer, one empty layer, and no whiteout.
   - **Pins.** `release.preview-deployment-boundary` pins the structure and every restated setting. Thirteen Dockerfile defects were each caught.
-- [x] **Whiteout gate.** `scripts/release/image-layers.mjs` reads every layer through `docker save`. It handles POSIX, GNU, and PAX names and gzip layers, verifies header checksums, and refuses zstd.
-  - `buildContainerImage` refuses any ordinary or opaque whiteout, and so does `publishContainerImage` after its pull.
-  - `tests/unit/image-layers.test.mjs` has 21 cases on synthetic layers, including one that mirrors the failed layer.
-  - Thirty-one reader, refusal, and equivalence mutations, and three gate-placement mutations, were each caught.
-- [x] **Equivalence proof.** `scripts/release/runtime-image-equivalence.mjs` builds `--target runtime-filesystem` with the image's build arguments, from the same build cache. It compares the exported filesystems and the inspected configuration. In scratch run 38451074740 it found all 7,363 paths and the configuration identical.
+- [x] **Whiteout gate.** `scripts/release/image-layers.mjs` reads every layer through `docker save`.
+  - **Gate placement.** `buildContainerImage` refuses any ordinary or opaque whiteout, and so does `publishContainerImage` after its pull.
+  - **Codex's review of `db2b71a4` requested changes here.** Three fixtures hid a whiteout from the first reader: an empty PAX path, a GNU long name after a PAX path, and an unnormalized name.
+  - **The fix, `e0d30615`.** The reader now names entries by Go's archive/tar rules, which Docker and containerd use. It judges whiteouts by containerd's cleaned path. It refuses what layers do not use: repeated or global metadata, sparse entries, unsupported types, and pre-Go 1.8 GNU headers.
+  - **Framing.** The reader validates framing end to end. A short buffer, a partial header, a header after one zero block, data after the end marker, dangling metadata, and malformed PAX records are refused. The empty `WORKDIR` layer is still accepted.
+  - **Tests.** `tests/unit/image-layers.test.mjs` has 32 cases on synthetic layers, among them each of Codex's reproductions and the layer that failed.
+  - **Seeded defects, first pass.** Thirty-one reader, refusal, and equivalence mutations, and three gate-placement mutations, were each caught.
+  - **Seeded defects, after the fix.** All 48 seeded defects in the revised reader and equivalence model were each caught.
+- [x] **Equivalence proof.** `scripts/release/runtime-image-equivalence.mjs` builds `--target runtime-filesystem` with the image's build arguments, from the same build cache.
+  - **Codex's review found three gaps.** Docker's export, the only thing compared at first, could not distinguish a hard link from a copy. It also ignored device numbers. And it decoded capability bytes as text, so different capabilities compared equal.
+  - **The fix.** The check now applies each image's layers in order as containerd's applier does, including its whiteout and opaque-directory rules. It compares the image-owned filesystems by type, mode, ownership, size, content hash, link target, device numbers, hard-link group, and attribute bytes. Docker's export remains as a cross-check by the same fields, and every configuration field is compared.
+  - **First run.** In scratch run 38451074740, the first check found all 7,363 exported paths and the configuration identical.
+  - **Revised run.** In scratch run 38478603676, the revised check applied the reference's 9 layers and the candidate's 2. Both produced the same 7,357 image-owned paths, with 2 hard-link groups each, no extended attributes, and no devices. The 7,363 exported paths and the configuration were also identical.
 - [x] **Qualification.** The native lifecycle qualification's image job:
   - runs the equivalence proof for a proposed image;
   - scans every final image's layers, with published `v0.33.33.50` as a negative control;
@@ -37,12 +45,13 @@ Scope:
 
   On 2026-10-13 the operator pulled the probe on the preview host, where it unpacked through containerd's overlayfs snapshotter. It started healthy with no network, a read-only root, and tmpfs data, and was then removed. The preview's container, image, and identity were unchanged. The protected operational record holds the evidence.
 - [x] **Documentation.** `docs/preview-deployment.md` and `docs/releasing.md` describe the single-layer image, the whiteout gate, the equivalence proof, and the qualification's evidence. The deployment-boundary regression pins the new wording, and four wording defects were each caught.
+  - **After the review.** `48d76501` states exactly how the gate reads layers and which fields the equivalence proof compares. That includes what it does not compare, modification times and owner names, and its same-cache precondition. Three more wording defects were each caught.
 
 Acceptance criteria:
 
 - [x] The probe image pulls and starts in isolation on the preview host before the release is prepared, and the running preview is unchanged.
 - [ ] **Pending at merge.** One canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the native lifecycle qualification with its equivalence proof and whiteout scans. These run on this final tree, and their results are recorded on the pull request, because this entry is written before them.
-- [ ] **Pending at merge.** An independent Codex review approves the patch.
+- [ ] **Pending at merge.** An independent Codex review approves the patch. Its review of `db2b71a4` requested changes, which `e0d30615` and `48d76501` make. A re-review of the final tree is pending.
 - [ ] **Pending after merge.** The merged `nightly` commit's exact-SHA Nightly run, and the promotion to `main` with its gates green.
 - [ ] **Pending after merge.** `Manual GitHub release` publishes the patch. Its assets, image, SBOM, provenance, and release metadata are verified, including that no layer of the published digest carries a whiteout.
 - [ ] **Pending after merge.** The published digest passes the native lifecycle qualification, and its vulnerability evidence is recorded. Then the supervised preview deployment keeps the normal identity, health, and recovery checks. Demo compatibility is claimed only once it is verified.
