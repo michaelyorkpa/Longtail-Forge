@@ -3,8 +3,9 @@ name: Scratch single-layer image probe (temporary; never merged)
 # Builds the single-layer runtime image through the normal container build, from this branch's
 # Dockerfile and the published v0.33.33.50 runtime artifact, so the probe differs from the image that
 # failed on the preview host only in its packaging. It proves the image equivalent to its
-# runtime-filesystem stage, runs the whiteout gate's positive and negative controls, starts the image
-# in isolation, and publishes it under a probe tag so the preview host can pull it.
+# runtime-filesystem stage, runs the whiteout gate's positive and negative controls, and starts the
+# image in isolation. This revision exercises the review fixes on real images, and reads the probe
+# already published at 961667dc instead of publishing another.
 
 on:
   push:
@@ -12,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   probe:
@@ -153,35 +153,19 @@ jobs:
           docker rm --force "$name"
           test "$status" = healthy
           grep -q 'root filesystem refused a write' "$OUT/startup-isolation.txt"
-      - name: Publish the probe image and prove the registry bytes
+      - name: Read the published probe with the revised reader
         run: |
           set -euo pipefail
-          short="$(git rev-parse --short=12 HEAD)"
-          probe="$REPOSITORY:probe-single-layer-$short"
-          candidate_id="$(docker image inspect --format '{{.Id}}' "$CANDIDATE")"
-          echo "${{ github.token }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
-          if docker buildx imagetools inspect "$probe" > /dev/null 2>&1; then
-            echo "the probe tag already exists and will not be replaced: $probe" >&2
-            exit 1
-          fi
-          docker tag "$CANDIDATE" "$probe"
-          docker push "$probe" 2>&1 | tee "$OUT/probe-push.log"
-          docker logout ghcr.io
-          digest="$(docker buildx imagetools inspect "$probe" --format '{{json .Manifest}}' | jq -r .digest)"
-          docker buildx imagetools inspect --raw "$REPOSITORY@$digest" > "$OUT/probe-manifest.json"
-          docker image rm "$probe" "$CANDIDATE"
-          # Pull anonymously, by digest, as the preview host will.
-          docker pull --platform linux/amd64 "$REPOSITORY@$digest"
-          pulled_id="$(docker image inspect --format '{{.Id}}' "$REPOSITORY@$digest")"
-          test "$pulled_id" = "$candidate_id"
-          node scripts/release/image-layers.mjs "$REPOSITORY@$digest" --expect absent --report "$OUT/whiteouts-probe-registry.json" | tee "$OUT/whiteouts-probe-registry.txt"
-          printf 'tag=%s\nreference=%s\nimage-id=%s\n' "$probe" "$REPOSITORY@$digest" "$candidate_id" | tee "$OUT/probe-identity.txt"
+          probe="$REPOSITORY@sha256:961667dc050c376439c2bbb9639232dcef9ea7477751f3af1a7adff4a5b35e48"
+          # Anonymously, by digest, as the preview host pulled it.
+          docker pull --platform linux/amd64 "$probe"
+          node scripts/release/image-layers.mjs "$probe" --expect absent --report "$OUT/whiteouts-published-probe.json" | tee "$OUT/whiteouts-published-probe.txt"
           date -u +%FT%TZ > "$OUT/finished-at.txt"
       - name: Retain probe evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: single-layer-image-probe
+          name: single-layer-image-probe-review-fixes
           retention-days: 30
           if-no-files-found: warn
           path: ${{ runner.temp }}/probe
