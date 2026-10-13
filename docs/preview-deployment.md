@@ -91,8 +91,14 @@ The image starts `node server.js` directly as the container process, which is th
 - **One filesystem layer, no whiteouts.** As of 0.33.33.51 the published `runtime` stage is a `scratch` stage that copies the whole `runtime-filesystem` stage as one filesystem layer. BuildKit adds only an empty layer for `WORKDIR`.
   - **Why.** A layer that removes a lower layer's files records whiteouts: `.wh.<name>`, or `.wh..wh..opq` for a directory's whole contents. Some Docker storage cannot apply them, and the preview host's could not unpack `v0.33.33.50`.
   - **The gate.** `npm run container:build`, and image publication after its pull, refuse an image whose layers carry either kind. `node scripts/release/image-layers.mjs <image>` reports each layer.
+    - **How it reads layers.** The inspection names each entry by Go's tar rules, as Docker and containerd read layers. An empty PAX value keeps the header's, a GNU long name overrides a PAX path, and header-only entries carry no data. A whiteout is judged by the base name of the cleaned path.
+    - **What it refuses.** It refuses a layer it cannot read unambiguously, rather than passing it. That covers broken framing, repeated or global metadata, sparse entries, entry types containerd does not unpack, and zstd layers.
   - **The restated settings.** A scratch stage inherits nothing. The published stage therefore restates the base image's `PATH`, `NODE_VERSION`, `YARN_VERSION`, and `ENTRYPOINT`, and every setting of `runtime-filesystem` in the same order. Change a setting in both stages together.
-  - **The proof.** `node scripts/release/runtime-image-equivalence.mjs --artifact <tgz> [--release-metadata <json>] [--candidate <image>]` builds `runtime-filesystem` with the image's build arguments. It then proves the two images' files and configuration identical. The native lifecycle qualification runs it on every proposed image.
+  - **The proof.** `node scripts/release/runtime-image-equivalence.mjs --artifact <tgz> [--release-metadata <json>] [--candidate <image>]` builds `runtime-filesystem` with the image's build arguments, from the same builder and cache as the candidate. The native lifecycle qualification runs it on every proposed image.
+    - **What it compares.** It applies each image's layers in order, as containerd does, and compares the resulting image-owned filesystems. Every path must match in type, mode, ownership, size, content hash, link target, device numbers, hard-link group, and the bytes of each extended attribute.
+    - **The cross-check.** It compares Docker's export of each image by the same fields, and every configuration field.
+    - **What it does not compare.** Modification times and owner names.
+    - **The cache precondition.** A reference built without the candidate's cache differs in its Debian-generated files, and is reported as different.
 - **System archive tools stay.** The system `tar` and `gzip` remain, because archive creation, inspection, backup, and restore use them. Changing `NODE_IMAGE` or the platform is a reviewed qualification change, not an ordinary deployment toggle.
 
 ## Immutable image publication and constrained transport
