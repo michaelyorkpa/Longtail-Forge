@@ -19,6 +19,8 @@ on:
       - scripts/release/longtail-forge-public-demo-reset-host.example
       - scripts/release/compose-lifecycle-qualification.mjs
       - scripts/release/published-container-image.mjs
+      - scripts/release/image-layers.mjs
+      - scripts/release/runtime-image-equivalence.mjs
       - scripts/build-container-image.mjs
       - scripts/build-runtime-artifact.mjs
       - scripts/backup.mjs
@@ -163,17 +165,28 @@ jobs:
           mkdir -p "$RUNNER_TEMP/security"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             gh release download "$CANDIDATE_TAG" --pattern release-metadata.json --dir "$RUNNER_TEMP/security/candidate"
-            echo "CANDIDATE_IMAGE=$(jq -r '.image.reference' "$RUNNER_TEMP/security/candidate/release-metadata.json")" >> "$GITHUB_ENV"
+            candidate="$(jq -r '.image.reference' "$RUNNER_TEMP/security/candidate/release-metadata.json")"
+            # Every later step inspects the published candidate locally.
+            docker pull --platform linux/amd64 "$candidate"
+            echo "CANDIDATE_IMAGE=$candidate" >> "$GITHUB_ENV"
           else
             npm ci
             npm run artifact:build -- --source-branch main
             ARTIFACT="dist/longtail-forge-$(node -p "require('./package.json').version").tgz"
             node scripts/release/create-release-metadata.mjs --artifact "$ARTIFACT" --commit "${{ github.event.pull_request.head.sha }}" --channel main --source-branch main --output dist/release-metadata-base.json
             npm run container:build -- --artifact "$ARTIFACT" --release-metadata dist/release-metadata-base.json --tag longtail-forge:qualification-candidate --no-cache --pull
+            echo "ARTIFACT=$ARTIFACT" >> "$GITHUB_ENV"
             echo "CANDIDATE_IMAGE=longtail-forge:qualification-candidate" >> "$GITHUB_ENV"
           fi
-          echo "PUBLISHED_IMAGE=$(jq -r '.image.reference' tests/fixtures/release-metadata/v0.33.33-release-metadata.json)" >> "$GITHUB_ENV"
+          echo "PUBLISHED_IMAGE=$(jq -r '.image.reference' tests/fixtures/release-metadata/v0.33.33.50-release-metadata.json)" >> "$GITHUB_ENV"
           echo "PREVIOUS_IMAGE=$(jq -r '.image.reference' tests/fixtures/release-metadata/v0.33.32.45-release-metadata.json)" >> "$GITHUB_ENV"
+          # The published image whose whiteouts the preview host's Docker storage could not apply: the
+          # layer scan must still find them, as a negative control on real bytes.
+          echo "WHITEOUT_CONTROL_IMAGE=$(jq -r '.image.reference' tests/fixtures/release-metadata/v0.33.33.50-release-metadata.json)" >> "$GITHUB_ENV"
+      - name: Prove the final image equivalent to its runtime filesystem stage
+        if: github.event_name == 'pull_request'
+        run: |
+          node scripts/release/runtime-image-equivalence.mjs --artifact "$ARTIFACT" --release-metadata dist/release-metadata-base.json --candidate "$CANDIDATE_IMAGE" --report "$RUNNER_TEMP/security/runtime-image-equivalence.json"
       - name: Scan the final image and the images it replaces
         run: |
           set -euo pipefail
@@ -190,6 +203,14 @@ jobs:
           docker run --rm --entrypoint sh "$CANDIDATE_IMAGE" -c 'for tool in npm npx corepack yarn yarnpkg tar gzip node; do printf "%s=%s\n" "$tool" "$(command -v "$tool" || echo absent)"; done; ls /usr/local/lib/node_modules 2>/dev/null || echo "no global node_modules"' > "$out/candidate-runtime-tools.txt"
           docker run --rm --entrypoint node "$CANDIDATE_IMAGE" -p 'JSON.stringify(process.versions)' > "$out/candidate-node-versions.json"
           date -u +%FT%TZ > "$out/scan-finished-at.txt"
+      - name: Scan every image layer for whiteouts
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/security"
+          node scripts/release/image-layers.mjs "$CANDIDATE_IMAGE" --expect absent --report "$out/candidate-whiteouts.json"
+          node scripts/release/image-layers.mjs "$PREVIOUS_IMAGE" --expect absent --report "$out/previous-whiteouts.json"
+          docker pull --platform linux/amd64 "$WHITEOUT_CONTROL_IMAGE"
+          node scripts/release/image-layers.mjs "$WHITEOUT_CONTROL_IMAGE" --expect present --report "$out/whiteout-control.json"
       - name: Record the final image's Debian package changes and SBOM
         run: |
           set -euo pipefail
