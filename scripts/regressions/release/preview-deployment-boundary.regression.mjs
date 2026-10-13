@@ -163,6 +163,7 @@ for (const requirement of [
   /names each entry by Go's tar rules, as Docker and containerd read layers/i,
   /refuses a layer it cannot read unambiguously, rather than passing it/i,
   /type, mode, ownership, size, content hash, link target, device numbers, hard-link group, and the bytes of each extended attribute/i,
+  /Its header must repeat its target's mode, ownership, and attributes, because containerd applies those fields to the shared file/i,
   /restates the base image's `PATH`, `NODE_VERSION`, `YARN_VERSION`, and `ENTRYPOINT`, and every setting of `runtime-filesystem` in the same order/i,
   /registry-attached SPDX SBOM and SLSA provenance/i,
   /absence of an engine, an unsupported architecture, or emulation-only execution is a failed prerequisite/i,

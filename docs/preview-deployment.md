@@ -98,6 +98,10 @@ The image starts `node server.js` directly as the container process, which is th
     - **What it compares.** It applies each image's layers in order, as containerd does, and compares the resulting image-owned filesystems. Every path must match in type, mode, ownership, size, content hash, link target, device numbers, hard-link group, and the bytes of each extended attribute.
     - **The cross-check.** It compares Docker's export of each image by the same fields, and every configuration field.
     - **What it does not compare.** Modification times and owner names.
+    - **What it refuses rather than models.**
+      - **Parents.** An entry whose parent is missing or is a symlink.
+      - **A hard link to a symlink.** containerd's mode change would follow the symlink to its target.
+      - **A hard link that changes its file.** Its header must repeat its target's mode, ownership, and attributes, because containerd applies those fields to the shared file.
     - **The cache precondition.** A reference built without the candidate's cache differs in its Debian-generated files, and is reported as different.
 - **System archive tools stay.** The system `tar` and `gzip` remain, because archive creation, inspection, backup, and restore use them. Changing `NODE_IMAGE` or the platform is a reviewed qualification change, not an ordinary deployment toggle.
 
