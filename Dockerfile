@@ -76,7 +76,8 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=4 \
 
 CMD ["node", "server.js"]
 
-# The published runtime: exactly runtime-filesystem's files, in one layer that carries no whiteouts.
+# The published runtime: exactly runtime-filesystem's files, copied as one filesystem layer that
+# carries no whiteouts. BuildKit also records an empty layer for WORKDIR, which changes no file.
 # Removing the base image's package managers in a later layer records whiteouts, and Docker storage
 # that cannot apply them, like the preview host's, refuses to unpack the image. A scratch stage
 # inherits nothing, so every effective setting of runtime-filesystem is restated here, including the

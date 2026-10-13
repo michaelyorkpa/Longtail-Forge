@@ -1,5 +1,52 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.51 - Single-layer runtime image
+
+**Model: High Effort** — The published image's packaging changes under every deployment: a restated setting that drifts from the base image breaks startup or identity, and a missed whiteout blocks deployment again.
+
+Completed on 2026-10-13 at the operator's instruction (option A), as a second post-release patch with its own release identity. `v0.33.33.50` was published, but its preview deployment (run 38443250812) stopped at the host's image pull. The preview host's Docker storage could not apply the whiteouts in the image's package-manager removal layer, `db4a9105`. The deployment changed nothing, and the preview stayed on `v0.33.32.45`. No `v0.33.33` or `v0.33.33.50` tag, image, checksum, or release asset is replaced.
+
+Scope:
+
+- [x] **Ancestry.** The branch starts at `origin/main` `b222704c`. Its only commit beyond `nightly` `16b2040a` is the content-free #875 promotion merge, with the same tree.
+- [x] **Ownership policy.** `scripts/release/checkpoint-commits.mjs` gives this patch the post-release patch rule under its own identity, without the dependency allowance. `docs/versioning.md` documents the rule.
+  - `release.developer-verification-throughput` proves the positive cases.
+  - It refuses another version, a dependency or engines change, the previous patch's dependency transition alone or beside the version, a resolved package beside the version, durable decisions, and a third ceremony file.
+  - Six seeded weakenings were each caught.
+- [x] **Single-layer image.** The Dockerfile's former final stage is now `runtime-filesystem`, unchanged. The published `runtime` stage is `FROM scratch` with `COPY --from=runtime-filesystem / /`.
+  - **Restated settings.** It restates the base's `PATH`, `NODE_VERSION`, `YARN_VERSION`, and `ENTRYPOINT ["docker-entrypoint.sh"]`, and every setting of `runtime-filesystem` in order.
+  - **Layers.** BuildKit adds an empty 32-byte `WORKDIR` layer. The image therefore has one filesystem layer, one empty layer, and no whiteout.
+  - **Pins.** `release.preview-deployment-boundary` pins the structure and every restated setting. Thirteen Dockerfile defects were each caught.
+- [x] **Whiteout gate.** `scripts/release/image-layers.mjs` reads every layer through `docker save`. It handles POSIX, GNU, and PAX names and gzip layers, verifies header checksums, and refuses zstd.
+  - `buildContainerImage` refuses any ordinary or opaque whiteout, and so does `publishContainerImage` after its pull.
+  - `tests/unit/image-layers.test.mjs` has 21 cases on synthetic layers, including one that mirrors the failed layer.
+  - Thirty-one reader, refusal, and equivalence mutations, and three gate-placement mutations, were each caught.
+- [x] **Equivalence proof.** `scripts/release/runtime-image-equivalence.mjs` builds `--target runtime-filesystem` with the image's build arguments, from the same build cache. It compares the exported filesystems and the inspected configuration. In scratch run 38451074740 it found all 7,363 paths and the configuration identical.
+- [x] **Qualification.** The native lifecycle qualification's image job:
+  - runs the equivalence proof for a proposed image;
+  - scans every final image's layers, with published `v0.33.33.50` as a negative control;
+  - now pulls a dispatched release's candidate before inspecting it;
+  - compares the final image against `v0.33.33.50`, whose release metadata is retained byte for byte as a fixture.
+
+  Six workflow-pin defects were each caught.
+- [x] **Host probe.** Scratch run 38451074740 built a probe through `npm run container:build`, from this branch's Dockerfile and the published `v0.33.33.50` runtime artifact. That run:
+  - proved the probe equivalent to the `runtime-filesystem` stage;
+  - saw the build refuse an unflattened Dockerfile, and the scan find nine whiteouts in published `v0.33.33.50`;
+  - started the probe healthy in isolation;
+  - pushed it as the non-release tag `probe-single-layer-bbecda3e7400` (`sha256:961667dc…`), and pulled it back anonymously with no whiteout.
+
+  On 2026-10-13 the operator pulled the probe on the preview host, where it unpacked through containerd's overlayfs snapshotter. It started healthy with no network, a read-only root, and tmpfs data, and was then removed. The preview's container, image, and identity were unchanged. The protected operational record holds the evidence.
+- [x] **Documentation.** `docs/preview-deployment.md` and `docs/releasing.md` describe the single-layer image, the whiteout gate, the equivalence proof, and the qualification's evidence. The deployment-boundary regression pins the new wording, and four wording defects were each caught.
+
+Acceptance criteria:
+
+- [x] The probe image pulls and starts in isolation on the preview host before the release is prepared, and the running preview is unchanged.
+- [ ] **Pending at merge.** One canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the native lifecycle qualification with its equivalence proof and whiteout scans. These run on this final tree, and their results are recorded on the pull request, because this entry is written before them.
+- [ ] **Pending at merge.** An independent Codex review approves the patch.
+- [ ] **Pending after merge.** The merged `nightly` commit's exact-SHA Nightly run, and the promotion to `main` with its gates green.
+- [ ] **Pending after merge.** `Manual GitHub release` publishes the patch. Its assets, image, SBOM, provenance, and release metadata are verified, including that no layer of the published digest carries a whiteout.
+- [ ] **Pending after merge.** The published digest passes the native lifecycle qualification, and its vulnerability evidence is recorded. Then the supervised preview deployment keeps the normal identity, health, and recovery checks. Demo compatibility is claimed only once it is verified.
+
 ## Version 0.33.33.50 - Deployment contract repair and runtime security baseline
 
 **Model: High Effort** — A root-owned deployment helper, its rollback and recovery paths, the runtime image baseline, and checkpoint policy change together; a subtle error blocks deployment, breaks rollback, or weakens demo isolation.

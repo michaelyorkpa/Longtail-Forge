@@ -1,3 +1,19 @@
+## Version 0.33.33.51 - 2026-10-13
+
+- **Image-packaging repair of `v0.33.33.50`.** That release could not be deployed. The preview host's Docker storage could not apply the whiteouts in its image's package-manager removal layer. The deployment stopped at the image pull, before any change, and the preview stayed on `v0.33.32.45`. This patch is a new release identity. The `v0.33.33.50` tag, image, checksums, and assets are unchanged.
+- **One filesystem layer.** The published image's final stage is now a `scratch` stage. It copies the complete runtime filesystem stage as one filesystem layer, and BuildKit adds only an empty `WORKDIR` layer. Nothing in the runtime changes: its files, Debian security updates, absence of JavaScript package managers, non-root user, and configuration stay the same. That configuration includes the environment and entrypoint inherited from the Node base image, which the scratch stage restates.
+- **Whiteout gate.** `npm run container:build` refuses an image if any layer carries an ordinary (`.wh.<name>`) or opaque (`.wh..wh..opq`) whiteout. Image publication applies the same check to the pushed digest after pulling it.
+  - `scripts/release/image-layers.mjs` reads every layer through `docker save`, including GNU and PAX long names and gzip layers. It refuses malformed or zstd archives rather than guessing.
+  - Unit tests prove the reader and the refusal, including on a layer that mirrors the one that failed.
+  - The deployment-boundary regression pins the stage structure and every restated setting.
+- **Equivalence proof.** `scripts/release/runtime-image-equivalence.mjs` builds the runtime filesystem stage with the image's build arguments. It then compares every exported path, with its type, mode, ownership, link target, size, content hash, and extended attributes, and every configuration field, against the published image.
+- **Native lifecycle qualification.**
+  - For a proposed image, it now runs the equivalence proof.
+  - For every final image, it proves that no layer carries a whiteout, while the same scan still finds them in published `v0.33.33.50` as a negative control.
+  - A dispatched qualification now pulls the published candidate before inspecting it. The `v0.33.33.50` qualification's image job failed for lack of that pull.
+- **Checkpoint ownership.** This patch may set the application version in both package files to exactly its own identity, and may change the changelog entry and owning documentation. It takes no dependency update: the reviewed security transition stays the previous patch's.
+- **Documentation.** The preview deployment and release guides describe the single-layer image, the whiteout gate, and the equivalence proof. The versioning contract records this patch's ownership.
+
 ## Version 0.33.33.50 - 2026-10-05
 
 - **Post-release repair of `v0.33.33`.** That release could not be deployed: its own Compose host helper accepted only `better-sqlite3` 13.0.1, while the release ships 13.0.3, so the friends-and-family preview deployment was stopped before dispatch. This patch is a new release identity. The `v0.33.33` tag, image, checksums, and assets are unchanged.
