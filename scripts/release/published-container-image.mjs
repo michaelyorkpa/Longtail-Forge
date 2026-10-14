@@ -10,6 +10,7 @@ import {
   inspectRuntimeArtifact,
   supportedPlatform,
 } from "../build-container-image.mjs";
+import { assertImageHasNoWhiteouts } from "./image-layers.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
@@ -267,6 +268,8 @@ async function publishContainerImage(options) {
   const attestationEvidence = inspectAttestationEvidence(repository, descriptors.attestations, rootDir);
 
   runDocker(["pull", "--platform", supportedPlatform, reference], { cwd: rootDir, stdio: options.stdio || "inherit" });
+  // The published digest must unpack on Docker storage that cannot apply whiteouts.
+  await assertImageHasNoWhiteouts(reference, { cwd: rootDir });
   const image = inspectPublishedImage(reference, {
     artifactChecksum: artifact.checksum,
     commitSha: releaseIdentity.commitSha,
