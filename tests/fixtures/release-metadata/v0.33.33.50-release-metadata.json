@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 2,
+  "application": "longtail-forge",
+  "version": "0.33.33.50",
+  "commitSha": "b222704c6e1932b640a6a32bab94a9a733d27022",
+  "channel": "main",
+  "sourceBranch": "main",
+  "artifact": {
+    "filename": "longtail-forge-0.33.33.50.tgz",
+    "sha256": "73762e71b67dff3ccdeb46650edc8fb7bec034d7696dfd9e5fc8faa6462b803e"
+  },
+  "createdAt": "2026-10-06T17:59:35.686Z",
+  "image": {
+    "repository": "ghcr.io/michaelyorkpa/longtail-forge",
+    "digest": "sha256:c21b116f0f80b12172148b84e0fcdf936f6abd4ff0b328d8b6450d613be3559e",
+    "reference": "ghcr.io/michaelyorkpa/longtail-forge@sha256:c21b116f0f80b12172148b84e0fcdf936f6abd4ff0b328d8b6450d613be3559e",
+    "platform": "linux/amd64",
+    "platformManifest": {
+      "digest": "sha256:37d42685d809ddb43bdf4ede80ced9e3dcaf778811ed9fecd63a83cd982f48b0",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "os": "linux",
+      "architecture": "amd64"
+    },
+    "imageConfigDigest": "sha256:5146780c501e0a950bad970398013a4643c714a1d172fdb66b56782a9c5f8d31",
+    "nativeDependency": {
+      "architecture": "x64",
+      "betterSqlite3Version": "13.0.3",
+      "execution": "published-digest",
+      "platform": "linux",
+      "sqliteVersion": "3.53.4"
+    },
+    "attestations": {
+      "provenance": {
+        "manifestDigest": "sha256:1aaa61eb4ad3f6ccb82c829356602edcd8f19d76d2484362320b67a36f805a60",
+        "predicateType": "https://slsa.dev/provenance/v1"
+      },
+      "sbom": {
+        "manifestDigest": "sha256:1aaa61eb4ad3f6ccb82c829356602edcd8f19d76d2484362320b67a36f805a60",
+        "predicateType": "https://spdx.dev/Document"
+      }
+    }
+  }
+}

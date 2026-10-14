@@ -25,7 +25,7 @@ import {
 
 /** @param {string} filePath */
 const read = (filePath) => fs.readFile(filePath, "utf8");
-const [dockerfile, dockerignore, compose, docs, envExample, packageJsonSource, containerBuild, containerSmoke, workflow, selfHosting, runtimeArtifact] = await Promise.all([
+const [dockerfile, dockerignore, compose, docs, envExample, packageJsonSource, containerBuild, imagePublication, containerSmoke, workflow, selfHosting, runtimeArtifact] = await Promise.all([
   read("Dockerfile"),
   read(".dockerignore"),
   read("compose.yaml"),
@@ -33,6 +33,7 @@ const [dockerfile, dockerignore, compose, docs, envExample, packageJsonSource, c
   read("docs/compose.env.example"),
   read("package.json"),
   read("scripts/build-container-image.mjs"),
+  read("scripts/release/published-container-image.mjs"),
   read("scripts/container-deployment-smoke.mjs"),
   read(".github/workflows/promotion.yml"),
   read("docs/self-hosting.md"),
@@ -46,7 +47,7 @@ for (const requirement of [
   /ARG LTF_RUNTIME_ARTIFACT/,
   /COPY \$\{LTF_RUNTIME_ARTIFACT\} \/tmp\/longtail-forge-runtime\.tgz/,
   /npm ci --omit=dev --no-audit --no-fund/,
-  /FROM \$\{NODE_IMAGE\} AS runtime/,
+  /FROM \$\{NODE_IMAGE\} AS runtime-filesystem\n/,
   /COPY --from=runtime-build \/opt\/longtail-forge \/opt\/longtail-forge/,
   /USER 10001:10001/,
   /VOLUME \["\/var\/lib\/longtail-forge", "\/var\/backups\/longtail-forge"\]/,
@@ -55,9 +56,24 @@ for (const requirement of [
 ]) {
   assert.match(dockerfile, requirement);
 }
-// The `v0.33.33` post-release patch: the final stage ships no package manager, and keeps the system archive tools that
-// backup, inspection, and restore use. The build fails if either half of that is untrue.
-const runtimeStage = dockerfile.slice(dockerfile.indexOf("FROM ${NODE_IMAGE} AS runtime\n"));
+/**
+ * One build stage: from its exact `FROM` line to the next stage, or to the end of the Dockerfile.
+ * @param {string} from
+ */
+function dockerStage(from) {
+  const start = dockerfile.indexOf(`${from}\n`);
+  assert.ok(start !== -1 && dockerfile.indexOf(`${from}\n`, start + 1) === -1, `the Dockerfile must declare exactly one stage "${from}"`);
+  const next = dockerfile.indexOf("\nFROM ", start);
+  return dockerfile.slice(start, next === -1 ? dockerfile.length : next + 1);
+}
+/**
+ * A stage's instructions, one per entry, with continuation lines joined and comments dropped.
+ * @param {string} stage
+ */
+const instructionsOf = (stage) => stage.replace(/\\\n\s*/g, " ").split("\n").map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
+// The `v0.33.33` post-release patch: the runtime filesystem ships no package manager, and keeps the system archive tools
+// that backup, inspection, and restore use. The build fails if either half of that is untrue.
+const runtimeStage = dockerStage("FROM ${NODE_IMAGE} AS runtime-filesystem");
 assert.match(runtimeStage, /rm -rf \/usr\/local\/lib\/node_modules\/npm \/usr\/local\/lib\/node_modules\/corepack \/opt\/yarn-v\* \\\n\s+\/usr\/local\/bin\/npm \/usr\/local\/bin\/npx \/usr\/local\/bin\/corepack \/usr\/local\/bin\/yarn \/usr\/local\/bin\/yarnpkg/);
 assert.match(runtimeStage, /for tool in npm npx corepack yarn yarnpkg; do if command -v "\$tool"[^\n]*exit 1; fi; done/);
 assert.match(runtimeStage, /command -v tar >\/dev\/null && command -v gzip >\/dev\/null && command -v node >\/dev\/null/);
@@ -71,6 +87,33 @@ for (const requirement of [
   /apt-get clean \\\n\s+&& rm -rf \/var\/lib\/apt\/lists\/\*/,
 ]) assert.match(runtimeStage, requirement);
 assert.doesNotMatch(runtimeStage, /apt-get (?:upgrade|dist-upgrade|full-upgrade)\b|\bapt (?:upgrade|full-upgrade)\b|--allow-downgrades/, "the final stage must not upgrade or downgrade the whole system");
+// The image-packaging patch: Docker storage on the preview host cannot apply the whiteouts that removing the base image's
+// package managers records, so the published stage is the runtime filesystem flattened into one filesystem layer. It is
+// the final stage, copies that filesystem whole, and restates every setting, because a scratch stage inherits none: the
+// runtime filesystem's own settings verbatim and in order, then the environment and entrypoint that stage inherits from
+// the pinned Node.js base.
+const publishedStage = dockerStage("FROM scratch AS runtime");
+assert.ok(dockerfile.endsWith(publishedStage), "the flattened stage must be the final, published stage");
+const publishedInstructions = instructionsOf(publishedStage);
+const runtimeInstructions = instructionsOf(runtimeStage);
+assert.deepEqual(publishedInstructions.filter((line) => /^(?:RUN|COPY|ADD) /.test(line)), ["COPY --from=runtime-filesystem / /"], "the published stage's only content must be one copy of the whole runtime filesystem");
+/** @param {readonly string[]} instructions */
+const settingsOf = (instructions) => instructions.filter((line) => !/^(?:FROM|RUN|COPY|ADD|ENV|ENTRYPOINT) /.test(line));
+assert.deepEqual(settingsOf(publishedInstructions), settingsOf(runtimeInstructions), "the published stage must restate every setting of the runtime filesystem, in order");
+/** @param {readonly string[]} instructions */
+const environmentOf = (instructions) => instructions.filter((line) => line.startsWith("ENV ")).flatMap((line) => line.slice("ENV ".length).trim().split(/\s+/));
+const baseNodeVersion = /ARG NODE_IMAGE=node:(\d+\.\d+\.\d+)-bookworm-slim@/.exec(dockerfile)?.[1];
+assert.ok(baseNodeVersion, "the pinned base must name its Node.js version");
+assert.deepEqual(environmentOf(publishedInstructions), [
+  "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+  `NODE_VERSION=${baseNodeVersion}`,
+  "YARN_VERSION=1.22.22",
+  ...environmentOf(runtimeInstructions),
+], "the published stage must restate the base image's environment, then the runtime filesystem's");
+assert.deepEqual(runtimeInstructions.filter((line) => line.startsWith("ENTRYPOINT ")), [], "the runtime filesystem inherits the base image's entrypoint");
+assert.deepEqual(publishedInstructions.filter((line) => line.startsWith("ENTRYPOINT ")), ['ENTRYPOINT ["docker-entrypoint.sh"]'], "the published stage must restate the base image's entrypoint");
+assert.match(containerBuild, /await assertImageHasNoWhiteouts\(tag, \{ cwd: rootDir \}\);/, "container builds must refuse an image layer that carries a whiteout");
+assert.match(imagePublication, /runDocker\(\["pull", "--platform", supportedPlatform, reference\][^\n]*\n\s*\/\/[^\n]*\n\s*await assertImageHasNoWhiteouts\(reference, \{ cwd: rootDir \}\);/, "image publication must refuse a pulled digest whose layers carry a whiteout");
 assert.doesNotMatch(dockerfile, /COPY \. /, "the image must consume the runtime artifact instead of copying the repository");
 assert.doesNotMatch(dockerfile, /postgres/i, "the image must not add PostgreSQL before its implementation branch");
 assert.match(dockerignore, /^\*\*/m);
@@ -114,7 +157,14 @@ for (const requirement of [
   /Direct Node\/systemd production operation has no release gate/i,
   /supported platform decision is `linux\/amd64` only/i,
   /disposable builder stage installs Python 3, `make`, and `g\+\+`/i,
-  /final stage copies only the root-owned read-only installed application tree/i,
+  /runtime filesystem stage copies only the root-owned read-only installed application tree/i,
+  /published `runtime` stage is a `scratch` stage that copies the whole `runtime-filesystem` stage as one filesystem layer/i,
+  /refuse an image whose layers carry either kind/i,
+  /names each entry by Go's tar rules, as Docker and containerd read layers/i,
+  /refuses a layer it cannot read unambiguously, rather than passing it/i,
+  /type, mode, ownership, size, content hash, link target, device numbers, hard-link group, and the bytes of each extended attribute/i,
+  /Its header must repeat its target's mode, ownership, and attributes, because containerd applies those fields to the shared file/i,
+  /restates the base image's `PATH`, `NODE_VERSION`, `YARN_VERSION`, and `ENTRYPOINT`, and every setting of `runtime-filesystem` in the same order/i,
   /registry-attached SPDX SBOM and SLSA provenance/i,
   /absence of an engine, an unsupported architecture, or emulation-only execution is a failed prerequisite/i,
   /does not authorize invitations/i,

@@ -14,6 +14,10 @@ const RELEASE_PREPARATION_CHECKPOINT = `${CHECKPOINT_SERIES}.49`;
 // The post-release patch declared after the release was published. It gives the application its own
 // new release identity and changes nothing else the packages declare: see POST_RELEASE_PATCH_PATHS.
 const POST_RELEASE_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.50`;
+// The image-packaging patch declared after that patch's release could not be deployed, because the
+// preview host's Docker storage could not apply its image's whiteouts. It owns its work exactly as the
+// post-release patch does, under its own identity, except that it takes no dependency update.
+const IMAGE_PACKAGING_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.51`;
 const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
 const TRAILER_NAMES = Object.freeze({
@@ -151,6 +155,7 @@ function parseCheckpointTrailers(message) {
  *   packageBeforeSource?: string,
  *   parentCount?: number,
  *   paths?: string[],
+ *   imagePackagingPatchCheckpoint?: string,
  *   postReleasePatchCheckpoint?: string,
  *   releasePreparationCheckpoint?: string,
  *   roadmapArchiveSource?: string,
@@ -167,6 +172,7 @@ function validateCheckpointCommit({
   packageBeforeSource = "",
   parentCount = 1,
   paths = [],
+  imagePackagingPatchCheckpoint = IMAGE_PACKAGING_PATCH_CHECKPOINT,
   postReleasePatchCheckpoint = POST_RELEASE_PATCH_CHECKPOINT,
   releasePreparationCheckpoint = RELEASE_PREPARATION_CHECKPOINT,
   roadmapArchiveSource = "",
@@ -223,7 +229,9 @@ function validateCheckpointCommit({
   const ceremonyPaths = normalizedPaths.filter(isCeremonyPath);
   const isCloseout = checkpoint === closeoutCheckpoint;
   const isReleasePreparation = checkpoint === releasePreparationCheckpoint;
-  const isPostReleasePatch = checkpoint === postReleasePatchCheckpoint;
+  // Both patches own the same narrow paths; only the first takes its reviewed dependency updates.
+  const takesDependencyUpdates = checkpoint === postReleasePatchCheckpoint;
+  const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint;
   if (!isCloseout && ceremonyPaths.length > 2) {
     errors.push(`internal checkpoint ${checkpoint} changes ${ceremonyPaths.length} ceremony files; maximum is 2 (${ceremonyPaths.join(", ")})`);
   }
@@ -263,7 +271,8 @@ function validateCheckpointCommit({
       packageAfterSource,
       packageBeforeSource,
       paths: normalizedPaths,
-      postReleasePatchCheckpoint,
+      postReleasePatchCheckpoint: checkpoint,
+      takesDependencyUpdates,
     }, errors);
   }
 
@@ -331,10 +340,11 @@ function validateReleasePreparationPackages({
 }
 
 /**
- * The post-release patch gives the published release's repair its own identity and nothing else. Its
+ * A post-release patch gives the published release's repair its own identity and nothing else. Its
  * `package.json` change must move only the application version to exactly the patch identity (or be
  * script-only, like any checkpoint's), and its lockfile must move only its two application version
- * fields to that identity, so no dependency or resolved package changes under it.
+ * fields to that identity, so no dependency or resolved package changes under it. Only the patch
+ * that owns the reviewed dependency security updates may take them instead.
  * @param {{
  *   lockAfterSource: string,
  *   lockBeforeSource: string,
@@ -342,6 +352,7 @@ function validateReleasePreparationPackages({
  *   packageBeforeSource: string,
  *   paths: readonly string[],
  *   postReleasePatchCheckpoint: string,
+ *   takesDependencyUpdates: boolean,
  * }} change
  * @param {string[]} errors
  */
@@ -352,6 +363,7 @@ function validatePostReleasePatchPackages({
   packageBeforeSource,
   paths,
   postReleasePatchCheckpoint,
+  takesDependencyUpdates,
 }, errors) {
   if (
     paths.includes("package.json")
@@ -363,9 +375,11 @@ function validatePostReleasePatchPackages({
   if (
     paths.includes("package-lock.json")
     && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)
-    && !isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource)
+    && !(takesDependencyUpdates && isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource))
   ) {
-    errors.push(`package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`);
+    errors.push(takesDependencyUpdates
+      ? `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`
+      : `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}`);
   }
 }
 
@@ -633,6 +647,7 @@ if (isMain) await main();
 export {
   CHECKPOINT_SERIES,
   CLOSEOUT_CHECKPOINT,
+  IMAGE_PACKAGING_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,

@@ -19,7 +19,10 @@ RUN apt-get update \
     && chown -R root:root /opt/longtail-forge \
     && chmod -R a-w /opt/longtail-forge
 
-FROM ${NODE_IMAGE} AS runtime
+# The complete runtime filesystem and configuration. The published image is this stage flattened into
+# one layer by the `runtime` stage below; this stage is also the reference the image equivalence check
+# compares that image against.
+FROM ${NODE_IMAGE} AS runtime-filesystem
 
 ARG LTF_APP_VERSION=unknown
 
@@ -71,4 +74,44 @@ VOLUME ["/var/lib/longtail-forge", "/var/backups/longtail-forge"]
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=4 \
   CMD ["node", "-e", "require('node:http').get('http://127.0.0.1:8001/readyz',r=>{r.resume();process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
 
+CMD ["node", "server.js"]
+
+# The published runtime: exactly runtime-filesystem's files, copied as one filesystem layer that
+# carries no whiteouts. BuildKit also records an empty layer for WORKDIR, which changes no file.
+# Removing the base image's package managers in a later layer records whiteouts, and Docker storage
+# that cannot apply them, like the preview host's, refuses to unpack the image. A scratch stage
+# inherits nothing, so every effective setting of runtime-filesystem is restated here, including the
+# base image's environment and ENTRYPOINT. The image equivalence check proves the filesystem and
+# configuration identical, and image builds refuse any layer that contains a whiteout.
+FROM scratch AS runtime
+
+ARG LTF_APP_VERSION=unknown
+
+COPY --from=runtime-filesystem / /
+
+LABEL org.opencontainers.image.title="Longtail Forge" \
+      org.opencontainers.image.version="${LTF_APP_VERSION}" \
+      org.opencontainers.image.licenses="AGPL-3.0-only"
+
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    NODE_VERSION=24.21.0 \
+    YARN_VERSION=1.22.22 \
+    NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=8001 \
+    LONGTAIL_DATA_DIR=/var/lib/longtail-forge \
+    LONGTAIL_DATABASE_FILE=/var/lib/longtail-forge/longtail-forge.db \
+    LONGTAIL_LOCAL_STORAGE_ROOT=/var/lib/longtail-forge/files
+
+WORKDIR /opt/longtail-forge
+
+USER 10001:10001
+
+EXPOSE 8001
+VOLUME ["/var/lib/longtail-forge", "/var/backups/longtail-forge"]
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=4 \
+  CMD ["node", "-e", "require('node:http').get('http://127.0.0.1:8001/readyz',r=>{r.resume();process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "server.js"]

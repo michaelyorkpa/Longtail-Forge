@@ -65,6 +65,14 @@ for (const requirement of [
   /--entrypoint dpkg-query "\$image" -W -f='\$\{Package\}\\t\$\{Version\}\\t\$\{source:Package\}\\t\$\{source:Version\}\\n'/,
   /apt-cache policy perl-base libpcre2-8-0 tzdata/,
   /--format spdx-json --output "\$out\/candidate-sbom\.spdx\.json"/,
+  // A dispatched qualification pulls the published candidate before inspecting it. A proposed image is
+  // proved equivalent to its runtime filesystem stage, and every final image is proved free of
+  // whiteouts beside a negative control: the published image the preview host could not unpack.
+  /candidate="\$\(jq -r '\.image\.reference' "\$RUNNER_TEMP\/security\/candidate\/release-metadata\.json"\)"\n\s+# [^\n]+\n\s+docker pull --platform linux\/amd64 "\$candidate"/,
+  /if: github\.event_name == 'pull_request'\n\s+run: \|\n\s+node scripts\/release\/runtime-image-equivalence\.mjs --artifact "\$ARTIFACT" --release-metadata dist\/release-metadata-base\.json --candidate "\$CANDIDATE_IMAGE"/,
+  /node scripts\/release\/image-layers\.mjs "\$CANDIDATE_IMAGE" --expect absent/,
+  /WHITEOUT_CONTROL_IMAGE=\$\(jq -r '\.image\.reference' tests\/fixtures\/release-metadata\/v0\.33\.33\.50-release-metadata\.json\)/,
+  /node scripts\/release\/image-layers\.mjs "\$WHITEOUT_CONTROL_IMAGE" --expect present/,
 ]) assert.match(nativeQualification, requirement);
 assert.doesNotMatch(nativeQualification, /packages: write|contents: write|id-token: write|secrets\.|environment:/, "native qualification must hold no publication, deployment, or secret authority");
 const { createConfig } = await import("../../../src/config.js");
