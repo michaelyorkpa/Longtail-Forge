@@ -41,7 +41,7 @@ const [dockerfile, dockerignore, compose, docs, envExample, packageJsonSource, c
 ]);
 
 for (const requirement of [
-  /node:24\.21\.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6/,
+  /node:24\.22\.1-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205/,
   /FROM \$\{NODE_IMAGE\} AS runtime-build/,
   /apt-get install --yes --no-install-recommends python3 make g\+\+/,
   /ARG LTF_RUNTIME_ARTIFACT/,
@@ -239,8 +239,8 @@ assert.deepEqual(parseCliArgs(["--tag", "ltf:test", "--artifact", "dist/example.
 assert.throws(() => parseCliArgs(["--release-metadata"]), /requires a value/);
 assert.equal(supportedPlatform, "linux/amd64");
 assert.deepEqual(await inspectPinnedBaseImage(process.cwd()), {
-  digest: "sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6",
-  reference: "node:24.21.0-bookworm-slim",
+  digest: "sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205",
+  reference: "node:24.22.1-bookworm-slim",
 });
 assert.equal(normalizeBuildContextPath(process.cwd(), path.join(process.cwd(), "dist", "example.tgz")), "dist/example.tgz");
 assert.throws(() => normalizeBuildContextPath(process.cwd(), path.resolve(process.cwd(), "..", "example.tgz")), /inside the repository Docker build context/);

@@ -10,7 +10,7 @@ const packageJson = requirePackageManifest(JSON.parse(await readText("package.js
 const contract = await readText("docs/markdown-platform-contract.md");
 const serviceSource = await readText("src/core/markdown/markdown.service.js");
 
-assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.2", "markdown-it should use the reviewed 15.0.2 baseline");
+assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.3", "markdown-it should use the reviewed 15.0.3 baseline");
 assert.doesNotMatch(serviceSource, /from\s+["']markdown-it\//, "the service should use the supported package-root export rather than removed internal subpaths");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");

@@ -124,7 +124,7 @@ component, version, license identifier, copyright holder, and full license text
 before committing the result. Missing/unrecognized licenses require a reviewed
 override in `scripts/lib/third-party-notices.mjs`; do not silently infer them.
 The current compatible set is MIT, ISC, BSD-2-Clause, BSD-3-Clause, and
-Python-2.0. The bundled-asset audit explicitly records Lucide-derived icons and
+Python-2.0 and PSF-2.0. The October 2026 argparse update uses standalone PSF-2.0: its eight license terms match the previously retained PSF section; its packaged copyright ends in 2019 rather than 2020. The generated notice retains the actual packaged text. The bundled-asset audit explicitly records Lucide-derived icons and
 the absence of bundled fonts or vendored browser libraries.
 
 ## Updating Dependencies

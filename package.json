@@ -1,11 +1,11 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.33.51",
+  "version": "0.33.33.52",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
-    "node": ">=24.7 <25"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "module:create": "node scripts/create-module.mjs",
@@ -118,9 +118,9 @@
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
-    "markdown-it": "^15.0.2",
+    "markdown-it": "^15.0.3",
     "uuid": "^14.0.2",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

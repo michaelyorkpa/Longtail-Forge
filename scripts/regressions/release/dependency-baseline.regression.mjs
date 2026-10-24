@@ -83,24 +83,24 @@ assert.equal(requireDependencies(rootLock, "package-lock.json root")["@types/nod
 // `0.33.33.49`: newer Node declarations do not widen the supported runtime; the engine pin below stays Node 24.
 assert.equal(nodeTypesLock.version, "26.6.3", "the resolved Node types baseline should remain 26.6.3");
 assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must remain development-only");
-assert.equal(requireEngines(packageJson).node, ">=24.7 <25", "the repository should retain its supported Node 24 range");
+assert.equal(requireEngines(packageJson).node, ">=24.22.1 <25", "the repository should retain its supported Node 24 range");
 assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.3": true }, "the approved lifecycle-script allowlist must remain unchanged");
 
-assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.2", "Markdown-it should use the reviewed 15.0.2 runtime baseline");
+assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.3", "Markdown-it should use the reviewed 15.0.3 runtime baseline");
 assert.equal(requireDevDependencies(packageJson)["markdown-it"], undefined, "Markdown-it must remain runtime parser infrastructure");
-assert.equal(requireDependencies(rootLock, "package-lock.json root")["markdown-it"], "^15.0.2", "the lockfile root should match the Markdown-it package contract");
-// `0.33.33.49`: 15.0.2 is outside GHSA-253c-mchw-3w2r (=15.0.0) and keeps the reviewed v15 graph below.
-assert.equal(markdownItLock.version, "15.0.2", "the resolved Markdown-it baseline should remain 15.0.2");
+assert.equal(requireDependencies(rootLock, "package-lock.json root")["markdown-it"], "^15.0.3", "the lockfile root should match the Markdown-it package contract");
+// October security refresh: 15.0.3 fixes GHSA-gfr2-rv44-r23c and GHSA-vfgh-jcmw-g37q; its required graph is pinned below.
+assert.equal(markdownItLock.version, "15.0.3", "the resolved Markdown-it baseline should remain 15.0.3");
 assert.deepEqual(markdownItLock.dependencies, {
-  argparse: "^3.0.0",
-  entities: "^8.0.0",
-  "linkify-it": "^6.0.0",
+  argparse: "^3.0.3",
+  entities: "^8.1.0",
+  "linkify-it": "^6.1.0",
   mdurl: "^2.1.0",
   "punycode.js": "^2.3.1",
   "uc.micro": "^3.0.0",
 }, "Markdown-it should retain its complete reviewed v15 production dependency graph");
-assert.equal(argparseLock.version, "3.0.0", "argparse should resolve to the reviewed 3.0 baseline");
-assert.equal(entitiesLock.version, "8.0.0", "entities should resolve to the reviewed 8.0 baseline");
+assert.equal(argparseLock.version, "3.0.4", "argparse should resolve to the reviewed 3.0 baseline");
+assert.equal(entitiesLock.version, "8.1.0", "entities should resolve to the reviewed 8.0 baseline");
 assert.equal(requireEngines(entitiesLock, "entities lock entry").node, ">=20.19.0", "entities 8 should retain a Node range supported by the repository's Node 24 runtime");
 assert.equal(linkifyItLock.version, "6.1.0", "linkify-it should resolve to the reviewed 6.1 baseline");
 assert.equal(requireDependencies(linkifyItLock, "linkify-it lock entry")["uc.micro"], "^3.0.0", "linkify-it should share the reviewed uc.micro 3 range");

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG NODE_IMAGE=node:24.21.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+ARG NODE_IMAGE=node:24.22.1-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
 FROM ${NODE_IMAGE} AS runtime-build
 
 ARG LTF_RUNTIME_ARTIFACT
@@ -94,7 +94,7 @@ LABEL org.opencontainers.image.title="Longtail Forge" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-    NODE_VERSION=24.21.0 \
+    NODE_VERSION=24.22.1 \
     YARN_VERSION=1.22.22 \
     NODE_ENV=production \
     HOST=0.0.0.0 \
