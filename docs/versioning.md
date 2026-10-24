@@ -26,6 +26,8 @@ A post-release patch declared after a release is published repairs that release 
 
 `v0.33.33.50` could not be deployed: the preview host's Docker storage could not apply its image's whiteouts. A second post-release patch, the image-packaging patch `0.33.33.51`, owns that repair. It follows the same rule under its own identity, except that it takes no dependency update: the reviewed security transition stays `0.33.33.50`'s alone, and the validator refuses it under `0.33.33.51`.
 
+The October 2026 Node security patch, `0.33.33.52`, follows the same post-release identity rule. In addition, it may raise the root `engines.node` value in both package files from exactly `>=24.7 <25` to `>=24.22.1 <25`, together with its own release version. Every other package field and resolved dependency remains fixed. Its Docker image and `.nvmrc` pin Node 24.22.1; previous published assets remain immutable. This allowance belongs only to this checkpoint and retains the declaration, trailer, durable-decision, and two-ceremony-file boundaries.
+
 After all intended checkpoint commits are present, run `npm run checkpoint:validate` before the first push and after amending any checkpoint commit message. The command resolves `merge-base(origin/nightly, HEAD)` locally and validates the same complete branch range as protected CI. It does not repeat `npm run verify:slice`; a message-only amend leaves a prior green tree verification valid, while any file change requires verification again.
 
 ## Asset Cache Version
