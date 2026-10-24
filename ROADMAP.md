@@ -45,9 +45,6 @@ These open findings were carried out of the Lean Core branch when its closeout, 
 
 The post-release patch to `v0.33.33` carried these findings forward. The same rule applies: each needs its own roadmap slice.
 
-- **The runtime's bundled OpenSSL trails upstream.** Node 24.21.0, the newest Node 24 release, bundles OpenSSL 3.5.8. OpenSSL 3.5.9, released on 2026-09-29, fixes thirteen issues that affect 3.5.8, one rated High (DTLS retransmission). As re-checked on 2026-10-06, no Node release bundles 3.5.9 yet. None of the thirteen is reachable from the deployed application's call paths: it uses no DTLS, QUIC, CMP, SM2, or non-NIST ECDSA signing, runs no TLS server, and makes no TLS client connection. The only packaged TLS client is the historical `demo:data:host` command's health check of the operator's own public edge, which the Compose deployment does not run.
-  - **Owner:** the next runtime base refresh.
-  - **Consequence:** adopt the first Node 24 release that bundles OpenSSL 3.5.9 or later, with its native lifecycle qualification.
 - **Debian findings without a published fix remain in the runtime image.** The final stage now takes Debian's exact fixes for `perl-base`, `libpcre2-8-0`, and `tzdata`, so no Debian finding with a fix remains. The 222 that remain have none: 171 are `affected`, 37 `fix_deferred`, and 14 `will_not_fix`. They include `gzip`'s LZH decompression (CVE-2026-41992), the util-linux mount and nsenter group, `libacl1`, and `zlib1g`'s minizip. None was found reachable from the application or operator paths.
   - **Owner:** the next runtime base refresh.
   - **Consequence:** re-scan each release, and take Debian's fixes as they are published, through a reviewed base refresh or targeted update. The pinned Debian updates fail the build once Debian stops publishing those versions.
@@ -57,12 +54,6 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
 - **Public-demo reset history has no retention bound.** The demo host's `demo-reset-operations/` held 1,392 operation directories on 2026-10-05, one per hourly reset since 2026-08-08, and nothing prunes them. Their disk and inode use is still to be measured.
   - **Owner:** public-demo operations.
   - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
-
-### 0.33.33.52 - October Node security refresh
-
-**Model: High Effort** - Runtime security and native deployment compatibility require exact-version qualification.
-
-At the operator's request, update the workstation and both named hosts, pin Node 24.22.1 in the application image and CI, raise the package runtime floor, and publish a new immutable patch release. Preserve application dependencies and the existing backup, isolation, identity, and protected-release gates. The ongoing 0.33.34 roadmap remains next.
 
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
