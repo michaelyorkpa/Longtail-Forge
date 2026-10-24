@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.52 - October Node security refresh
+
+**Model: High Effort** - A runtime security update requires native dependency and deployment qualification on both supported host profiles.
+
+Requested on 2026-10-24 to update the workstation, rt-ltf, rt-ltf-demo, and the repository runtime dependency. This patch has its own immutable release identity; the active roadmap cursor remains `0.33.34`.
+
+Scope:
+
+- Pin the official Node 24.22.1 Bookworm slim image by digest and restate the same Node version in the flattened runtime stage.
+- Pin `.nvmrc` to 24.22.1 and raise the root package engine floor to `>=24.22.1 <25`; keep all resolved application dependencies unchanged.
+- Give this checkpoint only its own release version and exact engine-floor transition, with positive and negative tests retaining the other checkpoint boundaries.
+- Retain the whiteout, image equivalence, native SQLite, preview/demo lifecycle, backup, isolation, and identity gates. Publish and deploy only after the protected checks and exact-main release process pass.
+
+The branch's implementation and local verification do not themselves establish live-container acceptance. Final rollout evidence must identify the published digest, Node version inside both running containers, and direct/public readiness and release identity.
+
 ## Version 0.33.33.51 - Single-layer runtime image
 
 **Model: High Effort** — The published image's packaging changes under every deployment: a restated setting that drifts from the base image breaks startup or identity, and a missed whiteout blocks deployment again.

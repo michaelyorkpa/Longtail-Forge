@@ -18,6 +18,8 @@ const POST_RELEASE_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.50`;
 // preview host's Docker storage could not apply its image's whiteouts. It owns its work exactly as the
 // post-release patch does, under its own identity, except that it takes no dependency update.
 const IMAGE_PACKAGING_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.51`;
+// The October Node security refresh owns only its release identity and exact Node engine floor.
+const NODE_SECURITY_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.52`;
 const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
 const TRAILER_NAMES = Object.freeze({
@@ -229,9 +231,10 @@ function validateCheckpointCommit({
   const ceremonyPaths = normalizedPaths.filter(isCeremonyPath);
   const isCloseout = checkpoint === closeoutCheckpoint;
   const isReleasePreparation = checkpoint === releasePreparationCheckpoint;
-  // Both patches own the same narrow paths; only the first takes its reviewed dependency updates.
+  // Patches own the same narrow paths; only the first takes its reviewed dependency updates.
   const takesDependencyUpdates = checkpoint === postReleasePatchCheckpoint;
-  const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint;
+  const isNodeSecurityPatch = checkpoint === NODE_SECURITY_PATCH_CHECKPOINT;
+  const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint || isNodeSecurityPatch;
   if (!isCloseout && ceremonyPaths.length > 2) {
     errors.push(`internal checkpoint ${checkpoint} changes ${ceremonyPaths.length} ceremony files; maximum is 2 (${ceremonyPaths.join(", ")})`);
   }
@@ -273,6 +276,7 @@ function validateCheckpointCommit({
       paths: normalizedPaths,
       postReleasePatchCheckpoint: checkpoint,
       takesDependencyUpdates,
+      isNodeSecurityPatch,
     }, errors);
   }
 
@@ -353,6 +357,7 @@ function validateReleasePreparationPackages({
  *   paths: readonly string[],
  *   postReleasePatchCheckpoint: string,
  *   takesDependencyUpdates: boolean,
+ *   isNodeSecurityPatch: boolean,
  * }} change
  * @param {string[]} errors
  */
@@ -364,11 +369,13 @@ function validatePostReleasePatchPackages({
   paths,
   postReleasePatchCheckpoint,
   takesDependencyUpdates,
+  isNodeSecurityPatch,
 }, errors) {
   if (
     paths.includes("package.json")
     && !isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)
     && !isVersionOnlyPackageChange(packageBeforeSource, packageAfterSource, postReleasePatchCheckpoint)
+    && !(isNodeSecurityPatch && isNodeSecurityPackageChange(packageBeforeSource, packageAfterSource))
   ) {
     errors.push(`package.json under ${postReleasePatchCheckpoint} may change only the application version, to exactly ${postReleasePatchCheckpoint}, or scripts`);
   }
@@ -376,10 +383,44 @@ function validatePostReleasePatchPackages({
     paths.includes("package-lock.json")
     && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)
     && !(takesDependencyUpdates && isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource))
+    && !(isNodeSecurityPatch && isNodeSecurityLockChange(lockBeforeSource, lockAfterSource))
   ) {
     errors.push(takesDependencyUpdates
       ? `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`
       : `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}`);
+  }
+}
+
+/** @param {string} beforeSource @param {string} afterSource */
+function isNodeSecurityPackageChange(beforeSource, afterSource) {
+  try {
+    const before = requirePackageManifest(JSON.parse(beforeSource));
+    const after = requirePackageManifest(JSON.parse(afterSource));
+    if (after.version !== NODE_SECURITY_PATCH_CHECKPOINT) return false;
+    if (before.engines?.node !== ">=24.7 <25" || after.engines?.node !== ">=24.22.1 <25") return false;
+    after.version = before.version;
+    after.engines.node = before.engines.node;
+    return isDeepStrictEqual(before, after);
+  } catch {
+    return false;
+  }
+}
+
+/** @param {string} beforeSource @param {string} afterSource */
+function isNodeSecurityLockChange(beforeSource, afterSource) {
+  try {
+    const before = requirePackageLock(JSON.parse(beforeSource));
+    const after = requirePackageLock(JSON.parse(afterSource));
+    const beforeRoot = requireLockEntry(before, "", "previous lock root");
+    const afterRoot = requireLockEntry(after, "", "new lock root");
+    if (after.version !== NODE_SECURITY_PATCH_CHECKPOINT || afterRoot.version !== NODE_SECURITY_PATCH_CHECKPOINT) return false;
+    if (beforeRoot.engines?.node !== ">=24.7 <25" || afterRoot.engines?.node !== ">=24.22.1 <25") return false;
+    after.version = before.version;
+    afterRoot.version = beforeRoot.version;
+    afterRoot.engines.node = beforeRoot.engines.node;
+    return isDeepStrictEqual(before, after);
+  } catch {
+    return false;
   }
 }
 
@@ -648,6 +689,7 @@ export {
   CHECKPOINT_SERIES,
   CLOSEOUT_CHECKPOINT,
   IMAGE_PACKAGING_PATCH_CHECKPOINT,
+  NODE_SECURITY_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
