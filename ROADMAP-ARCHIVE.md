@@ -9,7 +9,8 @@ Requested on 2026-10-24 to update the workstation, rt-ltf, rt-ltf-demo, and the 
 Scope:
 
 - Pin the official Node 24.22.1 Bookworm slim image by digest and restate the same Node version in the flattened runtime stage.
-- Pin `.nvmrc` to 24.22.1 and raise the root package engine floor to `>=24.22.1 <25`; keep all resolved application dependencies unchanged.
+- Pin `.nvmrc` to 24.22.1 and raise the root package engine floor to `>=24.22.1 <25`. The initial Node-only change preserved the dependency graph; the operator then authorized the four additional high-severity fixes blocking release promotion.
+- Apply body-parser 2.4.0, Markdown-it 15.0.3, Vite 8.2.4, and Zod 4.6.6 with their four required transitive updates. Admit only their complete reviewed lock entries and the two direct declaration changes; retain every unrelated dependency.
 - Give this checkpoint only its own release version and exact engine-floor transition, with positive and negative tests retaining the other checkpoint boundaries.
 - Retain the whiteout, image equivalence, native SQLite, preview/demo lifecycle, backup, isolation, and identity gates. Publish and deploy only after the protected checks and exact-main release process pass.
 

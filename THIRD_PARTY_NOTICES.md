@@ -7,7 +7,7 @@ plus the reviewed bundled-asset inventory. Development-only tooling is excluded.
 Regenerate with `npm run third-party-notices:write`, review every changed
 component and license text by hand, then run `npm run licensing:gates`.
 
-The listed MIT, ISC, BSD-2-Clause, BSD-3-Clause, and Python-2.0 terms are
+The listed MIT, ISC, BSD-2-Clause, BSD-3-Clause, Python-2.0, and PSF-2.0 terms are
 permissive and compatible with distributing Longtail Forge under
 `AGPL-3.0-only`; each component remains governed by its own terms.
 
@@ -16,9 +16,9 @@ permissive and compatible with distributing Longtail Forge under
 | Component | Version | License | Copyright holder(s) | License text |
 | --- | --- | --- | --- | --- |
 | accepts | 2.0.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L01](#l01) |
-| argparse | 3.0.0 | Python-2.0 | Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam, | [L02](#l02) |
+| argparse | 3.0.4 | PSF-2.0 | Copyright (c) 2001-2019 Python Software Foundation; All Rights Reserved | [L02](#l02) |
 | better-sqlite3 | 13.0.3 | MIT | Copyright (c) 2017 Joshua Wise | [L03](#l03) |
-| body-parser | 2.3.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
+| body-parser | 2.4.0 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
 | busboy | 1.6.0 | MIT | Brian White | [L05](#l05) |
 | bytes | 3.1.2 | MIT | Copyright (c) 2012-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015 Jed Watson &lt;jed.watson@me.com&gt; | [L06](#l06) |
 | call-bind-apply-helpers | 1.0.2 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
@@ -28,6 +28,7 @@ permissive and compatible with distributing Longtail Forge under
 | content-disposition | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | content-type | 1.0.5 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
 | content-type | 2.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
+| content-type | 2.1.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
 | cookie-parser | 1.4.7 | MIT | Copyright (c) 2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L11](#l11) |
 | cookie-signature | 1.0.6 | MIT | LearnBoost and contributors | [L12](#l12) |
 | cookie-signature | 1.2.2 | MIT | Copyright (c) 2012–2024 LearnBoost &lt;tj@learnboost.com&gt; and other contributors; | [L12](#l12) |
@@ -39,7 +40,7 @@ permissive and compatible with distributing Longtail Forge under
 | dunder-proto | 1.0.1 | MIT | Copyright (c) 2024 ECMAScript Shims | [L18](#l18) |
 | ee-first | 1.1.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com | [L19](#l19) |
 | encodeurl | 2.0.0 | MIT | Copyright (c) 2016 Douglas Christopher Wilson | [L20](#l20) |
-| entities | 8.0.0 | BSD-2-Clause | Copyright (c) Felix Böhm | [L21](#l21) |
+| entities | 8.1.0 | BSD-2-Clause | Copyright (c) Felix Böhm | [L21](#l21) |
 | es-define-property | 1.0.1 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | es-errors | 1.3.0 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | es-object-atoms | 1.1.2 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
@@ -64,7 +65,7 @@ permissive and compatible with distributing Longtail Forge under
 | is-promise | 4.0.0 | MIT | Copyright (c) 2014 Forbes Lindesay | [L39](#l39) |
 | linkify-it | 6.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L40](#l40) |
 | Lucide Icons (bundled inline SVG subset) | local subset first recorded 2026-06-06 | ISC AND MIT | Lucide Icons and Contributors; Cole Bemis | [L41](#l41) |
-| markdown-it | 15.0.2 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L42](#l42) |
+| markdown-it | 15.0.3 | MIT | Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin. | [L42](#l42) |
 | math-intrinsics | 1.1.0 | MIT | Copyright (c) 2024 ECMAScript Shims | [L18](#l18) |
 | mdurl | 2.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin.; Copyright Joyent, Inc. and other Node contributors. All rights reserved. | [L43](#l43) |
 | media-typer | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
@@ -84,7 +85,7 @@ permissive and compatible with distributing Longtail Forge under
 | path-to-regexp | 8.4.2 | MIT | Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com) | [L55](#l55) |
 | proxy-addr | 2.0.8 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L23](#l23) |
 | punycode.js | 2.3.1 | MIT | Mathias Bynens and contributors | [L56](#l56) |
-| qs | 6.16.0 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L57](#l57) |
+| qs | 6.16.1 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L57](#l57) |
 | range-parser | 1.3.0 | MIT | Copyright (c) 2012-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015-2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com | [L58](#l58) |
 | raw-body | 3.0.2 | MIT | Copyright (c) 2013-2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L59](#l59) |
 | router | 2.2.0 | MIT | Copyright (c) 2013 Roman Shtylman; Copyright (c) 2014-2022 Douglas Christopher Wilson | [L60](#l60) |
@@ -106,7 +107,7 @@ permissive and compatible with distributing Longtail Forge under
 | uuid | 14.0.2 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [L71](#l71) |
 | vary | 1.1.2 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | wrappy | 1.0.2 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors | [L53](#l53) |
-| zod | 4.4.3 | MIT | Copyright (c) 2025 Colin McDonnell | [L72](#l72) |
+| zod | 4.6.6 | MIT | Copyright (c) 2025 Colin McDonnell | [L72](#l72) |
 
 ## Bundled-asset audit
 
@@ -152,72 +153,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L02
 
-Applies to: argparse@3.0.0
+Applies to: argparse@3.0.4
 
 ```text
-A. HISTORY OF THE SOFTWARE
-==========================
-
-Python was created in the early 1990s by Guido van Rossum at Stichting
-Mathematisch Centrum (CWI, see http://www.cwi.nl) in the Netherlands
-as a successor of a language called ABC.  Guido remains Python's
-principal author, although it includes many contributions from others.
-
-In 1995, Guido continued his work on Python at the Corporation for
-National Research Initiatives (CNRI, see http://www.cnri.reston.va.us)
-in Reston, Virginia where he released several versions of the
-software.
-
-In May 2000, Guido and the Python core development team moved to
-BeOpen.com to form the BeOpen PythonLabs team.  In October of the same
-year, the PythonLabs team moved to Digital Creations, which became
-Zope Corporation.  In 2001, the Python Software Foundation (PSF, see
-https://www.python.org/psf/) was formed, a non-profit organization
-created specifically to own Python-related Intellectual Property.
-Zope Corporation was a sponsoring member of the PSF.
-
-All Python releases are Open Source (see http://www.opensource.org for
-the Open Source Definition).  Historically, most, but not all, Python
-releases have also been GPL-compatible; the table below summarizes
-the various releases.
-
-    Release         Derived     Year        Owner       GPL-
-                    from                                compatible? (1)
-
-    0.9.0 thru 1.2              1991-1995   CWI         yes
-    1.3 thru 1.5.2  1.2         1995-1999   CNRI        yes
-    1.6             1.5.2       2000        CNRI        no
-    2.0             1.6         2000        BeOpen.com  no
-    1.6.1           1.6         2001        CNRI        yes (2)
-    2.1             2.0+1.6.1   2001        PSF         no
-    2.0.1           2.0+1.6.1   2001        PSF         yes
-    2.1.1           2.1+2.0.1   2001        PSF         yes
-    2.1.2           2.1.1       2002        PSF         yes
-    2.1.3           2.1.2       2002        PSF         yes
-    2.2 and above   2.1.1       2001-now    PSF         yes
-
-Footnotes:
-
-(1) GPL-compatible doesn't mean that we're distributing Python under
-    the GPL.  All Python licenses, unlike the GPL, let you distribute
-    a modified version without making your changes open source.  The
-    GPL-compatible licenses make it possible to combine Python with
-    other software that is released under the GPL; the others don't.
-
-(2) According to Richard Stallman, 1.6.1 is not GPL-compatible,
-    because its license has a choice of law clause.  According to
-    CNRI, however, Stallman's lawyer has told CNRI's lawyer that 1.6.1
-    is "not incompatible" with the GPL.
-
-Thanks to the many outside volunteers who have worked under Guido's
-direction to make these releases possible.
-
-
-B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON
-===============================================================
-
 PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
---------------------------------------------
 
 1. This LICENSE AGREEMENT is between the Python Software Foundation
 ("PSF"), and the Individual or Organization ("Licensee") accessing and
@@ -230,7 +169,7 @@ analyze, test, perform and/or display publicly, prepare derivative works,
 distribute, and otherwise use Python alone or in any derivative version,
 provided, however, that PSF's License Agreement and PSF's notice of copyright,
 i.e., "Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 Python Software Foundation;
+2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019 Python Software Foundation;
 All Rights Reserved" are retained in Python alone or in any derivative version
 prepared by Licensee.
 
@@ -264,151 +203,6 @@ products or services of Licensee, or any third party.
 8. By copying, installing or otherwise using Python, Licensee
 agrees to be bound by the terms and conditions of this License
 Agreement.
-
-
-BEOPEN.COM LICENSE AGREEMENT FOR PYTHON 2.0
--------------------------------------------
-
-BEOPEN PYTHON OPEN SOURCE LICENSE AGREEMENT VERSION 1
-
-1. This LICENSE AGREEMENT is between BeOpen.com ("BeOpen"), having an
-office at 160 Saratoga Avenue, Santa Clara, CA 95051, and the
-Individual or Organization ("Licensee") accessing and otherwise using
-this software in source or binary form and its associated
-documentation ("the Software").
-
-2. Subject to the terms and conditions of this BeOpen Python License
-Agreement, BeOpen hereby grants Licensee a non-exclusive,
-royalty-free, world-wide license to reproduce, analyze, test, perform
-and/or display publicly, prepare derivative works, distribute, and
-otherwise use the Software alone or in any derivative version,
-provided, however, that the BeOpen Python License is retained in the
-Software, alone or in any derivative version prepared by Licensee.
-
-3. BeOpen is making the Software available to Licensee on an "AS IS"
-basis.  BEOPEN MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
-IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, BEOPEN MAKES NO AND
-DISCLAIMS ANY REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS
-FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE SOFTWARE WILL NOT
-INFRINGE ANY THIRD PARTY RIGHTS.
-
-4. BEOPEN SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF THE
-SOFTWARE FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS
-AS A RESULT OF USING, MODIFYING OR DISTRIBUTING THE SOFTWARE, OR ANY
-DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
-
-5. This License Agreement will automatically terminate upon a material
-breach of its terms and conditions.
-
-6. This License Agreement shall be governed by and interpreted in all
-respects by the law of the State of California, excluding conflict of
-law provisions.  Nothing in this License Agreement shall be deemed to
-create any relationship of agency, partnership, or joint venture
-between BeOpen and Licensee.  This License Agreement does not grant
-permission to use BeOpen trademarks or trade names in a trademark
-sense to endorse or promote products or services of Licensee, or any
-third party.  As an exception, the "BeOpen Python" logos available at
-http://www.pythonlabs.com/logos.html may be used according to the
-permissions granted on that web page.
-
-7. By copying, installing or otherwise using the software, Licensee
-agrees to be bound by the terms and conditions of this License
-Agreement.
-
-
-CNRI LICENSE AGREEMENT FOR PYTHON 1.6.1
----------------------------------------
-
-1. This LICENSE AGREEMENT is between the Corporation for National
-Research Initiatives, having an office at 1895 Preston White Drive,
-Reston, VA 20191 ("CNRI"), and the Individual or Organization
-("Licensee") accessing and otherwise using Python 1.6.1 software in
-source or binary form and its associated documentation.
-
-2. Subject to the terms and conditions of this License Agreement, CNRI
-hereby grants Licensee a nonexclusive, royalty-free, world-wide
-license to reproduce, analyze, test, perform and/or display publicly,
-prepare derivative works, distribute, and otherwise use Python 1.6.1
-alone or in any derivative version, provided, however, that CNRI's
-License Agreement and CNRI's notice of copyright, i.e., "Copyright (c)
-1995-2001 Corporation for National Research Initiatives; All Rights
-Reserved" are retained in Python 1.6.1 alone or in any derivative
-version prepared by Licensee.  Alternately, in lieu of CNRI's License
-Agreement, Licensee may substitute the following text (omitting the
-quotes): "Python 1.6.1 is made available subject to the terms and
-conditions in CNRI's License Agreement.  This Agreement together with
-Python 1.6.1 may be located on the Internet using the following
-unique, persistent identifier (known as a handle): 1895.22/1013.  This
-Agreement may also be obtained from a proxy server on the Internet
-using the following URL: http://hdl.handle.net/1895.22/1013".
-
-3. In the event Licensee prepares a derivative work that is based on
-or incorporates Python 1.6.1 or any part thereof, and wants to make
-the derivative work available to others as provided herein, then
-Licensee hereby agrees to include in any such work a brief summary of
-the changes made to Python 1.6.1.
-
-4. CNRI is making Python 1.6.1 available to Licensee on an "AS IS"
-basis.  CNRI MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
-IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, CNRI MAKES NO AND
-DISCLAIMS ANY REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS
-FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF PYTHON 1.6.1 WILL NOT
-INFRINGE ANY THIRD PARTY RIGHTS.
-
-5. CNRI SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF PYTHON
-1.6.1 FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS AS
-A RESULT OF MODIFYING, DISTRIBUTING, OR OTHERWISE USING PYTHON 1.6.1,
-OR ANY DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
-
-6. This License Agreement will automatically terminate upon a material
-breach of its terms and conditions.
-
-7. This License Agreement shall be governed by the federal
-intellectual property law of the United States, including without
-limitation the federal copyright law, and, to the extent such
-U.S. federal law does not apply, by the law of the Commonwealth of
-Virginia, excluding Virginia's conflict of law provisions.
-Notwithstanding the foregoing, with regard to derivative works based
-on Python 1.6.1 that incorporate non-separable material that was
-previously distributed under the GNU General Public License (GPL), the
-law of the Commonwealth of Virginia shall govern this License
-Agreement only as to issues arising under or with respect to
-Paragraphs 4, 5, and 7 of this License Agreement.  Nothing in this
-License Agreement shall be deemed to create any relationship of
-agency, partnership, or joint venture between CNRI and Licensee.  This
-License Agreement does not grant permission to use CNRI trademarks or
-trade name in a trademark sense to endorse or promote products or
-services of Licensee, or any third party.
-
-8. By clicking on the "ACCEPT" button where indicated, or by copying,
-installing or otherwise using Python 1.6.1, Licensee agrees to be
-bound by the terms and conditions of this License Agreement.
-
-        ACCEPT
-
-
-CWI LICENSE AGREEMENT FOR PYTHON 0.9.0 THROUGH 1.2
---------------------------------------------------
-
-Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam,
-The Netherlands.  All rights reserved.
-
-Permission to use, copy, modify, and distribute this software and its
-documentation for any purpose and without fee is hereby granted,
-provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in
-supporting documentation, and that the name of Stichting Mathematisch
-Centrum or CWI not be used in advertising or publicity pertaining to
-distribution of the software without specific, written prior
-permission.
-
-STICHTING MATHEMATISCH CENTRUM DISCLAIMS ALL WARRANTIES WITH REGARD TO
-THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS, IN NO EVENT SHALL STICHTING MATHEMATISCH CENTRUM BE LIABLE
-FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
-OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
 ### L03
@@ -441,7 +235,7 @@ SOFTWARE.
 
 ### L04
 
-Applies to: body-parser@2.3.0, compression@1.8.2, type-is@2.1.0
+Applies to: body-parser@2.4.0, compression@1.8.2, type-is@2.1.0
 
 ```text
 (The MIT License)
@@ -615,7 +409,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L10
 
-Applies to: content-type@1.0.5, content-type@2.0.0
+Applies to: content-type@1.0.5, content-type@2.0.0, content-type@2.1.0
 
 ```text
 (The MIT License)
@@ -927,7 +721,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L21
 
-Applies to: entities@8.0.0
+Applies to: entities@8.1.0
 
 ```text
 Copyright (c) Felix Böhm
@@ -1541,7 +1335,7 @@ SOFTWARE.
 
 ### L42
 
-Applies to: markdown-it@15.0.2
+Applies to: markdown-it@15.0.3
 
 ```text
 Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
@@ -1968,7 +1762,7 @@ SOFTWARE.
 
 ### L57
 
-Applies to: qs@6.16.0
+Applies to: qs@6.16.1
 
 ```text
 BSD 3-Clause License
@@ -2388,7 +2182,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### L72
 
-Applies to: zod@4.4.3
+Applies to: zod@4.6.6
 
 ```text
 MIT License

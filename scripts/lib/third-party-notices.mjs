@@ -12,6 +12,7 @@ const ALLOWED_LICENSES = new Set([
   "ISC",
   "MIT",
   "Python-2.0",
+  "PSF-2.0",
 ]);
 const LICENSE_FILE_PATTERN = /^(?:licen[sc]e|copying|notice)(?:\..*)?$/i;
 
@@ -59,6 +60,10 @@ const LICENSE_FILE_PATTERN = /^(?:licen[sc]e|copying|notice)(?:\..*)?$/i;
 
 /** @type {Readonly<Record<string, ReviewedLicenseOverride>>} */
 const REVIEWED_OVERRIDES = Object.freeze({
+  "argparse@3.0.4": Object.freeze({
+    copyright: "Copyright (c) 2001-2019 Python Software Foundation; All Rights Reserved",
+    license: "PSF-2.0",
+  }),
   "argparse@2.0.1": Object.freeze({
     copyright: "Python Software Foundation and contributors",
     license: "Python-2.0",
@@ -155,7 +160,7 @@ function generateThirdPartyNotices({ rootDir = process.cwd() } = {}) {
     "Regenerate with `npm run third-party-notices:write`, review every changed",
     "component and license text by hand, then run `npm run licensing:gates`.",
     "",
-    "The listed MIT, ISC, BSD-2-Clause, BSD-3-Clause, and Python-2.0 terms are",
+    "The listed MIT, ISC, BSD-2-Clause, BSD-3-Clause, Python-2.0, and PSF-2.0 terms are",
     "permissive and compatible with distributing Longtail Forge under",
     "`AGPL-3.0-only`; each component remains governed by its own terms.",
     "",

@@ -1,7 +1,8 @@
 ## Version 0.33.33.52 - 2026-10-24
 
 - Update the digest-pinned runtime image and development/CI runtime to Node 24.22.1, addressing the October 2026 security release including the Brotli decoder vulnerability CVE-2026-111497. The runtime includes OpenSSL 3.5.9.
-- Require Node 24.22.1 or later within Node 24 in both package manifests. Preserve the resolved application dependencies, native SQLite profile, single-layer image layout, and backup-first immutable deployment process.
+- Require Node 24.22.1 or later within Node 24 in both package manifests. Preserve the native SQLite profile, single-layer image layout, and backup-first immutable deployment process.
+- Address the high-severity dependency advisories blocking promotion with body-parser 2.4.0, Markdown-it 15.0.3, Vite 8.2.4, and Zod 4.6.6. Their required transitive updates are pinned; unrelated resolved dependencies remain unchanged.
 
 ## Version 0.33.33.51 - 2026-10-13
 
