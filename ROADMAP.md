@@ -58,6 +58,12 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
   - **Owner:** public-demo operations.
   - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
 
+### 0.33.33.52 - October Node security refresh
+
+**Model: High Effort** - Runtime security and native deployment compatibility require exact-version qualification.
+
+At the operator's request, update the workstation and both named hosts, pin Node 24.22.1 in the application image and CI, raise the package runtime floor, and publish a new immutable patch release. Preserve application dependencies and the existing backup, isolation, identity, and protected-release gates. The ongoing 0.33.34 roadmap remains next.
+
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
