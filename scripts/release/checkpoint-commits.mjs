@@ -1,4 +1,5 @@
 import { escapeRegExp } from "../test-support/source-scan.mjs";
+import { nodeSecurityDependencyUpdates } from "./node-security-dependency-updates.mjs";
 import { spawnSync } from "node:child_process";
 import { requireLockEntry, requireLockPackages, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
@@ -20,6 +21,7 @@ const POST_RELEASE_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.50`;
 const IMAGE_PACKAGING_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.51`;
 // The October Node security refresh owns only its release identity and exact Node engine floor.
 const NODE_SECURITY_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.52`;
+const NODE_SECURITY_PATCH_DEPENDENCY_UPDATES = deepFreeze(nodeSecurityDependencyUpdates);
 const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
 const TRAILER_NAMES = Object.freeze({
@@ -376,6 +378,7 @@ function validatePostReleasePatchPackages({
     && !isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)
     && !isVersionOnlyPackageChange(packageBeforeSource, packageAfterSource, postReleasePatchCheckpoint)
     && !(isNodeSecurityPatch && isNodeSecurityPackageChange(packageBeforeSource, packageAfterSource))
+    && !(isNodeSecurityPatch && isNodeSecurityDependencyPackageChange(packageBeforeSource, packageAfterSource))
   ) {
     errors.push(`package.json under ${postReleasePatchCheckpoint} may change only the application version, to exactly ${postReleasePatchCheckpoint}, or scripts`);
   }
@@ -384,6 +387,7 @@ function validatePostReleasePatchPackages({
     && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)
     && !(takesDependencyUpdates && isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource))
     && !(isNodeSecurityPatch && isNodeSecurityLockChange(lockBeforeSource, lockAfterSource))
+    && !(isNodeSecurityPatch && isNodeSecurityDependencyLockChange(lockBeforeSource, lockAfterSource))
   ) {
     errors.push(takesDependencyUpdates
       ? `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`
@@ -424,22 +428,56 @@ function isNodeSecurityLockChange(beforeSource, afterSource) {
   }
 }
 
+/** @param {string} beforeSource @param {string} afterSource */
+function isNodeSecurityDependencyPackageChange(beforeSource, afterSource) {
+  try {
+    const before = requirePackageManifest(JSON.parse(beforeSource));
+    const after = requirePackageManifest(JSON.parse(afterSource));
+    if (before.version !== NODE_SECURITY_PATCH_CHECKPOINT || after.version !== before.version) return false;
+    if (!before.dependencies || !after.dependencies) return false;
+    for (const [name, previous, fixed] of [["markdown-it", "^15.0.2", "^15.0.3"], ["zod", "^4.4.3", "^4.6.6"]]) {
+      if (before.dependencies[name] !== previous || after.dependencies[name] !== fixed) return false;
+      after.dependencies[name] = previous;
+    }
+    return isDeepStrictEqual(before, after);
+  } catch {
+    return false;
+  }
+}
+
+/** @param {string} beforeSource @param {string} afterSource */
+function isNodeSecurityDependencyLockChange(beforeSource, afterSource) {
+  try {
+    const before = requirePackageLock(JSON.parse(beforeSource));
+    const after = requirePackageLock(JSON.parse(afterSource));
+    const beforeRoot = requireLockEntry(before, "", "previous lock root");
+    const afterRoot = requireLockEntry(after, "", "new lock root");
+    if (before.version !== NODE_SECURITY_PATCH_CHECKPOINT || after.version !== before.version) return false;
+    if (!isNodeSecurityDependencyPackageChange(JSON.stringify(beforeRoot), JSON.stringify(afterRoot))) return false;
+    afterRoot.dependencies = beforeRoot.dependencies;
+    return isReviewedDependencyUpdateLockChange(JSON.stringify(before), JSON.stringify(after), NODE_SECURITY_PATCH_DEPENDENCY_UPDATES);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Whether a lockfile change is exactly the post-release patch's reviewed dependency security
  * transition: every listed entry equals its complete reviewed entry before (or is absent) and after,
  * and every other entry and top-level field is unchanged. Comparison is by value, not key order.
  * @param {string} beforeSource
  * @param {string} afterSource
+ * @param {Readonly<Record<string, Readonly<{ before: ReviewedLockEntry | null, after: ReviewedLockEntry }>>>} [reviewedUpdates]
  * @returns {boolean}
  */
-function isReviewedDependencyUpdateLockChange(beforeSource, afterSource) {
+function isReviewedDependencyUpdateLockChange(beforeSource, afterSource, reviewedUpdates = POST_RELEASE_PATCH_DEPENDENCY_UPDATES) {
   if (!beforeSource || !afterSource) return false;
   try {
     const beforeLock = requirePackageLock(JSON.parse(beforeSource), "the previous package-lock.json");
     const afterLock = requirePackageLock(JSON.parse(afterSource), "package-lock.json in the working tree");
     const beforePackages = requireLockPackages(beforeLock, "the previous package-lock.json");
     const afterPackages = requireLockPackages(afterLock, "package-lock.json in the working tree");
-    for (const [packagePath, update] of Object.entries(POST_RELEASE_PATCH_DEPENDENCY_UPDATES)) {
+    for (const [packagePath, update] of Object.entries(reviewedUpdates)) {
       const beforeMatches = update.before === null
         ? !Object.hasOwn(beforePackages, packagePath)
         : isDeepStrictEqual(beforePackages[packagePath], update.before);
@@ -448,7 +486,7 @@ function isReviewedDependencyUpdateLockChange(beforeSource, afterSource) {
     /** @param {import("../test-support/package-manifest-assertions.mjs").PackageLockManifest} lock @param {Record<string, import("../test-support/package-manifest-assertions.mjs").PackageLockEntry>} packages */
     const unlisted = (lock, packages) => ({
       ...lock,
-      packages: Object.fromEntries(Object.entries(packages).filter(([packagePath]) => !Object.hasOwn(POST_RELEASE_PATCH_DEPENDENCY_UPDATES, packagePath))),
+      packages: Object.fromEntries(Object.entries(packages).filter(([packagePath]) => !Object.hasOwn(reviewedUpdates, packagePath))),
     });
     return isDeepStrictEqual(unlisted(beforeLock, beforePackages), unlisted(afterLock, afterPackages));
   } catch {
@@ -690,6 +728,7 @@ export {
   CLOSEOUT_CHECKPOINT,
   IMAGE_PACKAGING_PATCH_CHECKPOINT,
   NODE_SECURITY_PATCH_CHECKPOINT,
+  NODE_SECURITY_PATCH_DEPENDENCY_UPDATES,
   POST_RELEASE_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
