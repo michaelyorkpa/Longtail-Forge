@@ -1,11 +1,11 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.33.51",
+  "version": "0.33.33.52",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
-    "node": ">=24.7 <25"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "module:create": "node scripts/create-module.mjs",

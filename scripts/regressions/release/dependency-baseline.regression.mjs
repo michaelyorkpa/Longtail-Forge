@@ -83,7 +83,7 @@ assert.equal(requireDependencies(rootLock, "package-lock.json root")["@types/nod
 // `0.33.33.49`: newer Node declarations do not widen the supported runtime; the engine pin below stays Node 24.
 assert.equal(nodeTypesLock.version, "26.6.3", "the resolved Node types baseline should remain 26.6.3");
 assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must remain development-only");
-assert.equal(requireEngines(packageJson).node, ">=24.7 <25", "the repository should retain its supported Node 24 range");
+assert.equal(requireEngines(packageJson).node, ">=24.22.1 <25", "the repository should retain its supported Node 24 range");
 assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.3": true }, "the approved lifecycle-script allowlist must remain unchanged");
 
 assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.2", "Markdown-it should use the reviewed 15.0.2 runtime baseline");

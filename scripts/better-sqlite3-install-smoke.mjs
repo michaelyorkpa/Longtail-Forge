@@ -24,7 +24,7 @@ const databaseFile = path.join(tempDir, "driver-smoke.db");
 let database = null;
 
 try {
-  assert.equal(packageJson.engines?.node, ">=24.7 <25", "package.json should declare the Node 24.7+ runtime range required by built-in Argon2id");
+  assert.equal(packageJson.engines?.node, ">=24.22.1 <25", "package.json should declare the patched Node 24.22.1+ runtime range");
   assert.equal(packageLock.packages?.[""]?.engines?.node, packageJson.engines.node, "package-lock root package should mirror the supported Node runtime range");
   assert.equal(packageJson.dependencies?.["better-sqlite3"], "13.0.3", "package.json should pin the selected better-sqlite3 release exactly");
   assert.equal(packageLock.packages?.[""]?.dependencies?.["better-sqlite3"], packageJson.dependencies["better-sqlite3"], "package-lock root package should mirror the better-sqlite3 pin");
