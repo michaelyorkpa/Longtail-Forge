@@ -134,7 +134,7 @@ jobs:
           echo "path=dist/longtail-forge-$(node -p "require('./package.json').version").tgz" >> "$GITHUB_OUTPUT"
           node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "${{ needs.classify_changes.outputs.revision }}" --channel nightly --source-branch nightly --output dist/release-metadata.json
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-${{ steps.revision.outputs.sha }}
           if-no-files-found: error
@@ -209,7 +209,7 @@ jobs:
         env:
           NIGHTLY_SHA: ${{ needs.classify_changes.outputs.revision }}
         run: node scripts/release/nightly-proof.mjs create --directory dist --repository "$GITHUB_REPOSITORY" --workflow-ref "$GITHUB_WORKFLOW_REF" --commit "$NIGHTLY_SHA" --run-id "$GITHUB_RUN_ID" --output dist/nightly-proof.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-proof-${{ needs.classify_changes.outputs.revision }}
           if-no-files-found: error
