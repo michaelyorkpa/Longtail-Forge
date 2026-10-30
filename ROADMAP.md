@@ -55,6 +55,242 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
   - **Owner:** public-demo operations.
   - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
 
+## Post-release Patches
+
+These patches to `v0.33.33` ship in order, each with its own release identity. Together they close out `0.33.33`, as the operator decided on 2026-10-30. The active cursor stays `0.33.34`.
+
+**Version literals.** Each patch names the others by what they do, not by number. The version guard refuses the current version anywhere in this file, so a patch's number may appear only in its own section, which leaves this file in the pull request that sets that version.
+
+### 0.33.33.53 - Recovery after a host restart
+
+**Model: High Effort** — It changes how both hosts come back after a restart. That covers the scanner's host configuration, a new protected demo boot path under the shared lifecycle lock, the reset's failure paths, and application startup diagnostics. A wrong boot decision can expose the demo before isolation or destroy evidence; a missed one leaves the sites down.
+
+**What this is.** A fourth post-release patch to `v0.33.33`, with its own release identity.
+- **Its scope.** The operator set it on 2026-10-14 and 2026-10-15, splitting retention into `0.33.33.54` and durability into `0.33.33.55`.
+- **Its number.** It was first planned under the identity that the October Node security release took on 2026-10-24, so on 2026-10-30 the operator renumbered this patch and the two after it.
+- **Its order.** Two pull requests into `nightly` share this identity, followed by one promotion, one release, and one deployment. The dependency fold at the end of this section lands first, and the recovery work follows it.
+- **What it preserves.** No tag, image, checksum, or release asset of `v0.33.33` or any of its earlier patches is replaced.
+
+**What happened.** The protected operational record and Codex's post-mortem hold the evidence.
+- **The reset outage, 2026-10-06 to 2026-10-14.**
+  - **The trigger.** An operator package upgrade restarted Docker at the second the 20:00 reset's activation began. The activation died before writing its active-operation marker.
+  - **The gap.** Recovery removes a leftover candidate only through `recover`, which runs only when a marker exists.
+  - **The consequence.** Every later build refused the leftover verified candidate (`scripts/lib/public-demo-baseline-candidate.mjs:770`). 187 hourly resets failed before the curtain. The alert helper is the release placeholder, which writes only to the local journal, so nobody knew for nearly eight days.
+- **The power loss, 2026-10-14.** Power was out for over an hour, longer than the UPS lasts. Proxmox start-at-boot was missing, which the operator has since corrected. After the guests booted:
+  - **The scanner, on both hosts.** Its socket binds the exact Docker gateway address (`172.30.17.1` on the preview, `172.30.31.1` on the demo) with `FreeBind=no`. That address did not exist yet, so the bind failed with `Cannot assign requested address`, and nothing retried it.
+  - **The preview** restarted its app repeatedly. But production startup requires the scanner, and the failure was logged only as `application.startup.failed` with `errorType=Error`.
+  - **The demo** keeps `restart: no` by design, so that nothing starts before isolation is restored. Nothing else starts it at boot, either.
+  - **The demo's first post-boot reset** reached `capture_old_session` with the app down. It failed before recovery was armed, and left another stale candidate.
+
+**Recovery targets,** accepted by the operator on 2026-10-15.
+- **Within 10 minutes of guest boot, both sites serve again.** The exceptions are an operator hold, a storage failure, or an unavailable required dependency.
+- **When a missing dependency returns,** both recover within one documented, bounded retry window.
+- **Public-availability alerting** belongs to the operator's own Uptime Kuma and Beszel monitors. This patch adds reset and boot failure alerts.
+
+Scope:
+
+- [ ] **Scanner cold start, on both profiles.**
+  - **The fix.** A reviewed drop-in sets `FreeBind=yes` on the exact-address TCP socket, so the socket binds before Docker creates the gateway address. The listener list, the address, and the firewall do not change.
+  - **The documentation.** `docs/file-scanner-setup.md` gains the cold-boot contract, and an install and upgrade procedure that keeps the prior units.
+  - **The fallback.** A different design, such as an ordered or retried readiness unit, is used only if `FreeBind` fails qualification.
+- [ ] **A protected demo boot.** A root-owned unit runs one boot operation after Docker starts, under the shared lifecycle lock. In order, it:
+  1. **Checks the preconditions.** It stops, with a specific alert, on an operator hold, a deployment or active-operation marker, or an uncertain recorded release. It never pulls, upgrades, or rolls back.
+  2. **Validates storage.** It checks the data volume, the mounts, the ownership, and the cached image digest. Missing or uncertain storage fails closed: it never creates an empty substitute database.
+  3. **Waits for its dependencies.** It waits, with bounded and recorded retries, for Docker, the exact bridge, and the scanner.
+  4. **Starts the demo.** It enforces and verifies isolation before any container runs, then raises the curtain, starts the current release, and verifies direct identity and isolation with the app running.
+  5. **Applies the baseline policy.** If an hourly reset boundary was missed while the demo was down, it runs a fresh reset before visitors are served. That is the operator's policy of 2026-10-15. Otherwise it lifts the curtain.
+  6. **Checks public availability.** It reports public availability separately. An edge or DNS failure never causes a reset or a rollback.
+  - **One restart owner per profile.** The demo keeps `restart: no`, with the boot unit as its only owner. The preview keeps Docker's `unless-stopped`.
+  - **The timer.** The lock serializes the boot operation with the hourly timer. A contended lock is retried within the boot window.
+- [ ] **A reset with the app down.** If the app is not running when a reset starts, and no operation is active, the reset first runs the same protected start. It then follows its normal path, including the pre-reset session capture and its rejection proof, and records that it started the app. A running app whose representative login fails still fails the reset, as today, and is recorded as that distinct case.
+- [ ] **Stale-candidate recovery.** A reset that finds no active-operation marker, under the shared lock, moves any verified candidate or partial build left by an earlier operation into failed evidence: `.longtail-public-demo-failed-<operation>-stale-candidate`.
+  - **Its limits.** Only exact names and shapes are moved, links are refused, and nothing is deleted.
+  - **Precedence.** Recovery of an active operation still comes first.
+- [ ] **Step evidence.**
+  - **Before each step,** the reset and the boot operation record which step is starting, so a kill or power loss still leaves the step.
+  - **Each step's redacted error output** is kept in the root-only operation evidence. Nothing new reaches the scheduler log, the alert, or normal output.
+- [ ] **Startup diagnostics.** `application.startup.failed` gains a closed classification of stage and reason: runtime paths, storage, scanner, database, and migrations. It carries no raw exception message, secret, path, or record. A test pins the emitted boundary.
+- [ ] **Discord alerts.**
+  - **What is sent.** The alert helper keeps its local journal line, and also posts the same bounded fields to a Discord webhook, with mentions disabled. It also covers the boot operation's failure and hold classes.
+  - **The URL** lives only in a root-only `0600` file on the host, and must be a `https://discord.com/api/webhooks/<id>/<token>` URL. It reaches `curl` on standard input.
+  - **Delivery** is bounded by a timeout. Its outcome is what the scheduler records as `delivered` or `failed`.
+- [ ] **A success heartbeat.** After each successful reset and boot operation, the host sends one `GET` to an operator-configured push URL, such as an Uptime Kuma Push monitor. The monitor then alerts when a heartbeat is late, which catches a demo that stays up but stops resetting.
+  - **The URL** must be HTTPS, and lives only in a root-only `0600` file. It reaches `curl` on standard input.
+  - **A failed ping** never fails the reset or the boot. It is recorded in the operation's evidence.
+  - **This is a single URL.** The general family of health checks and heartbeats is `0.33.35`.
+- [ ] **Ownership policy.** The checkpoint validator gives this patch the post-release patch rule under its own identity, as for `0.33.33.51` and the October Node security release, with the dependency allowance below. `docs/versioning.md` records the rule.
+- [ ] **A correction carried from `0.33.33.51`.** `scripts/release/runtime-image-equivalence.mjs` and `docs/preview-deployment.md` give the wrong reason for refusing a hard link to a symlink: containerd's mode change uses `Lstat` and skips symlinks, so it does not follow one. The refusal stays, and only its stated reason changes.
+- [ ] **Documentation.**
+  - **`docs/demo-data-operations.md` and `docs/public-demo-operator-runbook.md`:** boot behavior, the fresh-baseline policy, how to stop the demo deliberately with an operator hold, stale-candidate recovery, step evidence, the Discord alert, and the heartbeat.
+  - **`docs/file-scanner-setup.md` and `docs/preview-deployment.md`:** the scanner's cold-boot contract, and the preview's dependency on it.
+  - **`DECISIONS.md`:** the boot baseline policy and the one-restart-owner rule.
+
+Acceptance criteria:
+
+- [ ] **Reproducers that fail on the October Node security release and pass here,** on GitHub's runners, with real systemd, Ubuntu's ClamAV package, and Docker:
+  - **The scanner race.** The socket starts while its gateway address is absent. With `FreeBind=no` it fails. With the drop-in, clamd answers `PING` on the exact address once Docker creates the bridge, with no wildcard listener.
+  - **An interrupted reset.** It is interrupted after candidate validation, before the activation's marker. The next reset succeeds.
+  - **A reset with the app stopped.** It succeeds, and the session-rejection proof still holds.
+- [ ] **The boot operation, in the native lifecycle qualification.** It runs after a Docker restart, after the bridge is recreated, and with the scanner delayed and then restored. Isolation is enforced before anything starts, the fresh baseline follows a missed boundary, and recovery stays within the target window. An operator hold, a marker, or missing storage stops it with its specific reason.
+- [ ] **Unit tests** cover the boot decisions, the startup classification, and the alert payload: bounded fields, mentions disabled, and the URL never in argv or output.
+- [ ] **The executable harness** runs the real helper bytes as root on the disposable rehearsal runner, faking only Docker and HTTP.
+- [ ] **Seeded defects** in the boot decisions, the isolation ordering, the candidate recovery, the app-down path, the startup classification, and the alert boundary are each caught.
+- [ ] **On the live demo,** operator-run under separate authorization. The operator ruled on 2026-10-15 that the live demo server, not a temporary VM, is the real-reboot proof.
+  1. Install the scanner drop-in, the helpers and units, and the operator's Discord webhook file, then deploy `v0.33.33.53`.
+  2. Run one supervised reboot of `rt-ltf-demo`. It must show the scanner up, isolation before start, and the demo serving a fresh baseline within 10 minutes of boot.
+  3. Confirm that the next scheduled reset succeeds, that a test alert reaches Discord, and that the operator's monitor receives the heartbeats and alerts when one is withheld.
+  - **A preview reboot** is the operator's choice.
+- [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and an independent Codex review.
+
+Out of scope:
+
+- **Retention, and the shorter reset curtain:** `0.33.33.54`.
+- **Data durability on power loss:** `0.33.33.55`.
+- **Public uptime monitoring:** the operator's Uptime Kuma and Beszel.
+- **Proxmox start-at-boot:** operator-owned, and corrected.
+
+#### Dependency fold, the first pull request
+
+**Model: High Effort** — It moves a runtime dependency and the test, lint, browser, and CI toolchains in one reviewed lockfile transition, and adds an exact-entry validator allowance. Two of its updates wait on a supply-chain review and an unexplained browser failure.
+
+**What this is.** The open Dependabot backlog, folded at the operator's instruction of 2026-10-30.
+- **Its release.** It lands in `nightly` before the recovery work, and ships in the same `v0.33.33.53` release, so it needs no deployment of its own.
+- **Why the bot pull requests cannot merge.** Those into `nightly` carry no `LTF-` trailers. The two security updates target `main`, which accepts only promotions.
+
+Scope:
+
+- [ ] **Take, as reviewed transitions:**
+  - **`ip-address` 10.7.2 to 10.7.4 (#893).** A runtime dependency of `express-rate-limit`. It fixes GHSA-rxp7-6hxx-x8q5, Dependabot alert 16 (moderate).
+  - **`vitest` and `@vitest/mocker` 4.1.11 to 4.1.12 (#894).** Development only. They fix GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp, alerts 15 and 14 (moderate).
+  - **`@types/node` 26.6.3 to 26.6.5 (#880),** with the Node 24 engine unchanged.
+  - **Actions:** `actions/setup-node` 7.1.0 (#883), `actions/download-artifact` 8.0.2 (#884), and `actions/upload-artifact` 7.0.2 (#885).
+  - **CodeQL `init` and `analyze` 4.38.3, together (#886 and #887),** with `REVIEWED_CODEQL_SHA` updated.
+- [ ] **Take only once their condition is met:**
+  - **`zod` 4.6.7 (#877).** Its browser run failed `tests/e2e/settings-admin-navigation.spec.mjs:95`: after the Developer Example module is unchecked, the Save button stays disabled. It failed again on retry, while the other bot pull requests passed on the same base. Find the cause first. If the update causes it, Zod stays at 4.6.6 and the reason is recorded.
+  - **ESLint 10.13.0 (#879).** First review the cache graph that `release.dependency-baseline` pins from before the August 2026 `cacheable` and `keyv` compromise. Any move in that graph is a fresh supply-chain review.
+  - **`@playwright/test` 1.64.1 (#876),** once the full browser suite passes against it. A new failure is diagnosed, never retried green.
+- [ ] **Defer `vitest` 5.0.5 (#878).** It is a major version, and belongs in its own slice. Its pull request stays open with the reason, because closing it makes Dependabot ignore that version.
+- [ ] **Ownership policy.** This pull request leaves the application version unchanged. The recovery pull request sets it to `0.33.33.53`, and archives this whole section in the same pull request. The validator allowance holds the complete before and after lock entries of exactly the transitions taken, so a partial or altered transition is refused.
+- [ ] **Attestations to realign:** `release.dependency-baseline`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
+- [ ] **The bot pull requests.** After the merge, close each one whose current proposal was incorporated, re-reading its current title and head first, and record each disposition.
+
+Acceptance criteria:
+
+- [ ] **Advisories.** `npm audit` reports no finding at any level, and Dependabot shows no open alert.
+- [ ] **The allowance.** Positive and negative validator tests cover it.
+- [ ] **Gates:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the browser suite.
+
+### 0.33.33.54 - Bounded public-demo reset retention and a shorter reset curtain
+
+**Model: High Effort** — It adds automatic deletion of protected evidence, and of copies of visitor-entered data, on the public host under the shared lifecycle lock. A wrong selection deletes recovery evidence; a missed one leaves the growth unbounded.
+
+**What this is.** A post-release patch after the restart-recovery patch, with its own release identity.
+- **What it builds on:** the restart-recovery patch's step evidence and Discord alert helper.
+- **What it resolves:** the carried finding "Public-demo reset history has no retention bound".
+
+**The problem.**
+- **What each reset keeps.** A retired prior unit inside the data volume, a pre-reset whole-instance backup and its sidecar on the host, and an evidence directory of sixteen files on the host. Nothing removes any of them; `docs/demo-data-operations.md` says so.
+- **Visitor data.** The unit and the backup are both copies of the demo as the reset began. Each therefore holds the past hour's visitor-entered content, yet the demo tells visitors that changes reset hourly.
+- **The size on 2026-10-14:** 1,606 evidence directories, 2,836 `pre-demo-reset-` files in a 1,013 MiB backup root, and 7.8 GB of local volume data, nearly all of it retained units.
+- **The growing curtain.** The `active` verification runs while the curtain is up and services are stopped. It walks the whole data root and reads every file under it, including every retained prior unit: 1,413 on 2026-10-14, each with a database of about 5.5 MB. It took 82 s on 2026-10-06, and 9 min 36 s on a cold cache on 2026-10-14.
+
+Scope:
+
+- [ ] **The live-data check.** The `active` verification still checks the served unit's database, Files root, and marker. Its link and forbidden-value scans, however, read only the active unit's own entries.
+- [ ] **Retention policy.** Fixed, reviewed constants, with no new setting. The operator approved it on 2026-10-14.
+  - **Retired units:** keep those of the 2 newest completed operations.
+  - **Pre-reset backups:** keep those of the 24 newest completed operations, with their sidecars.
+  - **Operation evidence:** keep the 168 newest completed operations, seven days, the scheduler log's window.
+  - **Incident evidence is never removed automatically.** That covers any operation whose phase is not `completed`, or whose state is missing or unreadable, with its backup and any failed unit.
+  - **Never touched:** the active unit, the candidate, and the active-operation marker; any other backup; the state and release records; and the scheduler log.
+  - **Selection is by count,** ordered by the operation identity's UTC timestamp.
+  - **Removals are deleted, not archived.**
+- [ ] **In-volume retention.** `scripts/lib/public-demo-baseline-activation.mjs` gains a `prune` action, run through `compose run`. It:
+  - refuses while an active-operation marker exists;
+  - considers only real `.longtail-public-demo-previous-<operation>` directories whose `reset-operation.json` records a valid completed operation;
+  - checks each removal's exact shape and the absence of links, and removes nothing if any check fails;
+  - renames each removal to a tombstone before deleting it;
+  - never touches failed evidence.
+- [ ] **Host retention.** The reset helper gains three things:
+  - **An automatic step,** after `completed`, under the lock. If the removal set exceeds three of any kind, it removes nothing and reports why.
+  - **`retention plan` and `retention apply`.** `retention plan` is read-only. `retention apply --confirm 'PRUNE RT-LTF-DEMO RESET HISTORY'` is supervised, uncapped, and takes the lock.
+  - **Safety.** It builds exact names from operation identities, refuses links and anything not owned by root, and removes an archive before its sidecar. It records `retention.json`, and adds a `retention` summary to the reset's final line.
+- [ ] **Failure handling.** A retention failure never fails or rolls back a completed reset. The scheduler logs `succeeded` with failure class `retention-failed`, and raises the Discord alert.
+- [ ] **Documentation.** The operations guide and the runbook give the policy, the supervised backlog procedure, and how to dispose of incident evidence. `DECISIONS.md` records how long visitor-entered content persists.
+
+Acceptance criteria:
+
+- [ ] **Unit tests** cover:
+  - the `prune` action: its kept and removed sets, its refusals, and tombstone completion and idempotence;
+  - the live-data check ignoring a forbidden value placed in a retained prior unit, while still catching one in the active unit.
+- [ ] **The executable harness** covers `plan`, `apply`, the automatic step and its cap, incident evidence and non-demo backups left untouched, orphaned files and refused links, and lock contention.
+- [ ] **The native lifecycle qualification** seeds synthetic history, then proves the exact kept set, and that `plan` changes nothing.
+- [ ] **Seeded defects** in selection, ordering, the cap, the incident rule, and the scan scope are each caught.
+- [ ] **On the demo,** operator-run under separate authorization:
+  1. review `retention plan`;
+  2. run `retention apply` once;
+  3. prove one supervised reset, with its retention and its shorter curtain;
+  4. confirm the next scheduled reset.
+- [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and an independent Codex review.
+
+Out of scope:
+
+- Caddy and host log rotation.
+- On the demo host, each of these needs its own authorization: the 15 August-era release images, the build cache, the 7 anonymous volumes, and the leftover preview-style `compose-host.env` and `longtail-forge-data` volume.
+- 0.33.34's privacy notices. They should cite the retention this patch sets.
+
+### 0.33.33.55 - Preview data durability on power loss
+
+**Model: High Effort** — It sets how much acknowledged real data a power cut may lose, changes the preview's durability setting, and adds scheduled backups. A wrong setting silently loses writes, and a wrong schedule or retention loses recovery points.
+
+**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation.
+
+**Why.**
+- **The outage.** On 2026-10-14 the power was out for over an hour. The UPS bridges only short outages, and it is not connected to the server for any shutdown signal. It stays that way until the deployment moves off-site, so a long outage is a hard power cut.
+- **The setting.** Both deployments run SQLite in WAL mode with the default `LONGTAIL_SQLITE_SYNCHRONOUS=normal`. That keeps the database consistent through a power cut, but can lose transactions that were acknowledged after the last time the WAL was synced to disk. An integrity check cannot show that loss.
+- **The backups.** Whole-instance backups are taken only around lifecycle operations (deploy, rollback, restore, and each demo reset), and they stay on the same server. There is no schedule, and no off-server copy. Scheduling is planned for 0.38.4.
+
+Proposed scope:
+
+- [ ] **Acknowledged-write durability on the preview.** Set `LONGTAIL_SQLITE_SYNCHRONOUS=full`. The setting already exists, and startup verifies it.
+  - **First,** measure its write cost on the real ZFS-in-LXC stack.
+  - **The demo** keeps `normal`, because it resets hourly, unless the operator prefers one setting everywhere.
+- [ ] **Storage that honors flushes.**
+  - **A read-only check** that the guest's ZFS dataset has `sync=standard`. A value of `disabled` silently ignores every flush.
+  - **The disk.** Record whether it is safe across power loss.
+  - **Changes** to Proxmox or ZFS stay the operator's.
+- [ ] **Scheduled backups,** pulled forward from 0.38.4 in their minimal form. A host timer for Compose installs:
+  - runs the existing whole-instance backup under the shared lifecycle lock, and inspects it;
+  - keeps a fixed number of scheduled backups. It never deletes the newest valid one, or any backup it did not schedule;
+  - alerts on failure through the restart-recovery patch's Discord alert, and sends a heartbeat on success.
+- [ ] **An off-server copy.**
+  - **The mechanism.** A documented, admin-chosen destination, reached through a post-backup copy hook that copies only inspected archives and their checksums.
+  - **What stays later.** Remote and encrypted managed destinations stay in 0.38.4.
+- [ ] **A restore drill.** Restore a scheduled backup into a disposable instance, and prove database and Files consistency.
+
+Decisions needed, the operator's:
+
+- **The preview's recovery point objective.** The recommendation:
+  - no acknowledged write lost to a power cut, which means `full`;
+  - for disk or server loss, at most one backup interval.
+- **The setting's reach:** `full` on the preview only, or everywhere.
+- **The schedule.** How often to back up, and how many backups to keep. The recommendation is nightly, keeping 14.
+- **The off-server destination** for the preview's backups.
+
+Acceptance criteria:
+
+- [ ] **The decisions** are recorded in `DECISIONS.md`.
+- [ ] **The setting's proof.**
+  - **It is in effect.** The running preview reports `synchronous=full`.
+  - **It is honored.** The dataset's `sync=standard` is confirmed.
+  - **Its cost** is measured.
+  - **A limitation, recorded:** a true power-cut test needs a disposable VM, which the operator declined, so durability rests on documented flush semantics.
+- [ ] **Tests of the scheduled backup.** The executable harness and the native qualification prove:
+  - the lock;
+  - retention, which never deletes the newest valid backup or a backup it did not schedule;
+  - the failure alert;
+  - that the copy hook receives only inspected archives.
+- [ ] **One restore drill** from a scheduled backup passes.
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
@@ -74,6 +310,46 @@ Dependencies and planned boundary:
 Acceptance criteria:
 
 - The October 1 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
+
+## Version 0.33.35 - Operational health checks for external monitors
+
+**Model: High Effort** — It adds operational routes, an access model for monitors, and checks that modules contribute. A careless check leaks internals, or turns monitoring into an attack surface.
+
+**Status.** This is a planning item. The operator asked for it on 2026-10-15. Placing it after 0.33.34 is a proposal.
+
+**Purpose.** Let any external monitor (Uptime Kuma and similar tools) watch each part of an installation separately, and be told when scheduled work silently stops, without exposing internals.
+
+**Two kinds of signal.**
+- **Pull.** The monitor asks; the application answers per component.
+- **Push.** Scheduled work sends a heartbeat when it succeeds, and the monitor alerts when one is late.
+
+Proposed design:
+
+- [ ] **The public probes stay minimal.** `/healthz` (the process is up) and `/readyz` (ready to serve) stay public and minimal, as today.
+- [ ] **Component checks, one URL each,** so a monitor can alert on each separately:
+  - **Database:** opens, writable, the expected durability setting, migrations current.
+  - **Storage:** the Files root writable, and free space above a floor.
+  - **Scanner:** reachable, when the profile requires it.
+  - **Jobs:** the worker's last-run age, the pending count and the oldest pending job's age, and the failed and dead counts.
+
+  **What a check returns.** Each returns 200 or 503 against a default threshold, with a small, bounded JSON body carrying the numbers, so a monitor can apply its own thresholds too.
+- [ ] **What checks never return:** error text, paths, identifiers, record content, or dependency versions.
+- [ ] **Access.** Component checks require a monitoring credential, a bearer token held in a protected environment value, or are served only on the host's loopback address. That choice is a decision.
+- [ ] **Contributed checks.** Modules contribute checks declaratively, under the extensibility model. Files contributes the scanner check, and the job framework the queue check. The framework owns the route, access, timeouts, and output contract.
+- [ ] **Heartbeats.** Scheduled work sends a `GET` to an operator-configured URL after each success: the demo reset and boot (the restart-recovery patch), and scheduled backups (the durability patch). Each URL is held in a root-only file. The family shares one heartbeat contract.
+- [ ] **The public demo.** Its perimeter's allowlist of operational paths changes only by review. Component checks stay closed there unless the operator opts in.
+
+Decisions needed, the operator's:
+
+- **Access:** a credential, loopback only, or both.
+- **Default thresholds.** For example, the oldest pending job older than 15 minutes, or free space below 10%.
+- **Its place** in the version order.
+
+Acceptance criteria:
+
+- [ ] **Each check fails for its own dependency, and only that one,** under seeded faults.
+- [ ] **The output contract** is bounded and tested, the credential is enforced, and the demo perimeter is unchanged unless the operator opts in.
+- [ ] **The documentation** shows how to configure HTTP and push monitors in Uptime Kuma, and in monitors like it.
 
 ## Version 0.34 - Support Tickets Module
 
