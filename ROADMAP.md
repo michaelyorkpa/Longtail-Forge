@@ -165,6 +165,7 @@ Scope:
   - **`@types/node` 26.6.3 to 26.6.5 (#880),** with the Node 24 engine unchanged.
   - **Actions:** `actions/setup-node` 7.1.0 (#883), `actions/download-artifact` 8.0.2 (#884), and `actions/upload-artifact` 7.0.2 (#885).
   - **CodeQL `init` and `analyze` 4.38.3, together (#886 and #887),** with `REVIEWED_CODEQL_SHA` updated.
+  - **Debian `tzdata` 2026c-0+deb12u1 to 2026f-0+deb12u1** in the runtime image's exact security-update pin (DLA-4854-1 and DLA-4867-1). The published-digest qualification of 2026-10-30 found it, and found that Debian no longer publishes 2026c. The build still passes only because the digest-pinned base already carries 2026c. The `perl-base` and `libpcre2-8-0` pins are already current.
 - [ ] **Take only once their condition is met:**
   - **`zod` 4.6.7 (#877).** Its browser run failed `tests/e2e/settings-admin-navigation.spec.mjs:95`: after the Developer Example module is unchecked, the Save button stays disabled. It failed again on retry, while the other bot pull requests passed on the same base. Find the cause first. If the update causes it, Zod stays at 4.6.6 and the reason is recorded.
   - **ESLint 10.13.0 (#879).** First review the cache graph that `release.dependency-baseline` pins from before the August 2026 `cacheable` and `keyv` compromise. Any move in that graph is a fresh supply-chain review.
