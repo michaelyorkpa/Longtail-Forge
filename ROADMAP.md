@@ -42,6 +42,9 @@ These open findings were carried out of the Lean Core branch when its closeout, 
 - **`tag-picker-workflows` `[mobile]` is intermittent.** Tag accumulation was disproved as the cause, and cross-worker contention remains the hypothesis.
   - **Owner:** browser test maintenance.
   - **Consequence:** an occasional retry. It must never be green-controlled.
+- **`task-editor-parent-save` reads the saved task without waiting for the save.** Its two checks after Save were already true before the save finished, the same flaw the dependency fold fixed in the Developer Example spec.
+  - **Owner:** browser test maintenance.
+  - **Consequence:** an occasional retry, seen on the `zod` proposal's browser run. It must never be green-controlled.
 
 The post-release patch to `v0.33.33` carried these findings forward. The same rule applies: each needs its own roadmap slice.
 
@@ -54,6 +57,10 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
 - **Public-demo reset history has no retention bound.** The demo host's `demo-reset-operations/` held 1,392 operation directories on 2026-10-05, one per hourly reset since 2026-08-08, and nothing prunes them. Their disk and inode use is still to be measured.
   - **Owner:** public-demo operations.
   - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
+- **`minimatch` 10.2.5 carries GHSA-g3hv-75wg-m249 (moderate), with no compatible fix.** It was published on 2026-10-30 and fixed only in 11.0.1. Every ESLint 10 release and `@eslint/config-array` stop at `^10`, so taking it would mean forcing a major version past ESLint's declared range.
+  - **Why it does not reach users:** `minimatch` is development-only, and is absent from the image. An attacker must supply the glob, and ESLint reads only this repository's own configured globs. `release.dependency-baseline` fails if it ever reaches the runtime graph.
+  - **Owner:** whoever next upgrades ESLint. Take the fix when ESLint allows `minimatch` 11.
+  - **Consequence:** `npm audit` reports four moderate entries, all this one advisory through ESLint's graph. The production audit reports none.
 
 ## Post-release Patches
 
@@ -160,26 +167,30 @@ Out of scope:
 
 Scope:
 
-- [ ] **Take, as reviewed transitions:**
+- [x] **Take, as reviewed transitions:**
   - **`ip-address` 10.7.2 to 10.7.4 (#893).** A runtime dependency of `express-rate-limit`. It fixes GHSA-rxp7-6hxx-x8q5, Dependabot alert 16 (moderate).
   - **`vitest` and `@vitest/mocker` 4.1.11 to 4.1.12 (#894).** Development only. They fix GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp, alerts 15 and 14 (moderate).
+    - **Smaller than the bot's proposal.** #894's lock also moves Vite to 8.3.5, and Rolldown with its 16 platform bindings, because npm re-resolves everything under a replaced package. Vitest 4.1.12 accepts Vite 8.2.4, so only the eight Vitest entries move.
   - **`@types/node` 26.6.3 to 26.6.5 (#880),** with the Node 24 engine unchanged.
   - **Actions:** `actions/setup-node` 7.1.0 (#883), `actions/download-artifact` 8.0.2 (#884), and `actions/upload-artifact` 7.0.2 (#885).
   - **CodeQL `init` and `analyze` 4.38.3, together (#886 and #887),** with `REVIEWED_CODEQL_SHA` updated.
   - **Debian `tzdata` 2026c-0+deb12u1 to 2026f-0+deb12u1** in the runtime image's exact security-update pin (DLA-4854-1 and DLA-4867-1). The published-digest qualification of 2026-10-30 found it, and found that Debian no longer publishes 2026c. The build still passes only because the digest-pinned base already carries 2026c. The `perl-base` and `libpcre2-8-0` pins are already current.
-- [ ] **Take only once their condition is met:**
-  - **`zod` 4.6.7 (#877).** Its browser run failed `tests/e2e/settings-admin-navigation.spec.mjs:95`: after the Developer Example module is unchecked, the Save button stays disabled. It failed again on retry, while the other bot pull requests passed on the same base. Find the cause first. If the update causes it, Zod stays at 4.6.6 and the reason is recorded.
-  - **ESLint 10.13.0 (#879).** First review the cache graph that `release.dependency-baseline` pins from before the August 2026 `cacheable` and `keyv` compromise. Any move in that graph is a fresh supply-chain review.
-  - **`@playwright/test` 1.64.1 (#876),** once the full browser suite passes against it. A new failure is diagnosed, never retried green.
-- [ ] **Defer `vitest` 5.0.5 (#878).** It is a major version, and belongs in its own slice. Its pull request stays open with the reason, because closing it makes Dependabot ignore that version.
-- [ ] **Ownership policy.** This pull request leaves the application version unchanged. The recovery pull request sets it to `0.33.33.53`, and archives this whole section in the same pull request. The validator allowance holds the complete before and after lock entries of exactly the transitions taken, so a partial or altered transition is refused.
-- [ ] **Attestations to realign:** `release.dependency-baseline`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
+- [x] **Take once their condition is met.** On 2026-11-02 all three were met, and each is taken.
+  - **`zod` 4.6.7 (#877).** Its browser run failed `tests/e2e/settings-admin-navigation.spec.mjs:95`, and Zod was not the cause.
+    - **Why not Zod.** 4.6.7 differs from 4.6.6 only in its version number, in `package.json` and the `versions` constant. The Vitest 5 proposal failed the same line on the same day without it.
+    - **The cause.** Save disables its button as soon as it is clicked, so `toBeDisabled()` passed while the write was still in flight, and the test navigated away. That produced a 403, and the cleanup in `finally` then failed too, which hid the 403.
+    - **The proof.** A 1.5-second delay on the save reproduces the failure on the unchanged spec. The spec now waits for the save's response, and passes under the same delay.
+  - **ESLint 10.13.0 (#879).** The cache graph does not move: the tarball has the same 421 files and the same dependencies as 10.11.0, and only ESLint's own lock entry changes. No new incident has been reported in `jaredwray/cacheable` or `jaredwray/keyv` since 2026-08-04.
+  - **`@playwright/test` 1.64.1 (#876).** The pull request's browser job runs the full suite. A new failure is diagnosed, never retried green.
+- [x] **Defer `vitest` 5.0.5 (#878).** It is a major version, and belongs in its own slice. Its pull request stays open with the reason, because closing it makes Dependabot ignore that version.
+- [x] **Ownership policy.** This pull request leaves the application version unchanged. The recovery pull request sets it to `0.33.33.53`, archives this whole section in the same pull request, and records this fold in its changelog entry, because the changelog records shipped releases. The validator allowance holds the complete before and after lock entries of exactly the transitions taken, so a partial or altered transition is refused.
+- [x] **Attestations to realign:** `release.dependency-baseline`, `release.playwright-dev-only-boundary`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
 - [ ] **The bot pull requests.** After the merge, close each one whose current proposal was incorporated, re-reading its current title and head first, and record each disposition.
 
 Acceptance criteria:
 
-- [ ] **Advisories.** `npm audit` reports no finding at any level, and Dependabot shows no open alert.
-- [ ] **The allowance.** Positive and negative validator tests cover it.
+- [ ] **Advisories.** Dependabot shows no open alert, and the production audit reports no finding. The full audit reports only the `minimatch` advisory in Carried Findings, published after this section was planned. It has no compatible fix, so the original criterion of no finding at any level cannot be met without forcing a major version past ESLint's range.
+- [x] **The allowance.** Positive and negative validator tests cover it, and each of nine seeded validator defects is caught.
 - [ ] **Gates:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the browser suite.
 
 ### 0.33.33.54 - Bounded public-demo reset retention and a shorter reset curtain
