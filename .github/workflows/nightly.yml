@@ -38,7 +38,7 @@ jobs:
         with:
           ref: nightly
           fetch-depth: 1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
       - name: Classify the pushed range or select the full scheduled/manual path
@@ -104,7 +104,7 @@ jobs:
           # The checkout is still the exact classify-selected revision.
           fetch-depth: 0
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -134,7 +134,7 @@ jobs:
           echo "path=dist/longtail-forge-$(node -p "require('./package.json').version").tgz" >> "$GITHUB_OUTPUT"
           node scripts/release/create-release-metadata.mjs --artifact "dist/longtail-forge-$(node -p "require('./package.json').version").tgz" --commit "${{ needs.classify_changes.outputs.revision }}" --channel nightly --source-branch nightly --output dist/release-metadata.json
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-${{ steps.revision.outputs.sha }}
           if-no-files-found: error
@@ -164,7 +164,7 @@ jobs:
           ref: ${{ needs.classify_changes.outputs.revision }}
           fetch-depth: 1
       - if: needs.classify_changes.outputs.github_only_docs != 'true' && needs.classify_changes.outputs.reuse_exact_proof != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -201,7 +201,7 @@ jobs:
         with:
           ref: ${{ needs.classify_changes.outputs.revision }}
           fetch-depth: 1
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: nightly-${{ needs.classify_changes.outputs.revision }}
           path: dist
@@ -209,7 +209,7 @@ jobs:
         env:
           NIGHTLY_SHA: ${{ needs.classify_changes.outputs.revision }}
         run: node scripts/release/nightly-proof.mjs create --directory dist --repository "$GITHUB_REPOSITORY" --workflow-ref "$GITHUB_WORKFLOW_REF" --commit "$NIGHTLY_SHA" --run-id "$GITHUB_RUN_ID" --output dist/nightly-proof.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-proof-${{ needs.classify_changes.outputs.revision }}
           if-no-files-found: error
