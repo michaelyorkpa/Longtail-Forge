@@ -60,7 +60,7 @@ permissive and compatible with distributing Longtail Forge under
 | http-errors | 2.0.1 | MIT | Copyright (c) 2014 Jonathan Ong me@jongleberry.com; Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com | [L34](#l34) |
 | iconv-lite | 0.7.3 | MIT | Copyright (c) 2011 Alexander Shtuchkin | [L35](#l35) |
 | inherits | 2.0.4 | ISC | Copyright (c) Isaac Z. Schlueter | [L36](#l36) |
-| ip-address | 10.7.2 | MIT | Copyright (C) 2011 by Beau Gunderson | [L37](#l37) |
+| ip-address | 10.7.4 | MIT | Copyright (C) 2011 by Beau Gunderson | [L37](#l37) |
 | ipaddr.js | 1.9.1 | MIT | Copyright (C) 2011-2017 whitequark &lt;whitequark@whitequark.org&gt; | [L38](#l38) |
 | is-promise | 4.0.0 | MIT | Copyright (c) 2014 Forbes Lindesay | [L39](#l39) |
 | linkify-it | 6.1.0 | MIT | Copyright (c) 2015 Vitaly Puzrin. | [L40](#l40) |
@@ -107,7 +107,7 @@ permissive and compatible with distributing Longtail Forge under
 | uuid | 14.0.2 | MIT | Copyright (c) 2010-2020 Robert Kieffer and other contributors | [L71](#l71) |
 | vary | 1.1.2 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | wrappy | 1.0.2 | ISC | Copyright (c) Isaac Z. Schlueter and Contributors | [L53](#l53) |
-| zod | 4.6.6 | MIT | Copyright (c) 2025 Colin McDonnell | [L72](#l72) |
+| zod | 4.6.7 | MIT | Copyright (c) 2025 Colin McDonnell | [L72](#l72) |
 
 ## Bundled-asset audit
 
@@ -1161,7 +1161,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 ### L37
 
-Applies to: ip-address@10.7.2
+Applies to: ip-address@10.7.4
 
 ```text
 Copyright (C) 2011 by Beau Gunderson
@@ -2182,7 +2182,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### L72
 
-Applies to: zod@4.6.6
+Applies to: zod@4.6.7
 
 ```text
 MIT License
