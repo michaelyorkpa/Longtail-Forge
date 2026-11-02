@@ -91,6 +91,7 @@ Scope:
 
 - [ ] **Scanner cold start, on both profiles.**
   - **The fix.** A reviewed drop-in sets `FreeBind=yes` on the exact-address TCP socket, so the socket binds before Docker creates the gateway address. The listener list, the address, and the firewall do not change.
+  - **What the hosts already run.** The power-loss recovery installed `zz-ltf-freebind.conf` on both hosts on 2026-10-15 at about 02:17Z, with exactly `[Socket]` and `FreeBind=yes`. Both hosts last booted about 2h21m before that, so no boot has exercised it. The reviewed drop-in keeps that name and content, so installing it changes nothing on these hosts, and the live-demo reboot below is its first real proof.
   - **The documentation.** `docs/file-scanner-setup.md` gains the cold-boot contract, and an install and upgrade procedure that keeps the prior units.
   - **The fallback.** A different design, such as an ordered or retried readiness unit, is used only if `FreeBind` fails qualification.
 - [ ] **A protected demo boot.** A root-owned unit runs one boot operation after Docker starts, under the shared lifecycle lock. In order, it:
@@ -193,6 +194,10 @@ Acceptance criteria:
 - **What each reset keeps.** A retired prior unit inside the data volume, a pre-reset whole-instance backup and its sidecar on the host, and an evidence directory of sixteen files on the host. Nothing removes any of them; `docs/demo-data-operations.md` says so.
 - **Visitor data.** The unit and the backup are both copies of the demo as the reset began. Each therefore holds the past hour's visitor-entered content, yet the demo tells visitors that changes reset hourly.
 - **The size on 2026-10-14:** 1,606 evidence directories, 2,836 `pre-demo-reset-` files in a 1,013 MiB backup root, and 7.8 GB of local volume data, nearly all of it retained units.
+- **The size on 2026-11-02:** 2,060 evidence directories, 1,867 retained units, 3,797 files in a 1,330 MiB backup root, and 10.28 GB of local volume data by Docker's count.
+  - **Disk is not the pressure.** `du` reports the data volume at 1,944 MiB, the host's root filesystem is 12% used with 57 GB free, and 1% of its inodes are used. This patch is justified by the curtain and by how long visitor-entered data persists.
+  - **Whole-reset length** over the 168 resets the scheduler log still held, including the candidate build before the curtain: 3 min 24 s minimum, 4 min 7 s median, and 6 min 25 s maximum.
+  - **To measure in this patch.** The demo's deployment of the October Node security release took 9 min 54 s, against 2 min 48 s for its previous deployment. Most of the gap falls between writing the release environment and finishing the backup. No per-step times exist, so the cause and the time behind the curtain are unknown.
 - **The growing curtain.** The `active` verification runs while the curtain is up and services are stopped. It walks the whole data root and reads every file under it, including every retained prior unit: 1,413 on 2026-10-14, each with a database of about 5.5 MB. It took 82 s on 2026-10-06, and 9 min 36 s on a cold cache on 2026-10-14.
 
 Scope:
