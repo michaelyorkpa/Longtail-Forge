@@ -168,10 +168,14 @@ cleanup_session_material() {
 }
 trap cleanup_session_material EXIT
 
-# Values that must never reach step evidence: the protected Compose environment's secrets and the
-# demo role passwords. Step error output passes through this list before it is kept.
+# Values that must never reach step evidence: the secrets in the protected Compose environment and in
+# the application environment file it names, and the demo role passwords. Step error output passes
+# through this list before it is kept.
+APP_ENV_FILE="$(grep -E '^LONGTAIL_ENV_FILE=' "$COMPOSE_HOST_ENV" | head -n 1 | cut -d= -f2- || true)"
+SECRET_SOURCES=("$COMPOSE_HOST_ENV")
+if test -n "$APP_ENV_FILE" && test -f "$APP_ENV_FILE" && test ! -L "$APP_ENV_FILE"; then SECRET_SOURCES+=("$APP_ENV_FILE"); fi
 awk -F= '$1 ~ /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL)/ && length($0) > length($1) + 1 { value = substr($0, length($1) + 2); gsub(/^["\047]|["\047]$/, "", value); print value }' \
-  "$COMPOSE_HOST_ENV" > "$SESSION_ROOT/redactions"
+  "${SECRET_SOURCES[@]}" > "$SESSION_ROOT/redactions"
 jq -r '.. | objects | .password? // empty | strings' "$ROLE_CREDENTIALS" >> "$SESSION_ROOT/redactions"
 
 # Copies the last 64 KiB of a step's error output into the operation evidence with every listed
