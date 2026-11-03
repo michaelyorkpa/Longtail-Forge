@@ -168,15 +168,24 @@ describe("the restart-recovery release identity", () => {
     expect(bumpErrors(`${RESTART_RECOVERY_PATCH_CHECKPOINT}.1`)).toContain(FOLD_PACKAGE_ERROR);
   });
 
-  it.each([
-    [["DECISIONS.md"], "DECISIONS.md is reserved"],
-    [["CHANGELOG.md", "ROADMAP.md", "ROADMAP-ARCHIVE.md"], "changes 3 ceremony files"],
-  ])("keeps %j refused", (paths, expected) => {
-    const { errors } = validateCheckpointCommit({
-      message: `Attempt reserved work\n\nLTF-Checkpoint: ${RESTART_RECOVERY_PATCH_CHECKPOINT}\nLTF-Summary: Attempt to change reserved paths\nLTF-Docs: No docs change needed: synthetic boundary test.`,
+  /** @param {string} checkpoint @param {string[]} paths */
+  function ceremonyErrors(checkpoint, paths) {
+    return validateCheckpointCommit({
+      message: `Record a decision\n\nLTF-Checkpoint: ${checkpoint}\nLTF-Summary: Record the patch's governing decisions\nLTF-Docs: No docs change needed: synthetic boundary test.`,
       paths,
-      roadmapSource: `### ${RESTART_RECOVERY_PATCH_CHECKPOINT} - Synthetic patch`,
-    });
-    expect(errors.join("\n")).toContain(expected);
+      roadmapSource: `### ${checkpoint} - Synthetic patch`,
+    }).errors;
+  }
+
+  it("admits DECISIONS.md, as the operator approved on 2026-11-03", () => {
+    expect(ceremonyErrors(RESTART_RECOVERY_PATCH_CHECKPOINT, ["DECISIONS.md"])).toEqual([]);
+  });
+
+  it("keeps DECISIONS.md reserved for every other patch", () => {
+    expect(ceremonyErrors(NODE_SECURITY_PATCH_CHECKPOINT, ["DECISIONS.md"]).join("\n")).toContain("DECISIONS.md is reserved");
+  });
+
+  it("keeps the two-ceremony-file ceiling, DECISIONS.md included", () => {
+    expect(ceremonyErrors(RESTART_RECOVERY_PATCH_CHECKPOINT, ["DECISIONS.md", "ROADMAP.md", "ROADMAP-ARCHIVE.md"]).join("\n")).toContain("changes 3 ceremony files");
   });
 });
