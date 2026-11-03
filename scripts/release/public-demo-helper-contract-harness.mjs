@@ -77,6 +77,7 @@ const SEEDS = Object.freeze([
   { label: "a readable webhook file is accepted", helper: "alert", from: "test \"$(stat -c '%u:%g:%a' \"$file\")\" = '0:0:600' ||", to: "true ||", caughtBy: "notify refuses a webhook file another user could read" },
   { label: "any https URL passes as a Discord webhook", helper: "alert", from: "  [[ \"$url\" =~ $pattern ]] || fail", to: "  true || fail", caughtBy: "notify refuses a non-Discord host" },
   { label: "the scheduler ignores an operator hold", helper: "scheduler", from: "if test -e \"$OPERATOR_HOLD\" || test -L \"$OPERATOR_HOLD\"; then\n  append_event 'finished' 'skipped-held'", to: "if false; then\n  append_event 'finished' 'skipped-held'", caughtBy: "the scheduler records a held run" },
+  { label: "the boot sends no heartbeat", helper: "boot", from: "\"$ALERT_HELPER\" heartbeat --target \"$DEMO_TARGET\"", to: "true heartbeat --target \"$DEMO_TARGET\"", caughtBy: "a missed boundary runs a fresh reset" },
   { label: "the scheduler sends no heartbeat", helper: "scheduler", from: "    \"$ALERT_HELPER\" heartbeat --target", to: "    true heartbeat --target", caughtBy: "the scheduler sends the heartbeat" },
   { label: "the reset ignores an operator hold", helper: "reset", from: "if test -e \"$OPERATOR_HOLD\" || test -L \"$OPERATOR_HOLD\"; then fail", to: "if false; then fail", caughtBy: "the reset helper refuses under a hold" },
 ]);
@@ -437,6 +438,7 @@ async function main() {
       assert.equal(result.status, 0, result.stderr);
       const outcome = JSON.parse(lastLine(result.stdout));
       assert.deepEqual([outcome.baseline, outcome.heartbeatOutcome], ["fresh-baseline", "delivered"]);
+      assert.equal(String(only(result.calls, "curl", (call) => call.args.includes("--config")).stdin), `url = "${HEARTBEAT_URL}"\n`, "the boot's heartbeat must reach the push monitor");
       const reset = only(result.calls, "reset");
       assert.equal(reset.lockInherited, true, "the reset must run under the boot's own hold on the lock");
       assert.equal(reset.markerPresent, true, "the fresh reset runs behind the curtain");
@@ -465,6 +467,7 @@ async function main() {
       assert.equal(result.status, 0, result.stderr);
       const finished = readJsonLines(path.join(box.root, "log", "public-demo-reset.jsonl")).at(-1);
       assert.deepEqual([finished?.outcome, finished?.heartbeatOutcome], ["succeeded", "delivered"]);
+      assert.equal(String(only(result.calls, "curl").stdin), `url = "${HEARTBEAT_URL}"\n`, "the heartbeat must reach the push monitor, not only be recorded");
     });
     scenario("the reset helper refuses under a hold before any Docker call", (box) => {
       writeFixed(FIXED.hold, "");
