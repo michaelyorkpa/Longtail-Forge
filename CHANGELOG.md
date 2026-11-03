@@ -1,3 +1,39 @@
+## Version 0.33.33.53 - 2026-11-03
+
+- **Recovery after a host restart.** This post-release patch to `v0.33.33` has its own release identity, and replaces no earlier tag, image, checksum, or release asset. From 2026-10-06 to 2026-10-14, a Docker restart left the public demo's hourly reset refusing every build. On 2026-10-14, a power loss left both sites down after their guests booted.
+- **Scanner cold start.** A reviewed drop-in sets `FreeBind=yes` on the scanner's exact-address socket, so the socket binds before Docker creates the gateway address. The listener, the address, and the firewall do not change. `docs/file-scanner-setup.md` gives the cold-boot contract and the install procedure.
+- **A protected demo boot.** A root-owned unit, which Docker pulls in each time it starts, runs one boot operation under the shared lifecycle lock.
+  - **It stops, with a specific alert,** on an operator hold, a deployment or active-operation marker, an uncertain recorded release, or missing storage. It never pulls, upgrades, rolls back, or creates an empty database.
+  - **It waits** a bounded, recorded time for Docker, the exact bridge, and the scanner.
+  - **It enforces isolation** before any container runs, then starts the current release behind the curtain.
+  - **It runs a fresh reset** before serving visitors when an hourly boundary was missed.
+  - **Public availability** is reported separately, and never causes a reset or a rollback.
+  - **One restart owner per profile.** The demo keeps `restart: no`, with the boot unit as its only restart owner. The preview keeps Docker's `unless-stopped`.
+- **Operator hold.** `/etc/longtail-forge/public-demo-hold` keeps a deliberately stopped demo stopped. The boot and the reset refuse while it exists, and the scheduler records the hour as held.
+- **Reset recovery.**
+  - **A stale candidate.** With no active operation, a reset moves a verified candidate or partial build left by an earlier operation into failed evidence. Only exact names and shapes move, a link refuses the whole move, and nothing is deleted. Recovery of an active operation still comes first.
+  - **A stopped app.** A reset that finds the app stopped first runs the protected start. It then follows its normal path, including the pre-reset session capture and its rejection proof, and records that it started the app.
+  - **Step evidence.** Each step is recorded before it starts. Its error output, redacted of the host's and the application's secrets, is kept in root-only evidence. Nothing new reaches the scheduler log, the alert, or normal output.
+- **Alerts and heartbeat.**
+  - **Alerts.** The alert helper keeps its journal line, and also posts the same bounded fields to a Discord webhook, with mentions disabled. It covers the boot's failure and hold classes.
+  - **Heartbeat.** After each successful reset and boot, one heartbeat goes to an operator-configured push URL. A failed heartbeat never fails the reset or the boot.
+  - **The URLs.** Both live only in root-only `0600` host files, and reach `curl` on standard input.
+- **Startup diagnostics.** `application.startup.failed` names the stage that failed and a reason from a closed list. The stages are runtime paths, storage, scanner, database, and migrations. It carries no raw message, path, address, or secret.
+- **Proof.** These run on GitHub's runners, with real systemd and Docker:
+  - **Reset reproducers.** The interrupted-reset and stopped-app reproducers fail with the October helper and pass with this one.
+  - **The boot unit.** After `systemctl restart docker`, with the scanner returning late and a missed boundary, it served a fresh baseline 65 seconds after the restart.
+  - **A scanner reproducer,** with Ubuntu's ClamAV. Without the drop-in, it fails as the hosts did. With it, the scanner answers `PING` on the exact address.
+  - **The helper harness** runs the real helpers as root in the maintenance rehearsal. It passes 26 scenarios, and catches each of 17 seeded defects.
+- **Dependency fold.** The open Dependabot backlog, taken as reviewed exact transitions:
+  - **Security updates.** `ip-address` 10.7.4 (GHSA-rxp7-6hxx-x8q5), and `vitest` and `@vitest/mocker` 4.1.12 (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp). Vite stays at 8.2.4.
+  - **Packages.** `zod` 4.6.7, ESLint 10.13.0, `@playwright/test` 1.64.1, and `@types/node` 26.6.5.
+  - **CI.** `actions/setup-node` 7.1.0, `actions/download-artifact` 8.0.2, `actions/upload-artifact` 7.0.2, and CodeQL 4.38.3.
+  - **The runtime image.** Debian `tzdata` 2026f-0+deb12u1 (DLA-4854-1, DLA-4867-1).
+  - **Deferred and carried.** `vitest` 5 is deferred to its own slice. The development-only `minimatch` advisory GHSA-g3hv-75wg-m249 has no fix compatible with ESLint 10, and is carried.
+  - **A test fix.** The Developer Example browser test now waits for the save it checks.
+- **Checkpoint ownership.** This patch may set its own version, take exactly the reviewed fold transitions, and record durable decisions. `DECISIONS.md` records one restart owner per profile and the boot baseline policy.
+- **Correction.** The image-equivalence proof and the preview deployment guide now give the right reason for refusing a hard link to a symlink: containerd's mode change uses `Lstat`, and skips symlinks.
+
 ## Version 0.33.33.52 - 2026-10-24
 
 - Update the digest-pinned runtime image and development/CI runtime to Node 24.22.1, addressing the October 2026 security release including the Brotli decoder vulnerability CVE-2026-111497. The runtime includes OpenSSL 3.5.9.
