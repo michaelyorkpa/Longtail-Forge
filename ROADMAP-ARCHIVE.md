@@ -98,6 +98,10 @@ Acceptance criteria:
   - **Progress.** On 2026-11-03, Codex installed the Discord webhook and heartbeat URL files on `rt-ltf-demo` from standard input, root-only, mode `0600`. Discord answered a `GET` with 200, and the heartbeat URL was not contacted. Nothing reads either file until the helpers are installed.
   - **The rollout order.** The new reset helper needs the new image's `quarantine-stale` action. So the hourly timer stays disabled from the helper install until the deployment and one manual reset have passed.
 - [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and an independent Codex review. They run on the final tree of #896, after this archive.
+  - **A non-causal wait, fixed on the way.** On `c212415f`, the Development gate failed `file-upload-compatibility-error-hardening`. Its failure had not appeared in the previous 25 failed Development runs.
+    - **The cause.** The upload route answers a malformed upload with 400 before the service's storage cleanup settles, so the partial file can be created after the response and removed later. The malformed check compared the disk against a snapshot taken before the upload, so it could pass before the file existed. The next check's snapshot then caught the file, which was removed under it.
+    - **The fix.** Each check now requires the stored files to equal the storage keys the `files` table records, with one more check after the last upload.
+    - **The proof.** Injected delays reproduce the CI failure on the old test, three runs out of three. Under the same delays the new test passes, three out of three. With the adapter's cleanup removed, the new test fails.
 
 Out of scope:
 

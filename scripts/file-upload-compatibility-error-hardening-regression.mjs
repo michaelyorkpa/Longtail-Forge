@@ -88,6 +88,7 @@ try {
   await checkMalformedMultipartCleanup(baseUrl, fixtures);
   await checkClientAbortCleanup(baseUrl, fixtures);
   await checkStorageStreamFailureIsBounded(api, fixtures);
+  await eventuallyNoUnrecordedStoredFiles("no failed upload should leave a stored file without a file record");
   await assertIntegrity();
 
   console.log("File upload compatibility and error hardening regression passed.");
@@ -167,7 +168,6 @@ async function checkLegacyJsonCompatibility(api, fixtures) {
 
 /** @param {HardeningApiClient} api @param {HardeningFixtures} fixtures */
 async function checkOversizedFailureShapeAndCleanup(api, fixtures) {
-  const beforeFiles = await listStoredFiles(config.storage.localRoot);
   const response = await api.postForm("/api/files/upload", createUploadForm(fixtures.oversizedTaskId, {
     filename: "hardening-too-large.txt",
     text: "x".repeat((5 * 1024 * 1024) + 1),
@@ -179,12 +179,11 @@ async function checkOversizedFailureShapeAndCleanup(api, fixtures) {
   assert.match(oversized.error.message, /Uploaded file exceeds the allowed size/i);
   assert.doesNotMatch(JSON.stringify(response.body), /storageKey|protectedPath|signedUrl|localRoot/i, "failure response should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("hardening-too-large.txt");
-  await eventuallyStoredFilesEqual(beforeFiles, "oversized streamed upload should not leave a partial local file");
+  await eventuallyNoUnrecordedStoredFiles("oversized streamed upload should not leave a partial local file");
 }
 
 /** @param {string} baseUrl @param {HardeningFixtures} fixtures */
 async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
-  const beforeFiles = await listStoredFiles(config.storage.localRoot);
   const response = await sendMalformedMultipart(baseUrl, fixtures, {
     filename: "malformed-upload.txt",
     taskId: fixtures.malformedTaskId,
@@ -196,19 +195,18 @@ async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
   assert.match(malformed.error.message, /could not be parsed|cancelled|could not be read/i);
   assert.doesNotMatch(response.text, /storageKey|protectedPath|signedUrl|localRoot/i, "parse failures should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("malformed-upload.txt");
-  await eventuallyStoredFilesEqual(beforeFiles, "malformed multipart upload should not leave a partial local file");
+  await eventuallyNoUnrecordedStoredFiles("malformed multipart upload should not leave a partial local file");
 }
 
 /** @param {string} baseUrl @param {HardeningFixtures} fixtures */
 async function checkClientAbortCleanup(baseUrl, fixtures) {
-  const beforeFiles = await listStoredFiles(config.storage.localRoot);
   await abortMultipartUpload(baseUrl, fixtures, {
     filename: "client-aborted-upload.txt",
     taskId: fixtures.abortedTaskId,
   });
 
   await eventuallyNoFileOrAttachmentForOriginalFilename("client-aborted-upload.txt");
-  await eventuallyStoredFilesEqual(beforeFiles, "client-aborted upload should not leave a partial local file");
+  await eventuallyNoUnrecordedStoredFiles("client-aborted upload should not leave a partial local file");
 }
 
 /** @param {HardeningApiClient} api @param {HardeningFixtures} fixtures */
@@ -547,22 +545,39 @@ WHERE files.file_id IS NULL;
   return Number(orphanRow.count) === 0;
 }
 
-/** @param {string[]} expectedFiles @param {string} message */
-async function eventuallyStoredFilesEqual(expectedFiles, message) {
+/**
+ * Every stored file must belong to a file record, and every local record to a stored file. The
+ * route answers a failed upload before the service's storage cleanup settles, so a partial file
+ * can appear after the response, and one check's leftover can surface during the next. A disk
+ * snapshot taken before an upload therefore races; the recorded storage keys state the property.
+ * @param {string} message
+ */
+async function eventuallyNoUnrecordedStoredFiles(message) {
   /** @type {string[]} */
-  let lastFiles = [];
+  let storedFiles = [];
+  /** @type {string[]} */
+  let recordedKeys = [];
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    lastFiles = await listStoredFiles(config.storage.localRoot);
+    [storedFiles, recordedKeys] = await Promise.all([listStoredFiles(config.storage.localRoot), listRecordedLocalStorageKeys()]);
     try {
-      assert.deepEqual(lastFiles, expectedFiles);
+      assert.deepEqual(storedFiles, recordedKeys);
       return;
     } catch {
       await delay(50);
     }
   }
 
-  assert.deepEqual(lastFiles, expectedFiles, message);
+  assert.deepEqual(storedFiles, recordedKeys, message);
+}
+
+async function listRecordedLocalStorageKeys() {
+  const rows = await querySql(`
+SELECT storage_key
+FROM files
+WHERE storage_provider = ${sqlText("local")};
+`);
+  return rows.map((row) => String(/** @type {{ storage_key: unknown }} */ (row).storage_key)).sort();
 }
 
 /** @param {string} directory */
