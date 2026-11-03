@@ -61,6 +61,11 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
   - **Why it does not reach users:** `minimatch` is development-only, and is absent from the image. An attacker must supply the glob, and ESLint reads only this repository's own configured globs. `release.dependency-baseline` fails if it ever reaches the runtime graph.
   - **Owner:** whoever next upgrades ESLint. Take the fix when ESLint allows `minimatch` 11.
   - **Consequence:** `npm audit` reports four moderate entries, all this one advisory through ESLint's graph. The production audit reports none.
+- **`task-dialog-context-consumers` and `notes-editor-lifecycle` are intermittent.** Neither has been diagnosed.
+  - **On 2026-11-02:** both passed on retry in the dependency fold's browser run, on Playwright 1.64.1. `task-dialog-context-consumers` needed a retry on both desktop and mobile.
+  - **On 2026-10-24:** both also passed on retry, on Playwright 1.62.1, so the Playwright update did not cause them.
+  - **Owner:** browser test maintenance.
+  - **Consequence:** an occasional retry. It must never be green-controlled.
 
 ## Post-release Patches
 
