@@ -124,4 +124,7 @@ jobs:
             scripts/release/longtail-forge-public-demo-reset-alert.example \
             scripts/release/longtail-forge-public-demo-reset.service.example \
             scripts/release/longtail-forge-public-demo-reset.timer.example \
+            scripts/release/longtail-forge-public-demo-boot-host.example \
+            scripts/release/longtail-forge-public-demo-boot.service.example \
+            scripts/release/clamav-daemon-socket-freebind.conf.example \
             --verify-tag --title "Longtail Forge $TAG" --generate-notes $DRAFT_FLAG
