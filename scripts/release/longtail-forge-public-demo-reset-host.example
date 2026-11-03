@@ -305,7 +305,7 @@ run_activation() {
     arguments+=(--operation-id "$OPERATION_ID" --confirm-quiescent 'COMPOSE SQLITE USERS STOPPED')
   elif test "$action" = 'recover'; then
     arguments+=(--confirm-quiescent 'COMPOSE SQLITE USERS STOPPED')
-  elif test "$action" = 'finalize'; then
+  elif test "$action" = 'finalize' || test "$action" = 'quarantine-stale'; then
     arguments+=(--operation-id "$OPERATION_ID")
   fi
   compose run --rm --no-deps --user 0:0 --cap-add DAC_OVERRIDE longtail-forge \
