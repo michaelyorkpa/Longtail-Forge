@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["dependencies", "markdown", "release", "tooling"],
-  description: "Pins the reviewed ESLint 10.11, Node types 26.6.3, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
+  description: "Pins the reviewed ESLint 10.13, Node types 26.6.5, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
   runMode: "static",
 });
 
@@ -27,16 +27,21 @@ const linkifyItLock = requireLockEntry(packageLock, "node_modules/linkify-it");
 const mdurlLock = requireLockEntry(packageLock, "node_modules/mdurl");
 const ucMicroLock = requireLockEntry(packageLock, "node_modules/uc.micro");
 
-assert.equal(requireDevDependencies(packageJson).eslint, "^10.11.0", "ESLint should use the reviewed 10.11 development baseline");
+assert.equal(requireDevDependencies(packageJson).eslint, "^10.13.0", "ESLint should use the reviewed 10.13 development baseline");
 assert.equal(requireDependencies(packageJson).eslint, undefined, "ESLint must remain development-only tooling");
-assert.equal(requireDevDependencies(rootLock, "package-lock.json root").eslint, "^10.11.0", "the lockfile root should match the ESLint package contract");
-assert.equal(eslintLock.version, "10.11.0", "the resolved ESLint baseline should remain 10.11.0");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root").eslint, "^10.13.0", "the lockfile root should match the ESLint package contract");
+assert.equal(eslintLock.version, "10.13.0", "the resolved ESLint baseline should remain 10.13.0");
 assert.equal(eslintLock.dev, true, "the resolved ESLint package must remain development-only");
-assert.match(requireEngines(eslintLock, "eslint lock entry").node, />=24/, "ESLint 10.11 should declare support for the repository's Node 24 runtime line");
+assert.match(requireEngines(eslintLock, "eslint lock entry").node, />=24/, "ESLint 10.13 should declare support for the repository's Node 24 runtime line");
 assert.equal(requireDependencies(eslintLock, "eslint lock entry")["@eslint/config-helpers"], "^0.7.0", "ESLint should retain its reviewed config-helpers range");
 assert.equal(eslintConfigHelpersLock.version, "0.7.0", "config-helpers should resolve to the reviewed 0.7 baseline");
 assert.equal(requireDependencies(eslintLock, "eslint lock entry").minimatch, "^10.2.5", "ESLint should retain its reviewed minimatch range");
 assert.equal(minimatchLock.version, "10.2.5", "minimatch should resolve to the reviewed 10.2.5 baseline");
+// GHSA-g3hv-75wg-m249 (moderate, published 2026-10-30) names every minimatch below 11.0.1, and every
+// ESLint 10 release and `@eslint/config-array` stop at ^10, so no compatible fix exists. An attacker must
+// supply the glob, and ESLint reads only this repository's own configured globs. The finding is accepted
+// until ESLint allows 11, on the condition this assertion holds: it never reaches the runtime graph.
+assert.equal(minimatchLock.dev, true, "minimatch carries an accepted development-only advisory and must stay out of the runtime graph");
 
 // `0.33.33.49`: ESLint 10.10 moved its result cache to file-entry-cache 11, whose graph comes from
 // jaredwray/cacheable and jaredwray/keyv. Ten of those packages were compromised on 2026-08-04 with a
@@ -76,12 +81,12 @@ assert.equal(requireDevDependencies(rootLock, "package-lock.json root").espree, 
 assert.equal(espreeLock.version, "11.2.0", "the resolved espree should remain the version ESLint already uses");
 assert.equal(espreeLock.dev, true, "the resolved espree package must remain development-only");
 
-assert.equal(requireDevDependencies(packageJson)["@types/node"], "^26.6.3", "Node types should use the reviewed 26.6.3 development baseline");
+assert.equal(requireDevDependencies(packageJson)["@types/node"], "^26.6.5", "Node types should use the reviewed 26.6.5 development baseline");
 assert.equal(requireDependencies(packageJson)["@types/node"], undefined, "Node types must remain development-only tooling");
-assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@types/node"], "^26.6.3", "the lockfile root should match the Node types package contract");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@types/node"], "^26.6.5", "the lockfile root should match the Node types package contract");
 assert.equal(requireDependencies(rootLock, "package-lock.json root")["@types/node"], undefined, "the lockfile root must not promote Node types to a runtime dependency");
 // `0.33.33.49`: newer Node declarations do not widen the supported runtime; the engine pin below stays Node 24.
-assert.equal(nodeTypesLock.version, "26.6.3", "the resolved Node types baseline should remain 26.6.3");
+assert.equal(nodeTypesLock.version, "26.6.5", "the resolved Node types baseline should remain 26.6.5");
 assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must remain development-only");
 assert.equal(requireEngines(packageJson).node, ">=24.22.1 <25", "the repository should retain its supported Node 24 range");
 assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.3": true }, "the approved lifecycle-script allowlist must remain unchanged");
@@ -140,12 +145,16 @@ assert.equal(requireLockPackages(packageLock)["node_modules/js-yaml"], undefined
 
 // The `v0.33.33` post-release patch took the fixed releases for three advisories published on
 // 2026-10-05: compression 1.8.2 (GHSA-vc2v-76pw-4v95), proxy-addr 2.0.8 (GHSA-jqcg-44mw-7w3h), and
-// the development-only source-map-js 1.2.2 (GHSA-68fv-2mgg-jv7q). A later refresh may move past
+// the development-only source-map-js 1.2.2 (GHSA-68fv-2mgg-jv7q). The restart-recovery patch's
+// dependency fold added ip-address 10.7.4 (GHSA-rxp7-6hxx-x8q5) and the development-only
+// @vitest/mocker 4.1.12 (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp). A later refresh may move past
 // them, but never back below.
 for (const [packagePath, fixedVersion] of /** @type {readonly (readonly [string, string])[]} */ ([
   ["node_modules/compression", "1.8.2"],
   ["node_modules/proxy-addr", "2.0.8"],
   ["node_modules/source-map-js", "1.2.2"],
+  ["node_modules/ip-address", "10.7.4"],
+  ["node_modules/@vitest/mocker", "4.1.12"],
 ])) {
   const resolvedVersion = requireManifestString(requireLockEntry(packageLock, packagePath), "version", `${packagePath} lock entry`);
   assert.ok(compareDottedVersions(resolvedVersion, fixedVersion) >= 0, `${packagePath} must stay at or above its fixed ${fixedVersion}, not ${resolvedVersion}`);
