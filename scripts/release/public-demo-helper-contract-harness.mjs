@@ -51,6 +51,36 @@ const HEARTBEAT_URL = "https://uptime.harness.test/api/push/HarnessToken123?stat
 const IMAGE = `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"a".repeat(64)}`;
 const IDENTITY = Object.freeze({ version: "0.33.33.53", commitSha: "c".repeat(40), artifact: "d".repeat(64) });
 
+// Each seed is one defect in a real helper, with the scenario that must catch it. The harness applies
+// it to a copy of the helper, reruns every scenario, and fails if the named one still passes.
+/** @typedef {{ label: string, helper: "boot" | "alert" | "scheduler" | "reset", from: string, to: string, caughtBy: string }} Seed */
+/** @type {readonly Seed[]} */
+const SEEDS = Object.freeze([
+  { label: "the boot ignores an operator hold", helper: "boot", from: "if test -e \"$OPERATOR_HOLD\" || test -L \"$OPERATOR_HOLD\"; then\n  stop_with_alert 'boot-held'", to: "if false; then\n  stop_with_alert 'boot-held'", caughtBy: "an operator hold stops the boot" },
+  { label: "the boot ignores a deployment marker", helper: "boot", from: "if test -e \"$DEPLOYMENT_MARKER\" || test -L \"$DEPLOYMENT_MARKER\"; then\n  stop_with_alert 'boot-marker-present'", to: "if false; then\n  stop_with_alert 'boot-marker-present'", caughtBy: "a deployment marker stops the boot" },
+  {
+    label: "the boot does not check the database",
+    helper: "boot",
+    // Every database check goes, or a remaining one would still refuse the missing file.
+    from: "  test -f \"$mountpoint/longtail-forge.db\" && test ! -L \"$mountpoint/longtail-forge.db\"\n  test -d \"$mountpoint/files\" && test ! -L \"$mountpoint/files\"\n  test \"$(stat -c '%u' \"$mountpoint/longtail-forge.db\")\" = '10001'\n  test \"$(stat -c '%u' \"$mountpoint/files\")\" = '10001'\n  test -s \"$mountpoint/longtail-forge.db\"\n",
+    to: "  test -d \"$mountpoint/files\" && test ! -L \"$mountpoint/files\"\n  test \"$(stat -c '%u' \"$mountpoint/files\")\" = '10001'\n",
+    caughtBy: "a missing database stops the boot",
+  },
+  { label: "the boot does not check the cached image", helper: "boot", from: "  docker image inspect --format '{{.Id}}' \"$IMAGE_REFERENCE\" >/dev/null\n", to: "", caughtBy: "an image missing from the local cache" },
+  { label: "the boot skips its scanner wait", helper: "boot", from: "wait_until scanner \"$SCANNER_WAIT\" scanner_answers ||", to: "true ||", caughtBy: "a scanner that never answers" },
+  { label: "the boot starts without enforcing isolation", helper: "boot", from: "run_check isolation public_demo_isolation enforce", to: "run_check isolation true", caughtBy: "a boot with no missed boundary" },
+  { label: "the boot starts without the curtain", helper: "boot", from: "install -o root -g root -m 0644 /dev/null \"$DEPLOYMENT_MARKER\"\nmapfile", to: "true\nmapfile", caughtBy: "a boot with no missed boundary" },
+  { label: "the boot never resets after a missed boundary", helper: "boot", from: "[[ \"$LATEST_COMPLETED\" < \"$LAST_BOUNDARY\" ]]", to: "[[ \"$LATEST_COMPLETED\" < \"0\" ]]", caughtBy: "a missed boundary runs a fresh reset" },
+  { label: "the boot's reset does not inherit the lock", helper: "boot", from: "--confirm \"$RESET_CONFIRMATION\" > \"$OPERATION_DIR/reset.out\"", to: "--confirm \"$RESET_CONFIRMATION\" 9>&- > \"$OPERATION_DIR/reset.out\"", caughtBy: "a missed boundary runs a fresh reset" },
+  { label: "alerts allow mentions", helper: "alert", from: "allowed_mentions:{parse:[]}", to: "allowed_mentions:{parse:[\"everyone\"]}", caughtBy: "notify posts the bounded fields" },
+  { label: "the URL reaches curl's argv", helper: "alert", from: "printf 'url = \"%s\"\\n' \"$url\" | curl --config -", to: "printf '' | curl \"$url\" --config -", caughtBy: "notify posts the bounded fields" },
+  { label: "a readable webhook file is accepted", helper: "alert", from: "test \"$(stat -c '%u:%g:%a' \"$file\")\" = '0:0:600' ||", to: "true ||", caughtBy: "notify refuses a webhook file another user could read" },
+  { label: "any https URL passes as a Discord webhook", helper: "alert", from: "  [[ \"$url\" =~ $pattern ]] || fail", to: "  true || fail", caughtBy: "notify refuses a non-Discord host" },
+  { label: "the scheduler ignores an operator hold", helper: "scheduler", from: "if test -e \"$OPERATOR_HOLD\" || test -L \"$OPERATOR_HOLD\"; then\n  append_event 'finished' 'skipped-held'", to: "if false; then\n  append_event 'finished' 'skipped-held'", caughtBy: "the scheduler records a held run" },
+  { label: "the scheduler sends no heartbeat", helper: "scheduler", from: "    \"$ALERT_HELPER\" heartbeat --target", to: "    true heartbeat --target", caughtBy: "the scheduler sends the heartbeat" },
+  { label: "the reset ignores an operator hold", helper: "reset", from: "if test -e \"$OPERATOR_HOLD\" || test -L \"$OPERATOR_HOLD\"; then fail", to: "if false; then fail", caughtBy: "the reset helper refuses under a hold" },
+]);
+
 /** @typedef {{ dockerDown?: boolean, imageMissing?: boolean, health?: string, bridgeAfter?: number | null, scannerAfter?: number | null, curlFails?: boolean, resetExit?: number }} Scenario */
 /** @typedef {{ tool: string, markerPresent: boolean, args: string[], stdin?: string, lockInherited?: boolean, isolationEnforced?: boolean }} Call */
 /** @typedef {{ root: string, state: string, helperEnv: string, deployRoot: string, volume: string, marker: string, isolation: string }} Sandbox */
@@ -225,17 +255,20 @@ async function main() {
 
   /** @type {{ name: string, ok: boolean, detail?: string }[]} */
   const outcomes = [];
+  let recorded = outcomes;
+  let quiet = false;
   let ordinal = 0;
+  const helpers = { boot: BOOT_HELPER, alert: ALERT_HELPER, scheduler: SCHEDULER_HELPER, reset: RESET_HELPER };
   /** @param {string} name @param {(box: Sandbox) => void} body @param {Scenario} [scenario] */
   const scenario = (name, body, scenario = {}) => {
     const box = createSandbox(work, (ordinal += 1), scenario);
     try {
       body(box);
-      outcomes.push({ name, ok: true });
-      console.log(`PASS ${name}`);
+      recorded.push({ name, ok: true });
+      if (!quiet) console.log(`PASS ${name}`);
     } catch (error) {
-      outcomes.push({ name, ok: false, detail: error instanceof Error ? error.stack || error.message : String(error) });
-      console.log(`FAIL ${name}\n${error instanceof Error ? error.message : String(error)}`);
+      recorded.push({ name, ok: false, detail: error instanceof Error ? error.stack || error.message : String(error) });
+      if (!quiet) console.log(`FAIL ${name}\n${error instanceof Error ? error.message : String(error)}`);
     } finally {
       for (const fixed of [FIXED.hold, FIXED.webhook, FIXED.heartbeat, FIXED.schedulerEnv]) fs.rmSync(fixed, { force: true });
     }
@@ -249,15 +282,15 @@ async function main() {
     return { status: result.status ?? 1, stdout: String(result.stdout), stderr: String(result.stderr), calls: readCalls(box) };
   };
   /** @param {Sandbox} box */
-  const boot = (box) => runHelper(box, BOOT_HELPER, ["run"]);
+  const boot = (box) => runHelper(box, helpers.boot, ["run"]);
   const notifyArgs = ["notify", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-scheduled-42", "--trigger", "scheduled",
     "--scheduled-boundary", "2026-11-03T17:00:00Z", "--failure-class", "reset-failed-unrecovered", "--recovery-status", "maintenance-curtain-retained", "--exit-code", "1"];
 
-  try {
+  const runScenarios = () => {
     // The alert boundary.
     scenario("notify posts the bounded fields to Discord, with mentions disabled and the URL only on standard input", (box) => {
       writeFixed(FIXED.webhook, `${WEBHOOK_URL}\n`);
-      const result = runHelper(box, ALERT_HELPER, notifyArgs);
+      const result = runHelper(box, helpers.alert, notifyArgs);
       assert.equal(result.status, 0, result.stderr);
       const curl = only(result.calls, "curl");
       assert.equal(String(curl.stdin), `url = "${WEBHOOK_URL}"\n`);
@@ -269,7 +302,7 @@ async function main() {
       assert.match(only(result.calls, "logger").args.join(" "), /failureClass=reset-failed-unrecovered/);
     });
     scenario("notify without a webhook file reaches only the journal, and reports failure", (box) => {
-      const result = runHelper(box, ALERT_HELPER, notifyArgs);
+      const result = runHelper(box, helpers.alert, notifyArgs);
       assert.equal(result.status, 1);
       assert.match(result.stderr, /not configured; the alert reached only the local journal/);
       assert.equal(result.calls.filter((call) => call.tool === "curl").length, 0);
@@ -277,7 +310,7 @@ async function main() {
     });
     scenario("notify refuses a webhook file another user could read, before any request", (box) => {
       writeFixed(FIXED.webhook, `${WEBHOOK_URL}\n`, 0o644);
-      const result = runHelper(box, ALERT_HELPER, notifyArgs);
+      const result = runHelper(box, helpers.alert, notifyArgs);
       assert.equal(result.status, 1);
       assert.match(result.stderr, /must be root:root with mode 0600/);
       assert.equal(result.calls.filter((call) => call.tool === "curl").length, 0);
@@ -285,7 +318,7 @@ async function main() {
     for (const [label, url] of [["a non-Discord host", "https://discord.example.com/api/webhooks/123456789012345678/abc"], ["plain HTTP", WEBHOOK_URL.replace("https:", "http:")], ["a second line", `${WEBHOOK_URL}\n${WEBHOOK_URL}`]]) {
       scenario(`notify refuses ${label} in the webhook file, before any request`, (box) => {
         writeFixed(FIXED.webhook, `${url}\n`);
-        const result = runHelper(box, ALERT_HELPER, notifyArgs);
+        const result = runHelper(box, helpers.alert, notifyArgs);
         assert.equal(result.status, 1);
         assert.equal(result.calls.filter((call) => call.tool === "curl").length, 0);
         assert.ok(!`${result.stdout}${result.stderr}`.includes("123456789012345678"), "a refused URL must not be echoed");
@@ -293,32 +326,32 @@ async function main() {
     }
     scenario("a rejected delivery reports failure without naming the URL", (box) => {
       writeFixed(FIXED.webhook, `${WEBHOOK_URL}\n`);
-      const result = runHelper(box, ALERT_HELPER, notifyArgs);
+      const result = runHelper(box, helpers.alert, notifyArgs);
       assert.equal(result.status, 1);
       assert.match(result.stderr, /Discord did not accept the alert/);
       assert.ok(!`${result.stdout}${result.stderr}`.includes(WEBHOOK_TOKEN), "the webhook must never reach output");
     }, { curlFails: true });
     scenario("notify refuses an unbounded field before the journal", (box) => {
-      const result = runHelper(box, ALERT_HELPER, notifyArgs.map((arg) => (arg === "reset-failed-unrecovered" ? "reset failed; see /etc/shadow" : arg)));
+      const result = runHelper(box, helpers.alert, notifyArgs.map((arg) => (arg === "reset-failed-unrecovered" ? "reset failed; see /etc/shadow" : arg)));
       assert.equal(result.status, 1);
       assert.match(result.stderr, /failure class is invalid/);
       assert.equal(result.calls.length, 0);
     });
     scenario("heartbeat sends one GET with the URL only on standard input", (box) => {
       writeFixed(FIXED.heartbeat, `${HEARTBEAT_URL}\n`);
-      const result = runHelper(box, ALERT_HELPER, ["heartbeat", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-boot-7", "--event", "boot"]);
+      const result = runHelper(box, helpers.alert, ["heartbeat", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-boot-7", "--event", "boot"]);
       assert.equal(result.status, 0, result.stderr);
       const curl = only(result.calls, "curl");
       assert.equal(String(curl.stdin), `url = "${HEARTBEAT_URL}"\n`);
       assert.ok(!curl.args.some((arg) => arg.includes("HarnessToken123") || arg === "--data-binary"), "the heartbeat sends no data and no URL in argv");
     });
     scenario("heartbeat without a URL file reports not configured", (box) => {
-      const result = runHelper(box, ALERT_HELPER, ["heartbeat", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-boot-7", "--event", "reset"]);
+      const result = runHelper(box, helpers.alert, ["heartbeat", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-boot-7", "--event", "reset"]);
       assert.equal(result.status, 2);
       assert.equal(result.calls.length, 0);
     });
     scenario("heartbeat refuses alert fields", (box) => {
-      const result = runHelper(box, ALERT_HELPER, ["heartbeat", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-boot-7", "--event", "boot", "--failure-class", "boot-held"]);
+      const result = runHelper(box, helpers.alert, ["heartbeat", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-boot-7", "--event", "boot", "--failure-class", "boot-held"]);
       assert.equal(result.status, 1);
       assert.match(result.stderr, /heartbeat accepts only/);
     });
@@ -419,7 +452,7 @@ async function main() {
     scenario("the scheduler records a held run, without a reset or an alert", (box) => {
       writeFixed(FIXED.hold, "");
       writeSchedulerEnv(box, fakeBin);
-      const result = runHelper(box, SCHEDULER_HELPER, ["run", "--trigger", "scheduled"]);
+      const result = runHelper(box, helpers.scheduler, ["run", "--trigger", "scheduled"]);
       assert.equal(result.status, 0, result.stderr);
       const log = readJsonLines(path.join(box.root, "log", "public-demo-reset.jsonl"));
       assert.equal(log.at(-1)?.outcome, "skipped-held");
@@ -428,18 +461,49 @@ async function main() {
     scenario("the scheduler sends the heartbeat after a successful reset, and records it", (box) => {
       writeFixed(FIXED.heartbeat, `${HEARTBEAT_URL}\n`);
       writeSchedulerEnv(box, fakeBin);
-      const result = runHelper(box, SCHEDULER_HELPER, ["run", "--trigger", "scheduled"]);
+      const result = runHelper(box, helpers.scheduler, ["run", "--trigger", "scheduled"]);
       assert.equal(result.status, 0, result.stderr);
       const finished = readJsonLines(path.join(box.root, "log", "public-demo-reset.jsonl")).at(-1);
       assert.deepEqual([finished?.outcome, finished?.heartbeatOutcome], ["succeeded", "delivered"]);
     });
     scenario("the reset helper refuses under a hold before any Docker call", (box) => {
       writeFixed(FIXED.hold, "");
-      const result = runHelper(box, RESET_HELPER, ["reset", "--target", "rt-ltf-demo", "--anchor-date", "today", "--confirm", "RESET RT-LTF-DEMO COMPOSE DATA"]);
+      const result = runHelper(box, helpers.reset, ["reset", "--target", "rt-ltf-demo", "--anchor-date", "today", "--confirm", "RESET RT-LTF-DEMO COMPOSE DATA"]);
       assert.equal(result.status, 1);
       assert.match(result.stderr, /an operator hold is in place/);
       assert.equal(result.calls.filter((call) => call.tool === "docker").length, 0);
     });
+  };
+
+  /** @type {{ label: string, caught: boolean, failed: string[] }[]} */
+  const seedResults = [];
+  try {
+    runScenarios();
+    if (outcomes.every((outcome) => outcome.ok)) {
+      for (const seed of SEEDS) {
+        const source = fs.readFileSync(helpers[seed.helper], "utf8");
+        const occurrences = source.split(seed.from).length - 1;
+        assert.equal(occurrences, 1, `seed "${seed.label}": its anchor occurs ${occurrences} times`);
+        const mutated = path.join(work, `seed-${seedResults.length + 1}-${path.basename(helpers[seed.helper])}`);
+        fs.writeFileSync(mutated, source.replace(seed.from, () => seed.to), { mode: 0o755 });
+        const original = helpers[seed.helper];
+        helpers[seed.helper] = mutated;
+        if (seed.helper === "alert") install(mutated, FIXED.installedAlert, 0o755);
+        recorded = [];
+        quiet = true;
+        try {
+          runScenarios();
+        } finally {
+          quiet = false;
+          helpers[seed.helper] = original;
+          if (seed.helper === "alert") install(original, FIXED.installedAlert, 0o755);
+        }
+        const failed = recorded.filter((outcome) => !outcome.ok).map((outcome) => outcome.name);
+        const caught = failed.some((name) => name.startsWith(seed.caughtBy));
+        seedResults.push({ label: seed.label, caught, failed });
+        console.log(`${caught ? "CAUGHT  " : "SURVIVED"} seed: ${seed.label}${caught ? "" : ` (failed: ${failed.join("; ") || "nothing"})`}`);
+      }
+    }
   } finally {
     restoreHost(work, created);
   }
@@ -447,7 +511,9 @@ async function main() {
   const failures = outcomes.filter((outcome) => !outcome.ok);
   console.log(`\nPublic-demo helper contract: ${outcomes.length - failures.length}/${outcomes.length} scenarios passed.`);
   for (const failure of failures) console.log(`\n--- ${failure.name}\n${failure.detail}`);
-  if (failures.length > 0) process.exitCode = 1;
+  const survivors = seedResults.filter((seed) => !seed.caught);
+  if (failures.length === 0) console.log(`Seeded helper defects: ${seedResults.length - survivors.length}/${SEEDS.length} caught.`);
+  if (failures.length > 0 || survivors.length > 0 || seedResults.length !== SEEDS.length) process.exitCode = 1;
 }
 
 /**
