@@ -935,7 +935,9 @@ function assertDemoIsolation(host) {
  * report every container image created while it ran.
  * @param {DemoHost} host @param {number} ordinal @param {string} [interruptAtPhase]
  * @param {{ helper?: string, killAtStep?: string }} [variant] another helper's bytes, or a SIGKILL
- *   once the operation records that step, which leaves no exit trap to run, as a Docker restart did
+ *   of the reset's whole process group once the operation records that step. That leaves no exit
+ *   trap to run, as a Docker restart did. Each step runs in a forked subshell that shares the lock's
+ *   descriptor, so killing only the parent would leave that subshell holding the lock.
  * @returns {Promise<HelperRun & { operationId: string, images: string[] }>}
  */
 async function runReset(host, ordinal, interruptAtPhase, { helper = host.resetHelper, killAtStep } = {}) {
@@ -944,6 +946,8 @@ async function runReset(host, ordinal, interruptAtPhase, { helper = host.resetHe
   const started = Date.now();
   const child = spawn("bash", [helper, "reset", "--target", DEMO_TARGET, "--anchor-date", "today", "--operation-id", operationId, "--confirm", RESET_CONFIRMATION], {
     env: { PATH: "/usr/sbin:/usr/bin:/sbin:/bin", HOME: "/root", LANG: "C.UTF-8", LTF_COMPOSE_HELPER_ENV: host.helperEnv },
+    // Its own process group, so a kill reaches every process the reset started.
+    detached: Boolean(killAtStep),
   });
   let stdout = "";
   let stderr = "";
@@ -987,15 +991,35 @@ async function runReset(host, ordinal, interruptAtPhase, { helper = host.resetHe
       assert.ok(Date.now() < deadline, `timed out waiting for reset step ${killAtStep}`);
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    child.kill("SIGKILL");
+    assert.equal(typeof child.pid, "number", "the reset must have a process to kill");
+    process.kill(-(/** @type {number} */ (child.pid)), "SIGKILL");
   }
   const status = /** @type {number} */ (await exited);
+  if (killAtStep) await expectKilledResetGone(host, /** @type {number} */ (child.pid));
   const until = Math.floor(Date.now() / 1000) + 1;
   const images = [...new Set(docker(["events", "--since", String(since), "--until", String(until), "--filter", "type=container",
     "--filter", "event=create", "--format", "{{.Actor.Attributes.image}}"]).split("\n").filter(Boolean))].sort();
   const seconds = Math.round((Date.now() - started) / 100) / 10;
   console.log(`[reset ${operationId}] exit ${status} in ${seconds}s${status === 0 ? "" : `: ${lastLine(stderr)}`}`);
   return { status, stdout, stderr, seconds, operationId, images };
+}
+
+/**
+ * A killed reset leaves no process behind, as a power loss or Docker restart does, so the next
+ * reset meets only what it left on disk, never a survivor still holding the host lock.
+ * @param {Host} host @param {number} processGroup
+ */
+async function expectKilledResetGone(host, processGroup) {
+  await waitFor("every process of the killed reset to exit", () => {
+    try {
+      process.kill(-processGroup, 0);
+      return false;
+    } catch (error) {
+      return /** @type {NodeJS.ErrnoException} */ (error).code === "ESRCH";
+    }
+  }, 10_000);
+  const lock = path.join(host.deployRoot, "compose-operation.lock");
+  assert.equal(spawnSync("flock", ["-n", lock, "true"]).status, 0, "the killed reset must leave the host lock free");
 }
 
 /** @param {Host} host @param {string} operationId @param {string} name @returns {unknown} */
