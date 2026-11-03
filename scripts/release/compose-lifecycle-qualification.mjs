@@ -69,7 +69,7 @@ const ISOLATION_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-pub
 const RESET_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-reset-host.example");
 // The reset helper the October Node security release shipped, kept so that each restart-recovery
 // reproducer can show the October behaviour failing before this patch's helper passes.
-const OCTOBER_RESET_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/v0.33.33.52-longtail-forge-public-demo-reset-host.example");
+const OCTOBER_RESET_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/october-node-security-release-public-demo-reset-host.example");
 const BOOT_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-boot-host.example");
 const BOOT_UNIT = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-boot.service.example");
 const ALERT_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-reset-alert.example");

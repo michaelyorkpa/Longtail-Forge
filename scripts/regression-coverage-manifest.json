@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19190,
+    "activeAssertionCount": 19191,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 77,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 20029,
+    "effectiveAssertionCount": 20030,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -5799,8 +5799,8 @@
     },
     {
       "area": "framework",
-      "assertionCount": 66,
-      "contractAssertionCount": 65,
+      "assertionCount": 67,
+      "contractAssertionCount": 66,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/framework/http-error-development-guardrails.contract.mjs",
@@ -5816,7 +5816,7 @@
         },
         {
           "path": "scripts/regression-contracts/framework/password-startup-checked-core.contract.mjs",
-          "assertionCount": 19
+          "assertionCount": 20
         }
       ],
       "description": "Runs source-only authentication, identifier, Markdown-safety, and HTTP-error guardrails through one table-driven owner.",
