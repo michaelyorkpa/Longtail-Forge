@@ -38,8 +38,10 @@ const LISTEN = `${SOCKET_DROP_INS}/zz-ltf-reproducer-listen.conf`;
 const FREEBIND = `${SOCKET_DROP_INS}/zz-ltf-freebind.conf`;
 const CONDITION = `${SERVICE_DROP_INS}/zz-ltf-reproducer-signatures.conf`;
 const SOCKET_CONDITION = `${SOCKET_DROP_INS}/zz-ltf-reproducer-signatures.conf`;
-const DATABASE = "/var/lib/ltf-clamav-reproducer";
-const CLAMD_CONF = "/etc/clamav/clamd.conf";
+// The packaged signature directory. Ubuntu's AppArmor profile lets clamd read signatures only there,
+// so the one test signature goes beside whatever freshclam may have fetched, and clamd.conf is
+// left unchanged.
+const SIGNATURE = "/var/lib/clamav/ltf-reproducer.hdb";
 
 const options = parseOptions(process.argv.slice(2));
 /** @type {Record<string, unknown>} */
@@ -56,7 +58,7 @@ async function main() {
     process.exit(elevated.status ?? 1);
   }
   assert.equal(show("clamav-daemon.socket", "LoadState"), "loaded", "the clamav-daemon package is required");
-  for (const target of [LISTEN, FREEBIND, CONDITION, SOCKET_CONDITION, DATABASE]) assert.equal(fs.existsSync(target), false, `${target} already exists; refusing to run`);
+  for (const target of [LISTEN, FREEBIND, CONDITION, SOCKET_CONDITION, SIGNATURE]) assert.equal(fs.existsSync(target), false, `${target} already exists; refusing to run`);
   assert.notEqual(spawnSync("ip", ["link", "show", BRIDGE]).status, 0, `${BRIDGE} already exists; refusing to run`);
   assert.ok(!capture("ip", ["-4", "-o", "addr"]).includes(` ${ADDRESS}/`), `${ADDRESS} already exists; refusing to run`);
 
@@ -97,14 +99,10 @@ function prepare() {
     spawnSync("systemctl", ["reset-failed", "clamav-daemon.socket", "clamav-daemon.service"]);
   });
 
-  fs.mkdirSync(DATABASE, { mode: 0o755 });
-  cleanups.push(() => { fs.rmSync(DATABASE, { recursive: true, force: true }); });
-  fs.writeFileSync(path.join(DATABASE, "ltf-reproducer.hdb"), "44d88612fea8a8f36de82e1278abb02f:68:Ltf.Reproducer.Signature\n");
-  run("chown", ["-R", "clamav:clamav", DATABASE]);
-  const originalConf = fs.readFileSync(CLAMD_CONF, "utf8");
-  cleanups.push(() => { fs.writeFileSync(CLAMD_CONF, originalConf); });
-  const lines = originalConf.split("\n").filter((line) => !/^\s*DatabaseDirectory\s/.test(line));
-  fs.writeFileSync(CLAMD_CONF, `${lines.join("\n").trimEnd()}\nDatabaseDirectory ${DATABASE}\n`);
+  cleanups.push(() => { fs.rmSync(SIGNATURE, { force: true }); });
+  fs.writeFileSync(SIGNATURE, "44d88612fea8a8f36de82e1278abb02f:68:Ltf.Reproducer.Signature\n", { mode: 0o644 });
+  run("chown", ["clamav:clamav", SIGNATURE]);
+  evidence.signatureDirectory = fs.readdirSync(path.dirname(SIGNATURE)).sort();
 
   fs.mkdirSync(SOCKET_DROP_INS, { recursive: true });
   fs.mkdirSync(SERVICE_DROP_INS, { recursive: true });
@@ -159,7 +157,8 @@ async function answerOnceTheBridgeExists() {
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
   const listeners = tcpListenersOn(PORT);
-  evidence.afterBridge = { attempts, reply, seconds: Math.round((Date.now() - started) / 1000), service: show("clamav-daemon.service", "ActiveState"), listeners };
+  const serviceJournal = capture("journalctl", ["--unit", "clamav-daemon.service", "--no-pager", "--output", "cat", "--lines", "25"]);
+  evidence.afterBridge = { attempts, reply, seconds: Math.round((Date.now() - started) / 1000), service: show("clamav-daemon.service", "ActiveState"), listeners, serviceJournal: serviceJournal.trim().split("\n") };
   assert.ok(reply.startsWith("PONG"), `clamd must answer PING on ${ADDRESS}:${PORT}, last reply ${JSON.stringify(reply)}`);
   assert.deepEqual(listeners, [`${ADDRESS}:${PORT}`], "a running clamd must still listen only on the exact address");
 }
