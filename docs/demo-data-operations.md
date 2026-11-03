@@ -46,7 +46,7 @@ install -o root -g root -m 0755 \
   /usr/local/sbin/longtail-forge-public-demo-isolation
 ```
 
-Install the scheduler boundary from the same release. The example alert writes one bounded `daemon.alert` event; replace its implementation with the host's paging integration while preserving the exact argument allowlist. The scheduler refuses missing, writable, or non-root helper files.
+Install the scheduler boundary from the same release. The alert helper writes one bounded `daemon.alert` event to the local journal, then posts the same fields to the operator's Discord webhook with mentions disabled; see [Alerts and heartbeat](#alerts-and-heartbeat). The scheduler refuses missing, writable, or non-root helper files.
 
 ```sh
 install -o root -g root -m 0755 scripts/release/longtail-forge-public-demo-reset-scheduler-host.example /usr/local/sbin/longtail-forge-public-demo-reset-scheduler
@@ -57,6 +57,17 @@ install -o root -g root -m 0644 scripts/release/longtail-forge-public-demo-reset
 systemctl daemon-reload
 systemctl enable --now longtail-forge-public-demo-reset.timer
 ```
+
+Install the protected boot from the same release, and enable it so that Docker pulls it in each time it starts. Do not start it by hand: it runs on the next Docker start, or run its helper directly under the procedure in [Protected boot](#protected-boot).
+
+```sh
+install -o root -g root -m 0755 scripts/release/longtail-forge-public-demo-boot-host.example /usr/local/sbin/longtail-forge-public-demo-boot
+install -o root -g root -m 0644 scripts/release/longtail-forge-public-demo-boot.service.example /etc/systemd/system/longtail-forge-public-demo-boot.service
+systemctl daemon-reload
+systemctl enable longtail-forge-public-demo-boot.service
+```
+
+**Upgrading an installed demo to the restart-recovery helpers.** The new reset helper calls an activation action that only the restart-recovery image contains. Disable the timer first, install every helper and unit from the same release, deploy that release with the deploy helper, run one manual reset, and only then re-enable the timer. A scheduled reset that ran between the helper install and the deployment would fail at its stale-candidate step.
 
 Both lifecycle helpers read `/etc/longtail-forge/compose-deploy-helper.env`, which must remain a real `root:root` file with mode `0600` beneath a root-owned non-writable parent. On the exact public-demo host add the path-only setting:
 
@@ -79,7 +90,7 @@ docker network create --driver bridge \
 docker volume create longtail-forge-public-demo-data
 ```
 
-Set `LONGTAIL_DOCKER_NETWORK=longtail-forge-public-demo-internal`, `LONGTAIL_DATA_VOLUME=longtail-forge-public-demo-data`, `LONGTAIL_RESTART_POLICY=no`, `LONGTAIL_DNS_SERVER=127.0.0.1`, `LONGTAIL_CLAMD_HOST` to that bridge gateway, and `LONGTAIL_DOCKER_TRUST_PROXY` to the gateway `/32`. Do not attach another container to the network. Docker's internal-network flag is deliberately not used because it suppresses the required loopback port publication on the supported live engine; disabled masquerading plus the first-position firewall chains deny new connections instead. Both chains permit established/related return traffic for Caddy's loopback request path; host input additionally permits only the literal reviewed ClamAV handoff, while forwarding rejects every new connection. The loopback-only resolver blocks Docker DNS forwarding. The isolation helper verifies the realized `127.0.0.1:8001` binding, image-owned `NODE_ENV=production` without admitting provider configuration, live container environment, exact database/Files/backup mounts, bounded local logs, scanner access, failed external name resolution, and denied host/public probes. Deploy and reset refuse to proceed when that proof is absent or drifted. After a host reboot, use a protected lifecycle operation to enforce the policy before starting the demo; Docker auto-restart is deliberately disabled for this exact profile.
+Set `LONGTAIL_DOCKER_NETWORK=longtail-forge-public-demo-internal`, `LONGTAIL_DATA_VOLUME=longtail-forge-public-demo-data`, `LONGTAIL_RESTART_POLICY=no`, `LONGTAIL_DNS_SERVER=127.0.0.1`, `LONGTAIL_CLAMD_HOST` to that bridge gateway, and `LONGTAIL_DOCKER_TRUST_PROXY` to the gateway `/32`. Do not attach another container to the network. Docker's internal-network flag is deliberately not used because it suppresses the required loopback port publication on the supported live engine; disabled masquerading plus the first-position firewall chains deny new connections instead. Both chains permit established/related return traffic for Caddy's loopback request path; host input additionally permits only the literal reviewed ClamAV handoff, while forwarding rejects every new connection. The loopback-only resolver blocks Docker DNS forwarding. The isolation helper verifies the realized `127.0.0.1:8001` binding, image-owned `NODE_ENV=production` without admitting provider configuration, live container environment, exact database/Files/backup mounts, bounded local logs, scanner access, failed external name resolution, and denied host/public probes. Deploy and reset refuse to proceed when that proof is absent or drifted. Docker auto-restart is deliberately disabled for this exact profile; after a host boot or a Docker restart, the [protected boot](#protected-boot) enforces the policy before it starts the demo.
 
 The helper and release workflow carry both host files as reviewed release assets. The runtime image carries the candidate and activation primitives but no role credential document or generated demo data.
 
@@ -89,7 +100,7 @@ The timer starts at the top of every UTC hour (`OnCalendar=*-*-* *:00:00 UTC`). 
 
 Candidate construction happens before the maintenance curtain. User-visible downtime begins only when the validated candidate is ready and the helper asserts the curtain; it covers quiescence, backup, activation, restart, session invalidation, and runtime/role proof. There is no zero-downtime promise. The oneshot has a 30-minute safety ceiling, while a healthy ordinary run should spend only the shorter host-dependent backup/restart/proof interval behind the curtain. A timeout follows the reset helper's recovery ownership and produces a failure alert.
 
-Every scheduled and scheduler-wrapped manual run receives one correlation ID. The root-only JSONL log retains at most 336 records—start and finish records for seven days at the hourly rate—with trigger, scheduled boundary, lock outcome, duration, semantic fingerprint on success, health, bounded failure class, rollback status, recovery status, and alert outcome. It contains no passwords, record content, sessions, cookies, role document, application output, secret values, or private infrastructure paths. Send the bounded alert-helper arguments into the host's real paging system and alert if that helper itself fails. Inspect the protected log and reset operation evidence by correlation ID; do not add raw stdout/stderr to the page. Application/edge/authentication/capability/perimeter evidence uses a separate request ID: correlate a suspected reset overlap by the bounded time window and immutable release identity, never by copying visitor input or inventing one shared identifier across host and request lifecycles.
+Every scheduled and scheduler-wrapped manual run receives one correlation ID. The root-only JSONL log retains at most 336 records—start and finish records for seven days at the hourly rate—with trigger, scheduled boundary, lock outcome, duration, semantic fingerprint on success, health, bounded failure class, rollback status, recovery status, and alert outcome. It contains no passwords, record content, sessions, cookies, role document, application output, secret values, or private infrastructure paths. Each successful run also records its `heartbeatOutcome`: `delivered`, `failed`, or `not-configured`. An [operator hold](#protected-boot) makes a fired timer record `skipped-held`, without a reset or an alert. Inspect the protected log and reset operation evidence by correlation ID; do not add raw stdout/stderr to the page. Application/edge/authentication/capability/perimeter evidence uses a separate request ID: correlate a suspected reset overlap by the bounded time window and immutable release identity, never by copying visitor input or inventing one shared identifier across host and request lifecycles.
 
 Deploy, rollback, backup, manual reset, and scheduled reset coordinate through the same non-blocking Compose operation lock. Contention exits with code 75, records `lifecycle-lock-contended`, invokes the failure alert, performs no mutation, and waits for the next normal boundary rather than retrying inside the hour. Other failures remain owned by the reset helper: a proved prior-unit recovery is reported as healthy-but-failed, while failed recovery keeps the curtain and protected evidence for operator action.
 
@@ -129,14 +140,16 @@ itself UID/GID 10001 mode `0700`. It first reclaims root ownership, applies the
 mode, then transfers ownership so `CAP_FOWNER` is unnecessary. This idempotent
 initial-volume handoff is not run for ordinary Compose installations.
 
-1. Revalidates root ownership, exact target/origin/profile, recorded current release environment, Compose data paths, protected role document, maintenance marker boundary, and optional recovery-key material. An overlapping Compose deploy, rollback, backup, manual reset, or later scheduled reset is refused before mutation.
-2. Uses a root-run one-off container from the recorded immutable release to build and fully validate a fresh inactive candidate. Existing or partial candidate state remains a hard refusal.
-3. Captures one pre-reset public visitor session through the direct loopback application, asserts the deployment-owned maintenance curtain, stops every configured application/worker SQLite service, and proves each is no longer running.
-4. Creates and inspects a whole-instance database-and-Files archive while stopped. No promotion starts until the protected archive exists and inspection succeeds.
-5. Moves the active database, Files tree, ownership marker, and any WAL/SHM sidecars into one operation-specific retained-prior directory. It then promotes only the three sidecar-free verified candidate members. A root-only phase marker makes partial retirement or promotion deterministic to inspect and recover.
-6. Re-runs the complete baseline, migration, integrity, foreign-key, Files, role, credential-hash, session, and protected-data validator against the promoted top-level unit before starting services.
-7. Starts the exact recorded Compose release and requires direct plus public health/readiness and exact `/api/app-info`. While the curtain remains asserted it also proves the pre-reset session is rejected, a fresh Workspace Administrator login succeeds, authorized Task, client/project hierarchy, and seeded attachment reads succeed, and authenticated logout succeeds. This proof is deliberately read-only so the promoted unit remains semantically equivalent to the validated candidate. Transient session cookie jars live only in a root-private `/run` directory and are removed on every handled exit rather than retained as operation evidence.
-8. Archives the completed phase marker with the retained prior unit and clears only the deployment-owned maintenance marker after every proof passes. The independent operator marker is never changed.
+1. Revalidates root ownership, exact target/origin/profile, recorded current release environment, Compose data paths, protected role document, maintenance marker boundary, and optional recovery-key material. An overlapping Compose deploy, rollback, backup, manual reset, or later scheduled reset is refused before mutation, and so is a run under an operator hold.
+2. Recovers first. An active-operation marker means an interrupted reset: the helper restores and verifies the prior unit, then stops and asks for a deliberate rerun, as described under [Automatic recovery](#automatic-recovery-and-retry-behavior). With no marker, a verified candidate or partial build left behind is stale, because activation never began. A Docker restart left exactly that state on 2026-10-06. The helper moves it into `.longtail-public-demo-failed-<operation>-stale-candidate` in the data volume, with a `stale-candidate.json` record. Only the exact names and shapes a build creates move, a link anywhere refuses the whole move, and nothing is deleted.
+3. Starts a stopped app. If the application is not running, as after a host restart, the helper runs the protected start first: the curtain goes up, the recorded release starts, and its direct and public identity and isolation are verified before the curtain lifts. The reset then follows its normal path, so the pre-reset session capture and its rejection proof still run, and the result records `"appStartedByReset": true`. A running app whose representative login fails still fails the reset, as before. If the start itself cannot be verified, the curtain stays up and the failure reads as unrecovered.
+4. Uses a root-run one-off container from the recorded immutable release to build and fully validate a fresh inactive candidate.
+5. Captures one pre-reset public visitor session through the direct loopback application, asserts the deployment-owned maintenance curtain, stops every configured application/worker SQLite service, and proves each is no longer running.
+6. Creates and inspects a whole-instance database-and-Files archive while stopped. No promotion starts until the protected archive exists and inspection succeeds.
+7. Moves the active database, Files tree, ownership marker, and any WAL/SHM sidecars into one operation-specific retained-prior directory. It then promotes only the three sidecar-free verified candidate members. A root-only phase marker makes partial retirement or promotion deterministic to inspect and recover.
+8. Re-runs the complete baseline, migration, integrity, foreign-key, Files, role, credential-hash, session, and protected-data validator against the promoted top-level unit before starting services.
+9. Starts the exact recorded Compose release and requires direct plus public health/readiness and exact `/api/app-info`. While the curtain remains asserted it also proves the pre-reset session is rejected, a fresh Workspace Administrator login succeeds, authorized Task, client/project hierarchy, and seeded attachment reads succeed, and authenticated logout succeeds. This proof is deliberately read-only so the promoted unit remains semantically equivalent to the validated candidate. Transient session cookie jars live only in a root-private `/run` directory and are removed on every handled exit rather than retained as operation evidence.
+10. Archives the completed phase marker with the retained prior unit and clears only the deployment-owned maintenance marker after every proof passes. The independent operator marker is never changed.
 
 A successful reset permits no post-activation application mutation. Live write and mutation-cap behavior are proved before reset during the release gate; post-reset verification is read-only so the exact reproducible baseline remains active.
 
@@ -146,7 +159,52 @@ Any error or handled `HUP`, `INT`, or `TERM` after the curtain is asserted trigg
 
 A `SIGKILL`, host loss, or runtime crash may prevent the in-process trap. The next manual invocation finds the fixed active-operation marker while holding the shared lock, recovers and verifies the prior unit, clears the curtain, and then exits with a rerun-required error instead of silently starting a second promotion. The operator must invoke the reset again deliberately. Completed prior units and failed evidence are not pruned automatically.
 
+**Step evidence.** Before each step starts, the reset writes the step's name and time to `step.json` in its root-only operation directory, and appends it to `steps.jsonl`, so a kill or a power loss still leaves the step that was running. A step's error output is kept beside them as `step-<name>.err`: its last 64 KiB, with every secret value from the Compose host environment, the application environment file it names, and the role document replaced. The helper's own output names only the failed step. Nothing new reaches the scheduler log, the alert, or normal output.
+
 Do not bypass the shared lock with an ad hoc `docker compose run`, direct database copy, manual WAL deletion, or independent backup/reset command. Do not mix one operation's database and Files tree. If automatic recovery cannot prove the prior unit, keep traffic curtained and use the retained inspected whole-instance archive through the documented Compose restore path.
+
+## Protected boot
+
+The demo container keeps `restart: no`, so nothing can start it before its isolation is in place. Its only restart owner is `longtail-forge-public-demo-boot.service`, a root-owned oneshot that Docker pulls in each time it starts, so after a host boot and after a Docker restart. The preview keeps Docker's `unless-stopped`, and has no boot unit.
+
+One boot operation runs at a time, under the shared lifecycle lock, waiting up to seven minutes for an hourly reset that holds it. It records each phase in `demo-boot-operations/<operation>/` in the deployment root, the dependency waits in `dependencies.jsonl`, and its result in `result.json`. In order, it:
+
+1. **Checks the preconditions.** An operator hold, a deployment marker, or an uncertain recorded release stops it with its own alert class: `boot-held`, `boot-marker-present`, or `boot-release-uncertain`. It never pulls, upgrades, or rolls back.
+2. **Waits for Docker,** for up to three minutes.
+3. **Validates storage.** It requires the exact data volume with a non-empty database and Files tree owned by UID 10001, the backup root, the recorded image already in the local cache, and a valid Compose configuration. Anything missing or uncertain stops it with `boot-storage-failed`; it never creates a substitute database. An active reset marker in the volume stops it with `boot-marker-present`.
+4. **Waits for the bridge and the scanner.** The exact bridge must carry the gateway address, for up to two minutes, and the scanner must answer `PING` there, for up to four. A dependency that stays unavailable stops it with `boot-dependency-unavailable`, before isolation or start.
+5. **Starts the demo.** It enforces isolation before any container runs, raises the curtain, starts the recorded release, and verifies health, readiness, isolation, and direct identity. A failure keeps the curtain up, with `boot-start-failed`.
+6. **Applies the baseline policy.** If the newest completed reset began before the most recent top of the UTC hour, a boundary was missed, and the boot runs a fresh reset before visitors are served. The reset inherits the boot's hold on the lock, so no timer run can slip in between, and it lifts the curtain itself. A failed fresh reset stops with `boot-reset-failed`. Otherwise the boot lifts the curtain.
+7. **Reports public availability separately.** An edge or DNS failure is recorded, and never causes a reset or a rollback. A successful boot sends the heartbeat.
+
+The recovery target is ten minutes from Docker starting, with healthy dependencies, including a fresh reset. The native lifecycle qualification requires it after a real Docker restart.
+
+**Stopping the demo deliberately.** Create the hold, then stop the container:
+
+```sh
+install -o root -g root -m 0600 /dev/null /etc/longtail-forge/public-demo-hold
+```
+
+The hold keeps it stopped across boots, Docker restarts, and hourly resets: the boot stops with `boot-held`, the scheduler records `skipped-held` without an alert, and a manual reset refuses. Remove the file to resume. The next Docker start, or a manual reset, brings the demo back.
+
+## Alerts and heartbeat
+
+**Discord alerts.** The alert helper keeps its journal line, and posts the same bounded fields to a Discord webhook as one message, with every mention disabled. The URL lives only in `/etc/longtail-forge/public-demo-alert-webhook`: a `root:root` `0600` file holding one `https://discord.com/api/webhooks/<id>/<token>` line. It reaches `curl` on standard input, so it never appears in argv, the journal, or any output. Delivery is bounded to ten seconds, and its outcome is what the scheduler records as `delivered` or `failed`. A missing file means the alert reached only the journal, and counts as `failed`.
+
+The failure classes are the reset's `lifecycle-lock-contended`, `reset-failed`, `reset-failed-recovered`, and `reset-failed-unrecovered`, and the boot's `boot-held`, `boot-marker-present`, `boot-release-uncertain`, `boot-storage-failed`, `boot-dependency-unavailable`, `boot-start-failed`, and `boot-reset-failed`.
+
+**The heartbeat.** After each successful reset and boot, the helper sends one `GET` to the URL in `/etc/longtail-forge/public-demo-heartbeat-url`, such as an Uptime Kuma Push monitor's. It must be an `https://` URL in a `root:root` `0600` file, and it also reaches `curl` on standard input. The monitor alerts when a heartbeat is late, which catches a demo that stays up but stops resetting: set its interval above one hour, with some grace. A failed heartbeat never fails the reset or the boot. Its outcome is recorded as `heartbeatOutcome`.
+
+Install each file from standard input, so that the URL never reaches a command line or shell history:
+
+```sh
+umask 077
+read -rs -p 'Discord webhook URL: ' value; echo
+printf '%s\n' "$value" | sh -c 'cat > /etc/longtail-forge/public-demo-alert-webhook'
+unset value
+chown root:root /etc/longtail-forge/public-demo-alert-webhook
+chmod 0600 /etc/longtail-forge/public-demo-alert-webhook
+```
 
 ## Candidate-only diagnostics
 
