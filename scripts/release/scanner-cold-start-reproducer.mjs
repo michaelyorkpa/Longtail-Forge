@@ -11,7 +11,7 @@
 //   2. with it, the socket starts, and listens only on that exact address, never a wildcard;
 //   3. once the bridge carrying the address appears, clamd answers PING there.
 // The test-only parts are a one-signature database, because a fresh runner has no downloaded
-// signatures, and a drop-in that clears the packaged unit's signature-file condition for the same
+// signatures, and drop-ins that clear both packaged units' signature-file condition for the same
 // reason. The socket under test is the packaged one.
 //
 // It needs native Linux, root, and the clamav-daemon package, and it refuses a host that already has
@@ -37,6 +37,7 @@ const SERVICE_DROP_INS = "/etc/systemd/system/clamav-daemon.service.d";
 const LISTEN = `${SOCKET_DROP_INS}/zz-ltf-reproducer-listen.conf`;
 const FREEBIND = `${SOCKET_DROP_INS}/zz-ltf-freebind.conf`;
 const CONDITION = `${SERVICE_DROP_INS}/zz-ltf-reproducer-signatures.conf`;
+const SOCKET_CONDITION = `${SOCKET_DROP_INS}/zz-ltf-reproducer-signatures.conf`;
 const DATABASE = "/var/lib/ltf-clamav-reproducer";
 const CLAMD_CONF = "/etc/clamav/clamd.conf";
 
@@ -55,7 +56,7 @@ async function main() {
     process.exit(elevated.status ?? 1);
   }
   assert.equal(show("clamav-daemon.socket", "LoadState"), "loaded", "the clamav-daemon package is required");
-  for (const target of [LISTEN, FREEBIND, CONDITION, DATABASE]) assert.equal(fs.existsSync(target), false, `${target} already exists; refusing to run`);
+  for (const target of [LISTEN, FREEBIND, CONDITION, SOCKET_CONDITION, DATABASE]) assert.equal(fs.existsSync(target), false, `${target} already exists; refusing to run`);
   assert.notEqual(spawnSync("ip", ["link", "show", BRIDGE]).status, 0, `${BRIDGE} already exists; refusing to run`);
   assert.ok(!capture("ip", ["-4", "-o", "addr"]).includes(` ${ADDRESS}/`), `${ADDRESS} already exists; refusing to run`);
 
@@ -108,12 +109,14 @@ function prepare() {
   fs.mkdirSync(SOCKET_DROP_INS, { recursive: true });
   fs.mkdirSync(SERVICE_DROP_INS, { recursive: true });
   cleanups.push(() => {
-    for (const file of [LISTEN, FREEBIND, CONDITION]) fs.rmSync(file, { force: true });
+    for (const file of [LISTEN, FREEBIND, CONDITION, SOCKET_CONDITION]) fs.rmSync(file, { force: true });
     spawnSync("systemctl", ["daemon-reload"]);
   });
   // The hosts' listener: the packaged Unix socket plus one TCP descriptor on the exact gateway.
   fs.writeFileSync(LISTEN, `[Socket]\nListenStream=\nListenStream=/run/clamav/clamd.ctl\nListenStream=${ADDRESS}:${PORT}\n`);
+  // Both packaged units are skipped until signatures exist, and a skipped socket is not a started one.
   fs.writeFileSync(CONDITION, "[Unit]\nConditionPathExistsGlob=\n");
+  fs.writeFileSync(SOCKET_CONDITION, "[Unit]\nConditionPathExistsGlob=\n");
   run("systemctl", ["daemon-reload"]);
   evidence.listen = fs.readFileSync(LISTEN, "utf8");
 }

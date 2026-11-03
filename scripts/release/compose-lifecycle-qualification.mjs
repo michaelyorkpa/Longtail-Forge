@@ -566,7 +566,9 @@ async function reproduceStoppedApp(host, candidate, api) {
   composeCurrent(host, ["stop", "longtail-forge"]);
   const october = await runReset(host, 7, undefined, { helper: OCTOBER_RESET_HELPER });
   assert.notEqual(october.status, 0, "the October helper must fail with the app stopped");
-  assert.match(october.stderr, /representative pre-reset session could not be captured/);
+  // Its session capture reads the public account catalog first, so it fails there, before recovery
+  // is armed, exactly as the first reset after the power loss did.
+  assert.match(october.stderr, /Failed to connect to 127\.0\.0\.1 port 8001/);
   assert.ok(fs.existsSync(path.join(demoVolumeRoot(), ".longtail-public-demo-candidate")), "the October failure leaves a stale candidate");
 
   const repaired = await runReset(host, 8);

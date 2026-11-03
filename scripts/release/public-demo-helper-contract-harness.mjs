@@ -42,7 +42,11 @@ const OWNERSHIP_MARKER = `${BACKUP_PARENT}/.ltf-demo-helper-harness`;
 const DEMO_ORIGIN = "https://demo.longtailforge.com";
 const GATEWAY = "172.30.31.1";
 // Synthetic values in the exact shapes the alert helper accepts. No real endpoint is ever contacted.
-const WEBHOOK_URL = `https://discord.com/api/webhooks/123456789012345678/${"Ab9_-".repeat(13)}xyz`;
+// The webhook's identifying parts. Leak checks look for these rather than for the host name, which
+// would read as an incomplete URL check.
+const WEBHOOK_ID = "123456789012345678";
+const WEBHOOK_TOKEN = `${"Ab9_-".repeat(13)}xyz`;
+const WEBHOOK_URL = `https://discord.com/api/webhooks/${WEBHOOK_ID}/${WEBHOOK_TOKEN}`;
 const HEARTBEAT_URL = "https://uptime.harness.test/api/push/HarnessToken123?status=up&msg=OK&ping=";
 const IMAGE = `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"a".repeat(64)}`;
 const IDENTITY = Object.freeze({ version: "0.33.33.53", commitSha: "c".repeat(40), artifact: "d".repeat(64) });
@@ -257,11 +261,11 @@ async function main() {
       assert.equal(result.status, 0, result.stderr);
       const curl = only(result.calls, "curl");
       assert.equal(String(curl.stdin), `url = "${WEBHOOK_URL}"\n`);
-      assert.ok(!curl.args.some((arg) => arg.includes("discord.com") || arg.includes("123456789012345678")), "the webhook must never reach argv");
+      assert.ok(!curl.args.some((arg) => arg.includes(WEBHOOK_TOKEN) || arg.includes(WEBHOOK_ID)), "the webhook must never reach argv");
       const payload = JSON.parse(String(curl.args[curl.args.indexOf("--data-binary") + 1]));
       assert.deepEqual(payload.allowed_mentions, { parse: [] });
       assert.match(payload.content, /failureClass=reset-failed-unrecovered recoveryStatus=maintenance-curtain-retained exitCode=1$/);
-      assert.ok(!`${result.stdout}${result.stderr}`.includes("discord.com"), "the webhook must never reach output");
+      assert.ok(!`${result.stdout}${result.stderr}`.includes(WEBHOOK_TOKEN), "the webhook must never reach output");
       assert.match(only(result.calls, "logger").args.join(" "), /failureClass=reset-failed-unrecovered/);
     });
     scenario("notify without a webhook file reaches only the journal, and reports failure", (box) => {
@@ -292,7 +296,7 @@ async function main() {
       const result = runHelper(box, ALERT_HELPER, notifyArgs);
       assert.equal(result.status, 1);
       assert.match(result.stderr, /Discord did not accept the alert/);
-      assert.ok(!`${result.stdout}${result.stderr}`.includes("discord.com/api"), "the webhook must never reach output");
+      assert.ok(!`${result.stdout}${result.stderr}`.includes(WEBHOOK_TOKEN), "the webhook must never reach output");
     }, { curlFails: true });
     scenario("notify refuses an unbounded field before the journal", (box) => {
       const result = runHelper(box, ALERT_HELPER, notifyArgs.map((arg) => (arg === "reset-failed-unrecovered" ? "reset failed; see /etc/shadow" : arg)));
