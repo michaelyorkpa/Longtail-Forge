@@ -1,0 +1,22 @@
+[Unit]
+Description=Longtail Forge public demo protected boot
+Documentation=https://github.com/michaelyorkpa/Longtail-Forge/blob/main/docs/public-demo-operator-runbook.md
+# Docker pulls this unit in each time it starts, so the demo comes back after a host boot and after a
+# Docker restart. The demo container keeps restart: no, so this unit is its only restart owner.
+After=docker.service network-online.target clamav-daemon.socket
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/longtail-forge-public-demo-boot run
+TimeoutStartSec=45min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+
+[Install]
+WantedBy=docker.service

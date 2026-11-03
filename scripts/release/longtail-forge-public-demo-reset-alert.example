@@ -1,14 +1,57 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
+
+# Public-demo alert and heartbeat helper.
+#
+# notify:    writes one bounded line to the local journal, then posts the same fields to the
+#            operator's Discord webhook with mentions disabled. Exit 0 means Discord accepted it.
+# heartbeat: sends one GET to the operator's push monitor after a successful reset or boot, so the
+#            monitor alerts when a heartbeat is late. Exit 0 means the monitor accepted it.
+#
+# Both URLs live only in root-only 0600 files and reach curl on standard input, so they never appear
+# in argv, the journal, or this helper's output. Only validated tokens cross this boundary:
+# credentials, content, sessions, and paths never do.
+
+readonly WEBHOOK_FILE='/etc/longtail-forge/public-demo-alert-webhook'
+readonly HEARTBEAT_FILE='/etc/longtail-forge/public-demo-heartbeat-url'
+readonly DISCORD_WEBHOOK_PATTERN='^https://discord\.com/api/webhooks/[0-9]{17,20}/[A-Za-z0-9_-]{60,100}$'
+readonly HEARTBEAT_URL_PATTERN='^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._~/?=&%-]*$'
 
 fail() {
   printf 'longtail-forge-public-demo-reset-alert: %s\n' "$*" >&2
   exit 1
 }
 
-command -v logger >/dev/null 2>&1 || fail 'logger is required'
+for command in curl head jq logger stat wc; do command -v "$command" >/dev/null 2>&1 || fail "$command is required"; done
 test "$(id -u)" = '0' || fail 'alert helper must run as root'
-test "${1:-}" = 'notify' || fail 'command must be notify'
+
+# Prints the single URL line of a root-only 0600 file, or returns 2 when the file is absent.
+read_private_url() {
+  local file="$1" pattern="$2" label="$3" url parent
+  test -e "$file" || test -L "$file" || return 2
+  test -f "$file" && test ! -L "$file" || fail "$label must be a regular non-symbolic-link file"
+  test "$(stat -c '%u:%g:%a' "$file")" = '0:0:600' || fail "$label must be root:root with mode 0600"
+  parent="$(dirname "$file")"
+  test "$(stat -c '%u' "$parent")" = '0' && test $((8#$(stat -c '%a' "$parent") & 8#022)) -eq 0 \
+    || fail "$label parent must be root-owned and not group- or other-writable"
+  test "$(wc -l < "$file")" -le 1 || fail "$label must hold one line"
+  url="$(head -n 1 -- "$file")"
+  [[ "$url" =~ $pattern ]] || fail "$label is not an allowed URL"
+  printf '%s' "$url"
+}
+
+# Sends one request, reading the URL from standard input as curl configuration. curl's own
+# diagnostics are discarded, because some name the URL.
+send() {
+  local url="$1"
+  shift
+  printf 'url = "%s"\n' "$url" | curl --config - --fail --silent --proto '=https' --tlsv1.2 \
+    --connect-timeout 5 --max-time 10 --output /dev/null "$@" 2>/dev/null
+}
+
+MODE="${1:-}"
+test "$MODE" = 'notify' || test "$MODE" = 'heartbeat' || fail 'command must be notify or heartbeat'
 shift
 
 TARGET=''
@@ -18,6 +61,7 @@ SCHEDULED_BOUNDARY=''
 FAILURE_CLASS=''
 RECOVERY_STATUS=''
 EXIT_CODE=''
+EVENT=''
 declare -A SEEN_ARGS=()
 while test "$#" -gt 0; do
   case "$1" in
@@ -28,6 +72,7 @@ while test "$#" -gt 0; do
     --failure-class) key=failure; FAILURE_CLASS="${2:-}" ;;
     --recovery-status) key=recovery; RECOVERY_STATUS="${2:-}" ;;
     --exit-code) key=exit; EXIT_CODE="${2:-}" ;;
+    --event) key=event; EVENT="${2:-}" ;;
     *) fail "unknown argument: $1" ;;
   esac
   test -z "${SEEN_ARGS[$key]:-}" || fail "argument may be supplied only once: $1"
@@ -37,15 +82,45 @@ while test "$#" -gt 0; do
 done
 
 test "$TARGET" = 'rt-ltf-demo' || fail 'target must be exactly rt-ltf-demo'
-[[ "$OPERATION_ID" =~ ^[0-9]{8}T[0-9]{6}Z-(scheduled|manual)-[0-9]+$ ]] || fail 'operation identity is invalid'
-test "$TRIGGER" = 'scheduled' || test "$TRIGGER" = 'manual' || fail 'trigger is invalid'
+[[ "$OPERATION_ID" =~ ^[0-9]{8}T[0-9]{6}Z-(scheduled|manual|boot)-[0-9]+$ ]] || fail 'operation identity is invalid'
+
+if test "$MODE" = 'heartbeat'; then
+  for argument in trigger boundary failure recovery exit; do
+    test -z "${SEEN_ARGS[$argument]:-}" || fail 'heartbeat accepts only --target, --operation-id, and --event'
+  done
+  test "$EVENT" = 'reset' || test "$EVENT" = 'boot' || fail 'heartbeat event must be reset or boot'
+  set +e
+  HEARTBEAT_URL="$(read_private_url "$HEARTBEAT_FILE" "$HEARTBEAT_URL_PATTERN" 'heartbeat URL file')"
+  status=$?
+  set -e
+  if test "$status" -eq 2; then
+    printf 'longtail-forge-public-demo-reset-alert: heartbeat is not configured\n' >&2
+    exit 2
+  fi
+  test "$status" -eq 0 || exit 1
+  send "$HEARTBEAT_URL" || fail 'heartbeat was not accepted'
+  exit 0
+fi
+
+test -z "${SEEN_ARGS[event]:-}" || fail 'notify does not accept --event'
+[[ "$TRIGGER" =~ ^(scheduled|manual|boot)$ ]] || fail 'trigger is invalid'
 [[ "$SCHEDULED_BOUNDARY" = 'none' || "$SCHEDULED_BOUNDARY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:00:00Z$ ]] || fail 'scheduled boundary is invalid'
-[[ "$FAILURE_CLASS" =~ ^(lifecycle-lock-contended|reset-failed|reset-failed-recovered|reset-failed-unrecovered)$ ]] || fail 'failure class is invalid'
-[[ "$RECOVERY_STATUS" =~ ^(not-started|unknown|prior-unit-healthy|maintenance-curtain-retained)$ ]] || fail 'recovery status is invalid'
+[[ "$FAILURE_CLASS" =~ ^(lifecycle-lock-contended|reset-failed|reset-failed-recovered|reset-failed-unrecovered|boot-held|boot-marker-present|boot-release-uncertain|boot-storage-failed|boot-dependency-unavailable|boot-start-failed|boot-reset-failed)$ ]] || fail 'failure class is invalid'
+[[ "$RECOVERY_STATUS" =~ ^(not-started|unknown|prior-unit-healthy|maintenance-curtain-retained|demo-stopped)$ ]] || fail 'recovery status is invalid'
 [[ "$EXIT_CODE" =~ ^[1-9][0-9]{0,2}$ ]] || fail 'exit code is invalid'
 
-# Replace this bounded implementation with the operator's paging integration.
-# Keep this exact argument contract so credentials, content, sessions, and paths
-# never need to cross the alert boundary.
-logger --priority daemon.alert --tag longtail-forge-public-demo-reset \
-  "target=$TARGET operationId=$OPERATION_ID trigger=$TRIGGER scheduledBoundary=$SCHEDULED_BOUNDARY failureClass=$FAILURE_CLASS recoveryStatus=$RECOVERY_STATUS exitCode=$EXIT_CODE"
+SUMMARY="target=$TARGET operationId=$OPERATION_ID trigger=$TRIGGER scheduledBoundary=$SCHEDULED_BOUNDARY failureClass=$FAILURE_CLASS recoveryStatus=$RECOVERY_STATUS exitCode=$EXIT_CODE"
+logger --priority daemon.alert --tag longtail-forge-public-demo-reset "$SUMMARY"
+
+set +e
+WEBHOOK_URL="$(read_private_url "$WEBHOOK_FILE" "$DISCORD_WEBHOOK_PATTERN" 'Discord webhook file')"
+status=$?
+set -e
+if test "$status" -eq 2; then
+  printf 'longtail-forge-public-demo-reset-alert: Discord webhook is not configured; the alert reached only the local journal\n' >&2
+  exit 1
+fi
+test "$status" -eq 0 || exit 1
+PAYLOAD="$(jq -cn --arg summary "$SUMMARY" '{username:"Longtail Forge public demo",content:("Public-demo alert: " + $summary),allowed_mentions:{parse:[]}}')"
+send "$WEBHOOK_URL" --header 'content-type: application/json' --data-binary "$PAYLOAD" \
+  || fail 'Discord did not accept the alert; it reached only the local journal'

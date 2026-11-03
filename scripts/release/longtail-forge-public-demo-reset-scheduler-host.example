@@ -6,6 +6,7 @@ readonly SCHEDULER_ENV='/etc/longtail-forge/public-demo-reset-scheduler.env'
 readonly ALLOWED_ENV_KEYS='^(LTF_PUBLIC_DEMO_RESET_ENABLED|LTF_PUBLIC_DEMO_RESET_HELPER|LTF_PUBLIC_DEMO_RESET_ALERT_HELPER|LTF_PUBLIC_DEMO_RESET_LOG|LTF_PUBLIC_DEMO_RESET_LOG_RECORDS)$'
 readonly DEMO_TARGET='rt-ltf-demo'
 readonly RESET_CONFIRMATION='RESET RT-LTF-DEMO COMPOSE DATA'
+readonly OPERATOR_HOLD='/etc/longtail-forge/public-demo-hold'
 
 # Privileged configuration comes only from the validated root-owned file.
 unset LTF_PUBLIC_DEMO_RESET_ENABLED
@@ -74,7 +75,7 @@ load_scheduler_environment() {
 
 append_event() {
   local event="$1" outcome="$2" lock_outcome="$3" duration_ms="$4" fingerprint="$5"
-  local health="$6" failure_class="$7" recovery_status="$8" alert_outcome="$9"
+  local health="$6" failure_class="$7" recovery_status="$8" alert_outcome="$9" heartbeat_outcome="${10:-not-required}"
   local record temporary_log
   record="$(jq -cn \
     --arg event "$event" --arg outcome "$outcome" --arg trigger "$TRIGGER" \
@@ -82,8 +83,8 @@ append_event() {
     --arg lockOutcome "$lock_outcome" --argjson durationMs "$duration_ms" \
     --arg semanticFingerprint "$fingerprint" --arg health "$health" \
     --arg failureClass "$failure_class" --arg recoveryStatus "$recovery_status" \
-    --arg alertOutcome "$alert_outcome" \
-    '{contract:"longtail-forge-public-demo-reset-scheduler-v1",event:$event,target:"rt-ltf-demo",trigger:$trigger,operationId:$operationId,scheduledBoundary:(if $scheduledBoundary == "" then null else $scheduledBoundary end),outcome:$outcome,lockOutcome:$lockOutcome,durationMs:$durationMs,semanticFingerprint:(if $semanticFingerprint == "" then null else $semanticFingerprint end),health:$health,failureClass:(if $failureClass == "" then null else $failureClass end),rollbackStatus:(if $recoveryStatus == "prior-unit-healthy" then "prior-unit-restored" elif $recoveryStatus == "maintenance-curtain-retained" then "failed" else $recoveryStatus end),recoveryStatus:$recoveryStatus,alertOutcome:$alertOutcome}')"
+    --arg alertOutcome "$alert_outcome" --arg heartbeatOutcome "$heartbeat_outcome" \
+    '{contract:"longtail-forge-public-demo-reset-scheduler-v1",event:$event,target:"rt-ltf-demo",trigger:$trigger,operationId:$operationId,scheduledBoundary:(if $scheduledBoundary == "" then null else $scheduledBoundary end),outcome:$outcome,lockOutcome:$lockOutcome,durationMs:$durationMs,semanticFingerprint:(if $semanticFingerprint == "" then null else $semanticFingerprint end),health:$health,failureClass:(if $failureClass == "" then null else $failureClass end),rollbackStatus:(if $recoveryStatus == "prior-unit-healthy" then "prior-unit-restored" elif $recoveryStatus == "maintenance-curtain-retained" then "failed" else $recoveryStatus end),recoveryStatus:$recoveryStatus,alertOutcome:$alertOutcome,heartbeatOutcome:$heartbeatOutcome}')"
   exec 8<>"$LOG_PATH.lock"
   flock 8
   printf '%s\n' "$record" >> "$LOG_PATH"
@@ -152,6 +153,12 @@ if test "$ENABLED" = 'false'; then
   append_event 'finished' 'skipped-disabled' 'not-attempted' '0' '' 'not-checked' '' 'not-required' 'not-required'
   exit 0
 fi
+# An operator hold keeps a deliberately stopped demo stopped. It is the operator's own state, so it
+# raises no alert.
+if test -e "$OPERATOR_HOLD" || test -L "$OPERATOR_HOLD"; then
+  append_event 'finished' 'skipped-held' 'not-attempted' '0' '' 'not-checked' '' 'not-required' 'not-required'
+  exit 0
+fi
 
 RUN_ROOT="$(mktemp -d /run/longtail-forge-public-demo-reset-scheduler.XXXXXX)"
 chmod 0700 "$RUN_ROOT"
@@ -174,7 +181,15 @@ if test "$RESET_STATUS" -eq 0; then
   set -e
   if test "$RESULT_STATUS" -eq 0 && test "$(jq -r '.operationId' <<<"$RESULT")" = "$OPERATION_ID"; then
     FINGERPRINT="$(jq -r '.semanticFingerprint' <<<"$RESULT")"
-    append_event 'finished' 'succeeded' 'acquired' "$DURATION_MS" "$FINGERPRINT" 'healthy' '' 'not-required' 'not-required'
+    # The push monitor alerts when this heartbeat is late, which catches a demo that stays up but
+    # stops resetting. A failed heartbeat never fails the reset; its outcome is recorded here.
+    set +e
+    "$ALERT_HELPER" heartbeat --target "$DEMO_TARGET" --operation-id "$OPERATION_ID" --event reset 2>/dev/null
+    HEARTBEAT_STATUS=$?
+    set -e
+    HEARTBEAT_OUTCOME='failed'
+    case "$HEARTBEAT_STATUS" in 0) HEARTBEAT_OUTCOME='delivered' ;; 2) HEARTBEAT_OUTCOME='not-configured' ;; esac
+    append_event 'finished' 'succeeded' 'acquired' "$DURATION_MS" "$FINGERPRINT" 'healthy' '' 'not-required' 'not-required' "$HEARTBEAT_OUTCOME"
     exit 0
   fi
   RESET_STATUS=70
