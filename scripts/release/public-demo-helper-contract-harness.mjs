@@ -49,7 +49,7 @@ const WEBHOOK_TOKEN = `${"Ab9_-".repeat(13)}xyz`;
 const WEBHOOK_URL = `https://discord.com/api/webhooks/${WEBHOOK_ID}/${WEBHOOK_TOKEN}`;
 const HEARTBEAT_URL = "https://uptime.harness.test/api/push/HarnessToken123?status=up&msg=OK&ping=";
 const IMAGE = `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"a".repeat(64)}`;
-const IDENTITY = Object.freeze({ version: "0.33.33.53", commitSha: "c".repeat(40), artifact: "d".repeat(64) });
+const IDENTITY = Object.freeze({ version: "1.2.3.4", commitSha: "c".repeat(40), artifact: "d".repeat(64) });
 
 // Each seed is one defect in a real helper, with the scenario that must catch it. The harness applies
 // it to a copy of the helper, reruns every scenario, and fails if the named one still passes.
