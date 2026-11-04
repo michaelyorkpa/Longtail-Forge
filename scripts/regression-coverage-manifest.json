@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19199,
+    "activeAssertionCount": 19200,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 77,
     "directOwners": [
@@ -102,7 +102,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 20038,
+    "effectiveAssertionCount": 20039,
     "retiredAssertionCredit": 165,
     "vitest": [
       {
@@ -3012,11 +3012,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 45,
+      "assertionCount": 46,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file upload compatibility error hardening contract.",
-      "entryPointAssertionCount": 45,
+      "entryPointAssertionCount": 46,
       "id": "legacy.file.upload.compatibility.error.hardening",
       "legacy": true,
       "path": "scripts/file-upload-compatibility-error-hardening-regression.mjs",
