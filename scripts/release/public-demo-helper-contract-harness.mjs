@@ -217,12 +217,13 @@ function fakeCurl(args, scenario, runtime, record, save) {
   record();
   const url = String(args.findLast((arg) => /^https?:\/\//.test(arg)) || "");
   const output = args.includes("--output") ? String(args[args.indexOf("--output") + 1]) : "";
-  if (url.startsWith(DEMO_ORIGIN) && scenario.publicFails) return 7;
+  const isPublic = onDemoOrigin(url);
+  if (isPublic && scenario.publicFails) return 7;
   if (url.endsWith("/readyz")) return emit('{"status":"ready"}\n');
   if (url.endsWith("/healthz")) return emit('{"status":"ok"}\n');
   if (url.endsWith("/api/app-info")) {
     let identity = IDENTITY;
-    if (!url.startsWith(DEMO_ORIGIN)) {
+    if (!isPublic) {
       // The direct runtime's identity calls are counted, so a scenario can fail exactly one of them.
       runtime.identityCalls += 1;
       save();
@@ -353,6 +354,15 @@ function fakeComposeRun(args, scenario) {
   return 0;
 }
 
+/** Whether an argument is a URL on exactly the public demo's origin. @param {string} value */
+function onDemoOrigin(value) {
+  try {
+    return new URL(value).origin === DEMO_ORIGIN;
+  } catch {
+    return false;
+  }
+}
+
 /** @param {string} text */
 function emit(text) {
   process.stdout.write(text);
@@ -424,7 +434,7 @@ async function main() {
   /** @param {Sandbox} box @param {string[]} [extra] */
   const reset = (box, extra = []) => runHelper(box, helpers.reset, ["reset", "--target", "rt-ltf-demo", "--anchor-date", "today", ...extra, "--confirm", RESET_CONFIRMATION]);
   /** @param {Call[]} calls */
-  const publicCalls = (calls) => calls.filter((call) => call.tool === "curl" && call.args.some((arg) => arg.startsWith(DEMO_ORIGIN)));
+  const publicCalls = (calls) => calls.filter((call) => call.tool === "curl" && call.args.some(onDemoOrigin));
   const notifyArgs = ["notify", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-scheduled-42", "--trigger", "scheduled",
     "--scheduled-boundary", "2026-11-03T17:00:00Z", "--failure-class", "reset-failed-unrecovered", "--recovery-status", "maintenance-curtain-retained", "--exit-code", "1"];
 
