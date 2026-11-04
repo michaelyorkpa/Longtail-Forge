@@ -636,7 +636,7 @@ async function qualifyBootAfterDockerRestart(work, host, candidate, api, scanner
 
   const phases = fs.readFileSync(path.join(bootRoot, operation, "steps.jsonl"), "utf8").trim().split("\n")
     .map((line) => /** @type {{ phase: string }} */ (JSON.parse(line)).phase);
-  const order = ["checking-preconditions", "waiting-for-docker", "validating-storage", "validating-profile", "waiting-for-bridge", "waiting-for-scanner", "enforcing-isolation", "curtained", "starting", "started", "resetting", "serving", "completed"];
+  const order = ["checking-preconditions", "waiting-for-docker", "resolving-profile", "validating-storage", "validating-profile", "waiting-for-bridge", "waiting-for-scanner", "enforcing-isolation", "curtained", "starting", "started", "resetting", "serving", "completed"];
   for (let index = 1; index < order.length; index += 1) {
     assert.ok(phases.indexOf(order[index - 1]) < phases.indexOf(order[index]), `boot phase ${order[index - 1]} must precede ${order[index]}: ${phases.join(", ")}`);
   }

@@ -7,6 +7,54 @@ readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LT
 readonly DEMO_TARGET='rt-ltf-demo'
 readonly DEMO_ORIGIN='https://demo.longtailforge.com'
 readonly OPERATOR_HOLD='/etc/longtail-forge/public-demo-hold'
+readonly DEMO_DATA_VOLUME='longtail-forge-public-demo-data'
+readonly DEMO_NETWORK='longtail-forge-public-demo-internal'
+readonly REQUEST_LIMIT=15
+
+# The exact public-demo profile, as `docker compose config --format json` resolves it. The boot and
+# the reset carry this program byte for byte, and the helper harness compares the two copies. Only
+# the listed service keys may appear, so a secret, config, inherited, or device mount, an added
+# capability, or a shared namespace is refused by its key. Each mount must equal its expected form
+# exactly, so a volume subpath or a bind option is refused too.
+readonly EXACT_PROFILE_PROGRAM='
+  def declared_key: test("^(DEMO_MODE|HOST|PORT|TRUST_PROXY|WORKSPACE_INSTALL_MODE|WORKSPACE_TYPE_LIMIT|SUPER_ADMIN_(DISPLAY_NAME|PASSWORD|USERNAME)|LONGTAIL_(AUTH_[A-Z0-9_]+|CLAMD_HOST|CLAMD_PORT|DATA_DIR|DATABASE_FILE|DATABASE_PROVIDER|DEPLOYMENT_MODE|ENV|FILE_SCANNER|HSTS_MAX_AGE_SECONDS|JOB_[A-Z0-9_]+|LOCAL_STORAGE_ROOT|LOG_LEVEL|PUBLIC_URL|RELEASE_[A-Z0-9_]+|PUBLIC_DEMO_(CLIENT_REQUEST_LIMIT|GLOBAL_REQUEST_LIMIT|MAX_BODY_BYTES|MUTATION_LIMIT|PERIMETER_WINDOW_SECONDS|SEARCH_LIMIT)|SECURE_NOTES_KEY_VERSION|SECURE_NOTES_MASTER_KEY|SESSION_[A-Z0-9_]+|SQLITE_[A-Z0-9_]+|STORAGE_PROVIDER|SUPPORT_VIEW_ENABLED|SUPPORT_VIEW_TTL_SECONDS|WORKER_[A-Z0-9_]+|WORKSPACE_BACKUP_ROOT))$");
+  def plain_mount:
+    (if .volume == {} then del(.volume) else . end)
+    | (if (.bind | type) == "object" and ((.bind | keys) - ["create_host_path"]) == [] then del(.bind) else . end);
+  . as $root
+  | (.services | keys) == ["longtail-forge"]
+  and (.services["longtail-forge"] |
+    ((keys - ["cap_drop", "command", "dns", "entrypoint", "env_file", "environment", "healthcheck", "image", "init", "logging", "networks", "ports", "read_only", "restart", "security_opt", "stop_grace_period", "tmpfs", "user", "volumes"]) == [])
+    and .image == $image
+    and .restart == "no"
+    and .command == null
+    and .entrypoint == null
+    and .user == "10001:10001"
+    and .read_only == true
+    and .cap_drop == ["ALL"]
+    and .security_opt == ["no-new-privileges:true"]
+    and .dns == ["127.0.0.1"]
+    and .tmpfs == ["/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001"]
+    and (.networks | type == "object" and length == 1 and ((.[] // {}) == {}))
+    and ((.networks | keys[0]) as $key | $root.networks[$key].name == $network and $root.networks[$key].external == true)
+    and ([.volumes[] | plain_mount] | sort_by(.target) as $mounts
+      | ($mounts | length) == 2
+      and $mounts[0] == {type: "bind", source: $backup, target: "/var/backups/longtail-forge"}
+      and ($mounts[1].source | type) == "string"
+      and $mounts[1] == {type: "volume", source: $mounts[1].source, target: "/var/lib/longtail-forge"}
+      and $root.volumes[$mounts[1].source] == {name: $volume})
+    and (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and (.[0].published | tostring) == "8001" and .[0].target == 8001)
+    and .logging.driver == "local" and .logging.options["max-size"] == "10m" and .logging.options["max-file"] == "7"
+    and (.environment | keys | all(declared_key))
+    and (.environment |
+      .DEMO_MODE == "true" and .LONGTAIL_ENV == "production" and .LONGTAIL_DEPLOYMENT_MODE == "compose"
+      and .LONGTAIL_PUBLIC_URL == $origin and .LONGTAIL_DATABASE_PROVIDER == "sqlite" and .LONGTAIL_STORAGE_PROVIDER == "local"
+      and .LONGTAIL_FILE_SCANNER == "clamd" and (.LONGTAIL_CLAMD_HOST | test("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"))
+      and (.LONGTAIL_CLAMD_PORT | test("^[0-9]+$")) and .LONGTAIL_WORKER_MODE == "inline" and .LONGTAIL_SUPPORT_VIEW_ENABLED == "false"
+      and .LONGTAIL_DATA_DIR == "/var/lib/longtail-forge" and .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db"
+      and .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files"
+      and .LONGTAIL_WORKSPACE_BACKUP_ROOT == "/var/backups/longtail-forge/workspaces"))
+'
 
 fail() {
   printf 'longtail-forge-public-demo-reset: %s\n' "$*" >&2
@@ -56,7 +104,7 @@ load_helper_environment() {
   done < "$HELPER_ENV"
 }
 
-for command in awk curl date docker flock grep install jq mktemp readlink realpath stat tail; do require_command "$command"; done
+for command in awk curl cut date docker flock grep head install jq mktemp readlink realpath stat tail; do require_command "$command"; done
 test "$(id -u)" = '0' || fail 'helper must run as root through the constrained sudo rule'
 load_helper_environment
 
@@ -178,20 +226,62 @@ SESSION_ROOT="$(mktemp -d /run/longtail-forge-public-demo-reset.XXXXXX)"
 chmod 0700 "$SESSION_ROOT"
 
 cleanup_session_material() {
-  rm -f -- "$SESSION_ROOT/pre-reset.cookie" "$SESSION_ROOT/post-reset.cookie" "$SESSION_ROOT/redactions" "$SESSION_ROOT/step.err"
+  rm -f -- "$SESSION_ROOT/pre-reset.cookie" "$SESSION_ROOT/post-reset.cookie" "$SESSION_ROOT/redactions" "$SESSION_ROOT/step.err" "$SESSION_ROOT/resolved.json"
   rmdir -- "$SESSION_ROOT" 2>/dev/null || true
 }
 trap cleanup_session_material EXIT
 
-# Values that must never reach step evidence: the secrets in the protected Compose environment and in
-# the application environment file it names, and the demo role passwords. Step error output passes
-# through this list before it is kept.
-APP_ENV_FILE="$(grep -E '^LONGTAIL_ENV_FILE=' "$COMPOSE_HOST_ENV" | head -n 1 | cut -d= -f2- || true)"
-SECRET_SOURCES=("$COMPOSE_HOST_ENV")
-if test -n "$APP_ENV_FILE" && test -f "$APP_ENV_FILE" && test ! -L "$APP_ENV_FILE"; then SECRET_SOURCES+=("$APP_ENV_FILE"); fi
-awk -F= '$1 ~ /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL)/ && length($0) > length($1) + 1 { value = substr($0, length($1) + 2); gsub(/^["\047]|["\047]$/, "", value); print value }' \
-  "${SECRET_SOURCES[@]}" > "$SESSION_ROOT/redactions"
-jq -r '.. | objects | .password? // empty | strings' "$ROLE_CREDENTIALS" >> "$SESSION_ROOT/redactions"
+# Prints each secret-named value in one environment file, parsed as Compose parses one: an optional
+# `export`, a single-quoted value taken literally, a double-quoted value with its escapes, and an
+# unquoted value cut at an inline comment and trimmed.
+secret_values_from_env_file() {
+  awk '
+    {
+      line = $0
+      sub(/^[ \t]+/, "", line)
+      if (line == "" || substr(line, 1, 1) == "#") next
+      sub(/^export[ \t]+/, "", line)
+      at = index(line, "=")
+      if (at == 0) next
+      key = substr(line, 1, at - 1)
+      sub(/[ \t]+$/, "", key)
+      if (key !~ /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL)/) next
+      value = substr(line, at + 1)
+      sub(/^[ \t]+/, "", value)
+      quote = substr(value, 1, 1)
+      if (quote == "\047") {
+        value = substr(value, 2)
+        stop = index(value, "\047")
+        if (stop > 0) value = substr(value, 1, stop - 1)
+      } else if (quote == "\"") {
+        out = ""
+        for (i = 2; i <= length(value); i++) {
+          c = substr(value, i, 1)
+          if (c == "\"") break
+          if (c == "\\" && i < length(value)) {
+            i++
+            c = substr(value, i, 1)
+            if (c == "n") c = "\n"
+          }
+          out = out c
+        }
+        value = out
+      } else {
+        sub(/[ \t]+#.*$/, "", value)
+        sub(/[ \t]+$/, "", value)
+      }
+      if (length(value) > 0) print value
+    }' "$1"
+}
+
+# Values that must never reach step evidence. Step error output passes through this list before it
+# is kept. It starts with the demo role passwords and the secret-named values of the protected
+# Compose host environment. Compose itself parses the application's environment files, however they
+# are quoted, so their secrets are added from the environment it resolves, before the first step.
+# Incomplete collection refuses the reset.
+secret_values_from_env_file "$COMPOSE_HOST_ENV" > "$SESSION_ROOT/redactions"
+jq -er '.passwords | objects | [.[] | strings | select(length > 0)] | if length > 0 then .[] else error("no role password") end' \
+  "$ROLE_CREDENTIALS" >> "$SESSION_ROOT/redactions" 2>/dev/null || fail 'the public-demo role passwords could not be collected'
 
 # Copies the last 64 KiB of a step's error output into the operation evidence with every listed
 # secret replaced. Each value is matched as literal text, never as a pattern.
@@ -266,16 +356,15 @@ public_demo_isolation() {
 # A parser error can quote a secret value from the environment files, so its output is never kept.
 compose config --quiet >/dev/null 2>&1 \
   || fail 'the resolved Compose configuration did not parse; its output is not kept because it can carry secrets'
-compose config --format json 2>/dev/null | jq -e --arg origin "$DEMO_ORIGIN" '
-  .services["longtail-forge"].environment |
-    .LONGTAIL_ENV == "production" and
-    .DEMO_MODE == "true" and
-    .LONGTAIL_DEPLOYMENT_MODE == "compose" and
-    .LONGTAIL_PUBLIC_URL == $origin and
-    .LONGTAIL_DATA_DIR == "/var/lib/longtail-forge" and
-    .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db" and
-    .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files"
-' >/dev/null || fail 'resolved Compose profile is not the exact production public demo'
+compose config --format json > "$SESSION_ROOT/resolved.json" 2>/dev/null \
+  || fail 'the resolved Compose configuration could not be read'
+jq -r '.services[]?.environment // {} | to_entries[] | select(.key | test("PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL")) | .value | strings' \
+  "$SESSION_ROOT/resolved.json" >> "$SESSION_ROOT/redactions" 2>/dev/null || fail 'the secrets in the resolved Compose environment could not be collected'
+# The same exact profile the boot validates, before this reset starts or recreates anything.
+IMAGE_REFERENCE="$(grep -E '^LONGTAIL_IMAGE=' "$CURRENT_RELEASE_ENV" | head -n 1 | cut -d= -f2- || true)"
+jq -e --arg image "$IMAGE_REFERENCE" --arg network "$DEMO_NETWORK" --arg volume "$DEMO_DATA_VOLUME" \
+  --arg backup "$BACKUP_ROOT" --arg origin "$DEMO_ORIGIN" "$EXACT_PROFILE_PROGRAM" "$SESSION_ROOT/resolved.json" >/dev/null \
+  || fail 'resolved Compose profile is not the exact production public demo'
 step isolation-enforce public_demo_isolation enforce
 
 mapfile -t SQLITE_SERVICES < <(compose config --services | grep -E '^longtail-forge(-worker)?$')
@@ -387,27 +476,27 @@ verify_runtime() {
   artifact="$(state_value "$CURRENT_STATE" '.artifact.sha256')"
   wait_for_health || return 1
   public_demo_isolation check "$(compose ps -q longtail-forge)" || return 1
-  curl --fail --silent --show-error --max-time 15 http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
-  curl --fail --silent --show-error --max-time 15 http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
-  curl --fail --silent --show-error --max-time 15 http://127.0.0.1:8001/api/app-info | jq -e \
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" http://127.0.0.1:8001/api/app-info | jq -e \
     --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
     '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null || return 1
   # The boot's delegate stops at the direct runtime: the boot reports the public edge separately.
   test "$CALLER" != 'boot' || return 0
-  curl --fail --silent --show-error --max-time 15 "$PUBLIC_URL/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
-  curl --fail --silent --show-error --max-time 15 "$PUBLIC_URL/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
-  curl --fail --silent --show-error --max-time 15 "$PUBLIC_URL/api/app-info" | jq -e \
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" "$PUBLIC_URL/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" "$PUBLIC_URL/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" "$PUBLIC_URL/api/app-info" | jq -e \
     --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
     '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null
 }
 
 capture_old_session() {
   local catalog username password payload status
-  catalog="$(curl --fail --silent --show-error http://127.0.0.1:8001/api/public-demo/accounts)"
+  catalog="$(curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" http://127.0.0.1:8001/api/public-demo/accounts)"
   username="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .username' <<<"$catalog")"
   password="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .password' <<<"$catalog")"
   payload="$(jq -cn --arg username "$username" --arg password "$password" '{username:$username,password:$password}')"
-  status="$(curl --silent --show-error --output "$OPERATION_DIR/pre-reset-login.json" --write-out '%{http_code}' \
+  status="$(curl --silent --show-error --max-time "$REQUEST_LIMIT" --output "$OPERATION_DIR/pre-reset-login.json" --write-out '%{http_code}' \
     --cookie-jar "$SESSION_ROOT/pre-reset.cookie" -H 'content-type: application/json' \
     --data "$payload" http://127.0.0.1:8001/api/login)"
   test "$status" = '200' || fail 'representative pre-reset session could not be captured'
@@ -415,31 +504,31 @@ capture_old_session() {
 
 verify_old_session_rejected() {
   local status
-  status="$(curl --silent --show-error --output "$OPERATION_DIR/old-session-response.json" --write-out '%{http_code}' \
+  status="$(curl --silent --show-error --max-time "$REQUEST_LIMIT" --output "$OPERATION_DIR/old-session-response.json" --write-out '%{http_code}' \
     --cookie "$SESSION_ROOT/pre-reset.cookie" http://127.0.0.1:8001/api/session)"
   test "$status" = '401' || return 1
 }
 
 verify_representative_role() {
   local catalog username password payload status csrf_token
-  catalog="$(curl --fail --silent --show-error http://127.0.0.1:8001/api/public-demo/accounts)"
+  catalog="$(curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" http://127.0.0.1:8001/api/public-demo/accounts)"
   username="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .username' <<<"$catalog")"
   password="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .password' <<<"$catalog")"
   payload="$(jq -cn --arg username "$username" --arg password "$password" '{username:$username,password:$password}')"
-  status="$(curl --silent --show-error --output "$OPERATION_DIR/post-reset-login.json" --write-out '%{http_code}' \
+  status="$(curl --silent --show-error --max-time "$REQUEST_LIMIT" --output "$OPERATION_DIR/post-reset-login.json" --write-out '%{http_code}' \
     --cookie-jar "$SESSION_ROOT/post-reset.cookie" -H 'content-type: application/json' \
     --data "$payload" http://127.0.0.1:8001/api/login)"
   test "$status" = '200' || return 1
-  csrf_token="$(curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+  csrf_token="$(curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" --cookie "$SESSION_ROOT/post-reset.cookie" \
     --cookie-jar "$SESSION_ROOT/post-reset.cookie" http://127.0.0.1:8001/api/csrf-token | jq -er '.csrfToken')" || return 1
-  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" --cookie "$SESSION_ROOT/post-reset.cookie" \
     'http://127.0.0.1:8001/api/tasks?limit=1' > "$OPERATION_DIR/role-read.json" || return 1
-  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" --cookie "$SESSION_ROOT/post-reset.cookie" \
     http://127.0.0.1:8001/api/client-projects > "$OPERATION_DIR/client-projects.json" || return 1
-  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" --cookie "$SESSION_ROOT/post-reset.cookie" \
     'http://127.0.0.1:8001/api/files/attachments?limit=1' > "$OPERATION_DIR/role-files.json" || return 1
   jq -e '.attachments | length >= 1' "$OPERATION_DIR/role-files.json" >/dev/null || return 1
-  curl --fail --silent --show-error --cookie "$SESSION_ROOT/post-reset.cookie" \
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" --cookie "$SESSION_ROOT/post-reset.cookie" \
     -H "X-CSRF-Token: $csrf_token" --request POST http://127.0.0.1:8001/api/logout \
     > "$OPERATION_DIR/logout.json" || return 1
 }

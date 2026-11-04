@@ -105,8 +105,8 @@ fi
 test -z "${SEEN_ARGS[event]:-}" || fail 'notify does not accept --event'
 [[ "$TRIGGER" =~ ^(scheduled|manual|boot)$ ]] || fail 'trigger is invalid'
 [[ "$SCHEDULED_BOUNDARY" = 'none' || "$SCHEDULED_BOUNDARY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:00:00Z$ ]] || fail 'scheduled boundary is invalid'
-[[ "$FAILURE_CLASS" =~ ^(lifecycle-lock-contended|reset-failed|reset-failed-recovered|reset-failed-unrecovered|boot-held|boot-marker-present|boot-release-uncertain|boot-storage-failed|boot-dependency-unavailable|boot-profile-invalid|boot-start-failed|boot-reset-failed)$ ]] || fail 'failure class is invalid'
-[[ "$RECOVERY_STATUS" =~ ^(not-started|unknown|prior-unit-healthy|prior-unit-healthy-curtain-retained|maintenance-curtain-retained|demo-stopped)$ ]] || fail 'recovery status is invalid'
+[[ "$FAILURE_CLASS" =~ ^(lifecycle-lock-contended|reset-failed|reset-failed-recovered|reset-failed-unrecovered|boot-held|boot-marker-present|boot-release-uncertain|boot-storage-failed|boot-dependency-unavailable|boot-profile-invalid|boot-start-failed|boot-stop-failed|boot-reset-failed)$ ]] || fail 'failure class is invalid'
+[[ "$RECOVERY_STATUS" =~ ^(not-started|unknown|prior-unit-healthy|prior-unit-healthy-curtain-retained|maintenance-curtain-retained|unverified-container-not-stopped|demo-stopped)$ ]] || fail 'recovery status is invalid'
 [[ "$EXIT_CODE" =~ ^[1-9][0-9]{0,2}$ ]] || fail 'exit code is invalid'
 
 SUMMARY="target=$TARGET operationId=$OPERATION_ID trigger=$TRIGGER scheduledBoundary=$SCHEDULED_BOUNDARY failureClass=$FAILURE_CLASS recoveryStatus=$RECOVERY_STATUS exitCode=$EXIT_CODE"

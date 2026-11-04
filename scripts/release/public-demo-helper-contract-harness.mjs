@@ -17,6 +17,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -52,9 +53,23 @@ const IMAGE = `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"a".repeat(64)}`;
 const IDENTITY = Object.freeze({ version: "1.2.3.4", commitSha: "c".repeat(40), artifact: "d".repeat(64) });
 const DEMO_NETWORK = "longtail-forge-public-demo-internal";
 const DEMO_VOLUME = "longtail-forge-public-demo-data";
-// A secret in the application environment file. No evidence, output, or log may ever contain it.
+// Secrets no evidence, output, or log may ever contain: one in the application environment, which
+// only Compose reads, one among the demo role passwords, and one double-quoted in the host environment.
 const CANARY = "Canary-Secret-987-harness";
+const ROLE_CANARY = "Role-Canary-654-harness";
+const HOST_CANARY = "Host-Canary-321-harness";
 const RESET_CONFIRMATION = "RESET RT-LTF-DEMO COMPOSE DATA";
+// The helpers' bound on any one request, and the point at which a stalled request that ignored it is
+// cut off by the harness instead, so that an unbounded request fails a scenario rather than hanging.
+const REQUEST_LIMIT_SECONDS = 15;
+const STALL_SAFETY_MS = 25_000;
+/** The two blocks the boot and the reset must carry byte for byte. */
+const SHARED_BLOCKS = Object.freeze([
+  { label: "the exact-profile program", start: "readonly EXACT_PROFILE_PROGRAM='\n", end: "\n'\n" },
+  { label: "the environment-file parser", start: "secret_values_from_env_file() {\n", end: "    }' \"$1\"\n}\n" },
+]);
+// The port of the harness's stall server, set before any scenario runs.
+let stallPort = 0;
 
 // Each seed is one defect in a real helper, with the scenario that must catch it. The harness applies
 // it to a copy of the helper, reruns every scenario, and fails if the named one still passes.
@@ -78,14 +93,28 @@ const SEEDS = Object.freeze([
   { label: "the boot never resets after a missed boundary", helper: "boot", from: "[[ \"$LATEST_COMPLETED\" < \"$LAST_BOUNDARY\" ]]", to: "[[ \"$LATEST_COMPLETED\" < \"0\" ]]", caughtBy: "a missed boundary runs a fresh reset" },
   { label: "the boot's reset does not inherit the lock", helper: "boot", from: "--caller boot --confirm \"$RESET_CONFIRMATION\" > \"$WORK/reset.out\"", to: "--caller boot --confirm \"$RESET_CONFIRMATION\" 9>&- > \"$WORK/reset.out\"", caughtBy: "a missed boundary runs a fresh reset" },
   { label: "the boot's reset is not its delegate", helper: "boot", from: "    --caller boot --confirm", to: "    --confirm", caughtBy: "a missed boundary runs a fresh reset" },
-  { label: "the boot accepts a second network", helper: "boot", from: "      and (.networks | type == \"object\" and length == 1)\n", to: "", caughtBy: "an extra network stops the boot" },
-  { label: "the boot accepts another data volume", helper: "boot", from: "$root.volumes[.source].name == $volume and ", to: "", caughtBy: "another data volume stops the boot" },
-  { label: "the boot accepts another image", helper: "boot", from: "      .image == $image\n      and .restart", to: "      .restart", caughtBy: "an image other than the recorded release stops the boot" },
+  { label: "the boot accepts a second network", helper: "boot", from: "    and (.networks | type == \"object\" and length == 1 and ((.[] // {}) == {}))\n", to: "", caughtBy: "an extra network stops the boot" },
+  { label: "the boot accepts another data volume", helper: "boot", from: "      and $root.volumes[$mounts[1].source] == {name: $volume})", to: "      and true)", caughtBy: "another data volume stops the boot" },
+  { label: "the boot accepts another image", helper: "boot", from: "    and .image == $image\n", to: "", caughtBy: "an image other than the recorded release stops the boot" },
+  { label: "the boot accepts a volume subpath", helper: "boot", from: "    (if .volume == {} then del(.volume) else . end)\n", to: "    del(.volume)\n", caughtBy: "a volume subpath stops the boot" },
+  { label: "the boot accepts inherited and secret mounts", helper: "boot", from: "    ((keys - [\"cap_drop\",", to: "    (([] - [\"cap_drop\",", caughtBy: "inherited mounts stop the boot" },
+  { label: "the reset accepts a volume subpath", helper: "reset", from: "    (if .volume == {} then del(.volume) else . end)\n", to: "    del(.volume)\n", caughtBy: "the reset refuses a volume subpath" },
+  { label: "the reset's profile program drifts from the boot's", helper: "reset", from: "    and .user == \"10001:10001\"\n", to: "    and .user != \"\"\n", caughtBy: "the boot and the reset carry the same profile program" },
   { label: "the boot may pull", helper: "boot", from: "--force-recreate --pull never \"${SQLITE_SERVICES[@]}\"", to: "--force-recreate \"${SQLITE_SERVICES[@]}\"", caughtBy: "a boot with no missed boundary" },
-  { label: "the boot leaves an unverified container running", helper: "boot", from: "  run_check stop-unverified compose stop \"${SQLITE_SERVICES[@]}\"\n", to: "", caughtBy: "a container that fails its post-start isolation check" },
+  { label: "the boot leaves an unverified container running", helper: "boot", from: "  run_check stop-unverified stop_unverified\n", to: "", caughtBy: "a container that fails its post-start isolation check" },
+  { label: "the boot ignores a failed stop", helper: "boot", from: "  test \"$CHECK_STATUS\" -eq 0 || stop_with_alert 'boot-stop-failed'", to: "  true || stop_with_alert 'boot-stop-failed'", caughtBy: "an unverified container that cannot be stopped" },
+  { label: "the boot trusts compose stop's exit status", helper: "boot", from: "  if compose stop --timeout 30 \"${SQLITE_SERVICES[@]}\" && test -z \"$(compose ps --status running -q \"${SQLITE_SERVICES[@]}\")\"; then", to: "  if compose stop --timeout 30 \"${SQLITE_SERVICES[@]}\"; then", caughtBy: "a stop that leaves the unverified container running" },
+  { label: "the boot never escalates to a kill", helper: "boot", from: "  compose kill \"${SQLITE_SERVICES[@]}\"\n", to: "", caughtBy: "a stop that leaves the unverified container running" },
   { label: "the boot lets a failed reset lift its curtain", helper: "boot", from: "    ensure_curtain\n", to: "", caughtBy: "a failed fresh reset that lifted the curtain" },
   { label: "the boot keeps raw check output", helper: "boot", from: "  keep_redacted \"$WORK/check.err\" \"$OPERATION_DIR/$name.err\"", to: "  cp \"$WORK/check.err\" \"$OPERATION_DIR/$name.err\"", caughtBy: "a check's diagnostics are redacted" },
-  { label: "the boot keeps the Compose parser's output", helper: "boot", from: "  compose config --quiet >/dev/null 2>&1 || {", to: "  compose config --quiet || {", caughtBy: "a Compose parser error is not kept by the boot" },
+  { label: "the boot keeps the Compose parser's output", helper: "boot", from: "  compose config --format json > \"$WORK/resolved.json\" 2>/dev/null \\\n", to: "  compose config --format json > \"$WORK/resolved.json\" \\\n", caughtBy: "a Compose parser error is not kept by the boot" },
+  { label: "the boot collects no secret from the resolved environment", helper: "boot", from: "  jq -r '.services[]?.environment // {}", to: "  true || jq -r '.services[]?.environment // {}", caughtBy: "a check's diagnostics are redacted" },
+  { label: "the boot misses the role passwords", helper: "boot", from: "jq -er '.passwords | objects | [.[] | strings | select(length > 0)] | if length > 0 then .[] else error(\"no role password\") end'", to: "jq -r '.. | objects | .password? // empty | strings'", caughtBy: "a check's diagnostics are redacted" },
+  { label: "the boot tolerates missing role credentials", helper: "boot", from: "  require_root_owned_private_file \"$ROLE_CREDENTIALS\" 'public-demo role credentials'\n", to: "  test -f \"$ROLE_CREDENTIALS\" || return 0\n", caughtBy: "missing role credentials stop the boot" },
+  { label: "the boot skips the host environment", helper: "boot", from: "  secret_values_from_env_file \"$COMPOSE_HOST_ENV\" >> \"$WORK/redactions\"\n", to: "", caughtBy: "a check's diagnostics are redacted" },
+  { label: "the boot keeps a host secret's quotes", helper: "boot", from: "      } else if (quote == \"\\\"\") {", to: "      } else if (quote == \"never\") {", caughtBy: "a check's diagnostics are redacted" },
+  { label: "the boot's readiness probe has no time limit", helper: "boot", from: "--max-time \"$REQUEST_LIMIT\" http://127.0.0.1:8001/readyz", to: "http://127.0.0.1:8001/readyz", caughtBy: "a stalled readiness response is abandoned" },
+  { label: "the boot's identity probe has no time limit", helper: "boot", from: "--max-time \"$REQUEST_LIMIT\" http://127.0.0.1:8001/api/app-info", to: "http://127.0.0.1:8001/api/app-info", caughtBy: "a boot with no missed boundary" },
   { label: "alerts allow mentions", helper: "alert", from: "allowed_mentions:{parse:[]}", to: "allowed_mentions:{parse:[\"everyone\"]}", caughtBy: "notify posts the bounded fields" },
   { label: "the URL reaches curl's argv", helper: "alert", from: "printf 'url = \"%s\"\\n' \"$url\" | curl --config -", to: "printf '' | curl \"$url\" --config -", caughtBy: "notify posts the bounded fields" },
   { label: "a readable webhook file is accepted", helper: "alert", from: "test \"$(stat -c '%u:%g:%a' \"$file\")\" = '0:0:600' ||", to: "true ||", caughtBy: "notify refuses a webhook file another user could read" },
@@ -100,20 +129,25 @@ const SEEDS = Object.freeze([
   { label: "a stopped-app start lifts the curtain before the fresh baseline", helper: "reset", from: "  start_sqlite_users\n  verify_runtime\n}\n", to: "  start_sqlite_users\n  verify_runtime\n  clear_marker\n}\n", caughtBy: "a reset that starts a stopped app keeps the curtain up" },
   { label: "a recovery after a stopped-app start lifts the curtain", helper: "reset", from: "  APP_STARTED_BY_RESET=true\n  LIFT_CURTAIN_ON_RECOVERY=false\n", to: "  APP_STARTED_BY_RESET=true\n", caughtBy: "a reset that started a stopped app restores the prior unit behind its curtain" },
   { label: "the reset keeps the Compose parser's output", helper: "reset", from: "compose config --quiet >/dev/null 2>&1 \\\n", to: "compose config --quiet \\\n", caughtBy: "the reset keeps no Compose parser output" },
+  { label: "the reset collects no secret from the resolved environment", helper: "reset", from: "jq -r '.services[]?.environment // {}", to: "true || jq -r '.services[]?.environment // {}", caughtBy: "a reset step's diagnostics are redacted" },
+  { label: "the reset misses the role passwords", helper: "reset", from: "jq -er '.passwords | objects | [.[] | strings | select(length > 0)] | if length > 0 then .[] else error(\"no role password\") end'", to: "jq -r '.. | objects | .password? // empty | strings'", caughtBy: "a reset step's diagnostics are redacted" },
+  { label: "the reset's role proof has no time limit", helper: "reset", from: "--max-time \"$REQUEST_LIMIT\" --cookie \"$SESSION_ROOT/post-reset.cookie\" \\\n    --cookie-jar \"$SESSION_ROOT/post-reset.cookie\" http://127.0.0.1:8001/api/csrf-token", to: "--cookie \"$SESSION_ROOT/post-reset.cookie\" \\\n    --cookie-jar \"$SESSION_ROOT/post-reset.cookie\" http://127.0.0.1:8001/api/csrf-token", caughtBy: "a stalled role proof is abandoned" },
+  { label: "the reset's session capture has no time limit", helper: "reset", from: "--max-time \"$REQUEST_LIMIT\" --output \"$OPERATION_DIR/pre-reset-login.json\"", to: "--output \"$OPERATION_DIR/pre-reset-login.json\"", caughtBy: "a standalone reset lifts the curtain" },
   { label: "the scheduler reads a curtained recovery as a lifted one", helper: "scheduler", from: "elif grep -Fq 'prior unit was restored and verified behind the retained maintenance curtain' \"$RUN_ROOT/reset.err\"; then", to: "elif false; then", caughtBy: "the scheduler records a recovery behind the retained curtain" },
 ]);
 
 /**
- * @typedef {{ extraNetwork?: boolean, dataVolume?: string, image?: string }} ProfileDrift
+ * @typedef {{ extraNetwork?: boolean, dataVolume?: string, image?: string, subpath?: boolean, secretMount?: boolean, volumesFrom?: boolean }} ProfileDrift
  * @typedef {{
  *   dockerDown?: boolean, imageMissing?: boolean, health?: string, bridgeAfter?: number | null, scannerAfter?: number | null,
  *   curlFails?: boolean, resetExit?: number, resetFailure?: "unrecovered" | "recovered" | "recovered-curtained", resetRemovesMarker?: boolean,
  *   profile?: ProfileDrift, configCanary?: boolean, imageInspectCanary?: boolean, isolationCheckFails?: boolean,
- *   running?: boolean, identityFailCalls?: number[], publicFails?: boolean, candidateBuildFails?: boolean,
+ *   running?: boolean, identityFailCalls?: number[], publicFails?: boolean, candidateBuildFails?: boolean, candidateBuildCanary?: boolean,
+ *   roleCredentials?: "missing" | "empty", stall?: string, stopFails?: "error" | "silent", killFails?: boolean,
  * }} Scenario
  */
 /** @typedef {{ running: boolean, isolationEnforced: boolean, probes: Record<string, number>, clock: number, identityCalls: number }} Runtime */
-/** @typedef {{ tool: string, markerPresent: boolean, args: string[], stdin?: string, lockInherited?: boolean, isolationEnforced?: boolean }} Call */
+/** @typedef {{ tool: string, markerPresent: boolean, args: string[], stdin?: string, lockInherited?: boolean, isolationEnforced?: boolean, stalled?: boolean, unboundedStall?: boolean }} Call */
 /** @typedef {{ root: string, state: string, helperEnv: string, deployRoot: string, volume: string, marker: string, isolation: string }} Sandbox */
 
 if (process.argv[2] === "--fake") {
@@ -214,8 +248,9 @@ function fakeCurl(args, scenario, runtime, record, save) {
     record({ stdin });
     return scenario.curlFails ? 22 : 0;
   }
-  record();
   const url = String(args.findLast((arg) => /^https?:\/\//.test(arg)) || "");
+  if (scenario.stall && url.startsWith("http://127.0.0.1:8001/") && new URL(url).pathname === scenario.stall) return stallRequest(args, url, record);
+  record();
   const output = args.includes("--output") ? String(args[args.indexOf("--output") + 1]) : "";
   const isPublic = onDemoOrigin(url);
   if (isPublic && scenario.publicFails) return 7;
@@ -246,39 +281,71 @@ function fakeCurl(args, scenario, runtime, record, save) {
 }
 
 /**
+ * Sends one request through the real curl, with the helper's own arguments, to a server that accepts
+ * the connection and never answers. Only the helper's time limit can end it; one that has none is cut
+ * off by the harness and recorded as unbounded.
+ * @param {string[]} args @param {string} url @param {(extra?: Partial<Call>) => void} record
+ */
+function stallRequest(args, url, record) {
+  const port = Number(readJson(path.join(String(process.env.HARNESS_STATE || ""), "paths.json")).stallPort);
+  const target = new URL(url);
+  const stalled = `http://127.0.0.1:${port}${target.pathname}${target.search}`;
+  const result = spawnSync("/usr/bin/curl", args.map((arg) => (arg === url ? stalled : arg)), { stdio: "inherit", timeout: STALL_SAFETY_MS, killSignal: "SIGKILL" });
+  const unboundedStall = result.signal === "SIGKILL";
+  record({ stalled: true, unboundedStall });
+  return unboundedStall ? 28 : result.status ?? 1;
+}
+
+/**
  * The resolved Compose profile, in the shape `docker compose config --format json` gives for the
- * shipped compose.yaml and the exact demo environment, with any drift the scenario asks for.
+ * shipped compose.yaml and the exact demo environment, with any drift the scenario asks for. Each
+ * drift has the shape Compose itself gives it.
  * @param {Scenario} scenario
  */
 function resolvedProfile(scenario) {
   const drift = scenario.profile || {};
+  /** @type {Record<string, unknown>} */
+  const service = {
+    cap_drop: ["ALL"],
+    command: null,
+    dns: ["127.0.0.1"],
+    entrypoint: null,
+    environment: {
+      DEMO_MODE: "true", HOST: "0.0.0.0", PORT: "8001", LONGTAIL_ENV: "production", LONGTAIL_DEPLOYMENT_MODE: "compose",
+      LONGTAIL_PUBLIC_URL: DEMO_ORIGIN, LONGTAIL_DATABASE_PROVIDER: "sqlite", LONGTAIL_STORAGE_PROVIDER: "local",
+      LONGTAIL_FILE_SCANNER: "clamd", LONGTAIL_CLAMD_HOST: GATEWAY, LONGTAIL_CLAMD_PORT: "3310", LONGTAIL_WORKER_MODE: "inline",
+      LONGTAIL_SUPPORT_VIEW_ENABLED: "false", LONGTAIL_DATA_DIR: "/var/lib/longtail-forge",
+      LONGTAIL_DATABASE_FILE: "/var/lib/longtail-forge/longtail-forge.db", LONGTAIL_LOCAL_STORAGE_ROOT: "/var/lib/longtail-forge/files",
+      LONGTAIL_WORKSPACE_BACKUP_ROOT: "/var/backups/longtail-forge/workspaces", SUPER_ADMIN_PASSWORD: CANARY,
+    },
+    healthcheck: { test: ["CMD", "node", "-e", "process.exit(0)"], timeout: "5s", interval: "15s", retries: 4, start_period: "30s" },
+    image: drift.image || IMAGE,
+    init: true,
+    logging: { driver: "local", options: { "max-file": "7", "max-size": "10m" } },
+    networks: drift.extraNetwork ? { demo: null, other: null } : { demo: null },
+    ports: [{ mode: "ingress", host_ip: "127.0.0.1", target: 8001, published: "8001", protocol: "tcp" }],
+    read_only: true,
+    restart: "no",
+    security_opt: ["no-new-privileges:true"],
+    stop_grace_period: "30s",
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001"],
+    user: "10001:10001",
+    volumes: [
+      { type: "volume", source: "data", target: "/var/lib/longtail-forge", volume: drift.subpath ? { subpath: "units/retained" } : {} },
+      { type: "bind", source: BACKUP_ROOT, target: "/var/backups/longtail-forge" },
+    ],
+  };
+  if (drift.volumesFrom) service.volumes_from = ["container:retained-unit"];
+  if (drift.secretMount) service.secrets = [{ source: "demo", target: "/run/secrets/demo" }];
   return {
     name: "longtail-forge",
-    services: {
-      "longtail-forge": {
-        image: drift.image || IMAGE,
-        restart: "no",
-        read_only: true,
-        dns: ["127.0.0.1"],
-        networks: drift.extraNetwork ? { demo: null, other: null } : { demo: null },
-        volumes: [
-          { type: "volume", source: "data", target: "/var/lib/longtail-forge", volume: {} },
-          { type: "bind", source: BACKUP_ROOT, target: "/var/backups/longtail-forge" },
-        ],
-        ports: [{ mode: "ingress", host_ip: "127.0.0.1", target: 8001, published: "8001", protocol: "tcp" }],
-        logging: { driver: "local", options: { "max-file": "7", "max-size": "10m" } },
-        environment: {
-          DEMO_MODE: "true", HOST: "0.0.0.0", PORT: "8001", LONGTAIL_ENV: "production", LONGTAIL_DEPLOYMENT_MODE: "compose",
-          LONGTAIL_PUBLIC_URL: DEMO_ORIGIN, LONGTAIL_DATABASE_PROVIDER: "sqlite", LONGTAIL_STORAGE_PROVIDER: "local",
-          LONGTAIL_FILE_SCANNER: "clamd", LONGTAIL_CLAMD_HOST: GATEWAY, LONGTAIL_CLAMD_PORT: "3310", LONGTAIL_WORKER_MODE: "inline",
-          LONGTAIL_SUPPORT_VIEW_ENABLED: "false", LONGTAIL_DATA_DIR: "/var/lib/longtail-forge",
-          LONGTAIL_DATABASE_FILE: "/var/lib/longtail-forge/longtail-forge.db", LONGTAIL_LOCAL_STORAGE_ROOT: "/var/lib/longtail-forge/files",
-          LONGTAIL_WORKSPACE_BACKUP_ROOT: "/var/backups/longtail-forge/workspaces", SUPER_ADMIN_PASSWORD: CANARY,
-        },
-      },
+    networks: {
+      demo: { name: DEMO_NETWORK, ipam: {}, external: true },
+      ...(drift.extraNetwork ? { other: { name: "longtail-forge-other", ipam: {}, external: true } } : {}),
     },
-    networks: { demo: { name: DEMO_NETWORK, external: true }, other: { name: "longtail-forge-other", external: true } },
+    services: { "longtail-forge": service },
     volumes: { data: { name: drift.dataVolume || DEMO_VOLUME } },
+    ...(drift.secretMount ? { secrets: { demo: { name: "longtail-forge_demo", file: "/etc/hosts" } } } : {}),
   };
 }
 
@@ -298,7 +365,7 @@ function fakeDocker(args, scenario, runtime, record, save, state) {
       return 0;
     }
     record();
-    if (sub === "config" && args.includes("--quiet") && scenario.configCanary) {
+    if (sub === "config" && !args.includes("--services") && scenario.configCanary) {
       // Compose quotes the offending value when an environment file does not parse.
       process.stderr.write(`failed to read /etc/longtail-forge/public-demo.env: Invalid template: "${CANARY}"\n`);
       return 1;
@@ -306,9 +373,14 @@ function fakeDocker(args, scenario, runtime, record, save, state) {
     if (sub === "config" && args.includes("--services")) return emit("longtail-forge\n");
     if (sub === "config" && args.includes("json")) return emit(JSON.stringify(resolvedProfile(scenario)));
     if (sub === "ps") return emit(runtime.running ? `${"e".repeat(64)}\n` : "");
-    if (sub === "stop") {
-      runtime.running = false;
-      save();
+    if (sub === "stop" || sub === "kill") {
+      // A failed stop exits non-zero; a silent one claims success, but either leaves the container running.
+      const failure = sub === "stop" ? scenario.stopFails : scenario.killFails ? "error" : undefined;
+      if (failure === "error") return 1;
+      if (failure !== "silent") {
+        runtime.running = false;
+        save();
+      }
       return 0;
     }
     if (sub === "run") return fakeComposeRun(args, scenario);
@@ -319,7 +391,7 @@ function fakeDocker(args, scenario, runtime, record, save, state) {
   if (args[0] === "volume" && args[1] === "inspect") return emit(`${String(readJson(path.join(state, "paths.json")).volume)}\n`);
   if (args[0] === "image" && args[1] === "inspect") {
     if (scenario.imageInspectCanary) {
-      process.stderr.write(`Error response from daemon: registry credential ${CANARY} was refused\n`);
+      process.stderr.write(`Error response from daemon: registry credentials ${CANARY} ${ROLE_CANARY} ${HOST_CANARY} were refused\n`);
       return 1;
     }
     return scenario.imageMissing ? 1 : emit(`sha256:${"b".repeat(64)}\n`);
@@ -343,6 +415,10 @@ function fakeComposeRun(args, scenario) {
   if (script.endsWith("public-demo-baseline-candidate.mjs")) {
     if (action === "build" && scenario.candidateBuildFails) {
       process.stderr.write("candidate build failed\n");
+      return 1;
+    }
+    if (action === "build" && scenario.candidateBuildCanary) {
+      process.stderr.write(`candidate build failed: credentials ${CANARY} ${ROLE_CANARY} ${HOST_CANARY} were refused\n`);
       return 1;
     }
     return emit(`${JSON.stringify({ ok: true, action, semanticFingerprint: "f".repeat(64) })}\n`);
@@ -387,6 +463,15 @@ async function main() {
   for (const command of ["bash", "jq", "flock", "find", "install", "stat"]) {
     assert.equal(spawnSync("bash", ["-c", `command -v ${command}`]).status, 0, `${command} is required`);
   }
+  assert.ok(fs.existsSync("/usr/bin/curl"), "the real curl is required for the stalled-response scenarios");
+  // A server that accepts each connection and never answers. The kernel completes the handshake even
+  // while the scenarios block this process, so a request to it stalls until its own time limit.
+  const stallServer = net.createServer(() => {});
+  await new Promise((resolve) => stallServer.listen(0, "127.0.0.1", () => resolve(undefined)));
+  stallServer.unref();
+  const address = stallServer.address();
+  stallPort = typeof address === "object" && address ? address.port : 0;
+  assert.ok(stallPort > 0, "the stall server must listen");
   const created = prepareHost();
   const work = fs.mkdtempSync("/tmp/ltf-demo-helper-harness-");
   fs.chmodSync(work, 0o755);
@@ -426,8 +511,18 @@ async function main() {
     const result = spawnSync("bash", [helper, ...args], {
       encoding: "utf8",
       env: { PATH: `${fakeBin}:/usr/sbin:/usr/bin:/sbin:/bin`, HOME: "/root", LANG: "C.UTF-8", HARNESS_STATE: box.state, LTF_COMPOSE_HELPER_ENV: box.helperEnv },
+      timeout: 180_000,
+      killSignal: "SIGKILL",
     });
-    return { status: result.status ?? 1, stdout: String(result.stdout), stderr: String(result.stderr), calls: readCalls(box) };
+    assert.equal(result.signal, null, "the helper must finish on its own");
+    const calls = readCalls(box);
+    // Every request any helper makes carries its own time limit, in every scenario.
+    for (const call of calls.filter((entry) => entry.tool === "curl")) {
+      const limit = Number(call.args[call.args.indexOf("--max-time") + 1]);
+      assert.ok(call.args.includes("--max-time") && limit > 0 && limit <= REQUEST_LIMIT_SECONDS, `every request must be bounded: ${JSON.stringify(call.args)}`);
+      assert.notEqual(call.unboundedStall, true, `a stalled request ran past the harness's cut-off: ${JSON.stringify(call.args)}`);
+    }
+    return { status: result.status ?? 1, stdout: String(result.stdout), stderr: String(result.stderr), calls };
   };
   /** @param {Sandbox} box */
   const boot = (box) => runHelper(box, helpers.boot, ["run"]);
@@ -579,6 +674,16 @@ async function main() {
     scenario("an extra network stops the boot before anything starts", assertProfileRefused, { profile: { extraNetwork: true } });
     scenario("another data volume stops the boot before anything starts", assertProfileRefused, { profile: { dataVolume: "longtail-forge-other-data" } });
     scenario("an image other than the recorded release stops the boot before anything starts", assertProfileRefused, { profile: { image: IMAGE.replace(/a{64}$/, "b".repeat(64)) } });
+    scenario("a volume subpath stops the boot before anything starts", assertProfileRefused, { profile: { subpath: true } });
+    scenario("a secret mount stops the boot before anything starts", assertProfileRefused, { profile: { secretMount: true } });
+    scenario("inherited mounts stop the boot before anything starts", assertProfileRefused, { profile: { volumesFrom: true } });
+    scenario("the boot and the reset carry the same profile program and environment-file parser", () => {
+      const boot = fs.readFileSync(helpers.boot, "utf8");
+      const reset = fs.readFileSync(helpers.reset, "utf8");
+      for (const shared of SHARED_BLOCKS) {
+        assert.equal(sharedBlock(reset, shared), sharedBlock(boot, shared), `${shared.label} must be identical in both helpers`);
+      }
+    });
     scenario("a container that fails its post-start isolation check is stopped again, behind the curtain", (box) => {
       const result = boot(box);
       assert.equal(result.status, 9, result.stderr);
@@ -589,24 +694,56 @@ async function main() {
       assert.equal(readJson(path.join(box.state, "runtime.json")).running, false, "nothing may be left running");
       assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
     }, { isolationCheckFails: true });
+    scenario("a stop that leaves the unverified container running is escalated to a kill", (box) => {
+      const result = boot(box);
+      assert.equal(result.status, 9, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).failureClass, "boot-start-failed");
+      assert.equal(result.calls.filter((call) => call.tool === "docker" && call.args.includes("kill")).length, 1, "the boot must kill what a stop left running");
+      assert.equal(readJson(path.join(box.state, "runtime.json")).running, false, "nothing may be left running");
+      assert.ok(fs.existsSync(box.marker));
+    }, { isolationCheckFails: true, stopFails: "silent" });
+    scenario("an unverified container that cannot be stopped raises its own alert, behind the curtain", (box) => {
+      const result = boot(box);
+      assert.equal(result.status, 12, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).failureClass, "boot-stop-failed");
+      assert.match(only(result.calls, "logger").args.join(" "), /failureClass=boot-stop-failed recoveryStatus=unverified-container-not-stopped exitCode=12/);
+      assert.match(fs.readFileSync(path.join(bootDirectory(box), "stop-unverified.err"), "utf8"), /did not stop; killing it/);
+      assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
+    }, { isolationCheckFails: true, stopFails: "error", killFails: true });
+    scenario("a stalled readiness response is abandoned within the boot's bound, and the start is stopped", (box) => {
+      completedReset(box, new Date());
+      const result = boot(box);
+      assert.equal(result.status, 9, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).failureClass, "boot-start-failed");
+      assert.equal(result.calls.filter((call) => call.stalled).length, 1, "the readiness request must have reached the stalled server");
+      assert.equal(readJson(path.join(box.state, "runtime.json")).running, false, "nothing may be left running");
+      assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
+    }, { stall: "/readyz" });
 
     // Diagnostics reach evidence only redacted, and a Compose parser error never does.
     scenario("a Compose parser error is not kept by the boot, because it can quote a secret", (box) => {
       const result = boot(box);
-      assertRefused(result, 7, "boot-storage-failed");
+      assertRefused(result, 11, "boot-profile-invalid");
       const directory = bootDirectory(box);
-      assert.match(fs.readFileSync(path.join(directory, "storage-check.err"), "utf8"), /did not parse; its output is not kept/);
+      assert.match(fs.readFileSync(path.join(directory, "profile-resolve.err"), "utf8"), /did not parse; its output is not kept/);
       for (const text of [readTree(directory), result.stdout, result.stderr]) {
         assert.ok(!text.includes(CANARY) && !text.includes("Invalid template"), "no part of the parser's output may be kept");
       }
     }, { configCanary: true });
-    scenario("a check's diagnostics are redacted before they are kept", (box) => {
+    scenario("a check's diagnostics are redacted before they are kept, including every secret Compose and the role file hold", (box) => {
       const result = boot(box);
       assertRefused(result, 7, "boot-storage-failed");
       const directory = bootDirectory(box);
-      assert.match(fs.readFileSync(path.join(directory, "storage-check.err"), "utf8"), /registry credential \[redacted\] was refused/);
-      assert.ok(!readTree(directory).includes(CANARY), "a secret value must never reach the boot's evidence");
+      assert.match(fs.readFileSync(path.join(directory, "storage-check.err"), "utf8"), /registry credentials \[redacted\] \[redacted\] \[redacted\] were refused/);
+      for (const secret of [CANARY, ROLE_CANARY, HOST_CANARY]) {
+        assert.ok(!readTree(directory).includes(secret), "a secret value must never reach the boot's evidence");
+      }
     }, { imageInspectCanary: true });
+    scenario("missing role credentials stop the boot before anything starts, because its redaction would be incomplete", (box) => {
+      const result = boot(box);
+      assertRefused(result, 11, "boot-profile-invalid");
+      assert.match(fs.readFileSync(path.join(bootDirectory(box), "profile-resolve.err"), "utf8"), /role credentials must be a regular non-symbolic-link file/);
+    }, { roleCredentials: "missing" });
 
     // Boot success paths.
     scenario("a boot with no missed boundary waits for its dependencies, isolates before starting, and lifts the curtain", (box) => {
@@ -754,6 +891,34 @@ async function main() {
       assert.ok(fs.existsSync(box.marker));
       assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["failed", "maintenance-curtain-retained"]);
     }, { running: false, candidateBuildFails: true });
+    scenario("the reset refuses a volume subpath before it starts or stops anything", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /not the exact production public demo/);
+      assert.equal(result.calls.filter((call) => call.tool === "docker" && ["up", "stop", "run", "kill"].some((verb) => call.args.includes(verb))).length, 0);
+    }, { running: true, profile: { subpath: true } });
+    scenario("a reset step's diagnostics are redacted, including every secret Compose and the role file hold", (box) => {
+      const result = reset(box);
+      assert.notEqual(result.status, 0);
+      const evidence = path.join(box.deployRoot, "demo-reset-operations");
+      const operation = fs.readdirSync(evidence).sort().at(-1) || "";
+      assert.match(fs.readFileSync(path.join(evidence, operation, "step-candidate-build.err"), "utf8"), /credentials \[redacted\] \[redacted\] \[redacted\] were refused/);
+      for (const text of [readTree(evidence), result.stdout, result.stderr]) {
+        for (const secret of [CANARY, ROLE_CANARY, HOST_CANARY]) assert.ok(!text.includes(secret), "a secret value must never reach the reset's evidence or output");
+      }
+    }, { running: true, candidateBuildCanary: true });
+    scenario("a reset without any role password refuses before any Docker call", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /role passwords could not be collected/);
+      assert.equal(result.calls.filter((call) => call.tool === "docker").length, 0);
+    }, { running: true, roleCredentials: "empty" });
+    scenario("a stalled role proof is abandoned within the reset's bound, and the prior unit is restored", (box) => {
+      const result = reset(box);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /reset failed; prior unit was restored and verified\n/);
+      assert.equal(result.calls.filter((call) => call.stalled).length, 1, "the role proof must have reached the stalled server");
+    }, { running: true, stall: "/api/csrf-token" });
     scenario("the reset keeps no Compose parser output, because it can quote a secret", (box) => {
       const result = reset(box);
       assert.equal(result.status, 1);
@@ -797,6 +962,7 @@ async function main() {
     }
   } finally {
     restoreHost(work, created);
+    stallServer.close();
   }
 
   const failures = outcomes.filter((outcome) => !outcome.ok);
@@ -835,14 +1001,18 @@ function createSandbox(work, ordinal, scenario) {
   writePrivate(releaseEnv, `LONGTAIL_IMAGE=${IMAGE}\nLONGTAIL_RELEASE_BRANCH=main\nLONGTAIL_RELEASE_COMMIT=${IDENTITY.commitSha}\nLONGTAIL_RELEASE_ARTIFACT_SHA256=${IDENTITY.artifact}\n`);
   writePrivate(path.join(deployRoot, "state", "current.json"), JSON.stringify({ version: IDENTITY.version, commitSha: IDENTITY.commitSha, artifact: { sha256: IDENTITY.artifact }, deployment: { releaseEnv, rollbackBackup: "" } }));
   writePrivate(path.join(deployRoot, "compose-operation.lock"), "");
-  // The application environment file the host environment names carries the canary secret, so
-  // both helpers' redaction lists hold it.
+  // The application environment file carries the canary secret. Only Compose reads it, so the fake
+  // Compose resolves it into the environment, and the host environment names it with quotes, as
+  // Compose allows: a helper that parsed the path itself would miss the file. The host environment
+  // also carries a double-quoted secret of its own, and the role passwords one more.
   const appEnv = path.join(root, "etc", "public-demo.env");
   writePrivate(appEnv, `DEMO_MODE=true\nSUPER_ADMIN_PASSWORD=${CANARY}\n`);
   const hostEnv = path.join(root, "etc", "compose-host.env");
-  writePrivate(hostEnv, `LONGTAIL_ENV_FILE=${appEnv}\nLONGTAIL_HOST_PORT=8001\n`);
+  writePrivate(hostEnv, `LONGTAIL_ENV_FILE="${appEnv}"\nLONGTAIL_HOST_PORT=8001\nLONGTAIL_HARNESS_SECRET="${HOST_CANARY}"\n`);
   const roleCredentials = path.join(root, "secrets", "demo-role-credentials.json");
-  writePrivate(roleCredentials, JSON.stringify({ passwords: { super_admin: "HarnessPassword-42" } }));
+  if (scenario.roleCredentials !== "missing") {
+    writePrivate(roleCredentials, JSON.stringify({ version: 2, passwords: scenario.roleCredentials === "empty" ? {} : { super_admin: ROLE_CANARY } }));
+  }
   const isolation = path.join(root, "isolation");
   fs.writeFileSync(isolation, `#!/usr/bin/env bash\nexec ${shellQuote(path.join(work, "bin", "isolation"))} "$@"\n`, { mode: 0o755 });
   const helperEnv = path.join(root, "etc", "compose-deploy-helper.env");
@@ -859,7 +1029,7 @@ function createSandbox(work, ordinal, scenario) {
   const marker = path.join(maintenance, "deployment", "maintenance.on");
   fs.writeFileSync(path.join(state, "scenario.json"), JSON.stringify({ bridgeAfter: 0, scannerAfter: 0, ...scenario }));
   fs.writeFileSync(path.join(state, "runtime.json"), JSON.stringify({ running: Boolean(scenario.running), isolationEnforced: false, probes: {}, clock: Math.floor(Date.now() / 1000), identityCalls: 0 }));
-  fs.writeFileSync(path.join(state, "paths.json"), JSON.stringify({ marker, volume, lock: path.join(deployRoot, "compose-operation.lock") }));
+  fs.writeFileSync(path.join(state, "paths.json"), JSON.stringify({ marker, volume, lock: path.join(deployRoot, "compose-operation.lock"), stallPort }));
   fs.writeFileSync(path.join(state, "calls.jsonl"), "");
   for (const file of ["scenario.json", "runtime.json", "paths.json", "calls.jsonl"]) fs.chmodSync(path.join(state, file), 0o666);
   return { root, state, helperEnv, deployRoot, volume, marker, isolation };
@@ -903,6 +1073,15 @@ function readTree(directory) {
     if (entry.isDirectory()) return readTree(entryPath);
     return entry.isFile() ? fs.readFileSync(entryPath, "utf8") : "";
   }).join("\n");
+}
+
+/** One block a helper must share with its sibling, from its opening line through its end marker. @param {string} source @param {{ label: string, start: string, end: string }} shared */
+function sharedBlock(source, shared) {
+  assert.equal(source.split(shared.start).length - 1, 1, `${shared.label} must open exactly once`);
+  const from = source.indexOf(shared.start);
+  const to = source.indexOf(shared.end, from + shared.start.length);
+  assert.ok(to > from, `${shared.label} must close`);
+  return source.slice(from, to + shared.end.length);
 }
 
 /** @param {Sandbox} box @returns {Call[]} */

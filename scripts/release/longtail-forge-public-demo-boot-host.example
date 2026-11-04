@@ -18,8 +18,9 @@ umask 077
 #
 # It never pulls, upgrades, or rolls back, and it never creates an empty substitute database. Each
 # refusal raises its own alert class, and an edge or DNS failure never causes a reset or a rollback.
-# Check output is kept as evidence only after every known secret value is replaced, and a Compose
-# parser error is never kept, because it can quote a secret from the environment files.
+# Check output is kept as evidence only after every known secret value is replaced: the secrets in
+# the environment Compose itself resolves, and the demo role passwords. A Compose parser error is
+# never kept, because it can quote a secret from the environment files.
 
 HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
 readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_DEMO_ISOLATION_HELPER|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
@@ -38,6 +39,52 @@ readonly DOCKER_WAIT=180
 readonly BRIDGE_WAIT=120
 readonly SCANNER_WAIT=240
 readonly PROBE_INTERVAL=5
+readonly REQUEST_LIMIT=15
+
+# The exact public-demo profile, as `docker compose config --format json` resolves it. The boot and
+# the reset carry this program byte for byte, and the helper harness compares the two copies. Only
+# the listed service keys may appear, so a secret, config, inherited, or device mount, an added
+# capability, or a shared namespace is refused by its key. Each mount must equal its expected form
+# exactly, so a volume subpath or a bind option is refused too.
+readonly EXACT_PROFILE_PROGRAM='
+  def declared_key: test("^(DEMO_MODE|HOST|PORT|TRUST_PROXY|WORKSPACE_INSTALL_MODE|WORKSPACE_TYPE_LIMIT|SUPER_ADMIN_(DISPLAY_NAME|PASSWORD|USERNAME)|LONGTAIL_(AUTH_[A-Z0-9_]+|CLAMD_HOST|CLAMD_PORT|DATA_DIR|DATABASE_FILE|DATABASE_PROVIDER|DEPLOYMENT_MODE|ENV|FILE_SCANNER|HSTS_MAX_AGE_SECONDS|JOB_[A-Z0-9_]+|LOCAL_STORAGE_ROOT|LOG_LEVEL|PUBLIC_URL|RELEASE_[A-Z0-9_]+|PUBLIC_DEMO_(CLIENT_REQUEST_LIMIT|GLOBAL_REQUEST_LIMIT|MAX_BODY_BYTES|MUTATION_LIMIT|PERIMETER_WINDOW_SECONDS|SEARCH_LIMIT)|SECURE_NOTES_KEY_VERSION|SECURE_NOTES_MASTER_KEY|SESSION_[A-Z0-9_]+|SQLITE_[A-Z0-9_]+|STORAGE_PROVIDER|SUPPORT_VIEW_ENABLED|SUPPORT_VIEW_TTL_SECONDS|WORKER_[A-Z0-9_]+|WORKSPACE_BACKUP_ROOT))$");
+  def plain_mount:
+    (if .volume == {} then del(.volume) else . end)
+    | (if (.bind | type) == "object" and ((.bind | keys) - ["create_host_path"]) == [] then del(.bind) else . end);
+  . as $root
+  | (.services | keys) == ["longtail-forge"]
+  and (.services["longtail-forge"] |
+    ((keys - ["cap_drop", "command", "dns", "entrypoint", "env_file", "environment", "healthcheck", "image", "init", "logging", "networks", "ports", "read_only", "restart", "security_opt", "stop_grace_period", "tmpfs", "user", "volumes"]) == [])
+    and .image == $image
+    and .restart == "no"
+    and .command == null
+    and .entrypoint == null
+    and .user == "10001:10001"
+    and .read_only == true
+    and .cap_drop == ["ALL"]
+    and .security_opt == ["no-new-privileges:true"]
+    and .dns == ["127.0.0.1"]
+    and .tmpfs == ["/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001"]
+    and (.networks | type == "object" and length == 1 and ((.[] // {}) == {}))
+    and ((.networks | keys[0]) as $key | $root.networks[$key].name == $network and $root.networks[$key].external == true)
+    and ([.volumes[] | plain_mount] | sort_by(.target) as $mounts
+      | ($mounts | length) == 2
+      and $mounts[0] == {type: "bind", source: $backup, target: "/var/backups/longtail-forge"}
+      and ($mounts[1].source | type) == "string"
+      and $mounts[1] == {type: "volume", source: $mounts[1].source, target: "/var/lib/longtail-forge"}
+      and $root.volumes[$mounts[1].source] == {name: $volume})
+    and (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and (.[0].published | tostring) == "8001" and .[0].target == 8001)
+    and .logging.driver == "local" and .logging.options["max-size"] == "10m" and .logging.options["max-file"] == "7"
+    and (.environment | keys | all(declared_key))
+    and (.environment |
+      .DEMO_MODE == "true" and .LONGTAIL_ENV == "production" and .LONGTAIL_DEPLOYMENT_MODE == "compose"
+      and .LONGTAIL_PUBLIC_URL == $origin and .LONGTAIL_DATABASE_PROVIDER == "sqlite" and .LONGTAIL_STORAGE_PROVIDER == "local"
+      and .LONGTAIL_FILE_SCANNER == "clamd" and (.LONGTAIL_CLAMD_HOST | test("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"))
+      and (.LONGTAIL_CLAMD_PORT | test("^[0-9]+$")) and .LONGTAIL_WORKER_MODE == "inline" and .LONGTAIL_SUPPORT_VIEW_ENABLED == "false"
+      and .LONGTAIL_DATA_DIR == "/var/lib/longtail-forge" and .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db"
+      and .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files"
+      and .LONGTAIL_WORKSPACE_BACKUP_ROOT == "/var/backups/longtail-forge/workspaces"))
+'
 
 fail() {
   printf 'longtail-forge-public-demo-boot: %s\n' "$*" >&2
@@ -120,23 +167,56 @@ WORK="$(mktemp -d /run/longtail-forge-public-demo-boot.XXXXXX)"
 chmod 0700 "$WORK"
 trap 'rm -rf -- "$WORK"' EXIT
 
-# Values that must never reach evidence: the secrets in the Compose host environment and in the
-# application environment file it names, and the demo role passwords. Every diagnostic passes
-# through this list before it is kept.
-APP_ENV_FILE="$(grep -E '^LONGTAIL_ENV_FILE=' "$COMPOSE_HOST_ENV" 2>/dev/null | head -n 1 | cut -d= -f2- || true)"
-SECRET_SOURCES=()
-for source in "$COMPOSE_HOST_ENV" "$APP_ENV_FILE"; do
-  if test -n "$source" && test -f "$source" && test ! -L "$source"; then SECRET_SOURCES+=("$source"); fi
-done
+# Values that must never reach evidence. Every diagnostic passes through this list before it is
+# kept. It is filled when the profile resolves, before any check that could print a secret: Compose
+# itself parses the application's environment files, however they are quoted, so the secrets are
+# taken from the environment it resolves, with the demo role passwords and the secret-named values
+# of the Compose host environment. Incomplete collection refuses the start.
 : > "$WORK/redactions"
-if test "${#SECRET_SOURCES[@]}" -gt 0; then
-  awk -F= '$1 ~ /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL)/ && length($0) > length($1) + 1 { value = substr($0, length($1) + 2); gsub(/^["\047]|["\047]$/, "", value); print value }' \
-    "${SECRET_SOURCES[@]}" >> "$WORK/redactions"
-fi
-ROLE_CREDENTIALS="${LTF_DEMO_ROLE_CREDENTIALS:-}"
-if test -n "$ROLE_CREDENTIALS" && test -f "$ROLE_CREDENTIALS" && test ! -L "$ROLE_CREDENTIALS"; then
-  jq -r '.. | objects | .password? // empty | strings' "$ROLE_CREDENTIALS" >> "$WORK/redactions" 2>/dev/null || true
-fi
+ROLE_CREDENTIALS="${LTF_DEMO_ROLE_CREDENTIALS:-/etc/longtail-forge/demo-role-credentials.json}"
+
+# Prints each secret-named value in one environment file, parsed as Compose parses one: an optional
+# `export`, a single-quoted value taken literally, a double-quoted value with its escapes, and an
+# unquoted value cut at an inline comment and trimmed.
+secret_values_from_env_file() {
+  awk '
+    {
+      line = $0
+      sub(/^[ \t]+/, "", line)
+      if (line == "" || substr(line, 1, 1) == "#") next
+      sub(/^export[ \t]+/, "", line)
+      at = index(line, "=")
+      if (at == 0) next
+      key = substr(line, 1, at - 1)
+      sub(/[ \t]+$/, "", key)
+      if (key !~ /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL)/) next
+      value = substr(line, at + 1)
+      sub(/^[ \t]+/, "", value)
+      quote = substr(value, 1, 1)
+      if (quote == "\047") {
+        value = substr(value, 2)
+        stop = index(value, "\047")
+        if (stop > 0) value = substr(value, 1, stop - 1)
+      } else if (quote == "\"") {
+        out = ""
+        for (i = 2; i <= length(value); i++) {
+          c = substr(value, i, 1)
+          if (c == "\"") break
+          if (c == "\\" && i < length(value)) {
+            i++
+            c = substr(value, i, 1)
+            if (c == "n") c = "\n"
+          }
+          out = out c
+        }
+        value = out
+      } else {
+        sub(/[ \t]+#.*$/, "", value)
+        sub(/[ \t]+$/, "", value)
+      }
+      if (length(value) > 0) print value
+    }' "$1"
+}
 
 # Keeps the last 64 KiB of one diagnostic file as evidence, with every listed secret replaced. Each
 # value is matched as literal text, never as a pattern.
@@ -266,7 +346,25 @@ wait_until() {
 }
 wait_until docker "$DOCKER_WAIT" docker info || stop_with_alert 'boot-dependency-unavailable' 'demo-stopped' 6
 
-# 3. Storage. Missing or uncertain storage fails closed: nothing creates a substitute database.
+# 3. The resolved profile, read once, from Compose itself, and the secrets it carries. A parser error
+# can quote a secret value from the environment files, so its output is never kept. Until this step
+# completes, no kept diagnostic can hold a secret; after it, every later one is redacted.
+record 'resolving-profile'
+resolve_profile() {
+  test -f "$COMPOSE_HOST_ENV" && test ! -L "$COMPOSE_HOST_ENV" || fail 'the Compose host environment must be a regular file'
+  secret_values_from_env_file "$COMPOSE_HOST_ENV" >> "$WORK/redactions"
+  compose config --format json > "$WORK/resolved.json" 2>/dev/null \
+    || fail 'the resolved Compose configuration did not parse; its output is not kept because it can carry secrets'
+  jq -r '.services[]?.environment // {} | to_entries[] | select(.key | test("PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL")) | .value | strings' \
+    "$WORK/resolved.json" >> "$WORK/redactions" 2>/dev/null || fail 'the secrets in the resolved Compose environment could not be collected'
+  require_root_owned_private_file "$ROLE_CREDENTIALS" 'public-demo role credentials'
+  jq -er '.passwords | objects | [.[] | strings | select(length > 0)] | if length > 0 then .[] else error("no role password") end' \
+    "$ROLE_CREDENTIALS" >> "$WORK/redactions" 2>/dev/null || fail 'the public-demo role passwords could not be collected'
+}
+run_check profile-resolve resolve_profile
+test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-profile-invalid' 'demo-stopped' 11
+
+# 4. Storage. Missing or uncertain storage fails closed: nothing creates a substitute database.
 record 'validating-storage'
 storage_is_intact() {
   local mountpoint
@@ -280,11 +378,6 @@ storage_is_intact() {
   test -s "$mountpoint/longtail-forge.db"
   test -d "$BACKUP_ROOT" && test ! -L "$BACKUP_ROOT"
   docker image inspect --format '{{.Id}}' "$IMAGE_REFERENCE" >/dev/null
-  # A parser error can quote a secret value from the environment files, so its output is never kept.
-  compose config --quiet >/dev/null 2>&1 || {
-    printf 'the resolved Compose configuration did not parse; its output is not kept because it can carry secrets\n' >&2
-    return 1
-  }
 }
 run_check storage-check storage_is_intact
 test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-storage-failed' 'demo-stopped' 7
@@ -293,45 +386,15 @@ if test -e "$MOUNTPOINT/.longtail-public-demo-reset-active.json"; then
   stop_with_alert 'boot-marker-present' 'demo-stopped' 4
 fi
 
-# The complete resolved profile, before anything starts: exactly the one application service, the
-# recorded image, the one isolated network, exactly the demo's data volume and backup bind, loopback
-# publication, and the exact production public-demo environment with no undeclared key. The running
-# container is checked again by the isolation helper, but by then it exists; this refuses drift first.
+# The complete resolved profile, before anything starts: exactly the one application service with
+# only the reviewed keys, the recorded image, the one isolated network, exactly the demo's data
+# volume and backup bind with no subpath or option, loopback publication, and the exact production
+# public-demo environment with no undeclared key. The running container is checked again by the
+# isolation helper, but by then it exists; this refuses drift first.
 record 'validating-profile'
 profile_is_exact() {
-  compose config --format json > "$WORK/resolved.json" 2>/dev/null || {
-    printf 'the resolved Compose configuration could not be read\n' >&2
-    return 1
-  }
   jq -e --arg image "$IMAGE_REFERENCE" --arg network "$DEMO_NETWORK" --arg volume "$DEMO_DATA_VOLUME" \
-    --arg backup "$BACKUP_ROOT" --arg origin "$DEMO_ORIGIN" '
-    def declared_key: test("^(DEMO_MODE|HOST|PORT|TRUST_PROXY|WORKSPACE_INSTALL_MODE|WORKSPACE_TYPE_LIMIT|SUPER_ADMIN_(DISPLAY_NAME|PASSWORD|USERNAME)|LONGTAIL_(AUTH_[A-Z0-9_]+|CLAMD_HOST|CLAMD_PORT|DATA_DIR|DATABASE_FILE|DATABASE_PROVIDER|DEPLOYMENT_MODE|ENV|FILE_SCANNER|HSTS_MAX_AGE_SECONDS|JOB_[A-Z0-9_]+|LOCAL_STORAGE_ROOT|LOG_LEVEL|PUBLIC_URL|RELEASE_[A-Z0-9_]+|PUBLIC_DEMO_(CLIENT_REQUEST_LIMIT|GLOBAL_REQUEST_LIMIT|MAX_BODY_BYTES|MUTATION_LIMIT|PERIMETER_WINDOW_SECONDS|SEARCH_LIMIT)|SECURE_NOTES_KEY_VERSION|SECURE_NOTES_MASTER_KEY|SESSION_[A-Z0-9_]+|SQLITE_[A-Z0-9_]+|STORAGE_PROVIDER|SUPPORT_VIEW_ENABLED|SUPPORT_VIEW_TTL_SECONDS|WORKER_[A-Z0-9_]+|WORKSPACE_BACKUP_ROOT))$");
-    . as $root
-    | (.services | keys) == ["longtail-forge"]
-    and (.services["longtail-forge"] |
-      .image == $image
-      and .restart == "no"
-      and (has("network_mode") | not)
-      and ((.privileged // false) == false)
-      and .read_only == true
-      and .dns == ["127.0.0.1"]
-      and (.networks | type == "object" and length == 1)
-      and ((.networks | keys[0]) as $key | $root.networks[$key].name == $network and $root.networks[$key].external == true)
-      and (.volumes | length == 2)
-      and any(.volumes[]; .type == "volume" and .target == "/var/lib/longtail-forge" and $root.volumes[.source].name == $volume and ((.read_only // false) == false))
-      and any(.volumes[]; .type == "bind" and .source == $backup and .target == "/var/backups/longtail-forge" and ((.read_only // false) == false))
-      and (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and (.[0].published | tostring) == "8001" and .[0].target == 8001)
-      and .logging.driver == "local" and .logging.options["max-size"] == "10m" and .logging.options["max-file"] == "7"
-      and (.environment | keys | all(declared_key))
-      and (.environment |
-        .DEMO_MODE == "true" and .LONGTAIL_ENV == "production" and .LONGTAIL_DEPLOYMENT_MODE == "compose"
-        and .LONGTAIL_PUBLIC_URL == $origin and .LONGTAIL_DATABASE_PROVIDER == "sqlite" and .LONGTAIL_STORAGE_PROVIDER == "local"
-        and .LONGTAIL_FILE_SCANNER == "clamd" and (.LONGTAIL_CLAMD_HOST | test("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"))
-        and (.LONGTAIL_CLAMD_PORT | test("^[0-9]+$")) and .LONGTAIL_WORKER_MODE == "inline" and .LONGTAIL_SUPPORT_VIEW_ENABLED == "false"
-        and .LONGTAIL_DATA_DIR == "/var/lib/longtail-forge" and .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db"
-        and .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files"
-        and .LONGTAIL_WORKSPACE_BACKUP_ROOT == "/var/backups/longtail-forge/workspaces"))
-  ' "$WORK/resolved.json" >/dev/null || {
+    --arg backup "$BACKUP_ROOT" --arg origin "$DEMO_ORIGIN" "$EXACT_PROFILE_PROGRAM" "$WORK/resolved.json" >/dev/null || {
     printf 'the resolved Compose profile is not the exact isolated public demo\n' >&2
     return 1
   }
@@ -380,13 +443,13 @@ verify_direct_identity() {
   artifact="$(jq -er '.artifact.sha256' "$CURRENT_STATE")"
   wait_for_health || return 1
   public_demo_isolation check "$(compose ps -q longtail-forge)" || return 1
-  curl --fail --silent --show-error http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
-  curl --fail --silent --show-error http://127.0.0.1:8001/api/app-info | jq -e \
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time "$REQUEST_LIMIT" http://127.0.0.1:8001/api/app-info | jq -e \
     --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
     '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null
 }
 
-# 4. Start: isolation first, then the curtain, then the recorded release.
+# 5. Start: isolation first, then the curtain, then the recorded release.
 record 'enforcing-isolation'
 run_check isolation public_demo_isolation enforce
 test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-start-failed' 'demo-stopped' 8
@@ -397,18 +460,31 @@ start_and_verify() {
   compose up -d --no-deps --force-recreate --pull never "${SQLITE_SERVICES[@]}"
   verify_direct_identity
 }
+# Stops an unverified start and proves it stopped. Compose's own exit status is not taken as proof:
+# only a running-state query that finds nothing is. A stop that leaves the container running is
+# escalated once to a kill, and the state is queried again.
+stop_unverified() {
+  if compose stop --timeout 30 "${SQLITE_SERVICES[@]}" && test -z "$(compose ps --status running -q "${SQLITE_SERVICES[@]}")"; then
+    return 0
+  fi
+  printf 'the unverified container did not stop; killing it\n' >&2
+  compose kill "${SQLITE_SERVICES[@]}"
+  test -z "$(compose ps --status running -q "${SQLITE_SERVICES[@]}")"
+}
 record 'starting'
 run_check start start_and_verify
 if test "$CHECK_STATUS" -ne 0; then
   # A container that failed its health, identity, or isolation proof must not keep running, even
-  # behind the curtain, so whatever started is stopped again.
+  # behind the curtain, so whatever started is stopped again. One that cannot be stopped raises
+  # its own alert, because the curtain is then all that stands between it and visitors.
   record 'stopping-unverified'
-  run_check stop-unverified compose stop "${SQLITE_SERVICES[@]}"
+  run_check stop-unverified stop_unverified
+  test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-stop-failed' 'unverified-container-not-stopped' 12
   stop_with_alert 'boot-start-failed' 'maintenance-curtain-retained' 9
 fi
 record 'started'
 
-# 5. Baseline policy: a missed hourly boundary means a fresh reset before visitors are served.
+# 6. Baseline policy: a missed hourly boundary means a fresh reset before visitors are served.
 LATEST_COMPLETED=''
 if test -d "$RESET_ROOT"; then
   for directory in $(find "$RESET_ROOT" -mindepth 1 -maxdepth 1 -type d -name '[0-9]*' -printf '%f\n' | sort -r); do
@@ -445,7 +521,7 @@ fi
 rm -f -- "$DEPLOYMENT_MARKER"
 record 'serving' "$RESET_OUTCOME"
 
-# 6. Public availability is reported on its own. It never causes a reset, a rollback, or a failure.
+# 7. Public availability is reported on its own. It never causes a reset, a rollback, or a failure.
 PUBLIC='unavailable'
 if curl --fail --silent --max-time 10 "$PUBLIC_URL/readyz" | jq -e '.status == "ready"' >/dev/null 2>&1; then PUBLIC='available'; fi
 HEARTBEAT='failed'
