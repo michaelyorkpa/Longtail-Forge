@@ -7,7 +7,8 @@
 // happens before anything starts, or that a webhook URL never reaches argv or output. This harness
 // runs the actual helper bytes as root, with the real bash, jq, coreutils, flock, and find. Docker,
 // HTTP, `ip`, the scanner probe, the clock, the journal, the isolation helper, and the reset the boot
-// calls are fakes, and every fake call records whether the curtain was up at that moment.
+// calls are fakes, and every fake call records whether the curtain was up at that moment. A deadline
+// a helper puts around Docker runs the real timeout, so it really ends a Docker fake that stalls.
 //
 // It needs native Linux and passwordless sudo. It writes the helpers' fixed paths under
 // /etc/longtail-forge, /usr/local/sbin, and /var/backups/longtail-forge, and refuses a host where any
@@ -63,6 +64,10 @@ const RESET_CONFIRMATION = "RESET RT-LTF-DEMO COMPOSE DATA";
 // cut off by the harness instead, so that an unbounded request fails a scenario rather than hanging.
 const REQUEST_LIMIT_SECONDS = 15;
 const STALL_SAFETY_MS = 25_000;
+// The longest deadline a helper may put on a Docker command that stops a service or proves it
+// stopped, and the point at which a stalled Docker command that ignored its deadline gives up.
+const DOCKER_LIMIT_SECONDS = 45;
+const DOCKER_STALL_SAFETY_MS = 30_000;
 /** The two blocks the boot and the reset must carry byte for byte. */
 const SHARED_BLOCKS = Object.freeze([
   { label: "the exact-profile program", start: "readonly EXACT_PROFILE_PROGRAM='\n", end: "\n'\n" },
@@ -103,8 +108,13 @@ const SEEDS = Object.freeze([
   { label: "the boot may pull", helper: "boot", from: "--force-recreate --pull never \"${SQLITE_SERVICES[@]}\"", to: "--force-recreate \"${SQLITE_SERVICES[@]}\"", caughtBy: "a boot with no missed boundary" },
   { label: "the boot leaves an unverified container running", helper: "boot", from: "  run_check stop-unverified stop_unverified\n", to: "", caughtBy: "a container that fails its post-start isolation check" },
   { label: "the boot ignores a failed stop", helper: "boot", from: "  test \"$CHECK_STATUS\" -eq 0 || stop_with_alert 'boot-stop-failed'", to: "  true || stop_with_alert 'boot-stop-failed'", caughtBy: "an unverified container that cannot be stopped" },
-  { label: "the boot trusts compose stop's exit status", helper: "boot", from: "  if compose stop --timeout 30 \"${SQLITE_SERVICES[@]}\" && test -z \"$(compose ps --status running -q \"${SQLITE_SERVICES[@]}\")\"; then", to: "  if compose stop --timeout 30 \"${SQLITE_SERVICES[@]}\"; then", caughtBy: "a stop that leaves the unverified container running" },
-  { label: "the boot never escalates to a kill", helper: "boot", from: "  compose kill \"${SQLITE_SERVICES[@]}\"\n", to: "", caughtBy: "a stop that leaves the unverified container running" },
+  { label: "the boot trusts compose stop's exit status", helper: "boot", from: "  bounded_compose \"$STOP_LIMIT\" stop --timeout 30 \"${SQLITE_SERVICES[@]}\" ||", to: "  bounded_compose \"$STOP_LIMIT\" stop --timeout 30 \"${SQLITE_SERVICES[@]}\" && return 0 ||", caughtBy: "a stop that leaves the unverified container running" },
+  { label: "the boot never escalates to a kill", helper: "boot", from: "  bounded_compose \"$KILL_LIMIT\" kill \"${SQLITE_SERVICES[@]}\" ||", to: "  true ||", caughtBy: "a stop that leaves the unverified container running" },
+  { label: "the boot takes a failed state query for a stop", helper: "boot", from: "  running=\"$(bounded_compose \"$QUERY_LIMIT\" ps --status running -q \"$@\")\" || return 1\n", to: "  running=\"$(bounded_compose \"$QUERY_LIMIT\" ps --status running -q \"$@\")\" || true\n", caughtBy: "a failed state query after the stop" },
+  { label: "the boot's stop has no deadline", helper: "boot", from: "bounded_compose \"$STOP_LIMIT\" stop --timeout 30", to: "compose stop --timeout 30", caughtBy: "a stop that leaves the unverified container running" },
+  { label: "the boot's kill has no deadline", helper: "boot", from: "bounded_compose \"$KILL_LIMIT\" kill", to: "compose kill", caughtBy: "a kill that never returns" },
+  { label: "the boot's state query has no deadline", helper: "boot", from: "  running=\"$(bounded_compose \"$QUERY_LIMIT\" ps", to: "  running=\"$(compose ps", caughtBy: "a state query that never returns" },
+  { label: "the boot's deadlines never escalate to a kill", helper: "boot", from: "  timeout --kill-after=5 \"$limit\" docker compose", to: "  timeout \"$limit\" docker compose", caughtBy: "a stop that leaves the unverified container running" },
   { label: "the boot lets a failed reset lift its curtain", helper: "boot", from: "    ensure_curtain\n", to: "", caughtBy: "a failed fresh reset that lifted the curtain" },
   { label: "the boot keeps raw check output", helper: "boot", from: "  keep_redacted \"$WORK/check.err\" \"$OPERATION_DIR/$name.err\"", to: "  cp \"$WORK/check.err\" \"$OPERATION_DIR/$name.err\"", caughtBy: "a check's diagnostics are redacted" },
   { label: "the boot keeps the Compose parser's output", helper: "boot", from: "  compose config --format json > \"$WORK/resolved.json\" 2>/dev/null \\\n", to: "  compose config --format json > \"$WORK/resolved.json\" \\\n", caughtBy: "a Compose parser error is not kept by the boot" },
@@ -126,13 +136,18 @@ const SEEDS = Object.freeze([
   { label: "a boot-delegated recovery lifts the curtain", helper: "reset", from: "    if test \"$LIFT_CURTAIN_ON_RECOVERY\" = true; then\n      clear_marker", to: "    if true; then\n      clear_marker", caughtBy: "a boot-delegated reset that fails verification" },
   { label: "a boot-delegated reset verifies the public edge", helper: "reset", from: "  test \"$CALLER\" != 'boot' || return 0\n", to: "", caughtBy: "a boot-delegated reset ignores a failing public edge" },
   { label: "a boot-delegated reset lifts the curtain itself", helper: "reset", from: "if test \"$CALLER\" != 'boot'; then clear_marker; fi", to: "clear_marker", caughtBy: "a boot-delegated reset leaves the curtain to the boot" },
-  { label: "a stopped-app start lifts the curtain before the fresh baseline", helper: "reset", from: "  start_sqlite_users\n  verify_runtime\n}\n", to: "  start_sqlite_users\n  verify_runtime\n  clear_marker\n}\n", caughtBy: "a reset that starts a stopped app keeps the curtain up" },
+  { label: "a stopped-app start lifts the curtain before the fresh baseline", helper: "reset", from: "  assert_marker\n  start_sqlite_users\n  verify_runtime\n}\n", to: "  assert_marker\n  start_sqlite_users\n  verify_runtime\n  clear_marker\n}\n", caughtBy: "a reset that starts a stopped app keeps the curtain up" },
   { label: "a recovery after a stopped-app start lifts the curtain", helper: "reset", from: "  APP_STARTED_BY_RESET=true\n  LIFT_CURTAIN_ON_RECOVERY=false\n", to: "  APP_STARTED_BY_RESET=true\n", caughtBy: "a reset that started a stopped app restores the prior unit behind its curtain" },
   { label: "the reset keeps the Compose parser's output", helper: "reset", from: "compose config --quiet >/dev/null 2>&1 \\\n", to: "compose config --quiet \\\n", caughtBy: "the reset keeps no Compose parser output" },
   { label: "the reset collects no secret from the resolved environment", helper: "reset", from: "jq -r '.services[]?.environment // {}", to: "true || jq -r '.services[]?.environment // {}", caughtBy: "a reset step's diagnostics are redacted" },
   { label: "the reset misses the role passwords", helper: "reset", from: "jq -er '.passwords | objects | [.[] | strings | select(length > 0)] | if length > 0 then .[] else error(\"no role password\") end'", to: "jq -r '.. | objects | .password? // empty | strings'", caughtBy: "a reset step's diagnostics are redacted" },
   { label: "the reset's role proof has no time limit", helper: "reset", from: "--max-time \"$REQUEST_LIMIT\" --cookie \"$SESSION_ROOT/post-reset.cookie\" \\\n    --cookie-jar \"$SESSION_ROOT/post-reset.cookie\" http://127.0.0.1:8001/api/csrf-token", to: "--cookie \"$SESSION_ROOT/post-reset.cookie\" \\\n    --cookie-jar \"$SESSION_ROOT/post-reset.cookie\" http://127.0.0.1:8001/api/csrf-token", caughtBy: "a stalled role proof is abandoned" },
   { label: "the reset's session capture has no time limit", helper: "reset", from: "--max-time \"$REQUEST_LIMIT\" --output \"$OPERATION_DIR/pre-reset-login.json\"", to: "--output \"$OPERATION_DIR/pre-reset-login.json\"", caughtBy: "a standalone reset lifts the curtain" },
+  { label: "the reset takes a failed state query for a stop", helper: "reset", from: "  running=\"$(bounded_compose \"$QUERY_LIMIT\" ps --status running -q \"$@\")\" || return 1\n", to: "  running=\"$(bounded_compose \"$QUERY_LIMIT\" ps --status running -q \"$@\")\" || true\n", caughtBy: "a reset whose state query fails" },
+  { label: "the reset's stop has no deadline", helper: "reset", from: "  bounded_compose \"$STOP_LIMIT\" stop \"${SQLITE_SERVICES[@]}\"", to: "  compose stop \"${SQLITE_SERVICES[@]}\"", caughtBy: "a standalone reset lifts the curtain" },
+  { label: "the reset's recovery keeps a step's diagnostics unredacted", helper: "reset", from: "  step recovery-stop stop_sqlite_users\n", to: "  stop_sqlite_users\n", caughtBy: "a recovery step's diagnostics are redacted" },
+  { label: "the reset drops its redaction list before recovering", helper: "reset", from: "  local status=\"$1\"\n  if test \"$status\" -ne 0 && test \"$START_ARMED\" = true; then", to: "  local status=\"$1\"\n  rm -f -- \"$SESSION_ROOT/redactions\"\n  if test \"$status\" -ne 0 && test \"$START_ARMED\" = true; then", caughtBy: "a recovery step's diagnostics are redacted" },
+  { label: "the reset leaves its session material after recovery", helper: "reset", from: "  ( run_recovery )\n  trap - HUP INT TERM\n  cleanup_session_material\n", to: "  ( run_recovery )\n  trap - HUP INT TERM\n", caughtBy: "a recovery step's diagnostics are redacted" },
   { label: "the scheduler reads a curtained recovery as a lifted one", helper: "scheduler", from: "elif grep -Fq 'prior unit was restored and verified behind the retained maintenance curtain' \"$RUN_ROOT/reset.err\"; then", to: "elif false; then", caughtBy: "the scheduler records a recovery behind the retained curtain" },
 ]);
 
@@ -144,9 +159,10 @@ const SEEDS = Object.freeze([
  *   profile?: ProfileDrift, configCanary?: boolean, imageInspectCanary?: boolean, isolationCheckFails?: boolean,
  *   running?: boolean, identityFailCalls?: number[], publicFails?: boolean, candidateBuildFails?: boolean, candidateBuildCanary?: boolean,
  *   roleCredentials?: "missing" | "empty", stall?: string, stopFails?: "error" | "silent", killFails?: boolean,
+ *   stateQuery?: "fails" | "fails-after-kill", dockerStall?: "kill" | "first-state-query", stopCanary?: boolean,
  * }} Scenario
  */
-/** @typedef {{ running: boolean, isolationEnforced: boolean, probes: Record<string, number>, clock: number, identityCalls: number }} Runtime */
+/** @typedef {{ running: boolean, isolationEnforced: boolean, probes: Record<string, number>, clock: number, identityCalls: number, stateQueries?: number, killed?: boolean }} Runtime */
 /** @typedef {{ tool: string, markerPresent: boolean, args: string[], stdin?: string, lockInherited?: boolean, isolationEnforced?: boolean, stalled?: boolean, unboundedStall?: boolean }} Call */
 /** @typedef {{ root: string, state: string, helperEnv: string, deployRoot: string, volume: string, marker: string, isolation: string }} Sandbox */
 
@@ -198,6 +214,8 @@ function runFake(tool, args) {
   }
   if (tool === "timeout") {
     record();
+    // A deadline around Docker runs the real timeout, so the deadline really ends a stalled fake.
+    if (args.includes("docker")) return spawnSync("/usr/bin/timeout", args, { stdio: "inherit" }).status ?? 1;
     return available("scanner", scenario.scannerAfter) ? emit("PONG") : 1;
   }
   if (tool === "isolation") {
@@ -355,9 +373,15 @@ function resolvedProfile(scenario) {
  */
 function fakeDocker(args, scenario, runtime, record, save, state) {
   if (args[0] === "compose") {
-    let index = 1;
-    while (["--project-directory", "--file", "--env-file"].includes(String(args[index]))) index += 2;
-    const sub = args[index];
+    const sub = composeVerb(args);
+    const stateQuery = isStateQuery(args);
+    if (stateQuery) {
+      runtime.stateQueries = (runtime.stateQueries || 0) + 1;
+      save();
+    }
+    if ((sub === "kill" && scenario.dockerStall === "kill") || (stateQuery && scenario.dockerStall === "first-state-query" && runtime.stateQueries === 1)) {
+      return stallDocker(record);
+    }
     if (sub === "up") {
       record({ isolationEnforced: runtime.isolationEnforced });
       runtime.running = true;
@@ -372,8 +396,22 @@ function fakeDocker(args, scenario, runtime, record, save, state) {
     }
     if (sub === "config" && args.includes("--services")) return emit("longtail-forge\n");
     if (sub === "config" && args.includes("json")) return emit(JSON.stringify(resolvedProfile(scenario)));
-    if (sub === "ps") return emit(runtime.running ? `${"e".repeat(64)}\n` : "");
+    if (sub === "ps") {
+      // A state query that fails prints nothing on standard output, as an empty answer would.
+      if (stateQuery && (scenario.stateQuery === "fails" || (scenario.stateQuery === "fails-after-kill" && runtime.killed))) {
+        process.stderr.write("Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?\n");
+        return 1;
+      }
+      return emit(runtime.running ? `${"e".repeat(64)}\n` : "");
+    }
     if (sub === "stop" || sub === "kill") {
+      if (sub === "kill") {
+        runtime.killed = true;
+        save();
+      }
+      if (sub === "stop" && scenario.stopCanary) {
+        process.stderr.write(`Error response from daemon: credentials ${CANARY} ${ROLE_CANARY} ${HOST_CANARY} were refused\n`);
+      }
       // A failed stop exits non-zero; a silent one claims success, but either leaves the container running.
       const failure = sub === "stop" ? scenario.stopFails : scenario.killFails ? "error" : undefined;
       if (failure === "error") return 1;
@@ -402,6 +440,31 @@ function fakeDocker(args, scenario, runtime, record, save, state) {
     return emit(`${scenario.health || "healthy"}\n`);
   }
   return 0;
+}
+
+/** The Compose subcommand in a docker call, or "" for any other call. @param {string[]} args */
+function composeVerb(args) {
+  if (args[0] !== "compose") return "";
+  let index = 1;
+  while (["--project-directory", "--file", "--env-file"].includes(String(args[index]))) index += 2;
+  return String(args[index] || "");
+}
+
+/** Whether a docker call asks which services are running, the query that proves a stop. @param {string[]} args */
+function isStateQuery(args) {
+  return composeVerb(args) === "ps" && args.includes("--status");
+}
+
+/**
+ * A Docker command that never returns. Only the helper's own deadline can end it; one that has none
+ * runs until the harness's cut-off and is recorded as unbounded.
+ * @param {(extra?: Partial<Call>) => void} record
+ */
+function stallDocker(record) {
+  record({ stalled: true });
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, DOCKER_STALL_SAFETY_MS);
+  record({ unboundedStall: true });
+  return 1;
 }
 
 /** The one-off containers a reset runs: candidate, activation, and backup. @param {string[]} args @param {Scenario} scenario */
@@ -464,6 +527,7 @@ async function main() {
     assert.equal(spawnSync("bash", ["-c", `command -v ${command}`]).status, 0, `${command} is required`);
   }
   assert.ok(fs.existsSync("/usr/bin/curl"), "the real curl is required for the stalled-response scenarios");
+  assert.ok(fs.existsSync("/usr/bin/timeout"), "the real timeout is required for the Docker deadline scenarios");
   // A server that accepts each connection and never answers. The kernel completes the handshake even
   // while the scenarios block this process, so a request to it stalls until its own time limit.
   const stallServer = net.createServer(() => {});
@@ -521,6 +585,25 @@ async function main() {
       const limit = Number(call.args[call.args.indexOf("--max-time") + 1]);
       assert.ok(call.args.includes("--max-time") && limit > 0 && limit <= REQUEST_LIMIT_SECONDS, `every request must be bounded: ${JSON.stringify(call.args)}`);
       assert.notEqual(call.unboundedStall, true, `a stalled request ran past the harness's cut-off: ${JSON.stringify(call.args)}`);
+    }
+    // Every Docker command that stops a service or proves it stopped runs under a bounded deadline
+    // that escalates to a kill, in every scenario.
+    /** @type {string[]} */
+    const deadlines = [];
+    for (const call of calls) {
+      if (call.tool === "timeout" && call.args.includes("docker")) {
+        const at = call.args.indexOf("docker");
+        const limit = Number(call.args[at - 1]);
+        assert.ok(call.args.some((arg) => /^--kill-after=[1-9][0-9]*$/.test(arg)) && limit > 0 && limit <= DOCKER_LIMIT_SECONDS,
+          `every Docker deadline must be bounded and escalate to a kill: ${JSON.stringify(call.args)}`);
+        deadlines.push(JSON.stringify(call.args.slice(at + 1)));
+      } else if (call.tool === "docker") {
+        assert.notEqual(call.unboundedStall, true, `a stalled Docker command ran past the harness's cut-off: ${JSON.stringify(call.args)}`);
+        if (!["stop", "kill"].includes(composeVerb(call.args)) && !isStateQuery(call.args)) continue;
+        const at = deadlines.indexOf(JSON.stringify(call.args));
+        assert.ok(at >= 0, `every stop, kill, and state query must run under a deadline: ${JSON.stringify(call.args)}`);
+        deadlines.splice(at, 1);
+      }
     }
     return { status: result.status ?? 1, stdout: String(result.stdout), stderr: String(result.stderr), calls };
   };
@@ -707,9 +790,39 @@ async function main() {
       assert.equal(result.status, 12, result.stderr);
       assert.equal(JSON.parse(lastLine(result.stdout)).failureClass, "boot-stop-failed");
       assert.match(only(result.calls, "logger").args.join(" "), /failureClass=boot-stop-failed recoveryStatus=unverified-container-not-stopped exitCode=12/);
-      assert.match(fs.readFileSync(path.join(bootDirectory(box), "stop-unverified.err"), "utf8"), /did not stop; killing it/);
+      assert.match(fs.readFileSync(path.join(bootDirectory(box), "stop-unverified.err"), "utf8"), /not proved stopped; killing it/);
       assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
     }, { isolationCheckFails: true, stopFails: "error", killFails: true });
+    scenario("a failed state query after the stop is never taken as a stop, and is escalated to a kill", (box) => {
+      const result = boot(box);
+      assert.equal(result.status, 12, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).failureClass, "boot-stop-failed");
+      assert.equal(result.calls.filter((call) => call.tool === "docker" && call.args.includes("kill")).length, 1, "an unproved stop must be escalated to a kill");
+      assert.match(fs.readFileSync(path.join(bootDirectory(box), "stop-unverified.err"), "utf8"), /could not be proved stopped/);
+      assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
+    }, { isolationCheckFails: true, stateQuery: "fails" });
+    scenario("a failed state query after the kill is never taken as a stop", (box) => {
+      const result = boot(box);
+      assert.equal(result.status, 12, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).failureClass, "boot-stop-failed");
+      assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
+    }, { isolationCheckFails: true, stopFails: "silent", stateQuery: "fails-after-kill" });
+    scenario("a kill that never returns reaches its deadline, and the stop alert is raised", (box) => {
+      const result = boot(box);
+      assert.equal(result.status, 12, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).failureClass, "boot-stop-failed");
+      assert.equal(result.calls.filter((call) => call.stalled).length, 1, "the kill must have stalled");
+      assert.match(fs.readFileSync(path.join(bootDirectory(box), "stop-unverified.err"), "utf8"), /kill failed or reached its deadline/);
+      assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
+    }, { isolationCheckFails: true, stopFails: "silent", dockerStall: "kill" });
+    scenario("a state query that never returns reaches its deadline, and is not taken as a stop", (box) => {
+      const result = boot(box);
+      assert.equal(result.status, 9, result.stderr);
+      assert.equal(result.calls.filter((call) => call.stalled).length, 1, "the first state query must have stalled");
+      assert.equal(result.calls.filter((call) => call.tool === "docker" && call.args.includes("kill")).length, 1, "a query that reached its deadline proves nothing, so the stop is escalated");
+      assert.equal(readJson(path.join(box.state, "runtime.json")).running, false, "nothing may be left running");
+      assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
+    }, { isolationCheckFails: true, dockerStall: "first-state-query" });
     scenario("a stalled readiness response is abandoned within the boot's bound, and the start is stopped", (box) => {
       completedReset(box, new Date());
       const result = boot(box);
@@ -824,10 +937,12 @@ async function main() {
 
     // The real reset, end to end, owning or not owning the curtain.
     /** @param {Sandbox} box */
-    const resetState = (box) => {
+    const resetDirectory = (box) => {
       const root = path.join(box.deployRoot, "demo-reset-operations");
-      return readJson(path.join(root, fs.readdirSync(root).sort().at(-1) || "", "state.json"));
+      return path.join(root, fs.readdirSync(root).sort().at(-1) || "");
     };
+    /** @param {Sandbox} box */
+    const resetState = (box) => readJson(path.join(resetDirectory(box), "state.json"));
     scenario("a standalone reset lifts the curtain once its fresh baseline passes, with every runtime check bounded", (box) => {
       const result = reset(box);
       assert.equal(result.status, 0, result.stderr);
@@ -907,6 +1022,30 @@ async function main() {
         for (const secret of [CANARY, ROLE_CANARY, HOST_CANARY]) assert.ok(!text.includes(secret), "a secret value must never reach the reset's evidence or output");
       }
     }, { running: true, candidateBuildCanary: true });
+    scenario("a recovery step's diagnostics are redacted, and the session material is removed only after recovery", (box) => {
+      const sessions = () => fs.readdirSync("/run").filter((name) => name.startsWith("longtail-forge-public-demo-reset."));
+      const before = sessions();
+      const result = reset(box);
+      const left = sessions().filter((name) => !before.includes(name));
+      for (const name of left) fs.rmSync(path.join("/run", name), { recursive: true, force: true });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /reset failed; prior unit was restored and verified\n/);
+      assert.match(fs.readFileSync(path.join(resetDirectory(box), "step-recovery-stop.err"), "utf8"), /credentials \[redacted\] \[redacted\] \[redacted\] were refused/);
+      for (const text of [readTree(path.join(box.deployRoot, "demo-reset-operations")), result.stdout, result.stderr]) {
+        for (const secret of [CANARY, ROLE_CANARY, HOST_CANARY]) assert.ok(!text.includes(secret), "a secret value must never reach the recovery's evidence or output");
+      }
+      assert.deepEqual(left, [], "the session material must be removed once recovery is over");
+    }, { running: true, identityFailCalls: [1], stopCanary: true });
+    scenario("a reset whose state query fails never backs up, activates, or recovers, and keeps the curtain up", (box) => {
+      const result = reset(box);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /reset and automatic recovery failed/);
+      const replacing = result.calls.filter((call) => call.tool === "docker" && ["scripts/backup.mjs", "activate", "recover"].some((arg) => call.args.includes(arg)));
+      assert.equal(replacing.length, 0, "nothing may be backed up, activated, or recovered without a proved stop");
+      assert.match(fs.readFileSync(path.join(resetDirectory(box), "step-stop.err"), "utf8"), /not proved stopped/);
+      assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["unrecovered", "maintenance-curtain-retained"]);
+      assert.ok(fs.existsSync(box.marker), "the curtain must stay up");
+    }, { running: true, stateQuery: "fails" });
     scenario("a reset without any role password refuses before any Docker call", (box) => {
       const result = reset(box);
       assert.equal(result.status, 1);

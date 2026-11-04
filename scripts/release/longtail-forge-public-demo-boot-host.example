@@ -40,6 +40,12 @@ readonly BRIDGE_WAIT=120
 readonly SCANNER_WAIT=240
 readonly PROBE_INTERVAL=5
 readonly REQUEST_LIMIT=15
+# Deadlines on the commands that stop an unverified start and prove it stopped, so that a stalled
+# Docker API cannot hold the lock and the curtain short of the failure alert. A command that reaches
+# its deadline has proved nothing.
+readonly STOP_LIMIT=45
+readonly KILL_LIMIT=15
+readonly QUERY_LIMIT=15
 
 # The exact public-demo profile, as `docker compose config --format json` resolves it. The boot and
 # the reset carry this program byte for byte, and the helper harness compares the two copies. Only
@@ -325,6 +331,23 @@ compose() {
     --env-file "$COMPOSE_HOST_ENV" --env-file "$RELEASE_ENV" "$@"
 }
 
+# Compose under a deadline. timeout runs it in a process group of its own, signals that whole group
+# at the deadline, and kills it five seconds later.
+bounded_compose() {
+  local limit="$1"
+  shift
+  timeout --kill-after=5 "$limit" docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
+    --env-file "$COMPOSE_HOST_ENV" --env-file "$RELEASE_ENV" "$@"
+}
+
+# Succeeds only when a running-state query itself succeeds, within its deadline, and lists nothing. A
+# query that fails or times out prints nothing too, so its empty output is never taken as a stop.
+nothing_running() {
+  local running
+  running="$(bounded_compose "$QUERY_LIMIT" ps --status running -q "$@")" || return 1
+  test -z "$running"
+}
+
 # 2. Dependencies, with bounded and recorded retries.
 wait_until() {
   local label="$1" bound="$2" attempts=0 deadline
@@ -461,15 +484,19 @@ start_and_verify() {
   verify_direct_identity
 }
 # Stops an unverified start and proves it stopped. Compose's own exit status is not taken as proof:
-# only a running-state query that finds nothing is. A stop that leaves the container running is
-# escalated once to a kill, and the state is queried again.
+# only a successful running-state query that lists nothing is. A stop that is not proved is escalated
+# once to a kill, and the state is queried again. Every command here runs under its own deadline.
 stop_unverified() {
-  if compose stop --timeout 30 "${SQLITE_SERVICES[@]}" && test -z "$(compose ps --status running -q "${SQLITE_SERVICES[@]}")"; then
+  bounded_compose "$STOP_LIMIT" stop --timeout 30 "${SQLITE_SERVICES[@]}" || printf 'the stop failed or reached its deadline\n' >&2
+  if nothing_running "${SQLITE_SERVICES[@]}"; then
     return 0
   fi
-  printf 'the unverified container did not stop; killing it\n' >&2
-  compose kill "${SQLITE_SERVICES[@]}"
-  test -z "$(compose ps --status running -q "${SQLITE_SERVICES[@]}")"
+  printf 'the unverified container was not proved stopped; killing it\n' >&2
+  bounded_compose "$KILL_LIMIT" kill "${SQLITE_SERVICES[@]}" || printf 'the kill failed or reached its deadline\n' >&2
+  nothing_running "${SQLITE_SERVICES[@]}" || {
+    printf 'the unverified container could not be proved stopped\n' >&2
+    return 1
+  }
 }
 record 'starting'
 run_check start start_and_verify

@@ -10,6 +10,10 @@ readonly OPERATOR_HOLD='/etc/longtail-forge/public-demo-hold'
 readonly DEMO_DATA_VOLUME='longtail-forge-public-demo-data'
 readonly DEMO_NETWORK='longtail-forge-public-demo-internal'
 readonly REQUEST_LIMIT=15
+# Deadlines on the stop that quiesces the demo and on the queries that prove it, so that a stalled
+# Docker API cannot hold the lock and the curtain. A command that reaches its deadline has proved nothing.
+readonly STOP_LIMIT=45
+readonly QUERY_LIMIT=15
 
 # The exact public-demo profile, as `docker compose config --format json` resolves it. The boot and
 # the reset carry this program byte for byte, and the helper harness compares the two copies. Only
@@ -104,7 +108,7 @@ load_helper_environment() {
   done < "$HELPER_ENV"
 }
 
-for command in awk curl cut date docker flock grep head install jq mktemp readlink realpath stat tail; do require_command "$command"; done
+for command in awk curl cut date docker flock grep head install jq mktemp readlink realpath stat tail timeout; do require_command "$command"; done
 test "$(id -u)" = '0' || fail 'helper must run as root through the constrained sudo rule'
 load_helper_environment
 
@@ -314,15 +318,17 @@ begin_step() {
 
 # Runs one step in a subshell with its error output captured. The subshell keeps errexit in force:
 # calling a function under `||` would silently disable it inside the function. A failed step leaves
-# its redacted output in the evidence, and this helper's own output names only the step.
+# its redacted output in the evidence, and this helper's own output names only the step. The caller's
+# errexit setting is restored afterwards, so recovery, which runs without errexit, can use it too.
 step() {
-  local name="$1" status
+  local name="$1" status errexit=false
   shift
   begin_step "$name"
+  case "$-" in *e*) errexit=true ;; esac
   set +e
   ( set -e; "$@" ) 2> "$SESSION_ROOT/step.err"
   status=$?
-  set -e
+  if test "$errexit" = true; then set -e; fi
   keep_redacted_step_output "$name"
   rm -f -- "$SESSION_ROOT/step.err"
   if test "$status" -ne 0; then
@@ -340,6 +346,23 @@ require_root_owned_private_file "$CURRENT_RELEASE_ENV" 'recorded release environ
 compose() {
   docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
     --env-file "$COMPOSE_HOST_ENV" --env-file "$CURRENT_RELEASE_ENV" "$@"
+}
+
+# Compose under a deadline. timeout runs it in a process group of its own, signals that whole group
+# at the deadline, and kills it five seconds later.
+bounded_compose() {
+  local limit="$1"
+  shift
+  timeout --kill-after=5 "$limit" docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
+    --env-file "$COMPOSE_HOST_ENV" --env-file "$CURRENT_RELEASE_ENV" "$@"
+}
+
+# Succeeds only when a running-state query itself succeeds, within its deadline, and lists nothing. A
+# query that fails or times out prints nothing too, so its empty output is never taken as a stop.
+nothing_running() {
+  local running
+  running="$(bounded_compose "$QUERY_LIMIT" ps --status running -q "$@")" || return 1
+  test -z "$running"
 }
 
 public_demo_isolation() {
@@ -418,11 +441,13 @@ run_activation() {
     node scripts/public-demo-baseline-activation.mjs "${arguments[@]}" > "$output"
 }
 
+# The backup and the activation that follow rely on this stop, so each service must be proved stopped
+# by a successful running-state query, not by Compose's exit status or by empty output.
 stop_sqlite_users() {
-  compose stop "${SQLITE_SERVICES[@]}"
+  bounded_compose "$STOP_LIMIT" stop "${SQLITE_SERVICES[@]}"
   local service
   for service in "${SQLITE_SERVICES[@]}"; do
-    test -z "$(compose ps --status running -q "$service")" || fail 'a Compose SQLite service remained running'
+    nothing_running "$service" || fail 'a Compose SQLite service was not proved stopped'
   done
 }
 
@@ -549,47 +574,43 @@ start_stopped_app() {
   verify_runtime
 }
 
+start_and_verify_runtime() {
+  start_sqlite_users
+  verify_runtime
+}
+
 RECOVERY_ARMED=false
 RECOVERY_RUNNING=false
 START_ARMED=false
 APP_STARTED_BY_RESET=false
-recover_on_exit() {
-  local status="$1"
-  cleanup_session_material
-  if test "$status" -ne 0 && test "$START_ARMED" = true; then
-    trap - EXIT HUP INT TERM
-    record_phase 'unrecovered' 'maintenance-curtain-retained'
-    printf 'longtail-forge-public-demo-reset: the stopped app could not be started and verified; maintenance curtain and protected evidence remain\n' >&2
-    exit "$status"
-  fi
-  # A failure after this reset started a stopped app, but before its own recovery was armed, leaves
-  # that app behind the curtain it raised.
-  if test "$status" -ne 0 && test "$APP_STARTED_BY_RESET" = true && test "$RECOVERY_ARMED" = false; then
-    trap - EXIT HUP INT TERM
-    record_phase 'failed' 'maintenance-curtain-retained'
-    printf 'longtail-forge-public-demo-reset: reset failed after it started the stopped app; maintenance curtain and protected evidence remain\n' >&2
-    exit "$status"
-  fi
-  test "$status" -ne 0 && test "$RECOVERY_ARMED" = true && test "$RECOVERY_RUNNING" = false || return "$status"
-  RECOVERY_RUNNING=true
-  trap - EXIT HUP INT TERM
-  set +e
+# The automatic recovery. Each command runs as a step, so its diagnostics are redacted like every
+# other step's. Each step is called on its own and its status read afterwards: under `||` or `if`,
+# bash would ignore errexit inside it.
+run_recovery() {
+  local recovery_ready=true step_status
   record_phase 'recovering' 'reset-failed'
   assert_marker
-  begin_step recovery-stop
-  stop_sqlite_users
-  recovery_ready=true
-  begin_step recovery-inspect
-  if run_activation inspect "$OPERATION_DIR/recovery-inspect.json" 2>/dev/null; then
-    if test "$(jq -r '.active // false' "$OPERATION_DIR/recovery-inspect.json" 2>/dev/null)" = true; then
-      begin_step recovery-recover
-      run_activation recover "$OPERATION_DIR/recovery.json" || recovery_ready=false
+  # Recovery replaces the database only once the services are proved stopped.
+  step recovery-stop stop_sqlite_users
+  step_status=$?
+  test "$step_status" -eq 0 || recovery_ready=false
+  if test "$recovery_ready" = true; then
+    step recovery-inspect run_activation inspect "$OPERATION_DIR/recovery-inspect.json"
+    step_status=$?
+    if test "$step_status" -ne 0; then
+      recovery_ready=false
+    elif test "$(jq -r '.active // false' "$OPERATION_DIR/recovery-inspect.json" 2>/dev/null)" = true; then
+      step recovery-recover run_activation recover "$OPERATION_DIR/recovery.json"
+      step_status=$?
+      test "$step_status" -eq 0 || recovery_ready=false
     fi
-  else
-    recovery_ready=false
   fi
-  begin_step recovery-start-and-verify
-  if test "$recovery_ready" = true && start_sqlite_users && verify_runtime; then
+  step_status=1
+  if test "$recovery_ready" = true; then
+    step recovery-start-and-verify start_and_verify_runtime
+    step_status=$?
+  fi
+  if test "$step_status" -eq 0; then
     if test "$LIFT_CURTAIN_ON_RECOVERY" = true; then
       clear_marker
       record_phase 'recovered' 'prior-unit-healthy'
@@ -602,6 +623,41 @@ recover_on_exit() {
     record_phase 'unrecovered' 'maintenance-curtain-retained'
     printf 'longtail-forge-public-demo-reset: reset and automatic recovery failed; maintenance curtain and protected evidence remain\n' >&2
   fi
+}
+
+# The session material holds the redaction list, so it is removed only once recovery is over: at
+# each exit below, after the recovery subshell however that ends, or by the signal trap that stands
+# in for the EXIT trap while recovery runs.
+recover_on_exit() {
+  local status="$1"
+  if test "$status" -ne 0 && test "$START_ARMED" = true; then
+    trap - EXIT HUP INT TERM
+    cleanup_session_material
+    record_phase 'unrecovered' 'maintenance-curtain-retained'
+    printf 'longtail-forge-public-demo-reset: the stopped app could not be started and verified; maintenance curtain and protected evidence remain\n' >&2
+    exit "$status"
+  fi
+  # A failure after this reset started a stopped app, but before its own recovery was armed, leaves
+  # that app behind the curtain it raised.
+  if test "$status" -ne 0 && test "$APP_STARTED_BY_RESET" = true && test "$RECOVERY_ARMED" = false; then
+    trap - EXIT HUP INT TERM
+    cleanup_session_material
+    record_phase 'failed' 'maintenance-curtain-retained'
+    printf 'longtail-forge-public-demo-reset: reset failed after it started the stopped app; maintenance curtain and protected evidence remain\n' >&2
+    exit "$status"
+  fi
+  if test "$status" -eq 0 || test "$RECOVERY_ARMED" != true || test "$RECOVERY_RUNNING" != false; then
+    cleanup_session_material
+    return "$status"
+  fi
+  RECOVERY_RUNNING=true
+  trap - EXIT
+  trap 'cleanup_session_material; exit 130' HUP INT TERM
+  set +e
+  # A subshell, so that a refusal inside recovery, such as an unsafe marker, still returns here.
+  ( run_recovery )
+  trap - HUP INT TERM
+  cleanup_session_material
   exit "$status"
 }
 trap 'recover_on_exit $?' EXIT
