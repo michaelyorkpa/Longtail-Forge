@@ -4,20 +4,20 @@
 - **Scanner cold start.** A reviewed drop-in sets `FreeBind=yes` on the scanner's exact-address socket, so the socket binds before Docker creates the gateway address. The listener, the address, and the firewall do not change. `docs/file-scanner-setup.md` gives the cold-boot contract and the install procedure.
 - **A protected demo boot.** A root-owned unit, which Docker pulls in each time it starts, runs one boot operation under the shared lifecycle lock.
   - **It stops, with a specific alert,** on an operator hold, a deployment or active-operation marker, an uncertain recorded release, or missing storage. It never pulls, upgrades, rolls back, or creates an empty database.
-  - **It validates the complete resolved Compose profile** before anything starts: the one service, the recorded image, the one isolated network, exactly the demo's data volume and backup bind, loopback publication, and the exact production public-demo environment. Drift stops it with `boot-profile-invalid`.
+  - **It validates the complete resolved Compose profile** before anything starts: the one service, the recorded image, the one isolated network, exactly the demo's data volume and backup bind, loopback publication, and the exact production public-demo environment. Only the reviewed service keys may appear, and each mount must match exactly, so a secret, config, or inherited mount, an added capability, or a volume subpath is refused. Drift stops it with `boot-profile-invalid`. The hourly reset applies the same check.
   - **It waits** a bounded, recorded time for Docker, the exact bridge, and the scanner.
-  - **It enforces isolation** before any container runs, then starts the current release behind the curtain, with `--pull never`. A start that fails verification is stopped again.
+  - **It enforces isolation** before any container runs, then starts the current release behind the curtain, with `--pull never`. Every request it makes is bounded. A start that fails verification is stopped again, and only its running state proves the stop: one kill follows a stop that left it running, and a container that still runs raises `boot-stop-failed`.
   - **It runs a fresh reset** before serving visitors when an hourly boundary was missed.
   - **It owns the curtain.** The reset runs as its delegate and never lifts it. A failed fresh reset keeps the curtain up, even when its recovery restores the prior unit.
   - **Public availability** is reported separately, and never causes a reset or a rollback. The delegated reset verifies the direct runtime only.
-  - **Its evidence is redacted.** Check output is kept only with every secret value replaced, and a Compose parser error is never kept.
+  - **Its evidence is redacted.** Check output is kept only with every secret value replaced. The secrets come from the environment Compose itself resolves, however its files are quoted, with the role passwords and the host environment's secrets, and a secret that cannot be collected stops the boot. A Compose parser error is never kept.
   - **One restart owner per profile.** The demo keeps `restart: no`, with the boot unit as its only restart owner. The preview keeps Docker's `unless-stopped`.
 - **Operator hold.** `/etc/longtail-forge/public-demo-hold` keeps a deliberately stopped demo stopped. The boot and the reset refuse while it exists, and the scheduler records the hour as held.
 - **Reset recovery.**
   - **A stale candidate.** With no active operation, a reset moves a verified candidate or partial build left by an earlier operation into failed evidence. Only exact names and shapes move, a link refuses the whole move, and nothing is deleted. Recovery of an active operation still comes first.
   - **A stopped app.** A reset that finds the app stopped first runs the protected start. It then follows its normal path, including the pre-reset session capture and its rejection proof, and records that it started the app. Its curtain stays up until the fresh baseline passes, so a failure never serves the stale unit it started.
-  - **Bounded checks.** The reset's runtime checks are each limited to 15 seconds, its start never pulls, and its Compose parser errors are never kept.
-  - **Step evidence.** Each step is recorded before it starts. Its error output, redacted of the host's and the application's secrets, is kept in root-only evidence. Nothing new reaches the scheduler log, the alert, or normal output.
+  - **Bounded checks.** Every request the reset makes, including its session capture and role proof, is limited to 15 seconds. Its start never pulls, and its Compose parser errors are never kept.
+  - **Step evidence.** Each step is recorded before it starts. Its error output is kept in root-only evidence, redacted of every secret Compose resolves, the role passwords, and the host environment's secrets. A secret that cannot be collected refuses the reset. Nothing new reaches the scheduler log, the alert, or normal output.
 - **Alerts and heartbeat.**
   - **Alerts.** The alert helper keeps its journal line, and also posts the same bounded fields to a Discord webhook, with mentions disabled. It covers the boot's failure and hold classes.
   - **Heartbeat.** After each successful reset and boot, one heartbeat goes to an operator-configured push URL. A failed heartbeat never fails the reset or the boot.
@@ -27,7 +27,7 @@
   - **Reset reproducers.** The interrupted-reset and stopped-app reproducers fail with the October helper and pass with this one.
   - **The boot unit.** After `systemctl restart docker`, with the scanner returning late and a missed boundary, it served a fresh baseline 65 seconds after the restart.
   - **A scanner reproducer,** with Ubuntu's ClamAV. Without the drop-in, it fails as the hosts did. With it, the scanner answers `PING` on the exact address.
-  - **The helper harness** runs the real helpers as root in the maintenance rehearsal, including the reset end to end with its curtain ownership. It passes 44 scenarios, and catches each of 33 seeded defects.
+  - **The helper harness** runs the real helpers as root in the maintenance rehearsal, including the reset end to end with its curtain ownership, and requests stalled by a server that never answers. It passes 56 scenarios, and catches each of 51 seeded defects.
 - **Dependency fold.** The open Dependabot backlog, taken as reviewed exact transitions:
   - **Security updates.** `ip-address` 10.7.4 (GHSA-rxp7-6hxx-x8q5), and `vitest` and `@vitest/mocker` 4.1.12 (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp). Vite stays at 8.2.4.
   - **Packages.** `zod` 4.6.7, ESLint 10.13.0, `@playwright/test` 1.64.1, and `@types/node` 26.6.5.
