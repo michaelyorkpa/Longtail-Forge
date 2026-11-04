@@ -42,6 +42,9 @@ These open findings were carried out of the Lean Core branch when its closeout, 
 - **`tag-picker-workflows` `[mobile]` is intermittent.** Tag accumulation was disproved as the cause, and cross-worker contention remains the hypothesis.
   - **Owner:** browser test maintenance.
   - **Consequence:** an occasional retry. It must never be green-controlled.
+- **`task-editor-parent-save` reads the saved task without waiting for the save.** Its two checks after Save were already true before the save finished, the same flaw the dependency fold fixed in the Developer Example spec.
+  - **Owner:** browser test maintenance.
+  - **Consequence:** an occasional retry, seen on the `zod` proposal's browser run. It must never be green-controlled.
 
 The post-release patch to `v0.33.33` carried these findings forward. The same rule applies: each needs its own roadmap slice.
 
@@ -54,7 +57,137 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
 - **Public-demo reset history has no retention bound.** The demo host's `demo-reset-operations/` held 1,392 operation directories on 2026-10-05, one per hourly reset since 2026-08-08, and nothing prunes them. Their disk and inode use is still to be measured.
   - **Owner:** public-demo operations.
   - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
+- **`minimatch` 10.2.5 carries GHSA-g3hv-75wg-m249 (moderate), with no compatible fix.** It was published on 2026-10-30 and fixed only in 11.0.1. Every ESLint 10 release and `@eslint/config-array` stop at `^10`, so taking it would mean forcing a major version past ESLint's declared range.
+  - **Why it does not reach users:** `minimatch` is development-only, and is absent from the image. An attacker must supply the glob, and ESLint reads only this repository's own configured globs. `release.dependency-baseline` fails if it ever reaches the runtime graph.
+  - **Owner:** whoever next upgrades ESLint. Take the fix when ESLint allows `minimatch` 11.
+  - **Consequence:** `npm audit` reports four moderate entries, all this one advisory through ESLint's graph. The production audit reports none.
+- **`task-dialog-context-consumers` and `notes-editor-lifecycle` are intermittent.** Neither has been diagnosed.
+  - **On 2026-11-02:** both passed on retry in the dependency fold's browser run, on Playwright 1.64.1. `task-dialog-context-consumers` needed a retry on both desktop and mobile.
+  - **On 2026-10-24:** both also passed on retry, on Playwright 1.62.1, so the Playwright update did not cause them.
+  - **Owner:** browser test maintenance.
+  - **Consequence:** an occasional retry. It must never be green-controlled.
 
+## Post-release Patches
+
+These patches to `v0.33.33` ship in order, each with its own release identity. Together they close out `0.33.33`, as the operator decided on 2026-10-30. The active cursor stays `0.33.34`.
+
+**Version literals.** Each patch names the others by what they do, not by number. The version guard refuses the current version anywhere in this file, so a patch's number may appear only in its own section, which leaves this file in the pull request that sets that version.
+
+### 0.33.33.54 - Bounded public-demo reset retention and a shorter reset curtain
+
+**Model: High Effort** — It adds automatic deletion of protected evidence, and of copies of visitor-entered data, on the public host under the shared lifecycle lock. A wrong selection deletes recovery evidence; a missed one leaves the growth unbounded.
+
+**What this is.** A post-release patch after the restart-recovery patch, with its own release identity.
+- **What it builds on:** the restart-recovery patch's step evidence and Discord alert helper.
+- **What it resolves:** the carried finding "Public-demo reset history has no retention bound".
+
+**The problem.**
+- **What each reset keeps.** A retired prior unit inside the data volume, a pre-reset whole-instance backup and its sidecar on the host, and an evidence directory of sixteen files on the host. Nothing removes any of them; `docs/demo-data-operations.md` says so.
+- **Visitor data.** The unit and the backup are both copies of the demo as the reset began. Each therefore holds the past hour's visitor-entered content, yet the demo tells visitors that changes reset hourly.
+- **The size on 2026-10-14:** 1,606 evidence directories, 2,836 `pre-demo-reset-` files in a 1,013 MiB backup root, and 7.8 GB of local volume data, nearly all of it retained units.
+- **The size on 2026-11-02:** 2,060 evidence directories, 1,867 retained units, 3,797 files in a 1,330 MiB backup root, and 10.28 GB of local volume data by Docker's count.
+  - **Disk is not the pressure.** `du` reports the data volume at 1,944 MiB, the host's root filesystem is 12% used with 57 GB free, and 1% of its inodes are used. This patch is justified by the curtain and by how long visitor-entered data persists.
+  - **Whole-reset length** over the 168 resets the scheduler log still held, including the candidate build before the curtain: 3 min 24 s minimum, 4 min 7 s median, and 6 min 25 s maximum.
+  - **To measure in this patch.** The demo's deployment of the October Node security release took 9 min 54 s, against 2 min 48 s for its previous deployment. Most of the gap falls between writing the release environment and finishing the backup. No per-step times exist, so the cause and the time behind the curtain are unknown.
+- **The growing curtain.** The `active` verification runs while the curtain is up and services are stopped. It walks the whole data root and reads every file under it, including every retained prior unit: 1,413 on 2026-10-14, each with a database of about 5.5 MB. It took 82 s on 2026-10-06, and 9 min 36 s on a cold cache on 2026-10-14.
+
+Scope:
+
+- [ ] **The live-data check.** The `active` verification still checks the served unit's database, Files root, and marker. Its link and forbidden-value scans, however, read only the active unit's own entries.
+- [ ] **Retention policy.** Fixed, reviewed constants, with no new setting. The operator approved it on 2026-10-14.
+  - **Retired units:** keep those of the 2 newest completed operations.
+  - **Pre-reset backups:** keep those of the 24 newest completed operations, with their sidecars.
+  - **Operation evidence:** keep the 168 newest completed operations, seven days, the scheduler log's window.
+  - **Incident evidence is never removed automatically.** That covers any operation whose phase is not `completed`, or whose state is missing or unreadable, with its backup and any failed unit.
+  - **Never touched:** the active unit, the candidate, and the active-operation marker; any other backup; the state and release records; and the scheduler log.
+  - **Selection is by count,** ordered by the operation identity's UTC timestamp.
+  - **Removals are deleted, not archived.**
+- [ ] **In-volume retention.** `scripts/lib/public-demo-baseline-activation.mjs` gains a `prune` action, run through `compose run`. It:
+  - refuses while an active-operation marker exists;
+  - considers only real `.longtail-public-demo-previous-<operation>` directories whose `reset-operation.json` records a valid completed operation;
+  - checks each removal's exact shape and the absence of links, and removes nothing if any check fails;
+  - renames each removal to a tombstone before deleting it;
+  - never touches failed evidence.
+- [ ] **Host retention.** The reset helper gains three things:
+  - **An automatic step,** after `completed`, under the lock. If the removal set exceeds three of any kind, it removes nothing and reports why.
+  - **`retention plan` and `retention apply`.** `retention plan` is read-only. `retention apply --confirm 'PRUNE RT-LTF-DEMO RESET HISTORY'` is supervised, uncapped, and takes the lock.
+  - **Safety.** It builds exact names from operation identities, refuses links and anything not owned by root, and removes an archive before its sidecar. It records `retention.json`, and adds a `retention` summary to the reset's final line.
+- [ ] **Failure handling.** A retention failure never fails or rolls back a completed reset. The scheduler logs `succeeded` with failure class `retention-failed`, and raises the Discord alert.
+- [ ] **Documentation.** The operations guide and the runbook give the policy, the supervised backlog procedure, and how to dispose of incident evidence. `DECISIONS.md` records how long visitor-entered content persists.
+
+Acceptance criteria:
+
+- [ ] **Unit tests** cover:
+  - the `prune` action: its kept and removed sets, its refusals, and tombstone completion and idempotence;
+  - the live-data check ignoring a forbidden value placed in a retained prior unit, while still catching one in the active unit.
+- [ ] **The executable harness** covers `plan`, `apply`, the automatic step and its cap, incident evidence and non-demo backups left untouched, orphaned files and refused links, and lock contention.
+- [ ] **The native lifecycle qualification** seeds synthetic history, then proves the exact kept set, and that `plan` changes nothing.
+- [ ] **Seeded defects** in selection, ordering, the cap, the incident rule, and the scan scope are each caught.
+- [ ] **On the demo,** operator-run under separate authorization:
+  1. review `retention plan`;
+  2. run `retention apply` once;
+  3. prove one supervised reset, with its retention and its shorter curtain;
+  4. confirm the next scheduled reset.
+- [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and an independent Codex review.
+
+Out of scope:
+
+- Caddy and host log rotation.
+- On the demo host, each of these needs its own authorization: the 15 August-era release images, the build cache, the 7 anonymous volumes, and the leftover preview-style `compose-host.env` and `longtail-forge-data` volume.
+- 0.33.34's privacy notices. They should cite the retention this patch sets.
+
+### 0.33.33.55 - Preview data durability on power loss
+
+**Model: High Effort** — It sets how much acknowledged real data a power cut may lose, changes the preview's durability setting, and adds scheduled backups. A wrong setting silently loses writes, and a wrong schedule or retention loses recovery points.
+
+**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation.
+
+**Why.**
+- **The outage.** On 2026-10-14 the power was out for over an hour. The UPS bridges only short outages, and it is not connected to the server for any shutdown signal. It stays that way until the deployment moves off-site, so a long outage is a hard power cut.
+- **The setting.** Both deployments run SQLite in WAL mode with the default `LONGTAIL_SQLITE_SYNCHRONOUS=normal`. That keeps the database consistent through a power cut, but can lose transactions that were acknowledged after the last time the WAL was synced to disk. An integrity check cannot show that loss.
+- **The backups.** Whole-instance backups are taken only around lifecycle operations (deploy, rollback, restore, and each demo reset), and they stay on the same server. There is no schedule, and no off-server copy. Scheduling is planned for 0.38.4.
+
+Proposed scope:
+
+- [ ] **Acknowledged-write durability on the preview.** Set `LONGTAIL_SQLITE_SYNCHRONOUS=full`. The setting already exists, and startup verifies it.
+  - **First,** measure its write cost on the real ZFS-in-LXC stack.
+  - **The demo** keeps `normal`, because it resets hourly, unless the operator prefers one setting everywhere.
+- [ ] **Storage that honors flushes.**
+  - **A read-only check** that the guest's ZFS dataset has `sync=standard`. A value of `disabled` silently ignores every flush.
+  - **The disk.** Record whether it is safe across power loss.
+  - **Changes** to Proxmox or ZFS stay the operator's.
+- [ ] **Scheduled backups,** pulled forward from 0.38.4 in their minimal form. A host timer for Compose installs:
+  - runs the existing whole-instance backup under the shared lifecycle lock, and inspects it;
+  - keeps a fixed number of scheduled backups. It never deletes the newest valid one, or any backup it did not schedule;
+  - alerts on failure through the restart-recovery patch's Discord alert, and sends a heartbeat on success.
+- [ ] **An off-server copy.**
+  - **The mechanism.** A documented, admin-chosen destination, reached through a post-backup copy hook that copies only inspected archives and their checksums.
+  - **What stays later.** Remote and encrypted managed destinations stay in 0.38.4.
+- [ ] **A restore drill.** Restore a scheduled backup into a disposable instance, and prove database and Files consistency.
+
+Decisions needed, the operator's:
+
+- **The preview's recovery point objective.** The recommendation:
+  - no acknowledged write lost to a power cut, which means `full`;
+  - for disk or server loss, at most one backup interval.
+- **The setting's reach:** `full` on the preview only, or everywhere.
+- **The schedule.** How often to back up, and how many backups to keep. The recommendation is nightly, keeping 14.
+- **The off-server destination** for the preview's backups.
+
+Acceptance criteria:
+
+- [ ] **The decisions** are recorded in `DECISIONS.md`.
+- [ ] **The setting's proof.**
+  - **It is in effect.** The running preview reports `synchronous=full`.
+  - **It is honored.** The dataset's `sync=standard` is confirmed.
+  - **Its cost** is measured.
+  - **A limitation, recorded:** a true power-cut test needs a disposable VM, which the operator declined, so durability rests on documented flush semantics.
+- [ ] **Tests of the scheduled backup.** The executable harness and the native qualification prove:
+  - the lock;
+  - retention, which never deletes the newest valid backup or a backup it did not schedule;
+  - the failure alert;
+  - that the copy hook receives only inspected archives.
+- [ ] **One restore drill** from a scheduled backup passes.
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
@@ -74,6 +207,46 @@ Dependencies and planned boundary:
 Acceptance criteria:
 
 - The October 1 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
+
+## Version 0.33.35 - Operational health checks for external monitors
+
+**Model: High Effort** — It adds operational routes, an access model for monitors, and checks that modules contribute. A careless check leaks internals, or turns monitoring into an attack surface.
+
+**Status.** This is a planning item. The operator asked for it on 2026-10-15. Placing it after 0.33.34 is a proposal.
+
+**Purpose.** Let any external monitor (Uptime Kuma and similar tools) watch each part of an installation separately, and be told when scheduled work silently stops, without exposing internals.
+
+**Two kinds of signal.**
+- **Pull.** The monitor asks; the application answers per component.
+- **Push.** Scheduled work sends a heartbeat when it succeeds, and the monitor alerts when one is late.
+
+Proposed design:
+
+- [ ] **The public probes stay minimal.** `/healthz` (the process is up) and `/readyz` (ready to serve) stay public and minimal, as today.
+- [ ] **Component checks, one URL each,** so a monitor can alert on each separately:
+  - **Database:** opens, writable, the expected durability setting, migrations current.
+  - **Storage:** the Files root writable, and free space above a floor.
+  - **Scanner:** reachable, when the profile requires it.
+  - **Jobs:** the worker's last-run age, the pending count and the oldest pending job's age, and the failed and dead counts.
+
+  **What a check returns.** Each returns 200 or 503 against a default threshold, with a small, bounded JSON body carrying the numbers, so a monitor can apply its own thresholds too.
+- [ ] **What checks never return:** error text, paths, identifiers, record content, or dependency versions.
+- [ ] **Access.** Component checks require a monitoring credential, a bearer token held in a protected environment value, or are served only on the host's loopback address. That choice is a decision.
+- [ ] **Contributed checks.** Modules contribute checks declaratively, under the extensibility model. Files contributes the scanner check, and the job framework the queue check. The framework owns the route, access, timeouts, and output contract.
+- [ ] **Heartbeats.** Scheduled work sends a `GET` to an operator-configured URL after each success: the demo reset and boot (the restart-recovery patch), and scheduled backups (the durability patch). Each URL is held in a root-only file. The family shares one heartbeat contract.
+- [ ] **The public demo.** Its perimeter's allowlist of operational paths changes only by review. Component checks stay closed there unless the operator opts in.
+
+Decisions needed, the operator's:
+
+- **Access:** a credential, loopback only, or both.
+- **Default thresholds.** For example, the oldest pending job older than 15 minutes, or free space below 10%.
+- **Its place** in the version order.
+
+Acceptance criteria:
+
+- [ ] **Each check fails for its own dependency, and only that one,** under seeded faults.
+- [ ] **The output contract** is bounded and tested, the credential is enforced, and the demo perimeter is unchanged unless the operator opts in.
+- [ ] **The documentation** shows how to configure HTTP and push monitors in Uptime Kuma, and in monitors like it.
 
 ## Version 0.34 - Support Tickets Module
 

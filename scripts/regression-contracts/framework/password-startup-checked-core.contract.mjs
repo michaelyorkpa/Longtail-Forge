@@ -11,14 +11,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { owningProgram, programConfig } from "../../test-support/typecheck-ownership.mjs";
 
-const [passwordSource, appSource] = await Promise.all([
+const [passwordSource, appSource, startupFailureSource] = await Promise.all([
   fs.readFile("src/security/passwords.js", "utf8"),
   fs.readFile("src/core/app.js", "utf8"),
+  fs.readFile("src/core/startup-failure.js", "utf8"),
 ]);
 
 for (const [filePath, source] of [
   ["src/security/passwords.js", passwordSource],
   ["src/core/app.js", appSource],
+  ["src/core/startup-failure.js", startupFailureSource],
 ]) {
   assert.notEqual(owningProgram(filePath), null, `${filePath} must stay owned by a strict program, which the typecheck gate holds at zero`);
   assert.equal(owningProgram(filePath), "server-tests", `${filePath} must stay in the strict server/tests program`);
@@ -40,7 +42,9 @@ assert.match(appSource, /@typedef \{import\("\.\.\/types\/database-contracts\.js
 assert.match(appSource, /@param \{HttpServer\} server/);
 assert.match(appSource, /@param \{NodeJS\.Signals\} signal/);
 assert.match(appSource, /function readUnknownErrorMessage\(error\)/);
-assert.match(appSource, /function readUnknownErrorType\(error\)/);
+// The startup failure event reads only the error's type, through a checked narrowing, in its own module.
+assert.match(appSource, /import \{ logStartupFailure \} from "\.\/startup-failure\.js";/);
+assert.match(startupFailureSource, /function readStartupErrorType\(error\) \{\n  if \(error && typeof error === "object" && "name" in error && error\.name\) return String\(error\.name\);/);
 
 assertOrdered(appSource, [
   "logRuntimeConfigWarnings(",
@@ -48,7 +52,8 @@ assertOrdered(appSource, [
   "await assertRuntimeDataPathsReady();",
   "await filesService.assertConfiguredFileStorageProviderReady();",
   "await filesService.assertConfiguredFileScannerReady();",
-  "await initializeDatabase({ report: reportStartupPhase });",
+  "const databaseHealth = await initializeDatabase({",
+  "reportStartupPhase(event);",
   "queueStartupJobRetentionPrune();",
   "queueStartupSearchIndexRebuildIfEmpty();",
   "const app = createApp();",

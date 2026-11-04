@@ -1,5 +1,6 @@
 import { escapeRegExp } from "../test-support/source-scan.mjs";
 import { nodeSecurityDependencyUpdates } from "./node-security-dependency-updates.mjs";
+import { restartRecoveryDependencyUpdates } from "./restart-recovery-dependency-updates.mjs";
 import { spawnSync } from "node:child_process";
 import { requireLockEntry, requireLockPackages, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
@@ -22,6 +23,25 @@ const IMAGE_PACKAGING_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.51`;
 // The October Node security refresh owns only its release identity and exact Node engine floor.
 const NODE_SECURITY_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.52`;
 const NODE_SECURITY_PATCH_DEPENDENCY_UPDATES = deepFreeze(nodeSecurityDependencyUpdates);
+/** @typedef {readonly ["dependencies" | "devDependencies", string, string, string]} ReviewedDeclaration */
+/** @type {readonly ReviewedDeclaration[]} */
+const NODE_SECURITY_PATCH_DECLARATIONS = deepFreeze([
+  ["dependencies", "markdown-it", "^15.0.2", "^15.0.3"],
+  ["dependencies", "zod", "^4.4.3", "^4.6.6"],
+]);
+// The restart-recovery patch owns its release identity and the reviewed Dependabot fold. The fold lands
+// first, while the application is still the Node security release, so it can never move the version.
+const RESTART_RECOVERY_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.53`;
+/** @type {ReviewedLockUpdates} */
+const RESTART_RECOVERY_PATCH_DEPENDENCY_UPDATES = deepFreeze(restartRecoveryDependencyUpdates);
+/** @type {readonly ReviewedDeclaration[]} */
+const RESTART_RECOVERY_PATCH_DECLARATIONS = deepFreeze([
+  ["dependencies", "zod", "^4.6.6", "^4.6.7"],
+  ["devDependencies", "@playwright/test", "^1.62.1", "^1.64.1"],
+  ["devDependencies", "@types/node", "^26.6.3", "^26.6.5"],
+  ["devDependencies", "eslint", "^10.11.0", "^10.13.0"],
+  ["devDependencies", "vitest", "^4.1.11", "^4.1.12"],
+]);
 const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
 const TRAILER_NAMES = Object.freeze({
@@ -59,6 +79,7 @@ const POST_RELEASE_PATCH_PATHS = new Set([
 // development-only source-map-js 1.2.2 fixes GHSA-68fv-2mgg-jv7q. Every other lock entry, and every
 // package.json field, stays as it was.
 /** @typedef {Readonly<Record<string, unknown>>} ReviewedLockEntry */
+/** @typedef {Readonly<Record<string, Readonly<{ before: ReviewedLockEntry | null, after: ReviewedLockEntry | null }>>>} ReviewedLockUpdates */
 /** @type {Readonly<Record<string, Readonly<{ before: ReviewedLockEntry | null, after: ReviewedLockEntry }>>>} */
 const POST_RELEASE_PATCH_DEPENDENCY_UPDATES = deepFreeze({
   "node_modules/compression": {
@@ -236,7 +257,8 @@ function validateCheckpointCommit({
   // Patches own the same narrow paths; only the first takes its reviewed dependency updates.
   const takesDependencyUpdates = checkpoint === postReleasePatchCheckpoint;
   const isNodeSecurityPatch = checkpoint === NODE_SECURITY_PATCH_CHECKPOINT;
-  const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint || isNodeSecurityPatch;
+  const isRestartRecoveryPatch = checkpoint === RESTART_RECOVERY_PATCH_CHECKPOINT;
+  const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint || isNodeSecurityPatch || isRestartRecoveryPatch;
   if (!isCloseout && ceremonyPaths.length > 2) {
     errors.push(`internal checkpoint ${checkpoint} changes ${ceremonyPaths.length} ceremony files; maximum is 2 (${ceremonyPaths.join(", ")})`);
   }
@@ -249,6 +271,12 @@ function validateCheckpointCommit({
         continue;
       }
       if (isPostReleasePatch && POST_RELEASE_PATCH_PATHS.has(filePath)) {
+        continue;
+      }
+      // The operator approved on 2026-11-03 that the restart-recovery patch records its two
+      // governing policies, the demo's boot baseline and one restart owner per profile, in
+      // `DECISIONS.md`. No other patch gains that path, and the ceremony ceiling still applies.
+      if (isRestartRecoveryPatch && filePath === "DECISIONS.md") {
         continue;
       }
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
@@ -279,6 +307,7 @@ function validateCheckpointCommit({
       postReleasePatchCheckpoint: checkpoint,
       takesDependencyUpdates,
       isNodeSecurityPatch,
+      isRestartRecoveryPatch,
     }, errors);
   }
 
@@ -360,6 +389,7 @@ function validateReleasePreparationPackages({
  *   postReleasePatchCheckpoint: string,
  *   takesDependencyUpdates: boolean,
  *   isNodeSecurityPatch: boolean,
+ *   isRestartRecoveryPatch: boolean,
  * }} change
  * @param {string[]} errors
  */
@@ -372,13 +402,15 @@ function validatePostReleasePatchPackages({
   postReleasePatchCheckpoint,
   takesDependencyUpdates,
   isNodeSecurityPatch,
+  isRestartRecoveryPatch,
 }, errors) {
   if (
     paths.includes("package.json")
     && !isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)
     && !isVersionOnlyPackageChange(packageBeforeSource, packageAfterSource, postReleasePatchCheckpoint)
     && !(isNodeSecurityPatch && isNodeSecurityPackageChange(packageBeforeSource, packageAfterSource))
-    && !(isNodeSecurityPatch && isNodeSecurityDependencyPackageChange(packageBeforeSource, packageAfterSource))
+    && !(isNodeSecurityPatch && isReviewedDeclarationPackageChange(packageBeforeSource, packageAfterSource, NODE_SECURITY_PATCH_DECLARATIONS))
+    && !(isRestartRecoveryPatch && isReviewedDeclarationPackageChange(packageBeforeSource, packageAfterSource, RESTART_RECOVERY_PATCH_DECLARATIONS))
   ) {
     errors.push(`package.json under ${postReleasePatchCheckpoint} may change only the application version, to exactly ${postReleasePatchCheckpoint}, or scripts`);
   }
@@ -387,11 +419,12 @@ function validatePostReleasePatchPackages({
     && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)
     && !(takesDependencyUpdates && isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource))
     && !(isNodeSecurityPatch && isNodeSecurityLockChange(lockBeforeSource, lockAfterSource))
-    && !(isNodeSecurityPatch && isNodeSecurityDependencyLockChange(lockBeforeSource, lockAfterSource))
+    && !(isNodeSecurityPatch && isReviewedDeclarationLockChange(lockBeforeSource, lockAfterSource, NODE_SECURITY_PATCH_DECLARATIONS, NODE_SECURITY_PATCH_DEPENDENCY_UPDATES))
+    && !(isRestartRecoveryPatch && isReviewedDeclarationLockChange(lockBeforeSource, lockAfterSource, RESTART_RECOVERY_PATCH_DECLARATIONS, RESTART_RECOVERY_PATCH_DEPENDENCY_UPDATES))
   ) {
     errors.push(takesDependencyUpdates
       ? `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`
-      : `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}`);
+      : `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}${isRestartRecoveryPatch ? ", or take its reviewed dependency fold" : ""}`);
   }
 }
 
@@ -428,16 +461,25 @@ function isNodeSecurityLockChange(beforeSource, afterSource) {
   }
 }
 
-/** @param {string} beforeSource @param {string} afterSource */
-function isNodeSecurityDependencyPackageChange(beforeSource, afterSource) {
+/**
+ * Whether a manifest moves exactly the reviewed dependency declarations and nothing else. Every patch
+ * that takes declarations takes them at the Node security release's identity, before its own version
+ * moves, so the application version must be that identity on both sides.
+ * @param {string} beforeSource
+ * @param {string} afterSource
+ * @param {readonly ReviewedDeclaration[]} declarations
+ */
+function isReviewedDeclarationPackageChange(beforeSource, afterSource, declarations) {
   try {
     const before = requirePackageManifest(JSON.parse(beforeSource));
     const after = requirePackageManifest(JSON.parse(afterSource));
     if (before.version !== NODE_SECURITY_PATCH_CHECKPOINT || after.version !== before.version) return false;
-    if (!before.dependencies || !after.dependencies) return false;
-    for (const [name, previous, fixed] of [["markdown-it", "^15.0.2", "^15.0.3"], ["zod", "^4.4.3", "^4.6.6"]]) {
-      if (before.dependencies[name] !== previous || after.dependencies[name] !== fixed) return false;
-      after.dependencies[name] = previous;
+    for (const [group, name, previous, reviewed] of declarations) {
+      const beforeGroup = before[group];
+      const afterGroup = after[group];
+      if (!beforeGroup || !afterGroup) return false;
+      if (beforeGroup[name] !== previous || afterGroup[name] !== reviewed) return false;
+      afterGroup[name] = previous;
     }
     return isDeepStrictEqual(before, after);
   } catch {
@@ -445,29 +487,36 @@ function isNodeSecurityDependencyPackageChange(beforeSource, afterSource) {
   }
 }
 
-/** @param {string} beforeSource @param {string} afterSource */
-function isNodeSecurityDependencyLockChange(beforeSource, afterSource) {
+/**
+ * The lockfile half of a reviewed declaration change: the root entry and top-level version follow the
+ * manifest's rule, and every resolved entry follows the reviewed transition.
+ * @param {string} beforeSource
+ * @param {string} afterSource
+ * @param {readonly ReviewedDeclaration[]} declarations
+ * @param {ReviewedLockUpdates} reviewedUpdates
+ */
+function isReviewedDeclarationLockChange(beforeSource, afterSource, declarations, reviewedUpdates) {
   try {
     const before = requirePackageLock(JSON.parse(beforeSource));
     const after = requirePackageLock(JSON.parse(afterSource));
     const beforeRoot = requireLockEntry(before, "", "previous lock root");
     const afterRoot = requireLockEntry(after, "", "new lock root");
     if (before.version !== NODE_SECURITY_PATCH_CHECKPOINT || after.version !== before.version) return false;
-    if (!isNodeSecurityDependencyPackageChange(JSON.stringify(beforeRoot), JSON.stringify(afterRoot))) return false;
-    afterRoot.dependencies = beforeRoot.dependencies;
-    return isReviewedDependencyUpdateLockChange(JSON.stringify(before), JSON.stringify(after), NODE_SECURITY_PATCH_DEPENDENCY_UPDATES);
+    if (!isReviewedDeclarationPackageChange(JSON.stringify(beforeRoot), JSON.stringify(afterRoot), declarations)) return false;
+    for (const [group] of declarations) afterRoot[group] = beforeRoot[group];
+    return isReviewedDependencyUpdateLockChange(JSON.stringify(before), JSON.stringify(after), reviewedUpdates);
   } catch {
     return false;
   }
 }
 
 /**
- * Whether a lockfile change is exactly the post-release patch's reviewed dependency security
- * transition: every listed entry equals its complete reviewed entry before (or is absent) and after,
- * and every other entry and top-level field is unchanged. Comparison is by value, not key order.
+ * Whether a lockfile change is exactly a patch's reviewed dependency transition: every listed entry
+ * equals its complete reviewed entry on each side (`null` meaning absent), and every other entry and
+ * top-level field is unchanged. Comparison is by value, not key order.
  * @param {string} beforeSource
  * @param {string} afterSource
- * @param {Readonly<Record<string, Readonly<{ before: ReviewedLockEntry | null, after: ReviewedLockEntry }>>>} [reviewedUpdates]
+ * @param {ReviewedLockUpdates} [reviewedUpdates]
  * @returns {boolean}
  */
 function isReviewedDependencyUpdateLockChange(beforeSource, afterSource, reviewedUpdates = POST_RELEASE_PATCH_DEPENDENCY_UPDATES) {
@@ -477,11 +526,12 @@ function isReviewedDependencyUpdateLockChange(beforeSource, afterSource, reviewe
     const afterLock = requirePackageLock(JSON.parse(afterSource), "package-lock.json in the working tree");
     const beforePackages = requireLockPackages(beforeLock, "the previous package-lock.json");
     const afterPackages = requireLockPackages(afterLock, "package-lock.json in the working tree");
+    /** @param {Record<string, unknown>} packages @param {string} packagePath @param {ReviewedLockEntry | null} reviewed */
+    const matchesReviewed = (packages, packagePath, reviewed) => (reviewed === null
+      ? !Object.hasOwn(packages, packagePath)
+      : isDeepStrictEqual(packages[packagePath], reviewed));
     for (const [packagePath, update] of Object.entries(reviewedUpdates)) {
-      const beforeMatches = update.before === null
-        ? !Object.hasOwn(beforePackages, packagePath)
-        : isDeepStrictEqual(beforePackages[packagePath], update.before);
-      if (!beforeMatches || !isDeepStrictEqual(afterPackages[packagePath], update.after)) return false;
+      if (!matchesReviewed(beforePackages, packagePath, update.before) || !matchesReviewed(afterPackages, packagePath, update.after)) return false;
     }
     /** @param {import("../test-support/package-manifest-assertions.mjs").PackageLockManifest} lock @param {Record<string, import("../test-support/package-manifest-assertions.mjs").PackageLockEntry>} packages */
     const unlisted = (lock, packages) => ({
@@ -732,6 +782,9 @@ export {
   POST_RELEASE_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
+  RESTART_RECOVERY_PATCH_CHECKPOINT,
+  RESTART_RECOVERY_PATCH_DECLARATIONS,
+  RESTART_RECOVERY_PATCH_DEPENDENCY_UPDATES,
   TRAILER_NAMES,
   formatCheckpointRange,
   inspectCheckpointRange,

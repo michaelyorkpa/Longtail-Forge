@@ -36,9 +36,18 @@ The canonical classifications and environment contract are in
    permission to substitute a manifest-only check.
 2. Install the released Compose file, exact-demo environment, deploy helper,
    isolation helper, reset helper, reset scheduler helper, alert helper, systemd
-   service/timer, and scheduler environment from the same immutable release.
-   Follow [Demo Data Operations](demo-data-operations.md) for root ownership,
-   modes, locations, and the separately protected role-credential document.
+   service/timer, scheduler environment, boot helper, and boot unit from the
+   same immutable release, with the reviewed ClamAV `FreeBind` drop-in from
+   [File Scanner Setup](file-scanner-setup.md). Install the Discord webhook and
+   heartbeat URL files from standard input. Follow
+   [Demo Data Operations](demo-data-operations.md) for root ownership, modes,
+   locations, and the separately protected role-credential document. When
+   upgrading an installed demo, no new lifecycle helper may run before the
+   restart-recovery image is deployed: disable the timer and wait for any
+   running reset and the lifecycle lock to clear, deploy, install the helpers
+   with the boot unit left disabled, run one manual reset, and only then enable
+   the boot unit and the timer. The exact steps are in
+   [Demo Data Operations](demo-data-operations.md#installation).
 3. Create only the named external non-masquerading IPv4 bridge and data volume
    from the redacted profile. Install and prove the reviewed stateful firewall,
    loopback publication, and ClamAV gateway handoff.
@@ -50,6 +59,15 @@ The canonical classifications and environment contract are in
    systemctl list-timers longtail-forge-public-demo-reset.timer.
 
 ## Normal operation
+
+The demo's only restart owner is the protected boot unit, which Docker pulls in
+each time it starts. After a host boot or a Docker restart it waits for Docker,
+validates the complete resolved Compose profile, waits for the bridge and the
+scanner, enforces isolation, starts the recorded release behind the curtain,
+and runs a fresh reset if an hourly boundary was missed. The boot owns the
+curtain: visitors are served only after the start and any fresh reset pass.
+See [Protected boot](demo-data-operations.md#protected-boot). Never enable
+Docker auto-restart for the demo.
 
 Deploy, rollback, backup, and reset share one non-blocking root-owned Compose
 operation lock. Lock contention must exit without mutation and produce the
@@ -90,10 +108,20 @@ credential/session/header/body/path redaction, and operator-only access.
 
 ## Alerts, rollback, and recovery
 
+Failures reach the operator's Discord channel, and a successful reset or boot
+sends a heartbeat to the operator's push monitor, which alerts when one is late.
+See [Alerts and heartbeat](demo-data-operations.md#alerts-and-heartbeat) for the
+classes and the root-only URL files.
+
+To stop the demo deliberately, create the operator hold,
+`/etc/longtail-forge/public-demo-hold`, before stopping the container. The boot,
+the hourly reset, and a manual reset all honour it until it is removed.
+
 Treat any missed trigger, failed candidate validation, lock contention,
 maintenance state after the expected window, health/readiness/version mismatch,
-old-session acceptance, role-login failure, isolation drift, or alert-helper
-failure as an incident. Disable the scheduler before manual work:
+old-session acceptance, role-login failure, isolation drift, a boot alert, a late
+heartbeat, or alert-helper failure as an incident. Disable the scheduler before
+manual work:
 
 1. Preserve the bounded scheduler record, operation ID, semantic fingerprint,
    image digest, app version, and health/recovery classifications. Do not retain

@@ -54,6 +54,7 @@ import { createCsrfProtectionMiddleware } from "./csrf-protection.js";
 import { securityEventsService } from "../security/security-events.js";
 import { assertRuntimeDataPathsReady } from "./runtime-readiness.js";
 import { createRequestLoggingMiddleware, operationalLogger } from "./operational-logger.js";
+import { logStartupFailure } from "./startup-failure.js";
 import { registerFrameworkHelpSearchIndexers } from "./help/search-indexers.js";
 import { apiRouteBoundary, browserNotFound } from "./http-error-contract.js";
 import { assertPublicDemoRuntimeReady } from "./public-demo-runtime.js";
@@ -64,6 +65,7 @@ import { createPublicDemoBudgetMiddleware } from "./public-demo-budgets.js";
 /** @typedef {import("node:http").Server} HttpServer */
 /** @typedef {import("../types/route-contracts.js").RouterContract} RouterContract */
 /** @typedef {import("../types/database-contracts.js").DatabaseStartupPhaseEvent} StartupPhaseEvent */
+/** @typedef {import("./startup-failure.js").StartupFailureStage} StartupFailureStage */
 
 /** @returns {ReturnType<typeof express>} */
 function createApp() {
@@ -164,15 +166,28 @@ function isRouterContract(value) {
 }
 /** @returns {Promise<void>} */
 async function startServer() {
+  /** @type {StartupFailureStage} */
+  let stage = "configuration";
   try {
     logRuntimeConfigWarnings(config.environment === "production"
       ? () => operationalLogger.warn("runtime.configuration.unsafe_override", {})
       : console.warn);
+    stage = "public-demo";
     await assertPublicDemoRuntimeReady();
+    stage = "runtime-paths";
     await assertRuntimeDataPathsReady();
+    stage = "storage";
     await filesService.assertConfiguredFileStorageProviderReady();
+    stage = "scanner";
     await filesService.assertConfiguredFileScannerReady();
-    const databaseHealth = await initializeDatabase({ report: reportStartupPhase });
+    stage = "database";
+    const databaseHealth = await initializeDatabase({
+      report(event) {
+        if (event.id === "database.run-migrations") stage = event.status === "started" ? "migrations" : "database";
+        reportStartupPhase(event);
+      },
+    });
+    stage = "application";
     if (config.environment === "production") {
       operationalLogger.info("database.ready", { component: databaseHealth.provider });
     } else {
@@ -196,7 +211,7 @@ async function startServer() {
     registerGracefulShutdown(server);
   } catch (error) {
     if (config.environment === "production") {
-      operationalLogger.error("application.startup.failed", { errorType: readUnknownErrorType(error) });
+      logStartupFailure(operationalLogger, stage, error);
     } else {
       console.error("Longtail Forge could not be started.");
       console.error(readUnknownErrorMessage(error));
@@ -317,14 +332,6 @@ function readUnknownErrorMessage(error) {
     return error.message;
   }
   return error;
-}
-
-/** @param {unknown} error @returns {string} */
-function readUnknownErrorType(error) {
-  if (error && typeof error === "object" && "name" in error && error.name) {
-    return String(error.name);
-  }
-  return "Error";
 }
 
 export { createApp, startServer };

@@ -312,8 +312,12 @@ async function assertHostContract() {
     /run_activation finalize/,
     /clear_marker/,
     /run_activation recover/,
-    /run_activation recover .* \|\| recovery_ready=false/,
-    /test "\$recovery_ready" = true && start_sqlite_users && verify_runtime/,
+    // Recovery runs each command as a step and reads its status afterwards, because bash would
+    // ignore errexit inside a step called under `||` or `&&`: a failed recovery makes it not ready,
+    // and only a ready recovery starts and verifies the prior unit.
+    /step recovery-recover run_activation recover .*\n\s+step_status=\$\?\n\s+test "\$step_status" -eq 0 \|\| recovery_ready=false/,
+    /if test "\$recovery_ready" = true; then\n\s+step recovery-start-and-verify start_and_verify_runtime\n/,
+    /start_and_verify_runtime\(\) \{\n\s+start_sqlite_users\n\s+verify_runtime\n\}/,
     /maintenance curtain and protected evidence remain/,
     /lock_contended\(\)[\s\S]*exit 75/,
     /--operation-id\) key=operation/,

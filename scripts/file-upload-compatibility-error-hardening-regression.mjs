@@ -73,6 +73,7 @@ const { createSession } = await import("../src/security/sessions.js");
 const { filesService } = await import("../src/services/files.service.js");
 
 let server;
+const activity = trackUploadActivity();
 
 try {
   assertStaticContracts();
@@ -87,11 +88,15 @@ try {
   await checkOversizedFailureShapeAndCleanup(api, fixtures);
   await checkMalformedMultipartCleanup(baseUrl, fixtures);
   await checkClientAbortCleanup(baseUrl, fixtures);
+  await checkDelayedLeakIsDetected(baseUrl, fixtures);
   await checkStorageStreamFailureIsBounded(api, fixtures);
+  await activity.settled("every upload");
+  await assertNoUnrecordedStoredFiles("no failed upload should leave a stored file without a file record");
   await assertIntegrity();
 
   console.log("File upload compatibility and error hardening regression passed.");
 } finally {
+  activity.restore();
   if (server) {
     await closeServer(server);
   }
@@ -167,7 +172,7 @@ async function checkLegacyJsonCompatibility(api, fixtures) {
 
 /** @param {HardeningApiClient} api @param {HardeningFixtures} fixtures */
 async function checkOversizedFailureShapeAndCleanup(api, fixtures) {
-  const beforeFiles = await listStoredFiles(config.storage.localRoot);
+  const callsBefore = activity.calls();
   const response = await api.postForm("/api/files/upload", createUploadForm(fixtures.oversizedTaskId, {
     filename: "hardening-too-large.txt",
     text: "x".repeat((5 * 1024 * 1024) + 1),
@@ -179,12 +184,14 @@ async function checkOversizedFailureShapeAndCleanup(api, fixtures) {
   assert.match(oversized.error.message, /Uploaded file exceeds the allowed size/i);
   assert.doesNotMatch(JSON.stringify(response.body), /storageKey|protectedPath|signedUrl|localRoot/i, "failure response should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("hardening-too-large.txt");
-  await eventuallyStoredFilesEqual(beforeFiles, "oversized streamed upload should not leave a partial local file");
+  assert.equal(activity.calls(), callsBefore + 1, "the oversized upload must reach storage, or its cleanup proves nothing");
+  await activity.settled("the oversized upload");
+  await assertNoUnrecordedStoredFiles("oversized streamed upload should not leave a partial local file");
 }
 
 /** @param {string} baseUrl @param {HardeningFixtures} fixtures */
 async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
-  const beforeFiles = await listStoredFiles(config.storage.localRoot);
+  const callsBefore = activity.calls();
   const response = await sendMalformedMultipart(baseUrl, fixtures, {
     filename: "malformed-upload.txt",
     taskId: fixtures.malformedTaskId,
@@ -196,19 +203,90 @@ async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
   assert.match(malformed.error.message, /could not be parsed|cancelled|could not be read/i);
   assert.doesNotMatch(response.text, /storageKey|protectedPath|signedUrl|localRoot/i, "parse failures should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("malformed-upload.txt");
-  await eventuallyStoredFilesEqual(beforeFiles, "malformed multipart upload should not leave a partial local file");
+  // The route answers before the service's storage cleanup settles, so the comparison waits for it.
+  assert.equal(activity.calls(), callsBefore + 1, "the malformed upload must reach storage, or its cleanup proves nothing");
+  await activity.settled("the malformed upload");
+  await assertNoUnrecordedStoredFiles("malformed multipart upload should not leave a partial local file");
 }
 
-/** @param {string} baseUrl @param {HardeningFixtures} fixtures */
+/**
+ * The abort must land while the file is being written. Neither the service call nor a chunk handed
+ * to the adapter is that boundary: the service can refuse the upload before storage starts, and the
+ * adapter prepares its directory before its writer takes any data. So the abort waits for the real
+ * writer to put bytes on disk, and the bytes are measured again, independently, before it is sent.
+ * The delayed run holds the writer back, which is how a slow storage setup would let an earlier
+ * signal abort an upload with nothing written.
+ * @param {string} baseUrl @param {HardeningFixtures} fixtures
+ */
 async function checkClientAbortCleanup(baseUrl, fixtures) {
-  const beforeFiles = await listStoredFiles(config.storage.localRoot);
-  await abortMultipartUpload(baseUrl, fixtures, {
-    filename: "client-aborted-upload.txt",
-    taskId: fixtures.abortedTaskId,
+  for (const run of [
+    { filename: "client-aborted-upload.txt", writerDelayMs: 0 },
+    { filename: "client-aborted-delayed-writer-upload.txt", writerDelayMs: 250 },
+  ]) {
+    const callsBefore = activity.calls();
+    const storage = await observeStorageWrites({ writerDelayMs: run.writerDelayMs });
+    try {
+      const bytesBeforeAbort = await abortMultipartUpload(baseUrl, fixtures, {
+        filename: run.filename,
+        taskId: fixtures.abortedTaskId,
+      }, storage);
+      assert.equal(activity.calls(), callsBefore + 1, `${run.filename} must reach the upload service`);
+      assert.equal(storage.calls(), 1, `${run.filename} must reach the storage adapter, or its cleanup proves nothing`);
+      assert.ok(bytesBeforeAbort > 0, `the storage writer must have written part of ${run.filename} before the abort, or its cleanup proves nothing`);
+
+      await eventuallyNoFileOrAttachmentForOriginalFilename(run.filename);
+      await activity.settled(run.filename);
+    } finally {
+      storage.restore();
+    }
+    await assertNoUnrecordedStoredFiles(`${run.filename} should not leave a partial local file`);
+  }
+}
+
+/**
+ * The comparison must not be satisfied before a failed upload's storage work ends. A provider that
+ * writes after a delay and never cleans up must therefore be caught, which a check that compared on
+ * its first observation, straight after the response, would miss.
+ * @param {string} baseUrl @param {HardeningFixtures} fixtures
+ */
+async function checkDelayedLeakIsDetected(baseUrl, fixtures) {
+  const originalAdapter = filesService.getFileStorageAdapter("local");
+  const leakRoot = path.join(config.storage.localRoot, "delayed-leak");
+  filesService.registerFileStorageAdapter("local", {
+    ...originalAdapter,
+    async saveStream(readable) {
+      try {
+        for await (const _chunk of readable) {
+          // Drain the upload, which fails when the malformed body ends.
+        }
+      } catch {
+        // The stream's own failure is expected.
+      }
+      await delay(200);
+      await fs.mkdir(leakRoot, { recursive: true });
+      await fs.writeFile(path.join(leakRoot, randomUUID()), "unrecorded partial upload\n");
+      throw new Error("simulated provider failure after a delayed write, with no cleanup");
+    },
   });
 
-  await eventuallyNoFileOrAttachmentForOriginalFilename("client-aborted-upload.txt");
-  await eventuallyStoredFilesEqual(beforeFiles, "client-aborted upload should not leave a partial local file");
+  try {
+    const callsBefore = activity.calls();
+    const response = await sendMalformedMultipart(baseUrl, fixtures, {
+      filename: "delayed-leak-upload.txt",
+      taskId: fixtures.malformedTaskId,
+    });
+    assert.equal(response.status, 400, "the malformed upload answers before its storage work ends");
+    assert.equal(activity.calls(), callsBefore + 1, "the delayed-leak upload must reach storage");
+    await activity.settled("the delayed-leak upload");
+    await assert.rejects(
+      assertNoUnrecordedStoredFiles("a delayed unrecorded write must be detected"),
+      assert.AssertionError,
+      "a stored file written after the response, and never cleaned up, must fail the comparison",
+    );
+  } finally {
+    filesService.registerFileStorageAdapter("local", originalAdapter);
+    await fs.rm(leakRoot, { recursive: true, force: true });
+  }
 }
 
 /** @param {HardeningApiClient} api @param {HardeningFixtures} fixtures */
@@ -367,8 +445,12 @@ function sendMalformedMultipart(baseUrl, fixtures, options) {
   });
 }
 
-/** @param {string} baseUrl @param {HardeningFixtures} fixtures @param {{ filename: string, taskId: string }} options @returns {Promise<void>} */
-function abortMultipartUpload(baseUrl, fixtures, options) {
+/**
+ * @param {string} baseUrl @param {HardeningFixtures} fixtures @param {{ filename: string, taskId: string }} options
+ * @param {Awaited<ReturnType<typeof observeStorageWrites>>} storage
+ * @returns {Promise<number>} the bytes the storage writer had put on disk when the abort was sent
+ */
+function abortMultipartUpload(baseUrl, fixtures, options, storage) {
   const boundary = `ltf-abort-${randomUUID()}`;
   const bodyStart = Buffer.from([
     multipartField(boundary, "moduleId", "tasks"),
@@ -380,15 +462,21 @@ function abortMultipartUpload(baseUrl, fixtures, options) {
     "Content-Type: text/plain\r\n\r\n",
   ].join(""), "utf8");
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const url = new URL("/api/files/upload", baseUrl);
-    let resolved = false;
-    const done = () => {
-      if (!resolved) {
-        resolved = true;
-        resolve(undefined);
-      }
+    /** @type {number | null} */
+    let bytesBeforeAbort = null;
+    let finished = false;
+    /** @param {Error} [error] */
+    const finish = (error) => {
+      if (finished) return;
+      finished = true;
+      if (error) reject(error);
+      else resolve(/** @type {number} */ (bytesBeforeAbort));
     };
+    // The connection may end only once this client aborts it, after the storage writer has put
+    // bytes on disk. An earlier error or close would leave the abort nothing to clean up.
+    const closed = () => finish(bytesBeforeAbort !== null ? undefined : new Error("the aborted upload's connection ended before the upload was written to storage"));
     const request = http.request({
       headers: {
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -400,13 +488,26 @@ function abortMultipartUpload(baseUrl, fixtures, options) {
       port: url.port,
     });
 
-    request.on("error", done);
-    request.on("close", done);
+    request.on("error", closed);
+    request.on("close", closed);
+    // Abort once the storage writer has put bytes on disk, never on a timer, the service call, or a
+    // chunk handed to the adapter: each can come before the writer starts, leaving nothing to clean
+    // up. The bytes are measured again before the abort, apart from the gate, and returned.
+    const written = storage.nextWrite(options.filename);
     request.write(bodyStart);
     request.write(Buffer.alloc(128 * 1024, "a"));
-    setTimeout(() => {
-      request.destroy(new Error("client aborted upload regression"));
-    }, 20);
+    written
+      .then(() => storage.writtenBytes())
+      .then(
+        (bytes) => {
+          bytesBeforeAbort = bytes;
+          request.destroy(new Error("client aborted upload regression"));
+        },
+        (error) => {
+          finish(error);
+          request.destroy();
+        },
+      );
   });
 }
 
@@ -547,22 +648,112 @@ WHERE files.file_id IS NULL;
   return Number(orphanRow.count) === 0;
 }
 
-/** @param {string[]} expectedFiles @param {string} message */
-async function eventuallyStoredFilesEqual(expectedFiles, message) {
-  /** @type {string[]} */
-  let lastFiles = [];
+/**
+ * Every stored file must belong to a file record, and every local record to a stored file. Call it
+ * only once `activity.settled()` has returned: the route answers a failed upload before the
+ * service's storage cleanup settles, so before that boundary a partial file may not exist yet.
+ * @param {string} message
+ */
+async function assertNoUnrecordedStoredFiles(message) {
+  const [storedFiles, recordedKeys] = await Promise.all([listStoredFiles(config.storage.localRoot), listRecordedLocalStorageKeys()]);
+  assert.deepEqual(storedFiles, recordedKeys, message);
+}
 
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    lastFiles = await listStoredFiles(config.storage.localRoot);
-    try {
-      assert.deepEqual(lastFiles, expectedFiles);
-      return;
-    } catch {
-      await delay(50);
+/**
+ * The server's upload work, observed in-process at the service boundary the upload route calls.
+ * Each call is tracked until it settles, which includes the storage cleanup of a failed upload,
+ * because the adapter removes a partial file before its promise rejects.
+ */
+function trackUploadActivity() {
+  const original = filesService.uploadStreamAndAttach;
+  /** @type {Set<Promise<void>>} */
+  const pending = new Set();
+  let calls = 0;
+  /** @param {Parameters<typeof original>} args */
+  const tracked = (...args) => {
+    const call = original(...args);
+    calls += 1;
+    const settled = call.then(() => undefined, () => undefined);
+    pending.add(settled);
+    void settled.then(() => pending.delete(settled));
+    return call;
+  };
+  filesService.uploadStreamAndAttach = tracked;
+  return {
+    calls: () => calls,
+    /** @param {string} label */
+    async settled(label) {
+      const deadline = Date.now() + 10_000;
+      while (pending.size > 0) {
+        assert.ok(Date.now() < deadline, `timed out waiting for ${label} to settle`);
+        await Promise.race([...pending, delay(100)]);
+      }
+    },
+    restore() {
+      filesService.uploadStreamAndAttach = original;
+    },
+  };
+}
+
+/**
+ * The local storage adapter, observed. Each saveStream call is counted and handed its own stream,
+ * unchanged, after an optional delay that stands in for a slow storage setup. What the real writer
+ * has written is read from the disk: the bytes in stored files that did not exist when observation
+ * began. The real adapter still does the writing and the partial-file cleanup.
+ * @param {{ writerDelayMs?: number }} [options]
+ */
+async function observeStorageWrites({ writerDelayMs = 0 } = {}) {
+  const originalAdapter = filesService.getFileStorageAdapter("local");
+  const root = config.storage.localRoot;
+  const existing = new Set(await listStoredFiles(root));
+  let calls = 0;
+  filesService.registerFileStorageAdapter("local", {
+    ...originalAdapter,
+    async saveStream(readable, options) {
+      calls += 1;
+      if (writerDelayMs > 0) {
+        await delay(writerDelayMs);
+      }
+      return originalAdapter.saveStream(readable, options);
+    },
+  });
+  /** @returns {Promise<number>} the bytes on disk in stored files that are new since observation began */
+  async function writtenBytes() {
+    let bytes = 0;
+    for (const file of await listStoredFiles(root)) {
+      if (existing.has(file)) continue;
+      try {
+        bytes += (await fs.stat(path.join(root, file))).size;
+      } catch (error) {
+        if (/** @type {NodeJS.ErrnoException} */ (error)?.code !== "ENOENT") throw error;
+      }
     }
+    return bytes;
   }
+  return {
+    calls: () => calls,
+    writtenBytes,
+    /** @param {string} label @returns {Promise<void>} resolves once the storage writer has put bytes on disk */
+    async nextWrite(label) {
+      const deadline = Date.now() + 10_000;
+      while ((await writtenBytes()) === 0) {
+        assert.ok(Date.now() < deadline, `timed out waiting for ${label} to be written to storage`);
+        await delay(10);
+      }
+    },
+    restore() {
+      filesService.registerFileStorageAdapter("local", originalAdapter);
+    },
+  };
+}
 
-  assert.deepEqual(lastFiles, expectedFiles, message);
+async function listRecordedLocalStorageKeys() {
+  const rows = await querySql(`
+SELECT storage_key
+FROM files
+WHERE storage_provider = ${sqlText("local")};
+`);
+  return rows.map((row) => String(/** @type {{ storage_key: unknown }} */ (row).storage_key)).sort();
 }
 
 /** @param {string} directory */

@@ -6,6 +6,11 @@ const PUBLIC_DEMO_ACTIVE_OPERATION = ".longtail-public-demo-reset-active.json";
 const PUBLIC_DEMO_CANDIDATE_DIRECTORY = ".longtail-public-demo-candidate";
 const PUBLIC_DEMO_PREVIOUS_PREFIX = ".longtail-public-demo-previous-";
 const PUBLIC_DEMO_FAILED_PREFIX = ".longtail-public-demo-failed-";
+const PUBLIC_DEMO_BUILD_PREFIX = ".longtail-public-demo-build-";
+const PUBLIC_DEMO_STALE_SUFFIX = "-stale-candidate";
+const PUBLIC_DEMO_STALE_CONTRACT = "longtail-forge-public-demo-stale-candidate-v1";
+// A candidate build stages under an opaque UUID: see `buildPublicDemoCandidate`.
+const BUILD_DIRECTORY_PATTERN = /^\.longtail-public-demo-build-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const CANONICAL_COMPOSE_DATA_ROOT = "/var/lib/longtail-forge";
 const DEMO_DATA_MARKER = ".longtail-demo-data.json";
 const DEMO_DATA_TARGET = "rt-ltf-demo";
@@ -59,6 +64,7 @@ const OPERATION_PHASES = new Set([
  * Frozen outcome reported by inspect and mutation operations.
  * @typedef {object} PublicDemoActivationOutcome
  * @property {boolean} [active]
+ * @property {number} [moved]
  * @property {string} [operationId]
  * @property {string} [phase]
  * @property {string} status
@@ -85,8 +91,8 @@ const OPERATION_PHASES = new Set([
  */
 function parsePublicDemoActivationArgs(args) {
   const action = args[0];
-  if (!new Set(["activate", "finalize", "inspect", "recover"]).has(action)) {
-    throw new Error("Choose activate, finalize, inspect, or recover.");
+  if (!new Set(["activate", "finalize", "inspect", "quarantine-stale", "recover"]).has(action)) {
+    throw new Error("Choose activate, finalize, inspect, quarantine-stale, or recover.");
   }
   /** @type {PublicDemoActivationOptionsDraft} */
   const options = { action };
@@ -112,7 +118,9 @@ function parsePublicDemoActivationArgs(args) {
   if (options.operationId && !OPERATION_ID_PATTERN.test(options.operationId)) {
     throw new Error("--operation-id is invalid.");
   }
-  if (action === "activate" && !options.operationId) throw new Error("activate requires --operation-id.");
+  if ((action === "activate" || action === "quarantine-stale") && !options.operationId) {
+    throw new Error(`${action} requires --operation-id.`);
+  }
   if (new Set(["activate", "recover"]).has(action)
     && options.confirmQuiescent !== "COMPOSE SQLITE USERS STOPPED") {
     throw new Error("Activation or recovery requires the exact stopped-service confirmation.");
@@ -183,6 +191,10 @@ async function runPublicDemoActivationOperation({
   const basePaths = resolvePublicDemoActivationPaths(dataRoot, operationId);
   await assertRealDirectory(basePaths.dataRoot, "Compose data root");
   if (action === "inspect") return inspectActiveOperation(basePaths.activeOperation);
+  if (action === "quarantine-stale") {
+    if (!operationId || !OPERATION_ID_PATTERN.test(operationId)) throw new Error("quarantine-stale requires a valid --operation-id.");
+    return quarantineStaleCandidate(basePaths, operationId);
+  }
 
   const existing = await readOperation(basePaths.activeOperation);
   const resolvedOperationId = operationId || existing?.operationId;
@@ -344,6 +356,63 @@ async function finalizeActivation(paths, operation) {
   await writeOperation(paths.activeOperation, operation);
   await fs.rename(paths.activeOperation, path.join(paths.previousRoot, "reset-operation.json"));
   return operationResult("activation-finalized", operation.operationId);
+}
+
+/**
+ * Move a verified candidate or partial build that an earlier operation left behind into failed
+ * evidence, so the next reset can build again.
+ *
+ * A Docker restart can kill a reset after it built its candidate but before activation wrote the
+ * active-operation marker. Recovery runs only for a marker, so nothing removed that candidate, and
+ * every later build refused it. This runs only when no reset operation is active, because an active
+ * operation's recovery owns those paths. Every path is checked before anything moves: only the exact
+ * names and shapes a build creates are accepted, a link anywhere refuses the whole move, and nothing
+ * is deleted.
+ * @param {PublicDemoActivationPaths} paths
+ * @param {string} operationId
+ * @returns {Promise<Readonly<PublicDemoActivationOutcome>>}
+ */
+async function quarantineStaleCandidate(paths, operationId) {
+  if (await pathExists(paths.activeOperation)) {
+    throw new Error("A public-demo reset operation is active; recover it before moving a stale candidate.");
+  }
+  const entries = await fs.readdir(paths.dataRoot);
+  const builds = entries.filter((entry) => entry.startsWith(PUBLIC_DEMO_BUILD_PREFIX)).sort();
+  const candidateExists = entries.includes(PUBLIC_DEMO_CANDIDATE_DIRECTORY);
+  if (!candidateExists && builds.length === 0) {
+    return Object.freeze({ moved: 0, operationId, status: "no-stale-candidate", target: DEMO_DATA_TARGET });
+  }
+
+  if (candidateExists) {
+    await assertRealDirectory(paths.candidateRoot, "stale public-demo candidate");
+    const allowed = [...UNIT_ENTRIES, ...SQLITE_SIDECARS];
+    if ((await fs.readdir(paths.candidateRoot)).some((entry) => !allowed.includes(entry))) {
+      throw new Error("The stale public-demo candidate contains unexpected state.");
+    }
+    await assertNoLinks(paths.candidateRoot);
+  }
+  for (const build of builds) {
+    if (!BUILD_DIRECTORY_PATTERN.test(build)) throw new Error("A stale public-demo build has an unexpected name.");
+    await assertRealDirectory(path.join(paths.dataRoot, build), "stale public-demo build");
+    await assertNoLinks(path.join(paths.dataRoot, build));
+  }
+  const evidenceRoot = path.join(paths.dataRoot, `${PUBLIC_DEMO_FAILED_PREFIX}${operationId}${PUBLIC_DEMO_STALE_SUFFIX}`);
+  await assertAbsent(evidenceRoot, "stale-candidate evidence");
+  await fs.mkdir(evidenceRoot, { mode: 0o700 });
+
+  /** @type {string[]} */
+  const moved = [];
+  if (candidateExists) {
+    await fs.rename(paths.candidateRoot, path.join(evidenceRoot, "candidate"));
+    moved.push("candidate");
+  }
+  for (const build of builds) {
+    await fs.rename(path.join(paths.dataRoot, build), path.join(evidenceRoot, build));
+    moved.push(build);
+  }
+  const record = { contract: PUBLIC_DEMO_STALE_CONTRACT, generatedAt: new Date().toISOString(), moved, operationId, target: DEMO_DATA_TARGET };
+  await fs.writeFile(path.join(evidenceRoot, "stale-candidate.json"), `${JSON.stringify(record, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+  return Object.freeze({ moved: moved.length, operationId, status: "stale-candidate-quarantined", target: DEMO_DATA_TARGET });
 }
 
 /**

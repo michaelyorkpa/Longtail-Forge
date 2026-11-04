@@ -63,13 +63,20 @@ test("Developer Example can be enabled and its Settings host loads", { tag: "@de
   const developerToggle = page.locator('[data-module-id="developer-example"][data-module-setting="developerExampleEnabled"]');
   const saveButton = page.locator('[data-settings-page-save][data-settings-action-position="top"]');
   const wasEnabled = await developerToggle.isChecked();
+  // Save disables its button when clicked, while the request is still in flight, so only the
+  // response proves the setting is stored. Navigating sooner races the write.
+  const saveSettings = async () => {
+    const saved = page.waitForResponse((response) => response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/settings");
+    await saveButton.click();
+    expect((await saved).ok()).toBe(true);
+    await expect(saveButton).toBeDisabled();
+  };
 
   try {
     if (!wasEnabled) {
       await developerToggle.check();
       await expect(saveButton).toBeEnabled();
-      await saveButton.click();
-      await expect(saveButton).toBeDisabled();
+      await saveSettings();
     }
 
     const developerResponse = await page.goto("/developer-example.html");
@@ -90,11 +97,12 @@ test("Developer Example can be enabled and its Settings host loads", { tag: "@de
   } finally {
     if (!wasEnabled) {
       await page.goto("/workspace-settings.html");
-      await page.locator('[data-module-id="developer-example"][data-module-setting="developerExampleEnabled"]').uncheck();
-      const restoreButton = page.locator('[data-settings-page-save][data-settings-action-position="top"]');
-      await expect(restoreButton).toBeEnabled();
-      await restoreButton.click();
-      await expect(restoreButton).toBeDisabled();
+      // A failed enable leaves nothing to restore, and failing here would hide why it failed.
+      if (await developerToggle.isChecked()) {
+        await developerToggle.uncheck();
+        await expect(saveButton).toBeEnabled();
+        await saveSettings();
+      }
     }
   }
 });

@@ -1,5 +1,197 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.53 - Recovery after a host restart
+
+**Model: High Effort** — It changes how both hosts come back after a restart. That covers the scanner's host configuration, a new protected demo boot path under the shared lifecycle lock, the reset's failure paths, and application startup diagnostics. A wrong boot decision can expose the demo before isolation or destroy evidence; a missed one leaves the sites down.
+
+**Completed on 2026-11-03** in two pull requests into `nightly`: the dependency fold, #895, merged as `f97bbc48`, and the recovery work, #896. Still pending, each under the operator's separate authorization: the promotion, the release, the deployment, and the live-demo proof.
+
+**What this is.** A fourth post-release patch to `v0.33.33`, with its own release identity.
+- **Its scope.** The operator set it on 2026-10-14 and 2026-10-15, splitting retention into `0.33.33.54` and durability into `0.33.33.55`.
+- **Its number.** It was first planned under the identity that the October Node security release took on 2026-10-24, so on 2026-10-30 the operator renumbered this patch and the two after it.
+- **Its order.** Two pull requests into `nightly` share this identity, followed by one promotion, one release, and one deployment. The dependency fold at the end of this section lands first, and the recovery work follows it.
+- **What it preserves.** No tag, image, checksum, or release asset of `v0.33.33` or any of its earlier patches is replaced.
+
+**What happened.** The protected operational record and Codex's post-mortem hold the evidence.
+- **The reset outage, 2026-10-06 to 2026-10-14.**
+  - **The trigger.** An operator package upgrade restarted Docker at the second the 20:00 reset's activation began. The activation died before writing its active-operation marker.
+  - **The gap.** Recovery removes a leftover candidate only through `recover`, which runs only when a marker exists.
+  - **The consequence.** Every later build refused the leftover verified candidate (`scripts/lib/public-demo-baseline-candidate.mjs:770`). 187 hourly resets failed before the curtain. The alert helper is the release placeholder, which writes only to the local journal, so nobody knew for nearly eight days.
+- **The power loss, 2026-10-14.** Power was out for over an hour, longer than the UPS lasts. Proxmox start-at-boot was missing, which the operator has since corrected. After the guests booted:
+  - **The scanner, on both hosts.** Its socket binds the exact Docker gateway address (`172.30.17.1` on the preview, `172.30.31.1` on the demo) with `FreeBind=no`. That address did not exist yet, so the bind failed with `Cannot assign requested address`, and nothing retried it.
+  - **The preview** restarted its app repeatedly. But production startup requires the scanner, and the failure was logged only as `application.startup.failed` with `errorType=Error`.
+  - **The demo** keeps `restart: no` by design, so that nothing starts before isolation is restored. Nothing else starts it at boot, either.
+  - **The demo's first post-boot reset** reached `capture_old_session` with the app down. It failed before recovery was armed, and left another stale candidate.
+
+**Recovery targets,** accepted by the operator on 2026-10-15.
+- **Within 10 minutes of guest boot, both sites serve again.** The exceptions are an operator hold, a storage failure, or an unavailable required dependency.
+- **When a missing dependency returns,** both recover within one documented, bounded retry window.
+- **Public-availability alerting** belongs to the operator's own Uptime Kuma and Beszel monitors. This patch adds reset and boot failure alerts.
+
+Scope:
+
+- [x] **Scanner cold start, on both profiles.** Shipped as `scripts/release/clamav-daemon-socket-freebind.conf.example`.
+  - **The fix.** A reviewed drop-in sets `FreeBind=yes` on the exact-address TCP socket, so the socket binds before Docker creates the gateway address. The listener list, the address, and the firewall do not change.
+  - **What the hosts already run.** The power-loss recovery installed `zz-ltf-freebind.conf` on both hosts on 2026-10-15 at about 02:17Z, with exactly `[Socket]` and `FreeBind=yes`. Both hosts last booted about 2h21m before that, so no boot has exercised it. The reviewed drop-in keeps that name and content, so installing it changes nothing on these hosts, and the live-demo reboot below is its first real proof.
+  - **The documentation.** `docs/file-scanner-setup.md` gains the cold-boot contract, and an install and upgrade procedure that keeps the prior units.
+  - **The fallback.** A different design, such as an ordered or retried readiness unit, is used only if `FreeBind` fails qualification. It was not needed: `FreeBind` passed.
+- [x] **A protected demo boot.** A root-owned unit runs one boot operation after Docker starts, under the shared lifecycle lock. It shipped as `scripts/release/longtail-forge-public-demo-boot-host.example` and its unit, which has `WantedBy=docker.service`, so a Docker restart runs it too. In order, it:
+  1. **Checks the preconditions.** It stops, with a specific alert, on an operator hold, a deployment or active-operation marker, or an uncertain recorded release. It never pulls, upgrades, or rolls back.
+  2. **Validates storage.** It checks the data volume, the mounts, the ownership, and the cached image digest. Missing or uncertain storage fails closed: it never creates an empty substitute database.
+  3. **Waits for its dependencies.** It waits, with bounded and recorded retries, for Docker, the exact bridge, and the scanner.
+  4. **Starts the demo.** It enforces and verifies isolation before any container runs, then raises the curtain, starts the current release, and verifies direct identity and isolation with the app running.
+  5. **Applies the baseline policy.** If an hourly reset boundary was missed while the demo was down, it runs a fresh reset before visitors are served. That is the operator's policy of 2026-10-15. Otherwise it lifts the curtain.
+  6. **Checks public availability.** It reports public availability separately. An edge or DNS failure never causes a reset or a rollback.
+  - **One restart owner per profile.** The demo keeps `restart: no`, with the boot unit as its only owner. The preview keeps Docker's `unless-stopped`.
+  - **The timer.** The lock serializes the boot operation with the hourly timer. A contended lock is retried within the boot window.
+  - **The hold.** `/etc/longtail-forge/public-demo-hold` stops the boot and the reset, and the scheduler records the hour as held.
+  - **A missed boundary** means the newest completed reset started before the latest `HH:00`. The boot passes its lock to that reset.
+- [x] **A reset with the app down.** If the app is not running when a reset starts, and no operation is active, the reset first runs the same protected start. It then follows its normal path, including the pre-reset session capture and its rejection proof, and records that it started the app. A running app whose representative login fails still fails the reset, as today, and is recorded as that distinct case.
+- [x] **Stale-candidate recovery.** It shipped as the activation's `quarantine-stale` action. A reset that finds no active-operation marker, under the shared lock, moves any verified candidate or partial build left by an earlier operation into failed evidence: `.longtail-public-demo-failed-<operation>-stale-candidate`.
+  - **Its limits.** Only exact names and shapes are moved, links are refused, and nothing is deleted.
+  - **Precedence.** Recovery of an active operation still comes first.
+- [x] **Step evidence.**
+  - **Before each step,** the reset and the boot operation record which step is starting, so a kill or power loss still leaves the step.
+  - **Each step's redacted error output** is kept in the root-only operation evidence. Nothing new reaches the scheduler log, the alert, or normal output.
+  - **The redaction** covers the host environment, the application environment, and the role passwords.
+- [x] **Startup diagnostics.** `application.startup.failed` gains a closed classification of stage and reason: runtime paths, storage, scanner, database, and migrations. It carries no raw exception message, secret, path, or record. A test pins the emitted boundary. It shipped as `src/core/startup-failure.js`, with `tests/unit/startup-failure.test.mjs`.
+- [x] **Discord alerts.**
+  - **What is sent.** The alert helper keeps its local journal line, and also posts the same bounded fields to a Discord webhook, with mentions disabled. It also covers the boot operation's failure and hold classes.
+  - **The URL** lives only in a root-only `0600` file on the host, and must be a `https://discord.com/api/webhooks/<id>/<token>` URL. It reaches `curl` on standard input.
+  - **Delivery** is bounded by a timeout. Its outcome is what the scheduler records as `delivered` or `failed`. A missing webhook file is recorded as `failed`.
+- [x] **A success heartbeat.** After each successful reset and boot operation, the host sends one `GET` to an operator-configured push URL, such as an Uptime Kuma Push monitor. The monitor then alerts when a heartbeat is late, which catches a demo that stays up but stops resetting.
+  - **The URL** must be HTTPS, and lives only in a root-only `0600` file. It reaches `curl` on standard input.
+  - **A failed ping** never fails the reset or the boot. It is recorded in the operation's evidence.
+  - **This is a single URL.** The general family of health checks and heartbeats is `0.33.35`.
+- [x] **Ownership policy.** The checkpoint validator gives this patch the post-release patch rule under its own identity, as for `0.33.33.51` and the October Node security release, with the dependency allowance below. `docs/versioning.md` records the rule.
+  - **`DECISIONS.md`.** On 2026-11-03 the operator approved a narrow allowance for this patch only. The validator admits `DECISIONS.md` here, refuses it for the other patches, and keeps the two-ceremony-file ceiling.
+- [x] **A correction carried from `0.33.33.51`.** `scripts/release/runtime-image-equivalence.mjs` and `docs/preview-deployment.md` give the wrong reason for refusing a hard link to a symlink: containerd's mode change uses `Lstat` and skips symlinks, so it does not follow one. The refusal stays, and only its stated reason changes.
+- [x] **Documentation.**
+  - **`docs/demo-data-operations.md` and `docs/public-demo-operator-runbook.md`:** boot behavior, the fresh-baseline policy, how to stop the demo deliberately with an operator hold, stale-candidate recovery, step evidence, the Discord alert, and the heartbeat.
+  - **`docs/file-scanner-setup.md` and `docs/preview-deployment.md`:** the scanner's cold-boot contract, and the preview's dependency on it.
+  - **`DECISIONS.md`:** the boot baseline policy and the one-restart-owner rule.
+
+Acceptance criteria:
+
+- [x] **Reproducers that fail on the October Node security release and pass here,** on GitHub's runners, with real systemd, Ubuntu's ClamAV package, and Docker:
+  - **The scanner race.** The socket starts while its gateway address is absent. With `FreeBind=no` it fails. With the drop-in, clamd answers `PING` on the exact address once Docker creates the bridge, with no wildcard listener.
+  - **An interrupted reset.** It is interrupted after candidate validation, before the activation's marker. The next reset succeeds.
+  - **A reset with the app stopped.** It succeeds, and the session-rejection proof still holds.
+  - **The evidence.** Native lifecycle qualification run 41705790971, at `9c679e94`. The scanner reproducer fails with `Cannot assign requested address` without the drop-in, as on both hosts. Both reset reproducers run the October helper as their own control, and it fails as it did on the hosts.
+  - **A proof defect found after the archive.** On `dfc77fcf`, the October helper met a held lock instead of the stale candidate, in run 41734889038. The SIGKILL had reached only the reset's parent, and the step's forked subshell, which shares the lock's descriptor, kept the lock while it finished. A power loss or Docker restart kills the whole tree, so the reproducer now kills the reset's process group. It then requires every process of that reset to have exited, and the lock to be free.
+- [x] **The boot operation, in the native lifecycle qualification.** It runs after a Docker restart, after the bridge is recreated, and with the scanner delayed and then restored. Isolation is enforced before anything starts, the fresh baseline follows a missed boundary, and recovery stays within the target window. An operator hold, a marker, or missing storage stops it with its specific reason.
+  - **The evidence.** The real unit served a fresh baseline 65 seconds after `systemctl restart docker`, against the 600-second target, after seven scanner probes and with its phases in order.
+  - **The refusals** (hold, marker, and missing storage) are proved in the executable harness, which can stage each one without harming the qualification's demo.
+- [x] **Unit tests** cover the boot decisions, the startup classification, and the alert payload: bounded fields, mentions disabled, and the URL never in argv or output.
+  - **Where each is proved.** The boot decisions and the alert payload live in shell helpers, so the executable harness proves them against the real bytes. Unit tests cover the startup classification (`tests/unit/startup-failure.test.mjs`) and the stale-candidate quarantine (`tests/unit/public-demo-stale-candidate.test.mjs`).
+- [x] **The executable harness** runs the real helper bytes as root on the disposable rehearsal runner, faking only Docker and HTTP.
+  - **What it is.** `scripts/release/public-demo-helper-contract-harness.mjs` runs as the maintenance rehearsal's `public-demo-helper-contract` stage. Beyond Docker and HTTP, it also fakes `ip`, the scanner probe, the clock, and the journal.
+  - **The result.** It passes 62 scenarios: every boot refusal before start, the profile refusals, the lock hand-off, the curtain ownership through the real reset, evidence redaction, stalled requests, failed and stalled Docker commands, and the alert boundary. It passed 26 before Codex's review, 44 before the re-review, and 56 before the second re-review.
+- [x] **Seeded defects** in the boot decisions, the isolation ordering, the candidate recovery, the app-down path, the startup classification, and the alert boundary are each caught.
+  - **Counts.** The harness catches all 61 of its seeds on CI: 17 before Codex's review, 33 before the re-review, and 51 before the second re-review. Locally, all 11 seeds in the startup classification and the quarantine are caught, and all 9 in the validator.
+  - **What the pass found.** A scheduler that skipped the heartbeat, but recorded it as sent, passed at first. The scheduler and boot scenarios now require the request itself.
+- [ ] **On the live demo,** operator-run under separate authorization. The operator ruled on 2026-10-15 that the live demo server, not a temporary VM, is the real-reboot proof.
+  1. Install the scanner drop-in, the helpers and units, and the operator's Discord webhook file, then deploy `v0.33.33.53`.
+  2. Run one supervised reboot of `rt-ltf-demo`. It must show the scanner up, isolation before start, and the demo serving a fresh baseline within 10 minutes of boot.
+  3. Confirm that the next scheduled reset succeeds, that a test alert reaches Discord, and that the operator's monitor receives the heartbeats and alerts when one is withheld.
+  - **A preview reboot** is the operator's choice.
+  - **Progress.** On 2026-11-03, Codex installed the Discord webhook and heartbeat URL files on `rt-ltf-demo` from standard input, root-only, mode `0600`. Discord answered a `GET` with 200, and the heartbeat URL was not contacted. Nothing reads either file until the helpers are installed.
+  - **The rollout order,** corrected after Codex's review. The new reset helper needs the new image's `quarantine-stale` action, and the boot unit runs that helper on every Docker start, so disabling the timer alone left a window. No new lifecycle helper may run before the image is deployed:
+    1. disable the timer, and wait for any running reset and the lifecycle lock to clear;
+    2. deploy;
+    3. install the helpers and units, with the boot unit left disabled;
+    4. run one manual reset;
+    5. then enable the boot unit and the timer.
+- [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and an independent Codex review. They run on the final tree of #896, after this archive.
+  - **A non-causal wait, fixed on the way.** On `c212415f`, the Development gate failed `file-upload-compatibility-error-hardening`. Its failure had not appeared in the previous 25 failed Development runs.
+    - **The cause.** The upload route answers a malformed upload with 400 before the service's storage cleanup settles, so the partial file can be created after the response and removed later. The malformed check compared the disk against a snapshot taken before the upload, so it could pass before the file existed. The next check's snapshot then caught the file, which was removed under it.
+    - **The fix.** Each check now requires the stored files to equal the storage keys the `files` table records, with one more check after the last upload.
+    - **The proof.** Injected delays reproduce the CI failure on the old test, three runs out of three. Under the same delays the new test passes, three out of three. With the adapter's cleanup removed, the new test fails.
+    - **Tightened after Codex's review.** The comparison still returned on its first match, so a partial file written after that moment could go unseen. Each check now waits for the upload call the route made to settle, which includes its storage cleanup, and then compares once. The abort waits for the upload to start rather than firing on a timer. A permanent check proves that a delayed write with no cleanup fails the comparison, and seeding a delayed, uncleaned write in the real adapter fails the test.
+  - **Codex's independent review of `9bc1fe08`:** revise, with six findings, each fixed here.
+    1. **The profile was validated after start (P1).** The boot now validates the complete resolved Compose profile before anything starts, refusing drift with `boot-profile-invalid`. It starts with `--pull never`, and stops a container that fails its post-start verification.
+    2. **A failed boot reset could serve the old baseline (P1).** The boot now owns the curtain. Its reset runs with `--caller boot`, never lifts the curtain, and the boot puts the marker back after any failure. A reset that started a stopped app keeps its curtain until its fresh baseline passes. The harness now runs the real reset end to end, including a recovery that restores the prior unit behind the curtain.
+    3. **A public-edge failure could trigger recovery during boot (P2).** The delegated reset verifies the direct runtime only, and every runtime check is bounded to 15 seconds.
+    4. **Boot evidence kept unredacted diagnostics (P2).** The boot's check output passes through the reset's literal redaction, and neither helper keeps a Compose parser error. Canary scenarios cover both.
+    5. **The upload comparison could pass before a delayed leak (P2).** See the tightened wait above.
+    6. **Disabling the timer did not close the rollout window (P2).** See the corrected rollout order above.
+    - **Confirmed by the review, without findings:** the lock hand-off, the stale-candidate quarantine, the alert and heartbeat URL handling, the scheduler, the startup classification, and the validator. It also confirmed that the October fixture is byte-identical to the October release's helper.
+  - **Codex's re-review of `87009b74`:** revise, with six findings, each fixed here.
+    1. **Other mount mechanisms passed the profile check (P1).** Real Compose output with a volume subpath, a secret mount, or `volumes_from` passed. The boot and the reset now apply one exact program, byte-identical in both and compared by the harness. Only the reviewed service keys may appear, and each mount must equal its expected form. Before this, the reset checked only part of the environment before it recreated the container.
+       - **Checked locally against real Compose 5.3.1 output.** The program accepts the real demo profile, the profile resolved from a quoted `LONGTAIL_ENV_FILE`, and the known normalizations. It refuses Codex's three reproductions, a bind option, and 30 further drifts.
+    2. **A quoted application-environment path bypassed redaction (P2).** Compose accepts the quoted path, but both helpers read it with its quotes and silently skipped the file. The secrets now come from the environment Compose itself resolves, and the host environment is parsed as Compose parses it. Collection that cannot complete refuses the boot or the reset.
+       - **A second gap, found on the way.** Both helpers also read the role passwords with a query that matches nothing in the real role document, which keeps them in a `passwords` map. That query is corrected, and an empty map now refuses.
+    3. **Several requests had no time limit (P2).** These were the boot's readiness and identity probes, and the reset's session and role requests. Every request is now bounded to 15 seconds. The harness checks the bound on every request in every scenario, and two scenarios stall a real `curl` against a server that accepts the connection and never answers.
+    4. **A failed stop of an unverified start was ignored (P2).** Only the running state now proves the stop. A stop that left the container running gets one kill, and a container that still runs raises `boot-stop-failed`, with recovery status `unverified-container-not-stopped`.
+    5. **The abort test could pass without an upload starting (P2).** The abort accepts a closed connection only after the upload has started, and the check asserts the upload call before it settles.
+       - **The proof.** With the abort sent on an invalid session, so that its connection ends before any upload: the old helper passes, as in Codex's probe; the new one fails; and with its start gate removed, the call-count assertion fails it.
+    6. **The installation block still enabled the timer early (P3).** It no longer does. The timer is enabled only in step 5 of the upgrade order.
+    - **Confirmed by the re-review, without findings:** curtain ownership, the public edge, `--pull never` on both starts, the suppression of initial parser errors, the causal settlement of started uploads and its delayed-leak control, the numbered rollout procedure, errexit and the EXIT trap, and the scheduler's handling of a recovery behind the retained curtain.
+    - **The harness after the re-review:** 56 scenarios, and 51 seeded defects, each caught.
+  - **Codex's second re-review of `14c03297`:** revise, with three confirmed findings and one plausible one, each fixed here.
+    1. **A failed state query counted as a proved stop (P2, confirmed).** `test -z "$(compose ps …)"` succeeds when the query fails with empty output. Both helpers now prove a stop only with a running-state query that itself succeeds and lists nothing. The reset had the same pattern in the stop that gates its backup and activation, and it is fixed there too.
+       - **The proof.** In an extracted probe with a fake Docker, the old stop accepted a failed query both after the stop and after the kill. The new one escalates the first case to a kill and refuses both.
+    2. **Recovery bypassed redaction (P2, confirmed).** The reset deleted its redaction list before recovery, then ran recovery's commands outside its step capture. Recovery now runs each command as a step, in a subshell, and the session material is removed only after it ends: at each exit, after the subshell however it ends, or by a signal trap. A step keeps its caller's errexit setting, so recovery, which runs without errexit, can use it.
+    3. **The abort test could pass without storage starting (P2, confirmed).** The start gate observed the service call, which can still refuse the upload before storage. The abort now waits for a chunk of the file to reach the storage adapter itself, through a transform around the real local adapter. The check asserts one adapter call and at least one chunk before cleanup, and keeps the settlement wait.
+       - **The proof.** With a target that does not exist, the old test passes, as in Codex's counterexample, and the new one fails at its gate. The invalid-session control fails too. With the gate replaced by a timer, the adapter-call assertion fails the run, and without that assertion the chunk assertion does.
+    4. **The kill had no deadline (P2, plausible).** The stop now has a 45-second deadline, the kill and each state query 15 seconds, through the real `timeout`, which signals the command's process group and kills it five seconds later. A command that reached its deadline proves nothing. The reset's stop and its queries are bounded the same way.
+    - **A static contract, re-spelled.** `verify:slice` found that the Compose reset contract still pinned recovery's old `|| recovery_ready=false` and `&& start_sqlite_users && verify_runtime` spellings. The pins keep their meaning in the step-run spelling, and each fails when its defect is reintroduced.
+    - **The harness.** Its fake `timeout` runs the real one around Docker, so a deadline really ends a stalled fake. Every scenario checks that each stop, kill, and state query ran under a bounded deadline that escalates to a kill. New scenarios cover a failed query after the stop and after the kill, a kill and a query that never return, a reset whose query fails, and recovery redaction with the session material's lifetime. It now has 62 scenarios and 61 seeds.
+    - **Confirmed by the second re-review, without findings:** the exact profile, which accepted the shipped profile and rejected 18 drifts and an undeclared key through `env_file`; request bounds; the installation order; curtain ownership; the delegated public edge; trap-variable initialization; mawk-compatible syntax; and the `IMAGE_REFERENCE` substitution.
+  - **Codex's third re-review of `e6ca0142`:** revise, with one confirmed finding, confined to the upload test, and fixed here. It found no production-helper defect.
+    1. **The abort gate still fired before the real writer took any data (P2, confirmed).** The observer transform counted a chunk, and could buffer it, while the local adapter was still preparing its directory and had no writer attached. Codex showed the regression passing with one observed chunk and no bytes written, both as it ran and with the writer's start delayed by 100 ms. The transform is gone. The abort now waits for the real writer to put bytes on disk, in a stored file that is new since observation began. The bytes are measured again, apart from the gate, before the abort is sent, and the check asserts them above zero before cleanup. A second run holds the writer's start back by 250 ms, the delayed-writer control, and the settlement wait is kept.
+       - **The proof.** The regression passes as written. With its gate moved back to the adapter call, the delayed run fails with no bytes written. Without the delayed run that defect passed locally, so the delayed run is the control that catches it. With the abort check run first, an adapter that never removes a partial file fails the abort check itself. Codex's counterexample, the previous test with the writer delayed by 100 ms, still passes.
+    - **Confirmed by the third re-review, without findings:** the stop proof in both helpers, including exactly one kill escalation; recovery redaction and the session material's lifetime under HUP, INT, and TERM; step's errexit restoration; the stop, kill, and query deadlines, with fd 9 held throughout; the harness; and the re-spelled pins. The observer's error, premature-close, and partial-file behaviour matched the direct adapter.
+
+Out of scope:
+
+- **Retention, and the shorter reset curtain:** `0.33.33.54`.
+- **Data durability on power loss:** `0.33.33.55`.
+- **Public uptime monitoring:** the operator's Uptime Kuma and Beszel.
+- **Proxmox start-at-boot:** operator-owned, and corrected.
+
+### Dependency fold, the first pull request
+
+**Model: High Effort** — It moves a runtime dependency and the test, lint, browser, and CI toolchains in one reviewed lockfile transition, and adds an exact-entry validator allowance. Two of its updates wait on a supply-chain review and an unexplained browser failure.
+
+**What this is.** The open Dependabot backlog, folded at the operator's instruction of 2026-10-30.
+- **Its release.** It lands in `nightly` before the recovery work, and ships in the same `v0.33.33.53` release, so it needs no deployment of its own.
+- **Why the bot pull requests cannot merge.** Those into `nightly` carry no `LTF-` trailers. The two security updates target `main`, which accepts only promotions.
+
+Scope:
+
+- [x] **Take, as reviewed transitions:**
+  - **`ip-address` 10.7.2 to 10.7.4 (#893).** A runtime dependency of `express-rate-limit`. It fixes GHSA-rxp7-6hxx-x8q5, Dependabot alert 16 (moderate).
+  - **`vitest` and `@vitest/mocker` 4.1.11 to 4.1.12 (#894).** Development only. They fix GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp, alerts 15 and 14 (moderate).
+    - **Smaller than the bot's proposal.** #894's lock also moves Vite to 8.3.5, and Rolldown with its 16 platform bindings, because npm re-resolves everything under a replaced package. Vitest 4.1.12 accepts Vite 8.2.4, so only the eight Vitest entries move.
+  - **`@types/node` 26.6.3 to 26.6.5 (#880),** with the Node 24 engine unchanged.
+  - **Actions:** `actions/setup-node` 7.1.0 (#883), `actions/download-artifact` 8.0.2 (#884), and `actions/upload-artifact` 7.0.2 (#885).
+  - **CodeQL `init` and `analyze` 4.38.3, together (#886 and #887),** with `REVIEWED_CODEQL_SHA` updated.
+  - **Debian `tzdata` 2026c-0+deb12u1 to 2026f-0+deb12u1** in the runtime image's exact security-update pin (DLA-4854-1 and DLA-4867-1). The published-digest qualification of 2026-10-30 found it, and found that Debian no longer publishes 2026c. The build still passes only because the digest-pinned base already carries 2026c. The `perl-base` and `libpcre2-8-0` pins are already current.
+- [x] **Take once their condition is met.** On 2026-11-02 all three were met, and each is taken.
+  - **`zod` 4.6.7 (#877).** Its browser run failed `tests/e2e/settings-admin-navigation.spec.mjs:95`, and Zod was not the cause.
+    - **Why not Zod.** 4.6.7 differs from 4.6.6 only in its version number, in `package.json` and the `versions` constant. The Vitest 5 proposal failed the same line on the same day without it.
+    - **The cause.** Save disables its button as soon as it is clicked, so `toBeDisabled()` passed while the write was still in flight, and the test navigated away. That produced a 403, and the cleanup in `finally` then failed too, which hid the 403.
+    - **The proof.** A 1.5-second delay on the save reproduces the failure on the unchanged spec. The spec now waits for the save's response, and passes under the same delay.
+  - **ESLint 10.13.0 (#879).** The cache graph does not move: the tarball has the same 421 files and the same dependencies as 10.11.0, and only ESLint's own lock entry changes. No new incident has been reported in `jaredwray/cacheable` or `jaredwray/keyv` since 2026-08-04.
+  - **`@playwright/test` 1.64.1 (#876).** The pull request's browser job runs the full suite. A new failure is diagnosed, never retried green.
+- [x] **Defer `vitest` 5.0.5 (#878).** It is a major version, and belongs in its own slice. Its pull request stays open with the reason, because closing it makes Dependabot ignore that version.
+- [x] **Ownership policy.** This pull request leaves the application version unchanged. The recovery pull request sets it to `0.33.33.53`, archives this whole section in the same pull request, and records this fold in its changelog entry, because the changelog records shipped releases. The validator allowance holds the complete before and after lock entries of exactly the transitions taken, so a partial or altered transition is refused.
+- [x] **Attestations to realign:** `release.dependency-baseline`, `release.playwright-dev-only-boundary`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
+- [x] **The bot pull requests.** After the merge, close each one whose current proposal was incorporated, re-reading its current title and head first, and record each disposition.
+  - **Closed by Dependabot itself,** on 2026-11-03 after the merge: #876, #877, #883, #884, and #885. None was closed by hand.
+  - **Left open, on newer, unreviewed releases.** Dependabot rebased these onto releases after the ones taken: #879 (ESLint 10.14.0), #880 (`@types/node` 26.6.6), and #886 and #887 (CodeQL 4.39.1).
+  - **Left open until promotion.** #893 and #894 target `main`, which the fix reaches only at promotion. Alerts 14 to 16 resolve then too.
+  - **#878 (Vitest 5)** stays open, as deferred.
+
+Acceptance criteria:
+
+- [ ] **Advisories.** Dependabot shows no open alert, and the production audit reports no finding. The full audit reports only the `minimatch` advisory in Carried Findings, published after this section was planned. It has no compatible fix, so the original criterion of no finding at any level cannot be met without forcing a major version past ESLint's range.
+  - **Pending.** Alerts 14 to 16 stay open until promotion brings the fix to `main`.
+- [x] **The allowance.** Positive and negative validator tests cover it, and each of nine seeded validator defects is caught.
+- [x] **Gates:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the browser suite.
+  - **The evidence.** #895 passed them, and merged as `f97bbc48` on 2026-11-03. The post-merge Nightly, run 41692053354, passed.
+
 ## Version 0.33.33.52 - October Node security refresh
 
 **Model: High Effort** - A runtime security update requires native dependency and deployment qualification on both supported host profiles.

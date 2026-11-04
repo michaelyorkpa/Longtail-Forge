@@ -153,7 +153,8 @@ function applyArchive(state, archive, options) {
       // applies the link header's ownership, attributes, and mode to the shared file, and the ownership
       // change also clears a file capability. A header that repeats its target's metadata leaves the
       // shared file exactly as it was. Any other link is refused rather than modelled. So is a link to a
-      // symlink, because containerd's mode change would follow it.
+      // symlink: containerd's mode change uses Lstat and skips symlinks, so it does not follow one, but
+      // the shared-link metadata rules above are not modelled for a symlink target.
       if (existing) removeTree(state, key);
       const targetKey = rootRelative(entry.linkname);
       const target = targetKey === null ? undefined : state.paths.get(targetKey);

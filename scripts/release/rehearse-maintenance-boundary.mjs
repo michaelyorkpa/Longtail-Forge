@@ -48,6 +48,11 @@ const stages = [
     label: "actual Compose helper as root: native profiles, refusal before pull or curtain, automatic recovery, rollback, and demo classification",
     args: ["scripts/release/compose-helper-contract-harness.mjs"],
   },
+  {
+    id: "public-demo-helper-contract",
+    label: "actual public-demo boot, alert, scheduler, and reset helpers as root: boot refusals before start, isolation before start, the lock hand-off, and the alert boundary",
+    args: ["scripts/release/public-demo-helper-contract-harness.mjs"],
+  },
 ];
 
 if (options.plan) {
