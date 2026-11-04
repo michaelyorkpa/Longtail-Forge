@@ -5,6 +5,9 @@ scripts/release/longtail-forge-public-demo-reset-scheduler-host.example text eol
 scripts/release/longtail-forge-public-demo-reset-alert.example text eol=lf
 scripts/release/longtail-forge-public-demo-reset.service.example text eol=lf
 scripts/release/longtail-forge-public-demo-reset.timer.example text eol=lf
+scripts/release/longtail-forge-public-demo-boot-host.example text eol=lf
+scripts/release/longtail-forge-public-demo-boot.service.example text eol=lf
+scripts/release/clamav-daemon-socket-freebind.conf.example text eol=lf
 docs/longtail-forge-public-demo-reset-scheduler.env.example text eol=lf
 scripts/release/longtail-forge-demo-data-host.example text eol=lf
 scripts/release/longtail-forge-edge-unavailable.html text eol=lf

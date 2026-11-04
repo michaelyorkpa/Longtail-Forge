@@ -50,6 +50,23 @@ LONGTAIL_CLAMD_PORT=3310
 
 The root-only initial-cutover preflight performs that container `PING` before stopping the existing app. Production startup and readiness still fail closed if the daemon is later unavailable; the preflight is evidence of the handoff, not a permanent availability guarantee.
 
+### Cold boot
+
+During boot, systemd starts the ClamAV socket before Docker creates the bridge, so the gateway address does not exist yet. With the packaged `FreeBind=no`, the bind fails with `Cannot assign requested address`, and nothing retries it. That took both scanners down after the power loss of 2026-10-14.
+
+The reviewed drop-in, `scripts/release/clamav-daemon-socket-freebind.conf.example`, sets `FreeBind=yes`, so the socket binds the exact address before it exists and accepts connections once Docker creates it. The listener list, the address, and the firewall do not change, and there is still no wildcard listener. The scanner cold-start reproducer shows the packaged socket failing without it and answering with it, under real systemd.
+
+Install it beside the listener drop-in, keeping every existing drop-in:
+
+```sh
+install -d -o root -g root -m 0755 /etc/systemd/system/clamav-daemon.socket.d
+install -o root -g root -m 0644 scripts/release/clamav-daemon-socket-freebind.conf.example /etc/systemd/system/clamav-daemon.socket.d/zz-ltf-freebind.conf
+systemctl daemon-reload
+systemctl show clamav-daemon.socket --property=FreeBind --value
+```
+
+The last command must print `yes`. The setting takes effect the next time the socket starts; restarting the socket closes the listener briefly, so do it outside the demo's hourly reset window, or leave it for the next boot. Upgrades keep the file, because it is not part of the package. To roll back, remove the file and reload systemd. The application's startup diagnostics report a scanner failure as `component=scanner`, with a reason such as `unavailable`.
+
 ## Windows Executable Path Setup
 
 Use `clamscan` when the Windows install provides a local ClamAV executable.

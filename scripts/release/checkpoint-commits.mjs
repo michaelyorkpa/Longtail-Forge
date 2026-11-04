@@ -273,6 +273,12 @@ function validateCheckpointCommit({
       if (isPostReleasePatch && POST_RELEASE_PATCH_PATHS.has(filePath)) {
         continue;
       }
+      // The operator approved on 2026-11-03 that the restart-recovery patch records its two
+      // governing policies, the demo's boot baseline and one restart owner per profile, in
+      // `DECISIONS.md`. No other patch gains that path, and the ceremony ceiling still applies.
+      if (isRestartRecoveryPatch && filePath === "DECISIONS.md") {
+        continue;
+      }
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
         errors.push(`${filePath} is reserved for ${closeoutCheckpoint} branch closeout`);
       }

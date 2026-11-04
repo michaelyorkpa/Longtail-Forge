@@ -67,6 +67,22 @@ const DEMO_TARGET = "rt-ltf-demo";
 const RESET_CONFIRMATION = "RESET RT-LTF-DEMO COMPOSE DATA";
 const ISOLATION_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-isolation-host.example");
 const RESET_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-reset-host.example");
+// The reset helper the October Node security release shipped, kept so that each restart-recovery
+// reproducer can show the October behaviour failing before this patch's helper passes.
+const OCTOBER_RESET_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/october-node-security-release-public-demo-reset-host.example");
+const BOOT_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-boot-host.example");
+const BOOT_UNIT = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-boot.service.example");
+const ALERT_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-reset-alert.example");
+// The boot unit runs with PrivateTmp and ProtectHome, as it does on the hosts, so the demo host it
+// manages lives under /var/lib rather than in the qualification's temporary directory.
+const DEMO_HOST_ROOT = "/var/lib/ltf-qualification-demo-host";
+const INSTALLED_BOOT_FILES = Object.freeze({
+  boot: "/usr/local/sbin/longtail-forge-public-demo-boot",
+  reset: "/usr/local/sbin/longtail-forge-public-demo-reset",
+  alert: "/usr/local/sbin/longtail-forge-public-demo-reset-alert",
+  unit: "/etc/systemd/system/longtail-forge-public-demo-boot.service",
+  dropIn: "/etc/systemd/system/longtail-forge-public-demo-boot.service.d/qualification.conf",
+});
 const REPAIRED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-compose-deploy-host.example");
 const ORIGINAL_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/v0.33.33-longtail-forge-compose-deploy-host.example");
 const ADMIN_USERNAME = "qualification-admin@example.test";
@@ -74,6 +90,7 @@ const ADMIN_USERNAME = "qualification-admin@example.test";
 /** @typedef {{ version: string, commitSha: string, artifact: { sha256: string }, image: { repository: string, digest: string, reference: string, platformManifest: { digest: string }, nativeDependency: { betterSqlite3Version: string, sqliteVersion: string } } }} ReleaseMetadata */
 /** @typedef {{ metadata: ReleaseMetadata, path: string, label: string }} Release */
 /** @typedef {{ status: number, stdout: string, stderr: string, seconds: number }} HelperRun */
+/** @typedef {ReturnType<typeof createApiClient>} ApiClient */
 /** @typedef {{ status: number, headers: Record<string, string | string[] | undefined>, body: Buffer }} HttpResult */
 /** @typedef {{ profile: string, hermetic: boolean, artifact: string, commit: string, previousMetadata: string, candidateMetadata: string, evidence: string, caddy: string }} Options */
 
@@ -413,8 +430,8 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
  * @param {Release} previous @param {Release} candidate
  */
 async function runDemoLifecycle(work, tls, previous, candidate) {
-  const host = prepareDemoHost(work);
-  startScanner(work, DEMO_GATEWAY);
+  const host = prepareDemoHost();
+  const scanner = startScanner(work, DEMO_GATEWAY);
   startEdge(work, tls, host.maintenanceRoot, DEMO_ORIGIN);
   const api = createApiClient(tls.ca, DEMO_ORIGIN);
 
@@ -489,12 +506,190 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
   await api.expectIdentity(candidate);
   await api.expectList(await api.login(visitor), visitorList.listId, 404);
   record("demo-reset-rerun", { seconds: rerun.seconds, operationId: rerun.operationId, fingerprint: /** @type {{ semanticFingerprint?: string }} */ (JSON.parse(lastJsonLine(rerun.stdout))).semanticFingerprint, visitorChangeCleared: visitorList.listId });
+
+  // Restart recovery. Each reproducer runs the October helper first, which must fail as it did on
+  // the hosts, then this patch's helper, which must recover and complete.
+  await reproduceStaleCandidate(host, candidate, api);
+  await reproduceStoppedApp(host, candidate, api);
+  await qualifyBootAfterDockerRestart(work, host, candidate, api, scanner);
+}
+
+/** @returns {string} the demo data volume's host path */
+function demoVolumeRoot() {
+  return docker(["volume", "inspect", "--format", "{{.Mountpoint}}", DEMO_VOLUME]).trim();
+}
+
+/** @param {DemoHost} host @param {string[]} args */
+function composeCurrent(host, args) {
+  const state = /** @type {{ deployment?: { releaseEnv?: string } }} */ (JSON.parse(fs.readFileSync(path.join(host.stateRoot, "current.json"), "utf8")));
+  return docker(["compose", "--project-directory", host.composeDir, "--file", host.composeFile, "--env-file", host.hostEnv,
+    "--env-file", String(state.deployment?.releaseEnv), ...args]);
+}
+
+/**
+ * The 2026-10-06 outage: a Docker restart killed a reset after it validated its candidate and before
+ * activation wrote its marker, and every later build refused the leftover candidate.
+ * @param {DemoHost} host @param {Release} candidate @param {ApiClient} api
+ */
+async function reproduceStaleCandidate(host, candidate, api) {
+  const killed = await runReset(host, 4, undefined, { killAtStep: "capture-old-session" });
+  assert.notEqual(killed.status, 0, "the killed reset must not report success");
+  const volume = demoVolumeRoot();
+  assert.ok(fs.existsSync(path.join(volume, ".longtail-public-demo-candidate")), "the killed reset must leave its validated candidate");
+  assert.equal(fs.existsSync(path.join(volume, ".longtail-public-demo-reset-active.json")), false, "the killed reset must leave no active-operation marker");
+  assert.equal(fs.existsSync(host.marker), false, "the reset was killed before its curtain");
+
+  const october = await runReset(host, 5, undefined, { helper: OCTOBER_RESET_HELPER });
+  assert.notEqual(october.status, 0, "the October helper must refuse the leftover candidate");
+  assert.match(october.stderr, /A verified public-demo candidate already exists; refusing candidate reuse or replacement/);
+
+  const repaired = await runReset(host, 6);
+  assert.equal(repaired.status, 0, `this patch's reset must recover from a stale candidate:\n${repaired.stderr}`);
+  const moved = /** @type {{ status?: string, moved?: number }} */ (readOperationJson(host, repaired.operationId, "stale-candidate.json"));
+  assert.deepEqual([moved.status, moved.moved], ["stale-candidate-quarantined", 1]);
+  const evidenceRoot = path.join(volume, `.longtail-public-demo-failed-${repaired.operationId}-stale-candidate`);
+  assert.ok(fs.existsSync(path.join(evidenceRoot, "candidate", "longtail-forge.db")), "the stale candidate must be kept as failed evidence");
+  await api.expectIdentity(candidate);
+  assertDemoIsolation(host);
+  record("demo-stale-candidate-reproducer", {
+    killedAtStep: "capture-old-session", octoberRefusal: lastLine(october.stderr),
+    repairedOperationId: repaired.operationId, repairedSeconds: repaired.seconds, evidence: path.basename(evidenceRoot),
+  });
+}
+
+/**
+ * The 2026-10-14 power loss: the first reset after boot reached its session capture with the app
+ * down, failed before recovery was armed, and left another stale candidate.
+ * @param {DemoHost} host @param {Release} candidate @param {ApiClient} api
+ */
+async function reproduceStoppedApp(host, candidate, api) {
+  composeCurrent(host, ["stop", "longtail-forge"]);
+  const october = await runReset(host, 7, undefined, { helper: OCTOBER_RESET_HELPER });
+  assert.notEqual(october.status, 0, "the October helper must fail with the app stopped");
+  // Its session capture reads the public account catalog first, so it fails there, before recovery
+  // is armed, exactly as the first reset after the power loss did.
+  assert.match(october.stderr, /Failed to connect to 127\.0\.0\.1 port 8001/);
+  assert.ok(fs.existsSync(path.join(demoVolumeRoot(), ".longtail-public-demo-candidate")), "the October failure leaves a stale candidate");
+
+  const repaired = await runReset(host, 8);
+  assert.equal(repaired.status, 0, `this patch's reset must start the stopped app and complete:\n${repaired.stderr}`);
+  const result = /** @type {{ ok?: boolean, appStartedByReset?: boolean }} */ (JSON.parse(lastJsonLine(repaired.stdout)));
+  assert.deepEqual([result.ok, result.appStartedByReset], [true, true], "the reset must record that it started the app");
+  const moved = /** @type {{ moved?: number }} */ (readOperationJson(host, repaired.operationId, "stale-candidate.json"));
+  assert.equal(moved.moved, 1, "the reset must also move the October failure's stale candidate");
+  const steps = fs.readFileSync(path.join(host.deployRoot, "demo-reset-operations", repaired.operationId, "steps.jsonl"), "utf8")
+    .trim().split("\n").map((line) => /** @type {{ step: string }} */ (JSON.parse(line)).step);
+  for (const [earlier, later] of [["quarantine-stale", "start-stopped-app"], ["start-stopped-app", "capture-old-session"], ["capture-old-session", "verify-old-session-rejected"]]) {
+    assert.ok(steps.indexOf(earlier) >= 0 && steps.indexOf(earlier) < steps.indexOf(later), `step ${earlier} must precede ${later}: ${steps.join(", ")}`);
+  }
+  await api.expectIdentity(candidate);
+  assertDemoIsolation(host);
+  record("demo-stopped-app-reproducer", { octoberRefusal: lastLine(october.stderr), repairedOperationId: repaired.operationId, repairedSeconds: repaired.seconds, steps });
+}
+
+/**
+ * The protected boot, through the real unit: a Docker restart stops the demo, the scanner returns
+ * late, and an hourly boundary was missed, so the boot must enforce isolation before starting and
+ * serve a fresh baseline within the ten-minute target.
+ * @param {string} work @param {DemoHost} host @param {Release} candidate @param {ApiClient} api
+ * @param {import("node:child_process").ChildProcess} scanner
+ */
+async function qualifyBootAfterDockerRestart(work, host, candidate, api, scanner) {
+  installBootUnit(host);
+  const visitor = await api.visitorAccount("Workspace Administrator");
+  const visitorList = await api.createList(await api.login(visitor), `Qualification boot change ${randomBytes(6).toString("hex")}`);
+
+  // A missed boundary: every completed reset is re-stamped three hours earlier.
+  const resets = path.join(host.deployRoot, "demo-reset-operations");
+  for (const name of fs.readdirSync(resets)) {
+    const match = /^(\d{8}T\d{6}Z)(-.+)$/.exec(name);
+    if (!match) continue;
+    const earlier = new Date(Date.parse(match[1].replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z")) - 3 * 3_600_000);
+    fs.renameSync(path.join(resets, name), path.join(resets, `${earlier.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}${match[2]}`));
+  }
+
+  scanner.kill("SIGTERM");
+  const bootsBefore = new Set(fs.existsSync(path.join(host.deployRoot, "demo-boot-operations")) ? fs.readdirSync(path.join(host.deployRoot, "demo-boot-operations")) : []);
+  const restartedAt = Date.now();
+  run("systemctl", ["restart", "docker"]);
+  await new Promise((resolve) => setTimeout(resolve, 30_000));
+  startScanner(work, DEMO_GATEWAY);
+
+  const bootRoot = path.join(host.deployRoot, "demo-boot-operations");
+  const deadline = restartedAt + 900_000;
+  /** @type {string} */
+  let operation = "";
+  for (;;) {
+    const fresh = fs.existsSync(bootRoot) ? fs.readdirSync(bootRoot).filter((name) => !bootsBefore.has(name)) : [];
+    operation = fresh.sort().at(-1) || "";
+    const unit = spawnSync("systemctl", ["show", "--property=ActiveState", "--value", "longtail-forge-public-demo-boot.service"], { encoding: "utf8" }).stdout.trim();
+    if (operation && unit !== "activating" && (fs.existsSync(path.join(bootRoot, operation, "result.json")) || unit === "failed" || unit === "inactive")) break;
+    assert.ok(Date.now() < deadline, "the boot unit did not finish within fifteen minutes of the Docker restart");
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  const journal = spawnSync("journalctl", ["--unit", "longtail-forge-public-demo-boot.service", "--no-pager", "--output", "cat", "--since", `@${Math.floor(restartedAt / 1000)}`], { encoding: "utf8" }).stdout;
+  assert.ok(fs.existsSync(path.join(bootRoot, operation, "result.json")), `the boot did not complete:\n${journal}`);
+  const result = /** @type {{ ok?: boolean, baseline?: string, elapsedSeconds?: number }} */ (JSON.parse(fs.readFileSync(path.join(bootRoot, operation, "result.json"), "utf8")));
+  assert.deepEqual([result.ok, result.baseline], [true, "fresh-baseline"], "a missed boundary must produce a fresh baseline");
+  const servedSeconds = Math.round((Date.now() - restartedAt) / 1000);
+  assert.ok(servedSeconds <= 600, `the demo must serve within ten minutes of the Docker restart, not ${servedSeconds}s`);
+
+  const phases = fs.readFileSync(path.join(bootRoot, operation, "steps.jsonl"), "utf8").trim().split("\n")
+    .map((line) => /** @type {{ phase: string }} */ (JSON.parse(line)).phase);
+  const order = ["checking-preconditions", "waiting-for-docker", "resolving-profile", "validating-storage", "validating-profile", "waiting-for-bridge", "waiting-for-scanner", "enforcing-isolation", "curtained", "starting", "started", "resetting", "serving", "completed"];
+  for (let index = 1; index < order.length; index += 1) {
+    assert.ok(phases.indexOf(order[index - 1]) < phases.indexOf(order[index]), `boot phase ${order[index - 1]} must precede ${order[index]}: ${phases.join(", ")}`);
+  }
+  const dependencies = fs.readFileSync(path.join(bootRoot, operation, "dependencies.jsonl"), "utf8").trim().split("\n")
+    .map((line) => /** @type {{ dependency: string, attempts: number, outcome: string }} */ (JSON.parse(line)));
+  const scannerWait = dependencies.find((entry) => entry.dependency === "scanner");
+  assert.ok(scannerWait && scannerWait.outcome === "available" && scannerWait.attempts > 1, `the boot must have waited for the delayed scanner: ${JSON.stringify(dependencies)}`);
+
+  assert.equal(fs.existsSync(host.marker), false, "the boot must lift its curtain once the fresh baseline passes");
+  await api.expectIdentity(candidate);
+  assertDemoIsolation(host);
+  await api.expectList(await api.login(visitor), visitorList.listId, 404);
+  record("demo-boot-after-docker-restart", { operation, servedSeconds, bootElapsedSeconds: result.elapsedSeconds, phases, dependencies, visitorChangeCleared: visitorList.listId });
+}
+
+/**
+ * Install the boot helper, the reset and alert helpers it calls, and the boot unit at their host
+ * paths, then enable the unit so Docker pulls it in. The only addition is a drop-in naming the
+ * qualification's helper environment; the shipped unit is used unchanged.
+ * @param {DemoHost} host
+ */
+function installBootUnit(host) {
+  for (const target of Object.values(INSTALLED_BOOT_FILES)) {
+    assert.equal(fs.existsSync(target), false, `${target} already exists; refusing to replace it`);
+  }
+  cleanups.push(() => {
+    spawnSync("systemctl", ["disable", "longtail-forge-public-demo-boot.service"]);
+    for (const target of Object.values(INSTALLED_BOOT_FILES)) fs.rmSync(target, { force: true });
+    fs.rmSync(path.dirname(INSTALLED_BOOT_FILES.dropIn), { recursive: true, force: true });
+    spawnSync("systemctl", ["daemon-reload"]);
+  });
+  for (const [source, target, mode] of /** @type {[string, string, number][]} */ ([
+    [BOOT_HELPER, INSTALLED_BOOT_FILES.boot, 0o755],
+    [RESET_HELPER, INSTALLED_BOOT_FILES.reset, 0o755],
+    [ALERT_HELPER, INSTALLED_BOOT_FILES.alert, 0o755],
+    [BOOT_UNIT, INSTALLED_BOOT_FILES.unit, 0o644],
+  ])) {
+    fs.writeFileSync(target, fs.readFileSync(source));
+    fs.chownSync(target, 0, 0);
+    fs.chmodSync(target, mode);
+  }
+  fs.mkdirSync(path.dirname(INSTALLED_BOOT_FILES.dropIn), { recursive: true });
+  fs.writeFileSync(INSTALLED_BOOT_FILES.dropIn, `[Service]\nEnvironment=LTF_COMPOSE_HELPER_ENV=${host.helperEnv}\n`);
+  run("systemctl", ["daemon-reload"]);
+  run("systemctl", ["enable", "longtail-forge-public-demo-boot.service"]);
+  assert.ok(fs.existsSync("/etc/systemd/system/docker.service.wants/longtail-forge-public-demo-boot.service"), "enabling the unit must make Docker want it");
+  record("demo-boot-unit-installed", { unit: sha256File(BOOT_UNIT), helper: sha256File(BOOT_HELPER) });
 }
 
 /** @typedef {Host & { resetHelper: string, isolationHelper: string, roleCredentials: string }} DemoHost */
 
-/** @param {string} work @returns {DemoHost} */
-function prepareDemoHost(work) {
+/** @returns {DemoHost} */
+function prepareDemoHost() {
   fs.mkdirSync(BACKUP_PARENT, { recursive: true, mode: 0o700 });
   fs.writeFileSync(OWNERSHIP_MARKER, "created by scripts/release/compose-lifecycle-qualification.mjs\n");
   cleanups.push(() => { if (fs.existsSync(OWNERSHIP_MARKER)) fs.rmSync(BACKUP_PARENT, { recursive: true, force: true }); });
@@ -513,7 +708,9 @@ function prepareDemoHost(work) {
     removeDemoIsolationRules();
   });
 
-  const root = path.join(work, "demo-host");
+  assert.equal(fs.existsSync(DEMO_HOST_ROOT), false, `${DEMO_HOST_ROOT} already exists; refusing to reuse it`);
+  const root = DEMO_HOST_ROOT;
+  cleanups.push(() => { fs.rmSync(DEMO_HOST_ROOT, { recursive: true, force: true }); });
   const etc = path.join(root, "etc");
   const sbin = path.join(root, "sbin");
   const secrets = path.join(root, "secrets");
@@ -737,14 +934,20 @@ function assertDemoIsolation(host) {
  * Run the actual reset helper, optionally signalling it once its operation records a phase, and
  * report every container image created while it ran.
  * @param {DemoHost} host @param {number} ordinal @param {string} [interruptAtPhase]
+ * @param {{ helper?: string, killAtStep?: string }} [variant] another helper's bytes, or a SIGKILL
+ *   of the reset's whole process group once the operation records that step. That leaves no exit
+ *   trap to run, as a Docker restart did. Each step runs in a forked subshell that shares the lock's
+ *   descriptor, so killing only the parent would leave that subshell holding the lock.
  * @returns {Promise<HelperRun & { operationId: string, images: string[] }>}
  */
-async function runReset(host, ordinal, interruptAtPhase) {
+async function runReset(host, ordinal, interruptAtPhase, { helper = host.resetHelper, killAtStep } = {}) {
   const operationId = `${utcStamp()}-manual-${ordinal}`;
   const since = Math.floor(Date.now() / 1000) - 1;
   const started = Date.now();
-  const child = spawn("bash", [host.resetHelper, "reset", "--target", DEMO_TARGET, "--anchor-date", "today", "--operation-id", operationId, "--confirm", RESET_CONFIRMATION], {
+  const child = spawn("bash", [helper, "reset", "--target", DEMO_TARGET, "--anchor-date", "today", "--operation-id", operationId, "--confirm", RESET_CONFIRMATION], {
     env: { PATH: "/usr/sbin:/usr/bin:/sbin:/bin", HOME: "/root", LANG: "C.UTF-8", LTF_COMPOSE_HELPER_ENV: host.helperEnv },
+    // Its own process group, so a kill reaches every process the reset started.
+    detached: Boolean(killAtStep),
   });
   let stdout = "";
   let stderr = "";
@@ -773,13 +976,50 @@ async function runReset(host, ordinal, interruptAtPhase) {
     }
     child.kill("SIGTERM");
   }
+  if (killAtStep) {
+    const stepPath = path.join(host.deployRoot, "demo-reset-operations", operationId, "step.json");
+    const deadline = Date.now() + 600_000;
+    for (;;) {
+      let step = "";
+      try {
+        step = String(/** @type {{ step?: string }} */ (JSON.parse(fs.readFileSync(stepPath, "utf8"))).step || "");
+      } catch {
+        // Not written yet, or between the helper's write and install.
+      }
+      if (step === killAtStep) break;
+      assert.ok(!finished, `the reset exited before reaching step ${killAtStep}:\n${stderr}`);
+      assert.ok(Date.now() < deadline, `timed out waiting for reset step ${killAtStep}`);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.equal(typeof child.pid, "number", "the reset must have a process to kill");
+    process.kill(-(/** @type {number} */ (child.pid)), "SIGKILL");
+  }
   const status = /** @type {number} */ (await exited);
+  if (killAtStep) await expectKilledResetGone(host, /** @type {number} */ (child.pid));
   const until = Math.floor(Date.now() / 1000) + 1;
   const images = [...new Set(docker(["events", "--since", String(since), "--until", String(until), "--filter", "type=container",
     "--filter", "event=create", "--format", "{{.Actor.Attributes.image}}"]).split("\n").filter(Boolean))].sort();
   const seconds = Math.round((Date.now() - started) / 100) / 10;
   console.log(`[reset ${operationId}] exit ${status} in ${seconds}s${status === 0 ? "" : `: ${lastLine(stderr)}`}`);
   return { status, stdout, stderr, seconds, operationId, images };
+}
+
+/**
+ * A killed reset leaves no process behind, as a power loss or Docker restart does, so the next
+ * reset meets only what it left on disk, never a survivor still holding the host lock.
+ * @param {Host} host @param {number} processGroup
+ */
+async function expectKilledResetGone(host, processGroup) {
+  await waitFor("every process of the killed reset to exit", () => {
+    try {
+      process.kill(-processGroup, 0);
+      return false;
+    } catch (error) {
+      return /** @type {NodeJS.ErrnoException} */ (error).code === "ESRCH";
+    }
+  }, 10_000);
+  const lock = path.join(host.deployRoot, "compose-operation.lock");
+  assert.equal(spawnSync("flock", ["-n", lock, "true"]).status, 0, "the killed reset must leave the host lock free");
 }
 
 /** @param {Host} host @param {string} operationId @param {string} name @returns {unknown} */
@@ -905,6 +1145,7 @@ function startScanner(work, gateway) {
   ].join("\n"));
   const scanner = spawn(process.execPath, [script], { stdio: "ignore" });
   cleanups.push(() => { scanner.kill("SIGTERM"); });
+  return scanner;
 }
 
 /** @param {string} work @param {{ dir: string }} tls @param {string} maintenanceRoot @param {string} origin */
