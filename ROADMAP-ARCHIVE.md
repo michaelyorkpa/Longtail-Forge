@@ -86,9 +86,9 @@ Acceptance criteria:
   - **Where each is proved.** The boot decisions and the alert payload live in shell helpers, so the executable harness proves them against the real bytes. Unit tests cover the startup classification (`tests/unit/startup-failure.test.mjs`) and the stale-candidate quarantine (`tests/unit/public-demo-stale-candidate.test.mjs`).
 - [x] **The executable harness** runs the real helper bytes as root on the disposable rehearsal runner, faking only Docker and HTTP.
   - **What it is.** `scripts/release/public-demo-helper-contract-harness.mjs` runs as the maintenance rehearsal's `public-demo-helper-contract` stage. Beyond Docker and HTTP, it also fakes `ip`, the scanner probe, the clock, and the journal.
-  - **The result.** It passes 44 scenarios: every boot refusal before start, the profile refusals, the lock hand-off, the curtain ownership through the real reset, evidence redaction, and the alert boundary. It passed 26 before Codex's review.
+  - **The result.** It passes 56 scenarios: every boot refusal before start, the profile refusals, the lock hand-off, the curtain ownership through the real reset, evidence redaction, stalled requests, and the alert boundary. It passed 26 before Codex's review, and 44 before the re-review.
 - [x] **Seeded defects** in the boot decisions, the isolation ordering, the candidate recovery, the app-down path, the startup classification, and the alert boundary are each caught.
-  - **Counts.** The harness catches all 33 of its seeds on CI, 17 before Codex's review. Locally, all 11 seeds in the startup classification and the quarantine are caught, and all 9 in the validator.
+  - **Counts.** The harness catches all 51 of its seeds on CI: 17 before Codex's review, and 33 before the re-review. Locally, all 11 seeds in the startup classification and the quarantine are caught, and all 9 in the validator.
   - **What the pass found.** A scheduler that skipped the heartbeat, but recorded it as sent, passed at first. The scheduler and boot scenarios now require the request itself.
 - [ ] **On the live demo,** operator-run under separate authorization. The operator ruled on 2026-10-15 that the live demo server, not a temporary VM, is the real-reboot proof.
   1. Install the scanner drop-in, the helpers and units, and the operator's Discord webhook file, then deploy `v0.33.33.53`.
@@ -116,6 +116,18 @@ Acceptance criteria:
     5. **The upload comparison could pass before a delayed leak (P2).** See the tightened wait above.
     6. **Disabling the timer did not close the rollout window (P2).** See the corrected rollout order above.
     - **Confirmed by the review, without findings:** the lock hand-off, the stale-candidate quarantine, the alert and heartbeat URL handling, the scheduler, the startup classification, and the validator. It also confirmed that the October fixture is byte-identical to the October release's helper.
+  - **Codex's re-review of `87009b74`:** revise, with six findings, each fixed here.
+    1. **Other mount mechanisms passed the profile check (P1).** Real Compose output with a volume subpath, a secret mount, or `volumes_from` passed. The boot and the reset now apply one exact program, byte-identical in both and compared by the harness. Only the reviewed service keys may appear, and each mount must equal its expected form. Before this, the reset checked only part of the environment before it recreated the container.
+       - **Checked locally against real Compose 5.3.1 output.** The program accepts the real demo profile, the profile resolved from a quoted `LONGTAIL_ENV_FILE`, and the known normalizations. It refuses Codex's three reproductions, a bind option, and 30 further drifts.
+    2. **A quoted application-environment path bypassed redaction (P2).** Compose accepts the quoted path, but both helpers read it with its quotes and silently skipped the file. The secrets now come from the environment Compose itself resolves, and the host environment is parsed as Compose parses it. Collection that cannot complete refuses the boot or the reset.
+       - **A second gap, found on the way.** Both helpers also read the role passwords with a query that matches nothing in the real role document, which keeps them in a `passwords` map. That query is corrected, and an empty map now refuses.
+    3. **Several requests had no time limit (P2).** These were the boot's readiness and identity probes, and the reset's session and role requests. Every request is now bounded to 15 seconds. The harness checks the bound on every request in every scenario, and two scenarios stall a real `curl` against a server that accepts the connection and never answers.
+    4. **A failed stop of an unverified start was ignored (P2).** Only the running state now proves the stop. A stop that left the container running gets one kill, and a container that still runs raises `boot-stop-failed`, with recovery status `unverified-container-not-stopped`.
+    5. **The abort test could pass without an upload starting (P2).** The abort accepts a closed connection only after the upload has started, and the check asserts the upload call before it settles.
+       - **The proof.** With the abort sent on an invalid session, so that its connection ends before any upload: the old helper passes, as in Codex's probe; the new one fails; and with its start gate removed, the call-count assertion fails it.
+    6. **The installation block still enabled the timer early (P3).** It no longer does. The timer is enabled only in step 5 of the upgrade order.
+    - **Confirmed by the re-review, without findings:** curtain ownership, the public edge, `--pull never` on both starts, the suppression of initial parser errors, the causal settlement of started uploads and its delayed-leak control, the numbered rollout procedure, errexit and the EXIT trap, and the scheduler's handling of a recovery behind the retained curtain.
+    - **The harness after the re-review:** 56 scenarios, and 51 seeded defects, each caught.
 
 Out of scope:
 
