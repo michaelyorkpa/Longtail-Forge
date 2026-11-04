@@ -212,10 +212,12 @@ async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
 
 /** @param {string} baseUrl @param {HardeningFixtures} fixtures */
 async function checkClientAbortCleanup(baseUrl, fixtures) {
+  const callsBefore = activity.calls();
   await abortMultipartUpload(baseUrl, fixtures, {
     filename: "client-aborted-upload.txt",
     taskId: fixtures.abortedTaskId,
   });
+  assert.equal(activity.calls(), callsBefore + 1, "the aborted upload must reach storage, or its cleanup proves nothing");
 
   await eventuallyNoFileOrAttachmentForOriginalFilename("client-aborted-upload.txt");
   await activity.settled("the aborted upload");
@@ -439,13 +441,18 @@ function abortMultipartUpload(baseUrl, fixtures, options) {
 
   return new Promise((resolve, reject) => {
     const url = new URL("/api/files/upload", baseUrl);
-    let resolved = false;
-    const done = () => {
-      if (!resolved) {
-        resolved = true;
-        resolve(undefined);
-      }
+    let uploadStarted = false;
+    let finished = false;
+    /** @param {Error} [error] */
+    const finish = (error) => {
+      if (finished) return;
+      finished = true;
+      if (error) reject(error);
+      else resolve(undefined);
     };
+    // The connection may end only after the server has started streaming the file to storage, when
+    // this client aborts it. An earlier error or close would leave the abort nothing to clean up.
+    const closed = () => finish(uploadStarted ? undefined : new Error("the aborted upload's connection ended before the upload reached storage"));
     const request = http.request({
       headers: {
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -457,18 +464,21 @@ function abortMultipartUpload(baseUrl, fixtures, options) {
       port: url.port,
     });
 
-    request.on("error", done);
-    request.on("close", done);
+    request.on("error", closed);
+    request.on("close", closed);
     // Abort once the server is streaming the file to storage, never on a timer: a timer can fire
     // before the server has parsed the file part, which leaves the abort nothing to clean up.
     const started = activity.nextUploadStarted("the aborted upload");
     request.write(bodyStart);
     request.write(Buffer.alloc(128 * 1024, "a"));
     started.then(
-      () => request.destroy(new Error("client aborted upload regression")),
+      () => {
+        uploadStarted = true;
+        request.destroy(new Error("client aborted upload regression"));
+      },
       (error) => {
+        finish(error);
         request.destroy();
-        reject(error);
       },
     );
   });
