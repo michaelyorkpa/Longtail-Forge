@@ -42,8 +42,12 @@ The canonical classifications and environment contract are in
    heartbeat URL files from standard input. Follow
    [Demo Data Operations](demo-data-operations.md) for root ownership, modes,
    locations, and the separately protected role-credential document. When
-   upgrading an installed demo, keep the timer disabled from the helper install
-   until the release is deployed and one manual reset has passed.
+   upgrading an installed demo, no new lifecycle helper may run before the
+   restart-recovery image is deployed: disable the timer and wait for any
+   running reset and the lifecycle lock to clear, deploy, install the helpers
+   with the boot unit left disabled, run one manual reset, and only then enable
+   the boot unit and the timer. The exact steps are in
+   [Demo Data Operations](demo-data-operations.md#installation).
 3. Create only the named external non-masquerading IPv4 bridge and data volume
    from the redacted profile. Install and prove the reviewed stateful firewall,
    loopback publication, and ClamAV gateway handoff.
@@ -58,8 +62,10 @@ The canonical classifications and environment contract are in
 
 The demo's only restart owner is the protected boot unit, which Docker pulls in
 each time it starts. After a host boot or a Docker restart it waits for Docker,
-the bridge, and the scanner, enforces isolation, starts the recorded release
-behind the curtain, and runs a fresh reset if an hourly boundary was missed.
+validates the complete resolved Compose profile, waits for the bridge and the
+scanner, enforces isolation, starts the recorded release behind the curtain,
+and runs a fresh reset if an hourly boundary was missed. The boot owns the
+curtain: visitors are served only after the start and any fresh reset pass.
 See [Protected boot](demo-data-operations.md#protected-boot). Never enable
 Docker auto-restart for the demo.
 
