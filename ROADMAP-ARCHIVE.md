@@ -86,9 +86,9 @@ Acceptance criteria:
   - **Where each is proved.** The boot decisions and the alert payload live in shell helpers, so the executable harness proves them against the real bytes. Unit tests cover the startup classification (`tests/unit/startup-failure.test.mjs`) and the stale-candidate quarantine (`tests/unit/public-demo-stale-candidate.test.mjs`).
 - [x] **The executable harness** runs the real helper bytes as root on the disposable rehearsal runner, faking only Docker and HTTP.
   - **What it is.** `scripts/release/public-demo-helper-contract-harness.mjs` runs as the maintenance rehearsal's `public-demo-helper-contract` stage. Beyond Docker and HTTP, it also fakes `ip`, the scanner probe, the clock, and the journal.
-  - **The result.** It passes 26 scenarios: every boot refusal before start, the lock hand-off, and the alert boundary.
+  - **The result.** It passes 44 scenarios: every boot refusal before start, the profile refusals, the lock hand-off, the curtain ownership through the real reset, evidence redaction, and the alert boundary. It passed 26 before Codex's review.
 - [x] **Seeded defects** in the boot decisions, the isolation ordering, the candidate recovery, the app-down path, the startup classification, and the alert boundary are each caught.
-  - **Counts.** The harness catches all 17 of its seeds on CI. Locally, all 11 seeds in the startup classification and the quarantine are caught, and all 9 in the validator.
+  - **Counts.** The harness catches all 33 of its seeds on CI, 17 before Codex's review. Locally, all 11 seeds in the startup classification and the quarantine are caught, and all 9 in the validator.
   - **What the pass found.** A scheduler that skipped the heartbeat, but recorded it as sent, passed at first. The scheduler and boot scenarios now require the request itself.
 - [ ] **On the live demo,** operator-run under separate authorization. The operator ruled on 2026-10-15 that the live demo server, not a temporary VM, is the real-reboot proof.
   1. Install the scanner drop-in, the helpers and units, and the operator's Discord webhook file, then deploy `v0.33.33.53`.
@@ -96,12 +96,26 @@ Acceptance criteria:
   3. Confirm that the next scheduled reset succeeds, that a test alert reaches Discord, and that the operator's monitor receives the heartbeats and alerts when one is withheld.
   - **A preview reboot** is the operator's choice.
   - **Progress.** On 2026-11-03, Codex installed the Discord webhook and heartbeat URL files on `rt-ltf-demo` from standard input, root-only, mode `0600`. Discord answered a `GET` with 200, and the heartbeat URL was not contacted. Nothing reads either file until the helpers are installed.
-  - **The rollout order.** The new reset helper needs the new image's `quarantine-stale` action. So the hourly timer stays disabled from the helper install until the deployment and one manual reset have passed.
+  - **The rollout order,** corrected after Codex's review. The new reset helper needs the new image's `quarantine-stale` action, and the boot unit runs that helper on every Docker start, so disabling the timer alone left a window. No new lifecycle helper may run before the image is deployed:
+    1. disable the timer, and wait for any running reset and the lifecycle lock to clear;
+    2. deploy;
+    3. install the helpers and units, with the boot unit left disabled;
+    4. run one manual reset;
+    5. then enable the boot unit and the timer.
 - [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and an independent Codex review. They run on the final tree of #896, after this archive.
   - **A non-causal wait, fixed on the way.** On `c212415f`, the Development gate failed `file-upload-compatibility-error-hardening`. Its failure had not appeared in the previous 25 failed Development runs.
     - **The cause.** The upload route answers a malformed upload with 400 before the service's storage cleanup settles, so the partial file can be created after the response and removed later. The malformed check compared the disk against a snapshot taken before the upload, so it could pass before the file existed. The next check's snapshot then caught the file, which was removed under it.
     - **The fix.** Each check now requires the stored files to equal the storage keys the `files` table records, with one more check after the last upload.
     - **The proof.** Injected delays reproduce the CI failure on the old test, three runs out of three. Under the same delays the new test passes, three out of three. With the adapter's cleanup removed, the new test fails.
+    - **Tightened after Codex's review.** The comparison still returned on its first match, so a partial file written after that moment could go unseen. Each check now waits for the upload call the route made to settle, which includes its storage cleanup, and then compares once. The abort waits for the upload to start rather than firing on a timer. A permanent check proves that a delayed write with no cleanup fails the comparison, and seeding a delayed, uncleaned write in the real adapter fails the test.
+  - **Codex's independent review of `9bc1fe08`:** revise, with six findings, each fixed here.
+    1. **The profile was validated after start (P1).** The boot now validates the complete resolved Compose profile before anything starts, refusing drift with `boot-profile-invalid`. It starts with `--pull never`, and stops a container that fails its post-start verification.
+    2. **A failed boot reset could serve the old baseline (P1).** The boot now owns the curtain. Its reset runs with `--caller boot`, never lifts the curtain, and the boot puts the marker back after any failure. A reset that started a stopped app keeps its curtain until its fresh baseline passes. The harness now runs the real reset end to end, including a recovery that restores the prior unit behind the curtain.
+    3. **A public-edge failure could trigger recovery during boot (P2).** The delegated reset verifies the direct runtime only, and every runtime check is bounded to 15 seconds.
+    4. **Boot evidence kept unredacted diagnostics (P2).** The boot's check output passes through the reset's literal redaction, and neither helper keeps a Compose parser error. Canary scenarios cover both.
+    5. **The upload comparison could pass before a delayed leak (P2).** See the tightened wait above.
+    6. **Disabling the timer did not close the rollout window (P2).** See the corrected rollout order above.
+    - **Confirmed by the review, without findings:** the lock hand-off, the stale-candidate quarantine, the alert and heartbeat URL handling, the scheduler, the startup classification, and the validator. It also confirmed that the October fixture is byte-identical to the October release's helper.
 
 Out of scope:
 
