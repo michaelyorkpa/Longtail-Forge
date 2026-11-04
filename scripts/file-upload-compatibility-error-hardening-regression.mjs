@@ -7,8 +7,6 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { pipeline, Transform } from "node:stream";
-import { clearTimeout } from "node:timers";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
@@ -212,29 +210,37 @@ async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
 }
 
 /**
- * The abort must land while the file is streaming into storage. The service call is not that
- * boundary: the service can still refuse the upload, for example over its target, before storage
- * starts. So the abort waits for a chunk of the file to reach the storage adapter itself.
+ * The abort must land while the file is being written. Neither the service call nor a chunk handed
+ * to the adapter is that boundary: the service can refuse the upload before storage starts, and the
+ * adapter prepares its directory before its writer takes any data. So the abort waits for the real
+ * writer to put bytes on disk, and the bytes are measured again, independently, before it is sent.
+ * The delayed run holds the writer back, which is how a slow storage setup would let an earlier
+ * signal abort an upload with nothing written.
  * @param {string} baseUrl @param {HardeningFixtures} fixtures
  */
 async function checkClientAbortCleanup(baseUrl, fixtures) {
-  const callsBefore = activity.calls();
-  const storage = observeStorageWrites();
-  try {
-    await abortMultipartUpload(baseUrl, fixtures, {
-      filename: "client-aborted-upload.txt",
-      taskId: fixtures.abortedTaskId,
-    }, storage);
-    assert.equal(activity.calls(), callsBefore + 1, "the aborted upload must reach the upload service");
-    assert.equal(storage.calls(), 1, "the aborted upload must reach the storage adapter, or its cleanup proves nothing");
-    assert.ok(storage.chunks() > 0, "a chunk of the aborted upload must reach storage before the abort");
+  for (const run of [
+    { filename: "client-aborted-upload.txt", writerDelayMs: 0 },
+    { filename: "client-aborted-delayed-writer-upload.txt", writerDelayMs: 250 },
+  ]) {
+    const callsBefore = activity.calls();
+    const storage = await observeStorageWrites({ writerDelayMs: run.writerDelayMs });
+    try {
+      const bytesBeforeAbort = await abortMultipartUpload(baseUrl, fixtures, {
+        filename: run.filename,
+        taskId: fixtures.abortedTaskId,
+      }, storage);
+      assert.equal(activity.calls(), callsBefore + 1, `${run.filename} must reach the upload service`);
+      assert.equal(storage.calls(), 1, `${run.filename} must reach the storage adapter, or its cleanup proves nothing`);
+      assert.ok(bytesBeforeAbort > 0, `the storage writer must have written part of ${run.filename} before the abort, or its cleanup proves nothing`);
 
-    await eventuallyNoFileOrAttachmentForOriginalFilename("client-aborted-upload.txt");
-    await activity.settled("the aborted upload");
-  } finally {
-    storage.restore();
+      await eventuallyNoFileOrAttachmentForOriginalFilename(run.filename);
+      await activity.settled(run.filename);
+    } finally {
+      storage.restore();
+    }
+    await assertNoUnrecordedStoredFiles(`${run.filename} should not leave a partial local file`);
   }
-  await assertNoUnrecordedStoredFiles("client-aborted upload should not leave a partial local file");
 }
 
 /**
@@ -441,7 +447,8 @@ function sendMalformedMultipart(baseUrl, fixtures, options) {
 
 /**
  * @param {string} baseUrl @param {HardeningFixtures} fixtures @param {{ filename: string, taskId: string }} options
- * @param {ReturnType<typeof observeStorageWrites>} storage @returns {Promise<void>}
+ * @param {Awaited<ReturnType<typeof observeStorageWrites>>} storage
+ * @returns {Promise<number>} the bytes the storage writer had put on disk when the abort was sent
  */
 function abortMultipartUpload(baseUrl, fixtures, options, storage) {
   const boundary = `ltf-abort-${randomUUID()}`;
@@ -457,18 +464,19 @@ function abortMultipartUpload(baseUrl, fixtures, options, storage) {
 
   return new Promise((resolve, reject) => {
     const url = new URL("/api/files/upload", baseUrl);
-    let storageReceived = false;
+    /** @type {number | null} */
+    let bytesBeforeAbort = null;
     let finished = false;
     /** @param {Error} [error] */
     const finish = (error) => {
       if (finished) return;
       finished = true;
       if (error) reject(error);
-      else resolve(undefined);
+      else resolve(/** @type {number} */ (bytesBeforeAbort));
     };
-    // The connection may end only after a chunk of the file has reached storage, when this client
-    // aborts it. An earlier error or close would leave the abort nothing to clean up.
-    const closed = () => finish(storageReceived ? undefined : new Error("the aborted upload's connection ended before the upload reached storage"));
+    // The connection may end only once this client aborts it, after the storage writer has put
+    // bytes on disk. An earlier error or close would leave the abort nothing to clean up.
+    const closed = () => finish(bytesBeforeAbort !== null ? undefined : new Error("the aborted upload's connection ended before the upload was written to storage"));
     const request = http.request({
       headers: {
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -482,21 +490,24 @@ function abortMultipartUpload(baseUrl, fixtures, options, storage) {
 
     request.on("error", closed);
     request.on("close", closed);
-    // Abort once a chunk of the file has reached the storage adapter, never on a timer or on the
-    // service call: either can come before storage starts, which leaves the abort nothing to clean up.
-    const reached = storage.nextChunk("the aborted upload");
+    // Abort once the storage writer has put bytes on disk, never on a timer, the service call, or a
+    // chunk handed to the adapter: each can come before the writer starts, leaving nothing to clean
+    // up. The bytes are measured again before the abort, apart from the gate, and returned.
+    const written = storage.nextWrite(options.filename);
     request.write(bodyStart);
     request.write(Buffer.alloc(128 * 1024, "a"));
-    reached.then(
-      () => {
-        storageReceived = true;
-        request.destroy(new Error("client aborted upload regression"));
-      },
-      (error) => {
-        finish(error);
-        request.destroy();
-      },
-    );
+    written
+      .then(() => storage.writtenBytes())
+      .then(
+        (bytes) => {
+          bytesBeforeAbort = bytes;
+          request.destroy(new Error("client aborted upload regression"));
+        },
+        (error) => {
+          finish(error);
+          request.destroy();
+        },
+      );
   });
 }
 
@@ -685,44 +696,50 @@ function trackUploadActivity() {
 }
 
 /**
- * The local storage adapter, observed. Each saveStream call is counted, and its stream passes
- * through a transform that counts chunks and wakes any waiter at each one, so a test can wait for a
- * file to reach storage itself. The real adapter still does the writing and the partial-file cleanup.
+ * The local storage adapter, observed. Each saveStream call is counted and handed its own stream,
+ * unchanged, after an optional delay that stands in for a slow storage setup. What the real writer
+ * has written is read from the disk: the bytes in stored files that did not exist when observation
+ * began. The real adapter still does the writing and the partial-file cleanup.
+ * @param {{ writerDelayMs?: number }} [options]
  */
-function observeStorageWrites() {
+async function observeStorageWrites({ writerDelayMs = 0 } = {}) {
   const originalAdapter = filesService.getFileStorageAdapter("local");
+  const root = config.storage.localRoot;
+  const existing = new Set(await listStoredFiles(root));
   let calls = 0;
-  let chunks = 0;
-  /** @type {(() => void)[]} */
-  const chunkWaiters = [];
   filesService.registerFileStorageAdapter("local", {
     ...originalAdapter,
-    saveStream(readable, options) {
+    async saveStream(readable, options) {
       calls += 1;
-      const observed = new Transform({
-        transform(chunk, _encoding, callback) {
-          chunks += 1;
-          callback(null, chunk);
-          for (const wake of chunkWaiters.splice(0)) wake();
-        },
-      });
-      // pipeline carries an error or a premature close through to the adapter, as the direct stream would.
-      pipeline(readable, observed, () => {});
-      return originalAdapter.saveStream(observed, options);
+      if (writerDelayMs > 0) {
+        await delay(writerDelayMs);
+      }
+      return originalAdapter.saveStream(readable, options);
     },
   });
+  /** @returns {Promise<number>} the bytes on disk in stored files that are new since observation began */
+  async function writtenBytes() {
+    let bytes = 0;
+    for (const file of await listStoredFiles(root)) {
+      if (existing.has(file)) continue;
+      try {
+        bytes += (await fs.stat(path.join(root, file))).size;
+      } catch (error) {
+        if (/** @type {NodeJS.ErrnoException} */ (error)?.code !== "ENOENT") throw error;
+      }
+    }
+    return bytes;
+  }
   return {
     calls: () => calls,
-    chunks: () => chunks,
-    /** @param {string} label @returns {Promise<void>} resolves when the next chunk reaches the storage adapter */
-    nextChunk(label) {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`timed out waiting for ${label} to reach storage`)), 10_000);
-        chunkWaiters.push(() => {
-          clearTimeout(timer);
-          resolve();
-        });
-      });
+    writtenBytes,
+    /** @param {string} label @returns {Promise<void>} resolves once the storage writer has put bytes on disk */
+    async nextWrite(label) {
+      const deadline = Date.now() + 10_000;
+      while ((await writtenBytes()) === 0) {
+        assert.ok(Date.now() < deadline, `timed out waiting for ${label} to be written to storage`);
+        await delay(10);
+      }
     },
     restore() {
       filesService.registerFileStorageAdapter("local", originalAdapter);
