@@ -7,6 +7,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { pipeline, Transform } from "node:stream";
 import { clearTimeout } from "node:timers";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
@@ -210,17 +211,29 @@ async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
   await assertNoUnrecordedStoredFiles("malformed multipart upload should not leave a partial local file");
 }
 
-/** @param {string} baseUrl @param {HardeningFixtures} fixtures */
+/**
+ * The abort must land while the file is streaming into storage. The service call is not that
+ * boundary: the service can still refuse the upload, for example over its target, before storage
+ * starts. So the abort waits for a chunk of the file to reach the storage adapter itself.
+ * @param {string} baseUrl @param {HardeningFixtures} fixtures
+ */
 async function checkClientAbortCleanup(baseUrl, fixtures) {
   const callsBefore = activity.calls();
-  await abortMultipartUpload(baseUrl, fixtures, {
-    filename: "client-aborted-upload.txt",
-    taskId: fixtures.abortedTaskId,
-  });
-  assert.equal(activity.calls(), callsBefore + 1, "the aborted upload must reach storage, or its cleanup proves nothing");
+  const storage = observeStorageWrites();
+  try {
+    await abortMultipartUpload(baseUrl, fixtures, {
+      filename: "client-aborted-upload.txt",
+      taskId: fixtures.abortedTaskId,
+    }, storage);
+    assert.equal(activity.calls(), callsBefore + 1, "the aborted upload must reach the upload service");
+    assert.equal(storage.calls(), 1, "the aborted upload must reach the storage adapter, or its cleanup proves nothing");
+    assert.ok(storage.chunks() > 0, "a chunk of the aborted upload must reach storage before the abort");
 
-  await eventuallyNoFileOrAttachmentForOriginalFilename("client-aborted-upload.txt");
-  await activity.settled("the aborted upload");
+    await eventuallyNoFileOrAttachmentForOriginalFilename("client-aborted-upload.txt");
+    await activity.settled("the aborted upload");
+  } finally {
+    storage.restore();
+  }
   await assertNoUnrecordedStoredFiles("client-aborted upload should not leave a partial local file");
 }
 
@@ -426,8 +439,11 @@ function sendMalformedMultipart(baseUrl, fixtures, options) {
   });
 }
 
-/** @param {string} baseUrl @param {HardeningFixtures} fixtures @param {{ filename: string, taskId: string }} options @returns {Promise<void>} */
-function abortMultipartUpload(baseUrl, fixtures, options) {
+/**
+ * @param {string} baseUrl @param {HardeningFixtures} fixtures @param {{ filename: string, taskId: string }} options
+ * @param {ReturnType<typeof observeStorageWrites>} storage @returns {Promise<void>}
+ */
+function abortMultipartUpload(baseUrl, fixtures, options, storage) {
   const boundary = `ltf-abort-${randomUUID()}`;
   const bodyStart = Buffer.from([
     multipartField(boundary, "moduleId", "tasks"),
@@ -441,7 +457,7 @@ function abortMultipartUpload(baseUrl, fixtures, options) {
 
   return new Promise((resolve, reject) => {
     const url = new URL("/api/files/upload", baseUrl);
-    let uploadStarted = false;
+    let storageReceived = false;
     let finished = false;
     /** @param {Error} [error] */
     const finish = (error) => {
@@ -450,9 +466,9 @@ function abortMultipartUpload(baseUrl, fixtures, options) {
       if (error) reject(error);
       else resolve(undefined);
     };
-    // The connection may end only after the server has started streaming the file to storage, when
-    // this client aborts it. An earlier error or close would leave the abort nothing to clean up.
-    const closed = () => finish(uploadStarted ? undefined : new Error("the aborted upload's connection ended before the upload reached storage"));
+    // The connection may end only after a chunk of the file has reached storage, when this client
+    // aborts it. An earlier error or close would leave the abort nothing to clean up.
+    const closed = () => finish(storageReceived ? undefined : new Error("the aborted upload's connection ended before the upload reached storage"));
     const request = http.request({
       headers: {
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -466,14 +482,14 @@ function abortMultipartUpload(baseUrl, fixtures, options) {
 
     request.on("error", closed);
     request.on("close", closed);
-    // Abort once the server is streaming the file to storage, never on a timer: a timer can fire
-    // before the server has parsed the file part, which leaves the abort nothing to clean up.
-    const started = activity.nextUploadStarted("the aborted upload");
+    // Abort once a chunk of the file has reached the storage adapter, never on a timer or on the
+    // service call: either can come before storage starts, which leaves the abort nothing to clean up.
+    const reached = storage.nextChunk("the aborted upload");
     request.write(bodyStart);
     request.write(Buffer.alloc(128 * 1024, "a"));
-    started.then(
+    reached.then(
       () => {
-        uploadStarted = true;
+        storageReceived = true;
         request.destroy(new Error("client aborted upload regression"));
       },
       (error) => {
@@ -641,8 +657,6 @@ function trackUploadActivity() {
   const original = filesService.uploadStreamAndAttach;
   /** @type {Set<Promise<void>>} */
   const pending = new Set();
-  /** @type {(() => void)[]} */
-  const startWaiters = [];
   let calls = 0;
   /** @param {Parameters<typeof original>} args */
   const tracked = (...args) => {
@@ -651,22 +665,11 @@ function trackUploadActivity() {
     const settled = call.then(() => undefined, () => undefined);
     pending.add(settled);
     void settled.then(() => pending.delete(settled));
-    for (const wake of startWaiters.splice(0)) wake();
     return call;
   };
   filesService.uploadStreamAndAttach = tracked;
   return {
     calls: () => calls,
-    /** @param {string} label @returns {Promise<void>} resolves when the next upload call starts */
-    nextUploadStarted(label) {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`timed out waiting for ${label} to reach storage`)), 10_000);
-        startWaiters.push(() => {
-          clearTimeout(timer);
-          resolve();
-        });
-      });
-    },
     /** @param {string} label */
     async settled(label) {
       const deadline = Date.now() + 10_000;
@@ -677,6 +680,52 @@ function trackUploadActivity() {
     },
     restore() {
       filesService.uploadStreamAndAttach = original;
+    },
+  };
+}
+
+/**
+ * The local storage adapter, observed. Each saveStream call is counted, and its stream passes
+ * through a transform that counts chunks and wakes any waiter at each one, so a test can wait for a
+ * file to reach storage itself. The real adapter still does the writing and the partial-file cleanup.
+ */
+function observeStorageWrites() {
+  const originalAdapter = filesService.getFileStorageAdapter("local");
+  let calls = 0;
+  let chunks = 0;
+  /** @type {(() => void)[]} */
+  const chunkWaiters = [];
+  filesService.registerFileStorageAdapter("local", {
+    ...originalAdapter,
+    saveStream(readable, options) {
+      calls += 1;
+      const observed = new Transform({
+        transform(chunk, _encoding, callback) {
+          chunks += 1;
+          callback(null, chunk);
+          for (const wake of chunkWaiters.splice(0)) wake();
+        },
+      });
+      // pipeline carries an error or a premature close through to the adapter, as the direct stream would.
+      pipeline(readable, observed, () => {});
+      return originalAdapter.saveStream(observed, options);
+    },
+  });
+  return {
+    calls: () => calls,
+    chunks: () => chunks,
+    /** @param {string} label @returns {Promise<void>} resolves when the next chunk reaches the storage adapter */
+    nextChunk(label) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`timed out waiting for ${label} to reach storage`)), 10_000);
+        chunkWaiters.push(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    },
+    restore() {
+      filesService.registerFileStorageAdapter("local", originalAdapter);
     },
   };
 }
