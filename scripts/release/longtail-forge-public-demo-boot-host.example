@@ -7,18 +7,26 @@ umask 077
 # The demo keeps Docker's `restart: no`, so that nothing starts before its isolation is in place.
 # This helper is its only restart owner: a root-owned unit runs it once each time Docker starts, so
 # after a host boot and after a Docker restart. Under the shared lifecycle lock it checks that a start
-# is safe, waits for its dependencies, enforces isolation before any container runs, starts the
-# recorded release behind the curtain, and verifies it. If an hourly reset boundary passed while the
-# demo was down, it runs a fresh reset before visitors are served; otherwise it lifts the curtain.
+# is safe, validates the complete resolved Compose profile, waits for its dependencies, enforces
+# isolation before any container runs, starts the recorded release behind the curtain, and verifies
+# it. If an hourly reset boundary passed while the demo was down, it runs a fresh reset before
+# visitors are served; otherwise it lifts the curtain.
+#
+# The boot owns the curtain from the moment it raises it. A delegated reset never lifts it, so
+# visitors are served only after the boot has verified a start and, when a boundary was missed, a
+# fresh baseline. A start that fails verification is stopped again, behind the curtain.
 #
 # It never pulls, upgrades, or rolls back, and it never creates an empty substitute database. Each
 # refusal raises its own alert class, and an edge or DNS failure never causes a reset or a rollback.
+# Check output is kept as evidence only after every known secret value is replaced, and a Compose
+# parser error is never kept, because it can quote a secret from the environment files.
 
 HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
 readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_DEMO_ISOLATION_HELPER|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
 readonly DEMO_TARGET='rt-ltf-demo'
 readonly DEMO_ORIGIN='https://demo.longtailforge.com'
 readonly DEMO_DATA_VOLUME='longtail-forge-public-demo-data'
+readonly DEMO_NETWORK='longtail-forge-public-demo-internal'
 readonly DEMO_BRIDGE='ltf-demo0'
 readonly OPERATOR_HOLD='/etc/longtail-forge/public-demo-hold'
 readonly RESET_HELPER='/usr/local/sbin/longtail-forge-public-demo-reset'
@@ -70,7 +78,7 @@ load_helper_environment() {
   done < "$HELPER_ENV"
 }
 
-for command in curl date docker flock grep install ip jq mktemp realpath stat timeout; do require_command "$command"; done
+for command in awk curl cut date docker flock grep head install ip jq mktemp realpath stat tail timeout; do require_command "$command"; done
 test "$(id -u)" = '0' || fail 'boot helper must run as root'
 test "${1:-}" = 'run' && test "$#" -eq 1 || fail 'command must be exactly: run'
 load_helper_environment
@@ -106,6 +114,51 @@ OPERATION_DIR="$BOOT_ROOT/$OPERATION_ID"
 install -d -o root -g root -m 0700 "$OPERATION_DIR"
 BOOT_STARTED="$(date -u +%s)"
 
+# Scratch space for what must never reach evidence: unredacted check output, and the resolved Compose
+# configuration, which carries the application's secrets. It is removed on every exit.
+WORK="$(mktemp -d /run/longtail-forge-public-demo-boot.XXXXXX)"
+chmod 0700 "$WORK"
+trap 'rm -rf -- "$WORK"' EXIT
+
+# Values that must never reach evidence: the secrets in the Compose host environment and in the
+# application environment file it names, and the demo role passwords. Every diagnostic passes
+# through this list before it is kept.
+APP_ENV_FILE="$(grep -E '^LONGTAIL_ENV_FILE=' "$COMPOSE_HOST_ENV" 2>/dev/null | head -n 1 | cut -d= -f2- || true)"
+SECRET_SOURCES=()
+for source in "$COMPOSE_HOST_ENV" "$APP_ENV_FILE"; do
+  if test -n "$source" && test -f "$source" && test ! -L "$source"; then SECRET_SOURCES+=("$source"); fi
+done
+: > "$WORK/redactions"
+if test "${#SECRET_SOURCES[@]}" -gt 0; then
+  awk -F= '$1 ~ /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL)/ && length($0) > length($1) + 1 { value = substr($0, length($1) + 2); gsub(/^["\047]|["\047]$/, "", value); print value }' \
+    "${SECRET_SOURCES[@]}" >> "$WORK/redactions"
+fi
+ROLE_CREDENTIALS="${LTF_DEMO_ROLE_CREDENTIALS:-}"
+if test -n "$ROLE_CREDENTIALS" && test -f "$ROLE_CREDENTIALS" && test ! -L "$ROLE_CREDENTIALS"; then
+  jq -r '.. | objects | .password? // empty | strings' "$ROLE_CREDENTIALS" >> "$WORK/redactions" 2>/dev/null || true
+fi
+
+# Keeps the last 64 KiB of one diagnostic file as evidence, with every listed secret replaced. Each
+# value is matched as literal text, never as a pattern.
+keep_redacted() {
+  local source="$1" target="$2"
+  if ! test -s "$source"; then
+    : > "$target"
+    return 0
+  fi
+  tail -c 65536 "$source" | awk -v listfile="$WORK/redactions" '
+    BEGIN { while ((getline line < listfile) > 0) if (length(line) >= 4) secrets[++count] = line }
+    {
+      text = $0
+      for (i = 1; i <= count; i++) {
+        out = ""
+        while ((at = index(text, secrets[i])) > 0) { out = out substr(text, 1, at - 1) "[redacted]"; text = substr(text, at + length(secrets[i])) }
+        text = out text
+      }
+      print text
+    }' > "$target"
+}
+
 record() {
   local phase="$1" outcome="${2:-}"
   jq -n --arg operationId "$OPERATION_ID" --arg phase "$phase" --arg outcome "$outcome" --arg target "$DEMO_TARGET" \
@@ -133,17 +186,26 @@ stop_with_alert() {
   exit "$exit_code"
 }
 
-# Runs one check in a subshell with errexit in force, keeping its output as evidence. It must not be
-# called under `||`, `&&`, `!`, or `if`: in those positions bash ignores errexit for everything the
-# check runs, even when the subshell sets it again. The outcome is left in CHECK_STATUS.
+# Runs one check in a subshell with errexit in force, keeping its redacted output as evidence. It must
+# not be called under `||`, `&&`, `!`, or `if`: in those positions bash ignores errexit for everything
+# the check runs, even when the subshell sets it again. The outcome is left in CHECK_STATUS.
 CHECK_STATUS=0
 run_check() {
   local name="$1"
   shift
   set +e
-  ( set -e; "$@" ) > "$OPERATION_DIR/$name.out" 2> "$OPERATION_DIR/$name.err"
+  ( set -e; "$@" ) > "$WORK/check.out" 2> "$WORK/check.err"
   CHECK_STATUS=$?
   set -e
+  keep_redacted "$WORK/check.out" "$OPERATION_DIR/$name.out"
+  keep_redacted "$WORK/check.err" "$OPERATION_DIR/$name.err"
+  rm -f -- "$WORK/check.out" "$WORK/check.err"
+}
+
+# The boot owns the curtain once it is raised. A delegated reset never lifts it, and whatever any
+# reset did with the marker, the boot puts it back before it reports a failure.
+ensure_curtain() {
+  test -f "$DEPLOYMENT_MARKER" || install -o root -g root -m 0644 /dev/null "$DEPLOYMENT_MARKER"
 }
 
 for helper in "$RESET_HELPER" "$ALERT_HELPER" "$PUBLIC_DEMO_ISOLATION_HELPER"; do
@@ -218,7 +280,11 @@ storage_is_intact() {
   test -s "$mountpoint/longtail-forge.db"
   test -d "$BACKUP_ROOT" && test ! -L "$BACKUP_ROOT"
   docker image inspect --format '{{.Id}}' "$IMAGE_REFERENCE" >/dev/null
-  compose config --quiet
+  # A parser error can quote a secret value from the environment files, so its output is never kept.
+  compose config --quiet >/dev/null 2>&1 || {
+    printf 'the resolved Compose configuration did not parse; its output is not kept because it can carry secrets\n' >&2
+    return 1
+  }
 }
 run_check storage-check storage_is_intact
 test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-storage-failed' 'demo-stopped' 7
@@ -227,10 +293,56 @@ if test -e "$MOUNTPOINT/.longtail-public-demo-reset-active.json"; then
   stop_with_alert 'boot-marker-present' 'demo-stopped' 4
 fi
 
-SCANNER_HOST="$(compose config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_HOST')"
-SCANNER_PORT="$(compose config --format json | jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_PORT')"
-NETWORK="$(compose config --format json | jq -er '. as $root | (.services["longtail-forge"].networks | keys[0]) as $key | $root.networks[$key].name')"
-[[ "$SCANNER_HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || stop_with_alert 'boot-storage-failed' 'demo-stopped' 7
+# The complete resolved profile, before anything starts: exactly the one application service, the
+# recorded image, the one isolated network, exactly the demo's data volume and backup bind, loopback
+# publication, and the exact production public-demo environment with no undeclared key. The running
+# container is checked again by the isolation helper, but by then it exists; this refuses drift first.
+record 'validating-profile'
+profile_is_exact() {
+  compose config --format json > "$WORK/resolved.json" 2>/dev/null || {
+    printf 'the resolved Compose configuration could not be read\n' >&2
+    return 1
+  }
+  jq -e --arg image "$IMAGE_REFERENCE" --arg network "$DEMO_NETWORK" --arg volume "$DEMO_DATA_VOLUME" \
+    --arg backup "$BACKUP_ROOT" --arg origin "$DEMO_ORIGIN" '
+    def declared_key: test("^(DEMO_MODE|HOST|PORT|TRUST_PROXY|WORKSPACE_INSTALL_MODE|WORKSPACE_TYPE_LIMIT|SUPER_ADMIN_(DISPLAY_NAME|PASSWORD|USERNAME)|LONGTAIL_(AUTH_[A-Z0-9_]+|CLAMD_HOST|CLAMD_PORT|DATA_DIR|DATABASE_FILE|DATABASE_PROVIDER|DEPLOYMENT_MODE|ENV|FILE_SCANNER|HSTS_MAX_AGE_SECONDS|JOB_[A-Z0-9_]+|LOCAL_STORAGE_ROOT|LOG_LEVEL|PUBLIC_URL|RELEASE_[A-Z0-9_]+|PUBLIC_DEMO_(CLIENT_REQUEST_LIMIT|GLOBAL_REQUEST_LIMIT|MAX_BODY_BYTES|MUTATION_LIMIT|PERIMETER_WINDOW_SECONDS|SEARCH_LIMIT)|SECURE_NOTES_KEY_VERSION|SECURE_NOTES_MASTER_KEY|SESSION_[A-Z0-9_]+|SQLITE_[A-Z0-9_]+|STORAGE_PROVIDER|SUPPORT_VIEW_ENABLED|SUPPORT_VIEW_TTL_SECONDS|WORKER_[A-Z0-9_]+|WORKSPACE_BACKUP_ROOT))$");
+    . as $root
+    | (.services | keys) == ["longtail-forge"]
+    and (.services["longtail-forge"] |
+      .image == $image
+      and .restart == "no"
+      and (has("network_mode") | not)
+      and ((.privileged // false) == false)
+      and .read_only == true
+      and .dns == ["127.0.0.1"]
+      and (.networks | type == "object" and length == 1)
+      and ((.networks | keys[0]) as $key | $root.networks[$key].name == $network and $root.networks[$key].external == true)
+      and (.volumes | length == 2)
+      and any(.volumes[]; .type == "volume" and .target == "/var/lib/longtail-forge" and $root.volumes[.source].name == $volume and ((.read_only // false) == false))
+      and any(.volumes[]; .type == "bind" and .source == $backup and .target == "/var/backups/longtail-forge" and ((.read_only // false) == false))
+      and (.ports | length == 1 and .[0].host_ip == "127.0.0.1" and (.[0].published | tostring) == "8001" and .[0].target == 8001)
+      and .logging.driver == "local" and .logging.options["max-size"] == "10m" and .logging.options["max-file"] == "7"
+      and (.environment | keys | all(declared_key))
+      and (.environment |
+        .DEMO_MODE == "true" and .LONGTAIL_ENV == "production" and .LONGTAIL_DEPLOYMENT_MODE == "compose"
+        and .LONGTAIL_PUBLIC_URL == $origin and .LONGTAIL_DATABASE_PROVIDER == "sqlite" and .LONGTAIL_STORAGE_PROVIDER == "local"
+        and .LONGTAIL_FILE_SCANNER == "clamd" and (.LONGTAIL_CLAMD_HOST | test("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"))
+        and (.LONGTAIL_CLAMD_PORT | test("^[0-9]+$")) and .LONGTAIL_WORKER_MODE == "inline" and .LONGTAIL_SUPPORT_VIEW_ENABLED == "false"
+        and .LONGTAIL_DATA_DIR == "/var/lib/longtail-forge" and .LONGTAIL_DATABASE_FILE == "/var/lib/longtail-forge/longtail-forge.db"
+        and .LONGTAIL_LOCAL_STORAGE_ROOT == "/var/lib/longtail-forge/files"
+        and .LONGTAIL_WORKSPACE_BACKUP_ROOT == "/var/backups/longtail-forge/workspaces"))
+  ' "$WORK/resolved.json" >/dev/null || {
+    printf 'the resolved Compose profile is not the exact isolated public demo\n' >&2
+    return 1
+  }
+}
+run_check profile-check profile_is_exact
+test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-profile-invalid' 'demo-stopped' 11
+
+SCANNER_HOST="$(jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_HOST' "$WORK/resolved.json")"
+SCANNER_PORT="$(jq -er '.services["longtail-forge"].environment.LONGTAIL_CLAMD_PORT' "$WORK/resolved.json")"
+NETWORK="$DEMO_NETWORK"
+SQLITE_SERVICES=(longtail-forge)
 bridge_has_gateway() {
   docker network inspect "$NETWORK" >/dev/null && ip -4 -o addr show dev "$DEMO_BRIDGE" | grep -Fq " $SCANNER_HOST/"
 }
@@ -281,14 +393,19 @@ test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-start-failed' 'demo-stopped'
 record 'curtained'
 test -d "$(dirname "$DEPLOYMENT_MARKER")" && test ! -L "$(dirname "$DEPLOYMENT_MARKER")" || stop_with_alert 'boot-start-failed' 'demo-stopped' 8
 install -o root -g root -m 0644 /dev/null "$DEPLOYMENT_MARKER"
-mapfile -t SQLITE_SERVICES < <(compose config --services | grep -E '^longtail-forge(-worker)?$')
 start_and_verify() {
-  compose up -d --no-deps --force-recreate "${SQLITE_SERVICES[@]}"
+  compose up -d --no-deps --force-recreate --pull never "${SQLITE_SERVICES[@]}"
   verify_direct_identity
 }
 record 'starting'
 run_check start start_and_verify
-test "$CHECK_STATUS" -eq 0 || stop_with_alert 'boot-start-failed' 'maintenance-curtain-retained' 9
+if test "$CHECK_STATUS" -ne 0; then
+  # A container that failed its health, identity, or isolation proof must not keep running, even
+  # behind the curtain, so whatever started is stopped again.
+  record 'stopping-unverified'
+  run_check stop-unverified compose stop "${SQLITE_SERVICES[@]}"
+  stop_with_alert 'boot-start-failed' 'maintenance-curtain-retained' 9
+fi
 record 'started'
 
 # 5. Baseline policy: a missed hourly boundary means a fresh reset before visitors are served.
@@ -306,18 +423,26 @@ RESET_OUTCOME='not-required'
 if test -z "$LATEST_COMPLETED" || [[ "$LATEST_COMPLETED" < "$LAST_BOUNDARY" ]]; then
   record 'resetting' 'missed-boundary'
   # The reset inherits descriptor 9, this boot's hold on the lifecycle lock, so no timer run can
-  # slip in between the start and the fresh baseline. It lifts the curtain when it succeeds.
-  if "$RESET_HELPER" reset --target "$DEMO_TARGET" --anchor-date today --operation-id "$OPERATION_ID" \
-    --confirm "$RESET_CONFIRMATION" > "$OPERATION_DIR/reset.out" 2> "$OPERATION_DIR/reset.err"; then
-    RESET_OUTCOME='fresh-baseline'
-  elif grep -Fq 'prior unit was restored and verified' "$OPERATION_DIR/reset.err"; then
-    stop_with_alert 'boot-reset-failed' 'prior-unit-healthy' 10
-  else
+  # slip in between the start and the fresh baseline. It runs as the boot's delegate: it leaves the
+  # curtain to the boot, even after restoring the prior unit, and verifies the direct runtime only.
+  set +e
+  "$RESET_HELPER" reset --target "$DEMO_TARGET" --anchor-date today --operation-id "$OPERATION_ID" \
+    --caller boot --confirm "$RESET_CONFIRMATION" > "$WORK/reset.out" 2> "$WORK/reset.err"
+  RESET_STATUS=$?
+  set -e
+  keep_redacted "$WORK/reset.out" "$OPERATION_DIR/reset.out"
+  keep_redacted "$WORK/reset.err" "$OPERATION_DIR/reset.err"
+  if test "$RESET_STATUS" -ne 0; then
+    # A failed fresh reset never serves visitors, not even a prior unit it restored and verified.
+    ensure_curtain
+    if grep -Fq 'prior unit was restored and verified' "$WORK/reset.err"; then
+      stop_with_alert 'boot-reset-failed' 'prior-unit-healthy-curtain-retained' 10
+    fi
     stop_with_alert 'boot-reset-failed' 'maintenance-curtain-retained' 10
   fi
-else
-  rm -f -- "$DEPLOYMENT_MARKER"
+  RESET_OUTCOME='fresh-baseline'
 fi
+rm -f -- "$DEPLOYMENT_MARKER"
 record 'serving' "$RESET_OUTCOME"
 
 # 6. Public availability is reported on its own. It never causes a reset, a rollback, or a failure.

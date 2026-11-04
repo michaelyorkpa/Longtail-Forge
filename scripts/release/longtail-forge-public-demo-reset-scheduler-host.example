@@ -84,7 +84,7 @@ append_event() {
     --arg semanticFingerprint "$fingerprint" --arg health "$health" \
     --arg failureClass "$failure_class" --arg recoveryStatus "$recovery_status" \
     --arg alertOutcome "$alert_outcome" --arg heartbeatOutcome "$heartbeat_outcome" \
-    '{contract:"longtail-forge-public-demo-reset-scheduler-v1",event:$event,target:"rt-ltf-demo",trigger:$trigger,operationId:$operationId,scheduledBoundary:(if $scheduledBoundary == "" then null else $scheduledBoundary end),outcome:$outcome,lockOutcome:$lockOutcome,durationMs:$durationMs,semanticFingerprint:(if $semanticFingerprint == "" then null else $semanticFingerprint end),health:$health,failureClass:(if $failureClass == "" then null else $failureClass end),rollbackStatus:(if $recoveryStatus == "prior-unit-healthy" then "prior-unit-restored" elif $recoveryStatus == "maintenance-curtain-retained" then "failed" else $recoveryStatus end),recoveryStatus:$recoveryStatus,alertOutcome:$alertOutcome,heartbeatOutcome:$heartbeatOutcome}')"
+    '{contract:"longtail-forge-public-demo-reset-scheduler-v1",event:$event,target:"rt-ltf-demo",trigger:$trigger,operationId:$operationId,scheduledBoundary:(if $scheduledBoundary == "" then null else $scheduledBoundary end),outcome:$outcome,lockOutcome:$lockOutcome,durationMs:$durationMs,semanticFingerprint:(if $semanticFingerprint == "" then null else $semanticFingerprint end),health:$health,failureClass:(if $failureClass == "" then null else $failureClass end),rollbackStatus:(if $recoveryStatus == "prior-unit-healthy" or $recoveryStatus == "prior-unit-healthy-curtain-retained" then "prior-unit-restored" elif $recoveryStatus == "maintenance-curtain-retained" then "failed" else $recoveryStatus end),recoveryStatus:$recoveryStatus,alertOutcome:$alertOutcome,heartbeatOutcome:$heartbeatOutcome}')"
   exec 8<>"$LOG_PATH.lock"
   flock 8
   printf '%s\n' "$record" >> "$LOG_PATH"
@@ -203,6 +203,12 @@ if test "$RESET_STATUS" -eq 75; then
   LOCK_OUTCOME='contended'
   FAILURE_CLASS='lifecycle-lock-contended'
   RECOVERY_STATUS='not-started'
+elif grep -Fq 'prior unit was restored and verified behind the retained maintenance curtain' "$RUN_ROOT/reset.err"; then
+  # A reset that started a stopped app keeps its curtain even after restoring the prior unit.
+  LOCK_OUTCOME='acquired'
+  FAILURE_CLASS='reset-failed-recovered'
+  RECOVERY_STATUS='prior-unit-healthy-curtain-retained'
+  HEALTH='curtained'
 elif grep -Fq 'prior unit was restored and verified' "$RUN_ROOT/reset.err"; then
   LOCK_OUTCOME='acquired'
   FAILURE_CLASS='reset-failed-recovered'

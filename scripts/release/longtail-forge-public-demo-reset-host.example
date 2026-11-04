@@ -126,12 +126,14 @@ TARGET=''
 ANCHOR_DATE=''
 CONFIRM=''
 REQUESTED_OPERATION_ID=''
+CALLER=''
 declare -A SEEN_ARGS=()
 while test "$#" -gt 0; do
   case "$1" in
     --target) key=target; TARGET="${2:-}" ;;
     --anchor-date) key=anchor; ANCHOR_DATE="${2:-}" ;;
     --operation-id) key=operation; REQUESTED_OPERATION_ID="${2:-}" ;;
+    --caller) key=caller; CALLER="${2:-}" ;;
     --confirm) key=confirm; CONFIRM="${2:-}" ;;
     *) fail "unknown argument: $1" ;;
   esac
@@ -148,6 +150,19 @@ if test "$ANCHOR_DATE" = 'today'; then ANCHOR_DATE="$(date -u +%F)"; fi
 test "$(date -u -d "$ANCHOR_DATE" +%F 2>/dev/null)" = "$ANCHOR_DATE" || fail 'anchor date is not a real calendar date'
 # An operator who stopped the demo deliberately holds it stopped: a reset would start it again.
 if test -e "$OPERATOR_HOLD" || test -L "$OPERATOR_HOLD"; then fail 'an operator hold is in place; remove it to resume resets'; fi
+
+# A boot-delegated reset runs behind the curtain the boot raised, and the boot owns it: this reset
+# never lifts it, even after restoring the prior unit, and verifies the direct runtime only, because
+# the boot reports public availability on its own and an edge failure must never cause a recovery.
+test -z "$CALLER" || test "$CALLER" = 'boot' || fail 'caller must be boot when it is supplied'
+if test "$CALLER" = 'boot'; then
+  test -f "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" || fail "a boot-delegated reset requires the boot's curtain"
+fi
+# Whether a recovery that restores and verifies the prior unit may lift the curtain. Not for the
+# boot's delegate, and not once this reset has started a stopped app: the unit it would serve is the
+# stale one the demo was down with, so the curtain stays up until a fresh baseline passes.
+LIFT_CURTAIN_ON_RECOVERY=true
+if test "$CALLER" = 'boot'; then LIFT_CURTAIN_ON_RECOVERY=false; fi
 
 if test -n "$REQUESTED_OPERATION_ID"; then
   [[ "$REQUESTED_OPERATION_ID" =~ ^[0-9]{8}T[0-9]{6}Z-(scheduled|manual|boot)-[0-9]+$ ]] \
@@ -248,8 +263,10 @@ public_demo_isolation() {
   "$PUBLIC_DEMO_ISOLATION_HELPER" "${arguments[@]}" >/dev/null
 }
 
-compose config --quiet
-compose config --format json | jq -e --arg origin "$DEMO_ORIGIN" '
+# A parser error can quote a secret value from the environment files, so its output is never kept.
+compose config --quiet >/dev/null 2>&1 \
+  || fail 'the resolved Compose configuration did not parse; its output is not kept because it can carry secrets'
+compose config --format json 2>/dev/null | jq -e --arg origin "$DEMO_ORIGIN" '
   .services["longtail-forge"].environment |
     .LONGTAIL_ENV == "production" and
     .DEMO_MODE == "true" and
@@ -321,7 +338,7 @@ stop_sqlite_users() {
 }
 
 start_sqlite_users() {
-  compose up -d --no-deps --force-recreate "${SQLITE_SERVICES[@]}"
+  compose up -d --no-deps --force-recreate --pull never "${SQLITE_SERVICES[@]}"
   local service container
   for service in "${SQLITE_SERVICES[@]}"; do
     container="$(compose ps -q "$service")"
@@ -370,14 +387,16 @@ verify_runtime() {
   artifact="$(state_value "$CURRENT_STATE" '.artifact.sha256')"
   wait_for_health || return 1
   public_demo_isolation check "$(compose ps -q longtail-forge)" || return 1
-  curl --fail --silent --show-error http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
-  curl --fail --silent --show-error http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
-  curl --fail --silent --show-error http://127.0.0.1:8001/api/app-info | jq -e \
+  curl --fail --silent --show-error --max-time 15 http://127.0.0.1:8001/healthz | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time 15 http://127.0.0.1:8001/readyz | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time 15 http://127.0.0.1:8001/api/app-info | jq -e \
     --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
     '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null || return 1
-  curl --fail --silent --show-error "$PUBLIC_URL/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
-  curl --fail --silent --show-error "$PUBLIC_URL/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
-  curl --fail --silent --show-error "$PUBLIC_URL/api/app-info" | jq -e \
+  # The boot's delegate stops at the direct runtime: the boot reports the public edge separately.
+  test "$CALLER" != 'boot' || return 0
+  curl --fail --silent --show-error --max-time 15 "$PUBLIC_URL/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time 15 "$PUBLIC_URL/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
+  curl --fail --silent --show-error --max-time 15 "$PUBLIC_URL/api/app-info" | jq -e \
     --arg version "$version" --arg commit "$commit" --arg artifact "$artifact" \
     '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null
 }
@@ -433,17 +452,18 @@ app_running() {
 
 # The protected start a reset runs when it finds the app stopped, as after a host restart. Isolation
 # is already enforced; the curtain goes up, the current release starts, and its identity and
-# isolation are verified before the curtain lifts. It never pulls, upgrades, or rolls back.
+# isolation are verified. The curtain stays up until this reset's fresh baseline passes, so a reset
+# that fails afterwards never serves the stale unit it started. It never pulls, upgrades, or rolls back.
 start_stopped_app() {
   assert_marker
   start_sqlite_users
   verify_runtime
-  clear_marker
 }
 
 RECOVERY_ARMED=false
 RECOVERY_RUNNING=false
 START_ARMED=false
+APP_STARTED_BY_RESET=false
 recover_on_exit() {
   local status="$1"
   cleanup_session_material
@@ -451,6 +471,14 @@ recover_on_exit() {
     trap - EXIT HUP INT TERM
     record_phase 'unrecovered' 'maintenance-curtain-retained'
     printf 'longtail-forge-public-demo-reset: the stopped app could not be started and verified; maintenance curtain and protected evidence remain\n' >&2
+    exit "$status"
+  fi
+  # A failure after this reset started a stopped app, but before its own recovery was armed, leaves
+  # that app behind the curtain it raised.
+  if test "$status" -ne 0 && test "$APP_STARTED_BY_RESET" = true && test "$RECOVERY_ARMED" = false; then
+    trap - EXIT HUP INT TERM
+    record_phase 'failed' 'maintenance-curtain-retained'
+    printf 'longtail-forge-public-demo-reset: reset failed after it started the stopped app; maintenance curtain and protected evidence remain\n' >&2
     exit "$status"
   fi
   test "$status" -ne 0 && test "$RECOVERY_ARMED" = true && test "$RECOVERY_RUNNING" = false || return "$status"
@@ -473,9 +501,14 @@ recover_on_exit() {
   fi
   begin_step recovery-start-and-verify
   if test "$recovery_ready" = true && start_sqlite_users && verify_runtime; then
-    clear_marker
-    record_phase 'recovered' 'prior-unit-healthy'
-    printf 'longtail-forge-public-demo-reset: reset failed; prior unit was restored and verified\n' >&2
+    if test "$LIFT_CURTAIN_ON_RECOVERY" = true; then
+      clear_marker
+      record_phase 'recovered' 'prior-unit-healthy'
+      printf 'longtail-forge-public-demo-reset: reset failed; prior unit was restored and verified\n' >&2
+    else
+      record_phase 'recovered' 'prior-unit-healthy-curtain-retained'
+      printf 'longtail-forge-public-demo-reset: reset failed; prior unit was restored and verified behind the retained maintenance curtain\n' >&2
+    fi
   else
     record_phase 'unrecovered' 'maintenance-curtain-retained'
     printf 'longtail-forge-public-demo-reset: reset and automatic recovery failed; maintenance curtain and protected evidence remain\n' >&2
@@ -494,7 +527,7 @@ if test "$(jq -r '.active' "$OPERATION_DIR/initial-inspect.json")" = true; then
   step recover-interrupted run_activation recover "$OPERATION_DIR/interrupted-recovery.json"
   step start-recovered start_sqlite_users
   step verify-recovered verify_runtime
-  clear_marker
+  if test "$LIFT_CURTAIN_ON_RECOVERY" = true; then clear_marker; fi
   RECOVERY_ARMED=false
   record_phase 'recovered-interrupted' 'rerun-required'
   fail 'an interrupted reset was recovered and verified; rerun the reset deliberately'
@@ -503,13 +536,13 @@ fi
 # No operation is active, so a candidate or partial build left by an earlier operation is stale:
 # activation never began, or recovery would have found its marker. Move it into failed evidence.
 step quarantine-stale run_activation quarantine-stale "$OPERATION_DIR/stale-candidate.json"
-APP_STARTED_BY_RESET=false
 if ! app_running; then
   record_phase 'starting-stopped-app'
   START_ARMED=true
   step start-stopped-app start_stopped_app
   START_ARMED=false
   APP_STARTED_BY_RESET=true
+  LIFT_CURTAIN_ON_RECOVERY=false
   record_phase 'started-stopped-app'
 fi
 
@@ -534,7 +567,8 @@ step verify-old-session-rejected verify_old_session_rejected
 step verify-representative-role verify_representative_role
 record_phase 'verified'
 step finalize run_activation finalize "$OPERATION_DIR/finalize.json"
-clear_marker
+# The boot lifts its own curtain once this reset reports success.
+if test "$CALLER" != 'boot'; then clear_marker; fi
 RECOVERY_ARMED=false
 record_phase 'completed' 'baseline-healthy'
 

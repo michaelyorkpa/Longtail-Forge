@@ -636,7 +636,7 @@ async function qualifyBootAfterDockerRestart(work, host, candidate, api, scanner
 
   const phases = fs.readFileSync(path.join(bootRoot, operation, "steps.jsonl"), "utf8").trim().split("\n")
     .map((line) => /** @type {{ phase: string }} */ (JSON.parse(line)).phase);
-  const order = ["checking-preconditions", "waiting-for-docker", "validating-storage", "waiting-for-bridge", "waiting-for-scanner", "enforcing-isolation", "curtained", "starting", "started", "resetting", "serving", "completed"];
+  const order = ["checking-preconditions", "waiting-for-docker", "validating-storage", "validating-profile", "waiting-for-bridge", "waiting-for-scanner", "enforcing-isolation", "curtained", "starting", "started", "resetting", "serving", "completed"];
   for (let index = 1; index < order.length; index += 1) {
     assert.ok(phases.indexOf(order[index - 1]) < phases.indexOf(order[index]), `boot phase ${order[index - 1]} must precede ${order[index]}: ${phases.join(", ")}`);
   }
@@ -645,7 +645,7 @@ async function qualifyBootAfterDockerRestart(work, host, candidate, api, scanner
   const scannerWait = dependencies.find((entry) => entry.dependency === "scanner");
   assert.ok(scannerWait && scannerWait.outcome === "available" && scannerWait.attempts > 1, `the boot must have waited for the delayed scanner: ${JSON.stringify(dependencies)}`);
 
-  assert.equal(fs.existsSync(host.marker), false, "the fresh reset must lift the curtain");
+  assert.equal(fs.existsSync(host.marker), false, "the boot must lift its curtain once the fresh baseline passes");
   await api.expectIdentity(candidate);
   assertDemoIsolation(host);
   await api.expectList(await api.login(visitor), visitorList.listId, 404);
