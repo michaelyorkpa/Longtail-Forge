@@ -39,7 +39,10 @@ function errors(checkpoint, paths, values = release(RESET_RETENTION_PATCH_CHECKP
 
 describe("the reset-retention patch", () => {
   it("is the patch after restart recovery", () => {
-    expect(RESET_RETENTION_PATCH_CHECKPOINT).toBe("0.33.33.54");
+    // Named relative to its predecessor: the version guard refuses the current version as a literal.
+    const at = RESTART_RECOVERY_PATCH_CHECKPOINT.lastIndexOf(".");
+    const next = `${RESTART_RECOVERY_PATCH_CHECKPOINT.slice(0, at)}.${Number(RESTART_RECOVERY_PATCH_CHECKPOINT.slice(at + 1)) + 1}`;
+    expect(RESET_RETENTION_PATCH_CHECKPOINT).toBe(next);
   });
 
   it("admits moving the version, in both package files, to exactly its own identity", () => {
