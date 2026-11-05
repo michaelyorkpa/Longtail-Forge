@@ -61,6 +61,9 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
   - **Why it does not reach users:** `minimatch` is development-only, and is absent from the image. An attacker must supply the glob, and ESLint reads only this repository's own configured globs. `release.dependency-baseline` fails if it ever reaches the runtime graph.
   - **Owner:** whoever next upgrades ESLint. Take the fix when ESLint allows `minimatch` 11.
   - **Consequence:** `npm audit` reports four moderate entries, all this one advisory through ESLint's graph. The production audit reports none.
+- **The promotion's backup drill runs from source, not from the promotion payload.** In `.github/workflows/promotion.yml`, the `backup-recovery` job runs `npm run backup:drill` from the checked-out source. Only the artifact and container recovery jobs use the payload. `docs/development/github-workflow.md` already says so. Codex noted it, as a low finding that predates that promotion, in its review of the restart-recovery patch's promotion.
+  - **Owner:** the promotion workflow.
+  - **Consequence:** a defect present only in the payload's backup tooling would pass the drill.
 - **`task-dialog-context-consumers` and `notes-editor-lifecycle` are intermittent.** Neither has been diagnosed.
   - **On 2026-11-02:** both passed on retry in the dependency fold's browser run, on Playwright 1.64.1. `task-dialog-context-consumers` needed a retry on both desktop and mobile.
   - **On 2026-10-24:** both also passed on retry, on Playwright 1.62.1, so the Playwright update did not cause them.
@@ -94,10 +97,11 @@ These patches to `v0.33.33` ship in order, each with its own release identity. T
 Scope:
 
 - [ ] **The live-data check.** The `active` verification still checks the served unit's database, Files root, and marker. Its link and forbidden-value scans, however, read only the active unit's own entries.
-- [ ] **Retention policy.** Fixed, reviewed constants, with no new setting. The operator approved it on 2026-10-14.
+- [ ] **Retention policy.** Fixed, reviewed constants, with no new setting. The operator approved it on 2026-10-14. On 2026-11-05 they cut backup retention from 24 operations to 2, because nothing reads a completed reset's copies again, and each copy holds visitor-entered content.
   - **Retired units:** keep those of the 2 newest completed operations.
-  - **Pre-reset backups:** keep those of the 24 newest completed operations, with their sidecars.
-  - **Operation evidence:** keep the 168 newest completed operations, seven days, the scheduler log's window.
+  - **Pre-reset backups:** keep those of the 2 newest completed operations, with their sidecars.
+  - **Operation evidence:** keep the 168 newest completed operations, seven days, the scheduler log's window. It holds no visitor-entered content; see "Evidence without visitor content".
+  - **How long visitor-entered content persists.** In the live demo, until the next hourly reset. In the retired unit and the pre-reset backup, until two more resets complete. That is at most about three hours after it was entered.
   - **Incident evidence is never removed automatically.** That covers any operation whose phase is not `completed`, or whose state is missing or unreadable, with its backup and any failed unit.
   - **Never touched:** the active unit, the candidate, and the active-operation marker; any other backup; the state and release records; and the scheduler log.
   - **Selection is by count,** ordered by the operation identity's UTC timestamp.
@@ -106,14 +110,16 @@ Scope:
   - refuses while an active-operation marker exists;
   - considers only real `.longtail-public-demo-previous-<operation>` directories whose `reset-operation.json` records a valid completed operation;
   - checks each removal's exact shape and the absence of links, and removes nothing if any check fails;
-  - renames each removal to a tombstone before deleting it;
-  - never touches failed evidence.
+  - renames each removal to a tombstone before deleting it, and completes any tombstone an interrupted run left;
+  - never touches failed evidence;
+  - in `--mode plan`, reports the same selection and changes nothing; with `--max-removals`, removes nothing when the selection is larger.
 - [ ] **Host retention.** The reset helper gains three things:
-  - **An automatic step,** after `completed`, under the lock. If the removal set exceeds three of any kind, it removes nothing and reports why.
-  - **`retention plan` and `retention apply`.** `retention plan` is read-only. `retention apply --confirm 'PRUNE RT-LTF-DEMO RESET HISTORY'` is supervised, uncapped, and takes the lock.
-  - **Safety.** It builds exact names from operation identities, refuses links and anything not owned by root, and removes an archive before its sidecar. It records `retention.json`, and adds a `retention` summary to the reset's final line.
-- [ ] **Failure handling.** A retention failure never fails or rolls back a completed reset. The scheduler logs `succeeded` with failure class `retention-failed`, and raises the Discord alert.
-- [ ] **Documentation.** The operations guide and the runbook give the policy, the supervised backlog procedure, and how to dispose of incident evidence. `DECISIONS.md` records how long visitor-entered content persists.
+  - **An automatic step,** after `completed` and after the curtain lifts, under the lock. If the removal set exceeds three of any kind, it removes nothing and reports why. A boot-delegated reset skips it, so the boot's curtain lifts sooner; the next hourly reset prunes.
+  - **`retention plan` and `retention apply`.** `retention plan` is read-only. `retention apply --confirm 'PRUNE RT-LTF-DEMO RESET HISTORY'` is supervised, uncapped, and takes the lock. Each records its result under `demo-retention-operations/`.
+  - **Safety.** It builds exact names from operation identities and refuses links. Evidence must be owned by root; a backup and its sidecar by the backup root's owner, the container user. It removes an archive before its sidecar, and an evidence directory through a tombstone. It records `retention.json`, and adds a `retention` summary to the reset's final line.
+- [ ] **Evidence without visitor content.** The pre-reset login keeps only its status code. Its response body is the shared demo account's profile as the reset found it, which visitors may have changed. The reset's later reads run against the fresh baseline.
+- [ ] **Failure handling.** A retention failure never fails or rolls back a completed reset. The scheduler logs `succeeded` with failure class `retention-failed`, still sends the heartbeat, and raises the Discord alert, which accepts that class.
+- [ ] **Documentation.** The operations guide and the runbook give the policy, the supervised backlog procedure, and how to dispose of incident evidence. `DECISIONS.md` records how long visitor-entered content persists: at most about three hours, outside incident evidence. 0.33.34's privacy notices cite that record.
 
 Acceptance criteria:
 
@@ -121,7 +127,7 @@ Acceptance criteria:
   - the `prune` action: its kept and removed sets, its refusals, and tombstone completion and idempotence;
   - the live-data check ignoring a forbidden value placed in a retained prior unit, while still catching one in the active unit.
 - [ ] **The executable harness** covers `plan`, `apply`, the automatic step and its cap, incident evidence and non-demo backups left untouched, orphaned files and refused links, and lock contention.
-- [ ] **The native lifecycle qualification** seeds synthetic history, then proves the exact kept set, and that `plan` changes nothing.
+- [ ] **The native lifecycle qualification** seeds synthetic history, then proves the exact kept set, and that `plan` changes nothing. It also enters a distinctive value in the live demo before a reset, and proves that no evidence file holds it afterwards.
 - [ ] **Seeded defects** in selection, ordering, the cap, the incident rule, and the scan scope are each caught.
 - [ ] **On the demo,** operator-run under separate authorization:
   1. review `retention plan`;
@@ -138,9 +144,9 @@ Out of scope:
 
 ### 0.33.33.55 - Preview data durability on power loss
 
-**Model: High Effort** — It sets how much acknowledged real data a power cut may lose, changes the preview's durability setting, and adds scheduled backups. A wrong setting silently loses writes, and a wrong schedule or retention loses recovery points.
+**Model: High Effort** — It sets how much acknowledged real data a power cut may lose, changes the durability setting on both deployments, and adds scheduled backups. A wrong setting silently loses writes, and a wrong schedule or retention loses recovery points.
 
-**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation.
+**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation. The operator settled them on 2026-11-05, except which server receives the off-server copies; see Decisions.
 
 **Why.**
 - **The outage.** On 2026-10-14 the power was out for over an hour. The UPS bridges only short outages, and it is not connected to the server for any shutdown signal. It stays that way until the deployment moves off-site, so a long outage is a hard power cut.
@@ -149,36 +155,43 @@ Out of scope:
 
 Proposed scope:
 
-- [ ] **Acknowledged-write durability on the preview.** Set `LONGTAIL_SQLITE_SYNCHRONOUS=full`. The setting already exists, and startup verifies it.
+- [ ] **Acknowledged-write durability everywhere.** Set `LONGTAIL_SQLITE_SYNCHRONOUS=full` on the preview and the demo. The setting already exists, and startup verifies it.
   - **First,** measure its write cost on the real ZFS-in-LXC stack.
-  - **The demo** keeps `normal`, because it resets hourly, unless the operator prefers one setting everywhere.
+  - **The shipped default becomes `full`** for new installs: the configuration default, `.env.example`, the runtime-configuration guide, and `DECISIONS.md`'s WAL default. `normal` stays available.
 - [ ] **Storage that honors flushes.**
   - **A read-only check** that the guest's ZFS dataset has `sync=standard`. A value of `disabled` silently ignores every flush.
   - **The disk.** Record whether it is safe across power loss.
   - **Changes** to Proxmox or ZFS stay the operator's.
 - [ ] **Scheduled backups,** pulled forward from 0.38.4 in their minimal form. A host timer for Compose installs:
   - runs the existing whole-instance backup under the shared lifecycle lock, and inspects it;
-  - keeps a fixed number of scheduled backups. It never deletes the newest valid one, or any backup it did not schedule;
+  - runs nightly, and keeps the 14 newest scheduled backups. It never deletes the newest valid one, or any backup it did not schedule;
   - alerts on failure through the restart-recovery patch's Discord alert, and sends a heartbeat on success.
 - [ ] **An off-server copy.**
-  - **The mechanism.** A documented, admin-chosen destination, reached through a post-backup copy hook that copies only inspected archives and their checksums.
-  - **What stays later.** Remote and encrypted managed destinations stay in 0.38.4.
+  - **The mechanism.** A documented, admin-chosen destination, reached through a post-backup copy hook that copies only inspected archives and their checksums. The checksum is verified again at the destination.
+  - **The first destination** is one of the operator's existing servers.
+  - **What stays later.** Remote, S3-compatible, and encrypted managed destinations stay in 0.38.4.
 - [ ] **A restore drill.** Restore a scheduled backup into a disposable instance, and prove database and Files consistency.
 
-Decisions needed, the operator's:
+Decisions:
 
-- **The preview's recovery point objective.** The recommendation:
-  - no acknowledged write lost to a power cut, which means `full`;
-  - for disk or server loss, at most one backup interval.
-- **The setting's reach:** `full` on the preview only, or everywhere.
-- **The schedule.** How often to back up, and how many backups to keep. The recommendation is nightly, keeping 14.
-- **The off-server destination** for the preview's backups.
+All decided by the operator on 2026-11-05, except where noted.
+
+- **The preview's recovery point objective.**
+  - **A power cut:** no acknowledged write lost, which follows from `full`.
+  - **Disk or server loss:** at most one backup interval, so up to a day with nightly backups.
+- **The setting's reach: everywhere,** for "the utmost of data security": `full` on the preview and the demo, and as the shipped default for new installs.
+- **The schedule: nightly, keeping 14.**
+- **The off-server destination:** one of the operator's existing servers. **Still open:** which one, chosen when this patch starts. It should:
+  - run on a different physical machine from the preview's host, so it survives that hardware;
+  - accept copies over SSH with a key that can only write backups;
+  - have room for the 14 kept copies;
+  - be reachable only by the operator, because the copies hold the preview's real data.
 
 Acceptance criteria:
 
 - [ ] **The decisions** are recorded in `DECISIONS.md`.
 - [ ] **The setting's proof.**
-  - **It is in effect.** The running preview reports `synchronous=full`.
+  - **It is in effect.** The running preview and demo both report `synchronous=full`.
   - **It is honored.** The dataset's `sync=standard` is confirmed.
   - **Its cost** is measured.
   - **A limitation, recorded:** a true power-cut test needs a disposable VM, which the operator declined, so durability rests on documented flush semantics.
@@ -203,10 +216,16 @@ Dependencies and planned boundary:
 - [ ] Define privacy-respecting analytics for the root marketing domain and demo subdomain, UTM campaign attribution, and anonymous demo-login/role-selection events with no record content, shared credential, stable user profiling, or cross-workspace identifier.
 - [ ] Provide a permanent external mailing-list signup path and reset-surviving feedback channel; neither writes subscriber email, feedback, consent, or analytics data to the demo SQLite database.
 - [ ] Document privacy/cookie notices, consent gating for all nonessential storage or tracking, retention/deletion ownership, IP and reverse-proxy log treatment, cross-domain data flow, and the separation between product analytics and security/audit logging.
+- [ ] **The demo's reset retention, as the notices state it.** The notices follow the policy as the bounded-retention patch records it in `DECISIONS.md`, not this summary. As planned, it reads:
+  - **The live demo:** visitor-entered content lasts until the next hourly reset.
+  - **Operational copies:** each reset retires the old demo data and takes a backup first. Only the 2 newest completed resets keep these copies, so visitor-entered content is gone from them at most about three hours after it was entered.
+  - **Failed resets:** their copies are kept as incident evidence until the operator reviews and disposes of them.
+  - **Reset evidence:** kept for seven days, with no visitor-entered content.
 
 Acceptance criteria:
 
 - The October 1 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
+- The demo's privacy notice states its reset retention exactly as `DECISIONS.md` records it.
 
 ## Version 0.33.35 - Operational health checks for external monitors
 
