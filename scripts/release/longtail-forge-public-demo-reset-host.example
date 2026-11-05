@@ -108,7 +108,7 @@ load_helper_environment() {
   done < "$HELPER_ENV"
 }
 
-for command in awk curl cut date docker flock grep head install jq mktemp readlink realpath stat tail timeout; do require_command "$command"; done
+for command in awk curl cut date docker find flock grep head install jq mktemp mv readlink realpath rm sort stat tail timeout; do require_command "$command"; done
 test "$(id -u)" = '0' || fail 'helper must run as root through the constrained sudo rule'
 load_helper_environment
 
@@ -119,6 +119,7 @@ DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-compose-deploy}"
 STATE_ROOT="$DEPLOY_ROOT/state"
 RELEASE_ROOT="$DEPLOY_ROOT/releases"
 OPERATION_ROOT="$DEPLOY_ROOT/demo-reset-operations"
+RETENTION_ROOT="$DEPLOY_ROOT/demo-retention-operations"
 OPERATION_LOCK="$DEPLOY_ROOT/compose-operation.lock"
 BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge/compose}"
 BACKUP_CONTAINER_ROOT='/var/backups/longtail-forge'
@@ -174,6 +175,13 @@ flock -n 9 || lock_contended 'another Compose deploy, rollback, backup, or publi
 
 MODE="${1:-}"
 shift || true
+# `retention plan` reports what retention would remove and changes nothing; `retention apply` is the
+# supervised, uncapped removal. Each completed reset also runs a capped retention step of its own.
+RETENTION_MODE=''
+if test "$MODE" = 'retention'; then
+  RETENTION_MODE="${1:-}"
+  shift || true
+fi
 TARGET=''
 ANCHOR_DATE=''
 CONFIRM=''
@@ -194,14 +202,25 @@ while test "$#" -gt 0; do
   SEEN_ARGS[$key]=1
   shift 2
 done
-test "$MODE" = 'reset' || fail 'command must be reset'
+test "$MODE" = 'reset' || test "$MODE" = 'retention' || fail 'command must be reset or retention'
 test "$TARGET" = "$DEMO_TARGET" || fail 'target must be exactly rt-ltf-demo'
-test "$CONFIRM" = 'RESET RT-LTF-DEMO COMPOSE DATA' || fail 'exact reset confirmation is required'
-if test "$ANCHOR_DATE" = 'today'; then ANCHOR_DATE="$(date -u +%F)"; fi
-[[ "$ANCHOR_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'anchor date must be today or YYYY-MM-DD'
-test "$(date -u -d "$ANCHOR_DATE" +%F 2>/dev/null)" = "$ANCHOR_DATE" || fail 'anchor date is not a real calendar date'
-# An operator who stopped the demo deliberately holds it stopped: a reset would start it again.
-if test -e "$OPERATOR_HOLD" || test -L "$OPERATOR_HOLD"; then fail 'an operator hold is in place; remove it to resume resets'; fi
+if test "$MODE" = 'retention'; then
+  test "$RETENTION_MODE" = 'plan' || test "$RETENTION_MODE" = 'apply' || fail 'retention must be plan or apply'
+  test -z "$ANCHOR_DATE$REQUESTED_OPERATION_ID$CALLER" || fail 'retention accepts only --target, and --confirm to apply'
+  if test "$RETENTION_MODE" = 'apply'; then
+    test "$CONFIRM" = 'PRUNE RT-LTF-DEMO RESET HISTORY' || fail 'exact retention confirmation is required'
+  else
+    test -z "$CONFIRM" || fail 'retention plan changes nothing and takes no confirmation'
+  fi
+else
+  test "$CONFIRM" = 'RESET RT-LTF-DEMO COMPOSE DATA' || fail 'exact reset confirmation is required'
+  if test "$ANCHOR_DATE" = 'today'; then ANCHOR_DATE="$(date -u +%F)"; fi
+  [[ "$ANCHOR_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'anchor date must be today or YYYY-MM-DD'
+  test "$(date -u -d "$ANCHOR_DATE" +%F 2>/dev/null)" = "$ANCHOR_DATE" || fail 'anchor date is not a real calendar date'
+  # An operator who stopped the demo deliberately holds it stopped: a reset would start it again.
+  # Retention starts nothing, so a hold does not stop it.
+  if test -e "$OPERATOR_HOLD" || test -L "$OPERATOR_HOLD"; then fail 'an operator hold is in place; remove it to resume resets'; fi
+fi
 
 # A boot-delegated reset runs behind the curtain the boot raised, and the boot owns it: this reset
 # never lifts it, even after restoring the prior unit, and verifies the direct runtime only, because
@@ -220,10 +239,17 @@ if test -n "$REQUESTED_OPERATION_ID"; then
   [[ "$REQUESTED_OPERATION_ID" =~ ^[0-9]{8}T[0-9]{6}Z-(scheduled|manual|boot)-[0-9]+$ ]] \
     || fail 'provided operation identity is invalid'
   OPERATION_ID="$REQUESTED_OPERATION_ID"
+elif test "$MODE" = 'retention'; then
+  OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-retention-$$"
 else
   OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-reset-$$"
 fi
 OPERATION_DIR="$OPERATION_ROOT/$OPERATION_ID"
+# A supervised retention run keeps its evidence apart from the reset history it prunes.
+if test "$MODE" = 'retention'; then
+  install -d -o root -g root -m 0700 "$RETENTION_ROOT"
+  OPERATION_DIR="$RETENTION_ROOT/$OPERATION_ID"
+fi
 test ! -e "$OPERATION_DIR" || fail 'operation identity already exists'
 install -d -o root -g root -m 0700 "$OPERATION_DIR"
 SESSION_ROOT="$(mktemp -d /run/longtail-forge-public-demo-reset.XXXXXX)"
@@ -429,6 +455,7 @@ run_candidate() {
 
 run_activation() {
   local action="$1" output="$2"
+  shift 2
   local arguments=("$action" --target "$DEMO_TARGET" --data-root /var/lib/longtail-forge)
   if test "$action" = 'activate'; then
     arguments+=(--operation-id "$OPERATION_ID" --confirm-quiescent 'COMPOSE SQLITE USERS STOPPED')
@@ -436,6 +463,9 @@ run_activation() {
     arguments+=(--confirm-quiescent 'COMPOSE SQLITE USERS STOPPED')
   elif test "$action" = 'finalize' || test "$action" = 'quarantine-stale'; then
     arguments+=(--operation-id "$OPERATION_ID")
+  elif test "$action" = 'prune'; then
+    # The prune's mode, and its removal cap when it has one.
+    arguments+=("$@")
   fi
   compose run --rm --no-deps --user 0:0 --cap-add DAC_OVERRIDE longtail-forge \
     node scripts/public-demo-baseline-activation.mjs "${arguments[@]}" > "$output"
@@ -521,9 +551,12 @@ capture_old_session() {
   username="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .username' <<<"$catalog")"
   password="$(jq -er '.accounts[] | select(.roleName == "Workspace Administrator") | .password' <<<"$catalog")"
   payload="$(jq -cn --arg username "$username" --arg password "$password" '{username:$username,password:$password}')"
-  status="$(curl --silent --show-error --max-time "$REQUEST_LIMIT" --output "$OPERATION_DIR/pre-reset-login.json" --write-out '%{http_code}' \
+  # Only the status is kept. The response body is the shared account's profile as visitors left it,
+  # and the evidence must hold no visitor-entered content.
+  status="$(curl --silent --show-error --max-time "$REQUEST_LIMIT" --output /dev/null --write-out '%{http_code}' \
     --cookie-jar "$SESSION_ROOT/pre-reset.cookie" -H 'content-type: application/json' \
     --data "$payload" http://127.0.0.1:8001/api/login)"
+  jq -cn --arg status "$status" '{httpStatus:$status}' > "$OPERATION_DIR/pre-reset-login.json"
   test "$status" = '200' || fail 'representative pre-reset session could not be captured'
 }
 
@@ -578,6 +611,157 @@ start_and_verify_runtime() {
   start_sqlite_users
   verify_runtime
 }
+
+# Retention of the reset history. Nothing reads a completed reset's retired unit or pre-reset backup
+# again, and each holds the visitor-entered content of the hour before it, so only the newest
+# completed resets keep them. Evidence holds no visitor-entered content and is kept for the scheduler
+# log's seven days. A reset whose state is not completed, missing, or unreadable is incident
+# evidence: it, its backup, and any failed unit are never removed here. Neither are other backups,
+# the state and release records, or the scheduler log. Selection is by count, newest first by the
+# operation identity's UTC timestamp.
+readonly RETAINED_BACKUPS=2
+readonly RETAINED_EVIDENCE=168
+readonly AUTOMATIC_REMOVAL_CAP=3
+readonly RESET_OPERATION_PATTERN='^[0-9]{8}T[0-9]{6}Z-(scheduled|manual|boot|reset)-[0-9]+$'
+readonly EVIDENCE_TOMBSTONE_PREFIX='.pruning-'
+
+# Whether an entry of the reset history is a real directory whose own state proves that this
+# operation completed.
+completed_reset() {
+  local name="$1" directory="$OPERATION_ROOT/$1"
+  [[ "$name" =~ $RESET_OPERATION_PATTERN ]] || return 1
+  test -d "$directory" && test ! -L "$directory" || return 1
+  test -f "$directory/state.json" && test ! -L "$directory/state.json" || return 1
+  jq -e --arg id "$name" --arg target "$DEMO_TARGET" \
+    '.contract == "longtail-forge-public-demo-reset-v1" and .target == $target and .operationId == $id and .phase == "completed"' \
+    "$directory/state.json" >/dev/null 2>&1
+}
+
+# Evidence may be removed only as a root-owned real directory holding nothing but root-owned regular
+# files and directories: no link of any kind.
+removable_evidence() {
+  local directory="$1"
+  test -d "$directory" && test ! -L "$directory" || return 1
+  test "$(stat -c '%u' "$directory")" = '0' || return 1
+  test -z "$(find "$directory" -mindepth 1 \( -type l -o ! \( -type f -o -type d \) -o ! -user 0 \) -print -quit)"
+}
+
+# A pre-reset backup or its checksum sidecar may be removed only as a plain file with one name,
+# owned by the backup root's owner, the container user that wrote it.
+removable_backup_file() {
+  local file="$1"
+  test -f "$file" && test ! -L "$file" || return 1
+  test "$(stat -c '%u' "$file")" = "$(stat -c '%u' "$BACKUP_ROOT")" || return 1
+  test "$(stat -c '%h' "$file")" = '1'
+}
+
+# Plans, and unless planning, applies retention, and records the result in retention.json. A cap,
+# given for the automatic step, makes a selection of more than that many of any kind remove nothing.
+# Every check runs before anything is removed, so one failed check removes nothing; the retired units
+# go first, then the backups, archive before sidecar, then the evidence, each through a tombstone.
+retain_history() {
+  local mode="$1" cap="${2:-}" name operation_id file index found status
+  local -a completed=() backup_operations=() backup_files=() evidence_operations=() tombstones=()
+  local incident=0 other=0 orphans=0 unit_selected units_removed=0
+  run_activation prune "$OPERATION_DIR/retention-units-plan.json" --mode plan
+  unit_selected="$(jq -er '.selected | numbers' "$OPERATION_DIR/retention-units-plan.json")"
+
+  while IFS= read -r name; do
+    if [[ "$name" == "$EVIDENCE_TOMBSTONE_PREFIX"* ]]; then
+      [[ "${name#"$EVIDENCE_TOMBSTONE_PREFIX"}" =~ $RESET_OPERATION_PATTERN ]] && removable_evidence "$OPERATION_ROOT/$name" \
+        || fail 'an evidence tombstone is unexpected; nothing was removed'
+      tombstones+=("$name")
+    elif completed_reset "$name"; then
+      completed+=("$name")
+    elif [[ "$name" =~ $RESET_OPERATION_PATTERN ]]; then
+      incident=$((incident + 1))
+    else
+      other=$((other + 1))
+    fi
+  done < <(find "$OPERATION_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
+  if test "${#completed[@]}" -gt 0; then
+    mapfile -t completed < <(printf '%s\n' "${completed[@]}" | LC_ALL=C sort -r)
+  fi
+
+  for index in "${!completed[@]}"; do
+    test "$index" -ge "$RETAINED_BACKUPS" || continue
+    operation_id="${completed[$index]}"
+    found=false
+    for file in "$BACKUP_ROOT/pre-demo-reset-$operation_id.ltfbackup.tgz" "$BACKUP_ROOT/pre-demo-reset-$operation_id.ltfbackup.tgz.sha256"; do
+      if test -e "$file" || test -L "$file"; then
+        removable_backup_file "$file" \
+          || fail 'a pre-reset backup selected for removal is not a plain file owned by the backup root owner; nothing was removed'
+        backup_files+=("$file")
+        found=true
+      fi
+    done
+    if test "$found" = true; then backup_operations+=("$operation_id"); fi
+    if test "$index" -ge "$RETAINED_EVIDENCE"; then
+      removable_evidence "$OPERATION_ROOT/$operation_id" \
+        || fail 'reset evidence selected for removal is not a root-owned directory free of links; nothing was removed'
+      test ! -e "$OPERATION_ROOT/$EVIDENCE_TOMBSTONE_PREFIX$operation_id" || fail 'an evidence tombstone already exists; nothing was removed'
+      evidence_operations+=("$operation_id")
+    fi
+  done
+  # Pre-reset backups with no reset history left are reported, never removed.
+  while IFS= read -r name; do
+    operation_id="${name#pre-demo-reset-}"
+    operation_id="${operation_id%.sha256}"
+    operation_id="${operation_id%.ltfbackup.tgz}"
+    test -d "$OPERATION_ROOT/$operation_id" || orphans=$((orphans + 1))
+  done < <(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -name 'pre-demo-reset-*' -printf '%f\n')
+
+  status='pruned'
+  if test "$mode" = 'plan'; then
+    status='planned'
+  elif test -n "$cap" && { test "$unit_selected" -gt "$cap" || test "${#backup_operations[@]}" -gt "$cap" || test "${#evidence_operations[@]}" -gt "$cap"; }; then
+    status='capped'
+  fi
+  if test "$status" = 'pruned'; then
+    local -a prune_arguments=(--mode apply)
+    if test -n "$cap"; then prune_arguments+=(--max-removals "$cap"); fi
+    run_activation prune "$OPERATION_DIR/retention-units.json" "${prune_arguments[@]}"
+    test "$(jq -r '.status' "$OPERATION_DIR/retention-units.json")" = 'pruned' || fail 'the retired units were not pruned'
+    units_removed="$(jq -er '.removed | numbers' "$OPERATION_DIR/retention-units.json")"
+    for file in "${backup_files[@]}"; do rm -f -- "$file"; done
+    for name in "${tombstones[@]}"; do rm -rf -- "${OPERATION_ROOT:?}/$name"; done
+    for operation_id in "${evidence_operations[@]}"; do
+      mv -T -- "$OPERATION_ROOT/$operation_id" "$OPERATION_ROOT/$EVIDENCE_TOMBSTONE_PREFIX$operation_id"
+      rm -rf -- "${OPERATION_ROOT:?}/$EVIDENCE_TOMBSTONE_PREFIX$operation_id"
+    done
+  fi
+
+  jq -n --arg operationId "$OPERATION_ID" --arg mode "$mode" --arg status "$status" --arg cap "$cap" \
+    --argjson unitSelected "$unit_selected" --argjson unitsRemoved "$units_removed" \
+    --argjson completed "${#completed[@]}" --argjson incident "$incident" --argjson other "$other" \
+    --argjson orphans "$orphans" --argjson tombstones "${#tombstones[@]}" \
+    --argjson backupOperations "$(jq -cn '$ARGS.positional' --args "${backup_operations[@]}")" \
+    --argjson evidenceOperations "$(jq -cn '$ARGS.positional' --args "${evidence_operations[@]}")" \
+    --argjson retainedBackups "$RETAINED_BACKUPS" --argjson retainedEvidence "$RETAINED_EVIDENCE" \
+    --slurpfile units "$OPERATION_DIR/retention-units-plan.json" '
+    ($status == "pruned") as $applied
+    | {contract: "longtail-forge-public-demo-retention-v1", target: "rt-ltf-demo", operationId: $operationId,
+       mode: $mode, status: $status,
+       policy: {units: 2, backups: $retainedBackups, evidence: $retainedEvidence, cap: (if $cap == "" then null else ($cap | tonumber) end)},
+       units: {retained: $units[0].retainedOperations, selected: $unitSelected, removed: $unitsRemoved, skipped: $units[0].skipped, tombstones: $units[0].tombstones},
+       backups: {selected: ($backupOperations | length), removed: (if $applied then ($backupOperations | length) else 0 end), operations: $backupOperations, orphans: $orphans},
+       evidence: {completed: $completed, selected: ($evidenceOperations | length), removed: (if $applied then ($evidenceOperations | length) else 0 end),
+         operations: $evidenceOperations, incident: $incident, other: $other, tombstones: $tombstones}}' \
+    > "$OPERATION_DIR/retention.json"
+}
+
+if test "$MODE" = 'retention'; then
+  set +e
+  step "retention-$RETENTION_MODE" retain_history "$RETENTION_MODE"
+  retention_status=$?
+  set -e
+  test "$retention_status" -eq 0 || fail "retention $RETENTION_MODE failed; its redacted output is in $OPERATION_DIR"
+  jq -c '{ok: true, mode: "retention", retentionMode: .mode, operationId, status,
+    units: {selected: .units.selected, removed: .units.removed},
+    backups: {selected: .backups.selected, removed: .backups.removed, orphans: .backups.orphans},
+    evidence: {selected: .evidence.selected, removed: .evidence.removed, incident: .evidence.incident}}' "$OPERATION_DIR/retention.json"
+  exit 0
+fi
 
 RECOVERY_ARMED=false
 RECOVERY_RUNNING=false
@@ -717,8 +901,22 @@ if test "$CALLER" != 'boot'; then clear_marker; fi
 RECOVERY_ARMED=false
 record_phase 'completed' 'baseline-healthy'
 
-printf '{"ok":true,"mode":"reset","target":"%s","anchorDate":"%s","operationId":"%s","semanticFingerprint":"%s","version":"%s","commitSha":"%s","backup":"%s","appStartedByReset":%s}\n' \
+# Retention runs once the reset has completed and its curtain is down, still under the lock. It is
+# capped, and its failure never fails or rolls back the completed reset: the scheduler alerts on it.
+# A boot-delegated reset skips it, so that the boot's curtain lifts sooner; the next hourly reset
+# prunes instead.
+RETENTION_SUMMARY='{"status":"skipped-boot"}'
+if test "$CALLER" != 'boot'; then
+  set +e
+  step retention retain_history automatic "$AUTOMATIC_REMOVAL_CAP"
+  retention_status=$?
+  RETENTION_SUMMARY="$(jq -ce '{status, units: .units.removed, backups: .backups.removed, evidence: .evidence.removed}' "$OPERATION_DIR/retention.json" 2>/dev/null)"
+  test "$retention_status" -eq 0 && test -n "$RETENTION_SUMMARY" || RETENTION_SUMMARY='{"status":"failed"}'
+  set -e
+fi
+
+printf '{"ok":true,"mode":"reset","target":"%s","anchorDate":"%s","operationId":"%s","semanticFingerprint":"%s","version":"%s","commitSha":"%s","backup":"%s","appStartedByReset":%s,"retention":%s}\n' \
   "$DEMO_TARGET" "$ANCHOR_DATE" "$OPERATION_ID" \
   "$(state_value "$OPERATION_DIR/active-baseline.json" '.semanticFingerprint')" \
   "$(state_value "$CURRENT_STATE" '.version')" "$(state_value "$CURRENT_STATE" '.commitSha')" \
-  "$(basename "$BACKUP")" "$APP_STARTED_BY_RESET"
+  "$(basename "$BACKUP")" "$APP_STARTED_BY_RESET" "$RETENTION_SUMMARY"
