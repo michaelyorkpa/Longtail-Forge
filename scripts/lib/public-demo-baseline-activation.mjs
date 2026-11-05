@@ -9,6 +9,15 @@ const PUBLIC_DEMO_FAILED_PREFIX = ".longtail-public-demo-failed-";
 const PUBLIC_DEMO_BUILD_PREFIX = ".longtail-public-demo-build-";
 const PUBLIC_DEMO_STALE_SUFFIX = "-stale-candidate";
 const PUBLIC_DEMO_STALE_CONTRACT = "longtail-forge-public-demo-stale-candidate-v1";
+// A retired unit selected for pruning is renamed to this prefix before it is deleted, so an
+// interrupted deletion leaves a name the next prune finishes rather than a partial retired unit.
+const PUBLIC_DEMO_PRUNING_PREFIX = ".longtail-public-demo-pruning-";
+const PUBLIC_DEMO_PRUNE_CONTRACT = "longtail-forge-public-demo-prune-v1";
+// Retention for retired units: those of the newest completed resets. Nothing reads a completed
+// reset's retired unit again, and each holds the visitor-entered content of the hour before it.
+const PUBLIC_DEMO_RETAINED_UNITS = 2;
+const RETIRED_UNIT_RECORD = "reset-operation.json";
+const MAX_REMOVALS_PATTERN = /^[1-9][0-9]{0,2}$/;
 // A candidate build stages under an opaque UUID: see `buildPublicDemoCandidate`.
 const BUILD_DIRECTORY_PATTERN = /^\.longtail-public-demo-build-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const CANONICAL_COMPOSE_DATA_ROOT = "/var/lib/longtail-forge";
@@ -27,7 +36,7 @@ const OPERATION_PHASES = new Set([
 
 /**
  * An option name settable through a public-demo activation flag.
- * @typedef {"confirmQuiescent" | "dataRoot" | "operationId" | "target"} PublicDemoActivationFlagName
+ * @typedef {"confirmQuiescent" | "dataRoot" | "maxRemovals" | "mode" | "operationId" | "target"} PublicDemoActivationFlagName
  */
 
 /**
@@ -36,6 +45,8 @@ const OPERATION_PHASES = new Set([
  * @property {string} action
  * @property {string} [confirmQuiescent]
  * @property {string} [dataRoot]
+ * @property {string} [maxRemovals]
+ * @property {string} [mode]
  * @property {string} [operationId]
  * @property {string} [target]
  */
@@ -46,8 +57,25 @@ const OPERATION_PHASES = new Set([
  * @property {string} action
  * @property {string} [confirmQuiescent]
  * @property {string} dataRoot
+ * @property {string} [maxRemovals]
+ * @property {string} [mode]
  * @property {string} [operationId]
  * @property {string} target
+ */
+
+/**
+ * What a prune selected and did. Plan mode names the operations it would remove.
+ * @typedef {object} PublicDemoPruneOutcome
+ * @property {string} contract
+ * @property {string} mode
+ * @property {number} removed
+ * @property {readonly string[]} retainedOperations
+ * @property {number} selected
+ * @property {readonly string[]} [selectedOperations]
+ * @property {number} skipped
+ * @property {string} status
+ * @property {string} target
+ * @property {number} tombstones
  */
 
 /**
@@ -61,12 +89,21 @@ const OPERATION_PHASES = new Set([
  */
 
 /**
- * Frozen outcome reported by inspect and mutation operations.
+ * Frozen outcome reported by inspect and mutation operations. The members after `phase` are a
+ * prune's; see `PublicDemoPruneOutcome`.
  * @typedef {object} PublicDemoActivationOutcome
  * @property {boolean} [active]
  * @property {number} [moved]
  * @property {string} [operationId]
  * @property {string} [phase]
+ * @property {string} [contract]
+ * @property {string} [mode]
+ * @property {number} [removed]
+ * @property {readonly string[]} [retainedOperations]
+ * @property {number} [selected]
+ * @property {readonly string[]} [selectedOperations]
+ * @property {number} [skipped]
+ * @property {number} [tombstones]
  * @property {string} status
  * @property {string} target
  */
@@ -91,8 +128,8 @@ const OPERATION_PHASES = new Set([
  */
 function parsePublicDemoActivationArgs(args) {
   const action = args[0];
-  if (!new Set(["activate", "finalize", "inspect", "quarantine-stale", "recover"]).has(action)) {
-    throw new Error("Choose activate, finalize, inspect, quarantine-stale, or recover.");
+  if (!new Set(["activate", "finalize", "inspect", "prune", "quarantine-stale", "recover"]).has(action)) {
+    throw new Error("Choose activate, finalize, inspect, prune, quarantine-stale, or recover.");
   }
   /** @type {PublicDemoActivationOptionsDraft} */
   const options = { action };
@@ -101,6 +138,8 @@ function parsePublicDemoActivationArgs(args) {
   const flags = new Map([
     ["--confirm-quiescent", "confirmQuiescent"],
     ["--data-root", "dataRoot"],
+    ["--max-removals", "maxRemovals"],
+    ["--mode", "mode"],
     ["--operation-id", "operationId"],
     ["--target", "target"],
   ]);
@@ -127,6 +166,15 @@ function parsePublicDemoActivationArgs(args) {
   }
   if (!new Set(["activate", "recover"]).has(action) && options.confirmQuiescent) {
     throw new Error("--confirm-quiescent is accepted only for activate or recover.");
+  }
+  if (action === "prune") {
+    if (options.mode !== "plan" && options.mode !== "apply") throw new Error("prune requires --mode plan or --mode apply.");
+    if (options.operationId) throw new Error("--operation-id is not accepted for prune.");
+    if (options.maxRemovals !== undefined && !MAX_REMOVALS_PATTERN.test(options.maxRemovals)) {
+      throw new Error("--max-removals must be an integer from 1 through 999.");
+    }
+  } else if (options.mode !== undefined || options.maxRemovals !== undefined) {
+    throw new Error("--mode and --max-removals are accepted only for prune.");
   }
   return Object.freeze(/** @type {PublicDemoActivationArgs} */ (options));
 }
@@ -175,13 +223,16 @@ function resolvePublicDemoActivationPaths(dataRoot, operationId = "") {
 }
 
 /**
- * Run one activate/finalize/inspect/recover operation end to end.
- * @param {{ action: string, dataRoot: string, environment?: NodeJS.ProcessEnv, operationId?: string, requireCanonicalDataRoot?: boolean, requireRoot?: boolean, target: string }} input
+ * Run one activate/finalize/inspect/prune/quarantine-stale/recover operation end to end.
+ * @param {{ action: string, dataRoot: string, environment?: NodeJS.ProcessEnv, maxRemovals?: string, mode?: string, operationId?: string, requireCanonicalDataRoot?: boolean, requireRoot?: boolean, target: string }} input
+ * @returns {Promise<Readonly<PublicDemoActivationOutcome>>}
  */
 async function runPublicDemoActivationOperation({
   action,
   dataRoot,
   environment = process.env,
+  maxRemovals,
+  mode,
   operationId,
   requireCanonicalDataRoot = true,
   requireRoot = true,
@@ -191,6 +242,13 @@ async function runPublicDemoActivationOperation({
   const basePaths = resolvePublicDemoActivationPaths(dataRoot, operationId);
   await assertRealDirectory(basePaths.dataRoot, "Compose data root");
   if (action === "inspect") return inspectActiveOperation(basePaths.activeOperation);
+  if (action === "prune") {
+    if (mode !== "plan" && mode !== "apply") throw new Error("prune requires --mode plan or --mode apply.");
+    if (maxRemovals !== undefined && !MAX_REMOVALS_PATTERN.test(maxRemovals)) {
+      throw new Error("--max-removals must be an integer from 1 through 999.");
+    }
+    return pruneRetiredUnits(basePaths, { maxRemovals: maxRemovals === undefined ? null : Number(maxRemovals), mode });
+  }
   if (action === "quarantine-stale") {
     if (!operationId || !OPERATION_ID_PATTERN.test(operationId)) throw new Error("quarantine-stale requires a valid --operation-id.");
     return quarantineStaleCandidate(basePaths, operationId);
@@ -416,6 +474,132 @@ async function quarantineStaleCandidate(paths, operationId) {
 }
 
 /**
+ * Delete the retired units of older completed resets, keeping those of the newest
+ * `PUBLIC_DEMO_RETAINED_UNITS` completed resets.
+ *
+ * Only a real `.longtail-public-demo-previous-<operation>` directory whose `reset-operation.json`
+ * records that operation as completed is considered. Anything else under that prefix, such as the
+ * remains of an interrupted recovery, is incident evidence and is never touched, and neither is
+ * failed evidence, the active unit, or a candidate. Every selected unit's exact shape is checked,
+ * with no link anywhere beneath it, before anything changes: one failed check removes nothing. Each
+ * removal is renamed to a tombstone first, so an interrupted deletion leaves only a tombstone, which
+ * the next apply finishes after checking it too. Plan mode reports the same selection and changes
+ * nothing. With a cap, a larger selection removes nothing and reports why.
+ * @param {PublicDemoActivationPaths} paths
+ * @param {{ maxRemovals: number | null, mode: "apply" | "plan" }} options
+ * @returns {Promise<Readonly<PublicDemoPruneOutcome>>}
+ */
+async function pruneRetiredUnits(paths, { maxRemovals, mode }) {
+  if (await pathExists(paths.activeOperation)) {
+    throw new Error("A public-demo reset operation is active; recover it before pruning retired units.");
+  }
+  const entries = (await fs.readdir(paths.dataRoot)).sort();
+  const tombstones = entries.filter((entry) => entry.startsWith(PUBLIC_DEMO_PRUNING_PREFIX));
+  for (const tombstone of tombstones) {
+    if (!OPERATION_ID_PATTERN.test(tombstone.slice(PUBLIC_DEMO_PRUNING_PREFIX.length))) {
+      throw new Error("A public-demo pruning tombstone has an unexpected name; nothing was removed.");
+    }
+    await assertRealDirectory(path.join(paths.dataRoot, tombstone), "public-demo pruning tombstone");
+    await assertNoLinks(path.join(paths.dataRoot, tombstone));
+  }
+
+  /** @type {string[]} */
+  const completed = [];
+  let skipped = 0;
+  for (const entry of entries.filter((name) => name.startsWith(PUBLIC_DEMO_PREVIOUS_PREFIX))) {
+    const operationId = entry.slice(PUBLIC_DEMO_PREVIOUS_PREFIX.length);
+    if (await isCompletedRetiredUnit(path.join(paths.dataRoot, entry), operationId)) completed.push(operationId);
+    else skipped += 1;
+  }
+  completed.sort(newestOperationFirst);
+  const retained = completed.slice(0, PUBLIC_DEMO_RETAINED_UNITS);
+  const selected = completed.slice(PUBLIC_DEMO_RETAINED_UNITS);
+  for (const operationId of selected) {
+    await assertRetiredUnitShape(path.join(paths.dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`));
+    await assertAbsent(path.join(paths.dataRoot, `${PUBLIC_DEMO_PRUNING_PREFIX}${operationId}`), "public-demo pruning tombstone");
+  }
+
+  const outcome = (/** @type {string} */ status, /** @type {number} */ removed) => Object.freeze({
+    contract: PUBLIC_DEMO_PRUNE_CONTRACT,
+    mode,
+    removed,
+    retainedOperations: Object.freeze([...retained]),
+    selected: selected.length,
+    ...(mode === "plan" ? { selectedOperations: Object.freeze([...selected]) } : {}),
+    skipped,
+    status,
+    target: DEMO_DATA_TARGET,
+    tombstones: tombstones.length,
+  });
+  if (mode === "plan") return outcome("prune-planned", 0);
+  if (maxRemovals !== null && selected.length > maxRemovals) return outcome("prune-cap-exceeded", 0);
+
+  for (const tombstone of tombstones) {
+    await fs.rm(path.join(paths.dataRoot, tombstone), { recursive: true, force: false });
+  }
+  for (const operationId of selected) {
+    const tombstone = path.join(paths.dataRoot, `${PUBLIC_DEMO_PRUNING_PREFIX}${operationId}`);
+    await fs.rename(path.join(paths.dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`), tombstone);
+    await fs.rm(tombstone, { recursive: true, force: false });
+  }
+  return outcome("pruned", selected.length);
+}
+
+/**
+ * Whether a retired-unit entry is a real directory whose own record proves that this operation
+ * completed. Any other entry is left alone.
+ * @param {string} unitRoot
+ * @param {string} operationId
+ * @returns {Promise<boolean>}
+ */
+async function isCompletedRetiredUnit(unitRoot, operationId) {
+  if (!OPERATION_ID_PATTERN.test(operationId)) return false;
+  const unit = await fs.lstat(unitRoot);
+  if (!unit.isDirectory() || unit.isSymbolicLink()) return false;
+  const recordPath = path.join(unitRoot, RETIRED_UNIT_RECORD);
+  const record = await fs.lstat(recordPath).catch(() => null);
+  if (!record?.isFile() || record.isSymbolicLink()) return false;
+  try {
+    const operation = /** @type {PublicDemoResetOperation} */ (JSON.parse(await fs.readFile(recordPath, "utf8")));
+    assertOperation(operation, operationId);
+    return operation.phase === "completed";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Require the exact shape a completed reset leaves: the unit's entries, optional SQLite sidecars,
+ * and its operation record, with no link anywhere beneath it.
+ * @param {string} unitRoot
+ */
+async function assertRetiredUnitShape(unitRoot) {
+  const allowed = [...UNIT_ENTRIES, ...SQLITE_SIDECARS, RETIRED_UNIT_RECORD];
+  const entries = await fs.readdir(unitRoot);
+  if (entries.some((entry) => !allowed.includes(entry))
+    || [...UNIT_ENTRIES, RETIRED_UNIT_RECORD].some((entry) => !entries.includes(entry))) {
+    throw new Error("A retired public-demo unit selected for pruning has an unexpected shape; nothing was removed.");
+  }
+  for (const entry of entries) {
+    const target = path.join(unitRoot, entry);
+    if (entry === "files") await assertRealDirectory(target, "retired public-demo unit Files");
+    else await assertRealFile(target, `retired public-demo unit ${entry}`);
+  }
+  await assertNoLinks(unitRoot);
+}
+
+/**
+ * Orders operation identities newest first, by the UTC timestamp each begins with.
+ * @param {string} left
+ * @param {string} right
+ * @returns {number}
+ */
+function newestOperationFirst(left, right) {
+  const order = (/** @type {string} */ a, /** @type {string} */ b) => (a < b ? -1 : a > b ? 1 : 0);
+  return order(right.slice(0, 16), left.slice(0, 16)) || order(right, left);
+}
+
+/**
  * Report the current activation state without mutating anything.
  * @param {string} markerPath
  * @returns {Promise<Readonly<PublicDemoActivationOutcome>>}
@@ -620,6 +804,8 @@ export {
   PUBLIC_DEMO_CANDIDATE_DIRECTORY,
   PUBLIC_DEMO_FAILED_PREFIX,
   PUBLIC_DEMO_PREVIOUS_PREFIX,
+  PUBLIC_DEMO_PRUNING_PREFIX,
+  PUBLIC_DEMO_RETAINED_UNITS,
   SQLITE_SIDECARS,
   UNIT_ENTRIES,
   assertPublicDemoActivationRuntime,
