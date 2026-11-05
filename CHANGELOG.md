@@ -1,3 +1,30 @@
+## Version 0.33.33.54 - 2026-11-05
+
+- **Bounded public-demo reset retention.** This post-release patch to `v0.33.33` has its own release identity, and replaces no earlier tag, image, checksum, or release asset. The demo kept every reset's copies: on 2026-11-02 it held 1,867 retired units. The curtained check read all of them, so a reset took four to seven and a half minutes, and every copy held the visitor-entered content of the hour before it.
+- **The policy,** set by the operator on 2026-10-14 and 2026-11-05, with no setting:
+  - **Retired units and pre-reset backups:** those of the 2 newest completed resets.
+  - **Reset evidence:** that of the 168 newest completed resets, seven days.
+  - **Visitor-entered content** lasts at most about three hours outside incident evidence. `DECISIONS.md` records it, for 0.33.34's privacy notices to cite.
+  - **Never removed automatically:** incident evidence (a reset that did not complete, with its backup and failed unit), failed evidence, the active unit, the candidate, the active-operation marker, any other backup, the state and release records, and the scheduler log.
+- **A shorter curtain.** The curtained active check still verifies the served unit's database, Files tree, and marker, but its link and protected-value scans now read only that unit, not every retained one.
+- **In-volume prune.** The activation script gains `prune`.
+  - **Selection.** It considers only real retired units whose own record proves completion, newest first by the operation identity's timestamp.
+  - **Checks.** It checks every selected unit's exact shape, with no link beneath it, before anything changes, so one failed check removes nothing.
+  - **Removal.** It deletes through a tombstone that the next run finishes. It has a plan mode and a removal cap.
+- **Host retention.** The reset helper runs a retention step after each completed reset, once its curtain is down, still under the lifecycle lock.
+  - **Its cap.** It removes nothing when a kind exceeds three.
+  - **Its checks.** Evidence must be owned by root, and a backup and its sidecar by the backup root's owner. Links are refused.
+  - **Its failures** never fail the reset. The scheduler logs `succeeded` with `retention-failed` and the `retentionStatus`, still sends the heartbeat, and raises the Discord alert, which accepts the new class.
+  - **Boot-delegated resets** skip the step, so the boot's curtain lifts sooner.
+  - **The backlog.** The supervised `retention plan` and `retention apply` commands take the same lock; apply is uncapped.
+- **Evidence without visitor content.** The pre-reset login keeps only its status, because its body is the shared account's profile as visitors left it.
+- **Proof.**
+  - **Unit tests** cover `prune`, its refusals, its cap, its tombstones, and the active check's scan scope, and catch 16 planted defects.
+  - **The helper harness** adds 14 retention scenarios: the plan, the apply, the automatic step and its cap, incident, orphaned, and deployment backups, refused links and owners, lock contention, tombstones, and visitor-free evidence. It also adds 14 seeded defects.
+  - **The native lifecycle qualification** seeds synthetic history, then proves that the plan changes nothing and that the apply leaves the exact kept set. After a visitor changes the shared account's display name, no evidence of the next reset keeps it.
+- **Checkpoint ownership.** This patch may set its own version and record its one retention policy in `DECISIONS.md`.
+- **Carried finding.** The promotion's backup drill runs from source, not from the promotion payload.
+
 ## Version 0.33.33.53 - 2026-11-03
 
 - **Recovery after a host restart.** This post-release patch to `v0.33.33` has its own release identity, and replaces no earlier tag, image, checksum, or release asset. From 2026-10-06 to 2026-10-14, a Docker restart left the public demo's hourly reset refusing every build. On 2026-10-14, a power loss left both sites down after their guests booted.
