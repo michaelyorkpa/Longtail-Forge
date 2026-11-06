@@ -28,7 +28,7 @@ Scope:
   - **Retired units:** keep those of the 2 newest completed operations.
   - **Pre-reset backups:** keep those of the 2 newest completed operations, with their sidecars.
   - **Operation evidence:** keep the 168 newest completed operations, seven days, the scheduler log's window. It holds no visitor-entered content; see "Evidence without visitor content".
-  - **How long visitor-entered content persists.** In the live demo, until the next hourly reset. In the retired unit and the pre-reset backup, until two more resets complete. That is at most about three hours after it was entered.
+  - **How long visitor-entered content persists.** In the live demo, until the next hourly reset. In the retired unit and the pre-reset backup, until two more resets complete: in normal operation, about three hours after it was entered. On 2026-11-05 the operator settled the named exceptions that keep it longer: a failed reset's incident evidence, retention that is blocked or capped, a held demo, and deployment backups, which 0.33.33.55 bounds on the demo.
   - **Incident evidence is never removed automatically.** That covers any operation whose phase is not `completed`, or whose state is missing or unreadable, with its backup and any failed unit.
   - **Never touched:** the active unit, the candidate, and the active-operation marker; any other backup; the state and release records; and the scheduler log.
   - **Selection is by count,** ordered by the operation identity's UTC timestamp.
@@ -39,14 +39,22 @@ Scope:
   - checks each removal's exact shape and the absence of links, and removes nothing if any check fails;
   - renames each removal to a tombstone before deleting it, and completes any tombstone an interrupted run left;
   - never touches failed evidence;
-  - in `--mode plan`, reports the same selection and changes nothing; with `--max-removals`, removes nothing when the selection is larger.
+  - in `--mode plan`, reports the same selection and changes nothing; with `--max-removals`, removes nothing when the selection and the tombstones together are larger.
 - [x] **Host retention.** The reset helper gains three things:
-  - **An automatic step,** after `completed` and after the curtain lifts, under the lock. If the removal set exceeds three of any kind, it removes nothing and reports why. A boot-delegated reset skips it, so the boot's curtain lifts sooner; the next hourly reset prunes.
-  - **`retention plan` and `retention apply`.** `retention plan` is read-only. `retention apply --confirm 'PRUNE RT-LTF-DEMO RESET HISTORY'` is supervised, uncapped, and takes the lock. Each records its result under `demo-retention-operations/`.
+  - **An automatic step,** after `completed` and after the curtain lifts, under the lock. If the removal set, tombstones included, exceeds three of any kind, it removes nothing and reports why. A boot-delegated reset runs it behind the boot's curtain (operator ruling, 2026-11-05); a failure there is retried, and alerted, by the next hourly reset.
+  - **`retention plan` and `retention apply`.** `retention plan` is read-only, the firewall included: both modes check the demo's isolation and never rebuild it. `retention apply --confirm 'PRUNE RT-LTF-DEMO RESET HISTORY'` is supervised, uncapped, and takes the lock. It also replaces the pre-reset login bodies earlier helpers kept in retained completed evidence. Each records its result under `demo-retention-operations/`.
   - **Safety.** It builds exact names from operation identities and refuses links. Evidence must be owned by root; a backup and its sidecar by the backup root's owner, the container user. It removes an archive before its sidecar, and an evidence directory through a tombstone. It records `retention.json`, and adds a `retention` summary to the reset's final line.
 - [x] **Evidence without visitor content.** The pre-reset login keeps only its status code. Its response body is the shared demo account's profile as the reset found it, which visitors may have changed. The reset's later reads run against the fresh baseline.
 - [x] **Failure handling.** A retention failure never fails or rolls back a completed reset. The scheduler logs `succeeded` with failure class `retention-failed`, still sends the heartbeat, and raises the Discord alert, which accepts that class.
-- [x] **Documentation.** The operations guide and the runbook give the policy, the supervised backlog procedure, and how to dispose of incident evidence. `DECISIONS.md` records how long visitor-entered content persists: at most about three hours, outside incident evidence. 0.33.34's privacy notices cite that record.
+- [x] **Documentation.** The operations guide and the runbook give the policy, the supervised backlog procedure, and how to dispose of incident evidence. `DECISIONS.md` records how long visitor-entered content persists: about three hours in normal operation, with the named exceptions. 0.33.34's privacy notices cite that record.
+- [x] **Independent review, 2026-11-05.** Codex reviewed `108afa00` and requested changes. Each finding is fixed in #905 with a negative test and a seeded defect:
+  1. A failed `find` traversal or listing read as an empty one. Each listing's status is now checked, and the history roots must be real directories.
+  2. `retention plan` rebuilt the firewall through isolation `enforce`. Both retention modes now run `check` only.
+  3. A signal during the automatic step failed the completed reset, and could rewrite `completed` as `failed`. Completion is now explicit: a signal stops only retention, and the exit handler records no other phase.
+  4. Tombstones bypassed the removal cap, in the volume and on the host. They now count against it, and in what was removed.
+  5. Earlier helpers' pre-reset login bodies stayed in retained evidence. `retention apply` replaces them; incident evidence keeps its own.
+  6. The three-hour bound was unenforced: boot-delegated resets skipped retention, and other cases went unnamed. The boot's delegate now prunes, and the operator settled the named exceptions.
+  7. A clock set back could select the reset's own evidence. Retention now refuses to remove anything of the reset it belongs to.
 
 Acceptance criteria:
 

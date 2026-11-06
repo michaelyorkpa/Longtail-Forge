@@ -99,7 +99,9 @@ Proposed scope:
 - [ ] **Scheduled backups,** pulled forward from 0.38.4 in their minimal form. A host timer for Compose installs:
   - runs the existing whole-instance backup under the shared lifecycle lock, and inspects it;
   - runs nightly, and keeps the 14 newest scheduled backups. It never deletes the newest valid one, or any backup it did not schedule;
-  - alerts on failure through the restart-recovery patch's Discord alert, and sends a heartbeat on success.
+  - alerts on failure through the restart-recovery patch's Discord alert, and sends a heartbeat on success;
+  - **never runs on the public demo.** The demo resets hourly, so it has nothing to recover, and a nightly copy would keep visitor-entered content for 14 days. Operator ruling, 2026-11-05.
+- [ ] **Bounded deployment backups on the demo.** Each deploy, rollback, or restore leaves a whole-instance backup (`pre-upgrade-`, `pre-rollback-`, or `pre-restore-`), and nothing removes them, so each keeps the visitor-entered content of its moment. On the demo, keep only the backup the recorded rollback names, and remove the rest under the lifecycle lock, with the reset-retention patch's checks: plain files owned by the backup root's owner, every check before any removal. The preview keeps its deployment backups. Operator ruling, 2026-11-05: the reset-retention patch states this gap in `DECISIONS.md`, and this patch closes it before 0.33.34's privacy notices cite the policy.
 - [ ] **An off-server copy.**
   - **The mechanism.** A documented, admin-chosen destination, reached through a post-backup copy hook that copies only inspected archives and their checksums. The checksum is verified again at the destination.
   - **The first destination** is one of the operator's existing servers.
@@ -133,7 +135,9 @@ Acceptance criteria:
   - the lock;
   - retention, which never deletes the newest valid backup or a backup it did not schedule;
   - the failure alert;
-  - that the copy hook receives only inspected archives.
+  - that the copy hook receives only inspected archives;
+  - that the timer refuses the public demo.
+- [ ] **Tests of the demo's deployment-backup bound.** It keeps exactly the recorded rollback's backup, refuses a link or another owner and removes nothing, and leaves the preview's deployment backups alone.
 - [ ] **One restore drill** from a scheduled backup passes.
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
@@ -152,8 +156,8 @@ Dependencies and planned boundary:
 - [ ] Document privacy/cookie notices, consent gating for all nonessential storage or tracking, retention/deletion ownership, IP and reverse-proxy log treatment, cross-domain data flow, and the separation between product analytics and security/audit logging.
 - [ ] **The demo's reset retention, as the notices state it.** The notices follow the policy as the bounded-retention patch records it in `DECISIONS.md`, not this summary. As planned, it reads:
   - **The live demo:** visitor-entered content lasts until the next hourly reset.
-  - **Operational copies:** each reset retires the old demo data and takes a backup first. Only the 2 newest completed resets keep these copies, so visitor-entered content is gone from them at most about three hours after it was entered.
-  - **Failed resets:** their copies are kept as incident evidence until the operator reviews and disposes of them.
+  - **Operational copies:** each reset retires the old demo data and takes a backup first. Only the 2 newest completed resets keep these copies, so in normal operation visitor-entered content is gone from them about three hours after it was entered.
+  - **The named exceptions,** which keep it longer: a failed reset's copies, kept as incident evidence until the operator reviews and disposes of them; retention that is blocked or capped, until the operator answers its alert; and a demo the operator holds stopped, until resets resume. Deployment backups are bounded by 0.33.33.55 before these notices ship.
   - **Reset evidence:** kept for seven days, with no visitor-entered content.
 
 Acceptance criteria:
