@@ -113,8 +113,8 @@ them. Retention never deletes the active unit, the verified last-known-good unit
 visitors are served. A reset that did not complete is incident evidence: its
 evidence, backup, and failed unit stay until you dispose of them. Prune a
 backlog, or answer a `retention-failed` alert, with `retention plan`, then
-`retention apply`. Neither changes the firewall. The policy, the selection
-rules, and both procedures are in
+`retention apply`. Neither changes the firewall or any directory it checks.
+The policy, the selection rules, and both procedures are in
 [Retention](demo-data-operations.md#retention). Reset
 JSONL evidence is root-owned 0600, capped at 336 records (two records per
 hourly run for seven days). Container local logs are capped at 10 MiB across
