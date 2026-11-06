@@ -537,16 +537,33 @@ async function qualifyRetention(host, candidate, api) {
   const hasBackup = (/** @type {string} */ id) => ["", ".sha256"].some((suffix) => fs.existsSync(path.join(BACKUP_ROOT, `pre-demo-reset-${id}.ltfbackup.tgz${suffix}`)));
   const backedUp = resets.filter(hasBackup);
   assert.ok(units.length > 2 && resets.length > 168, "the seeded history must exceed every retention bound");
+  // The seeded resets carry the login record earlier helpers kept. The retained ones must lose it.
+  const legacy = resets.slice(0, 168).filter((id) => synthetic.completed.includes(id));
+  const login = (/** @type {string} */ id) => fs.readFileSync(path.join(evidenceRoot, id, "pre-reset-login.json"), "utf8");
+  assert.ok(legacy.length > 0, "retained evidence must include legacy login records");
+  // A probe that crosses the demo chains, so that a rebuild, which zeroes their counters, would show.
+  assertDemoIsolation(host);
+  const firewall = demoFirewallCounters();
+  assert.ok(firewall.some((packets) => packets > 0), "the demo chains must have counted traffic before retention");
 
   const plan = runRetention(host, "plan");
   assert.equal(plan.status, 0, `retention plan failed:\n${plan.stderr}`);
-  const planned = /** @type {{ status: string, units: { selected: number }, backups: { selected: number }, evidence: { selected: number } }} */ (JSON.parse(lastJsonLine(plan.stdout)));
+  const planned = /** @type {{ status: string, units: { selected: number }, backups: { selected: number }, evidence: { selected: number, legacyLogins: { found: number, replaced: number } } }} */ (JSON.parse(lastJsonLine(plan.stdout)));
   assert.deepEqual([planned.status, planned.units.selected, planned.backups.selected, planned.evidence.selected],
     ["planned", units.length - 2, backedUp.filter((id) => resets.indexOf(id) >= 2).length, resets.length - 168]);
+  assert.deepEqual(planned.evidence.legacyLogins, { found: legacy.length, replaced: 0 });
   assert.deepEqual(retentionSnapshot(volume, evidenceRoot), before, "a retention plan must change nothing");
+  assert.ok(legacy.every((id) => login(id).includes(synthetic.visitorValue)), "a retention plan must change no record");
 
   const applied = runRetention(host, "apply");
   assert.equal(applied.status, 0, `retention apply failed:\n${applied.stderr}`);
+  const afterApply = demoFirewallCounters();
+  assert.ok(afterApply.length === firewall.length && afterApply.every((packets, index) => packets >= firewall[index]),
+    `retention must never rebuild the firewall: counters ${JSON.stringify(firewall)} became ${JSON.stringify(afterApply)}`);
+  assert.deepEqual(/** @type {{ evidence: { legacyLogins: unknown } }} */ (JSON.parse(lastJsonLine(applied.stdout))).evidence.legacyLogins,
+    { found: legacy.length, replaced: legacy.length });
+  for (const id of legacy) assert.deepEqual(JSON.parse(login(id)), { httpStatus: "200", legacyBodyRemoved: true });
+  assert.ok(login(synthetic.incident).includes(synthetic.visitorValue), "incident evidence keeps its own login record");
   assert.deepEqual(completedRecords(volume, RETIRED_UNIT_PREFIX, "reset-operation.json"), units.slice(0, 2),
     "exactly the two newest completed resets keep their retired units");
   assert.ok(fs.existsSync(path.join(volume, `${RETIRED_UNIT_PREFIX}${synthetic.incident}`)), "an incident's retired unit stays");
@@ -590,7 +607,8 @@ async function qualifyRetention(host, candidate, api) {
 /**
  * Synthetic reset history, older than every real reset, owned as the helpers leave it: completed
  * resets with evidence, backups, and retired units; one incident with all three; and one orphaned
- * backup with no evidence.
+ * backup with no evidence. Each operation's evidence keeps its pre-reset login as earlier helpers
+ * did: the response body, with a visitor's profile.
  * @param {DemoHost} host @param {string} volume @param {number} count
  */
 function seedSyntheticHistory(host, volume, count) {
@@ -598,6 +616,7 @@ function seedSyntheticHistory(host, volume, count) {
     .replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}-scheduled-${90000 + hour}`;
   const completed = Array.from({ length: count }, (_, hour) => id(hour));
   const incident = id(count);
+  const visitorValue = `Legacy visitor ${randomBytes(6).toString("hex")}`;
   for (const operationId of [...completed, incident]) {
     const finished = operationId !== incident;
     const evidenceDir = path.join(host.deployRoot, "demo-reset-operations", operationId);
@@ -606,6 +625,7 @@ function seedSyntheticHistory(host, volume, count) {
       contract: "longtail-forge-public-demo-reset-v1", target: DEMO_TARGET, operationId, anchorDate: "2026-01-01",
       phase: finished ? "completed" : "recovering", outcome: finished ? "baseline-healthy" : "reset-failed",
     }));
+    writePrivate(path.join(evidenceDir, "pre-reset-login.json"), JSON.stringify({ user: { username: "workspace.admin", displayName: visitorValue } }));
     for (const suffix of ["", ".sha256"]) {
       const backup = path.join(BACKUP_ROOT, `pre-demo-reset-${operationId}.ltfbackup.tgz${suffix}`);
       writePrivate(backup, "synthetic backup\n");
@@ -627,7 +647,17 @@ function seedSyntheticHistory(host, volume, count) {
   const orphanBackup = path.join(BACKUP_ROOT, `pre-demo-reset-${orphan}.ltfbackup.tgz`);
   writePrivate(orphanBackup, "synthetic orphan\n");
   fs.chownSync(orphanBackup, 10001, 10001);
-  return { completed, incident, orphan };
+  return { completed, incident, orphan, visitorValue };
+}
+
+/**
+ * The packet counter of every rule in the two demo chains, in order. Only a flush resets one, so a
+ * rebuild of the chains shows as a counter that went down.
+ * @returns {number[]}
+ */
+function demoFirewallCounters() {
+  return ["LTF_DEMO_INPUT", "LTF_DEMO_FORWARD"].flatMap((chain) => run("iptables", ["-w", "-L", chain, "-n", "-v", "-x", "--line-numbers"])
+    .split("\n").filter((line) => /^\d+\s/.test(line)).map((line) => Number(line.trim().split(/\s+/)[1])));
 }
 
 /**

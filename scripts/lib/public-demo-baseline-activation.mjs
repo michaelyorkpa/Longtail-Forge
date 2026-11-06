@@ -484,7 +484,8 @@ async function quarantineStaleCandidate(paths, operationId) {
  * with no link anywhere beneath it, before anything changes: one failed check removes nothing. Each
  * removal is renamed to a tombstone first, so an interrupted deletion leaves only a tombstone, which
  * the next apply finishes after checking it too. Plan mode reports the same selection and changes
- * nothing. With a cap, a larger selection removes nothing and reports why.
+ * nothing. A cap bounds every directory the apply would delete, tombstones included: more than that
+ * removes nothing and reports why. `removed` counts the same directories.
  * @param {PublicDemoActivationPaths} paths
  * @param {{ maxRemovals: number | null, mode: "apply" | "plan" }} options
  * @returns {Promise<Readonly<PublicDemoPruneOutcome>>}
@@ -531,8 +532,10 @@ async function pruneRetiredUnits(paths, { maxRemovals, mode }) {
     target: DEMO_DATA_TARGET,
     tombstones: tombstones.length,
   });
+  // A tombstone is a deletion too, so it counts against the cap and in what was removed.
+  const deletions = tombstones.length + selected.length;
   if (mode === "plan") return outcome("prune-planned", 0);
-  if (maxRemovals !== null && selected.length > maxRemovals) return outcome("prune-cap-exceeded", 0);
+  if (maxRemovals !== null && deletions > maxRemovals) return outcome("prune-cap-exceeded", 0);
 
   for (const tombstone of tombstones) {
     await fs.rm(path.join(paths.dataRoot, tombstone), { recursive: true, force: false });
@@ -542,7 +545,7 @@ async function pruneRetiredUnits(paths, { maxRemovals, mode }) {
     await fs.rename(path.join(paths.dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`), tombstone);
     await fs.rm(tombstone, { recursive: true, force: false });
   }
-  return outcome("pruned", selected.length);
+  return outcome("pruned", deletions);
 }
 
 /**

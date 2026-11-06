@@ -244,8 +244,16 @@ describe("pruning retired public-demo units", () => {
     await createUnit(tombstone, "half-deleted");
     expect(await prune("plan")).toMatchObject({ tombstones: 1 });
     expect((await fs.readdir(dataRoot)).includes(path.basename(tombstone))).toBe(true);
-    expect(await prune("apply")).toMatchObject({ removed: 2, tombstones: 1 });
+    expect(await prune("apply")).toMatchObject({ removed: 3, selected: 2, tombstones: 1 });
     expect((await fs.readdir(dataRoot)).includes(path.basename(tombstone))).toBe(false);
+  });
+
+  it("counts a tombstone against the cap", async () => {
+    await createUnit(path.join(dataRoot, `${PUBLIC_DEMO_PRUNING_PREFIX}20260901T000000Z-scheduled-9`), "half-deleted");
+    const before = await tree();
+    expect(await prune("apply", "2")).toMatchObject({ removed: 0, selected: 2, status: "prune-cap-exceeded", tombstones: 1 });
+    expect(await tree()).toEqual(before);
+    expect(await prune("apply", "3")).toMatchObject({ removed: 3, status: "pruned" });
   });
 
   it("removes nothing when a tombstone is unexpected", async () => {

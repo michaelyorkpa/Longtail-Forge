@@ -414,7 +414,13 @@ IMAGE_REFERENCE="$(grep -E '^LONGTAIL_IMAGE=' "$CURRENT_RELEASE_ENV" | head -n 1
 jq -e --arg image "$IMAGE_REFERENCE" --arg network "$DEMO_NETWORK" --arg volume "$DEMO_DATA_VOLUME" \
   --arg backup "$BACKUP_ROOT" --arg origin "$DEMO_ORIGIN" "$EXACT_PROFILE_PROGRAM" "$SESSION_ROOT/resolved.json" >/dev/null \
   || fail 'resolved Compose profile is not the exact production public demo'
-step isolation-enforce public_demo_isolation enforce
+# A reset enforces the reviewed isolation before it starts or recreates anything. Retention only
+# checks it: a plan must change nothing, and neither mode may rebuild the firewall, under a hold or not.
+if test "$MODE" = 'retention'; then
+  step isolation-check public_demo_isolation check
+else
+  step isolation-enforce public_demo_isolation enforce
+fi
 
 mapfile -t SQLITE_SERVICES < <(compose config --services | grep -E '^longtail-forge(-worker)?$')
 printf '%s\n' "${SQLITE_SERVICES[@]}" | grep -Fxq 'longtail-forge' || fail 'Compose application service is missing'
@@ -624,6 +630,10 @@ readonly RETAINED_EVIDENCE=168
 readonly AUTOMATIC_REMOVAL_CAP=3
 readonly RESET_OPERATION_PATTERN='^[0-9]{8}T[0-9]{6}Z-(scheduled|manual|boot|reset)-[0-9]+$'
 readonly EVIDENCE_TOMBSTONE_PREFIX='.pruning-'
+# Helpers before this patch kept the pre-reset login's response body: the shared account's profile as
+# visitors left it. A supervised apply replaces each one that a retained completed reset still holds
+# with this record. That reset completed, so its capture had answered 200.
+readonly LEGACY_LOGIN_RECORD='{"httpStatus":"200","legacyBodyRemoved":true}'
 
 # Whether an entry of the reset history is a real directory whose own state proves that this
 # operation completed.
@@ -638,35 +648,57 @@ completed_reset() {
 }
 
 # Evidence may be removed only as a root-owned real directory holding nothing but root-owned regular
-# files and directories: no link of any kind.
+# files and directories: no link of any kind. A traversal that fails proves nothing, so its status is
+# read before its silence is trusted.
 removable_evidence() {
-  local directory="$1"
+  local directory="$1" owner offending
   test -d "$directory" && test ! -L "$directory" || return 1
-  test "$(stat -c '%u' "$directory")" = '0' || return 1
-  test -z "$(find "$directory" -mindepth 1 \( -type l -o ! \( -type f -o -type d \) -o ! -user 0 \) -print -quit)"
+  owner="$(stat -c '%u' "$directory")" || return 1
+  test "$owner" = '0' || return 1
+  offending="$(find "$directory" -mindepth 1 \( -type l -o ! \( -type f -o -type d \) -o ! -user 0 \) -print -quit)" || return 1
+  test -z "$offending"
 }
 
 # A pre-reset backup or its checksum sidecar may be removed only as a plain file with one name,
 # owned by the backup root's owner, the container user that wrote it.
 removable_backup_file() {
-  local file="$1"
+  local file="$1" owner root_owner links
   test -f "$file" && test ! -L "$file" || return 1
-  test "$(stat -c '%u' "$file")" = "$(stat -c '%u' "$BACKUP_ROOT")" || return 1
-  test "$(stat -c '%h' "$file")" = '1'
+  owner="$(stat -c '%u' "$file")" && root_owner="$(stat -c '%u' "$BACKUP_ROOT")" && links="$(stat -c '%h' "$file")" || return 1
+  test "$owner" = "$root_owner" && test "$links" = '1'
 }
 
 # Plans, and unless planning, applies retention, and records the result in retention.json. A cap,
-# given for the automatic step, makes a selection of more than that many of any kind remove nothing.
-# Every check runs before anything is removed, so one failed check removes nothing; the retired units
-# go first, then the backups, archive before sidecar, then the evidence, each through a tombstone.
+# given for the automatic step, makes more removals than that of any kind, tombstones included,
+# remove nothing. Every check runs before anything is removed, and a listing or check that fails
+# refuses, so one failed check removes nothing. The retired units go first, then the backups, archive
+# before sidecar, then the evidence, each through a tombstone; a supervised apply then replaces the
+# legacy login records. A run never removes anything of the reset it belongs to.
 retain_history() {
-  local mode="$1" cap="${2:-}" name operation_id file index found status
-  local -a completed=() backup_operations=() backup_files=() evidence_operations=() tombstones=()
-  local incident=0 other=0 orphans=0 unit_selected units_removed=0
+  local mode="$1" cap="${2:-}" name operation_id file index found status listing
+  local -a names=() completed=() backup_names=() backup_operations=() backup_files=() evidence_operations=() tombstones=() legacy_logins=()
+  local incident=0 other=0 orphans=0 unit_selected unit_tombstones units_removed=0 legacy_found='null'
+  # The two roots retention reads must be the real directories it expects, so that listing them
+  # means what it says.
+  test -d "$OPERATION_ROOT" && test ! -L "$OPERATION_ROOT" && test "$(stat -c '%u' "$OPERATION_ROOT")" = '0' \
+    || fail 'the reset history root is not a root-owned real directory; nothing was removed'
+  test -d "$BACKUP_ROOT" && test ! -L "$BACKUP_ROOT" || fail 'the backup root is not a real directory; nothing was removed'
+
   run_activation prune "$OPERATION_DIR/retention-units-plan.json" --mode plan
   unit_selected="$(jq -er '.selected | numbers' "$OPERATION_DIR/retention-units-plan.json")"
+  unit_tombstones="$(jq -er '.tombstones | numbers' "$OPERATION_DIR/retention-units-plan.json")"
+  # The reset that runs this step is the newest by any honest clock. If it ranks lower, the clock or a
+  # supplied identity is wrong, and retention would remove what this reset is still reporting.
+  jq -e --arg id "$OPERATION_ID" '(.selectedOperations | type == "array") and all(.selectedOperations[]; . != $id)' \
+    "$OPERATION_DIR/retention-units-plan.json" >/dev/null \
+    || fail 'the current reset ranks among the retired units to remove; nothing was removed'
 
-  while IFS= read -r name; do
+  # Each listing is read whole, with its status, before any of it is trusted: an incomplete listing
+  # could hide a tombstone or rank the history wrongly.
+  listing="$(find "$OPERATION_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" \
+    || fail 'the reset history could not be listed; nothing was removed'
+  if test -n "$listing"; then mapfile -t names <<<"$listing"; fi
+  for name in "${names[@]}"; do
     if [[ "$name" == "$EVIDENCE_TOMBSTONE_PREFIX"* ]]; then
       [[ "${name#"$EVIDENCE_TOMBSTONE_PREFIX"}" =~ $RESET_OPERATION_PATTERN ]] && removable_evidence "$OPERATION_ROOT/$name" \
         || fail 'an evidence tombstone is unexpected; nothing was removed'
@@ -678,14 +710,16 @@ retain_history() {
     else
       other=$((other + 1))
     fi
-  done < <(find "$OPERATION_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
+  done
   if test "${#completed[@]}" -gt 0; then
-    mapfile -t completed < <(printf '%s\n' "${completed[@]}" | LC_ALL=C sort -r)
+    listing="$(printf '%s\n' "${completed[@]}" | LC_ALL=C sort -r)" || fail 'the reset history could not be ranked; nothing was removed'
+    mapfile -t completed <<<"$listing"
   fi
 
   for index in "${!completed[@]}"; do
     test "$index" -ge "$RETAINED_BACKUPS" || continue
     operation_id="${completed[$index]}"
+    test "$operation_id" != "$OPERATION_ID" || fail 'the current reset ranks outside the retained history; nothing was removed'
     found=false
     for file in "$BACKUP_ROOT/pre-demo-reset-$operation_id.ltfbackup.tgz" "$BACKUP_ROOT/pre-demo-reset-$operation_id.ltfbackup.tgz.sha256"; do
       if test -e "$file" || test -L "$file"; then
@@ -704,17 +738,38 @@ retain_history() {
     fi
   done
   # Pre-reset backups with no reset history left are reported, never removed.
-  while IFS= read -r name; do
+  listing="$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -name 'pre-demo-reset-*' -printf '%f\n')" \
+    || fail 'the backup root could not be listed; nothing was removed'
+  if test -n "$listing"; then mapfile -t backup_names <<<"$listing"; fi
+  for name in "${backup_names[@]}"; do
     operation_id="${name#pre-demo-reset-}"
     operation_id="${operation_id%.sha256}"
     operation_id="${operation_id%.ltfbackup.tgz}"
     test -d "$OPERATION_ROOT/$operation_id" || orphans=$((orphans + 1))
-  done < <(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -name 'pre-demo-reset-*' -printf '%f\n')
+  done
+
+  # A supervised run also finds the legacy login records that retained completed resets still hold.
+  # Incident evidence keeps its own.
+  if test "$mode" != 'automatic'; then
+    for index in "${!completed[@]}"; do
+      test "$index" -lt "$RETAINED_EVIDENCE" || continue
+      file="$OPERATION_ROOT/${completed[$index]}/pre-reset-login.json"
+      test -e "$file" || test -L "$file" || continue
+      test -f "$file" && test ! -L "$file" && test "$(stat -c '%u:%h' "$file")" = '0:1' \
+        && test ! -e "$file.tmp" && test ! -L "$file.tmp" \
+        || fail 'a pre-reset login record is not a plain root-owned file; nothing was removed'
+      if ! jq -e 'type == "object" and keys == ["httpStatus"] and (.httpStatus | type == "string")' "$file" >/dev/null 2>&1; then
+        legacy_logins+=("$file")
+      fi
+    done
+    legacy_found="${#legacy_logins[@]}"
+  fi
 
   status='pruned'
   if test "$mode" = 'plan'; then
     status='planned'
-  elif test -n "$cap" && { test "$unit_selected" -gt "$cap" || test "${#backup_operations[@]}" -gt "$cap" || test "${#evidence_operations[@]}" -gt "$cap"; }; then
+  elif test -n "$cap" && { test "$((unit_selected + unit_tombstones))" -gt "$cap" || test "${#backup_operations[@]}" -gt "$cap" \
+    || test "$((${#evidence_operations[@]} + ${#tombstones[@]}))" -gt "$cap"; }; then
     status='capped'
   fi
   if test "$status" = 'pruned'; then
@@ -729,12 +784,16 @@ retain_history() {
       mv -T -- "$OPERATION_ROOT/$operation_id" "$OPERATION_ROOT/$EVIDENCE_TOMBSTONE_PREFIX$operation_id"
       rm -rf -- "${OPERATION_ROOT:?}/$EVIDENCE_TOMBSTONE_PREFIX$operation_id"
     done
+    for file in "${legacy_logins[@]}"; do
+      printf '%s\n' "$LEGACY_LOGIN_RECORD" > "$file.tmp"
+      mv -T -- "$file.tmp" "$file"
+    done
   fi
 
   jq -n --arg operationId "$OPERATION_ID" --arg mode "$mode" --arg status "$status" --arg cap "$cap" \
     --argjson unitSelected "$unit_selected" --argjson unitsRemoved "$units_removed" \
     --argjson completed "${#completed[@]}" --argjson incident "$incident" --argjson other "$other" \
-    --argjson orphans "$orphans" --argjson tombstones "${#tombstones[@]}" \
+    --argjson orphans "$orphans" --argjson tombstones "${#tombstones[@]}" --argjson legacyFound "$legacy_found" \
     --argjson backupOperations "$(jq -cn '$ARGS.positional' --args "${backup_operations[@]}")" \
     --argjson evidenceOperations "$(jq -cn '$ARGS.positional' --args "${evidence_operations[@]}")" \
     --argjson retainedBackups "$RETAINED_BACKUPS" --argjson retainedEvidence "$RETAINED_EVIDENCE" \
@@ -745,8 +804,9 @@ retain_history() {
        policy: {units: 2, backups: $retainedBackups, evidence: $retainedEvidence, cap: (if $cap == "" then null else ($cap | tonumber) end)},
        units: {retained: $units[0].retainedOperations, selected: $unitSelected, removed: $unitsRemoved, skipped: $units[0].skipped, tombstones: $units[0].tombstones},
        backups: {selected: ($backupOperations | length), removed: (if $applied then ($backupOperations | length) else 0 end), operations: $backupOperations, orphans: $orphans},
-       evidence: {completed: $completed, selected: ($evidenceOperations | length), removed: (if $applied then ($evidenceOperations | length) else 0 end),
-         operations: $evidenceOperations, incident: $incident, other: $other, tombstones: $tombstones}}' \
+       evidence: {completed: $completed, selected: ($evidenceOperations | length), removed: (if $applied then ($evidenceOperations | length) + $tombstones else 0 end),
+         operations: $evidenceOperations, incident: $incident, other: $other, tombstones: $tombstones,
+         legacyLogins: {found: $legacyFound, replaced: (if $applied and $legacyFound != null then $legacyFound else 0 end)}}}' \
     > "$OPERATION_DIR/retention.json"
 }
 
@@ -759,7 +819,7 @@ if test "$MODE" = 'retention'; then
   jq -c '{ok: true, mode: "retention", retentionMode: .mode, operationId, status,
     units: {selected: .units.selected, removed: .units.removed},
     backups: {selected: .backups.selected, removed: .backups.removed, orphans: .backups.orphans},
-    evidence: {selected: .evidence.selected, removed: .evidence.removed, incident: .evidence.incident}}' "$OPERATION_DIR/retention.json"
+    evidence: {selected: .evidence.selected, removed: .evidence.removed, incident: .evidence.incident, legacyLogins: .evidence.legacyLogins}}' "$OPERATION_DIR/retention.json"
   exit 0
 fi
 
@@ -767,6 +827,11 @@ RECOVERY_ARMED=false
 RECOVERY_RUNNING=false
 START_ARMED=false
 APP_STARTED_BY_RESET=false
+# Set once the reset has finalized and lifted its curtain. From then on the reset has completed, and
+# nothing may record otherwise: a signal stops only its retention step, and the exit handler records
+# no other phase.
+RESET_COMPLETED=false
+RETENTION_INTERRUPTED=false
 # The automatic recovery. Each command runs as a step, so its diagnostics are redacted like every
 # other step's. Each step is called on its own and its status read afterwards: under `||` or `if`,
 # bash would ignore errexit inside it.
@@ -814,6 +879,10 @@ run_recovery() {
 # in for the EXIT trap while recovery runs.
 recover_on_exit() {
   local status="$1"
+  if test "$RESET_COMPLETED" = true; then
+    cleanup_session_material
+    return "$status"
+  fi
   if test "$status" -ne 0 && test "$START_ARMED" = true; then
     trap - EXIT HUP INT TERM
     cleanup_session_material
@@ -889,6 +958,10 @@ record_phase 'backed-up'
 step activate run_activation activate "$OPERATION_DIR/activation.json"
 record_phase 'activated'
 step active-baseline run_candidate active "$OPERATION_DIR/active-baseline.json"
+# The result this reset reports, read now, so that nothing after completion can change or lose it.
+RESULT_FINGERPRINT="$(state_value "$OPERATION_DIR/active-baseline.json" '.semanticFingerprint')"
+RESULT_VERSION="$(state_value "$CURRENT_STATE" '.version')"
+RESULT_COMMIT="$(state_value "$CURRENT_STATE" '.commitSha')"
 step start start_sqlite_users
 record_phase 'started'
 step verify verify_runtime
@@ -899,24 +972,26 @@ step finalize run_activation finalize "$OPERATION_DIR/finalize.json"
 # The boot lifts its own curtain once this reset reports success.
 if test "$CALLER" != 'boot'; then clear_marker; fi
 RECOVERY_ARMED=false
+RESET_COMPLETED=true
+trap 'RETENTION_INTERRUPTED=true' HUP INT TERM
 record_phase 'completed' 'baseline-healthy'
 
-# Retention runs once the reset has completed and its curtain is down, still under the lock. It is
-# capped, and its failure never fails or rolls back the completed reset: the scheduler alerts on it.
-# A boot-delegated reset skips it, so that the boot's curtain lifts sooner; the next hourly reset
-# prunes instead.
-RETENTION_SUMMARY='{"status":"skipped-boot"}'
-if test "$CALLER" != 'boot'; then
+# Retention runs once the reset has completed, still under the lock: after the curtain is down, or
+# behind the boot's curtain for its delegate. It is capped, and its failure never fails or rolls back
+# the completed reset: the scheduler alerts on it, and a failure under the boot is retried, and
+# alerted, by the next hourly reset. A signal stops it and is reported as a failed retention.
+RETENTION_SUMMARY='{"status":"failed"}'
+if test "$RETENTION_INTERRUPTED" = false; then
   set +e
   step retention retain_history automatic "$AUTOMATIC_REMOVAL_CAP"
   retention_status=$?
-  RETENTION_SUMMARY="$(jq -ce '{status, units: .units.removed, backups: .backups.removed, evidence: .evidence.removed}' "$OPERATION_DIR/retention.json" 2>/dev/null)"
-  test "$retention_status" -eq 0 && test -n "$RETENTION_SUMMARY" || RETENTION_SUMMARY='{"status":"failed"}'
   set -e
+  if test "$retention_status" -eq 0; then
+    RETENTION_SUMMARY="$(jq -ce '{status, units: .units.removed, backups: .backups.removed, evidence: .evidence.removed}' "$OPERATION_DIR/retention.json" 2>/dev/null)" \
+      || RETENTION_SUMMARY='{"status":"failed"}'
+  fi
 fi
 
 printf '{"ok":true,"mode":"reset","target":"%s","anchorDate":"%s","operationId":"%s","semanticFingerprint":"%s","version":"%s","commitSha":"%s","backup":"%s","appStartedByReset":%s,"retention":%s}\n' \
-  "$DEMO_TARGET" "$ANCHOR_DATE" "$OPERATION_ID" \
-  "$(state_value "$OPERATION_DIR/active-baseline.json" '.semanticFingerprint')" \
-  "$(state_value "$CURRENT_STATE" '.version')" "$(state_value "$CURRENT_STATE" '.commitSha')" \
+  "$DEMO_TARGET" "$ANCHOR_DATE" "$OPERATION_ID" "$RESULT_FINGERPRINT" "$RESULT_VERSION" "$RESULT_COMMIT" \
   "$(basename "$BACKUP")" "$APP_STARTED_BY_RESET" "$RETENTION_SUMMARY"

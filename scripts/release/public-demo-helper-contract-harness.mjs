@@ -156,17 +156,29 @@ const SEEDS = Object.freeze([
   { label: "retention takes an incident for a completed reset", helper: "reset", from: ".operationId == $id and .phase == \"completed\"'", to: ".operationId == $id and .phase != \"\"'", caughtBy: "retention apply keeps the newest backups" },
   { label: "the automatic step ignores its cap", helper: "reset", from: "elif test -n \"$cap\" && {", to: "elif false && {", caughtBy: "the automatic step removes nothing beyond its cap" },
   { label: "a retention plan removes", helper: "reset", from: "if test \"$mode\" = 'plan'; then\n    status='planned'", to: "if false; then\n    status='planned'", caughtBy: "retention plan reports the selection" },
-  { label: "retention accepts a backup another user owns", helper: "reset", from: "  test \"$(stat -c '%u' \"$file\")\" = \"$(stat -c '%u' \"$BACKUP_ROOT\")\" || return 1\n", to: "", caughtBy: "retention refuses a backup the container user does not own" },
+  { label: "retention accepts a backup another user owns", helper: "reset", from: "  test \"$owner\" = \"$root_owner\" && test \"$links\" = '1'\n", to: "  test \"$links\" = '1'\n", caughtBy: "retention refuses a backup the container user does not own" },
   { label: "retention removes evidence holding a link", helper: "reset", from: "\\( -type l -o ! \\( -type f -o -type d \\) -o ! -user 0 \\)", to: "\\( ! -user 0 \\)", caughtBy: "retention refuses evidence holding a link" },
-  { label: "the automatic step runs behind the curtain", helper: "reset", from: "RETENTION_SUMMARY='{\"status\":\"skipped-boot\"}'\nif test \"$CALLER\" != 'boot'; then", to: "assert_marker\nRETENTION_SUMMARY='{\"status\":\"skipped-boot\"}'\nif test \"$CALLER\" != 'boot'; then", caughtBy: "a completed reset prunes its history automatically" },
+  { label: "the automatic step runs behind the curtain", helper: "reset", from: "RETENTION_SUMMARY='{\"status\":\"failed\"}'\nif test \"$RETENTION_INTERRUPTED\" = false; then", to: "assert_marker\nRETENTION_SUMMARY='{\"status\":\"failed\"}'\nif test \"$RETENTION_INTERRUPTED\" = false; then", caughtBy: "a completed reset prunes its history automatically" },
   { label: "a retention failure fails the reset", helper: "reset", from: "  set +e\n  step retention retain_history", to: "  set -e\n  step retention retain_history", caughtBy: "a failed retention step never fails the completed reset" },
-  { label: "a boot-delegated reset prunes", helper: "reset", from: "if test \"$CALLER\" != 'boot'; then\n  set +e\n  step retention", to: "if true; then\n  set +e\n  step retention", caughtBy: "a boot-delegated reset leaves the curtain to the boot" },
+  { label: "a boot-delegated reset skips retention", helper: "reset", from: "if test \"$RETENTION_INTERRUPTED\" = false; then\n  set +e", to: "if test \"$CALLER\" != 'boot' && test \"$RETENTION_INTERRUPTED\" = false; then\n  set +e", caughtBy: "a boot-delegated reset leaves the curtain to the boot" },
+  { label: "retention rebuilds the firewall", helper: "reset", from: "  step isolation-check public_demo_isolation check\n", to: "  step isolation-check public_demo_isolation enforce\n", caughtBy: "retention plan reports the selection and changes nothing" },
+  { label: "retention trusts a failed history listing", helper: "reset", from: "    || fail 'the reset history could not be listed; nothing was removed'", to: "    || true", caughtBy: "retention refuses when its history listing fails" },
+  { label: "retention trusts a failed evidence traversal", helper: "reset", from: "-print -quit)\" || return 1", to: "-print -quit)\" || true", caughtBy: "retention refuses when an evidence traversal fails" },
+  { label: "retention trusts a failed backup listing", helper: "reset", from: "    || fail 'the backup root could not be listed; nothing was removed'", to: "    || true", caughtBy: "retention refuses when its backup listing fails" },
+  { label: "retention accepts a linked history root", helper: "reset", from: "  test -d \"$OPERATION_ROOT\" && test ! -L \"$OPERATION_ROOT\" && test \"$(stat -c '%u' \"$OPERATION_ROOT\")\" = '0' \\\n    || fail 'the reset history root is not a root-owned real directory; nothing was removed'\n", to: "", caughtBy: "retention refuses a reset history root that is a link" },
+  { label: "the cap ignores evidence tombstones", helper: "reset", from: "test \"$((${#evidence_operations[@]} + ${#tombstones[@]}))\" -gt \"$cap\"", to: "test \"${#evidence_operations[@]}\" -gt \"$cap\"", caughtBy: "the automatic step counts evidence tombstones against its cap" },
+  { label: "the cap ignores in-volume tombstones", helper: "reset", from: "test \"$((unit_selected + unit_tombstones))\" -gt \"$cap\"", to: "test \"$unit_selected\" -gt \"$cap\"", caughtBy: "the automatic step counts in-volume tombstones against its cap" },
+  { label: "retention removes the backup of the reset it belongs to", helper: "reset", from: "    test \"$operation_id\" != \"$OPERATION_ID\" || fail 'the current reset ranks outside the retained history; nothing was removed'\n", to: "", caughtBy: "the automatic step never removes the reset it belongs to" },
+  { label: "retention removes the retired unit of the reset it belongs to", helper: "reset", from: "    || fail 'the current reset ranks among the retired units to remove; nothing was removed'", to: "    || true", caughtBy: "the automatic step never removes the retired unit of the reset it belongs to" },
+  { label: "a signal during retention fails the completed reset", helper: "reset", from: "trap 'RETENTION_INTERRUPTED=true' HUP INT TERM\n", to: "", caughtBy: "a signal during retention leaves the completed reset completed" },
+  { label: "the exit handler rewrites a completed reset", helper: "reset", from: "  if test \"$RESET_COMPLETED\" = true; then\n    cleanup_session_material\n    return \"$status\"\n  fi\n", to: "", caughtBy: "a completed reset whose result cannot be written" },
+  { label: "retention keeps legacy login bodies", helper: "reset", from: "printf '%s\\n' \"$LEGACY_LOGIN_RECORD\" > \"$file.tmp\"\n      mv -T -- \"$file.tmp\" \"$file\"", to: "true", caughtBy: "retention apply replaces the legacy login records" },
   { label: "the scheduler takes a retention failure for success", helper: "scheduler", from: "if test \"$RETENTION_STATUS\" = 'failed' || test \"$RETENTION_STATUS\" = 'capped'; then", to: "if false; then", caughtBy: "the scheduler records a retention failure" },
   { label: "the alert refuses the retention class", helper: "alert", from: "|reset-failed-unrecovered|retention-failed|", to: "|reset-failed-unrecovered|", caughtBy: "the scheduler records a retention failure" },
   { label: "the reset takes a failed state query for a stop", helper: "reset", from: "  running=\"$(bounded_compose \"$QUERY_LIMIT\" ps --status running -q \"$@\")\" || return 1\n", to: "  running=\"$(bounded_compose \"$QUERY_LIMIT\" ps --status running -q \"$@\")\" || true\n", caughtBy: "a reset whose state query fails" },
   { label: "the reset's stop has no deadline", helper: "reset", from: "  bounded_compose \"$STOP_LIMIT\" stop \"${SQLITE_SERVICES[@]}\"", to: "  compose stop \"${SQLITE_SERVICES[@]}\"", caughtBy: "a standalone reset lifts the curtain" },
   { label: "the reset's recovery keeps a step's diagnostics unredacted", helper: "reset", from: "  step recovery-stop stop_sqlite_users\n", to: "  stop_sqlite_users\n", caughtBy: "a recovery step's diagnostics are redacted" },
-  { label: "the reset drops its redaction list before recovering", helper: "reset", from: "  local status=\"$1\"\n  if test \"$status\" -ne 0 && test \"$START_ARMED\" = true; then", to: "  local status=\"$1\"\n  rm -f -- \"$SESSION_ROOT/redactions\"\n  if test \"$status\" -ne 0 && test \"$START_ARMED\" = true; then", caughtBy: "a recovery step's diagnostics are redacted" },
+  { label: "the reset drops its redaction list before recovering", helper: "reset", from: "  local status=\"$1\"\n  if test \"$RESET_COMPLETED\" = true; then", to: "  local status=\"$1\"\n  rm -f -- \"$SESSION_ROOT/redactions\"\n  if test \"$RESET_COMPLETED\" = true; then", caughtBy: "a recovery step's diagnostics are redacted" },
   { label: "the reset leaves its session material after recovery", helper: "reset", from: "  ( run_recovery )\n  trap - HUP INT TERM\n  cleanup_session_material\n", to: "  ( run_recovery )\n  trap - HUP INT TERM\n", caughtBy: "a recovery step's diagnostics are redacted" },
   { label: "the scheduler reads a curtained recovery as a lifted one", helper: "scheduler", from: "elif grep -Fq 'prior unit was restored and verified behind the retained maintenance curtain' \"$RUN_ROOT/reset.err\"; then", to: "elif false; then", caughtBy: "the scheduler records a recovery behind the retained curtain" },
 ]);
@@ -180,7 +192,8 @@ const SEEDS = Object.freeze([
  *   running?: boolean, identityFailCalls?: number[], publicFails?: boolean, candidateBuildFails?: boolean, candidateBuildCanary?: boolean,
  *   roleCredentials?: "missing" | "empty", stall?: string, stopFails?: "error" | "silent", killFails?: boolean,
  *   stateQuery?: "fails" | "fails-after-kill", dockerStall?: "kill" | "first-state-query", stopCanary?: boolean,
- *   resetRetention?: string, unitsToPrune?: number, pruneFails?: boolean,
+ *   resetRetention?: string, unitsToPrune?: number, pruneFails?: boolean, unitTombstones?: number, pruneSignals?: boolean,
+ *   pruneSelectsCurrent?: boolean, findFails?: "history" | "evidence" | "backups",
  * }} Scenario
  */
 /** @typedef {{ running: boolean, isolationEnforced: boolean, probes: Record<string, number>, clock: number, identityCalls: number, stateQueries?: number, killed?: boolean }} Runtime */
@@ -238,6 +251,20 @@ function runFake(tool, args) {
     // A deadline around Docker runs the real timeout, so the deadline really ends a stalled fake.
     if (args.includes("docker")) return spawnSync("/usr/bin/timeout", args, { stdio: "inherit" }).status ?? 1;
     return available("scanner", scenario.scannerAfter) ? emit("PONG") : 1;
+  }
+  if (tool === "find") {
+    // The real find, unless the scenario makes one listing or traversal fail as an I/O error would:
+    // with nothing on standard output.
+    const failing = {
+      history: String(args[0]).endsWith("/demo-reset-operations") && args.includes("-maxdepth"),
+      evidence: args.includes("-quit"),
+      backups: args[0] === BACKUP_ROOT,
+    }[String(scenario.findFails || "")];
+    if (failing) {
+      process.stderr.write(`find: '${args[0]}': Input/output error\n`);
+      return 1;
+    }
+    return spawnSync("/usr/bin/find", args, { stdio: "inherit" }).status ?? 1;
   }
   if (tool === "isolation") {
     if (args[0] === "enforce") runtime.isolationEnforced = true;
@@ -536,13 +563,39 @@ function fakePrune(args, scenario) {
     return 1;
   }
   const mode = String(args[args.indexOf("--mode") + 1]);
+  if (mode === "plan" && scenario.pruneSignals) signalHelper();
   const cap = args.includes("--max-removals") ? Number(args[args.indexOf("--max-removals") + 1]) : null;
   const selected = scenario.unitsToPrune ?? 1;
-  const status = mode === "plan" ? "prune-planned" : cap !== null && selected > cap ? "prune-cap-exceeded" : "pruned";
+  const tombstones = scenario.unitTombstones ?? 0;
+  const status = mode === "plan" ? "prune-planned" : cap !== null && selected + tombstones > cap ? "prune-cap-exceeded" : "pruned";
+  const selectedOperations = Array.from({ length: selected }, (_, index) => `20250101T${String(index).padStart(6, "0")}Z-scheduled-${index + 1}`);
+  // The reset this prune runs for, if the scenario has its own retired unit selected: its evidence is
+  // the newest directory in the reset history.
+  if (scenario.pruneSelectsCurrent) {
+    const history = path.join(path.dirname(String(readJson(path.join(String(process.env.HARNESS_STATE), "paths.json")).lock)), "demo-reset-operations");
+    selectedOperations[0] = fs.readdirSync(history).sort().at(-1) || "";
+  }
   return emit(`${JSON.stringify({
-    contract: "longtail-forge-public-demo-prune-v1", mode, removed: status === "pruned" ? selected : 0, retainedOperations: [],
-    selected, skipped: 0, status, target: "rt-ltf-demo", tombstones: 0,
+    contract: "longtail-forge-public-demo-prune-v1", mode, removed: status === "pruned" ? selected + tombstones : 0, retainedOperations: [],
+    selected, ...(mode === "plan" ? { selectedOperations } : {}), skipped: 0, status, target: "rt-ltf-demo", tombstones,
   })}\n`);
+}
+
+/**
+ * Sends TERM to the helper that ran this fake and to the step subshell between them, as a signal to
+ * the reset's process group would. Both are bash; the harness above them is not.
+ */
+function signalHelper() {
+  /** @type {number[]} */
+  const ancestors = [];
+  let pid = process.ppid;
+  while (pid > 1 && path.basename(fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0")[0]) === "bash") {
+    ancestors.push(pid);
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
+    pid = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
+  }
+  assert.ok(ancestors.length >= 2, "the fake must find the helper and its step subshell");
+  for (const ancestor of ancestors) process.kill(ancestor, "SIGTERM");
 }
 
 /** A file in the backup root, owned by the container user. @param {string} name @param {string} [content] */
@@ -588,6 +641,7 @@ async function main() {
   }
   assert.ok(fs.existsSync("/usr/bin/curl"), "the real curl is required for the stalled-response scenarios");
   assert.ok(fs.existsSync("/usr/bin/timeout"), "the real timeout is required for the Docker deadline scenarios");
+  assert.ok(fs.existsSync("/usr/bin/find"), "the real find is required beneath the failing-listing fake");
   // A server that accepts each connection and never answers. The kernel completes the handshake even
   // while the scenarios block this process, so a request to it stalls until its own time limit.
   const stallServer = net.createServer(() => {});
@@ -601,7 +655,7 @@ async function main() {
   fs.chmodSync(work, 0o755);
   const fakeBin = path.join(work, "bin");
   fs.mkdirSync(fakeBin, { mode: 0o755 });
-  for (const tool of ["docker", "curl", "ip", "timeout", "logger", "sleep", "date", "isolation", "reset"]) {
+  for (const tool of ["docker", "curl", "ip", "timeout", "logger", "sleep", "date", "isolation", "reset", "find"]) {
     fs.writeFileSync(path.join(fakeBin, tool), `#!/usr/bin/env bash\nexec ${shellQuote(process.execPath)} ${shellQuote(scriptPath)} --fake ${tool} "$@"\n`, { mode: 0o755 });
   }
   install(path.join(fakeBin, "reset"), FIXED.installedReset, 0o755);
@@ -630,13 +684,14 @@ async function main() {
       for (const fixed of [FIXED.hold, FIXED.webhook, FIXED.heartbeat, FIXED.schedulerEnv]) fs.rmSync(fixed, { force: true });
     }
   };
-  /** @param {Sandbox} box @param {string} helper @param {string[]} args */
-  const runHelper = (box, helper, args) => {
+  /** @param {Sandbox} box @param {string} helper @param {string[]} args @param {{ stdout?: number }} [options] a descriptor for standard output */
+  const runHelper = (box, helper, args, { stdout } = {}) => {
     const result = spawnSync("bash", [helper, ...args], {
       encoding: "utf8",
       env: { PATH: `${fakeBin}:/usr/sbin:/usr/bin:/sbin:/bin`, HOME: "/root", LANG: "C.UTF-8", HARNESS_STATE: box.state, LTF_COMPOSE_HELPER_ENV: box.helperEnv },
       timeout: 180_000,
       killSignal: "SIGKILL",
+      ...(stdout === undefined ? {} : { stdio: /** @type {import("node:child_process").StdioOptions} */ (["pipe", stdout, "pipe"]) }),
     });
     assert.equal(result.signal, null, "the helper must finish on its own");
     const calls = readCalls(box);
@@ -669,8 +724,8 @@ async function main() {
   };
   /** @param {Sandbox} box */
   const boot = (box) => runHelper(box, helpers.boot, ["run"]);
-  /** @param {Sandbox} box @param {string[]} [extra] */
-  const reset = (box, extra = []) => runHelper(box, helpers.reset, ["reset", "--target", "rt-ltf-demo", "--anchor-date", "today", ...extra, "--confirm", RESET_CONFIRMATION]);
+  /** @param {Sandbox} box @param {string[]} [extra] @param {{ stdout?: number }} [options] */
+  const reset = (box, extra = [], options = {}) => runHelper(box, helpers.reset, ["reset", "--target", "rt-ltf-demo", "--anchor-date", "today", ...extra, "--confirm", RESET_CONFIRMATION], options);
   /** @param {Sandbox} box @param {"plan" | "apply"} mode @param {string[]} [extra] */
   const retention = (box, mode, extra = []) => runHelper(box, helpers.reset, ["retention", mode, "--target", "rt-ltf-demo", ...extra]);
   /** @param {Sandbox} box */
@@ -680,6 +735,8 @@ async function main() {
     .map((call) => ({ markerPresent: call.markerPresent, arguments: call.args.slice(call.args.indexOf("--mode")) }));
   /** @param {Call[]} calls */
   const publicCalls = (calls) => calls.filter((call) => call.tool === "curl" && call.args.some(onDemoOrigin));
+  /** The modes a run asked the isolation helper for. @param {Call[]} calls */
+  const isolationModes = (calls) => calls.filter((call) => call.tool === "isolation").map((call) => call.args[0]);
   const notifyArgs = ["notify", "--target", "rt-ltf-demo", "--operation-id", "20261103T170000Z-scheduled-42", "--trigger", "scheduled",
     "--scheduled-boundary", "2026-11-03T17:00:00Z", "--failure-class", "reset-failed-unrecovered", "--recovery-status", "maintenance-curtain-retained", "--exit-code", "1"];
 
@@ -1039,8 +1096,11 @@ async function main() {
       assert.equal(result.status, 0, result.stderr);
       assert.ok(fs.existsSync(box.marker), "the boot lifts its own curtain");
       assert.equal(publicCalls(result.calls).length, 0);
-      assert.equal(JSON.parse(lastLine(result.stdout)).retention.status, "skipped-boot");
-      assert.deepEqual(prunes(result.calls), [], "the boot's delegate leaves retention to the next hourly reset");
+      assert.equal(JSON.parse(lastLine(result.stdout)).retention.status, "pruned");
+      assert.deepEqual(prunes(result.calls), [
+        { markerPresent: true, arguments: ["--mode", "plan"] },
+        { markerPresent: true, arguments: ["--mode", "apply", "--max-removals", "3"] },
+      ], "the boot's delegate prunes too, behind the boot's curtain, within the cap");
     }, { running: true });
     scenario("a boot-delegated reset that fails verification restores the prior unit behind the boot's curtain", (box) => {
       fs.writeFileSync(box.marker, "");
@@ -1210,6 +1270,7 @@ async function main() {
         ["planned", 1, 4, 0, 0]);
       assert.deepEqual(historySnapshot(box), before, "a plan must change nothing");
       assert.deepEqual(prunes(result.calls).map((call) => call.arguments), [["--mode", "plan"]]);
+      assert.deepEqual(isolationModes(result.calls), ["check"], "a plan checks the firewall and never rebuilds it");
     });
     scenario("retention apply keeps the newest backups and seven days of evidence, and leaves incidents, other backups, and orphans", (box) => {
       const completed = Array.from({ length: 171 }, (_, hour) => historyId(box, hour));
@@ -1234,6 +1295,7 @@ async function main() {
       assert.deepEqual(historySnapshot(box).evidence.filter((name) => name.startsWith(".pruning-")), []);
       assert.deepEqual(prunes(result.calls).map((call) => call.arguments), [["--mode", "plan"], ["--mode", "apply"]], "a supervised apply is uncapped");
       assert.match(retentionRecords(box), /"mode": "apply"/);
+      assert.deepEqual(isolationModes(result.calls), ["check"], "an apply checks the firewall and never rebuilds it");
     }, { unitsToPrune: 5 });
     scenario("retention apply refuses without its exact confirmation, before any Docker call", (box) => {
       const result = retention(box, "apply");
@@ -1293,6 +1355,119 @@ async function main() {
       } finally {
         if (holder.pid) process.kill(-holder.pid, "SIGKILL");
       }
+    });
+    scenario("retention refuses when its history listing fails, and removes nothing", (box) => {
+      seedHistory(box, Array.from({ length: 6 }, (_, hour) => ({ id: historyId(box, hour) })));
+      const before = historySnapshot(box);
+      const result = applyRetention(box);
+      assert.equal(result.status, 1);
+      assert.match(retentionRecords(box), /the reset history could not be listed; nothing was removed/);
+      assert.deepEqual(historySnapshot(box), before);
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"], "a failed listing stops the in-volume apply too");
+    }, { findFails: "history" });
+    scenario("retention refuses when an evidence traversal fails, and removes nothing", (box) => {
+      seedHistory(box, Array.from({ length: 170 }, (_, hour) => ({ id: historyId(box, hour) })));
+      const before = historySnapshot(box);
+      const result = applyRetention(box);
+      assert.equal(result.status, 1);
+      assert.match(retentionRecords(box), /not a root-owned directory free of links; nothing was removed/);
+      assert.deepEqual(historySnapshot(box), before);
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
+    }, { findFails: "evidence" });
+    scenario("retention refuses when its backup listing fails, and removes nothing", (box) => {
+      seedHistory(box, Array.from({ length: 4 }, (_, hour) => ({ id: historyId(box, hour) })));
+      const before = historySnapshot(box);
+      const result = applyRetention(box);
+      assert.equal(result.status, 1);
+      assert.match(retentionRecords(box), /the backup root could not be listed; nothing was removed/);
+      assert.deepEqual(historySnapshot(box), before);
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
+    }, { findFails: "backups" });
+    scenario("retention refuses a reset history root that is a link, and removes nothing", (box) => {
+      seedHistory(box, Array.from({ length: 4 }, (_, hour) => ({ id: historyId(box, hour) })));
+      const root = path.join(box.deployRoot, "demo-reset-operations");
+      const real = path.join(box.deployRoot, "linked-history");
+      fs.renameSync(root, real);
+      fs.symlinkSync(real, root);
+      const before = fs.readdirSync(real).sort();
+      const result = retention(box, "plan");
+      assert.equal(result.status, 1);
+      assert.match(retentionRecords(box), /the reset history root is not a root-owned real directory; nothing was removed/);
+      assert.deepEqual(fs.readdirSync(real).sort(), before);
+      assert.deepEqual(prunes(result.calls), [], "nothing runs in the volume");
+    });
+    scenario("the automatic step counts evidence tombstones against its cap", (box) => {
+      const history = Array.from({ length: 168 }, (_, hour) => historyId(box, hour));
+      seedHistory(box, history.map((id) => ({ id, backup: false, sidecar: false })));
+      const tombstones = [900, 901, 902].map((hour) => path.join(box.deployRoot, "demo-reset-operations", `.pruning-${historyId(box, hour)}`));
+      for (const tombstone of tombstones) {
+        fs.mkdirSync(tombstone, { mode: 0o700 });
+        writePrivate(path.join(tombstone, "state.json"), "{}");
+      }
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).retention.status, "capped", "one evidence directory and three tombstones are four removals");
+      assert.ok(tombstones.every((tombstone) => fs.existsSync(tombstone)) && evidenceExists(box, history[0]), "a capped step removes nothing");
+    }, { running: true });
+    scenario("the automatic step counts in-volume tombstones against its cap", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).retention.status, "capped");
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
+    }, { running: true, unitsToPrune: 1, unitTombstones: 3 });
+    scenario("the automatic step never removes the reset it belongs to, however its identity ranks", (box) => {
+      const history = Array.from({ length: 3 }, (_, hour) => historyId(box, hour));
+      seedHistory(box, history.map((id) => ({ id })));
+      // An accepted identity older than the history, as a clock set back would give.
+      const own = `20250101T000000Z-manual-${path.basename(box.root).replace("box-", "")}`;
+      const result = reset(box, ["--operation-id", own]);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).retention, { status: "failed" });
+      const evidence = path.join(box.deployRoot, "demo-reset-operations", own);
+      assert.ok(fs.existsSync(path.join(evidence, "active-baseline.json")) && backupExists(own), "the reset keeps its own evidence and backup");
+      assert.match(fs.readFileSync(path.join(evidence, "step-retention.err"), "utf8"), /the current reset ranks outside the retained history; nothing was removed/);
+      for (const id of history) assert.ok(backupExists(id) && evidenceExists(box, id), `${id} must stay`);
+    }, { running: true });
+    scenario("the automatic step never removes the retired unit of the reset it belongs to", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).retention, { status: "failed" });
+      assert.match(fs.readFileSync(path.join(resetDirectory(box), "step-retention.err"), "utf8"), /the current reset ranks among the retired units to remove/);
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
+    }, { running: true, pruneSelectsCurrent: true });
+    scenario("a signal during retention leaves the completed reset completed, and the reset still reports it", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      const reported = JSON.parse(lastLine(result.stdout));
+      assert.deepEqual([reported.ok, reported.appStartedByReset, reported.retention], [true, true, { status: "failed" }]);
+      assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["completed", "baseline-healthy"]);
+      assert.equal(fs.existsSync(box.marker), false, "the completed reset's curtain stays down");
+    }, { running: false, pruneSignals: true });
+    scenario("a completed reset whose result cannot be written still records that it completed", (box) => {
+      const full = fs.openSync("/dev/full", "w");
+      try {
+        const result = reset(box, [], { stdout: full });
+        assert.notEqual(result.status, 0, "an unwritable result fails the run");
+        assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["completed", "baseline-healthy"]);
+        assert.equal(fs.existsSync(box.marker), false);
+      } finally {
+        fs.closeSync(full);
+      }
+    }, { running: false });
+    scenario("retention apply replaces the legacy login records of retained completed resets, and leaves incident evidence its own", (box) => {
+      const completed = Array.from({ length: 4 }, (_, hour) => historyId(box, hour));
+      const incident = historyId(box, 4);
+      seedHistory(box, [...completed.map((id) => ({ id, legacyLogin: true })), { id: incident, phase: "recovering", legacyLogin: true }]);
+      const login = (/** @type {string} */ id) => fs.readFileSync(path.join(box.deployRoot, "demo-reset-operations", id, "pre-reset-login.json"), "utf8");
+      const plan = retention(box, "plan");
+      assert.equal(plan.status, 0, plan.stderr);
+      assert.deepEqual(JSON.parse(lastLine(plan.stdout)).evidence.legacyLogins, { found: 4, replaced: 0 });
+      for (const id of completed) assert.ok(login(id).includes(VISITOR_CANARY), "a plan changes nothing");
+      const result = applyRetention(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).evidence.legacyLogins, { found: 4, replaced: 4 });
+      for (const id of completed) assert.deepEqual(JSON.parse(login(id)), { httpStatus: "200", legacyBodyRemoved: true });
+      assert.ok(login(incident).includes(VISITOR_CANARY), "incident evidence keeps its own record");
     });
   };
 
@@ -1422,13 +1597,14 @@ function historyId(box, hour) {
 
 /**
  * Synthetic reset history, as the reset leaves it: each operation's root-owned evidence with its
- * state, and its pre-reset backup and checksum sidecar, owned by the container user.
- * @param {Sandbox} box @param {{ id: string, phase?: string, backup?: boolean, sidecar?: boolean }[]} operations
+ * state, and its pre-reset backup and checksum sidecar, owned by the container user. A legacy login
+ * is the pre-reset login record earlier helpers kept: the response body, with the visitor's profile.
+ * @param {Sandbox} box @param {{ id: string, phase?: string, backup?: boolean, sidecar?: boolean, legacyLogin?: boolean }[]} operations
  */
 function seedHistory(box, operations) {
   const root = path.join(box.deployRoot, "demo-reset-operations");
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
-  for (const { id, phase = "completed", backup = true, sidecar = true } of operations) {
+  for (const { id, phase = "completed", backup = true, sidecar = true, legacyLogin = false } of operations) {
     const directory = path.join(root, id);
     fs.mkdirSync(directory, { mode: 0o700 });
     writePrivate(path.join(directory, "state.json"), JSON.stringify({
@@ -1436,6 +1612,9 @@ function seedHistory(box, operations) {
       phase, outcome: phase === "completed" ? "baseline-healthy" : "maintenance-curtain-retained",
     }));
     writePrivate(path.join(directory, "steps.jsonl"), `${JSON.stringify({ step: "finalize" })}\n`);
+    writePrivate(path.join(directory, "pre-reset-login.json"), legacyLogin
+      ? JSON.stringify({ user: { id: 3, username: "workspace.admin", displayName: VISITOR_CANARY } })
+      : `${JSON.stringify({ httpStatus: "200" })}\n`);
     if (backup) writeBackup(`pre-demo-reset-${id}.ltfbackup.tgz`);
     if (sidecar) writeBackup(`pre-demo-reset-${id}.ltfbackup.tgz.sha256`, `${"0".repeat(64)}  pre-demo-reset-${id}.ltfbackup.tgz\n`);
   }
