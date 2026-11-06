@@ -35,7 +35,7 @@ Scope:
   - **Removals are deleted, not archived.**
 - [x] **In-volume retention.** `scripts/lib/public-demo-baseline-activation.mjs` gains a `prune` action, run through `compose run`. It:
   - refuses while an active-operation marker exists;
-  - considers only real `.longtail-public-demo-previous-<operation>` directories whose `reset-operation.json` records a valid completed operation;
+  - considers only real `.longtail-public-demo-previous-<operation>` directories whose `reset-operation.json` records a valid completed operation, and whose reset the host's history does not name as an incident;
   - checks each removal's exact shape and the absence of links, and removes nothing if any check fails;
   - renames each removal to a tombstone before deleting it, and completes any tombstone an interrupted run left;
   - never touches failed evidence;
@@ -60,6 +60,7 @@ Scope:
   2. Both retention modes created and normalized the deployment, state, release, and history roots before taking the lock. That repaired a history root another user owned before the ownership check, and followed a linked one to its target. Retention now changes no root. Once it holds the lock, it checks each root and creates nothing but its own record.
   3. The legacy check did not recognize its own replacement, so every plan found the replaced records again, and every apply rewrote them. A replaced record now counts as clean.
   4. The native firewall proof needed only some counter above zero, and compared once, after both commands. Every demo rule now counts on from a sentinel, each command is observed on its own, and enforcing isolation, as a control, proves that the check sees a rebuild.
+- [x] **Third review, 2026-11-06.** Codex reviewed `11aad418` and requested changes. It judged all four second-round findings resolved, and the three partly resolved first-round findings resolved, and found one defect, which is fixed in #905 with negative tests and seeded defects: finalizing marks the retired unit completed before the reset completes, so the in-volume prune counted the unit of a reset left `finalized` as a completed reset's, and removed it once two newer resets completed. The history now decides: retention names every incident in it to the in-volume prune, which requires that list and keeps their units.
 
 Acceptance criteria:
 
