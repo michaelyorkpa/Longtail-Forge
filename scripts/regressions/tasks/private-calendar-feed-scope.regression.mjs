@@ -48,6 +48,9 @@ LIMIT 1;
   const scopedUserId = randomUUID();
   const scopedUsername = "calendar-scope-user@example.test";
   const now = new Date().toISOString();
+  // The feed renders the past 90 days from the real clock, so the fixture's dates follow today. Fixed
+  // August 2026 dates aged out of that window on 2026-11-05 and failed the scope assertions.
+  const fixtureDate = (/** @type {number} */ offset) => new Date(Date.now() + (offset - 30) * 86_400_000).toISOString().slice(0, 10);
 
   await clientsRepository.create(workspaceId, {
     id: clientAId,
@@ -104,29 +107,29 @@ INSERT INTO user_workspaces (
   });
 
   const ownerSession = ownerSessionFor(ownerRow);
-  await createTask("Workspace-only task", { due_date: "2026-08-06" });
+  await createTask("Workspace-only task", { due_date: fixtureDate(0) });
   await createTask("Client A direct task", {
     client_id: clientAId,
-    due_date: "2026-08-07",
+    due_date: fixtureDate(1),
   });
   await createTask("Visible project task", {
-    due_date: "2026-08-08",
+    due_date: fixtureDate(2),
     project_id: visibleProjectId,
   });
   await createTask("Sibling project task", {
-    due_date: "2026-08-09",
+    due_date: fixtureDate(3),
     project_id: siblingProjectId,
   });
   await createTask("Unrelated project task", {
-    due_date: "2026-08-10",
+    due_date: fixtureDate(4),
     project_id: unrelatedProjectId,
   });
   const recurring = (await tasksService.create({
-    due_date: "2026-08-11",
+    due_date: fixtureDate(5),
     project_id: visibleProjectId,
     recurrence: {
       enabled: true,
-      endDate: "2026-08-25",
+      endDate: fixtureDate(19),
       frequency: "WEEKLY",
       interval: 1,
     },

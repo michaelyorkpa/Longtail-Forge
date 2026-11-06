@@ -1,5 +1,91 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.54 - Bounded public-demo reset retention and a shorter reset curtain
+
+**Model: High Effort** — It adds automatic deletion of protected evidence, and of copies of visitor-entered data, on the public host under the shared lifecycle lock. A wrong selection deletes recovery evidence; a missed one leaves the growth unbounded.
+
+**Completed on 2026-11-05** in one pull request into `nightly`, #905. Still pending, each under the operator's separate authorization: the promotion, the release, the deployment, and the demo's supervised backlog prune.
+
+**What this is.** A post-release patch after the restart-recovery patch, with its own release identity.
+- **What it builds on:** the restart-recovery patch's step evidence and Discord alert helper.
+- **What it resolves:** the carried finding "Public-demo reset history has no retention bound".
+
+**The problem.**
+- **What each reset keeps.** A retired prior unit inside the data volume, a pre-reset whole-instance backup and its sidecar on the host, and an evidence directory of sixteen files on the host. Nothing removes any of them; `docs/demo-data-operations.md` says so.
+- **Visitor data.** The unit and the backup are both copies of the demo as the reset began. Each therefore holds the past hour's visitor-entered content, yet the demo tells visitors that changes reset hourly.
+- **The size on 2026-10-14:** 1,606 evidence directories, 2,836 `pre-demo-reset-` files in a 1,013 MiB backup root, and 7.8 GB of local volume data, nearly all of it retained units.
+- **The size on 2026-11-02:** 2,060 evidence directories, 1,867 retained units, 3,797 files in a 1,330 MiB backup root, and 10.28 GB of local volume data by Docker's count.
+  - **Disk is not the pressure.** `du` reports the data volume at 1,944 MiB, the host's root filesystem is 12% used with 57 GB free, and 1% of its inodes are used. This patch is justified by the curtain and by how long visitor-entered data persists.
+  - **Whole-reset length** over the 168 resets the scheduler log still held, including the candidate build before the curtain: 3 min 24 s minimum, 4 min 7 s median, and 6 min 25 s maximum.
+  - **To measure in this patch.** The demo's deployment of the October Node security release took 9 min 54 s, against 2 min 48 s for its previous deployment. Most of the gap falls between writing the release environment and finishing the backup. No per-step times exist, so the cause and the time behind the curtain are unknown.
+    - **Disposition.** The restart-recovery deployment took 2 min 18 s, with the app already stopped, which does not settle it. This patch's live deployment is timed in its rollout record; the deploy helper is unchanged, so per-step times still do not exist.
+- **The growing curtain.** The `active` verification runs while the curtain is up and services are stopped. It walks the whole data root and reads every file under it, including every retained prior unit: 1,413 on 2026-10-14, each with a database of about 5.5 MB. It took 82 s on 2026-10-06, and 9 min 36 s on a cold cache on 2026-10-14.
+
+Scope:
+
+- [x] **The live-data check.** The `active` verification still checks the served unit's database, Files root, and marker. Its link and forbidden-value scans, however, read only the active unit's own entries.
+- [x] **Retention policy.** Fixed, reviewed constants, with no new setting. The operator approved it on 2026-10-14. On 2026-11-05 they cut backup retention from 24 operations to 2, because nothing reads a completed reset's copies again, and each copy holds visitor-entered content.
+  - **Retired units:** keep those of the 2 newest completed operations.
+  - **Pre-reset backups:** keep those of the 2 newest completed operations, with their sidecars.
+  - **Operation evidence:** keep the 168 newest completed operations, seven days, the scheduler log's window. It holds no visitor-entered content; see "Evidence without visitor content".
+  - **How long visitor-entered content persists.** In the live demo, until the next hourly reset. In the retired unit and the pre-reset backup, until two more resets complete: in normal operation, about three hours after it was entered. On 2026-11-05 the operator settled the named exceptions that keep it longer: a failed reset's incident evidence, retention that is blocked or capped, a held demo, and deployment backups, which 0.33.33.55 bounds on the demo.
+  - **Incident evidence is never removed automatically.** That covers any operation whose phase is not `completed`, or whose state is missing or unreadable, with its backup and any failed unit.
+  - **Never touched:** the active unit, the candidate, and the active-operation marker; any other backup; the state and release records; and the scheduler log.
+  - **Selection is by count,** ordered by the operation identity's UTC timestamp.
+  - **Removals are deleted, not archived.**
+- [x] **In-volume retention.** `scripts/lib/public-demo-baseline-activation.mjs` gains a `prune` action, run through `compose run`. It:
+  - refuses while an active-operation marker exists;
+  - considers only real `.longtail-public-demo-previous-<operation>` directories whose `reset-operation.json` records a valid completed operation, and whose reset the host's history does not name as an incident;
+  - checks each removal's exact shape and the absence of links, and removes nothing if any check fails;
+  - renames each removal to a tombstone before deleting it, and completes any tombstone an interrupted run left;
+  - never touches failed evidence;
+  - in `--mode plan`, reports the same selection and changes nothing; with `--max-removals`, removes nothing when the selection and the tombstones together are larger.
+- [x] **Host retention.** The reset helper gains three things:
+  - **An automatic step,** after `completed` and after the curtain lifts, under the lock. If the removal set, tombstones included, exceeds three of any kind, it removes nothing and reports why. A boot-delegated reset runs it behind the boot's curtain (operator ruling, 2026-11-05); a failure there is retried, and alerted, by the next hourly reset.
+  - **`retention plan` and `retention apply`.** `retention plan` is read-only, the firewall and every root included: both modes check the demo's isolation and never rebuild it, and check the roots they read without creating or repairing any. `retention apply --confirm 'PRUNE RT-LTF-DEMO RESET HISTORY'` is supervised, uncapped, and takes the lock. It also replaces the pre-reset login bodies earlier helpers kept in retained completed evidence. Each records its result under `demo-retention-operations/`.
+  - **Safety.** It builds exact names from operation identities and refuses links. Evidence must be owned by root; a backup and its sidecar by the backup root's owner, the container user. It removes an archive before its sidecar, and an evidence directory through a tombstone. It records `retention.json`, and adds a `retention` summary to the reset's final line.
+- [x] **Evidence without visitor content.** The pre-reset login keeps only its status code. Its response body is the shared demo account's profile as the reset found it, which visitors may have changed. The reset's later reads run against the fresh baseline.
+- [x] **Failure handling.** A retention failure never fails or rolls back a completed reset. The scheduler logs `succeeded` with failure class `retention-failed`, still sends the heartbeat, and raises the Discord alert, which accepts that class.
+- [x] **Documentation.** The operations guide and the runbook give the policy, the supervised backlog procedure, and how to dispose of incident evidence. `DECISIONS.md` records how long visitor-entered content persists: about three hours in normal operation, with the named exceptions. 0.33.34's privacy notices cite that record.
+- [x] **Independent review, 2026-11-05.** Codex reviewed `108afa00` and requested changes. Each finding is fixed in #905 with a negative test and a seeded defect:
+  1. A failed `find` traversal or listing read as an empty one. Each listing's status is now checked, and the history roots must be real directories.
+  2. `retention plan` rebuilt the firewall through isolation `enforce`. Both retention modes now run `check` only.
+  3. A signal during the automatic step failed the completed reset, and could rewrite `completed` as `failed`. Completion is now explicit: a signal stops only retention, and the exit handler records no other phase.
+  4. Tombstones bypassed the removal cap, in the volume and on the host. They now count against it, and in what was removed.
+  5. Earlier helpers' pre-reset login bodies stayed in retained evidence. `retention apply` replaces them; incident evidence keeps its own.
+  6. The three-hour bound was unenforced: boot-delegated resets skipped retention, and other cases went unnamed. The boot's delegate now prunes, and the operator settled the named exceptions.
+  7. A clock set back could select the reset's own evidence. Retention now refuses to remove anything of the reset it belongs to.
+- [x] **Second review, 2026-11-06.** Codex reviewed `415acee9` and requested changes. It judged four first-round findings resolved and three partly resolved, and found three defects and one weak proof. Each is fixed in #905, the defects with a negative test and a seeded defect:
+  1. A signal just after the curtain lifted still took the old path. Recovery raised the curtain again, restarted the verified fresh unit, and exited 130 with the curtain up. Finalizing is now the point of commitment: a signal from its start is held until it returns, and the reset counts as complete before its curtain lifts. A curtain that cannot be lifted leaves the reset `finalized`; nothing recovers it.
+  2. Both retention modes created and normalized the deployment, state, release, and history roots before taking the lock. That repaired a history root another user owned before the ownership check, and followed a linked one to its target. Retention now changes no root. Once it holds the lock, it checks each root and creates nothing but its own record.
+  3. The legacy check did not recognize its own replacement, so every plan found the replaced records again, and every apply rewrote them. A replaced record now counts as clean.
+  4. The native firewall proof needed only some counter above zero, and compared once, after both commands. Every demo rule now counts on from a sentinel, each command is observed on its own, and enforcing isolation, as a control, proves that the check sees a rebuild.
+- [x] **Third review, 2026-11-06.** Codex reviewed `11aad418` and requested changes. It judged all four second-round findings resolved, and the three partly resolved first-round findings resolved, and found one defect, which is fixed in #905 with negative tests and seeded defects: finalizing marks the retired unit completed before the reset completes, so the in-volume prune counted the unit of a reset left `finalized` as a completed reset's, and removed it once two newer resets completed. The history now decides: retention names every incident in it to the in-volume prune, which requires that list and keeps their units.
+- [x] **Fourth review, 2026-11-06.** Codex reviewed `f2599dfc` and approved it, judging the third-round finding resolved, with two notes, both addressed in #905 at the operator's direction:
+  1. The native boot scenario re-stamped incidents with the completed history, so the finalized reset's identity left the list retention names. The fixture now re-stamps only completed resets, and the boot's own reset must prune with the finalized reset counted as an incident and every copy of it kept.
+  2. The operations guide said the history proves completion, but a retired unit whose reset has no history directory is judged by its own record. The guide now says so, and why disposal removes an incident's unit with its evidence.
+
+Acceptance criteria:
+
+- [x] **Unit tests** cover:
+  - the `prune` action: its kept and removed sets, its refusals, and tombstone completion and idempotence;
+  - the live-data check ignoring a forbidden value placed in a retained prior unit, while still catching one in the active unit.
+- [x] **The executable harness** covers `plan`, `apply`, the automatic step and its cap, incident evidence and non-demo backups left untouched, orphaned files and refused links, and lock contention.
+- [x] **The native lifecycle qualification** seeds synthetic history, then proves the exact kept set, and that `plan` changes nothing. It also enters a distinctive value in the live demo before a reset, and proves that no evidence file holds it afterwards.
+- [x] **Seeded defects** in selection, ordering, the cap, the incident rule, and the scan scope are each caught.
+- [ ] **On the demo,** operator-run under separate authorization:
+  1. review `retention plan`;
+  2. run `retention apply` once;
+  3. prove one supervised reset, with its retention and its shorter curtain;
+  4. confirm the next scheduled reset.
+- [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and an independent Codex review. They run on the final tree of #905, after this archive.
+
+Out of scope:
+
+- Caddy and host log rotation.
+- On the demo host, each of these needs its own authorization: the 15 August-era release images, the build cache, the 7 anonymous volumes, and the leftover preview-style `compose-host.env` and `longtail-forge-data` volume.
+- 0.33.34's privacy notices. They should cite the retention this patch sets.
+
 ## Version 0.33.33.53 - Recovery after a host restart
 
 **Model: High Effort** — It changes how both hosts come back after a restart. That covers the scanner's host configuration, a new protected demo boot path under the shared lifecycle lock, the reset's failure paths, and application startup diagnostics. A wrong boot decision can expose the demo before isolation or destroy evidence; a missed one leaves the sites down.

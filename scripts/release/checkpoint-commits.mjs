@@ -34,6 +34,10 @@ const NODE_SECURITY_PATCH_DECLARATIONS = deepFreeze([
 const RESTART_RECOVERY_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.53`;
 /** @type {ReviewedLockUpdates} */
 const RESTART_RECOVERY_PATCH_DEPENDENCY_UPDATES = deepFreeze(restartRecoveryDependencyUpdates);
+// The reset-retention patch owns only its release identity, and records in `DECISIONS.md` how long
+// the demo keeps visitor-entered content, as its roadmap section, approved by the operator on
+// 2026-10-14 and amended on 2026-11-05, requires. It takes no dependency change.
+const RESET_RETENTION_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.54`;
 /** @type {readonly ReviewedDeclaration[]} */
 const RESTART_RECOVERY_PATCH_DECLARATIONS = deepFreeze([
   ["dependencies", "zod", "^4.6.6", "^4.6.7"],
@@ -258,7 +262,9 @@ function validateCheckpointCommit({
   const takesDependencyUpdates = checkpoint === postReleasePatchCheckpoint;
   const isNodeSecurityPatch = checkpoint === NODE_SECURITY_PATCH_CHECKPOINT;
   const isRestartRecoveryPatch = checkpoint === RESTART_RECOVERY_PATCH_CHECKPOINT;
-  const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint || isNodeSecurityPatch || isRestartRecoveryPatch;
+  const isResetRetentionPatch = checkpoint === RESET_RETENTION_PATCH_CHECKPOINT;
+  const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint || isNodeSecurityPatch
+    || isRestartRecoveryPatch || isResetRetentionPatch;
   if (!isCloseout && ceremonyPaths.length > 2) {
     errors.push(`internal checkpoint ${checkpoint} changes ${ceremonyPaths.length} ceremony files; maximum is 2 (${ceremonyPaths.join(", ")})`);
   }
@@ -277,6 +283,11 @@ function validateCheckpointCommit({
       // governing policies, the demo's boot baseline and one restart owner per profile, in
       // `DECISIONS.md`. No other patch gains that path, and the ceremony ceiling still applies.
       if (isRestartRecoveryPatch && filePath === "DECISIONS.md") {
+        continue;
+      }
+      // The reset-retention patch records one policy there: how long visitor-entered demo content
+      // persists. Its roadmap section requires it; the ceremony ceiling still applies.
+      if (isResetRetentionPatch && filePath === "DECISIONS.md") {
         continue;
       }
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
@@ -782,6 +793,7 @@ export {
   POST_RELEASE_PATCH_CHECKPOINT,
   POST_RELEASE_PATCH_DEPENDENCY_UPDATES,
   RELEASE_PREPARATION_CHECKPOINT,
+  RESET_RETENTION_PATCH_CHECKPOINT,
   RESTART_RECOVERY_PATCH_CHECKPOINT,
   RESTART_RECOVERY_PATCH_DECLARATIONS,
   RESTART_RECOVERY_PATCH_DEPENDENCY_UPDATES,

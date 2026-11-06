@@ -46,7 +46,11 @@ The canonical classifications and environment contract are in
    restart-recovery image is deployed: disable the timer and wait for any
    running reset and the lifecycle lock to clear, deploy, install the helpers
    with the boot unit left disabled, run one manual reset, and only then enable
-   the boot unit and the timer. The exact steps are in
+   the boot unit and the timer. Upgrading to the retention helpers follows the
+   same pattern: deploy first, install the reset, scheduler, and alert helpers,
+   prune the backlog with `retention plan` and `retention apply`, which also
+   removes the login bodies earlier helpers kept, run one manual reset, then
+   enable the timer. The exact steps are in
    [Demo Data Operations](demo-data-operations.md#installation).
 3. Create only the named external non-masquerading IPv4 bridge and data volume
    from the redacted profile. Install and prove the reviewed stateful firewall,
@@ -98,9 +102,21 @@ ephemeral root container prepares the mounted data root as UID/GID 10001 mode
 Compose backup and SQLite WAL/SHM creation possible without broadening the
 long-running application or applying the handoff to non-demo installations.
 
-The prior unit and failed/recovery units are protected operational evidence.
-Retain only the current policy-approved set after a successful later reset and
-backup inspection; never delete the only verified last-known-good unit. Reset
+Retention is fixed and automatic. Each completed reset keeps the retired units
+and pre-reset backups of the 2 newest completed resets, and the evidence of the
+168 newest, seven days. In normal operation, visitor-entered content is
+therefore gone from those copies about three hours after it was entered, and
+the evidence holds none. It lasts longer only after a failed reset, as incident
+evidence; while retention is blocked or capped, until you answer its alert;
+while the demo is held; and in deployment backups, which stay until you remove
+them. Retention never deletes the active unit, the verified last-known-good unit
+visitors are served. A reset that did not complete is incident evidence: its
+evidence, backup, retired unit, and failed unit stay until you dispose of them,
+even when finalizing already marked its unit completed. Prune a
+backlog, or answer a `retention-failed` alert, with `retention plan`, then
+`retention apply`. Neither changes the firewall or any directory it checks.
+The policy, the selection rules, and both procedures are in
+[Retention](demo-data-operations.md#retention). Reset
 JSONL evidence is root-owned 0600, capped at 336 records (two records per
 hourly run for seven days). Container local logs are capped at 10 MiB across
 seven files. Caddy and host logs require the same seven-day maximum, disk cap,
@@ -137,6 +153,12 @@ manual work:
    run a manual reset before re-enabling the timer.
 5. Rotate any material that may have escaped, remove temporary evidence, record
    the incident disposition, and retain the normal bounded evidence only.
+
+A `retention-failed` alert follows a reset that completed and is serving, so
+it is not an outage. Read the reset's `retention.json` and `step-retention.err`.
+For a `capped` run, review `retention plan` and run `retention apply`. For a
+refusal, fix the named item first: retention removes nothing while any selected
+item fails its check.
 
 Never repair a failing reset by enabling Docker auto-restart, attaching another
 network peer, broadening egress, disabling the scanner, using another

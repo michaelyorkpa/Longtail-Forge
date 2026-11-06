@@ -512,7 +512,7 @@ async function verifyPublicDemoCandidate({
 }) {
   const resolvedRoot = path.resolve(candidateRoot);
   await assertRealDirectory(resolvedRoot, "public-demo candidate root");
-  await assertNoLinksInTree(resolvedRoot);
+  await assertPublicDemoUnitScansClean(resolvedRoot, forbiddenValues, { activeUnitOnly: !exactEntries });
   const entries = await fs.readdir(resolvedRoot);
   if (exactEntries && (entries.length !== EXPECTED_CANDIDATE_ENTRIES.size
     || entries.some((entry) => !EXPECTED_CANDIDATE_ENTRIES.has(entry)))) {
@@ -535,7 +535,6 @@ async function verifyPublicDemoCandidate({
   await verifyExactFilesInventory(databaseFile, filesRoot);
   await verifyNoProtectedPersistence(databaseFile);
   await verifyCredentialHashes(databaseFile, roleFixtures);
-  await verifyForbiddenValuesAbsent(resolvedRoot, forbiddenValues);
   assertCandidateMarker(marker, {
     anchorDate,
     appVersion,
@@ -694,13 +693,47 @@ async function verifyCredentialHashes(databaseFile, roleFixtures) {
 }
 
 /**
+ * The paths a verification scans for links and protected values. A candidate is its own whole
+ * directory. The live demo's data root also holds every retained prior unit and failed evidence,
+ * which the served unit never reads, so the active check scans only the served unit's own entries:
+ * its database and any SQLite sidecar, its Files root, and its marker. Reading every retained unit
+ * made the curtained check grow with the reset history.
  * @param {string} root
+ * @param {{ activeUnitOnly: boolean }} scope
+ * @returns {Promise<string[]>}
+ */
+async function listVerificationScanRoots(root, { activeUnitOnly }) {
+  if (!activeUnitOnly) return [root];
+  const scanRoots = [...EXPECTED_CANDIDATE_ENTRIES].sort().map((entry) => path.join(root, entry));
+  for (const sidecar of ["longtail-forge.db-shm", "longtail-forge.db-wal"]) {
+    if (await pathExists(path.join(root, sidecar))) scanRoots.push(path.join(root, sidecar));
+  }
+  return scanRoots;
+}
+
+/**
+ * Refuse any link, and any protected value, beneath the verification's scan roots. Verification
+ * runs this first, before it reads any file's contents.
+ * @param {string} root the candidate or the live data root
+ * @param {readonly unknown[]} values
+ * @param {{ activeUnitOnly: boolean }} scope
+ */
+async function assertPublicDemoUnitScansClean(root, values, scope) {
+  const scanRoots = await listVerificationScanRoots(path.resolve(root), scope);
+  for (const scanRoot of scanRoots) await assertNoLinksInTree(scanRoot);
+  await verifyForbiddenValuesAbsent(scanRoots, values);
+}
+
+/**
+ * @param {readonly string[]} roots
  * @param {readonly unknown[]} values
  */
-async function verifyForbiddenValuesAbsent(root, values) {
+async function verifyForbiddenValuesAbsent(roots, values) {
   const protectedValues = [...new Set(values.map(String).filter((value) => value.length >= 8))];
   if (!protectedValues.length) return;
-  const files = await listRegularFiles(root);
+  /** @type {string[]} */
+  const files = [];
+  for (const root of roots) files.push(...await listRegularFiles(root));
   for (const file of files) {
     const bytes = await fs.readFile(file);
     for (const value of protectedValues) {
@@ -937,6 +970,7 @@ export {
   PUBLIC_DEMO_CANDIDATE_CONTRACT,
   PUBLIC_DEMO_CANDIDATE_DIRECTORY,
   assertPublicDemoCandidateRuntime,
+  assertPublicDemoUnitScansClean,
   parsePublicDemoCandidateArgs,
   preparePublicDemoCandidateContext,
   resolvePublicDemoCandidatePaths,
