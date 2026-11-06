@@ -61,6 +61,9 @@ Scope:
   3. The legacy check did not recognize its own replacement, so every plan found the replaced records again, and every apply rewrote them. A replaced record now counts as clean.
   4. The native firewall proof needed only some counter above zero, and compared once, after both commands. Every demo rule now counts on from a sentinel, each command is observed on its own, and enforcing isolation, as a control, proves that the check sees a rebuild.
 - [x] **Third review, 2026-11-06.** Codex reviewed `11aad418` and requested changes. It judged all four second-round findings resolved, and the three partly resolved first-round findings resolved, and found one defect, which is fixed in #905 with negative tests and seeded defects: finalizing marks the retired unit completed before the reset completes, so the in-volume prune counted the unit of a reset left `finalized` as a completed reset's, and removed it once two newer resets completed. The history now decides: retention names every incident in it to the in-volume prune, which requires that list and keeps their units.
+- [x] **Fourth review, 2026-11-06.** Codex reviewed `f2599dfc` and approved it, judging the third-round finding resolved, with two notes, both addressed in #905 at the operator's direction:
+  1. The native boot scenario re-stamped incidents with the completed history, so the finalized reset's identity left the list retention names. The fixture now re-stamps only completed resets, and the boot's own reset must prune with the finalized reset counted as an incident and every copy of it kept.
+  2. The operations guide said the history proves completion, but a retired unit whose reset has no history directory is judged by its own record. The guide now says so, and why disposal removes an incident's unit with its evidence.
 
 Acceptance criteria:
 
