@@ -75,12 +75,12 @@ systemctl enable longtail-forge-public-demo-boot.service
 4. **Run one manual reset** with the new helper, and confirm it completes.
 5. **Enable** the boot unit with `systemctl enable longtail-forge-public-demo-boot.service`, then the timer with `systemctl enable --now longtail-forge-public-demo-reset.timer`.
 
-**Upgrading an installed demo to the retention helpers.** The new reset helper calls the `prune` action, which only the retention image contains. A reset run by the boot skips retention, so the boot unit may stay enabled throughout.
+**Upgrading an installed demo to the retention helpers.** The new reset helper calls the `prune` action, which only the retention image contains, including in a reset the boot runs. The helpers are installed only after that image is deployed, so the boot unit may stay enabled throughout.
 
 1. **Quiesce,** as in step 1 above.
 2. **Deploy** the retention release with the deploy helper.
 3. **Install** the reset, scheduler, and alert helpers from that release. The boot helper, its unit, and the isolation helper are unchanged.
-4. **Prune the backlog** under supervision: run `retention plan`, review it, then run `retention apply` once. See [Retention](#retention).
+4. **Prune the backlog** under supervision: run `retention plan`, review it, then run `retention apply` once. The apply also replaces the login records earlier helpers kept in retained evidence. See [Retention](#retention).
 5. **Run one manual reset** through the scheduler wrapper, and confirm that its retention reports `pruned` and that its curtain is shorter.
 6. **Enable** the timer, and confirm the next scheduled reset.
 
@@ -165,7 +165,7 @@ initial-volume handoff is not run for ordinary Compose installations.
 8. Re-runs the complete baseline, migration, integrity, foreign-key, Files, role, credential-hash, session, and protected-data validator against the promoted top-level unit before starting services. Its link and protected-value scans read only that unit's own database, sidecars, Files tree, and marker, never the retained prior units or failed evidence beside it, so the time behind the curtain does not grow with the reset history.
 9. Starts the exact recorded Compose release, without pulling, and requires direct plus public health/readiness and exact `/api/app-info`. A reset run by the [protected boot](#protected-boot) requires the direct checks only. Every request the reset makes, including the session capture and the role proof below, is bounded to 15 seconds, so a response that never completes cannot hold the lock and the curtain. While the curtain remains asserted it also proves the pre-reset session is rejected, a fresh Workspace Administrator login succeeds, authorized Task, client/project hierarchy, and seeded attachment reads succeed, and authenticated logout succeeds. This proof is deliberately read-only so the promoted unit remains semantically equivalent to the validated candidate. Transient session cookie jars live only in a root-private `/run` directory and are removed on every handled exit rather than retained as operation evidence.
 10. Archives the completed phase marker with the retained prior unit and clears only the deployment-owned maintenance marker after every proof passes. The independent operator marker is never changed.
-11. Runs its [retention](#retention) step, once the curtain is down and still under the lock. A reset run by the protected boot skips it, so that the boot's curtain lifts sooner.
+11. Runs its [retention](#retention) step, once the curtain is down and still under the lock. A reset run by the protected boot runs it behind the boot's curtain. The reset has completed by then: a signal stops only this step, and the reset still reports its completed result.
 
 A successful reset permits no post-activation application mutation. Live write and mutation-cap behavior are proved before reset during the release gate; post-reset verification is read-only so the exact reproducible baseline remains active.
 
@@ -175,7 +175,7 @@ Any error or handled `HUP`, `INT`, or `TERM` after the curtain is asserted trigg
 
 A `SIGKILL`, host loss, or runtime crash may prevent the in-process trap. The next manual invocation finds the fixed active-operation marker while holding the shared lock, recovers and verifies the prior unit, clears the curtain, and then exits with a rerun-required error instead of silently starting a second promotion. The operator must invoke the reset again deliberately. Failed evidence is never pruned automatically; completed prior units follow [Retention](#retention).
 
-**Step evidence.** Before each step starts, the reset writes the step's name and time to `step.json` in its root-only operation directory, and appends it to `steps.jsonl`, so a kill or a power loss still leaves the step that was running. A step's error output is kept beside them as `step-<name>.err`: its last 64 KiB, with every secret value replaced. The secrets are taken from the environment Compose itself resolves, so however the application environment file is named or quoted, its values are the ones Compose read, together with the secret-named values of the Compose host environment and the role passwords. If any of them cannot be collected, the reset refuses before its first step. Automatic recovery runs each of its commands as a step too, so its diagnostics are redacted the same way, and the list of secret values is removed only once recovery is over. The helper's own output names only the failed step. Nothing new reaches the scheduler log, the alert, or normal output. The evidence holds no visitor-entered content: the pre-reset login keeps only its HTTP status, because its body is the shared account's profile as visitors left it, and every later read runs against the fresh baseline.
+**Step evidence.** Before each step starts, the reset writes the step's name and time to `step.json` in its root-only operation directory, and appends it to `steps.jsonl`, so a kill or a power loss still leaves the step that was running. A step's error output is kept beside them as `step-<name>.err`: its last 64 KiB, with every secret value replaced. The secrets are taken from the environment Compose itself resolves, so however the application environment file is named or quoted, its values are the ones Compose read, together with the secret-named values of the Compose host environment and the role passwords. If any of them cannot be collected, the reset refuses before its first step. Automatic recovery runs each of its commands as a step too, so its diagnostics are redacted the same way, and the list of secret values is removed only once recovery is over. The helper's own output names only the failed step. Nothing new reaches the scheduler log, the alert, or normal output. The evidence holds no visitor-entered content: the pre-reset login keeps only its HTTP status, because its body is the shared account's profile as visitors left it, and every later read runs against the fresh baseline. Earlier helpers kept that body; a supervised `retention apply` replaces it in retained evidence.
 
 Do not bypass the shared lock with an ad hoc `docker compose run`, direct database copy, manual WAL deletion, or independent backup/reset command. Do not mix one operation's database and Files tree. If automatic recovery cannot prove the prior unit, keep traffic curtained and use the retained inspected whole-instance archive through the documented Compose restore path.
 
@@ -189,7 +189,13 @@ Nothing reads a completed reset's retired unit or pre-reset backup again, and ea
 | Pre-reset backups, with their `.sha256` sidecars | Those of the 2 newest completed resets | `pre-demo-reset-<operation>.ltfbackup.tgz` in the backup root |
 | Reset evidence | That of the 168 newest completed resets, seven days | `demo-reset-operations/<operation>/` in the deployment root |
 
-Visitor-entered content therefore lasts in the live demo until the next hourly reset, and in these copies at most about three hours after it was entered. Reset evidence holds none. `DECISIONS.md` records this, and the demo's privacy notices cite it.
+Visitor-entered content therefore lasts in the live demo until the next hourly reset. In normal operation it is gone from these copies about three hours after it was entered, and reset evidence holds none. It lasts longer only in these cases:
+- **A failed reset.** Its copies are incident evidence, kept until the operator disposes of them.
+- **Retention that is blocked or capped.** A `retention-failed` alert reaches the operator, and the copies stay until the operator resolves it with supervised retention. A failure under the boot is retried by the next hourly reset first.
+- **A held demo.** While an operator hold stops resets, the newest copies stay until resets resume.
+- **Deployment backups.** Each deploy, rollback, or restore takes a whole-instance backup, which the deploy helper keeps until the operator removes it. The roadmap bounds these on the demo.
+
+`DECISIONS.md` records this policy, and the demo's privacy notices cite it.
 
 **Never removed automatically:**
 - incident evidence: a reset whose state is not `completed`, or is missing or unreadable, with its backup and any failed unit;
@@ -199,17 +205,20 @@ Visitor-entered content therefore lasts in the live demo until the next hourly r
 - the state and release records, and the scheduler log.
 
 **Selection.** Completion is proved by the operation's own record: `reset-operation.json` for a retired unit, and `state.json` for evidence and its backup. Selection is by count, newest first by the operation identity's UTC timestamp. Every selected item is checked before anything changes, and one failed check removes nothing:
+- the reset history and the backup root must be real directories, and each listing of them must succeed whole;
 - a retired unit must have exactly a unit's shape, with no link anywhere beneath it;
-- evidence must be a root-owned real directory holding only root-owned files and directories;
+- evidence must be a root-owned real directory holding only root-owned files and directories, proved by a traversal that succeeds;
 - a backup and its sidecar must be plain files with one name, owned by the backup root's owner, the container user.
+
+A run never removes anything of the reset it belongs to. If that reset would rank among the removals, as a clock set back would make it, the run refuses.
 
 **Removal deletes; nothing is archived.** A retired unit or an evidence directory is first renamed to a tombstone, which the next run finishes if a deletion is interrupted. A backup's archive goes before its sidecar.
 
 **The automatic step.** Each completed reset runs retention once its curtain is down, still under the lifecycle lock.
-- **The cap.** If the selection exceeds three of any kind, the step removes nothing and reports `capped`.
+- **The cap.** If the removals of any kind, counting the tombstones an interrupted run left, would exceed three, the step removes nothing and reports `capped`.
 - **Its record.** The result is `retention.json` in the reset's operation directory, and a `retention` summary on the reset's final line.
-- **Failure.** A retention failure never fails or rolls back the completed reset. The scheduler logs the run as `succeeded`, with failure class `retention-failed` and the `retentionStatus`, still sends the heartbeat, and raises the Discord alert.
-- **The boot.** A reset run by the protected boot skips the step; the next hourly reset prunes.
+- **Failure.** A retention failure never fails or rolls back the completed reset, and neither does a signal, which stops only retention. The scheduler logs the run as `succeeded`, with failure class `retention-failed` and the `retentionStatus`, still sends the heartbeat, and raises the Discord alert.
+- **The boot.** A reset run by the protected boot runs the step behind the boot's curtain. The boot does not alert on it: a failure there is retried, and alerted, by the next hourly reset.
 
 **Supervised retention,** for the backlog, or after a `retention-failed` alert:
 
@@ -221,6 +230,8 @@ Visitor-entered content therefore lasts in the live demo until the next hourly r
 
 - **The lock.** Both take the lifecycle lock, and refuse with exit code 75 while a reset, deploy, rollback, or backup holds it.
 - **Plan** changes nothing and reports what `apply` would remove. **Apply** is uncapped.
+- **The firewall.** Both check the demo's isolation and never rebuild it, so neither changes the firewall, held or not.
+- **Legacy login records.** Earlier helpers kept the pre-reset login's response body: the shared account's profile as visitors left it. `retention plan` counts the ones retained completed resets still hold, as `legacyLogins`, and `retention apply` replaces each with `{"httpStatus":"200","legacyBodyRemoved":true}`. Incident evidence keeps its own until it is disposed of.
 - **Records.** Each writes its result, with the operations it selected, to `demo-retention-operations/<operation>/retention.json` in the deployment root. These supervised records are not pruned.
 - **An operator hold** does not stop retention, which starts nothing.
 - **The procedure.** Review the plan, apply it once, and confirm that the next reset reports `pruned`.

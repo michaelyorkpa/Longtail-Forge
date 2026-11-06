@@ -48,8 +48,9 @@ The canonical classifications and environment contract are in
    with the boot unit left disabled, run one manual reset, and only then enable
    the boot unit and the timer. Upgrading to the retention helpers follows the
    same pattern: deploy first, install the reset, scheduler, and alert helpers,
-   prune the backlog with `retention plan` and `retention apply`, run one manual
-   reset, then enable the timer. The exact steps are in
+   prune the backlog with `retention plan` and `retention apply`, which also
+   removes the login bodies earlier helpers kept, run one manual reset, then
+   enable the timer. The exact steps are in
    [Demo Data Operations](demo-data-operations.md#installation).
 3. Create only the named external non-masquerading IPv4 bridge and data volume
    from the redacted profile. Install and prove the reviewed stateful firewall,
@@ -103,13 +104,17 @@ long-running application or applying the handoff to non-demo installations.
 
 Retention is fixed and automatic. Each completed reset keeps the retired units
 and pre-reset backups of the 2 newest completed resets, and the evidence of the
-168 newest, seven days. Visitor-entered content therefore lasts at most about
-three hours outside incident evidence, and the evidence holds none. Retention
-never deletes the active unit, the verified last-known-good unit visitors are
-served. A reset that did not complete is incident evidence: its evidence,
-backup, and failed unit stay until you dispose of them. Prune a backlog, or answer a
-`retention-failed` alert, with `retention plan`, then `retention apply`. The
-policy, the selection rules, and both procedures are in
+168 newest, seven days. In normal operation, visitor-entered content is
+therefore gone from those copies about three hours after it was entered, and
+the evidence holds none. It lasts longer only after a failed reset, as incident
+evidence; while retention is blocked or capped, until you answer its alert;
+while the demo is held; and in deployment backups, which stay until you remove
+them. Retention never deletes the active unit, the verified last-known-good unit
+visitors are served. A reset that did not complete is incident evidence: its
+evidence, backup, and failed unit stay until you dispose of them. Prune a
+backlog, or answer a `retention-failed` alert, with `retention plan`, then
+`retention apply`. Neither changes the firewall. The policy, the selection
+rules, and both procedures are in
 [Retention](demo-data-operations.md#retention). Reset
 JSONL evidence is root-owned 0600, capped at 336 records (two records per
 hourly run for seven days). Container local logs are capped at 10 MiB across
