@@ -520,8 +520,8 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
   await reproduceStaleCandidate(host, candidate, api);
   await reproduceStoppedApp(host, candidate, api);
   // Retention runs before the boot, which re-stamps the reset history to fake a missed boundary.
-  await qualifyRetention(host, candidate, api);
-  await qualifyBootAfterDockerRestart(work, host, candidate, api, scanner);
+  const finalizedKept = await qualifyRetention(host, candidate, api);
+  await qualifyBootAfterDockerRestart(work, host, candidate, api, scanner, finalizedKept);
 }
 
 /**
@@ -531,6 +531,7 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
  * leave exactly the kept set. Then a visitor changes the shared account's profile, and the next reset
  * must keep none of it in its evidence while its own retention runs on the bounded history.
  * @param {DemoHost} host @param {Release} candidate @param {ApiClient} api
+ * @returns {Promise<() => boolean>} whether the seeded finalized reset still keeps every copy, for the boot to check again
  */
 async function qualifyRetention(host, candidate, api) {
   const volume = demoVolumeRoot();
@@ -642,6 +643,7 @@ async function qualifyRetention(host, candidate, api) {
     operationId: reset.operationId, seconds: reset.seconds, retention: result.retention,
     activeBaselineSeconds: (at("start") - at("active-baseline")) / 1000, curtainSeconds: (at("retention") - at("stop")) / 1000,
   });
+  return finalizedKept;
 }
 
 /**
@@ -762,6 +764,18 @@ function completedRecords(root, prefix, recordName) {
   }).map((name) => name.slice(prefix.length)).sort().reverse();
 }
 
+/**
+ * The phase a reset's history directory records, or an empty string when its state cannot be read.
+ * @param {string} directory @returns {string}
+ */
+function readResetPhase(directory) {
+  try {
+    return String(/** @type {{ phase?: string }} */ (JSON.parse(fs.readFileSync(path.join(directory, "state.json"), "utf8"))).phase || "");
+  } catch {
+    return "";
+  }
+}
+
 /** @param {string} volume @param {string} evidenceRoot */
 function retentionSnapshot(volume, evidenceRoot) {
   return { volume: fs.readdirSync(volume).sort(), evidence: fs.readdirSync(evidenceRoot).sort(), backups: fs.readdirSync(BACKUP_ROOT).sort() };
@@ -868,23 +882,26 @@ async function reproduceStoppedApp(host, candidate, api) {
 /**
  * The protected boot, through the real unit: a Docker restart stops the demo, the scanner returns
  * late, and an hourly boundary was missed, so the boot must enforce isolation before starting and
- * serve a fresh baseline within the ten-minute target.
+ * serve a fresh baseline within the ten-minute target. The reset the boot runs prunes too, and must
+ * keep every copy of the seeded reset that finalized without completing.
  * @param {string} work @param {DemoHost} host @param {Release} candidate @param {ApiClient} api
- * @param {import("node:child_process").ChildProcess} scanner
+ * @param {import("node:child_process").ChildProcess} scanner @param {() => boolean} finalizedKept
  */
-async function qualifyBootAfterDockerRestart(work, host, candidate, api, scanner) {
+async function qualifyBootAfterDockerRestart(work, host, candidate, api, scanner, finalizedKept) {
   installBootUnit(host);
   const visitor = await api.visitorAccount("Workspace Administrator");
   const visitorList = await api.createList(await api.login(visitor), `Qualification boot change ${randomBytes(6).toString("hex")}`);
 
-  // A missed boundary: every completed reset is re-stamped three hours earlier.
+  // A missed boundary: every completed reset is re-stamped three hours earlier. The boot reads
+  // completion from the phase alone. Incidents keep their names, so retention still names them.
   const resets = path.join(host.deployRoot, "demo-reset-operations");
   for (const name of fs.readdirSync(resets)) {
     const match = /^(\d{8}T\d{6}Z)(-.+)$/.exec(name);
-    if (!match) continue;
+    if (!match || readResetPhase(path.join(resets, name)) !== "completed") continue;
     const earlier = new Date(Date.parse(match[1].replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z")) - 3 * 3_600_000);
     fs.renameSync(path.join(resets, name), path.join(resets, `${earlier.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}${match[2]}`));
   }
+  const resetsBefore = new Set(fs.readdirSync(resets));
 
   scanner.kill("SIGTERM");
   const bootsBefore = new Set(fs.existsSync(path.join(host.deployRoot, "demo-boot-operations")) ? fs.readdirSync(path.join(host.deployRoot, "demo-boot-operations")) : []);
@@ -927,7 +944,18 @@ async function qualifyBootAfterDockerRestart(work, host, candidate, api, scanner
   await api.expectIdentity(candidate);
   assertDemoIsolation(host);
   await api.expectList(await api.login(visitor), visitorList.listId, 404);
-  record("demo-boot-after-docker-restart", { operation, servedSeconds, bootElapsedSeconds: result.elapsedSeconds, phases, dependencies, visitorChangeCleared: visitorList.listId });
+
+  // The boot's reset ran its own retention, behind the boot's curtain, and named the finalized reset.
+  const delegated = fs.readdirSync(resets).filter((name) => !resetsBefore.has(name) && RESET_OPERATION_PATTERN.test(name));
+  assert.equal(delegated.length, 1, `the boot must have run exactly one reset: ${JSON.stringify(delegated)}`);
+  const delegatedRetention = /** @type {{ status?: string, units?: { incidents?: number } }} */ (JSON.parse(fs.readFileSync(path.join(resets, delegated[0], "retention.json"), "utf8")));
+  assert.deepEqual([delegatedRetention.status, delegatedRetention.units?.incidents], ["pruned", 1],
+    "the boot's reset must prune, keeping the finalized reset's retired unit as an incident's");
+  assert.ok(finalizedKept(), "the boot's reset must keep every copy of the reset that finalized without completing");
+  record("demo-boot-after-docker-restart", {
+    operation, servedSeconds, bootElapsedSeconds: result.elapsedSeconds, phases, dependencies, visitorChangeCleared: visitorList.listId,
+    delegatedReset: delegated[0], delegatedRetention,
+  });
 }
 
 /**
