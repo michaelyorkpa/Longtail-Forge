@@ -67,6 +67,9 @@ const DEMO_TARGET = "rt-ltf-demo";
 const RESET_CONFIRMATION = "RESET RT-LTF-DEMO COMPOSE DATA";
 const RETENTION_CONFIRMATION = "PRUNE RT-LTF-DEMO RESET HISTORY";
 const RETIRED_UNIT_PREFIX = ".longtail-public-demo-previous-";
+const DEMO_CHAINS = Object.freeze(["LTF_DEMO_INPUT", "LTF_DEMO_FORWARD"]);
+// The packet count each demo rule starts from in the retention proof, far beyond any real traffic.
+const FIREWALL_SENTINEL = 1_000_000_000_000;
 const ISOLATION_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-isolation-host.example");
 const RESET_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-public-demo-reset-host.example");
 // The reset helper the October Node security release shipped, kept so that each restart-recovery
@@ -541,13 +544,17 @@ async function qualifyRetention(host, candidate, api) {
   const legacy = resets.slice(0, 168).filter((id) => synthetic.completed.includes(id));
   const login = (/** @type {string} */ id) => fs.readFileSync(path.join(evidenceRoot, id, "pre-reset-login.json"), "utf8");
   assert.ok(legacy.length > 0, "retained evidence must include legacy login records");
-  // A probe that crosses the demo chains, so that a rebuild, which zeroes their counters, would show.
+  // Every rule in the demo chains counts on from a sentinel that no real traffic reaches. A rebuild
+  // restarts each count from zero, so it shows after each command, however much traffic follows it.
   assertDemoIsolation(host);
-  const firewall = demoFirewallCounters();
-  assert.ok(firewall.some((packets) => packets > 0), "the demo chains must have counted traffic before retention");
+  const rules = demoFirewallRules();
+  setFirewallSentinels(rules);
+  /** @type {Record<string, number[]>} */
+  const firewall = { seeded: assertFirewallUntouched("setting the sentinels", rules) };
 
   const plan = runRetention(host, "plan");
   assert.equal(plan.status, 0, `retention plan failed:\n${plan.stderr}`);
+  firewall.afterPlan = assertFirewallUntouched("retention plan", rules);
   const planned = /** @type {{ status: string, units: { selected: number }, backups: { selected: number }, evidence: { selected: number, legacyLogins: { found: number, replaced: number } } }} */ (JSON.parse(lastJsonLine(plan.stdout)));
   assert.deepEqual([planned.status, planned.units.selected, planned.backups.selected, planned.evidence.selected],
     ["planned", units.length - 2, backedUp.filter((id) => resets.indexOf(id) >= 2).length, resets.length - 168]);
@@ -557,9 +564,7 @@ async function qualifyRetention(host, candidate, api) {
 
   const applied = runRetention(host, "apply");
   assert.equal(applied.status, 0, `retention apply failed:\n${applied.stderr}`);
-  const afterApply = demoFirewallCounters();
-  assert.ok(afterApply.length === firewall.length && afterApply.every((packets, index) => packets >= firewall[index]),
-    `retention must never rebuild the firewall: counters ${JSON.stringify(firewall)} became ${JSON.stringify(afterApply)}`);
+  firewall.afterApply = assertFirewallUntouched("retention apply", rules);
   assert.deepEqual(/** @type {{ evidence: { legacyLogins: unknown } }} */ (JSON.parse(lastJsonLine(applied.stdout))).evidence.legacyLogins,
     { found: legacy.length, replaced: legacy.length });
   for (const id of legacy) assert.deepEqual(JSON.parse(login(id)), { httpStatus: "200", legacyBodyRemoved: true });
@@ -577,9 +582,28 @@ async function qualifyRetention(host, candidate, api) {
   assert.ok(hasBackup(synthetic.orphan), "an orphaned backup stays");
   const otherBackups = (/** @type {{ backups: string[] }} */ snapshot) => snapshot.backups.filter((name) => !name.startsWith("pre-demo-reset-"));
   assert.deepEqual(otherBackups(retentionSnapshot(volume, evidenceRoot)), otherBackups(before), "deployment backups are never touched");
+
+  // A second plan finds nothing left, and no replaced login record again.
+  const kept = retentionSnapshot(volume, evidenceRoot);
+  const replan = runRetention(host, "plan");
+  assert.equal(replan.status, 0, `the second retention plan failed:\n${replan.stderr}`);
+  const replanned = /** @type {typeof planned} */ (JSON.parse(lastJsonLine(replan.stdout)));
+  assert.deepEqual([replanned.status, replanned.units.selected, replanned.backups.selected, replanned.evidence.selected], ["planned", 0, 0, 0]);
+  assert.deepEqual(replanned.evidence.legacyLogins, { found: 0, replaced: 0 }, "a replaced login record is never found again");
+  assert.deepEqual(retentionSnapshot(volume, evidenceRoot), kept, "the second plan must change nothing");
+  firewall.afterReplan = assertFirewallUntouched("the second retention plan", rules);
+
+  // The control: enforcing isolation rebuilds both chains, and the same observation must see it.
+  enforceDemoIsolation(host);
+  assert.deepEqual(demoFirewallRules(), rules, "enforcing isolation writes the same rules");
+  firewall.afterRebuild = demoFirewallCounters();
+  assert.ok(firewall.afterRebuild.length === Object.values(rules).flat().length && firewall.afterRebuild.every((packets) => packets < FIREWALL_SENTINEL),
+    `a rebuild of the demo chains must show in every counter: ${JSON.stringify(firewall.afterRebuild)}`);
+  assertDemoIsolation(host);
   record("demo-retention", {
-    planSeconds: plan.seconds, applySeconds: applied.seconds, plan: planned, applied: JSON.parse(lastJsonLine(applied.stdout)),
-    retainedUnits: units.slice(0, 2), retainedBackups: resets.slice(0, 2).filter(hasBackup), retainedEvidence: 168,
+    planSeconds: plan.seconds, applySeconds: applied.seconds, replanSeconds: replan.seconds, plan: planned, applied: JSON.parse(lastJsonLine(applied.stdout)),
+    replanned, retainedUnits: units.slice(0, 2), retainedBackups: resets.slice(0, 2).filter(hasBackup), retainedEvidence: 168,
+    firewall: { sentinel: FIREWALL_SENTINEL, ...firewall },
   });
 
   const visitor = await api.visitorAccount("Workspace Administrator");
@@ -651,12 +675,55 @@ function seedSyntheticHistory(host, volume, count) {
 }
 
 /**
- * The packet counter of every rule in the two demo chains, in order. Only a flush resets one, so a
- * rebuild of the chains shows as a counter that went down.
+ * The rules of the two demo chains, as `iptables -S` prints them.
+ * @returns {Record<string, string[]>}
+ */
+function demoFirewallRules() {
+  return Object.fromEntries(DEMO_CHAINS.map((chain) => [chain, run("iptables", ["-w", "-S", chain]).split("\n").filter((line) => line.startsWith("-A "))]));
+}
+
+/**
+ * Sets each demo rule's counters to the sentinel by replacing the rule with its own exact
+ * specification. The isolation helper's rules need no quoting, which this asserts.
+ * @param {Record<string, string[]>} rules
+ */
+function setFirewallSentinels(rules) {
+  for (const [chain, lines] of Object.entries(rules)) {
+    for (const [index, line] of lines.entries()) {
+      assert.ok(!/["'\\]/.test(line), `a demo rule must need no quoting: ${line}`);
+      const words = line.split(" ");
+      assert.deepEqual(words.slice(0, 2), ["-A", chain]);
+      run("iptables", ["-w", "-R", chain, String(index + 1), "-c", String(FIREWALL_SENTINEL), String(FIREWALL_SENTINEL), ...words.slice(2)]);
+    }
+  }
+}
+
+/**
+ * The demo chains must hold exactly their rules, each still counting on from its sentinel: a flush,
+ * or a rebuild, restarts every count from zero.
+ * @param {string} label @param {Record<string, string[]>} rules @returns {number[]}
+ */
+function assertFirewallUntouched(label, rules) {
+  assert.deepEqual(demoFirewallRules(), rules, `${label} must leave the demo chains' rules as they were`);
+  const counters = demoFirewallCounters();
+  assert.ok(counters.length === Object.values(rules).flat().length && counters.every((packets) => packets >= FIREWALL_SENTINEL),
+    `${label} must never rebuild the demo chains: counters ${JSON.stringify(counters)}`);
+  return counters;
+}
+
+/** Enforces the demo's isolation, as every reset does, which rebuilds both chains. @param {DemoHost} host */
+function enforceDemoIsolation(host) {
+  const result = spawnSync("bash", [host.isolationHelper, "enforce", "--network", DEMO_NETWORK, "--scanner-host", DEMO_GATEWAY, "--scanner-port", "3310",
+    "--data-volume", DEMO_VOLUME, "--backup-root", BACKUP_ROOT], { encoding: "utf8" });
+  assert.equal(result.status, 0, `public-demo isolation enforcement failed:\n${result.stderr}`);
+}
+
+/**
+ * The packet counter of every rule in the two demo chains, in order.
  * @returns {number[]}
  */
 function demoFirewallCounters() {
-  return ["LTF_DEMO_INPUT", "LTF_DEMO_FORWARD"].flatMap((chain) => run("iptables", ["-w", "-L", chain, "-n", "-v", "-x", "--line-numbers"])
+  return DEMO_CHAINS.flatMap((chain) => run("iptables", ["-w", "-L", chain, "-n", "-v", "-x", "--line-numbers"])
     .split("\n").filter((line) => /^\d+\s/.test(line)).map((line) => Number(line.trim().split(/\s+/)[1])));
 }
 
@@ -1150,7 +1217,7 @@ async function runReset(host, ordinal, interruptAtPhase, { helper = host.resetHe
     // A phase lasts one Compose run, so poll closely and refuse a missed window rather than
     // signalling a later phase whose recovery would prove something else.
     const statePath = path.join(host.deployRoot, "demo-reset-operations", operationId, "state.json");
-    const phases = ["preflight", "curtained", "quiescent", "backed-up", "activated", "started", "verified", "completed"];
+    const phases = ["preflight", "curtained", "quiescent", "backed-up", "activated", "started", "verified", "finalized", "completed"];
     const deadline = Date.now() + 600_000;
     for (;;) {
       let phase = "";

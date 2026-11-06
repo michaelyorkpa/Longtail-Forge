@@ -94,6 +94,15 @@ require_root_owned_private_file() {
   test $((8#$parent_mode & 8#022)) -eq 0 || fail "$label parent must not be group- or other-writable"
 }
 
+# Checks a directory without changing it: a real directory, owned by root, and writable by no one else.
+require_root_owned_directory() {
+  local target="$1" label="$2" mode
+  test -d "$target" && test ! -L "$target" || fail "$label must be a real directory"
+  test "$(stat -c '%u' "$target")" = '0' || fail "$label must be root-owned"
+  mode="$(stat -c '%a' "$target")"
+  test $((8#$mode & 8#022)) -eq 0 || fail "$label must not be group- or other-writable"
+}
+
 load_helper_environment() {
   require_root_owned_private_file "$HELPER_ENV" 'compose helper environment'
   local line key
@@ -161,9 +170,14 @@ if test -n "$SECURE_KEY_BACKUP"; then
   require_root_owned_private_file "$SECURE_KEY_BACKUP" 'Secure Notes recovery-key backup'
 fi
 
-install -d -o root -g root -m 0711 "$DEPLOY_ROOT"
-install -d -o root -g root -m 0700 "$STATE_ROOT" "$RELEASE_ROOT" "$OPERATION_ROOT"
-if test ! -e "$OPERATION_LOCK"; then install -o root -g root -m 0600 /dev/null "$OPERATION_LOCK"; fi
+# A reset prepares the roots it writes. Retention changes none of them: once it holds the lock, it
+# checks that each is the directory a reset left, so a run that cannot lock, or refuses, leaves every
+# root exactly as it found it.
+if test "${1:-}" != 'retention'; then
+  install -d -o root -g root -m 0711 "$DEPLOY_ROOT"
+  install -d -o root -g root -m 0700 "$STATE_ROOT" "$RELEASE_ROOT" "$OPERATION_ROOT"
+  if test ! -e "$OPERATION_LOCK"; then install -o root -g root -m 0600 /dev/null "$OPERATION_LOCK"; fi
+fi
 require_root_owned_private_file "$OPERATION_LOCK" 'Compose operation lock'
 # The boot operation runs a fresh reset while it holds this lock, and hands it on as descriptor 9.
 # Reuse descriptor 9 only when it is this exact lock file: flock on the inherited open file
@@ -245,9 +259,18 @@ else
   OPERATION_ID="$(date -u +%Y%m%dT%H%M%SZ)-reset-$$"
 fi
 OPERATION_DIR="$OPERATION_ROOT/$OPERATION_ID"
-# A supervised retention run keeps its evidence apart from the reset history it prunes.
+# A supervised retention run keeps its evidence apart from the reset history it prunes. It checks
+# every root it reads without changing any, and creates nothing but that evidence.
 if test "$MODE" = 'retention'; then
-  install -d -o root -g root -m 0700 "$RETENTION_ROOT"
+  for pair in "$DEPLOY_ROOT:deployment root" "$STATE_ROOT:deployment state root" \
+    "$RELEASE_ROOT:release root" "$OPERATION_ROOT:reset history root"; do
+    require_root_owned_directory "${pair%%:*}" "${pair#*:}"
+  done
+  if test -e "$RETENTION_ROOT" || test -L "$RETENTION_ROOT"; then
+    require_root_owned_directory "$RETENTION_ROOT" 'retention evidence root'
+  else
+    install -d -o root -g root -m 0700 "$RETENTION_ROOT"
+  fi
   OPERATION_DIR="$RETENTION_ROOT/$OPERATION_ID"
 fi
 test ! -e "$OPERATION_DIR" || fail 'operation identity already exists'
@@ -758,7 +781,10 @@ retain_history() {
       test -f "$file" && test ! -L "$file" && test "$(stat -c '%u:%h' "$file")" = '0:1' \
         && test ! -e "$file.tmp" && test ! -L "$file.tmp" \
         || fail 'a pre-reset login record is not a plain root-owned file; nothing was removed'
-      if ! jq -e 'type == "object" and keys == ["httpStatus"] and (.httpStatus | type == "string")' "$file" >/dev/null 2>&1; then
+      # A record is legacy unless it holds only a status, or is exactly the replacement an earlier
+      # apply wrote, so a replaced record is never found or rewritten again.
+      if ! jq -e --argjson replacement "$LEGACY_LOGIN_RECORD" \
+        '(type == "object" and keys == ["httpStatus"] and (.httpStatus | type == "string")) or . == $replacement' "$file" >/dev/null 2>&1; then
         legacy_logins+=("$file")
       fi
     done
@@ -827,9 +853,9 @@ RECOVERY_ARMED=false
 RECOVERY_RUNNING=false
 START_ARMED=false
 APP_STARTED_BY_RESET=false
-# Set once the reset has finalized and lifted its curtain. From then on the reset has completed, and
-# nothing may record otherwise: a signal stops only its retention step, and the exit handler records
-# no other phase.
+# Set as soon as finalizing succeeds. From then on no recovery may run: a signal stops only the
+# retention step, and the exit handler records no other phase. A curtain that then cannot be lifted
+# leaves the reset recorded as finalized, not completed, so retention keeps its evidence.
 RESET_COMPLETED=false
 RETENTION_INTERRUPTED=false
 # The automatic recovery. Each command runs as a step, so its diagnostics are redacted like every
@@ -968,12 +994,17 @@ step verify verify_runtime
 step verify-old-session-rejected verify_old_session_rejected
 step verify-representative-role verify_representative_role
 record_phase 'verified'
+# Finalizing commits the reset: once it succeeds, the fresh baseline is the active unit, and nothing
+# may restore the prior one. From here a signal only sets a flag. If finalizing fails, the exit
+# handler recovers as before; once it succeeds, the reset completes and lifts its curtain, and the
+# signal stops only its retention step.
+trap 'RETENTION_INTERRUPTED=true' HUP INT TERM
 step finalize run_activation finalize "$OPERATION_DIR/finalize.json"
-# The boot lifts its own curtain once this reset reports success.
-if test "$CALLER" != 'boot'; then clear_marker; fi
 RECOVERY_ARMED=false
 RESET_COMPLETED=true
-trap 'RETENTION_INTERRUPTED=true' HUP INT TERM
+record_phase 'finalized'
+# The boot lifts its own curtain once this reset reports success.
+if test "$CALLER" != 'boot'; then clear_marker; fi
 record_phase 'completed' 'baseline-healthy'
 
 # Retention runs once the reset has completed, still under the lock: after the curtain is down, or

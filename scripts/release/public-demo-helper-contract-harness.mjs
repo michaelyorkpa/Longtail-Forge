@@ -165,7 +165,7 @@ const SEEDS = Object.freeze([
   { label: "retention trusts a failed history listing", helper: "reset", from: "    || fail 'the reset history could not be listed; nothing was removed'", to: "    || true", caughtBy: "retention refuses when its history listing fails" },
   { label: "retention trusts a failed evidence traversal", helper: "reset", from: "-print -quit)\" || return 1", to: "-print -quit)\" || true", caughtBy: "retention refuses when an evidence traversal fails" },
   { label: "retention trusts a failed backup listing", helper: "reset", from: "    || fail 'the backup root could not be listed; nothing was removed'", to: "    || true", caughtBy: "retention refuses when its backup listing fails" },
-  { label: "retention accepts a linked history root", helper: "reset", from: "  test -d \"$OPERATION_ROOT\" && test ! -L \"$OPERATION_ROOT\" && test \"$(stat -c '%u' \"$OPERATION_ROOT\")\" = '0' \\\n    || fail 'the reset history root is not a root-owned real directory; nothing was removed'\n", to: "", caughtBy: "retention refuses a reset history root that is a link" },
+  { label: "retention accepts a linked history root", helper: "reset", from: "  test -d \"$OPERATION_ROOT\" && test ! -L \"$OPERATION_ROOT\" && test \"$(stat -c '%u' \"$OPERATION_ROOT\")\" = '0' \\\n    || fail 'the reset history root is not a root-owned real directory; nothing was removed'\n", to: "", caughtBy: "the automatic step refuses a reset history root that is a link" },
   { label: "the cap ignores evidence tombstones", helper: "reset", from: "test \"$((${#evidence_operations[@]} + ${#tombstones[@]}))\" -gt \"$cap\"", to: "test \"${#evidence_operations[@]}\" -gt \"$cap\"", caughtBy: "the automatic step counts evidence tombstones against its cap" },
   { label: "the cap ignores in-volume tombstones", helper: "reset", from: "test \"$((unit_selected + unit_tombstones))\" -gt \"$cap\"", to: "test \"$unit_selected\" -gt \"$cap\"", caughtBy: "the automatic step counts in-volume tombstones against its cap" },
   { label: "retention removes the backup of the reset it belongs to", helper: "reset", from: "    test \"$operation_id\" != \"$OPERATION_ID\" || fail 'the current reset ranks outside the retained history; nothing was removed'\n", to: "", caughtBy: "the automatic step never removes the reset it belongs to" },
@@ -180,6 +180,32 @@ const SEEDS = Object.freeze([
   { label: "the reset's recovery keeps a step's diagnostics unredacted", helper: "reset", from: "  step recovery-stop stop_sqlite_users\n", to: "  stop_sqlite_users\n", caughtBy: "a recovery step's diagnostics are redacted" },
   { label: "the reset drops its redaction list before recovering", helper: "reset", from: "  local status=\"$1\"\n  if test \"$RESET_COMPLETED\" = true; then", to: "  local status=\"$1\"\n  rm -f -- \"$SESSION_ROOT/redactions\"\n  if test \"$RESET_COMPLETED\" = true; then", caughtBy: "a recovery step's diagnostics are redacted" },
   { label: "the reset leaves its session material after recovery", helper: "reset", from: "  ( run_recovery )\n  trap - HUP INT TERM\n  cleanup_session_material\n", to: "  ( run_recovery )\n  trap - HUP INT TERM\n", caughtBy: "a recovery step's diagnostics are redacted" },
+  { label: "retention normalizes the roots it checks", helper: "reset", from: "if test \"${1:-}\" != 'retention'; then\n  install -d", to: "if true; then\n  install -d", caughtBy: "retention leaves every root it checks as it found it" },
+  { label: "retention creates its evidence root before it holds the lock", helper: "reset", from: "flock -n 9 || lock_contended", to: "install -d -o root -g root -m 0700 \"$RETENTION_ROOT\"\nflock -n 9 || lock_contended", caughtBy: "retention waits for the lifecycle lock" },
+  { label: "retention accepts a history root another user owns", helper: "reset", from: "  test \"$(stat -c '%u' \"$target\")\" = '0' || fail \"$label must be root-owned\"\n", to: "", caughtBy: "retention refuses a reset history root another user owns" },
+  { label: "retention follows a linked history root", helper: "reset", from: " \"$OPERATION_ROOT:reset history root\"; do", to: "; do", caughtBy: "retention refuses a reset history root that is a link before" },
+  {
+    label: "the reset lifts its curtain before it holds signals or counts as finalized",
+    helper: "reset",
+    from: "trap 'RETENTION_INTERRUPTED=true' HUP INT TERM\nstep finalize run_activation finalize \"$OPERATION_DIR/finalize.json\"\nRECOVERY_ARMED=false\nRESET_COMPLETED=true\nrecord_phase 'finalized'\n# The boot lifts its own curtain once this reset reports success.\nif test \"$CALLER\" != 'boot'; then clear_marker; fi\n",
+    to: "step finalize run_activation finalize \"$OPERATION_DIR/finalize.json\"\n# The boot lifts its own curtain once this reset reports success.\nif test \"$CALLER\" != 'boot'; then clear_marker; fi\nRECOVERY_ARMED=false\nRESET_COMPLETED=true\ntrap 'RETENTION_INTERRUPTED=true' HUP INT TERM\n",
+    caughtBy: "a signal as the curtain lifts",
+  },
+  {
+    label: "the reset holds signals only once finalizing has returned",
+    helper: "reset",
+    from: "trap 'RETENTION_INTERRUPTED=true' HUP INT TERM\nstep finalize run_activation finalize \"$OPERATION_DIR/finalize.json\"\n",
+    to: "step finalize run_activation finalize \"$OPERATION_DIR/finalize.json\"\ntrap 'RETENTION_INTERRUPTED=true' HUP INT TERM\n",
+    caughtBy: "a signal to the reset while it finalizes",
+  },
+  {
+    label: "the reset lifts its curtain before it counts as finalized",
+    helper: "reset",
+    from: "RECOVERY_ARMED=false\nRESET_COMPLETED=true\nrecord_phase 'finalized'\n# The boot lifts its own curtain once this reset reports success.\nif test \"$CALLER\" != 'boot'; then clear_marker; fi\n",
+    to: "# The boot lifts its own curtain once this reset reports success.\nif test \"$CALLER\" != 'boot'; then clear_marker; fi\nRECOVERY_ARMED=false\nRESET_COMPLETED=true\nrecord_phase 'finalized'\n",
+    caughtBy: "a finalized reset whose curtain cannot be lifted",
+  },
+  { label: "retention finds its own replacement legacy again", helper: "reset", from: " or . == $replacement'", to: "'", caughtBy: "retention apply replaces the legacy login records" },
   { label: "the scheduler reads a curtained recovery as a lifted one", helper: "scheduler", from: "elif grep -Fq 'prior unit was restored and verified behind the retained maintenance curtain' \"$RUN_ROOT/reset.err\"; then", to: "elif false; then", caughtBy: "the scheduler records a recovery behind the retained curtain" },
 ]);
 
@@ -194,6 +220,7 @@ const SEEDS = Object.freeze([
  *   stateQuery?: "fails" | "fails-after-kill", dockerStall?: "kill" | "first-state-query", stopCanary?: boolean,
  *   resetRetention?: string, unitsToPrune?: number, pruneFails?: boolean, unitTombstones?: number, pruneSignals?: boolean,
  *   pruneSelectsCurrent?: boolean, findFails?: "history" | "evidence" | "backups",
+ *   curtainSignal?: boolean, finalizeSignals?: boolean, finalizeReplacesMarker?: boolean,
  * }} Scenario
  */
 /** @typedef {{ running: boolean, isolationEnforced: boolean, probes: Record<string, number>, clock: number, identityCalls: number, stateQueries?: number, killed?: boolean }} Runtime */
@@ -527,6 +554,16 @@ function fakeComposeRun(args, scenario) {
   const action = String(args[at + 2] || "");
   if (script.endsWith("public-demo-baseline-activation.mjs")) {
     if (action === "prune") return fakePrune(args, scenario);
+    if (action === "finalize") {
+      // A stop request to the reset alone, while it finalizes; or a curtain replaced by something
+      // the reset may not remove, found only once finalizing has succeeded.
+      if (scenario.finalizeSignals) signalHelper({ helperOnly: true });
+      if (scenario.finalizeReplacesMarker) {
+        const marker = String(readJson(path.join(String(process.env.HARNESS_STATE), "paths.json")).marker);
+        fs.rmSync(marker, { force: true });
+        fs.mkdirSync(marker, { mode: 0o700 });
+      }
+    }
     return emit(action === "inspect" ? '{"active":false}\n' : `${JSON.stringify({ ok: true, action, status: "no-stale-candidate", moved: 0 })}\n`);
   }
   if (script.endsWith("public-demo-baseline-candidate.mjs")) {
@@ -583,9 +620,11 @@ function fakePrune(args, scenario) {
 
 /**
  * Sends TERM to the helper that ran this fake and to the step subshell between them, as a signal to
- * the reset's process group would. Both are bash; the harness above them is not.
+ * the reset's process group would; or, with `helperOnly`, to the helper alone, as `kill` of its
+ * process would. Both are bash; the harness above them is not.
+ * @param {{ helperOnly?: boolean }} [options]
  */
-function signalHelper() {
+function signalHelper({ helperOnly = false } = {}) {
   /** @type {number[]} */
   const ancestors = [];
   let pid = process.ppid;
@@ -595,7 +634,7 @@ function signalHelper() {
     pid = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
   }
   assert.ok(ancestors.length >= 2, "the fake must find the helper and its step subshell");
-  for (const ancestor of ancestors) process.kill(ancestor, "SIGTERM");
+  for (const ancestor of helperOnly ? ancestors.slice(-1) : ancestors) process.kill(ancestor, "SIGTERM");
 }
 
 /** A file in the backup root, owned by the container user. @param {string} name @param {string} [content] */
@@ -642,6 +681,7 @@ async function main() {
   assert.ok(fs.existsSync("/usr/bin/curl"), "the real curl is required for the stalled-response scenarios");
   assert.ok(fs.existsSync("/usr/bin/timeout"), "the real timeout is required for the Docker deadline scenarios");
   assert.ok(fs.existsSync("/usr/bin/find"), "the real find is required beneath the failing-listing fake");
+  assert.ok(fs.existsSync("/usr/bin/rm"), "the real rm is required beneath the curtain-signal fake");
   // A server that accepts each connection and never answers. The kernel completes the handshake even
   // while the scenarios block this process, so a request to it stalls until its own time limit.
   const stallServer = net.createServer(() => {});
@@ -686,9 +726,14 @@ async function main() {
   };
   /** @param {Sandbox} box @param {string} helper @param {string[]} args @param {{ stdout?: number }} [options] a descriptor for standard output */
   const runHelper = (box, helper, args, { stdout } = {}) => {
+    // Tools of the scenario's own come first, when it has them.
+    const own = path.join(box.root, "bin");
     const result = spawnSync("bash", [helper, ...args], {
       encoding: "utf8",
-      env: { PATH: `${fakeBin}:/usr/sbin:/usr/bin:/sbin:/bin`, HOME: "/root", LANG: "C.UTF-8", HARNESS_STATE: box.state, LTF_COMPOSE_HELPER_ENV: box.helperEnv },
+      env: {
+        PATH: `${fs.existsSync(own) ? `${own}:` : ""}${fakeBin}:/usr/sbin:/usr/bin:/sbin:/bin`,
+        HOME: "/root", LANG: "C.UTF-8", HARNESS_STATE: box.state, LTF_COMPOSE_HELPER_ENV: box.helperEnv,
+      },
       timeout: 180_000,
       killSignal: "SIGKILL",
       ...(stdout === undefined ? {} : { stdio: /** @type {import("node:child_process").StdioOptions} */ (["pipe", stdout, "pipe"]) }),
@@ -1219,6 +1264,21 @@ async function main() {
     // Retention of the reset history: the automatic step, and the supervised plan and apply.
     /** @param {Sandbox} box */
     const retentionRecords = (box) => readTree(path.join(box.deployRoot, "demo-retention-operations"));
+    /** The roots retention reads, so a scenario can prove that a run left each as it was. @param {Sandbox} box */
+    const rootMetadata = (box) => [box.deployRoot, ...["state", "releases", "demo-reset-operations"].map((name) => path.join(box.deployRoot, name))]
+      .map((root) => {
+        const stat = fs.lstatSync(root);
+        return { root, mode: stat.mode, uid: stat.uid, gid: stat.gid };
+      });
+    /** Gives the roots modes that every check accepts but no reset sets, so a run that normalizes them shows. @param {Sandbox} box */
+    const loosenRoots = (box) => {
+      fs.chmodSync(box.deployRoot, 0o755);
+      for (const name of ["state", "releases", "demo-reset-operations"]) fs.chmodSync(path.join(box.deployRoot, name), 0o750);
+    };
+    /** The steps a reset began, in order. @param {Sandbox} box */
+    const stepNames = (box) => readJsonLines(path.join(resetDirectory(box), "steps.jsonl")).map((entry) => String(entry.step));
+    /** @param {Sandbox} box */
+    const retentionEvidenceExists = (box) => fs.existsSync(path.join(box.deployRoot, "demo-retention-operations"));
     scenario("a completed reset prunes its history automatically, after the curtain lifts, within its cap", (box) => {
       const history = Array.from({ length: 168 }, (_, hour) => historyId(box, hour));
       seedHistory(box, history.map((id, hour) => ({ id, backup: hour >= 166, sidecar: hour >= 166 })));
@@ -1335,9 +1395,11 @@ async function main() {
       assert.equal(fs.existsSync(tombstone), false);
       assert.ok(evidenceExists(box, historyId(box, 0)));
     });
-    scenario("retention waits for the lifecycle lock, and removes nothing while another operation holds it", (box) => {
+    scenario("retention waits for the lifecycle lock, and changes nothing while another operation holds it", (box) => {
       const history = Array.from({ length: 4 }, (_, hour) => historyId(box, hour));
       seedHistory(box, history.map((id) => ({ id })));
+      loosenRoots(box);
+      const roots = rootMetadata(box);
       const lock = path.join(box.deployRoot, "compose-operation.lock");
       const holder = spawn("flock", [lock, "sleep", "30"], { stdio: "ignore", detached: true });
       try {
@@ -1352,6 +1414,8 @@ async function main() {
         assert.match(result.stderr, /holds the host lock/);
         assert.deepEqual(historySnapshot(box), before);
         assert.equal(result.calls.filter((call) => call.tool === "docker").length, 0);
+        assert.deepEqual(rootMetadata(box), roots, "a run that cannot lock changes no root");
+        assert.equal(retentionEvidenceExists(box), false, "a run that cannot lock creates no evidence");
       } finally {
         if (holder.pid) process.kill(-holder.pid, "SIGKILL");
       }
@@ -1383,19 +1447,57 @@ async function main() {
       assert.deepEqual(historySnapshot(box), before);
       assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
     }, { findFails: "backups" });
-    scenario("retention refuses a reset history root that is a link, and removes nothing", (box) => {
+    scenario("retention refuses a reset history root that is a link before it writes anything, and leaves the link's target as it was", (box) => {
       seedHistory(box, Array.from({ length: 4 }, (_, hour) => ({ id: historyId(box, hour) })));
       const root = path.join(box.deployRoot, "demo-reset-operations");
       const real = path.join(box.deployRoot, "linked-history");
       fs.renameSync(root, real);
       fs.symlinkSync(real, root);
-      const before = fs.readdirSync(real).sort();
+      fs.chmodSync(real, 0o750);
+      const target = () => ({ entries: fs.readdirSync(real).sort(), mode: fs.statSync(real).mode, uid: fs.statSync(real).uid });
+      const before = target();
       const result = retention(box, "plan");
       assert.equal(result.status, 1);
-      assert.match(retentionRecords(box), /the reset history root is not a root-owned real directory; nothing was removed/);
-      assert.deepEqual(fs.readdirSync(real).sort(), before);
+      assert.match(result.stderr, /reset history root must be a real directory/);
+      assert.deepEqual(target(), before, "nothing may follow the link");
+      assert.equal(retentionEvidenceExists(box), false, "a refused run creates no evidence");
       assert.deepEqual(prunes(result.calls), [], "nothing runs in the volume");
     });
+    scenario("retention refuses a reset history root another user owns before it writes anything, and leaves its owner", (box) => {
+      seedHistory(box, Array.from({ length: 4 }, (_, hour) => ({ id: historyId(box, hour) })));
+      const root = path.join(box.deployRoot, "demo-reset-operations");
+      fs.chownSync(root, CONTAINER_UID, CONTAINER_UID);
+      const before = historySnapshot(box);
+      const result = retention(box, "plan");
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /reset history root must be root-owned/);
+      assert.equal(fs.statSync(root).uid, CONTAINER_UID, "a refused run changes no owner");
+      assert.equal(retentionEvidenceExists(box), false, "a refused run creates no evidence");
+      assert.deepEqual(historySnapshot(box), before);
+      assert.deepEqual(prunes(result.calls), []);
+    });
+    scenario("retention leaves every root it checks as it found it, in plan and apply", (box) => {
+      seedHistory(box, Array.from({ length: 6 }, (_, hour) => ({ id: historyId(box, hour) })));
+      loosenRoots(box);
+      const roots = rootMetadata(box);
+      for (const [mode, run] of /** @type {[string, () => { status: number, stderr: string }][]} */ ([["plan", () => retention(box, "plan")], ["apply", () => applyRetention(box)]])) {
+        const result = run();
+        assert.equal(result.status, 0, result.stderr);
+        assert.deepEqual(rootMetadata(box), roots, `retention ${mode} must change no root's mode or owner`);
+      }
+    });
+    scenario("the automatic step refuses a reset history root that is a link, and the reset still completes", (box) => {
+      seedHistory(box, Array.from({ length: 4 }, (_, hour) => ({ id: historyId(box, hour) })));
+      const root = path.join(box.deployRoot, "demo-reset-operations");
+      const real = path.join(box.deployRoot, "linked-history");
+      fs.renameSync(root, real);
+      fs.symlinkSync(real, root);
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).retention, { status: "failed" });
+      assert.match(fs.readFileSync(path.join(resetDirectory(box), "step-retention.err"), "utf8"),
+        /the reset history root is not a root-owned real directory; nothing was removed/);
+    }, { running: true });
     scenario("the automatic step counts evidence tombstones against its cap", (box) => {
       const history = Array.from({ length: 168 }, (_, hour) => historyId(box, hour));
       seedHistory(box, history.map((id) => ({ id, backup: false, sidecar: false })));
@@ -1454,6 +1556,33 @@ async function main() {
         fs.closeSync(full);
       }
     }, { running: false });
+    /** Steps that recover a reset, or run its retention. @param {Sandbox} box */
+    const recoveryOrRetention = (box) => stepNames(box).filter((name) => name.startsWith("recovery") || name === "retention");
+    scenario("a signal as the curtain lifts leaves the completed reset completed, and its demo serving", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      const reported = JSON.parse(lastLine(result.stdout));
+      assert.deepEqual([reported.ok, reported.appStartedByReset, reported.retention], [true, true, { status: "failed" }]);
+      assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["completed", "baseline-healthy"]);
+      assert.equal(fs.existsSync(box.marker), false, "the curtain stays down");
+      assert.deepEqual(recoveryOrRetention(box), [], "nothing recovers the finalized reset, and the signal stops its retention");
+    }, { running: false, curtainSignal: true });
+    scenario("a signal to the reset while it finalizes lets it complete, and stops only its retention", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).retention, { status: "failed" });
+      assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["completed", "baseline-healthy"]);
+      assert.equal(fs.existsSync(box.marker), false, "the completed reset lifts its curtain");
+      assert.deepEqual(recoveryOrRetention(box), []);
+    }, { running: true, finalizeSignals: true });
+    scenario("a finalized reset whose curtain cannot be lifted is recorded as finalized, and never recovers", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /deployment marker is not a safe regular file/);
+      assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["finalized", ""]);
+      assert.deepEqual(recoveryOrRetention(box), [], "nothing may restore the prior unit once the fresh one is final");
+      assert.ok(fs.statSync(box.marker).isDirectory(), "the reset leaves what replaced the curtain for the operator");
+    }, { running: true, finalizeReplacesMarker: true });
     scenario("retention apply replaces the legacy login records of retained completed resets, and leaves incident evidence its own", (box) => {
       const completed = Array.from({ length: 4 }, (_, hour) => historyId(box, hour));
       const incident = historyId(box, 4);
@@ -1468,6 +1597,16 @@ async function main() {
       assert.deepEqual(JSON.parse(lastLine(result.stdout)).evidence.legacyLogins, { found: 4, replaced: 4 });
       for (const id of completed) assert.deepEqual(JSON.parse(login(id)), { httpStatus: "200", legacyBodyRemoved: true });
       assert.ok(login(incident).includes(VISITOR_CANARY), "incident evidence keeps its own record");
+      // A replaced record is never found again, and a second apply rewrites none.
+      const inodes = () => completed.map((id) => fs.statSync(path.join(box.deployRoot, "demo-reset-operations", id, "pre-reset-login.json")).ino);
+      const replaced = inodes();
+      const replan = retention(box, "plan");
+      assert.equal(replan.status, 0, replan.stderr);
+      assert.deepEqual(JSON.parse(lastLine(replan.stdout)).evidence.legacyLogins, { found: 0, replaced: 0 });
+      const reapply = applyRetention(box);
+      assert.equal(reapply.status, 0, reapply.stderr);
+      assert.deepEqual(JSON.parse(lastLine(reapply.stdout)).evidence.legacyLogins, { found: 0, replaced: 0 });
+      assert.deepEqual(inodes(), replaced, "a second apply must rewrite no record");
     });
   };
 
@@ -1569,6 +1708,18 @@ function createSandbox(work, ordinal, scenario) {
     "",
   ].join("\n"));
   const marker = path.join(maintenance, "deployment", "maintenance.on");
+  if (scenario.curtainSignal) {
+    // The real rm, ahead of every other tool for this scenario alone, which signals the helper that
+    // removed the curtain the moment it is gone, as a stop request arriving then would. Every other
+    // scenario runs without it, because each rm would otherwise start a process of its own.
+    fs.mkdirSync(path.join(root, "bin"), { mode: 0o755 });
+    fs.writeFileSync(path.join(root, "bin", "rm"), [
+      "#!/usr/bin/env bash",
+      "/usr/bin/rm \"$@\" || exit",
+      `for argument in "$@"; do if test "$argument" = ${shellQuote(marker)}; then kill -TERM "$PPID"; fi; done`,
+      "",
+    ].join("\n"), { mode: 0o755 });
+  }
   fs.writeFileSync(path.join(state, "scenario.json"), JSON.stringify({ bridgeAfter: 0, scannerAfter: 0, ...scenario }));
   fs.writeFileSync(path.join(state, "runtime.json"), JSON.stringify({ running: Boolean(scenario.running), isolationEnforced: false, probes: {}, clock: Math.floor(Date.now() / 1000), identityCalls: 0 }));
   fs.writeFileSync(path.join(state, "paths.json"), JSON.stringify({ marker, volume, lock: path.join(deployRoot, "compose-operation.lock"), stallPort }));
