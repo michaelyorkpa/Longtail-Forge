@@ -129,7 +129,7 @@
     "eslint": "^10.13.0",
     "espree": "^11.2.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.12"
+    "vitest": "^5.1.0"
   },
   "allowScripts": {
     "better-sqlite3@13.0.3": true
