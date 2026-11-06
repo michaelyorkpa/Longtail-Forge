@@ -111,7 +111,8 @@ evidence; while retention is blocked or capped, until you answer its alert;
 while the demo is held; and in deployment backups, which stay until you remove
 them. Retention never deletes the active unit, the verified last-known-good unit
 visitors are served. A reset that did not complete is incident evidence: its
-evidence, backup, and failed unit stay until you dispose of them. Prune a
+evidence, backup, retired unit, and failed unit stay until you dispose of them,
+even when finalizing already marked its unit completed. Prune a
 backlog, or answer a `retention-failed` alert, with `retention plan`, then
 `retention apply`. Neither changes the firewall or any directory it checks.
 The policy, the selection rules, and both procedures are in
