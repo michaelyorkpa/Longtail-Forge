@@ -105,9 +105,14 @@ fi
 test -z "${SEEN_ARGS[event]:-}" || fail 'notify does not accept --event'
 [[ "$TRIGGER" =~ ^(scheduled|manual|boot)$ ]] || fail 'trigger is invalid'
 [[ "$SCHEDULED_BOUNDARY" = 'none' || "$SCHEDULED_BOUNDARY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:00:00Z$ ]] || fail 'scheduled boundary is invalid'
-[[ "$FAILURE_CLASS" =~ ^(lifecycle-lock-contended|reset-failed|reset-failed-recovered|reset-failed-unrecovered|boot-held|boot-marker-present|boot-release-uncertain|boot-storage-failed|boot-dependency-unavailable|boot-profile-invalid|boot-start-failed|boot-stop-failed|boot-reset-failed)$ ]] || fail 'failure class is invalid'
-[[ "$RECOVERY_STATUS" =~ ^(not-started|unknown|prior-unit-healthy|prior-unit-healthy-curtain-retained|maintenance-curtain-retained|unverified-container-not-stopped|demo-stopped)$ ]] || fail 'recovery status is invalid'
-[[ "$EXIT_CODE" =~ ^[1-9][0-9]{0,2}$ ]] || fail 'exit code is invalid'
+[[ "$FAILURE_CLASS" =~ ^(lifecycle-lock-contended|reset-failed|reset-failed-recovered|reset-failed-unrecovered|retention-failed|boot-held|boot-marker-present|boot-release-uncertain|boot-storage-failed|boot-dependency-unavailable|boot-profile-invalid|boot-start-failed|boot-stop-failed|boot-reset-failed)$ ]] || fail 'failure class is invalid'
+[[ "$RECOVERY_STATUS" =~ ^(not-started|not-required|unknown|prior-unit-healthy|prior-unit-healthy-curtain-retained|maintenance-curtain-retained|unverified-container-not-stopped|demo-stopped)$ ]] || fail 'recovery status is invalid'
+# A retention failure follows a completed reset, which exited 0; every other class follows a failure.
+if test "$FAILURE_CLASS" = 'retention-failed'; then
+  test "$EXIT_CODE" = '0' && test "$RECOVERY_STATUS" = 'not-required' || fail 'a retention failure follows a completed reset'
+else
+  [[ "$EXIT_CODE" =~ ^[1-9][0-9]{0,2}$ ]] || fail 'exit code is invalid'
+fi
 
 SUMMARY="target=$TARGET operationId=$OPERATION_ID trigger=$TRIGGER scheduledBoundary=$SCHEDULED_BOUNDARY failureClass=$FAILURE_CLASS recoveryStatus=$RECOVERY_STATUS exitCode=$EXIT_CODE"
 logger --priority daemon.alert --tag longtail-forge-public-demo-reset "$SUMMARY"

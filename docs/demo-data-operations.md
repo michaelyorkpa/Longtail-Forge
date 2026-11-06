@@ -26,7 +26,7 @@ Demo-host-only state:
 - root-only operation records, session-proof cookies, API proof responses, and logs;
 - application secrets, the private operator credential document, and any separately protected Secure Notes recovery key.
 
-Generated state and protected evidence never enter Git, a GitHub artifact, or normal command output. The reset helper emits only the target, anchor, operation ID, semantic fingerprint, release identity, and backup basename after success. The scheduler never copies reset stdout or stderr into its log or alert.
+Generated state and protected evidence never enter Git, a GitHub artifact, or normal command output. The reset helper emits only the target, anchor, operation ID, semantic fingerprint, release identity, backup basename, and a [retention](#retention) summary after success. The scheduler never copies reset stdout or stderr into its log or alert.
 
 ## Installation
 
@@ -75,6 +75,15 @@ systemctl enable longtail-forge-public-demo-boot.service
 4. **Run one manual reset** with the new helper, and confirm it completes.
 5. **Enable** the boot unit with `systemctl enable longtail-forge-public-demo-boot.service`, then the timer with `systemctl enable --now longtail-forge-public-demo-reset.timer`.
 
+**Upgrading an installed demo to the retention helpers.** The new reset helper calls the `prune` action, which only the retention image contains, including in a reset the boot runs. The helpers are installed only after that image is deployed, so the boot unit may stay enabled throughout.
+
+1. **Quiesce,** as in step 1 above.
+2. **Deploy** the retention release with the deploy helper.
+3. **Install** the reset, scheduler, and alert helpers from that release. The boot helper, its unit, and the isolation helper are unchanged.
+4. **Prune the backlog** under supervision: run `retention plan`, review it, then run `retention apply` once. The apply also replaces the login records earlier helpers kept in retained evidence. See [Retention](#retention).
+5. **Run one manual reset** through the scheduler wrapper, and confirm that its retention reports `pruned` and that its curtain is shorter.
+6. **Enable** the timer, and confirm the next scheduled reset.
+
 Both lifecycle helpers read `/etc/longtail-forge/compose-deploy-helper.env`, which must remain a real `root:root` file with mode `0600` beneath a root-owned non-writable parent. On the exact public-demo host add the path-only setting:
 
 ```text
@@ -106,7 +115,7 @@ The timer starts at the top of every UTC hour (`OnCalendar=*-*-* *:00:00 UTC`). 
 
 Candidate construction happens before the maintenance curtain. User-visible downtime begins only when the validated candidate is ready and the helper asserts the curtain; it covers quiescence, backup, activation, restart, session invalidation, and runtime/role proof. There is no zero-downtime promise. The oneshot has a 30-minute safety ceiling, while a healthy ordinary run should spend only the shorter host-dependent backup/restart/proof interval behind the curtain. A timeout follows the reset helper's recovery ownership and produces a failure alert.
 
-Every scheduled and scheduler-wrapped manual run receives one correlation ID. The root-only JSONL log retains at most 336 records—start and finish records for seven days at the hourly rate—with trigger, scheduled boundary, lock outcome, duration, semantic fingerprint on success, health, bounded failure class, rollback status, recovery status, and alert outcome. It contains no passwords, record content, sessions, cookies, role document, application output, secret values, or private infrastructure paths. Each successful run also records its `heartbeatOutcome`: `delivered`, `failed`, or `not-configured`. An [operator hold](#protected-boot) makes a fired timer record `skipped-held`, without a reset or an alert. Inspect the protected log and reset operation evidence by correlation ID; do not add raw stdout/stderr to the page. Application/edge/authentication/capability/perimeter evidence uses a separate request ID: correlate a suspected reset overlap by the bounded time window and immutable release identity, never by copying visitor input or inventing one shared identifier across host and request lifecycles.
+Every scheduled and scheduler-wrapped manual run receives one correlation ID. The root-only JSONL log retains at most 336 records—start and finish records for seven days at the hourly rate—with trigger, scheduled boundary, lock outcome, duration, semantic fingerprint on success, health, bounded failure class, rollback status, recovery status, and alert outcome. It contains no passwords, record content, sessions, cookies, role document, application output, secret values, or private infrastructure paths. Each successful run also records its `heartbeatOutcome`: `delivered`, `failed`, or `not-configured`, and its `retentionStatus`: `pruned`, `capped`, or `failed`; see [Retention](#retention). An [operator hold](#protected-boot) makes a fired timer record `skipped-held`, without a reset or an alert. Inspect the protected log and reset operation evidence by correlation ID; do not add raw stdout/stderr to the page. Application/edge/authentication/capability/perimeter evidence uses a separate request ID: correlate a suspected reset overlap by the bounded time window and immutable release identity, never by copying visitor input or inventing one shared identifier across host and request lifecycles.
 
 Deploy, rollback, backup, manual reset, and scheduled reset coordinate through the same non-blocking Compose operation lock. Contention exits with code 75, records `lifecycle-lock-contended`, invokes the failure alert, performs no mutation, and waits for the next normal boundary rather than retrying inside the hour. Other failures remain owned by the reset helper: a proved prior-unit recovery is reported as healthy-but-failed, while failed recovery keeps the curtain and protected evidence for operator action.
 
@@ -153,21 +162,86 @@ initial-volume handoff is not run for ordinary Compose installations.
 5. Captures one pre-reset public visitor session through the direct loopback application, asserts the deployment-owned maintenance curtain, stops every configured application/worker SQLite service, and proves each is no longer running. The proof is a running-state query that succeeds and lists nothing; a query that fails prints nothing either, so it proves nothing, and the reset stops there. The stop has a 45-second deadline and each query 15 seconds; a deadline signals the command's whole process group, then kills it five seconds later.
 6. Creates and inspects a whole-instance database-and-Files archive while stopped. No promotion starts until the protected archive exists and inspection succeeds.
 7. Moves the active database, Files tree, ownership marker, and any WAL/SHM sidecars into one operation-specific retained-prior directory. It then promotes only the three sidecar-free verified candidate members. A root-only phase marker makes partial retirement or promotion deterministic to inspect and recover.
-8. Re-runs the complete baseline, migration, integrity, foreign-key, Files, role, credential-hash, session, and protected-data validator against the promoted top-level unit before starting services.
+8. Re-runs the complete baseline, migration, integrity, foreign-key, Files, role, credential-hash, session, and protected-data validator against the promoted top-level unit before starting services. Its link and protected-value scans read only that unit's own database, sidecars, Files tree, and marker, never the retained prior units or failed evidence beside it, so the time behind the curtain does not grow with the reset history.
 9. Starts the exact recorded Compose release, without pulling, and requires direct plus public health/readiness and exact `/api/app-info`. A reset run by the [protected boot](#protected-boot) requires the direct checks only. Every request the reset makes, including the session capture and the role proof below, is bounded to 15 seconds, so a response that never completes cannot hold the lock and the curtain. While the curtain remains asserted it also proves the pre-reset session is rejected, a fresh Workspace Administrator login succeeds, authorized Task, client/project hierarchy, and seeded attachment reads succeed, and authenticated logout succeeds. This proof is deliberately read-only so the promoted unit remains semantically equivalent to the validated candidate. Transient session cookie jars live only in a root-private `/run` directory and are removed on every handled exit rather than retained as operation evidence.
-10. Archives the completed phase marker with the retained prior unit and clears only the deployment-owned maintenance marker after every proof passes. The independent operator marker is never changed.
+10. Archives the completed phase marker with the retained prior unit, records `finalized`, and clears only the deployment-owned maintenance marker after every proof passes. The independent operator marker is never changed. Finalizing commits the reset: from then on the fresh unit is the active one, and nothing may restore the prior unit. A curtain that then cannot be lifted, because the marker is no longer a plain file, fails the reset with its state left at `finalized`. The fresh unit stays behind the curtain for the operator, and retention keeps every copy the reset left, its retired unit included, as incident evidence.
+11. Runs its [retention](#retention) step, once the curtain is down and still under the lock. A reset run by the protected boot runs it behind the boot's curtain. A `HUP`, `INT`, or `TERM` that arrives from the start of finalizing is held until finalizing returns. If finalizing failed, the reset recovers as below. If it succeeded, the reset completes, lifts its curtain, skips this step, and reports its completed result with a failed retention.
 
 A successful reset permits no post-activation application mutation. Live write and mutation-cap behavior are proved before reset during the release gate; post-reset verification is read-only so the exact reproducible baseline remains active.
 
 ## Automatic recovery and retry behavior
 
-Any error or handled `HUP`, `INT`, or `TERM` after the curtain is asserted triggers the same fail-closed recovery path: stop all SQLite services and prove the stop as step 5 does, so no recovery replaces data while a service may still be running; quarantine any promoted candidate members and candidate WAL/SHM sidecars; reconstruct every prior member from the retained same-filesystem unit, start the exact recorded release, and require direct plus public runtime identity. The curtain is cleared only if that prior unit is healthy, and only when visitors may see it. A reset run by the protected boot, or one that started a stopped app, keeps the curtain even then: the prior unit is the stale one, and the failure reads `prior-unit-healthy-curtain-retained`. Failed recovery keeps the curtain and all archive, prior-unit, failed-candidate, and phase evidence.
+Any error or handled `HUP`, `INT`, or `TERM` after the curtain is asserted, and before finalizing succeeds, triggers the same fail-closed recovery path: stop all SQLite services and prove the stop as step 5 does, so no recovery replaces data while a service may still be running; quarantine any promoted candidate members and candidate WAL/SHM sidecars; reconstruct every prior member from the retained same-filesystem unit, start the exact recorded release, and require direct plus public runtime identity. The curtain is cleared only if that prior unit is healthy, and only when visitors may see it. A reset run by the protected boot, or one that started a stopped app, keeps the curtain even then: the prior unit is the stale one, and the failure reads `prior-unit-healthy-curtain-retained`. Failed recovery keeps the curtain and all archive, prior-unit, failed-candidate, and phase evidence.
 
-A `SIGKILL`, host loss, or runtime crash may prevent the in-process trap. The next manual invocation finds the fixed active-operation marker while holding the shared lock, recovers and verifies the prior unit, clears the curtain, and then exits with a rerun-required error instead of silently starting a second promotion. The operator must invoke the reset again deliberately. Completed prior units and failed evidence are not pruned automatically.
+A `SIGKILL`, host loss, or runtime crash may prevent the in-process trap. The next manual invocation finds the fixed active-operation marker while holding the shared lock, recovers and verifies the prior unit, clears the curtain, and then exits with a rerun-required error instead of silently starting a second promotion. The operator must invoke the reset again deliberately. Failed evidence is never pruned automatically; completed prior units follow [Retention](#retention).
 
-**Step evidence.** Before each step starts, the reset writes the step's name and time to `step.json` in its root-only operation directory, and appends it to `steps.jsonl`, so a kill or a power loss still leaves the step that was running. A step's error output is kept beside them as `step-<name>.err`: its last 64 KiB, with every secret value replaced. The secrets are taken from the environment Compose itself resolves, so however the application environment file is named or quoted, its values are the ones Compose read, together with the secret-named values of the Compose host environment and the role passwords. If any of them cannot be collected, the reset refuses before its first step. Automatic recovery runs each of its commands as a step too, so its diagnostics are redacted the same way, and the list of secret values is removed only once recovery is over. The helper's own output names only the failed step. Nothing new reaches the scheduler log, the alert, or normal output.
+**Step evidence.** Before each step starts, the reset writes the step's name and time to `step.json` in its root-only operation directory, and appends it to `steps.jsonl`, so a kill or a power loss still leaves the step that was running. A step's error output is kept beside them as `step-<name>.err`: its last 64 KiB, with every secret value replaced. The secrets are taken from the environment Compose itself resolves, so however the application environment file is named or quoted, its values are the ones Compose read, together with the secret-named values of the Compose host environment and the role passwords. If any of them cannot be collected, the reset refuses before its first step. Automatic recovery runs each of its commands as a step too, so its diagnostics are redacted the same way, and the list of secret values is removed only once recovery is over. The helper's own output names only the failed step. Nothing new reaches the scheduler log, the alert, or normal output. The evidence holds no visitor-entered content: the pre-reset login keeps only its HTTP status, because its body is the shared account's profile as visitors left it, and every later read runs against the fresh baseline. Earlier helpers kept that body; a supervised `retention apply` replaces it in retained evidence.
 
 Do not bypass the shared lock with an ad hoc `docker compose run`, direct database copy, manual WAL deletion, or independent backup/reset command. Do not mix one operation's database and Files tree. If automatic recovery cannot prove the prior unit, keep traffic curtained and use the retained inspected whole-instance archive through the documented Compose restore path.
+
+## Retention
+
+Nothing reads a completed reset's retired unit or pre-reset backup again, and each holds the visitor-entered content of the hour before that reset. So the reset history is bounded by fixed, reviewed constants, with no setting:
+
+| What | Kept | Where |
+| --- | --- | --- |
+| Retired units | Those of the 2 newest completed resets | `.longtail-public-demo-previous-<operation>` in the data volume |
+| Pre-reset backups, with their `.sha256` sidecars | Those of the 2 newest completed resets | `pre-demo-reset-<operation>.ltfbackup.tgz` in the backup root |
+| Reset evidence | That of the 168 newest completed resets, seven days | `demo-reset-operations/<operation>/` in the deployment root |
+
+Visitor-entered content therefore lasts in the live demo until the next hourly reset. In normal operation it is gone from these copies about three hours after it was entered, and reset evidence holds none. It lasts longer only in these cases:
+- **A failed reset.** Its copies are incident evidence, kept until the operator disposes of them.
+- **Retention that is blocked or capped.** A `retention-failed` alert reaches the operator, and the copies stay until the operator resolves it with supervised retention. A failure under the boot is retried by the next hourly reset first.
+- **A held demo.** While an operator hold stops resets, the newest copies stay until resets resume.
+- **Deployment backups.** Each deploy, rollback, or restore takes a whole-instance backup, which the deploy helper keeps until the operator removes it. The roadmap bounds these on the demo.
+
+`DECISIONS.md` records this policy, and the demo's privacy notices cite it.
+
+**Never removed automatically:**
+- incident evidence: a reset whose state is not `completed`, or is missing or unreadable, with its backup, its retired unit, and any failed unit;
+- failed evidence in the data volume, including moved stale candidates;
+- the active unit, the candidate, and the active-operation marker;
+- any other backup, including a deployment's `pre-upgrade-` backups. A pre-reset backup whose evidence is gone is reported as an orphan;
+- the state and release records, and the scheduler log.
+
+**Selection.** Completion is proved by the reset's `state.json` in the reset history. A retired unit must also prove it by its own `reset-operation.json`, but that record alone is not enough: finalizing writes it before the reset completes, so a reset that stops after finalizing is an incident whose unit's record says completed. Retention therefore names every incident in the history to the in-volume prune, which keeps their units and counts them as `units.incidents`. A retired unit whose reset has no directory in the history at all, such as one older than the history, is judged by its own record alone, so the backlog can be pruned; for the same reason, disposing of an incident removes its unit with its evidence. Selection is by count, newest first by the operation identity's UTC timestamp. Every selected item is checked before anything changes, and one failed check removes nothing:
+- the reset history and the backup root must be real directories, and each listing of them must succeed whole;
+- a retired unit must have exactly a unit's shape, with no link anywhere beneath it;
+- evidence must be a root-owned real directory holding only root-owned files and directories, proved by a traversal that succeeds;
+- a backup and its sidecar must be plain files with one name, owned by the backup root's owner, the container user.
+
+A run never removes anything of the reset it belongs to. If that reset would rank among the removals, as a clock set back would make it, the run refuses.
+
+**Removal deletes; nothing is archived.** A retired unit or an evidence directory is first renamed to a tombstone, which the next run finishes if a deletion is interrupted. A backup's archive goes before its sidecar.
+
+**The automatic step.** Each completed reset runs retention once its curtain is down, still under the lifecycle lock.
+- **The cap.** If the removals of any kind, counting the tombstones an interrupted run left, would exceed three, the step removes nothing and reports `capped`.
+- **Its record.** The result is `retention.json` in the reset's operation directory, and a `retention` summary on the reset's final line.
+- **Failure.** A retention failure never fails or rolls back the completed reset, and neither does a signal, which stops only retention. The scheduler logs the run as `succeeded`, with failure class `retention-failed` and the `retentionStatus`, still sends the heartbeat, and raises the Discord alert.
+- **The boot.** A reset run by the protected boot runs the step behind the boot's curtain. The boot does not alert on it: a failure there is retried, and alerted, by the next hourly reset.
+
+**Supervised retention,** for the backlog, or after a `retention-failed` alert:
+
+```sh
+/usr/local/sbin/longtail-forge-public-demo-reset retention plan --target rt-ltf-demo
+/usr/local/sbin/longtail-forge-public-demo-reset retention apply --target rt-ltf-demo \
+  --confirm "PRUNE RT-LTF-DEMO RESET HISTORY"
+```
+
+- **The lock.** Both take the lifecycle lock, and refuse with exit code 75, changing nothing, while a reset, deploy, rollback, or backup holds it.
+- **Plan** changes nothing and reports what `apply` would remove. **Apply** is uncapped.
+- **The roots.** Neither creates or repairs a root, as a reset does. Once it holds the lock, each checks that the deployment, state, release, and reset history roots are real, root-owned directories no one else may write, and refuses before writing anything if one is not. The only thing either creates is its own record under `demo-retention-operations/`.
+- **The firewall.** Both check the demo's isolation and never rebuild it, so neither changes the firewall, held or not.
+- **Legacy login records.** Earlier helpers kept the pre-reset login's response body: the shared account's profile as visitors left it. `retention plan` counts the ones retained completed resets still hold, as `legacyLogins`, and `retention apply` replaces each with `{"httpStatus":"200","legacyBodyRemoved":true}`. A replaced record is not counted or rewritten again. Incident evidence keeps its own until it is disposed of.
+- **Records.** Each writes its result, with the operations it selected, to `demo-retention-operations/<operation>/retention.json` in the deployment root. These supervised records are not pruned.
+- **An operator hold** does not stop retention, which starts nothing.
+- **The procedure.** Review the plan, apply it once, and confirm that the next reset reports `pruned`.
+
+**Disposing of incident evidence.** Incident evidence stays until the operator has what they need from it. Then:
+1. Disable the timer, and hold the lifecycle lock in a root shell: `exec 9<>/var/lib/longtail-forge-compose-deploy/compose-operation.lock && flock -n 9`.
+2. Remove the operation's directory under `demo-reset-operations/`, its `pre-demo-reset-<operation>.ltfbackup.tgz` and `.sha256` in the backup root, and its `.longtail-public-demo-failed-<operation>` directories and any `.longtail-public-demo-previous-<operation>` retired unit in the data volume, found with `docker volume inspect --format '{{.Mountpoint}}' longtail-forge-public-demo-data`.
+3. Never remove the active unit, the candidate, the active-operation marker, or a backup that is not that operation's.
+4. Close the shell to release the lock, and enable the timer again.
 
 ## Protected boot
 
@@ -204,7 +278,7 @@ The hold keeps it stopped across boots, Docker restarts, and hourly resets: the 
 
 **Discord alerts.** The alert helper keeps its journal line, and posts the same bounded fields to a Discord webhook as one message, with every mention disabled. The URL lives only in `/etc/longtail-forge/public-demo-alert-webhook`: a `root:root` `0600` file holding one `https://discord.com/api/webhooks/<id>/<token>` line. It reaches `curl` on standard input, so it never appears in argv, the journal, or any output. Delivery is bounded to ten seconds, and its outcome is what the scheduler records as `delivered` or `failed`. A missing file means the alert reached only the journal, and counts as `failed`.
 
-The failure classes are the reset's `lifecycle-lock-contended`, `reset-failed`, `reset-failed-recovered`, and `reset-failed-unrecovered`, and the boot's `boot-held`, `boot-marker-present`, `boot-release-uncertain`, `boot-storage-failed`, `boot-profile-invalid`, `boot-dependency-unavailable`, `boot-start-failed`, `boot-stop-failed`, and `boot-reset-failed`. The recovery statuses are `not-started`, `unknown`, `prior-unit-healthy`, `prior-unit-healthy-curtain-retained`, `maintenance-curtain-retained`, `unverified-container-not-stopped`, and `demo-stopped`.
+The failure classes are the reset's `lifecycle-lock-contended`, `reset-failed`, `reset-failed-recovered`, and `reset-failed-unrecovered`; `retention-failed`, which follows a completed reset; and the boot's `boot-held`, `boot-marker-present`, `boot-release-uncertain`, `boot-storage-failed`, `boot-profile-invalid`, `boot-dependency-unavailable`, `boot-start-failed`, `boot-stop-failed`, and `boot-reset-failed`. The recovery statuses are `not-started`, `not-required`, `unknown`, `prior-unit-healthy`, `prior-unit-healthy-curtain-retained`, `maintenance-curtain-retained`, `unverified-container-not-stopped`, and `demo-stopped`. A `retention-failed` alert always carries `not-required` and exit code 0.
 
 **The heartbeat.** After each successful reset and boot, the helper sends one `GET` to the URL in `/etc/longtail-forge/public-demo-heartbeat-url`, such as an Uptime Kuma Push monitor's. It must be an `https://` URL in a `root:root` `0600` file, and it also reaches `curl` on standard input. The monitor alerts when a heartbeat is late, which catches a demo that stays up but stops resetting: set its interval above one hour, with some grace. A failed heartbeat never fails the reset or the boot. Its outcome is recorded as `heartbeatOutcome`.
 

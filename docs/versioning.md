@@ -35,6 +35,8 @@ The restart-recovery patch, `0.33.33.53`, follows the same post-release identity
 - **`DECISIONS.md`.** As the operator approved on 2026-11-03, this patch alone may also record its two governing policies there: the demo's boot baseline policy and one restart owner per profile. The two-ceremony-file ceiling still applies.
 - **What stays refused.** Partial transitions, other fields, unrelated packages, the fold at any other application version, and a fold that moves the version. This allowance belongs only to this checkpoint and keeps the declaration, trailer, durable-decision, and two-ceremony-file boundaries.
 
+The reset-retention patch, `0.33.33.54`, follows the same post-release identity rule. It may move the application version in both package files to exactly `0.33.33.54`, and it takes no dependency change. Its roadmap section, approved by the operator on 2026-10-14 and amended on 2026-11-05, has it record one policy in `DECISIONS.md`: how long the public demo keeps visitor-entered content. The two-ceremony-file ceiling still applies.
+
 After all intended checkpoint commits are present, run `npm run checkpoint:validate` before the first push and after amending any checkpoint commit message. The command resolves `merge-base(origin/nightly, HEAD)` locally and validates the same complete branch range as protected CI. It does not repeat `npm run verify:slice`; a message-only amend leaves a prior green tree verification valid, while any file change requires verification again.
 
 ## Asset Cache Version

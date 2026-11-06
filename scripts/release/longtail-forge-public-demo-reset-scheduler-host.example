@@ -76,6 +76,7 @@ load_scheduler_environment() {
 append_event() {
   local event="$1" outcome="$2" lock_outcome="$3" duration_ms="$4" fingerprint="$5"
   local health="$6" failure_class="$7" recovery_status="$8" alert_outcome="$9" heartbeat_outcome="${10:-not-required}"
+  local retention_status="${11:-not-applicable}"
   local record temporary_log
   record="$(jq -cn \
     --arg event "$event" --arg outcome "$outcome" --arg trigger "$TRIGGER" \
@@ -84,7 +85,8 @@ append_event() {
     --arg semanticFingerprint "$fingerprint" --arg health "$health" \
     --arg failureClass "$failure_class" --arg recoveryStatus "$recovery_status" \
     --arg alertOutcome "$alert_outcome" --arg heartbeatOutcome "$heartbeat_outcome" \
-    '{contract:"longtail-forge-public-demo-reset-scheduler-v1",event:$event,target:"rt-ltf-demo",trigger:$trigger,operationId:$operationId,scheduledBoundary:(if $scheduledBoundary == "" then null else $scheduledBoundary end),outcome:$outcome,lockOutcome:$lockOutcome,durationMs:$durationMs,semanticFingerprint:(if $semanticFingerprint == "" then null else $semanticFingerprint end),health:$health,failureClass:(if $failureClass == "" then null else $failureClass end),rollbackStatus:(if $recoveryStatus == "prior-unit-healthy" or $recoveryStatus == "prior-unit-healthy-curtain-retained" then "prior-unit-restored" elif $recoveryStatus == "maintenance-curtain-retained" then "failed" else $recoveryStatus end),recoveryStatus:$recoveryStatus,alertOutcome:$alertOutcome,heartbeatOutcome:$heartbeatOutcome}')"
+    --arg retentionStatus "$retention_status" \
+    '{contract:"longtail-forge-public-demo-reset-scheduler-v1",event:$event,target:"rt-ltf-demo",trigger:$trigger,operationId:$operationId,scheduledBoundary:(if $scheduledBoundary == "" then null else $scheduledBoundary end),outcome:$outcome,lockOutcome:$lockOutcome,durationMs:$durationMs,semanticFingerprint:(if $semanticFingerprint == "" then null else $semanticFingerprint end),health:$health,failureClass:(if $failureClass == "" then null else $failureClass end),rollbackStatus:(if $recoveryStatus == "prior-unit-healthy" or $recoveryStatus == "prior-unit-healthy-curtain-retained" then "prior-unit-restored" elif $recoveryStatus == "maintenance-curtain-retained" then "failed" else $recoveryStatus end),recoveryStatus:$recoveryStatus,alertOutcome:$alertOutcome,heartbeatOutcome:$heartbeatOutcome,retentionStatus:$retentionStatus}')"
   exec 8<>"$LOG_PATH.lock"
   flock 8
   printf '%s\n' "$record" >> "$LOG_PATH"
@@ -189,7 +191,23 @@ if test "$RESET_STATUS" -eq 0; then
     set -e
     HEARTBEAT_OUTCOME='failed'
     case "$HEARTBEAT_STATUS" in 0) HEARTBEAT_OUTCOME='delivered' ;; 2) HEARTBEAT_OUTCOME='not-configured' ;; esac
-    append_event 'finished' 'succeeded' 'acquired' "$DURATION_MS" "$FINGERPRINT" 'healthy' '' 'not-required' 'not-required' "$HEARTBEAT_OUTCOME"
+    RETENTION_STATUS="$(jq -r 'if (.retention.status? | type) == "string" then .retention.status else "not-reported" end' <<<"$RESULT")"
+    # A retention step that failed, or stopped at its cap, leaves the completed reset in place. The
+    # reset is logged as succeeded, under its own failure class, and the alert is raised.
+    if test "$RETENTION_STATUS" = 'failed' || test "$RETENTION_STATUS" = 'capped'; then
+      set +e
+      "$ALERT_HELPER" notify --target "$DEMO_TARGET" --operation-id "$OPERATION_ID" \
+        --trigger "$TRIGGER" --scheduled-boundary "${SCHEDULED_BOUNDARY:-none}" \
+        --failure-class 'retention-failed' --recovery-status 'not-required' --exit-code 0
+      ALERT_STATUS=$?
+      set -e
+      ALERT_OUTCOME='delivered'
+      test "$ALERT_STATUS" -eq 0 || ALERT_OUTCOME='failed'
+      append_event 'finished' 'succeeded' 'acquired' "$DURATION_MS" "$FINGERPRINT" 'healthy' 'retention-failed' 'not-required' \
+        "$ALERT_OUTCOME" "$HEARTBEAT_OUTCOME" "$RETENTION_STATUS"
+      exit 0
+    fi
+    append_event 'finished' 'succeeded' 'acquired' "$DURATION_MS" "$FINGERPRINT" 'healthy' '' 'not-required' 'not-required' "$HEARTBEAT_OUTCOME" "$RETENTION_STATUS"
     exit 0
   fi
   RESET_STATUS=70
