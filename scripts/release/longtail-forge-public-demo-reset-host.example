@@ -645,9 +645,9 @@ start_and_verify_runtime() {
 # again, and each holds the visitor-entered content of the hour before it, so only the newest
 # completed resets keep them. Evidence holds no visitor-entered content and is kept for the scheduler
 # log's seven days. A reset whose state is not completed, missing, or unreadable is incident
-# evidence: it, its backup, and any failed unit are never removed here. Neither are other backups,
-# the state and release records, or the scheduler log. Selection is by count, newest first by the
-# operation identity's UTC timestamp.
+# evidence: it, its backup, its retired unit, and any failed unit are never removed here. Neither are
+# other backups, the state and release records, or the scheduler log. Selection is by count, newest
+# first by the operation identity's UTC timestamp.
 readonly RETAINED_BACKUPS=2
 readonly RETAINED_EVIDENCE=168
 readonly AUTOMATIC_REMOVAL_CAP=3
@@ -698,26 +698,17 @@ removable_backup_file() {
 # before sidecar, then the evidence, each through a tombstone; a supervised apply then replaces the
 # legacy login records. A run never removes anything of the reset it belongs to.
 retain_history() {
-  local mode="$1" cap="${2:-}" name operation_id file index found status listing
-  local -a names=() completed=() backup_names=() backup_operations=() backup_files=() evidence_operations=() tombstones=() legacy_logins=()
-  local incident=0 other=0 orphans=0 unit_selected unit_tombstones units_removed=0 legacy_found='null'
+  local mode="$1" cap="${2:-}" name operation_id file index found status listing incident_list='none'
+  local -a names=() completed=() incidents=() backup_names=() backup_operations=() backup_files=() evidence_operations=() tombstones=() legacy_logins=()
+  local other=0 orphans=0 unit_selected unit_tombstones units_removed=0 legacy_found='null'
   # The two roots retention reads must be the real directories it expects, so that listing them
   # means what it says.
   test -d "$OPERATION_ROOT" && test ! -L "$OPERATION_ROOT" && test "$(stat -c '%u' "$OPERATION_ROOT")" = '0' \
     || fail 'the reset history root is not a root-owned real directory; nothing was removed'
   test -d "$BACKUP_ROOT" && test ! -L "$BACKUP_ROOT" || fail 'the backup root is not a real directory; nothing was removed'
 
-  run_activation prune "$OPERATION_DIR/retention-units-plan.json" --mode plan
-  unit_selected="$(jq -er '.selected | numbers' "$OPERATION_DIR/retention-units-plan.json")"
-  unit_tombstones="$(jq -er '.tombstones | numbers' "$OPERATION_DIR/retention-units-plan.json")"
-  # The reset that runs this step is the newest by any honest clock. If it ranks lower, the clock or a
-  # supplied identity is wrong, and retention would remove what this reset is still reporting.
-  jq -e --arg id "$OPERATION_ID" '(.selectedOperations | type == "array") and all(.selectedOperations[]; . != $id)' \
-    "$OPERATION_DIR/retention-units-plan.json" >/dev/null \
-    || fail 'the current reset ranks among the retired units to remove; nothing was removed'
-
   # Each listing is read whole, with its status, before any of it is trusted: an incomplete listing
-  # could hide a tombstone or rank the history wrongly.
+  # could hide a tombstone or an incident, or rank the history wrongly.
   listing="$(find "$OPERATION_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" \
     || fail 'the reset history could not be listed; nothing was removed'
   if test -n "$listing"; then mapfile -t names <<<"$listing"; fi
@@ -729,11 +720,25 @@ retain_history() {
     elif completed_reset "$name"; then
       completed+=("$name")
     elif [[ "$name" =~ $RESET_OPERATION_PATTERN ]]; then
-      incident=$((incident + 1))
+      incidents+=("$name")
     else
       other=$((other + 1))
     fi
   done
+
+  # The history, not the volume, says which resets completed. Finalizing records a retired unit as
+  # completed before its reset completes, so a reset that stops after finalizing, with a curtain that
+  # cannot be lifted or a host that loses power, is an incident whose unit says otherwise. The
+  # in-volume prune keeps the unit of every incident named here.
+  if test "${#incidents[@]}" -gt 0; then incident_list="$(IFS=,; printf '%s' "${incidents[*]}")"; fi
+  run_activation prune "$OPERATION_DIR/retention-units-plan.json" --incident-operations "$incident_list" --mode plan
+  unit_selected="$(jq -er '.selected | numbers' "$OPERATION_DIR/retention-units-plan.json")"
+  unit_tombstones="$(jq -er '.tombstones | numbers' "$OPERATION_DIR/retention-units-plan.json")"
+  # The reset that runs this step is the newest by any honest clock. If it ranks lower, the clock or a
+  # supplied identity is wrong, and retention would remove what this reset is still reporting.
+  jq -e --arg id "$OPERATION_ID" '(.selectedOperations | type == "array") and all(.selectedOperations[]; . != $id)' \
+    "$OPERATION_DIR/retention-units-plan.json" >/dev/null \
+    || fail 'the current reset ranks among the retired units to remove; nothing was removed'
   if test "${#completed[@]}" -gt 0; then
     listing="$(printf '%s\n' "${completed[@]}" | LC_ALL=C sort -r)" || fail 'the reset history could not be ranked; nothing was removed'
     mapfile -t completed <<<"$listing"
@@ -799,7 +804,7 @@ retain_history() {
     status='capped'
   fi
   if test "$status" = 'pruned'; then
-    local -a prune_arguments=(--mode apply)
+    local -a prune_arguments=(--incident-operations "$incident_list" --mode apply)
     if test -n "$cap"; then prune_arguments+=(--max-removals "$cap"); fi
     run_activation prune "$OPERATION_DIR/retention-units.json" "${prune_arguments[@]}"
     test "$(jq -r '.status' "$OPERATION_DIR/retention-units.json")" = 'pruned' || fail 'the retired units were not pruned'
@@ -818,7 +823,7 @@ retain_history() {
 
   jq -n --arg operationId "$OPERATION_ID" --arg mode "$mode" --arg status "$status" --arg cap "$cap" \
     --argjson unitSelected "$unit_selected" --argjson unitsRemoved "$units_removed" \
-    --argjson completed "${#completed[@]}" --argjson incident "$incident" --argjson other "$other" \
+    --argjson completed "${#completed[@]}" --argjson incident "${#incidents[@]}" --argjson other "$other" \
     --argjson orphans "$orphans" --argjson tombstones "${#tombstones[@]}" --argjson legacyFound "$legacy_found" \
     --argjson backupOperations "$(jq -cn '$ARGS.positional' --args "${backup_operations[@]}")" \
     --argjson evidenceOperations "$(jq -cn '$ARGS.positional' --args "${evidence_operations[@]}")" \
@@ -828,7 +833,8 @@ retain_history() {
     | {contract: "longtail-forge-public-demo-retention-v1", target: "rt-ltf-demo", operationId: $operationId,
        mode: $mode, status: $status,
        policy: {units: 2, backups: $retainedBackups, evidence: $retainedEvidence, cap: (if $cap == "" then null else ($cap | tonumber) end)},
-       units: {retained: $units[0].retainedOperations, selected: $unitSelected, removed: $unitsRemoved, skipped: $units[0].skipped, tombstones: $units[0].tombstones},
+       units: {retained: $units[0].retainedOperations, selected: $unitSelected, removed: $unitsRemoved, skipped: $units[0].skipped,
+         incidents: $units[0].incidents, tombstones: $units[0].tombstones},
        backups: {selected: ($backupOperations | length), removed: (if $applied then ($backupOperations | length) else 0 end), operations: $backupOperations, orphans: $orphans},
        evidence: {completed: $completed, selected: ($evidenceOperations | length), removed: (if $applied then ($evidenceOperations | length) + $tombstones else 0 end),
          operations: $evidenceOperations, incident: $incident, other: $other, tombstones: $tombstones,
@@ -843,7 +849,7 @@ if test "$MODE" = 'retention'; then
   set -e
   test "$retention_status" -eq 0 || fail "retention $RETENTION_MODE failed; its redacted output is in $OPERATION_DIR"
   jq -c '{ok: true, mode: "retention", retentionMode: .mode, operationId, status,
-    units: {selected: .units.selected, removed: .units.removed},
+    units: {selected: .units.selected, removed: .units.removed, incidents: .units.incidents},
     backups: {selected: .backups.selected, removed: .backups.removed, orphans: .backups.orphans},
     evidence: {selected: .evidence.selected, removed: .evidence.removed, incident: .evidence.incident, legacyLogins: .evidence.legacyLogins}}' "$OPERATION_DIR/retention.json"
   exit 0

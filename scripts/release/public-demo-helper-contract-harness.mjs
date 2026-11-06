@@ -154,6 +154,10 @@ const SEEDS = Object.freeze([
   { label: "retention keeps every evidence directory", helper: "reset", from: "readonly RETAINED_EVIDENCE=168\n", to: "readonly RETAINED_EVIDENCE=1000\n", caughtBy: "retention apply keeps the newest backups" },
   { label: "retention keeps the oldest resets", helper: "reset", from: "| LC_ALL=C sort -r)", to: "| LC_ALL=C sort)", caughtBy: "retention apply keeps the newest backups" },
   { label: "retention takes an incident for a completed reset", helper: "reset", from: ".operationId == $id and .phase == \"completed\"'", to: ".operationId == $id and .phase != \"\"'", caughtBy: "retention apply keeps the newest backups" },
+  { label: "retention takes a finalized reset for a completed one", helper: "reset", from: ".operationId == $id and .phase == \"completed\"'", to: ".operationId == $id and (.phase == \"completed\" or .phase == \"finalized\")'", caughtBy: "a reset finalized without completing stays an incident" },
+  { label: "retention names no incident to the in-volume prune", helper: "reset", from: "  if test \"${#incidents[@]}\" -gt 0; then incident_list=", to: "  if false; then incident_list=", caughtBy: "retention names every incident in the reset history" },
+  { label: "the in-volume apply is given other incidents than its plan", helper: "reset", from: "prune_arguments=(--incident-operations \"$incident_list\" --mode apply)", to: "prune_arguments=(--incident-operations none --mode apply)", caughtBy: "retention names every incident in the reset history" },
+  { label: "the in-volume plan is asked without the history's incidents", helper: "reset", from: " --incident-operations \"$incident_list\" --mode plan\n", to: " --mode plan\n", caughtBy: "a completed reset prunes its history automatically" },
   { label: "the automatic step ignores its cap", helper: "reset", from: "elif test -n \"$cap\" && {", to: "elif false && {", caughtBy: "the automatic step removes nothing beyond its cap" },
   { label: "a retention plan removes", helper: "reset", from: "if test \"$mode\" = 'plan'; then\n    status='planned'", to: "if false; then\n    status='planned'", caughtBy: "retention plan reports the selection" },
   { label: "retention accepts a backup another user owns", helper: "reset", from: "  test \"$owner\" = \"$root_owner\" && test \"$links\" = '1'\n", to: "  test \"$links\" = '1'\n", caughtBy: "retention refuses a backup the container user does not own" },
@@ -591,10 +595,17 @@ function fakeComposeRun(args, scenario) {
 
 /**
  * The in-volume prune, which runs in the image. The harness reports a selection of the scenario's
- * size, honours plan mode and the cap as the real action does, and can refuse.
+ * size, honours plan mode and the cap as the real action does, and can refuse. Like the real action,
+ * it refuses unless the host names the resets its history records as incidents, or says there are none.
  * @param {string[]} args @param {Scenario} scenario
  */
 function fakePrune(args, scenario) {
+  const incidents = args.includes("--incident-operations") ? String(args[args.indexOf("--incident-operations") + 1]).split(",") : [];
+  if (!(incidents.join(",") === "none" || (incidents.length > 0 && new Set(incidents).size === incidents.length
+    && incidents.every((id) => /^\d{8}T\d{6}Z-[a-z0-9][a-z0-9.-]{0,63}$/.test(id))))) {
+    process.stderr.write("prune requires --incident-operations: the resets the host records as incidents, comma-separated, or none.\n");
+    return 1;
+  }
   if (scenario.pruneFails) {
     process.stderr.write("A retired public-demo unit selected for pruning has an unexpected shape; nothing was removed.\n");
     return 1;
@@ -613,7 +624,7 @@ function fakePrune(args, scenario) {
     selectedOperations[0] = fs.readdirSync(history).sort().at(-1) || "";
   }
   return emit(`${JSON.stringify({
-    contract: "longtail-forge-public-demo-prune-v1", mode, removed: status === "pruned" ? selected + tombstones : 0, retainedOperations: [],
+    contract: "longtail-forge-public-demo-prune-v1", incidents: 0, mode, removed: status === "pruned" ? selected + tombstones : 0, retainedOperations: [],
     selected, ...(mode === "plan" ? { selectedOperations } : {}), skipped: 0, status, target: "rt-ltf-demo", tombstones,
   })}\n`);
 }
@@ -778,6 +789,9 @@ async function main() {
   /** The in-volume prunes a run asked for, as their mode and cap. @param {Call[]} calls */
   const prunes = (calls) => calls.filter((call) => call.tool === "docker" && call.args.includes("prune"))
     .map((call) => ({ markerPresent: call.markerPresent, arguments: call.args.slice(call.args.indexOf("--mode")) }));
+  /** The incidents each in-volume prune of a run was given, as the host named them. @param {Call[]} calls */
+  const incidentsNamed = (calls) => calls.filter((call) => call.tool === "docker" && call.args.includes("prune"))
+    .map((call) => call.args.includes("--incident-operations") ? call.args[call.args.indexOf("--incident-operations") + 1] : null);
   /** @param {Call[]} calls */
   const publicCalls = (calls) => calls.filter((call) => call.tool === "curl" && call.args.some(onDemoOrigin));
   /** The modes a run asked the isolation helper for. @param {Call[]} calls */
@@ -1292,6 +1306,7 @@ async function main() {
         { markerPresent: false, arguments: ["--mode", "plan"] },
         { markerPresent: false, arguments: ["--mode", "apply", "--max-removals", "3"] },
       ], "retention runs once the curtain is down, and caps the in-volume prune");
+      assert.deepEqual(incidentsNamed(result.calls), ["none", "none"], "a history with no incident names none");
       assert.equal(readJson(path.join(resetDirectory(box), "retention.json")).mode, "automatic");
       assert.equal(fs.existsSync(box.marker), false);
     }, { running: true });
@@ -1357,6 +1372,22 @@ async function main() {
       assert.match(retentionRecords(box), /"mode": "apply"/);
       assert.deepEqual(isolationModes(result.calls), ["check"], "an apply checks the firewall and never rebuilds it");
     }, { unitsToPrune: 5 });
+    scenario("retention names every incident in the reset history to the in-volume prune, the finalized one included, in plan and apply", (box) => {
+      const completed = Array.from({ length: 4 }, (_, hour) => historyId(box, hour));
+      const finalized = historyId(box, 4);
+      const recovering = historyId(box, 5);
+      seedHistory(box, [...completed.map((id) => ({ id })), { id: finalized, phase: "finalized" }, { id: recovering, phase: "recovering" }]);
+      const named = `${finalized},${recovering}`;
+      const plan = retention(box, "plan");
+      assert.equal(plan.status, 0, plan.stderr);
+      assert.deepEqual(incidentsNamed(plan.calls), [named]);
+      fs.writeFileSync(path.join(box.state, "calls.jsonl"), "");
+      const applied = applyRetention(box);
+      assert.equal(applied.status, 0, applied.stderr);
+      assert.deepEqual(incidentsNamed(applied.calls), [named, named], "the apply names the same incidents as its plan");
+      assert.equal(JSON.parse(lastLine(applied.stdout)).evidence.incident, 2);
+      for (const id of [finalized, recovering]) assert.ok(evidenceExists(box, id) && backupExists(id) && sidecarExists(id), `${id} keeps its evidence and backup`);
+    });
     scenario("retention apply refuses without its exact confirmation, before any Docker call", (box) => {
       const result = retention(box, "apply");
       assert.equal(result.status, 1);
@@ -1427,7 +1458,7 @@ async function main() {
       assert.equal(result.status, 1);
       assert.match(retentionRecords(box), /the reset history could not be listed; nothing was removed/);
       assert.deepEqual(historySnapshot(box), before);
-      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"], "a failed listing stops the in-volume apply too");
+      assert.deepEqual(prunes(result.calls), [], "a failed listing stops retention before anything runs in the volume");
     }, { findFails: "history" });
     scenario("retention refuses when an evidence traversal fails, and removes nothing", (box) => {
       seedHistory(box, Array.from({ length: 170 }, (_, hour) => ({ id: historyId(box, hour) })));
@@ -1582,6 +1613,26 @@ async function main() {
       assert.deepEqual([resetState(box).phase, resetState(box).outcome], ["finalized", ""]);
       assert.deepEqual(recoveryOrRetention(box), [], "nothing may restore the prior unit once the fresh one is final");
       assert.ok(fs.statSync(box.marker).isDirectory(), "the reset leaves what replaced the curtain for the operator");
+    }, { running: true, finalizeReplacesMarker: true });
+    scenario("a reset finalized without completing stays an incident: the resets after it name it to the in-volume prune, and keep its backup and evidence", (box) => {
+      const history = path.join(box.deployRoot, "demo-reset-operations");
+      assert.equal(reset(box).status, 1);
+      const [finalized] = fs.readdirSync(history);
+      assert.deepEqual([readJson(path.join(history, finalized, "state.json")).phase, fs.readdirSync(history).length], ["finalized", 1]);
+      // The operator removes what replaced the curtain, and keeps the incident.
+      fs.rmSync(box.marker, { recursive: true });
+      const config = path.join(box.state, "scenario.json");
+      fs.writeFileSync(config, JSON.stringify({ ...readJson(config), finalizeReplacesMarker: false }));
+      for (const later of [1, 2]) {
+        fs.writeFileSync(path.join(box.state, "calls.jsonl"), "");
+        const result = reset(box);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(JSON.parse(lastLine(result.stdout)).retention.status, "pruned");
+        assert.deepEqual(incidentsNamed(result.calls), [finalized, finalized], `reset ${later} after it names the finalized reset in its plan and its apply`);
+      }
+      assert.equal(fs.readdirSync(history).length, 3);
+      assert.equal(readJson(path.join(history, finalized, "state.json")).phase, "finalized");
+      assert.ok(backupExists(finalized) && sidecarExists(finalized), "the finalized reset keeps its backup");
     }, { running: true, finalizeReplacesMarker: true });
     scenario("retention apply replaces the legacy login records of retained completed resets, and leaves incident evidence its own", (box) => {
       const completed = Array.from({ length: 4 }, (_, hour) => historyId(box, hour));

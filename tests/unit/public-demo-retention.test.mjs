@@ -80,12 +80,16 @@ function directoryLink(target, linkPath) {
   return fs.symlink(target, linkPath, process.platform === "win32" ? "junction" : "dir");
 }
 
-/** @param {"apply" | "plan"} mode @param {string} [maxRemovals] */
-function prune(mode, maxRemovals) {
+/**
+ * A prune, naming the resets the host records as incidents as the reset helper does.
+ * @param {"apply" | "plan"} mode @param {string} [maxRemovals] @param {string} [incidentOperations]
+ */
+function prune(mode, maxRemovals, incidentOperations = "none") {
   return runPublicDemoActivationOperation({
     action: "prune",
     dataRoot,
     environment,
+    incidentOperations,
     maxRemovals,
     mode,
     requireCanonicalDataRoot: false,
@@ -263,6 +267,61 @@ describe("pruning retired public-demo units", () => {
     expect(await tree()).toEqual(before);
   });
 
+  describe("a reset the host records as an incident", () => {
+    // Finalizing wrote this unit's record as completed, and then the reset stopped before it
+    // completed: its curtain could not be lifted, or the host lost power.
+    const FINALIZED = "20261104T233000Z-scheduled-3715000";
+
+    it("keeps its unit, though the unit's own record says completed", async () => {
+      await retireUnit(FINALIZED);
+      expect((await prune("plan")).selectedOperations).toEqual([FINALIZED, ...OLDER]);
+      const plan = await prune("plan", undefined, FINALIZED);
+      expect(plan).toMatchObject({ incidents: 1, selected: 2, skipped: 1 });
+      expect(plan.retainedOperations).toEqual(NEWEST_TWO);
+      expect(plan.selectedOperations).toEqual(OLDER);
+      expect(await prune("apply", undefined, FINALIZED)).toMatchObject({ incidents: 1, removed: 2 });
+      expect(await retiredExists(FINALIZED)).toBe(true);
+    });
+
+    it("never counts among the two newest", async () => {
+      const newest = "20261105T020000Z-scheduled-11300";
+      await retireUnit(newest);
+      const plan = await prune("plan", undefined, newest);
+      expect(plan.retainedOperations).toEqual(NEWEST_TWO);
+      expect(plan.selectedOperations).toEqual(OLDER);
+    });
+
+    it("keeps its unit as later resets complete and prune", async () => {
+      await retireUnit(FINALIZED);
+      await prune("apply", "3", FINALIZED);
+      for (const operationId of ["20261105T020000Z-scheduled-11300", "20261105T030000Z-scheduled-11400"]) {
+        await retireUnit(operationId);
+        expect(await prune("apply", "3", FINALIZED)).toMatchObject({ incidents: 1, removed: 1, status: "pruned" });
+        expect(await retiredExists(FINALIZED)).toBe(true);
+      }
+      for (const operationId of NEWEST_TWO) expect(await retiredExists(operationId)).toBe(false);
+    });
+
+    it("changes nothing when the host names an operation with no unit", async () => {
+      const plan = await prune("plan", undefined, `${FINALIZED},20261101T000000Z-reset-1`);
+      expect(plan).toMatchObject({ incidents: 0, selected: 2 });
+      expect(plan.selectedOperations).toEqual(OLDER);
+    });
+
+    it("leaves a unit whose own record does not prove completion skipped, named or not", async () => {
+      expect(await prune("plan", undefined, INCIDENT)).toMatchObject({ incidents: 0, skipped: 1 });
+    });
+  });
+
+  it("refuses to prune without the host's incidents", async () => {
+    const before = await tree();
+    await expect(runPublicDemoActivationOperation({
+      action: "prune", dataRoot, environment, mode: "apply", requireCanonicalDataRoot: false, requireRoot: false, target: "rt-ltf-demo",
+    })).rejects.toThrow(/requires --incident-operations/);
+    await expect(prune("apply", undefined, "")).rejects.toThrow(/must be none or comma-separated/);
+    expect(await tree()).toEqual(before);
+  });
+
   it("removes nothing when a tombstone contains a link", async () => {
     const outside = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-public-demo-retention-outside-"));
     try {
@@ -281,9 +340,13 @@ describe("pruning retired public-demo units", () => {
 describe("the prune command line", () => {
   const base = ["--target", "rt-ltf-demo", "--data-root", path.resolve("/var/lib/longtail-forge")];
 
-  it("accepts a plan and a capped apply", () => {
-    expect(parsePublicDemoActivationArgs(["prune", ...base, "--mode", "plan"])).toMatchObject({ action: "prune", mode: "plan" });
-    expect(parsePublicDemoActivationArgs(["prune", ...base, "--mode", "apply", "--max-removals", "3"])).toMatchObject({ maxRemovals: "3", mode: "apply" });
+  const none = ["--incident-operations", "none"];
+
+  it("accepts a plan and a capped apply, with the host's incidents or none", () => {
+    expect(parsePublicDemoActivationArgs(["prune", ...base, ...none, "--mode", "plan"])).toMatchObject({ action: "prune", mode: "plan" });
+    expect(parsePublicDemoActivationArgs(["prune", ...base, ...none, "--mode", "apply", "--max-removals", "3"])).toMatchObject({ maxRemovals: "3", mode: "apply" });
+    expect(parsePublicDemoActivationArgs(["prune", ...base, "--incident-operations", `${INCIDENT},${OLDER[0]}`, "--mode", "plan"]))
+      .toMatchObject({ incidentOperations: `${INCIDENT},${OLDER[0]}` });
   });
 
   it.each([
@@ -293,6 +356,11 @@ describe("the prune command line", () => {
     [["--mode", "apply", "--max-removals", "1000"], /from 1 through 999/],
     [["--mode", "apply", "--operation-id", "20261105T010000Z-scheduled-1"], /not accepted for prune/],
     [["--mode", "apply", "--confirm-quiescent", "COMPOSE SQLITE USERS STOPPED"], /accepted only for activate or recover/],
+    [["--mode", "apply"], /requires --incident-operations/],
+    [["--mode", "apply", "--incident-operations", `none,${INCIDENT}`], /must be none or comma-separated/],
+    [["--mode", "apply", "--incident-operations", `${INCIDENT},`], /must be none or comma-separated/],
+    [["--mode", "apply", "--incident-operations", "../escape"], /must be none or comma-separated/],
+    [["--mode", "apply", "--incident-operations", `${INCIDENT},${INCIDENT}`], /more than once/],
   ])("refuses %j", (extra, expected) => {
     expect(() => parsePublicDemoActivationArgs(["prune", ...base, ...extra])).toThrow(expected);
   });
@@ -300,6 +368,7 @@ describe("the prune command line", () => {
   it("keeps the prune options to prune", () => {
     expect(() => parsePublicDemoActivationArgs(["inspect", ...base, "--mode", "plan"])).toThrow(/accepted only for prune/);
     expect(() => parsePublicDemoActivationArgs(["inspect", ...base, "--max-removals", "3"])).toThrow(/accepted only for prune/);
+    expect(() => parsePublicDemoActivationArgs(["inspect", ...base, ...none])).toThrow(/accepted only for prune/);
   });
 });
 
