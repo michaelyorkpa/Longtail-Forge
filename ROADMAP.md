@@ -77,40 +77,71 @@ These patches to `v0.33.33` ship in order, each with its own release identity. T
 
 **Model: High Effort** — It sets how much acknowledged real data a power cut may lose, changes the durability setting on both deployments, and adds scheduled backups. A wrong setting silently loses writes, and a wrong schedule or retention loses recovery points.
 
-**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation. The operator settled them on 2026-11-05. On 2026-11-11 they chose the server that receives the off-server copies, added three items to the scope, and asked for the open Dependabot backlog as this patch's first pull request; see Decisions and [the dependency fold](#dependency-fold-the-first-pull-request).
+**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation. The operator settled them on 2026-11-05. On 2026-11-11 they chose the server that receives the off-server copies, added three items to the scope, and asked for the open Dependabot backlog as this patch's first pull request; see Decisions and [the dependency fold](#dependency-fold-the-first-pull-request). Later that day, with the host facts in hand, they kept `full` everywhere at its measured cost, chose encrypted copies and a receiver script on the destination, and extended the demo's deployment-backup bound to its cutover backups.
 
 **Why.**
 - **The outage.** On 2026-10-14 the power was out for over an hour. The UPS bridges only short outages, and it is not connected to the server for any shutdown signal. It stays that way until the deployment moves off-site, so a long outage is a hard power cut.
 - **The setting.** Both deployments run SQLite in WAL mode with the default `LONGTAIL_SQLITE_SYNCHRONOUS=normal`. That keeps the database consistent through a power cut, but can lose transactions that were acknowledged after the last time the WAL was synced to disk. An integrity check cannot show that loss.
 - **The backups.** Whole-instance backups are taken only around lifecycle operations (deploy, rollback, restore, and each demo reset), and they stay on the same server. There is no schedule, and no off-server copy. Scheduling is planned for 0.38.4.
 
+**Host facts, 2026-11-11.** Codex collected them read-only. The record stays in the operator's archive, outside this repository, because it names hosts and addresses.
+- **The write cost of `full`,** in WAL mode, for single-row transactions, in a throwaway container on each deployment's own dataset:
+  - **The preview:** a median commit of 8.5 ms against 0.12 ms with `normal`, about 36 commits a second, and a 99th percentile of 159 ms.
+  - **The demo:** 22.9 ms against 0.12 ms, about 25 a second, and a 99th percentile of 185 ms.
+  - **Each flush holds the server,** because better-sqlite3 is synchronous.
+- **Storage.** Both datasets have `sync=standard` and `logbias=latency`. The pool is one RAIDZ2 vdev of four 3 TB, 7,200 rpm SAS disks, with no separate log device, and its last scrub found no errors. Neither the disks' write-cache setting nor the controller between them and ZFS was reported.
+- **The live setting is not in the logs.** In production the server logs `database.ready` without the SQLite health line. The proof is startup's own check, which refuses to serve with any `synchronous` value but the configured one, and Runtime Diagnostics, which reports it to an administrator.
+- **The demo's candidate seed** runs with a minimal environment, so it takes the configuration default. Four local seeds took the same time under both settings, so a candidate build commits few transactions.
+- **The off-server server.** `raytec-nyc3-01` is a DigitalOcean droplet, separate from the hardware that runs the preview and the demo, with 44 GB free. It is a shared web host, and its `rrsync` (rsync 3.2.7) cannot refuse an overwrite.
+  - **Its name does not resolve to it.** So the preview's protected configuration names the droplet's address and pins its host key.
+- **The preview** has no backup timer and no `age`, and Ubuntu's `age` 1.1.1 is available to it. It holds 14 deployment backups, 80.6 MB in all, the newest 7.0 MB.
+- **The demo** holds 28 deployment-backup pairs (19.4 MB), and three `pre-compose-cutover-` pairs from 2026-08-04, beside the two reset backups that reset retention keeps.
+
 Proposed scope:
 
 - [ ] **Acknowledged-write durability everywhere.** Set `LONGTAIL_SQLITE_SYNCHRONOUS=full` on the preview and the demo. The setting already exists, and startup verifies it.
-  - **First,** measure its write cost on the real ZFS-in-LXC stack.
+  - **First,** measure its write cost on the real ZFS-in-LXC stack. **Measured:** see the host facts. The operator kept `full` everywhere at that cost.
   - **The shipped default becomes `full`** for new installs: the configuration default, `.env.example`, the runtime-configuration guide, and `DECISIONS.md`'s WAL default. `normal` stays available.
 - [ ] **Storage that honors flushes.**
-  - **A read-only check** that the guest's ZFS dataset has `sync=standard`. A value of `disabled` silently ignores every flush.
-  - **The disk.** Record whether it is safe across power loss.
+  - **A read-only check** that the guest's ZFS dataset has `sync=standard`. A value of `disabled` silently ignores every flush. **Confirmed** for both datasets.
+  - **The disk.** Record whether it is safe across power loss: one more read-only check by the operator on the Proxmox host, of each pool disk's write-cache mode and of the storage controller.
   - **Changes** to Proxmox or ZFS stay the operator's.
 - [ ] **Scheduled backups,** pulled forward from 0.38.4 in their minimal form. A host timer for Compose installs:
   - runs the existing whole-instance backup under the shared lifecycle lock, and inspects it;
   - runs nightly, and keeps the 14 newest scheduled backups. It never deletes the newest valid one, or any backup it did not schedule;
   - alerts on failure through the restart-recovery patch's Discord alert, and sends a heartbeat on success;
   - **never runs on the public demo.** The demo resets hourly, so it has nothing to recover, and a nightly copy would keep visitor-entered content for 14 days. Operator ruling, 2026-11-05.
+  - **The design.** A root helper, `longtail-forge-scheduled-backup`, run nightly by a systemd timer.
+    - **The backup.** Under the lifecycle lock, it raises the maintenance curtain, stops the application, and takes the backup as `scheduled-<UTC>-<commit>.ltfbackup.tgz`, as the deploy helper takes its own. It inspects the backup, then starts the unchanged release and lowers the curtain once the release verifies. A held lock exits 75, as the reset does. A backup that fails restarts the unchanged release.
+    - **After the outage.** Only then does retention run, and then the copy hook, so neither lengthens the outage.
+    - **Retention** considers only exact scheduled names: plain files with one link, owned by the backup root's owner. It checks every one before removing any.
+    - **The demo refusal** comes before the curtain: the resolved `DEMO_MODE` must be exactly `false`.
+    - **Alerts.** Its `run` command runs the backup as a child, then sends the heartbeat or the Discord alert. Their URLs are in root-only files of the preview's own, which only the operator fills, through Codex.
 - [ ] **Bounded deployment backups on the demo.** Each deploy, rollback, or restore leaves a whole-instance backup (`pre-upgrade-`, `pre-rollback-`, or `pre-restore-`), and nothing removes them, so each keeps the visitor-entered content of its moment. On the demo, keep only the backup the recorded rollback names, and remove the rest under the lifecycle lock, with the reset-retention patch's checks: plain files owned by the backup root's owner, every check before any removal. The preview keeps its deployment backups. Operator ruling, 2026-11-05: the reset-retention patch states this gap in `DECISIONS.md`, and this patch closes it before 0.33.34's privacy notices cite the policy.
+  - **The cutover backups too** (operator, 2026-11-11). The three `pre-compose-cutover-` pairs are removed by the same bound.
+  - **The design.** The Compose deploy helper applies it on the demo, after a deploy or rollback verifies and its records are written. It keeps exactly the backup that `previous.json` names. If a check refuses, it removes nothing, says that the release is live and verified, and exits non-zero, so the workflow shows the refusal. This patch's own deploy applies it, which leaves the demo one deployment backup.
 - [ ] **An off-server copy.**
   - **The mechanism.** A documented, admin-chosen destination, reached through a post-backup copy hook that copies only inspected archives and their checksums. The checksum is verified again at the destination.
   - **The first destination** is one of the operator's existing servers.
   - **What stays later.** Remote, S3-compatible, and encrypted managed destinations stay in 0.38.4.
+  - **The hook.** The scheduled backup passes the shipped hook, `longtail-forge-offsite-copy`, exactly the archive it inspected and its checksum. The hook packs the pair, encrypts it with `age` to the operator's public key, and sends it over SSH. It stages only in a root-only directory, and removes the stage afterwards.
+  - **The receiver,** on the destination. The preview's key may run only `longtail-forge-offsite-receive`, under a dedicated account, with no forwarding.
+    - **Each copy.** It reads one copy, up to a size cap, and checks its declared size and SHA-256 and that it is an `age` file. It stores the copy under a name it chooses, and never overwrites.
+    - **Retention.** It keeps each copy 14 days from receipt, and removes expired copies only when a later copy arrives, so copies outlive a preview that stops sending.
+    - **Its caps.** Above its count and daily caps, it refuses rather than evicts. A refusal fails the nightly job, which alerts.
 - [ ] **A restore drill.** Restore a scheduled backup into a disposable instance, and prove database and Files consistency.
+  - **Where.** On the preview host, into a disposable container and volume of the same release, so it never touches the live data. Separately, the first off-server copy is decrypted once on the operator's workstation, and its checksum is verified.
 
 Added by the operator on 2026-11-11:
 
 - [ ] **Stale candidates that a completed reset moves aside.** A reset that finds a verified candidate or partial build left behind, because activation never began, moves it into `.longtail-public-demo-failed-<operation>-stale-candidate` in the data volume, named after that reset. That reset then completes, so the copy belongs to no incident. Retention never removes failed evidence, and the incident-disposal procedure takes only an incident's copies, so nothing ever removes it.
   - **Its content.** A candidate is seeded from the fresh-start baseline and is never served, so it should hold no visitor-entered content. Confirm that from the code before any wording relies on it.
+    - **Confirmed.** The seed writes into a fresh staging directory, and only activation serves a candidate, so a candidate that activation never began holds no visitor-entered content.
   - **The fix.** Bound these copies under the lifecycle lock with the reset-retention patch's checks (exact shape, no link anywhere beneath, every check before any removal), or give them a documented disposal procedure. Either way, `docs/demo-data-operations.md` states how long they stay.
+    - **Chosen: the bound.** The in-volume prune keeps a stale-candidate copy as long as its reset's retired unit would be kept. It removes the copy once its reset is not an incident and two newer completed resets exist, through a tombstone. The automatic step's cap counts each removal.
   - **The one on the demo.** The disposal inventory of 2026-11-07 counted one, of 1,085,440 bytes, but did not name it; it is probably the candidate that the Docker restart of 2026-11-02 stranded. It is removed through the reviewed path, with the operator's approval, in a Codex handoff.
+    - **Identified on 2026-11-11.** It is `.longtail-public-demo-failed-20261104T220944Z-manual-3701280-stale-candidate`, of 5,481,803 bytes; the inventory counted its compressed allocation. Its candidate was built at 2026-11-02T16:02Z, the hour of that restart.
+    - **Its removal.** After this patch's deploy, a supervised `retention plan` shows it selected. With the operator's approval, the next reset's retention step removes it.
 - [ ] **Debian `apt` and `libapt-pkg6.0` in the runtime image.** Take Debian's fix for CVE-2026-109518 (HIGH) through the image's exact security-update pin. The published-digest qualification of the restart-recovery release found it on 2026-11-04: Trivy reports 2.6.1, fixed in 2.6.2. It is reachable only during the build, because nothing spawns `apt` at runtime and the container runs as UID 10001 with a read-only root. It lands with the dependency fold.
 - [ ] **The resolved Carried Finding.** The finding that reset history had no retention bound is removed, because the reset-retention patch bounded it.
 
@@ -121,7 +152,7 @@ All decided by the operator on 2026-11-05, except where noted.
 - **The preview's recovery point objective.**
   - **A power cut:** no acknowledged write lost, which follows from `full`.
   - **Disk or server loss:** at most one backup interval, so up to a day with nightly backups.
-- **The setting's reach: everywhere,** for "the utmost of data security": `full` on the preview and the demo, and as the shipped default for new installs.
+- **The setting's reach: everywhere,** for "the utmost of data security": `full` on the preview and the demo, and as the shipped default for new installs. **Reconfirmed on 2026-11-11** with its measured cost, over `normal` on the demo.
 - **The schedule: nightly, keeping 14.**
 - **The off-server destination: `raytec-nyc3-01`,** chosen by the operator on 2026-11-11. Codex has access to it, so its setup is a Codex handoff.
   - **Only the preview's backups go there.** The demo's backups are never copied off-server.
@@ -130,13 +161,20 @@ All decided by the operator on 2026-11-05, except where noted.
     - accepts copies over SSH with a key that can only write backups. Because that key cannot delete, the destination keeps its own 14 newest copies;
     - has room for the 14 kept copies;
     - is reachable only by the operator, because the copies hold the preview's real data.
-  - **Still open:** whether a copy is encrypted before it leaves the preview.
+  - **Confirmed on 2026-11-11:**
+    - It is a DigitalOcean droplet, separate from the preview's hardware.
+    - The receiver lets the key only add copies.
+    - It has 44 GB free, against about 7 MB a copy.
+    - Each copy there is ciphertext that only the operator's key opens, in an owner-only directory of a dedicated account.
+  - **Encrypted before it leaves the preview** (decided on 2026-11-11). The copy is encrypted with `age` to a public key whose private half the operator keeps on their workstation, outside OneDrive, and in their password manager. The preview and the destination hold only the public key and ciphertext, so a restore from an off-server copy needs the operator's key.
+  - **Retention there: each copy 14 days from receipt** (2026-11-11). This replaces "its own 14 newest", which anyone holding the preview's key could exhaust with junk copies, evicting every good one.
+- **The demo's deployment-backup bound includes the `pre-compose-cutover-` backups** (2026-11-11).
 
 Acceptance criteria:
 
 - [ ] **The decisions** are recorded in `DECISIONS.md`.
 - [ ] **The setting's proof.**
-  - **It is in effect.** The running preview and demo both report `synchronous=full`.
+  - **It is in effect.** The running preview and demo both report `synchronous=full`, in Runtime Diagnostics, and both started, which startup refuses for any other value.
   - **It is honored.** The dataset's `sync=standard` is confirmed.
   - **Its cost** is measured.
   - **A limitation, recorded:** a true power-cut test needs a disposable VM, which the operator declined, so durability rests on documented flush semantics.
@@ -147,6 +185,8 @@ Acceptance criteria:
   - that the copy hook receives only inspected archives;
   - that the timer refuses the public demo.
 - [ ] **Tests of the demo's deployment-backup bound.** It keeps exactly the recorded rollback's backup, refuses a link or another owner and removes nothing, and leaves the preview's deployment backups alone.
+- [ ] **Tests of the off-server copy.** The receiver's checks, naming, retention, and caps, and the hook end to end against the receiver.
+- [ ] **Tests of the stale-candidate bound.** It removes a stale copy only outside the retained window, keeps an incident's, and refuses an unexpected shape or a link, removing nothing.
 - [ ] **One restore drill** from a scheduled backup passes.
 
 #### Dependency fold, the first pull request
