@@ -4,7 +4,7 @@ Longtail Forge provides a CLI-first whole-instance backup for the supported one-
 
 This document owns whole-instance recovery. The administrator-created, non-destructive one-workspace extract is a separate format and procedure documented in [Workspace Backup Package](workspace-backup.md).
 
-This baseline supports only `LONGTAIL_DATABASE_PROVIDER=sqlite` and `LONGTAIL_STORAGE_PROVIDER=local`. It does not claim PostgreSQL dumps, S3/object downloads, multi-server snapshots, continuous point-in-time recovery, or unattended retention automation.
+This baseline supports only `LONGTAIL_DATABASE_PROVIDER=sqlite` and `LONGTAIL_STORAGE_PROVIDER=local`. It does not claim PostgreSQL dumps, S3/object downloads, multi-server snapshots, or continuous point-in-time recovery. Unattended scheduling, retention, and an encrypted off-server copy exist only for Compose installations, through the [scheduled backup](preview-deployment.md#scheduled-backups-and-the-off-server-copy).
 
 ## Backup format
 
@@ -117,7 +117,7 @@ If post-start verification fails, stop the candidate immediately. Use the automa
 
 ## Retention and cleanup
 
-The baseline intentionally has no automatic pruning. Apply an operator-owned retention policy to exact archive/sidecar pairs only after a newer backup has passed inspection and a representative restore drill. Keep `backup-operations.jsonl` under restricted append-only/centralized logging controls, keep the Secure Notes key backup on its separate schedule/channel, and never remove the only proven restore point during upgrade or incident work.
+The CLI itself never prunes. A Compose installation's [scheduled backup](preview-deployment.md#scheduled-backups-and-the-off-server-copy) keeps its 14 newest scheduled backups, and removes only those, and the public demo's helpers bound their own backups. For any other backup, apply an operator-owned retention policy to exact archive/sidecar pairs only after a newer backup has passed inspection and a representative restore drill. Keep `backup-operations.jsonl` under restricted append-only/centralized logging controls, keep the Secure Notes key backup on its separate schedule/channel, and never remove the only proven restore point during upgrade or incident work.
 
 Run `npm run backup:drill` after material database, Files, encryption, archive, or restore changes. The disposable drill creates representative database, Files, and encrypted-note state; creates and inspects a backup; mutates live state; makes a pre-restore backup; restores and boots the original state; verifies readiness/version/schema/data; and proves incompatible and internally corrupted archives are rejected before destructive replacement.
 

@@ -246,6 +246,41 @@ Inspect the automatically created pre-restore archive, then repeat the full heal
 
 `npm run container:smoke` is the required native `linux/amd64` acceptance for this lifecycle. It performs two clean controlled-artifact image builds, validates Compose and hardening, uses a real Caddy process and protocol-level scanner fixture, creates authenticated workspace/workflow/File state, proves stop/start persistence, creates and inspects a real backup, observes a scanner-unready candidate restart, upgrades by force-recreation, restores into a clean recovery volume, and proves restored rollback plus SQLite integrity and migration identity. Missing Docker/native architecture is a failed prerequisite, never a passing skip.
 
+## Scheduled backups and the off-server copy
+
+A Compose installation that is not the public demo backs itself up nightly, and can copy each backup, encrypted, to another server. The public demo never runs it. It resets hourly, so a nightly backup would have nothing to recover, and would keep visitor-entered content for days.
+
+**What a nightly run does.** The timer runs `longtail-forge-scheduled-backup run --trigger scheduled` at 08:30 UTC. Its child holds the shared lifecycle lock, so it never overlaps a deploy, rollback, or reset.
+1. **Refusals before the curtain.** The resolved `DEMO_MODE` must be exactly `false`. A held lock exits 75. A maintenance curtain that is already up is another operation's, and is never taken over.
+2. **The backup.** Behind the deployment curtain, it stops the application, then takes and inspects the whole-instance backup as `scheduled-<UTC>-<commit>.ltfbackup.tgz`, with its sidecar. It starts the unchanged release, and lowers the curtain once direct and public identity verify. The outage lasts as long as a deploy's backup step. A backup that fails restarts the unchanged release. An archive that never passed inspection is removed, so nothing counts it as a backup.
+3. **Retention.** It keeps the 14 newest scheduled backups, by the time in each name, and always the one just made. Only exact scheduled names are considered: plain files with one name, owned by the backup root's owner. Any other entry under that prefix refuses retention, which then removes nothing. Deployment and reset backups are never touched.
+4. **The copy hook.** It receives exactly the backup just inspected, after the curtain is down, so a slow copy never lengthens the outage.
+
+**What it reports.**
+- **Each run** appends one line to `$LTF_DEPLOY_ROOT/scheduled-backups.jsonl`, which keeps the last 400 runs.
+- **On success,** it sends a heartbeat to the operator's push monitor, so a monitor alerts when a night is missed.
+- **On any failure,** it raises a Discord alert with mentions disabled. That includes a backup that succeeded but whose retention or copy did not. The failure classes are `lifecycle-lock-contended`, `refused-public-demo`, `backup-failed-recovered`, `backup-failed-unrecovered`, `backup-timed-out`, `backup-failed`, `retention-failed`, and `copy-failed`.
+- **The URLs** live only in `/etc/longtail-forge/scheduled-backup-alert-webhook` and `/etc/longtail-forge/scheduled-backup-heartbeat-url`, root-only `0600` files of one line each, and reach `curl` on standard input. The operator supplies them directly to the host. They never enter the repository, a handoff, an issue, or any shared file.
+
+**Install it, on that installation only:**
+1. Install `scripts/release/longtail-forge-scheduled-backup-host.example` from the release's assets as `/usr/local/sbin/longtail-forge-scheduled-backup`, `root:root 0755`. Check its LF line endings and `bash -n` first, as for the Compose helper. It reads the same `/etc/longtail-forge/compose-deploy-helper.env`.
+2. Install [longtail-forge-scheduled-backup.env.example](longtail-forge-scheduled-backup.env.example) as `/etc/longtail-forge/scheduled-backup.env`, `root:root 0600`. `LTF_SCHEDULED_BACKUP_ENABLED=false` records a skipped run and does nothing else.
+3. Install the alert and heartbeat files.
+4. Install the service and timer examples under `/etc/systemd/system/`, then run `systemctl daemon-reload` and `systemctl enable --now longtail-forge-scheduled-backup.timer`. The timer uses `Persistent=false`, so a host that was down skips the missed run rather than backing up during boot. The late heartbeat reports it.
+5. Prove it once, in a quiet window: `longtail-forge-scheduled-backup run --trigger manual`. Then read the last line of the run log, the new archive, and the heartbeat.
+
+**The off-server copy.** The shipped hook, `longtail-forge-offsite-copy`, encrypts each copy with [age](https://age-encryption.org) to the operator's public key. This server holds only that public key, so neither it nor the destination can read a copy. A restore from an off-server copy needs the operator's private key, which never comes to either server.
+- **On this server.** Install Ubuntu's `age` package. Install the hook from the release's assets as `/usr/local/sbin/longtail-forge-offsite-copy`, `root:root 0755`, and [longtail-forge-offsite-copy.env.example](longtail-forge-offsite-copy.env.example) as `/etc/longtail-forge/offsite-copy.env`, `root:root 0600`.
+  - **The key.** Make a dedicated key, root-only, with `ssh-keygen -t ed25519 -N '' -f /etc/longtail-forge/offsite-copy/id_ed25519`.
+  - **The destination's host key.** Pin it in the configured `known_hosts`, after checking its fingerprint against one read on the destination itself. Name the destination by its real address: a name that resolves elsewhere fails the pinned check.
+  - **Turn it on** by setting `LTF_SCHEDULED_BACKUP_COPY_HOOK` to the hook.
+- **On the destination.** Install `scripts/release/longtail-forge-offsite-receive-host.example` as `/usr/local/sbin/longtail-forge-offsite-receive`, `root:root 0755`. Create a dedicated account with a store directory it owns, mode `0700`. Give it exactly one `authorized_keys` line for this server's key: `restrict,command="/usr/local/sbin/longtail-forge-offsite-receive /srv/longtail-forge-offsite/<installation>" ssh-ed25519 ...`.
+- **What the receiver allows.**
+  - **Each copy** must be exactly its declared size, have its declared SHA-256, and be an age file. It is stored under a name the receiver chooses, from the receipt time, and is never overwritten.
+  - **Retention.** Copies older than 14 days are removed only when a later copy is stored, so the copies outlive an installation that stops sending.
+  - **Its caps.** At most 20 copies, 3 a day, 2 GiB each, and 10 GiB in all, and every copy must leave 10 GiB of the disk free. Above a cap it refuses the new copy rather than evicting an old one, so a stolen key cannot push the good copies out or fill the destination's disk. The refusal fails the copy, which alerts.
+- **Restore from an off-server copy,** on the operator's workstation, outside any synchronized folder. Fetch the copy with the operator's own access to the destination. Then run `age -d -i <private key> <copy> | tar -x`, and `sha256sum -c` against the archive's sidecar. Restore the archive through [Docker backup-first upgrade and rollback](#docker-backup-first-upgrade-and-rollback), with the release whose version its manifest records. Delete the decrypted files afterwards.
+
 ## Proof commands and limits
 
 Run `npm run artifact:smoke` for the clean controlled-payload install/boot proof. Run `npm run container:smoke -- --artifact dist/longtail-forge-<version>.tgz --release-metadata dist/release-metadata.json --previous-artifact dist/longtail-forge-<previous-version>.tgz --pull` for the native clean image build, `better-sqlite3` load, non-root/read-only boot, persistence, replacement, health/readiness, backup-first upgrade rehearsal, and restored rollback rehearsal. The Docker server must itself report `linux/amd64`; absence of an engine, an unsupported architecture, or emulation-only execution is a failed prerequisite, not a passing skip.
