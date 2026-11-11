@@ -306,6 +306,12 @@ function validateCheckpointCommit({
       if (isResetRetentionPatch && filePath === "DECISIONS.md") {
         continue;
       }
+      // The durability patch records its decisions there: the acknowledged-write default, the
+      // scheduled and encrypted off-server backups, and the demo's backup bounds. Its roadmap
+      // section requires it; the ceremony ceiling still applies.
+      if (isDurabilityPatch && filePath === "DECISIONS.md") {
+        continue;
+      }
       if (DEFERRED_RELEASE_PATHS.has(filePath)) {
         errors.push(`${filePath} is reserved for ${closeoutCheckpoint} branch closeout`);
       }
