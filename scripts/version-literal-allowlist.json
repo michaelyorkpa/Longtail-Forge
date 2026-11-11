@@ -52,6 +52,10 @@
     {
       "path": "CHANGELOG.md",
       "pattern": "^  public-hosting review scope is now an explicit `[0-9]+(?:\\.[0-9]+)+` decision gate\\.$"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "pattern": "^  - \\*\\*Visitor-entered content\\*\\* is gone from those copies about three hours after it was entered, in normal operation\\. Only named cases keep it longer: a failed reset's incident evidence, retention that is blocked or capped \\(until the operator answers its alert\\), a held demo, and deployment backups, which [0-9]+(?:\\.[0-9]+)+ bounds on the demo\\. `DECISIONS\\.md` records it, for [0-9]+(?:\\.[0-9]+)+'s privacy notices to cite\\.$"
     }
   ],
   "historicalLabelFiles": [
