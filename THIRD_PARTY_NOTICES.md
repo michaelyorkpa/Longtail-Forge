@@ -25,9 +25,7 @@ permissive and compatible with distributing Longtail Forge under
 | call-bound | 1.0.4 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | compressible | 2.0.18 | MIT | Copyright (c) 2013 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014 Jeremiah Senkpiel &lt;fishrock123@rocketmail.com&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L08](#l08) |
 | compression | 1.8.2 | MIT | Copyright (c) 2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L04](#l04) |
-| content-disposition | 1.1.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
-| content-type | 1.0.5 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
-| content-type | 2.0.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
+| content-disposition | 2.0.1 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | content-type | 2.1.0 | MIT | Copyright (c) 2015 Douglas Christopher Wilson | [L10](#l10) |
 | cookie-parser | 1.4.7 | MIT | Copyright (c) 2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L11](#l11) |
 | cookie-signature | 1.0.6 | MIT | LearnBoost and contributors | [L12](#l12) |
@@ -46,8 +44,8 @@ permissive and compatible with distributing Longtail Forge under
 | es-object-atoms | 1.1.2 | MIT | Copyright (c) 2024 Jordan Harband | [L07](#l07) |
 | escape-html | 1.0.3 | MIT | Copyright (c) 2012-2013 TJ Holowaychuk; Copyright (c) 2015 Andreas Lubbe; Copyright (c) 2015 Tiancheng "Timothy" Gu | [L22](#l22) |
 | etag | 1.8.1 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L23](#l23) |
-| express-rate-limit | 8.7.0 | MIT | Copyright 2023 Nathan Friedly, Vedant K | [L24](#l24) |
-| express | 5.2.1 | MIT | Copyright (c) 2009-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2013-2014 Roman Shtylman &lt;shtylman+expressjs@gmail.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L25](#l25) |
+| express-rate-limit | 8.7.4 | MIT | Copyright 2023 Nathan Friedly, Vedant K | [L24](#l24) |
+| express | 5.3.0 | MIT | Copyright (c) 2009-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2013-2014 Roman Shtylman &lt;shtylman+expressjs@gmail.com&gt;; Copyright (c) 2014-2015 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L25](#l25) |
 | finalhandler | 2.1.1 | MIT | Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L26](#l26) |
 | forwarded | 0.2.0 | MIT | Copyright (c) 2014-2017 Douglas Christopher Wilson | [L09](#l09) |
 | fresh | 2.0.0 | MIT | Copyright (c) 2012 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2016-2017 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L27](#l27) |
@@ -380,7 +378,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L09
 
-Applies to: content-disposition@1.1.0, forwarded@0.2.0, media-typer@1.1.0, vary@1.1.2
+Applies to: content-disposition@2.0.1, forwarded@0.2.0, media-typer@1.1.0, vary@1.1.2
 
 ```text
 (The MIT License)
@@ -409,7 +407,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L10
 
-Applies to: content-type@1.0.5, content-type@2.0.0, content-type@2.1.0
+Applies to: content-type@2.1.0
 
 ```text
 (The MIT License)
@@ -799,7 +797,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### L24
 
-Applies to: express-rate-limit@8.7.0
+Applies to: express-rate-limit@8.7.4
 
 ```text
 MIT License
@@ -827,7 +825,7 @@ SOFTWARE.
 
 ### L25
 
-Applies to: express@5.2.1
+Applies to: express@5.3.0
 
 ```text
 (The MIT License)
