@@ -1,3 +1,34 @@
+## Version 0.33.33.55 - 2026-11-11
+
+- **Preview data durability on power loss.** This post-release patch to `v0.33.33` has its own release identity, and replaces no earlier tag, image, checksum, or release asset. It is the last patch of the `0.33.33` closeout. The power cut of 2026-10-14, over an hour with no shutdown signal, showed that both deployments could lose transactions the application had acknowledged, and that every backup stayed on the same server.
+- **Acknowledged writes.** SQLite's shipped default is now `synchronous=full`, which syncs the write-ahead log at every commit, so a power cut loses no acknowledged transaction, as far as the storage honors flushes.
+  - **Where.** New installations, the preview, and the demo. `normal` stays available.
+  - **Its cost,** measured on the live ZFS stack and accepted by the operator: a median commit of 8.5 ms on the preview and 22.9 ms on the demo, against 0.12 ms with `normal`.
+- **Scheduled backups.** `longtail-forge-scheduled-backup` runs nightly from a systemd timer, on a Compose installation that is not the public demo.
+  - **The backup.** Under the shared lifecycle lock, behind the curtain, it stops the application, then takes and inspects the whole-instance backup as `scheduled-<UTC>-<commit>.ltfbackup.tgz`. It restarts the unchanged release, and lowers the curtain once that release verifies. A backup that fails restarts the unchanged release, and an archive that never passed inspection is removed.
+  - **Refusals, before its curtain:** the public demo, a held lock (exit 75), and another operation's curtain.
+  - **Retention** keeps the 14 newest scheduled backups. It considers only exact names, each a plain file with one name owned by the backup root's owner. Any other entry refuses it, and nothing is removed.
+  - **Reporting.** A heartbeat on success, and a Discord alert on any failure, including a backup whose retention or copy failed. Each run adds a line to a bounded log.
+- **An encrypted off-server copy.**
+  - **The hook,** `longtail-forge-offsite-copy`, receives exactly the backup just inspected, after the curtain is down. It verifies the sidecar, then packs the archive and sidecar and encrypts the pack with age to the operator's public key. It sends the copy over SSH, with pinned host keys and no other configuration. The private key never comes to the preview or the destination.
+  - **The receiver,** `longtail-forge-offsite-receive`, is the preview key's only command on the destination. It checks each copy's declared size and SHA-256 and its age header, names the copy itself, and never overwrites. It keeps each copy 14 days from receipt, and removes expired copies only when a later one arrives.
+  - **The receiver's caps:** 20 copies, 3 a day, 2 GiB each, 10 GiB in all, and 10 GiB of the disk left free. Above a cap it refuses rather than evicts, so a stolen key can neither push the good copies out nor fill that server's disk.
+  - **The destination** is `raytec-nyc3-01`, a DigitalOcean droplet on hardware separate from the preview's, chosen by the operator on 2026-11-11. Only the preview's backups go there.
+- **The demo's deployment backups.** After a verified demo deploy or rollback, the Compose helper keeps only the backup the recorded rollback names. It removes every other `pre-upgrade-`, `pre-rollback-`, `pre-restore-`, and `pre-compose-cutover-` backup. An entry that fails its checks refuses the bound, removes nothing, and fails the deploy, whose message says the release is live. The preview keeps every deployment backup.
+- **Stale candidates.** A stale-candidate copy never held visitor-entered content. The in-volume prune now removes one once its reset is not an incident and both retained completed resets are newer. It checks the copy's exact shape, with no link beneath it, and removes it through a tombstone, and the automatic cap counts it.
+- **The dependency fold,** merged first, in #909.
+  - **What it took:** Express 5.3.0, express-rate-limit 8.7.4, `@types/node` 26.6.6, ESLint 10.14.0, Vitest 5.1.0 with Vite and Rolldown kept, and CodeQL 4.39.3.
+  - **The image:** Debian's `apt` and `libapt-pkg6.0` 2.6.2, for CVE-2026-109518.
+  - **Afterwards,** Dependabot closed its seven proposals itself. `minimatch` 10.2.6 stays a Carried Finding.
+- **Proof.**
+  - **A new contract harness** runs the scheduled backup, the hook, and the receiver as root on Linux: 53 scenarios, and 16 seeded defects, each caught. The maintenance rehearsal runs it, and its time limit rises to 25 minutes.
+  - **The Compose helper harness** adds the bound's scenarios, and its fake now writes backups as the container does. Seven seeded defects in the bound are each caught.
+  - **The public-demo helper harness** counts stale copies against the cap and names them in the plan. It passes 99 scenarios and catches all 102 of its seeded defects.
+  - **Unit tests** cover the stale-copy prune, where eight seeded defects are caught, the synchronous default, and the validator's allowance.
+  - **The native lifecycle qualification** runs the scheduled backup on the real image, with its retention, its hook boundary, and its lock refusal, and its refusal on the demo. It also checks the demo's deployment-backup bound.
+- **Checkpoint ownership.** This patch may set its own version, take its reviewed dependency fold, and record its decisions in `DECISIONS.md`.
+- **Release assets.** The release now publishes the scheduled backup, its units and configuration, the copy hook and its configuration, and the receiver.
+
 ## Version 0.33.33.54 - 2026-11-05
 
 - **Bounded public-demo reset retention.** This post-release patch to `v0.33.33` has its own release identity, and replaces no earlier tag, image, checksum, or release asset. The demo kept every reset's copies: on 2026-11-02 it held 1,867 retired units. The curtained check read all of them, so a reset took four to seven and a half minutes, and every copy held the visitor-entered content of the hour before it.
