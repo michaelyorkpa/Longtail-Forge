@@ -178,7 +178,7 @@ Scope:
 - [x] **Not taken:** newer releases with no pull request yet, such as `@playwright/test` 1.65.0.
 - [ ] **Ownership policy.** This pull request leaves the application version unchanged. The durability pull request sets it to `0.33.33.55`, archives this whole section, and records this fold in its changelog entry.
 - [x] **Attestations to realign:** `release.dependency-baseline`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
-  - **Done.** `release.dependency-baseline` and `framework.express-5-http-contract` pin the new versions, `REVIEWED_CODEQL_SHA` is 4.39.3's, and `release.preview-deployment-boundary` requires the `apt` pins. The notices were regenerated. The floors and the inventory did not change. The three guides that named Express 5.2.1 now name 5.3.0.
+  - **Done.** `release.dependency-baseline` and `framework.express-5-http-contract` pin the new versions, `REVIEWED_CODEQL_SHA` is 4.39.3's, and `release.preview-deployment-boundary` requires the `apt` pins. The notices were regenerated, and `licensing.public-release-gates` counts 91 shipped components, two fewer, because Express 5.3 leaves one copy of `content-type` where there were three. The floors and the inventory did not change. The three guides that named Express 5.2.1 now name 5.3.0.
 - [ ] **The bot pull requests.** After the merge, re-read each one's current title and head, close none whose current proposal was not incorporated, and record each disposition.
 
 Acceptance criteria:
