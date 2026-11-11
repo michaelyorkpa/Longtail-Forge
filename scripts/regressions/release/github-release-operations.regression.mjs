@@ -26,7 +26,7 @@ const workflowPaths = [
 const REVIEWED_CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1";
 // `0.33.33.49`: v4.38.2, the annotated tag 88585263 on signed commit 2892aa5e. `init` and `analyze` move
 // together: a split pair fails analysis because each loads the other version's configuration.
-const REVIEWED_CODEQL_SHA = "24c54180a607b1449ed407dd24f251e4e9147c8d";
+const REVIEWED_CODEQL_SHA = "33d7b85da1a04171e211befe2c739303b9a4c066";
 const REVIEWED_CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9";
 const [development, promotion, nightly, mainRelease, manualImageCandidate, manualRelease, manualPreview, codeql, nativeQualification, dependabot, configScript, deployScript, hostHelper, helperEnvironment, attributes, appInfo, configSource, _packageSource] = await Promise.all([
   ...workflowPaths.map(read),
