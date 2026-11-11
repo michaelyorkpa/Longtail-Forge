@@ -196,7 +196,7 @@ Visitor-entered content therefore lasts in the live demo until the next hourly r
 - **A failed reset.** Its copies are incident evidence, kept until the operator disposes of them.
 - **Retention that is blocked or capped.** A `retention-failed` alert reaches the operator, and the copies stay until the operator resolves it with supervised retention. A failure under the boot is retried by the next hourly reset first.
 - **A held demo.** While an operator hold stops resets, the newest copies stay until resets resume.
-- **Deployment backups.** Each deploy, rollback, or restore takes a whole-instance backup, which the deploy helper keeps until the operator removes it. The roadmap bounds these on the demo.
+- **Deployment backups.** Each deploy, rollback, or restore takes a whole-instance backup. On the demo, the deploy helper keeps only the one the recorded rollback names, and removes the rest once a deploy or rollback verifies. So that one backup holds the visitor-entered content of its deploy's moment, until the next deploy or rollback replaces it. A refused bound keeps them all, and fails the deploy for the operator to resolve. See [the deployment-backup bound](preview-deployment.md#immutable-image-publication-and-constrained-transport).
 
 `DECISIONS.md` records this policy, and the demo's privacy notices cite it.
 
@@ -204,7 +204,7 @@ Visitor-entered content therefore lasts in the live demo until the next hourly r
 - incident evidence: a reset whose state is not `completed`, or is missing or unreadable, with its backup, its retired unit, and any failed unit;
 - failed evidence in the data volume, except the stale-candidate copies above. The copy of a reset that the history names as an incident is incident evidence, and stays;
 - the active unit, the candidate, and the active-operation marker;
-- any other backup, including a deployment's `pre-upgrade-` backups. A pre-reset backup whose evidence is gone is reported as an orphan;
+- any other backup. Deployment backups are the deploy helper's to bound, as above. A pre-reset backup whose evidence is gone is reported as an orphan;
 - the state and release records, and the scheduler log.
 
 **Selection.** Completion is proved by the reset's `state.json` in the reset history. A retired unit must also prove it by its own `reset-operation.json`, but that record alone is not enough: finalizing writes it before the reset completes, so a reset that stops after finalizing is an incident whose unit's record says completed. Retention therefore names every incident in the history to the in-volume prune, which keeps their units and counts them as `units.incidents`. A retired unit whose reset has no directory in the history at all, such as one older than the history, is judged by its own record alone, so the backlog can be pruned; for the same reason, disposing of an incident removes its unit with its evidence. Selection is by count, newest first by the operation identity's UTC timestamp. Every selected item is checked before anything changes, and one failed check removes nothing:

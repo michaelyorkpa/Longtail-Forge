@@ -425,7 +425,12 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
   await api.expectList(finalCookie, baseline.listId, 200);
   await api.expectList(finalCookie, postUpgrade.listId, 404);
   await api.expectFile(finalCookie, file);
-  record("re-upgrade", { seconds: reupgrade.seconds, runtime: runtimeProbe(host) });
+  // The demo's deployment-backup bound never runs here: the preview keeps every deployment backup.
+  assert.ok(!lastJsonLine(reupgrade.stdout).includes("deploymentBackups"), "only the demo reports the deployment-backup bound");
+  for (const backup of [preUpgradeBackup, preRollbackBackup]) {
+    assert.ok(fs.existsSync(backup) && fs.existsSync(`${backup}.sha256`), `the preview keeps ${path.basename(backup)}`);
+  }
+  record("re-upgrade", { seconds: reupgrade.seconds, runtime: runtimeProbe(host), deploymentBackups: deploymentBackupNames() });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -474,6 +479,13 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
   const upgraded = runtimeProbe(host);
   assert.equal(upgraded.image, candidate.metadata.image.reference);
   assert.deepEqual(upgraded.packageManagers, [], "the candidate runtime must ship no package manager");
+  // Its deployment-backup bound: the baseline deployment's backup goes, and the demo keeps only the one
+  // its rollback names, which the running prior release wrote as the container user.
+  const kept = path.basename(String(readState(host, "previous.json").deployment?.rollbackBackup));
+  const bound = /** @type {{ deploymentBackups?: { kept?: string, removed?: number } }} */ (JSON.parse(lastJsonLine(upgrade.stdout))).deploymentBackups;
+  assert.equal(bound?.kept, kept, "the demo deploy must report the backup it kept");
+  assert.ok((bound?.removed ?? 0) >= 2, "the baseline deployment's backup and its sidecar must go");
+  assert.deepEqual(deploymentBackupNames(), [kept, `${kept}.sha256`], "the demo keeps only the deployment backup its rollback names");
   record("demo-upgrade", { seconds: upgrade.seconds, helper: lastJsonLine(upgrade.stdout), runtime: upgraded });
 
   // A guarded manual reset after the upgrade must build its candidate with the newly deployed image.
@@ -1597,6 +1609,11 @@ function latestBackup(prefix) {
   return path.join(BACKUP_ROOT, name);
 }
 
+/** The deployment backups in the backup root, archives and sidecars, by name. */
+function deploymentBackupNames() {
+  return fs.readdirSync(BACKUP_ROOT).filter((name) => /^(pre-upgrade|pre-rollback|pre-restore|pre-compose-cutover)-/.test(name)).sort();
+}
+
 /**
  * Inspect a protected backup with a release image, read-only and without network.
  * @param {Release} release @param {string} archive
@@ -1623,9 +1640,9 @@ function summarizeBackup(archive, inspected) {
   };
 }
 
-/** @param {Host} host @param {string} name @returns {{ commitSha?: string }} */
+/** @param {Host} host @param {string} name @returns {{ commitSha?: string, deployment?: { rollbackBackup?: string } }} */
 function readState(host, name) {
-  return /** @type {{ commitSha?: string }} */ (JSON.parse(fs.readFileSync(path.join(host.stateRoot, name), "utf8")));
+  return /** @type {{ commitSha?: string, deployment?: { rollbackBackup?: string } }} */ (JSON.parse(fs.readFileSync(path.join(host.stateRoot, name), "utf8")));
 }
 
 // ---------------------------------------------------------------------------------------------
