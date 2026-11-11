@@ -1614,6 +1614,7 @@ async function main() {
         { selected: 0, retained: 0, incidents: 0, skipped: 0, operations: [] });
     }, { running: true, pruneReportsNoStale: true });
     scenario("retention plan names the stale-candidate copies it would remove", (box) => {
+      seedHistory(box, Array.from({ length: 3 }, (_, hour) => ({ id: historyId(box, hour) })));
       const result = retention(box, "plan");
       assert.equal(result.status, 0, result.stderr);
       assert.deepEqual(JSON.parse(lastLine(result.stdout)).units.staleCandidates, { selected: 1, operations: ["20250102T000000Z-scheduled-1"] });
