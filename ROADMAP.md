@@ -54,10 +54,10 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
 - **A failure after a new release verifies, but before its state is recorded, needs a manual state reconstruction.** The Compose helper's last steps record the previous and current state, then clear its marker. If one of them fails, for example on a full root filesystem, the verified new release keeps serving behind the curtain while the protected state record is incomplete. A later rollback reads that record, and the helper does not reconstruct it.
   - **Owner:** deployment tooling.
   - **Consequence:** until it is automated and fault-tested in the executable harness, the curtain stays up and the operator rebuilds the record from the operation's retained evidence.
-- **`minimatch` 10.2.5 carries GHSA-g3hv-75wg-m249 (moderate), with no compatible fix.** It was published on 2026-10-30 and fixed only in 11.0.1. Every ESLint 10 release and `@eslint/config-array` stop at `^10`, so taking it would mean forcing a major version past ESLint's declared range.
+- **`minimatch` 10.2.6 carries GHSA-g3hv-75wg-m249 (moderate), with no compatible fix.** It was published on 2026-10-30 and fixed only in 11.0.1. Every ESLint 10 release and `@eslint/config-array` stop at `^10`, so taking it would mean forcing a major version past ESLint's declared range. The durability patch's dependency fold moved it from 10.2.5 to 10.2.6, which is still in the advisory's range.
   - **Why it does not reach users:** `minimatch` is development-only, and is absent from the image. An attacker must supply the glob, and ESLint reads only this repository's own configured globs. `release.dependency-baseline` fails if it ever reaches the runtime graph.
   - **Owner:** whoever next upgrades ESLint. Take the fix when ESLint allows `minimatch` 11.
-  - **Consequence:** `npm audit` reports four moderate entries, all this one advisory through ESLint's graph. The production audit reports none.
+  - **Consequence:** `npm audit` reports three moderate entries, all this one advisory through ESLint's graph. The production audit reports none.
 - **The promotion's backup drill runs from source, not from the promotion payload.** In `.github/workflows/promotion.yml`, the `backup-recovery` job runs `npm run backup:drill` from the checked-out source. Only the artifact and container recovery jobs use the payload. `docs/development/github-workflow.md` already says so. Codex noted it, as a low finding that predates that promotion, in its review of the restart-recovery patch's promotion.
   - **Owner:** the promotion workflow.
   - **Consequence:** a defect present only in the payload's backup tooling would pass the drill.
@@ -159,26 +159,34 @@ Acceptance criteria:
 
 Scope:
 
-- [ ] **The allowance.** This patch owns its release identity and exactly this transition. The validator holds the complete before and after lock entries of the updates taken, so a partial or altered transition is refused, as the restart-recovery patch's allowance does.
-- [ ] **Take, as reviewed transitions:**
+- [x] **The allowance.** This patch owns its release identity and exactly this transition. The validator holds the complete before and after lock entries of the updates taken, so a partial or altered transition is refused, as the restart-recovery patch's allowance does.
+  - **Done.** Five declarations and 72 lock entries: 20 version moves, 13 removals, 2 additions, and 37 entries whose only change is the `peer` flag. The two declaration helpers now take the identity a fold lands on, rather than assuming the Node security release.
+- [x] **Take, as reviewed transitions:**
   - **`express` 5.2.1 to 5.3.0 (#902).** A runtime dependency. It moves `content-disposition` to 2.0.1 and `content-type` to 2.1.0, both major versions, and drops the two nested copies of `content-type`.
     - **What changes for the application.** `res.attachment()`, `res.download()`, and `res.sendFile()` stop quoting filenames that are HTTP tokens, and `content-disposition` 2 no longer reduces a path to its base name. The application calls none of them: every route that sends a download or preview writes its own `Content-Disposition`. `res.send()` keeps a `Content-Type`'s parameters when it adds the charset, and no longer throws on one that fails to parse. The default error handler logs the whole error object.
     - **Its security fixes,** for `qs`, `body-parser`, and `proxy-addr`, are already in the lockfile.
+    - **Checked.** The Express HTTP contract, including exactly-once async error propagation, passes on 5.3.0, as do the demo perimeter and every unit suite.
   - **`express-rate-limit` 8.7.0 to 8.7.4 (#903, which proposes 8.7.3).** A runtime dependency. 8.7.2 to 8.7.4 fix the counting window and the memory store: a request that finished after its window reset was un-counted, a failed decrement went unhandled, and `MemoryStore#get` returned expired clients. Both of the application's limiters use the memory store. 8.7.4 was published on 2026-11-09, so its published package is compared with 8.7.3's before it is taken.
+    - **Compared.** The two packages differ only in the version and in the two fixes 8.7.4's changelog names: the expiry check in `MemoryStore#get`, and caught decrement errors. Neither adds a dependency or an install script.
   - **`@types/node` 26.6.5 to 26.6.6 (#901),** with the Node 24 engine unchanged.
-  - **ESLint 10.13.0 to 10.14.0 (#897).** It moves `minimatch` to 10.2.6 and `brace-expansion` to 5.0.8. `minimatch` 10.2.6 predates GHSA-g3hv-75wg-m249 and is still in its range, so that Carried Finding stays. Confirm that the cache graph does not move.
+  - **ESLint 10.13.0 to 10.14.0 (#897).** It moves `minimatch` to 10.2.6, and raises `minimatch`'s `brace-expansion` range to `^5.0.8`, which the locked 5.0.12 already meets. `minimatch` 10.2.6 predates GHSA-g3hv-75wg-m249 and is still in its range, so that Carried Finding stays. The cache graph does not move.
   - **CodeQL `init` and `analyze` 4.39.3, together (#907 and #908),** with `REVIEWED_CODEQL_SHA` updated.
-  - **Debian `apt` and `libapt-pkg6.0`,** from this patch's scope.
-- [ ] **Take once its condition is met: Vitest 5.1.0 (#899).** A major version, which also moves Vite to 8.3.5 and the Rolldown bindings. Take it only if the unit suites, the coverage floors, and `release.dependency-baseline` pass with no change beyond configuration and pins. Otherwise defer it, leave its pull request open, and record the reason.
-- [ ] **Not taken:** newer releases with no pull request yet, such as `@playwright/test` 1.65.0.
+  - **Debian `apt` and `libapt-pkg6.0`,** from this patch's scope: 2.6.2 from `bookworm-security` (DLA-4880-1). Every dependency of 2.6.2 is already in the base.
+- [x] **Take once its condition is met: Vitest 5.1.0 (#899).** A major version, which also moves Vite to 8.3.5 and the Rolldown bindings. Take it only if the unit suites, the coverage floors, and `release.dependency-baseline` pass with no change beyond configuration and pins. Otherwise defer it, leave its pull request open, and record the reason.
+  - **Met, and taken.** All 357 unit test files (5,874 tests) pass with no change at all, not even to configuration. Lint and typecheck are clean, and regenerating the coverage floors changes none of them.
+  - **Smaller than the bot's proposal.** #899 also moves Vite to 8.3.5 and Rolldown to 1.2.16, and npm's own resolution goes further, to Vite 8.3.8 and Rolldown 1.2.19, with pre-release `@emnapi` 2.0 packages through Rolldown's WebAssembly binding. Vitest 5.1 accepts Vite 8.2.4, so Vite, Rolldown, PostCSS, and their dependencies keep their versions. Their entries change only the `peer` flag, because Vitest 5 makes Vite a peer dependency.
+- [x] **Not taken:** newer releases with no pull request yet, such as `@playwright/test` 1.65.0.
 - [ ] **Ownership policy.** This pull request leaves the application version unchanged. The durability pull request sets it to `0.33.33.55`, archives this whole section, and records this fold in its changelog entry.
-- [ ] **Attestations to realign:** `release.dependency-baseline`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
+- [x] **Attestations to realign:** `release.dependency-baseline`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
+  - **Done.** `release.dependency-baseline` and `framework.express-5-http-contract` pin the new versions, `REVIEWED_CODEQL_SHA` is 4.39.3's, and `release.preview-deployment-boundary` requires the `apt` pins. The notices were regenerated. The floors and the inventory did not change. The three guides that named Express 5.2.1 now name 5.3.0.
 - [ ] **The bot pull requests.** After the merge, re-read each one's current title and head, close none whose current proposal was not incorporated, and record each disposition.
 
 Acceptance criteria:
 
 - [ ] **Advisories.** Dependabot shows no open alert except the `minimatch` advisory in Carried Findings, and the production audit reports no finding.
-- [ ] **The allowance.** Positive and negative validator tests cover it, and each seeded validator defect is caught.
+  - **Locally, on 2026-11-11:** the production audit reports none, and the full audit reports only the `minimatch` advisory, as three entries through ESLint's graph. Alert 17, that advisory, is the only open Dependabot alert.
+- [x] **The allowance.** Positive and negative validator tests cover it, and each seeded validator defect is caught.
+  - **Nine seeded defects are caught.** The first run missed an altered declaration range: the test's fixture is built from the declarations, so a wrong range agreed with itself. The test now pins the five declarations literally.
 - [ ] **Gates:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the browser suite.
 - [ ] **The image.** A native lifecycle qualification builds it with the new `apt` pin and reports no fixable Debian finding.
 
