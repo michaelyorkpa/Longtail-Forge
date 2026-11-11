@@ -54,9 +54,6 @@ The post-release patch to `v0.33.33` carried these findings forward. The same ru
 - **A failure after a new release verifies, but before its state is recorded, needs a manual state reconstruction.** The Compose helper's last steps record the previous and current state, then clear its marker. If one of them fails, for example on a full root filesystem, the verified new release keeps serving behind the curtain while the protected state record is incomplete. A later rollback reads that record, and the helper does not reconstruct it.
   - **Owner:** deployment tooling.
   - **Consequence:** until it is automated and fault-tested in the executable harness, the curtain stays up and the operator rebuilds the record from the operation's retained evidence.
-- **Public-demo reset history has no retention bound.** The demo host's `demo-reset-operations/` held 1,392 operation directories on 2026-10-05, one per hourly reset since 2026-08-08, and nothing prunes them. Their disk and inode use is still to be measured.
-  - **Owner:** public-demo operations.
-  - **Consequence:** the history grows with every reset. Any retention policy must keep the evidence that recovery and failure investigation need.
 - **`minimatch` 10.2.5 carries GHSA-g3hv-75wg-m249 (moderate), with no compatible fix.** It was published on 2026-10-30 and fixed only in 11.0.1. Every ESLint 10 release and `@eslint/config-array` stop at `^10`, so taking it would mean forcing a major version past ESLint's declared range.
   - **Why it does not reach users:** `minimatch` is development-only, and is absent from the image. An attacker must supply the glob, and ESLint reads only this repository's own configured globs. `release.dependency-baseline` fails if it ever reaches the runtime graph.
   - **Owner:** whoever next upgrades ESLint. Take the fix when ESLint allows `minimatch` 11.
@@ -80,7 +77,7 @@ These patches to `v0.33.33` ship in order, each with its own release identity. T
 
 **Model: High Effort** — It sets how much acknowledged real data a power cut may lose, changes the durability setting on both deployments, and adds scheduled backups. A wrong setting silently loses writes, and a wrong schedule or retention loses recovery points.
 
-**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation. The operator settled them on 2026-11-05, except which server receives the off-server copies; see Decisions.
+**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation. The operator settled them on 2026-11-05. On 2026-11-11 they chose the server that receives the off-server copies, added three items to the scope, and asked for the open Dependabot backlog as this patch's first pull request; see Decisions and [the dependency fold](#dependency-fold-the-first-pull-request).
 
 **Why.**
 - **The outage.** On 2026-10-14 the power was out for over an hour. The UPS bridges only short outages, and it is not connected to the server for any shutdown signal. It stays that way until the deployment moves off-site, so a long outage is a hard power cut.
@@ -108,6 +105,15 @@ Proposed scope:
   - **What stays later.** Remote, S3-compatible, and encrypted managed destinations stay in 0.38.4.
 - [ ] **A restore drill.** Restore a scheduled backup into a disposable instance, and prove database and Files consistency.
 
+Added by the operator on 2026-11-11:
+
+- [ ] **Stale candidates that a completed reset moves aside.** A reset that finds a verified candidate or partial build left behind, because activation never began, moves it into `.longtail-public-demo-failed-<operation>-stale-candidate` in the data volume, named after that reset. That reset then completes, so the copy belongs to no incident. Retention never removes failed evidence, and the incident-disposal procedure takes only an incident's copies, so nothing ever removes it.
+  - **Its content.** A candidate is seeded from the fresh-start baseline and is never served, so it should hold no visitor-entered content. Confirm that from the code before any wording relies on it.
+  - **The fix.** Bound these copies under the lifecycle lock with the reset-retention patch's checks (exact shape, no link anywhere beneath, every check before any removal), or give them a documented disposal procedure. Either way, `docs/demo-data-operations.md` states how long they stay.
+  - **The one on the demo.** The disposal inventory of 2026-11-07 counted one, of 1,085,440 bytes, but did not name it; it is probably the candidate that the Docker restart of 2026-11-02 stranded. It is removed through the reviewed path, with the operator's approval, in a Codex handoff.
+- [ ] **Debian `apt` and `libapt-pkg6.0` in the runtime image.** Take Debian's fix for CVE-2026-109518 (HIGH) through the image's exact security-update pin. The published-digest qualification of the restart-recovery release found it on 2026-11-04: Trivy reports 2.6.1, fixed in 2.6.2. It is reachable only during the build, because nothing spawns `apt` at runtime and the container runs as UID 10001 with a read-only root. It lands with the dependency fold.
+- [ ] **The resolved Carried Finding.** The finding that reset history had no retention bound is removed, because the reset-retention patch bounded it.
+
 Decisions:
 
 All decided by the operator on 2026-11-05, except where noted.
@@ -117,11 +123,14 @@ All decided by the operator on 2026-11-05, except where noted.
   - **Disk or server loss:** at most one backup interval, so up to a day with nightly backups.
 - **The setting's reach: everywhere,** for "the utmost of data security": `full` on the preview and the demo, and as the shipped default for new installs.
 - **The schedule: nightly, keeping 14.**
-- **The off-server destination:** one of the operator's existing servers. **Still open:** which one, chosen when this patch starts. It should:
-  - run on a different physical machine from the preview's host, so it survives that hardware;
-  - accept copies over SSH with a key that can only write backups;
-  - have room for the 14 kept copies;
-  - be reachable only by the operator, because the copies hold the preview's real data.
+- **The off-server destination: `raytec-nyc3-01`,** chosen by the operator on 2026-11-11. Codex has access to it, so its setup is a Codex handoff.
+  - **Only the preview's backups go there.** The demo's backups are never copied off-server.
+  - **Before the hook is wired,** confirm that it:
+    - runs on a different physical machine from the preview's host, so it survives that hardware;
+    - accepts copies over SSH with a key that can only write backups. Because that key cannot delete, the destination keeps its own 14 newest copies;
+    - has room for the 14 kept copies;
+    - is reachable only by the operator, because the copies hold the preview's real data.
+  - **Still open:** whether a copy is encrypted before it leaves the preview.
 
 Acceptance criteria:
 
@@ -139,6 +148,40 @@ Acceptance criteria:
   - that the timer refuses the public demo.
 - [ ] **Tests of the demo's deployment-backup bound.** It keeps exactly the recorded rollback's backup, refuses a link or another owner and removes nothing, and leaves the preview's deployment backups alone.
 - [ ] **One restore drill** from a scheduled backup passes.
+
+#### Dependency fold, the first pull request
+
+**Model: High Effort** — It moves the web framework every request passes through, and the lint and unit-test toolchains, in one reviewed lockfile transition, and adds an exact-entry validator allowance for this patch.
+
+**What this is.** The open Dependabot backlog, folded at the operator's instruction of 2026-11-11.
+- **Its release.** It lands in `nightly` before the durability work, while the application is still the reset-retention release, and ships in `v0.33.33.55`, so it needs no deployment of its own.
+- **Why the bot pull requests cannot merge.** Their commits carry no `LTF-` trailers, and only a declared patch may change the package files.
+
+Scope:
+
+- [ ] **The allowance.** This patch owns its release identity and exactly this transition. The validator holds the complete before and after lock entries of the updates taken, so a partial or altered transition is refused, as the restart-recovery patch's allowance does.
+- [ ] **Take, as reviewed transitions:**
+  - **`express` 5.2.1 to 5.3.0 (#902).** A runtime dependency. It moves `content-disposition` to 2.0.1 and `content-type` to 2.1.0, both major versions, and drops the two nested copies of `content-type`.
+    - **What changes for the application.** `res.attachment()`, `res.download()`, and `res.sendFile()` stop quoting filenames that are HTTP tokens, and `content-disposition` 2 no longer reduces a path to its base name. The application calls none of them: every route that sends a download or preview writes its own `Content-Disposition`. `res.send()` keeps a `Content-Type`'s parameters when it adds the charset, and no longer throws on one that fails to parse. The default error handler logs the whole error object.
+    - **Its security fixes,** for `qs`, `body-parser`, and `proxy-addr`, are already in the lockfile.
+  - **`express-rate-limit` 8.7.0 to 8.7.4 (#903, which proposes 8.7.3).** A runtime dependency. 8.7.2 to 8.7.4 fix the counting window and the memory store: a request that finished after its window reset was un-counted, a failed decrement went unhandled, and `MemoryStore#get` returned expired clients. Both of the application's limiters use the memory store. 8.7.4 was published on 2026-11-09, so its published package is compared with 8.7.3's before it is taken.
+  - **`@types/node` 26.6.5 to 26.6.6 (#901),** with the Node 24 engine unchanged.
+  - **ESLint 10.13.0 to 10.14.0 (#897).** It moves `minimatch` to 10.2.6 and `brace-expansion` to 5.0.8. `minimatch` 10.2.6 predates GHSA-g3hv-75wg-m249 and is still in its range, so that Carried Finding stays. Confirm that the cache graph does not move.
+  - **CodeQL `init` and `analyze` 4.39.3, together (#907 and #908),** with `REVIEWED_CODEQL_SHA` updated.
+  - **Debian `apt` and `libapt-pkg6.0`,** from this patch's scope.
+- [ ] **Take once its condition is met: Vitest 5.1.0 (#899).** A major version, which also moves Vite to 8.3.5 and the Rolldown bindings. Take it only if the unit suites, the coverage floors, and `release.dependency-baseline` pass with no change beyond configuration and pins. Otherwise defer it, leave its pull request open, and record the reason.
+- [ ] **Not taken:** newer releases with no pull request yet, such as `@playwright/test` 1.65.0.
+- [ ] **Ownership policy.** This pull request leaves the application version unchanged. The durability pull request sets it to `0.33.33.55`, archives this whole section, and records this fold in its changelog entry.
+- [ ] **Attestations to realign:** `release.dependency-baseline`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
+- [ ] **The bot pull requests.** After the merge, re-read each one's current title and head, close none whose current proposal was not incorporated, and record each disposition.
+
+Acceptance criteria:
+
+- [ ] **Advisories.** Dependabot shows no open alert except the `minimatch` advisory in Carried Findings, and the production audit reports no finding.
+- [ ] **The allowance.** Positive and negative validator tests cover it, and each seeded validator defect is caught.
+- [ ] **Gates:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the browser suite.
+- [ ] **The image.** A native lifecycle qualification builds it with the new `apt` pin and reports no fixable Debian finding.
+
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
 
 **Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
