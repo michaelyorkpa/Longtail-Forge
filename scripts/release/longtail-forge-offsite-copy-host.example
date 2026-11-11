@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+# The scheduled backup's post-backup copy hook: copies one inspected scheduled backup off the server.
+#
+# Install it as root:root 0755 at /usr/local/sbin/longtail-forge-offsite-copy. The scheduled backup
+# calls it as `longtail-forge-offsite-copy --archive <path>`, with exactly the archive it has just
+# inspected. The hook verifies that archive's checksum sidecar again, packs the archive and the
+# sidecar, encrypts the pack with age to the operator's public key, and sends it over SSH to the
+# destination's longtail-forge-offsite-receive, which checks the declared size and SHA-256 again
+# before it stores the copy. This installation holds only the public key, so neither it nor the
+# destination can read a copy: a restore needs the operator's private key. The pack is staged in a
+# root-only directory, which is removed afterwards whatever the outcome.
+#
+# Configuration: /etc/longtail-forge/offsite-copy.env, root:root 0600, with exactly these keys:
+#   LTF_OFFSITE_HOST         the destination's address
+#   LTF_OFFSITE_PORT         its SSH port
+#   LTF_OFFSITE_USER         the dedicated receiving account
+#   LTF_OFFSITE_IDENTITY     the SSH private key, root:root 0600, whose only permitted command is the receiver
+#   LTF_OFFSITE_KNOWN_HOSTS  a root-owned known_hosts file that pins the destination's host key
+#   LTF_OFFSITE_RECIPIENT    the operator's age public key, age1...
+#
+# It prints one JSON line on success. Nothing it reports names a key, the recipient, or a path
+# outside the backup root.
+
+HOOK_ENV="${LTF_OFFSITE_COPY_ENV:-/etc/longtail-forge/offsite-copy.env}"
+readonly ALLOWED_ENV_KEYS='^(LTF_OFFSITE_HOST|LTF_OFFSITE_PORT|LTF_OFFSITE_USER|LTF_OFFSITE_IDENTITY|LTF_OFFSITE_KNOWN_HOSTS|LTF_OFFSITE_RECIPIENT)$'
+readonly BACKUP_ROOT='/var/backups/longtail-forge/compose'
+readonly STAGE_ROOT='/var/lib/longtail-forge-offsite-copy'
+readonly SCHEDULED_NAME='^scheduled-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}\.ltfbackup\.tgz$'
+readonly STORED_NAME='^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{16}\.ltfbackup\.tar\.age$'
+readonly RECEIVER_REASON='^[a-z0-9 ,.:<>-]{1,120}$'
+readonly TRANSFER_LIMIT=1800
+
+fail() {
+  printf 'longtail-forge-offsite-copy: %s\n' "$*" >&2
+  exit 1
+}
+
+require_safe_absolute_path() {
+  local target="$1" label="$2"
+  [[ "$target" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a safe absolute path"
+  [[ "$target" != *'/../'* && "$target" != */.. && "$target" != *'//'* ]] || fail "$label contains unsafe traversal"
+}
+
+# A file only root may write, in a directory only root may write: the configuration, the key, and the
+# pinned host keys. A secret must also be unreadable to anyone else.
+require_root_file() {
+  local target="$1" label="$2" private="$3" parent
+  test -f "$target" && test ! -L "$target" || fail "$label must be a regular non-symbolic-link file"
+  test "$(stat -c '%u' "$target")" = '0' || fail "$label must be root-owned"
+  if test "$private" = true; then
+    test "$(stat -c '%a' "$target")" = '600' || fail "$label must use mode 0600"
+  else
+    test $((8#$(stat -c '%a' "$target") & 8#022)) -eq 0 || fail "$label must not be group- or other-writable"
+  fi
+  parent="$(dirname "$target")"
+  test "$(stat -c '%u' "$parent")" = '0' && test $((8#$(stat -c '%a' "$parent") & 8#022)) -eq 0 \
+    || fail "$label parent must be root-owned and not group- or other-writable"
+}
+
+for command in age cut dirname head install jq mktemp rm sha256sum ssh stat tar timeout; do
+  command -v "$command" >/dev/null 2>&1 || fail "required command is unavailable: $command"
+done
+test "$(id -u)" = '0' || fail 'the copy hook must run as root'
+
+require_root_file "$HOOK_ENV" 'copy hook configuration' true
+declare -A SEEN=()
+while IFS= read -r line || test -n "$line"; do
+  case "$line" in ''|'#'*) continue ;; esac
+  key="${line%%=*}"
+  [[ "$key" =~ $ALLOWED_ENV_KEYS ]] || fail "copy hook configuration contains unsupported key: $key"
+  test -z "${SEEN[$key]:-}" || fail "copy hook configuration contains duplicate key: $key"
+  SEEN[$key]=1
+  printf -v "$key" '%s' "${line#*=}"
+done < "$HOOK_ENV"
+for key in LTF_OFFSITE_HOST LTF_OFFSITE_PORT LTF_OFFSITE_USER LTF_OFFSITE_IDENTITY LTF_OFFSITE_KNOWN_HOSTS LTF_OFFSITE_RECIPIENT; do
+  test -n "${SEEN[$key]:-}" || fail "copy hook configuration is missing $key"
+done
+[[ "$LTF_OFFSITE_HOST" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]] || fail 'LTF_OFFSITE_HOST must be a host name or address'
+[[ "$LTF_OFFSITE_PORT" =~ ^[1-9][0-9]{0,4}$ ]] && test "$LTF_OFFSITE_PORT" -le 65535 || fail 'LTF_OFFSITE_PORT must be a port'
+[[ "$LTF_OFFSITE_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || fail 'LTF_OFFSITE_USER must be an account name'
+[[ "$LTF_OFFSITE_RECIPIENT" =~ ^age1[02-9ac-hj-np-z]{58}$ ]] || fail 'LTF_OFFSITE_RECIPIENT must be one age X25519 public key'
+require_safe_absolute_path "$LTF_OFFSITE_IDENTITY" 'LTF_OFFSITE_IDENTITY'
+require_safe_absolute_path "$LTF_OFFSITE_KNOWN_HOSTS" 'LTF_OFFSITE_KNOWN_HOSTS'
+require_root_file "$LTF_OFFSITE_IDENTITY" 'off-server SSH key' true
+require_root_file "$LTF_OFFSITE_KNOWN_HOSTS" 'pinned destination host keys' false
+test -s "$LTF_OFFSITE_KNOWN_HOSTS" || fail 'the pinned destination host keys are empty'
+
+test "$#" -eq 2 && test "$1" = '--archive' || fail 'usage: longtail-forge-offsite-copy --archive <scheduled backup>'
+ARCHIVE="$2"
+NAME="$(basename -- "$ARCHIVE")"
+test "$ARCHIVE" = "$BACKUP_ROOT/$NAME" || fail 'the archive must be in the protected Compose backup root'
+[[ "$NAME" =~ $SCHEDULED_NAME ]] || fail 'only a scheduled backup is copied off the server'
+test -f "$ARCHIVE" && test ! -L "$ARCHIVE" || fail 'the archive must be a regular non-symbolic-link file'
+test -f "$ARCHIVE.sha256" && test ! -L "$ARCHIVE.sha256" || fail 'the archive checksum sidecar must be a regular non-symbolic-link file'
+# The sidecar names the archive and its SHA-256, as the backup wrote it. The copy goes only if both hold.
+read -r SIDECAR_SHA SIDECAR_NAME REST < "$ARCHIVE.sha256" || fail 'the archive checksum sidecar could not be read'
+[[ "$SIDECAR_SHA" =~ ^[a-f0-9]{64}$ ]] && test "$SIDECAR_NAME" = "$NAME" && test -z "${REST:-}" \
+  || fail 'the archive checksum sidecar does not name this archive'
+test "$(sha256sum -- "$ARCHIVE" | cut -d ' ' -f 1)" = "$SIDECAR_SHA" || fail 'the archive does not match its checksum sidecar'
+
+install -d -o root -g root -m 0700 "$STAGE_ROOT"
+test "$(stat -c '%u:%a' "$STAGE_ROOT")" = '0:700' && test ! -L "$STAGE_ROOT" || fail 'the staging root must be a root-only directory'
+STAGE="$(mktemp -d "$STAGE_ROOT/copy.XXXXXX")"
+cleanup() { rm -rf -- "$STAGE"; }
+trap cleanup EXIT
+trap 'exit 130' HUP INT TERM
+
+tar -C "$BACKUP_ROOT" -cf - -- "$NAME" "$NAME.sha256" | age -r "$LTF_OFFSITE_RECIPIENT" -o "$STAGE/copy.age" \
+  || fail 'the backup could not be packed and encrypted'
+COPY_SHA="$(sha256sum -- "$STAGE/copy.age" | cut -d ' ' -f 1)"
+COPY_BYTES="$(stat -c '%s' "$STAGE/copy.age")"
+
+# The key, the host keys, and the options come only from here: no agent, no user or system SSH
+# configuration, no forwarding, and an unknown or changed host key refuses the connection.
+set +e
+timeout --kill-after=10 "$TRANSFER_LIMIT" ssh -F /dev/null -i "$LTF_OFFSITE_IDENTITY" -p "$LTF_OFFSITE_PORT" \
+  -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o PasswordAuthentication=no \
+  -o UserKnownHostsFile="$LTF_OFFSITE_KNOWN_HOSTS" -o GlobalKnownHostsFile=/dev/null \
+  -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o CheckHostIP=no \
+  -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes -o RequestTTY=no \
+  -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+  "$LTF_OFFSITE_USER@$LTF_OFFSITE_HOST" "receive $COPY_SHA $COPY_BYTES" \
+  < "$STAGE/copy.age" > "$STAGE/reply.json" 2> "$STAGE/ssh.err"
+TRANSFER_STATUS=$?
+set -e
+
+REPLY="$(head -n 1 "$STAGE/reply.json")"
+if test "$TRANSFER_STATUS" -ne 0; then
+  # The receiver's reasons are fixed strings, but they arrive from another machine, so only one of
+  # that plain shape is repeated.
+  reason="$(jq -r 'select(.ok == false) | .reason | strings' <<<"$REPLY" 2>/dev/null || true)"
+  if [[ "$reason" =~ $RECEIVER_REASON ]]; then fail "the destination refused the copy: $reason"; fi
+  fail "the copy did not reach the destination (exit $TRANSFER_STATUS)"
+fi
+jq -e --arg sha "$COPY_SHA" --argjson bytes "$COPY_BYTES" --arg pattern "$STORED_NAME" \
+  '.ok == true and .sha256 == $sha and .bytes == $bytes and (.stored | type == "string" and test($pattern))' \
+  <<<"$REPLY" >/dev/null 2>&1 || fail 'the destination did not confirm the copy it was sent'
+STORED="$(jq -r '.stored' <<<"$REPLY")"
+
+printf '{"ok":true,"archive":"%s","stored":"%s","sha256":"%s","bytes":%s}\n' "$NAME" "$STORED" "$COPY_SHA" "$COPY_BYTES"

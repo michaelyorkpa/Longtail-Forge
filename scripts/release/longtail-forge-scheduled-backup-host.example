@@ -1,0 +1,462 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+# The scheduled whole-instance backup for a Compose installation that is not the public demo.
+#
+# Install it as root:root 0755 at /usr/local/sbin/longtail-forge-scheduled-backup. Its systemd timer
+# runs `longtail-forge-scheduled-backup run --trigger scheduled` nightly.
+#
+# run      runs the backup below as its own child, under a deadline, then reports: a heartbeat to the
+#          operator's push monitor on success, and a Discord alert on any failure, including a backup
+#          that succeeded but whose retention or off-server copy did not. Both URLs live only in
+#          root-only 0600 files, and reach curl on standard input. It appends one line per run to a
+#          bounded log.
+# backup   under the shared lifecycle lock, raises the maintenance curtain, stops the application,
+#          takes the existing whole-instance backup as scheduled-<UTC>-<commit>.ltfbackup.tgz, and
+#          inspects it. It then starts the unchanged release and lowers the curtain once that release
+#          verifies. Only then does it keep the 14 newest scheduled backups, and pass the backup it
+#          inspected to the configured copy hook, so neither lengthens the outage. A backup that
+#          fails restarts the unchanged release. It refuses the public demo, which resets hourly and
+#          whose visitor-entered content a nightly copy would keep.
+#
+# Exit status: 0 when the backup succeeded, even if retention or the copy failed, which the result and
+# the alert report; 75 when another lifecycle operation holds the lock; 1 otherwise.
+
+HELPER_ENV="${LTF_COMPOSE_HELPER_ENV:-/etc/longtail-forge/compose-deploy-helper.env}"
+SCHEDULE_ENV="${LTF_SCHEDULED_BACKUP_ENV:-/etc/longtail-forge/scheduled-backup.env}"
+# The deploy helper's own keys, so both read one installation file.
+readonly ALLOWED_ENV_KEYS='^(LTF_BACKUP_ROOT|LTF_COMPOSE_DIR|LTF_COMPOSE_FILE|LTF_COMPOSE_HOST_ENV|LTF_DEMO_ROLE_CREDENTIALS|LTF_DEPLOY_ACCOUNT|LTF_DEPLOY_ROOT|LTF_IMAGE_REPOSITORY|LTF_MAINTENANCE_STATE_ROOT|LTF_PUBLIC_DEMO_ISOLATION_HELPER|LTF_PUBLIC_URL|LTF_SECURE_KEY_BACKUP)$'
+readonly ALLOWED_SCHEDULE_KEYS='^(LTF_SCHEDULED_BACKUP_ENABLED|LTF_SCHEDULED_BACKUP_COPY_HOOK)$'
+readonly WEBHOOK_FILE='/etc/longtail-forge/scheduled-backup-alert-webhook'
+readonly HEARTBEAT_FILE='/etc/longtail-forge/scheduled-backup-heartbeat-url'
+readonly DISCORD_WEBHOOK_PATTERN='^https://discord\.com/api/webhooks/[0-9]{17,20}/[A-Za-z0-9_-]{60,100}$'
+readonly HEARTBEAT_URL_PATTERN='^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._~/?=&%-]*$'
+readonly RETAINED_SCHEDULED=14
+readonly SCHEDULED_NAME='^scheduled-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}\.ltfbackup\.tgz(\.sha256)?$'
+readonly BACKUP_LIMIT=7200
+readonly COPY_LIMIT=2400
+readonly LOG_RECORDS=400
+
+fail() {
+  printf 'longtail-forge-scheduled-backup: %s\n' "$*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"
+}
+
+require_root_owned_private_file() {
+  local target="$1" label="$2" parent
+  test -f "$target" && test ! -L "$target" || fail "$label must be a regular non-symbolic-link file"
+  test "$(stat -c '%u' "$target")" = "0" || fail "$label must be root-owned"
+  test "$(stat -c '%a' "$target")" = "600" || fail "$label must use mode 0600"
+  parent="$(dirname "$target")"
+  test "$(stat -c '%u' "$parent")" = "0" || fail "$label parent must be root-owned"
+  test $((8#$(stat -c '%a' "$parent") & 8#022)) -eq 0 || fail "$label parent must not be group- or other-writable"
+}
+
+require_safe_absolute_path() {
+  local target="$1" label="$2"
+  [[ "$target" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "$label must be a safe absolute path"
+  [[ "$target" != *'/../'* && "$target" != */.. && "$target" != *'//'* ]] || fail "$label contains unsafe traversal"
+}
+
+# Reads a root-only file of KEY=value lines whose keys match the pattern, each at most once.
+load_environment() {
+  local file="$1" pattern="$2" label="$3" line key
+  require_root_owned_private_file "$file" "$label"
+  declare -A seen=()
+  while IFS= read -r line || test -n "$line"; do
+    case "$line" in ''|'#'*) continue ;; esac
+    key="${line%%=*}"
+    [[ "$key" =~ $pattern ]] || fail "$label contains unsupported key: $key"
+    test -z "${seen[$key]:-}" || fail "$label contains duplicate key: $key"
+    seen[$key]=1
+    export "$line"
+  done < "$file"
+}
+
+load_schedule() {
+  load_environment "$SCHEDULE_ENV" "$ALLOWED_SCHEDULE_KEYS" 'scheduled backup environment'
+  ENABLED="${LTF_SCHEDULED_BACKUP_ENABLED:-}"
+  test "$ENABLED" = 'true' || test "$ENABLED" = 'false' || fail 'LTF_SCHEDULED_BACKUP_ENABLED must be exactly true or false'
+  COPY_HOOK="${LTF_SCHEDULED_BACKUP_COPY_HOOK:-}"
+  if test -n "$COPY_HOOK"; then
+    require_safe_absolute_path "$COPY_HOOK" 'copy hook'
+    test -f "$COPY_HOOK" && test ! -L "$COPY_HOOK" && test -x "$COPY_HOOK" && test "$(stat -c '%u' "$COPY_HOOK")" = '0' \
+      && test $((8#$(stat -c '%a' "$COPY_HOOK") & 8#022)) -eq 0 \
+      || fail 'the copy hook must be a root-owned executable regular file no one else may write'
+  fi
+}
+
+MODE="${1:-}"
+shift || true
+test "$(id -u)" = "0" || fail "the scheduled backup must run as root"
+SELF="$(realpath -- "${BASH_SOURCE[0]}")"
+
+# ---------------------------------------------------------------------------------------------
+# run: the timer's entry point. It holds no lock itself; its child does.
+# ---------------------------------------------------------------------------------------------
+
+# Prints the single URL line of a root-only 0600 file, or returns 2 when the file is absent.
+read_private_url() {
+  local file="$1" pattern="$2" label="$3" url
+  test -e "$file" || test -L "$file" || return 2
+  require_root_owned_private_file "$file" "$label"
+  test "$(wc -l < "$file")" -le 1 || fail "$label must hold one line"
+  url="$(head -n 1 -- "$file")"
+  [[ "$url" =~ $pattern ]] || fail "$label is not an allowed URL"
+  printf '%s' "$url"
+}
+
+# Sends one request, reading the URL from standard input as curl configuration. curl's own
+# diagnostics are discarded, because some name the URL.
+send() {
+  local url="$1"
+  shift
+  printf 'url = "%s"\n' "$url" | curl --config - --fail --silent --proto '=https' --tlsv1.2 \
+    --connect-timeout 5 --max-time 10 --output /dev/null "$@" 2>/dev/null
+}
+
+# Each outcome returns its own status, so one never fails the run's record.
+send_heartbeat() {
+  local url status
+  set +e
+  url="$(read_private_url "$HEARTBEAT_FILE" "$HEARTBEAT_URL_PATTERN" 'heartbeat URL file')"
+  status=$?
+  set -e
+  test "$status" -ne 2 || { printf 'not-configured'; return 0; }
+  test "$status" -eq 0 && send "$url" && { printf 'delivered'; return 0; }
+  printf 'failed'
+}
+
+send_alert() {
+  local summary="$1" url status payload
+  logger --priority daemon.alert --tag longtail-forge-scheduled-backup "$summary" 2>/dev/null || true
+  set +e
+  url="$(read_private_url "$WEBHOOK_FILE" "$DISCORD_WEBHOOK_PATTERN" 'Discord webhook file')"
+  status=$?
+  set -e
+  test "$status" -ne 2 || { printf 'not-configured'; return 0; }
+  payload="$(jq -cn --arg summary "$summary" '{username:"Longtail Forge scheduled backup",content:("Scheduled-backup alert: " + $summary),allowed_mentions:{parse:[]}}')"
+  test "$status" -eq 0 && send "$url" --header 'content-type: application/json' --data-binary "$payload" \
+    && { printf 'delivered'; return 0; }
+  printf 'failed'
+}
+
+append_record() {
+  local record="$1" log="$DEPLOY_ROOT/scheduled-backups.jsonl" kept
+  test ! -L "$log" || fail 'the scheduled-backup log must not be a symbolic link'
+  if test ! -e "$log"; then install -o root -g root -m 0600 /dev/null "$log"; fi
+  test -f "$log" && test "$(stat -c '%u:%a' "$log")" = '0:600' || fail 'the scheduled-backup log must be a root-only file'
+  kept="$( { tail -n "$((LOG_RECORDS - 1))" "$log"; printf '%s\n' "$record"; } )"
+  printf '%s\n' "$kept" > "$log.tmp"
+  chmod 0600 "$log.tmp"
+  mv -T -- "$log.tmp" "$log"
+}
+
+if test "$MODE" = 'run'; then
+  TRIGGER=''
+  if test "$#" -eq 2 && test "$1" = '--trigger'; then TRIGGER="$2"; fi
+  test "$TRIGGER" = 'scheduled' || test "$TRIGGER" = 'manual' || fail 'usage: longtail-forge-scheduled-backup run --trigger scheduled|manual'
+  for command in curl date head hostname install jq logger mktemp realpath stat tail timeout wc; do require_command "$command"; done
+  load_environment "$HELPER_ENV" "$ALLOWED_ENV_KEYS" 'compose helper environment'
+  DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-compose-deploy}"
+  require_safe_absolute_path "$DEPLOY_ROOT" 'deployment root'
+  test -d "$DEPLOY_ROOT" && test ! -L "$DEPLOY_ROOT" && test "$(stat -c '%u' "$DEPLOY_ROOT")" = '0' \
+    || fail 'the deployment root must be a root-owned real directory'
+  load_schedule
+  HOST_NAME="$(hostname -s)"
+  [[ "$HOST_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] || HOST_NAME='unnamed-host'
+  STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  STARTED_MS="$(date -u +%s%3N)"
+  record() {
+    jq -cn --arg host "$HOST_NAME" --arg trigger "$TRIGGER" --arg started "$STARTED" --arg outcome "$1" \
+      --arg failureClass "$2" --argjson exitCode "$3" --argjson durationMs "$(( $(date -u +%s%3N) - STARTED_MS ))" \
+      --arg alert "$4" --arg heartbeat "$5" --argjson result "$6" \
+      '{contract:"longtail-forge-scheduled-backup-run-v1",host:$host,trigger:$trigger,startedAt:$started,outcome:$outcome,
+        failureClass:(if $failureClass == "" then null else $failureClass end),exitCode:$exitCode,durationMs:$durationMs,
+        alertOutcome:$alert,heartbeatOutcome:$heartbeat,result:$result}'
+  }
+  if test "$ENABLED" = 'false'; then
+    append_record "$(record 'skipped-disabled' '' 0 'not-required' 'not-required' 'null')"
+    exit 0
+  fi
+
+  RUN_ROOT="$(mktemp -d /run/longtail-forge-scheduled-backup.XXXXXX)"
+  trap 'rm -rf -- "$RUN_ROOT"' EXIT
+  set +e
+  timeout --kill-after=30 "$BACKUP_LIMIT" bash "$SELF" backup > "$RUN_ROOT/backup.out" 2> "$RUN_ROOT/backup.err"
+  STATUS=$?
+  set -e
+  # The backup's diagnostics reach the journal, bounded. Its Compose configuration output never does:
+  # the backup discards that, because a parser error can quote a secret.
+  tail -n 40 "$RUN_ROOT/backup.err" >&2 || true
+  RESULT="$(tail -n 1 "$RUN_ROOT/backup.out" | jq -ce 'select(.ok == true and .mode == "scheduled-backup")' 2>/dev/null || true)"
+
+  if test "$STATUS" -eq 0 && test -n "$RESULT"; then
+    HEARTBEAT="$(send_heartbeat)"
+    CLASS=''
+    if test "$(jq -r '.retention.status' <<<"$RESULT")" != 'pruned'; then CLASS='retention-failed'; fi
+    if test "$(jq -r '.copy.status' <<<"$RESULT")" = 'failed'; then CLASS="${CLASS:+$CLASS,}copy-failed"; fi
+    ALERT='not-required'
+    if test -n "$CLASS"; then
+      ALERT="$(send_alert "host=$HOST_NAME trigger=$TRIGGER failureClass=$CLASS exitCode=0 archive=$(jq -r '.archive' <<<"$RESULT")")"
+    fi
+    append_record "$(record 'succeeded' "$CLASS" 0 "$ALERT" "$HEARTBEAT" "$RESULT")"
+    exit 0
+  fi
+
+  test "$STATUS" -ne 0 || STATUS=70
+  CLASS='backup-failed'
+  if test "$STATUS" -eq 75; then
+    CLASS='lifecycle-lock-contended'
+  elif test "$STATUS" -eq 124 || test "$STATUS" -eq 137; then
+    CLASS='backup-timed-out'
+  elif grep -Fq 'refuses the public demo' "$RUN_ROOT/backup.err"; then
+    CLASS='refused-public-demo'
+  elif grep -Fq 'the unchanged release was restarted and verified' "$RUN_ROOT/backup.err"; then
+    CLASS='backup-failed-recovered'
+  elif grep -Fq 'maintenance curtain and protected evidence remain' "$RUN_ROOT/backup.err"; then
+    CLASS='backup-failed-unrecovered'
+  fi
+  ALERT="$(send_alert "host=$HOST_NAME trigger=$TRIGGER failureClass=$CLASS exitCode=$STATUS")"
+  append_record "$(record 'failed' "$CLASS" "$STATUS" "$ALERT" 'not-required' 'null')"
+  exit "$STATUS"
+fi
+
+test "$MODE" = 'backup' && test "$#" -eq 0 || fail 'command must be: run --trigger scheduled|manual'
+
+# ---------------------------------------------------------------------------------------------
+# backup: the lifecycle operation itself.
+# ---------------------------------------------------------------------------------------------
+
+load_environment "$HELPER_ENV" "$ALLOWED_ENV_KEYS" 'compose helper environment'
+load_schedule
+COMPOSE_DIR="${LTF_COMPOSE_DIR:-/opt/longtail-forge-compose}"
+COMPOSE_FILE="${LTF_COMPOSE_FILE:-$COMPOSE_DIR/compose.yaml}"
+COMPOSE_HOST_ENV="${LTF_COMPOSE_HOST_ENV:-/etc/longtail-forge/compose-host.env}"
+DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-compose-deploy}"
+STATE_ROOT="$DEPLOY_ROOT/state"
+RELEASE_ROOT="$DEPLOY_ROOT/releases"
+OPERATION_LOCK="$DEPLOY_ROOT/compose-operation.lock"
+BACKUP_ROOT="${LTF_BACKUP_ROOT:-/var/backups/longtail-forge/compose}"
+BACKUP_CONTAINER_ROOT="/var/backups/longtail-forge"
+MAINTENANCE_STATE_ROOT="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}"
+DEPLOYMENT_MARKER="$MAINTENANCE_STATE_ROOT/deployment/maintenance.on"
+PUBLIC_URL="${LTF_PUBLIC_URL:-}"
+SECURE_KEY_BACKUP="${LTF_SECURE_KEY_BACKUP:-}"
+CURRENT_STATE="$STATE_ROOT/current.json"
+
+for pair in "$COMPOSE_DIR:compose directory" "$COMPOSE_FILE:compose file" "$COMPOSE_HOST_ENV:compose host environment" \
+  "$DEPLOY_ROOT:deployment root" "$BACKUP_ROOT:backup root" "$MAINTENANCE_STATE_ROOT:maintenance state root"; do
+  require_safe_absolute_path "${pair%%:*}" "${pair#*:}"
+done
+[[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || fail "LTF_PUBLIC_URL must be a clean HTTPS origin"
+test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must remain the dedicated protected Compose backup directory"
+if test -n "$SECURE_KEY_BACKUP"; then require_safe_absolute_path "$SECURE_KEY_BACKUP" "Secure Notes recovery-key backup"; fi
+for command in curl docker find flock install jq rm sort stat timeout; do require_command "$command"; done
+docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required"
+test -d "$COMPOSE_DIR" && test ! -L "$COMPOSE_DIR" || fail "compose directory must be a real directory"
+test -f "$COMPOSE_FILE" && test ! -L "$COMPOSE_FILE" || fail "compose file must be a real file"
+require_root_owned_private_file "$COMPOSE_HOST_ENV" "compose host environment"
+test -d "$DEPLOY_ROOT" && test ! -L "$DEPLOY_ROOT" || fail "deployment root must be a real directory"
+test "$(stat -c '%u:%g:%a' "$BACKUP_ROOT")" = "10001:10001:700" || fail "backup root must be owner-only for container UID/GID 10001"
+test -d "$(dirname "$DEPLOYMENT_MARKER")" && test ! -L "$(dirname "$DEPLOYMENT_MARKER")" || fail "deployment marker directory is not installed"
+if test ! -e "$OPERATION_LOCK"; then install -o root -g root -m 0600 /dev/null "$OPERATION_LOCK"; fi
+require_root_owned_private_file "$OPERATION_LOCK" "Compose operation lock"
+exec 9<>"$OPERATION_LOCK"
+if ! flock -n 9; then
+  printf 'longtail-forge-scheduled-backup: another Compose deploy, rollback, backup, or public-demo reset operation holds the host lock\n' >&2
+  exit 75
+fi
+
+test -f "$CURRENT_STATE" && test ! -L "$CURRENT_STATE" || fail "a scheduled backup requires the recorded current release"
+state_value() { jq -er "$1" "$CURRENT_STATE"; }
+RELEASE_ENV="$(state_value '.deployment.releaseEnv')" || fail "the recorded release environment is missing"
+DIGEST="$(state_value '.image.digest')" || fail "the recorded release digest is missing"
+COMMIT="$(state_value '.commitSha')" || fail "the recorded release commit is missing"
+[[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] && [[ "$COMMIT" =~ ^[a-f0-9]{40}$ ]] || fail "the recorded release identity is invalid"
+case "$RELEASE_ENV" in "$RELEASE_ROOT"/*.env) ;; *) fail "the recorded release environment escaped the protected release root" ;; esac
+require_root_owned_private_file "$RELEASE_ENV" "recorded release environment"
+RELEASE_METADATA="$RELEASE_ROOT/${DIGEST#sha256:}.json"
+require_root_owned_private_file "$RELEASE_METADATA" "recorded release metadata"
+
+compose() {
+  docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
+    --env-file "$COMPOSE_HOST_ENV" --env-file "$RELEASE_ENV" "$@"
+}
+
+# The public demo resets hourly, so it has nothing a nightly backup could recover, and a nightly copy
+# would keep its visitors' content. Only an explicit `false` classification is backed up.
+compose config --quiet >/dev/null 2>&1 \
+  || fail 'the resolved Compose configuration did not parse; its output is not kept because it can carry secrets'
+DEMO_MODE_VALUE="$(compose config --format json 2>/dev/null | jq -r '.services["longtail-forge"].environment.DEMO_MODE // "missing"')" \
+  || fail "the resolved Compose environment could not be read for the DEMO_MODE classification"
+case "$DEMO_MODE_VALUE" in
+  false) ;;
+  true) fail "the scheduled backup refuses the public demo: it resets hourly, and a nightly copy would keep visitor-entered content" ;;
+  *) fail "the resolved Compose DEMO_MODE must be exactly false for a scheduled backup" ;;
+esac
+compose config --format json 2>/dev/null | jq -e --arg backup "$BACKUP_ROOT" '
+  .services["longtail-forge"].volumes
+  | any(.type == "bind" and .source == $backup and .target == "/var/backups/longtail-forge")
+' >/dev/null || fail "resolved Compose backup mount must bind the protected host backup root to the fixed container target"
+# Another operation's curtain is that operation's to lift.
+test ! -e "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" \
+  || fail "the maintenance curtain is already up; a scheduled backup never takes over another operation's curtain"
+
+OPERATION_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+ARCHIVE_NAME="scheduled-$OPERATION_STAMP-${COMMIT:0:12}.ltfbackup.tgz"
+ARCHIVE="$BACKUP_ROOT/$ARCHIVE_NAME"
+test ! -e "$ARCHIVE" && test ! -L "$ARCHIVE" || fail "a scheduled backup of that name already exists"
+
+assert_marker() {
+  install -o root -g root -m 0644 /dev/null "$DEPLOYMENT_MARKER"
+}
+
+clear_marker() {
+  test -f "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" || fail "deployment marker is not a safe regular file"
+  rm -f -- "$DEPLOYMENT_MARKER"
+}
+
+wait_for_health() {
+  local container deadline status
+  container="$(compose ps -q longtail-forge)"
+  test -n "$container" || return 1
+  deadline=$((SECONDS + 90))
+  while test "$SECONDS" -lt "$deadline"; do
+    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container")" || return 1
+    test "$status" != "unhealthy" || return 1
+    test "$status" = "healthy" && return 0
+    sleep 2
+  done
+  return 1
+}
+
+# The same identity the deploy helper verifies: health, readiness, and the recorded release, directly
+# and through the public edge.
+verify_runtime() {
+  local version artifact
+  version="$(jq -er '.version' "$RELEASE_METADATA")" && artifact="$(jq -er '.artifact.sha256' "$RELEASE_METADATA")" || return 1
+  wait_for_health || return 1
+  for origin in http://127.0.0.1:8001 "$PUBLIC_URL"; do
+    curl --fail --silent --show-error --max-time 10 "$origin/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
+    curl --fail --silent --show-error --max-time 10 "$origin/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
+    curl --fail --silent --show-error --max-time 10 "$origin/api/app-info" | jq -e \
+      --arg version "$version" --arg commit "$COMMIT" --arg artifact "$artifact" \
+      '.canonicalVersion == $version and .sourceBranch == "main" and .commitSha == $commit and .artifactSha256 == $artifact' >/dev/null || return 1
+  done
+}
+
+# Any failure or signal while the curtain is up exits through here. No data has changed, so the
+# unchanged release is started again, and the curtain lifts only once it verifies; otherwise the
+# curtain and the protected evidence remain for the operator.
+recover() {
+  local status="$1" file
+  trap - EXIT HUP INT TERM
+  test "$status" -ne 0 || exit 0
+  # An archive that never passed inspection is not a backup. It is removed, with its sidecar, so that
+  # retention never counts it among the kept ones and the copy hook never sees it.
+  if test "$INSPECTED" = false; then
+    for file in "$ARCHIVE" "$ARCHIVE.sha256"; do
+      if test -f "$file" && test ! -L "$file"; then rm -f -- "$file"; fi
+    done
+  fi
+  if ( compose up -d --no-deps --force-recreate --pull never longtail-forge && verify_runtime && clear_marker ); then
+    printf 'longtail-forge-scheduled-backup: the backup failed, and the unchanged release was restarted and verified\n' >&2
+  else
+    printf 'longtail-forge-scheduled-backup: the backup failed, and the release could not be restarted and verified; maintenance curtain and protected evidence remain\n' >&2
+  fi
+  exit "$status"
+}
+
+INSPECTED=false
+KEY_ARGS=()
+if test -n "$SECURE_KEY_BACKUP"; then
+  test -f "$SECURE_KEY_BACKUP" && test ! -L "$SECURE_KEY_BACKUP" || fail "Secure Notes recovery-key backup is missing"
+  KEY_ARGS=(--volume "$SECURE_KEY_BACKUP:/run/secrets/secure-notes-key.backup:ro")
+fi
+
+assert_marker
+trap 'recover "$?"' EXIT
+trap 'exit 130' HUP INT TERM
+compose stop longtail-forge
+compose run --rm --no-deps "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs create \
+  --confirm-stopped \
+  --database /var/lib/longtail-forge/longtail-forge.db \
+  --files-root /var/lib/longtail-forge/files \
+  --output "$BACKUP_CONTAINER_ROOT/$ARCHIVE_NAME" \
+  ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} >/dev/null
+compose run --rm --no-deps "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs inspect \
+  --archive "$BACKUP_CONTAINER_ROOT/$ARCHIVE_NAME" \
+  ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} >/dev/null
+test -f "$ARCHIVE" && test ! -L "$ARCHIVE" && test -f "$ARCHIVE.sha256" && test ! -L "$ARCHIVE.sha256" \
+  || fail "the inspected backup did not reach the protected host destination"
+INSPECTED=true
+compose up -d --no-deps --force-recreate --pull never longtail-forge
+verify_runtime || fail "the restarted release did not verify"
+clear_marker
+trap - EXIT HUP INT TERM
+
+# Retention: the newest RETAINED_SCHEDULED scheduled backups stay, by the UTC time in each name, and
+# the one just inspected always does. Only exact scheduled names are considered, each a plain file with
+# one name owned by the backup root's owner; any other name under that prefix, or a failed check,
+# removes nothing. Deployment and reset backups are never touched.
+retain_scheduled() {
+  local listing name owner root_owner index
+  local -a names=() archives=() remove=()
+  root_owner="$(stat -c '%u' "$BACKUP_ROOT")" || return 1
+  listing="$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -name 'scheduled-*' -printf '%f\n' | LC_ALL=C sort -r)" || return 1
+  if test -n "$listing"; then mapfile -t names <<<"$listing" || return 1; fi
+  for name in "${names[@]}"; do
+    [[ "$name" =~ $SCHEDULED_NAME ]] || return 1
+    test -f "$BACKUP_ROOT/$name" && test ! -L "$BACKUP_ROOT/$name" || return 1
+    owner="$(stat -c '%u:%h' "$BACKUP_ROOT/$name")" || return 1
+    test "$owner" = "$root_owner:1" || return 1
+    if [[ "$name" != *.sha256 ]]; then archives+=("$name"); fi
+  done
+  for index in "${!archives[@]}"; do
+    test "$index" -ge "$RETAINED_SCHEDULED" || continue
+    test "${archives[$index]}" != "$ARCHIVE_NAME" || return 1
+    remove+=("$BACKUP_ROOT/${archives[$index]}")
+  done
+  # Each archive goes before its sidecar.
+  for name in "${remove[@]}"; do rm -f -- "$name" || return 1; done
+  for name in "${remove[@]}"; do rm -f -- "$name.sha256" || return 1; done
+  printf '%s' "${#remove[@]}"
+}
+
+set +e
+REMOVED="$(retain_scheduled)"
+RETENTION_STATUS=$?
+set -e
+if test "$RETENTION_STATUS" -eq 0; then
+  RETENTION='{"status":"pruned","removed":'"$REMOVED"'}'
+else
+  printf 'longtail-forge-scheduled-backup: retention refused; nothing was removed\n' >&2
+  RETENTION='{"status":"failed"}'
+fi
+
+# The copy hook receives exactly the backup this run inspected, and nothing else.
+COPY='{"status":"not-configured"}'
+if test -n "$COPY_HOOK"; then
+  set +e
+  # The hook's own diagnostics are fixed strings, and reach this run's log.
+  HOOK_OUTPUT="$(timeout --kill-after=10 "$COPY_LIMIT" "$COPY_HOOK" --archive "$ARCHIVE" | tail -n 1)"
+  HOOK_STATUS=$?
+  set -e
+  COPY='{"status":"failed"}'
+  if test "$HOOK_STATUS" -eq 0; then
+    COPY="$(jq -ce --arg archive "$ARCHIVE_NAME" 'select(.ok == true and .archive == $archive and (.stored | type == "string"))
+      | {status: "copied", stored, sha256, bytes}' <<<"$HOOK_OUTPUT" 2>/dev/null)" || COPY='{"status":"failed"}'
+  fi
+  if test "$(jq -r '.status' <<<"$COPY")" = 'failed'; then
+    printf 'longtail-forge-scheduled-backup: the off-server copy failed; the local backup is kept\n' >&2
+  fi
+fi
+
+jq -cn --arg archive "$ARCHIVE_NAME" --arg commit "$COMMIT" --argjson retention "$RETENTION" --argjson copy "$COPY" \
+  '{ok: true, mode: "scheduled-backup", archive: $archive, commitSha: $commit, retention: $retention, copy: $copy}'

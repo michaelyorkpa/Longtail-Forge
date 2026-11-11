@@ -91,6 +91,7 @@ const INSTALLED_BOOT_FILES = Object.freeze({
   dropIn: "/etc/systemd/system/longtail-forge-public-demo-boot.service.d/qualification.conf",
 });
 const REPAIRED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-compose-deploy-host.example");
+const SCHEDULED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-scheduled-backup-host.example");
 const ORIGINAL_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/v0.33.33-longtail-forge-compose-deploy-host.example");
 const ADMIN_USERNAME = "qualification-admin@example.test";
 
@@ -431,6 +432,39 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
     assert.ok(fs.existsSync(backup) && fs.existsSync(`${backup}.sha256`), `the preview keeps ${path.basename(backup)}`);
   }
   record("re-upgrade", { seconds: reupgrade.seconds, runtime: runtimeProbe(host), deploymentBackups: deploymentBackupNames() });
+
+  // The scheduled backup, on the real image. A held lifecycle lock refuses it before the curtain.
+  const contended = runScheduledBackup(work, host, { holdLock: true });
+  assert.equal(contended.status, 75, `a held lock must refuse the scheduled backup:\n${contended.stderr}`);
+  assert.equal(contended.record.failureClass, "lifecycle-lock-contended");
+  assert.equal(fs.existsSync(host.marker), false);
+  // Then, with fifteen older scheduled backups in place, it backs up behind the curtain, restarts the
+  // unchanged release, keeps the fourteen newest, and passes only the backup it inspected to the hook.
+  const stamp = (/** @type {number} */ days) => new Date(Date.now() - days * 86_400_000).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const seeded = Array.from({ length: 15 }, (_, index) => `scheduled-${stamp(15 - index)}-${candidate.metadata.commitSha.slice(0, 12)}.ltfbackup.tgz`);
+  for (const name of seeded) {
+    for (const file of [name, `${name}.sha256`]) {
+      fs.writeFileSync(path.join(BACKUP_ROOT, file), `seeded ${file}\n`, { mode: 0o600 });
+      fs.chownSync(path.join(BACKUP_ROOT, file), 10001, 10001);
+    }
+  }
+  const scheduled = runScheduledBackup(work, host);
+  assert.equal(scheduled.status, 0, `scheduled backup failed:\n${scheduled.stderr}`);
+  assert.equal(scheduled.record.outcome, "succeeded");
+  const archive = String(scheduled.record.result?.archive);
+  const inspectedScheduled = inspectBackup(candidate, path.join(BACKUP_ROOT, archive));
+  assert.equal(inspectedScheduled.status, "verified", "the scheduled backup must be a verified whole-instance backup");
+  assert.equal(inspectedScheduled.manifest?.appVersion, candidate.metadata.version);
+  assert.deepEqual(scheduled.hookCalls, [{ count: 2, args: ["--archive", path.join(BACKUP_ROOT, archive)], markerPresent: false, sidecarVerified: true }],
+    "the copy hook receives exactly the inspected backup, once, after the curtain lifts");
+  assert.deepEqual(scheduled.record.result?.retention, { status: "pruned", removed: 2 });
+  const kept = scheduledBackupNames();
+  assert.equal(kept.length, 14);
+  assert.ok(!kept.includes(String(seeded[0])) && !kept.includes(String(seeded[1])) && kept.includes(archive), "the two oldest go, and this run's stays");
+  assert.equal(fs.existsSync(host.marker), false, "the curtain lifts once the release verifies");
+  await api.expectIdentity(candidate);
+  await api.expectList(await api.login(), baseline.listId, 200);
+  record("scheduled-backup", { seconds: scheduled.seconds, archive, retention: scheduled.record.result?.retention, copy: scheduled.record.result?.copy, contendedSeconds: contended.seconds });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -487,6 +521,17 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
   assert.ok((bound?.removed ?? 0) >= 2, "the baseline deployment's backup and its sidecar must go");
   assert.deepEqual(deploymentBackupNames(), [kept, `${kept}.sha256`], "the demo keeps only the deployment backup its rollback names");
   record("demo-upgrade", { seconds: upgrade.seconds, helper: lastJsonLine(upgrade.stdout), runtime: upgraded });
+
+  // The scheduled backup refuses the public demo before the curtain, and takes no backup.
+  const refusedBackup = runScheduledBackup(work, host);
+  assert.equal(refusedBackup.status, 1, "the scheduled backup must refuse the public demo");
+  assert.match(refusedBackup.stderr, /the scheduled backup refuses the public demo/);
+  assert.equal(refusedBackup.record.failureClass, "refused-public-demo");
+  assert.deepEqual(scheduledBackupNames(), []);
+  assert.deepEqual(refusedBackup.hookCalls, []);
+  assert.equal(fs.existsSync(host.marker), false);
+  await api.expectIdentity(candidate);
+  record("demo-scheduled-backup-refused", { refusal: lastLine(refusedBackup.stderr) });
 
   // A guarded manual reset after the upgrade must build its candidate with the newly deployed image.
   const reset = await runReset(host, 1);
@@ -1576,6 +1621,69 @@ function runHelperWithFullBackupRoot(host, mode, release) {
   } finally {
     run("umount", ["--lazy", BACKUP_ROOT]);
   }
+}
+
+/**
+ * Run the scheduled backup's `run` command, the way its timer does, with a copy hook that records the
+ * arguments it was given, whether the curtain was up, and whether the archive matched its sidecar.
+ * The host has no alert files, so a failure reaches only the journal and the run's record.
+ * @param {string} work @param {Host} host @param {{ holdLock?: boolean }} [options]
+ */
+function runScheduledBackup(work, host, options = {}) {
+  spawnSync("sleep", ["1.05"]);
+  const state = path.join(work, "scheduled-backup");
+  fs.mkdirSync(state, { recursive: true, mode: 0o755 });
+  const hookLog = path.join(state, "hook.jsonl");
+  const hook = path.join(state, "copy-hook");
+  fs.writeFileSync(hook, [
+    "#!/usr/bin/env bash",
+    "set -euo pipefail",
+    "name=\"$(basename \"$2\")\"",
+    "sidecar=false; if (cd \"$(dirname \"$2\")\" && sha256sum --check --status \"$name.sha256\"); then sidecar=true; fi",
+    `curtain=false; if test -e ${JSON.stringify(host.marker)}; then curtain=true; fi`,
+    `jq -cn --arg count "$#" --arg first "\${1:-}" --arg second "\${2:-}" --argjson curtain "$curtain" --argjson sidecar "$sidecar" '{count: ($count | tonumber), args: [$first, $second], markerPresent: $curtain, sidecarVerified: $sidecar}' >> ${JSON.stringify(hookLog)}`,
+    "printf '{\"ok\":true,\"archive\":\"%s\",\"stored\":\"qualification-copy\",\"sha256\":\"%s\",\"bytes\":0}\\n' \"$name\" \"$(printf '%064d' 0)\"",
+    "",
+  ].join("\n"), { mode: 0o755 });
+  const scheduleEnv = path.join(host.root, "etc", "scheduled-backup.env");
+  writePrivate(scheduleEnv, `LTF_SCHEDULED_BACKUP_ENABLED=true\nLTF_SCHEDULED_BACKUP_COPY_HOOK=${hook}\n`);
+  const before = fs.existsSync(hookLog) ? fs.readFileSync(hookLog, "utf8").split("\n").filter(Boolean).length : 0;
+  const lock = path.join(host.deployRoot, "compose-operation.lock");
+  const holder = options.holdLock ? spawn("flock", ["-o", lock, "sleep", "60"], { stdio: "ignore" }) : null;
+  try {
+    if (holder) {
+      const deadline = Date.now() + 10_000;
+      while (spawnSync("flock", ["-n", lock, "true"]).status === 0) {
+        assert.ok(Date.now() < deadline, "the lock holder never took the lock");
+        spawnSync("sleep", ["0.05"]);
+      }
+    }
+    const started = Date.now();
+    const result = spawnSync("bash", [SCHEDULED_HELPER, "run", "--trigger", "manual"], {
+      encoding: "utf8",
+      env: { PATH: "/usr/sbin:/usr/bin:/sbin:/bin", HOME: "/root", LANG: "C.UTF-8", LTF_COMPOSE_HELPER_ENV: host.helperEnv, LTF_SCHEDULED_BACKUP_ENV: scheduleEnv },
+      timeout: 900_000,
+    });
+    const records = fs.readFileSync(path.join(host.deployRoot, "scheduled-backups.jsonl"), "utf8").split("\n").filter(Boolean);
+    const hookCalls = fs.existsSync(hookLog) ? fs.readFileSync(hookLog, "utf8").split("\n").filter(Boolean).slice(before) : [];
+    const outcome = {
+      status: result.status ?? 1,
+      stdout: String(result.stdout || ""),
+      stderr: String(result.stderr || ""),
+      seconds: Math.round((Date.now() - started) / 100) / 10,
+      record: /** @type {{ outcome?: string, failureClass?: string | null, result?: { archive?: string, retention?: { status?: string, removed?: number }, copy?: { status?: string } } }} */ (JSON.parse(records.at(-1) || "{}")),
+      hookCalls: hookCalls.map((line) => /** @type {{ count: number, args: string[], markerPresent: boolean, sidecarVerified: boolean }} */ (JSON.parse(line))),
+    };
+    console.log(`[scheduled backup] exit ${outcome.status} in ${outcome.seconds}s${outcome.status === 0 ? "" : `: ${lastLine(outcome.stderr)}`}`);
+    return outcome;
+  } finally {
+    holder?.kill("SIGKILL");
+  }
+}
+
+/** The scheduled backups in the backup root, archives only, oldest first. */
+function scheduledBackupNames() {
+  return fs.readdirSync(BACKUP_ROOT).filter((name) => /^scheduled-\d{8}T\d{6}Z-[a-f0-9]{12}\.ltfbackup\.tgz$/.test(name)).sort();
 }
 
 /** @param {string} text */

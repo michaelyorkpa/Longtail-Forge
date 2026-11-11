@@ -1,0 +1,17 @@
+[Unit]
+Description=Longtail Forge nightly whole-instance backup
+Documentation=https://github.com/michaelyorkpa/Longtail-Forge/blob/main/docs/preview-deployment.md
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/longtail-forge-scheduled-backup run --trigger scheduled
+TimeoutStartSec=3h
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full

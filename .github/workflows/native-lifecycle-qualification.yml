@@ -20,6 +20,7 @@ on:
       - scripts/release/longtail-forge-public-demo-boot-host.example
       - scripts/release/longtail-forge-public-demo-boot.service.example
       - scripts/release/longtail-forge-public-demo-reset-alert.example
+      - scripts/release/longtail-forge-scheduled-backup-host.example
       - scripts/release/clamav-daemon-socket-freebind.conf.example
       - scripts/release/scanner-cold-start-reproducer.mjs
       - tests/fixtures/compose-helper/**
@@ -120,7 +121,7 @@ jobs:
           gh release download "$PREVIOUS_TAG" --pattern release-metadata.json --dir "$RUNNER_TEMP/previous"
           # The helpers and Compose file that run below are the tag's sources; prove they are the
           # exact bytes the release publishes for operators to install.
-          for asset in longtail-forge-compose-deploy-host.example longtail-forge-public-demo-isolation-host.example longtail-forge-public-demo-reset-host.example longtail-forge-public-demo-boot-host.example longtail-forge-public-demo-boot.service.example longtail-forge-public-demo-reset-alert.example; do
+          for asset in longtail-forge-compose-deploy-host.example longtail-forge-public-demo-isolation-host.example longtail-forge-public-demo-reset-host.example longtail-forge-public-demo-boot-host.example longtail-forge-public-demo-boot.service.example longtail-forge-public-demo-reset-alert.example longtail-forge-scheduled-backup-host.example; do
             gh release download "$CANDIDATE_TAG" --pattern "$asset" --dir "$RUNNER_TEMP/candidate"
             cmp "$RUNNER_TEMP/candidate/$asset" "scripts/release/$asset"
           done

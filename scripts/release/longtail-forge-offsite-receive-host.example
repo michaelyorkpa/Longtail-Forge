@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+# Receives one encrypted Longtail Forge backup over SSH, and keeps each copy 14 days from receipt.
+#
+# Install it as root:root 0755 on the destination, at /usr/local/sbin/longtail-forge-offsite-receive,
+# and make it the only command the sending installation's key may run, from that account's
+# authorized_keys, with every forwarding disabled:
+#
+#   restrict,command="/usr/local/sbin/longtail-forge-offsite-receive /srv/longtail-forge-offsite/rt-ltf" ssh-ed25519 AAAA... rt-ltf scheduled backup
+#
+# The store directory must belong to that account, with mode 0700. The sender asks for
+# `receive <sha256> <bytes>` and streams the copy on standard input. The copy must be exactly that
+# size, have that SHA-256, and be an age file; it is stored under a name this receiver chooses, from
+# the receipt time, and nothing is ever overwritten. The key can add copies, and nothing else: it can
+# never read, list, replace, or delete one. Copies older than 14 days are removed here, and only when
+# a later copy is stored, so the copies outlive a sender that stops. Above its caps the receiver
+# refuses the new copy rather than evicting an old one, so a stolen key cannot push the good copies
+# out, or fill the destination's disk. A refusal fails the sender's job, which alerts its operator.
+#
+# It prints one JSON line. Its reasons are fixed strings: nothing the sender supplies is echoed.
+
+readonly RETENTION_SECONDS=$((14 * 24 * 60 * 60))
+readonly DAY_SECONDS=$((24 * 60 * 60))
+readonly MAX_COPY_BYTES=$((2 * 1024 * 1024 * 1024))
+readonly MAX_STORE_BYTES=$((10 * 1024 * 1024 * 1024))
+readonly MIN_FREE_BYTES=$((10 * 1024 * 1024 * 1024))
+readonly MAX_COPIES=20
+readonly MAX_COPIES_PER_DAY=3
+readonly AGE_HEADER='age-encryption.org/v1'
+readonly COPY_PATTERN='^([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z-[a-f0-9]{16}\.ltfbackup\.tar\.age$'
+readonly INCOMING_PATTERN='^\.incoming-[0-9]+$'
+readonly REQUEST_PATTERN='^receive ([a-f0-9]{64}) ([1-9][0-9]{0,11})$'
+
+refuse() {
+  printf '{"ok":false,"reason":"%s"}\n' "$1"
+  exit 1
+}
+
+for command in cut date df find flock head id ln rm sha256sum stat sync tail tr; do
+  command -v "$command" >/dev/null 2>&1 || refuse "a required command is unavailable"
+done
+
+test "$#" -eq 1 || refuse "the forced command must name exactly one store directory"
+STORE="$1"
+[[ "$STORE" =~ ^/[A-Za-z0-9._/-]+$ && "$STORE" != *'/../'* && "$STORE" != */.. && "$STORE" != *'//'* ]] \
+  || refuse "the store directory must be a safe absolute path"
+test -d "$STORE" && test ! -L "$STORE" || refuse "the store directory must be a real directory"
+test "$(stat -c '%u:%a' "$STORE")" = "$(id -u):700" || refuse "the store directory must belong to this account with mode 0700"
+
+[[ "${SSH_ORIGINAL_COMMAND:-}" =~ $REQUEST_PATTERN ]] || refuse "the request must be: receive <sha256> <bytes>"
+DECLARED_SHA="${BASH_REMATCH[1]}"
+DECLARED_BYTES="${BASH_REMATCH[2]}"
+test "$DECLARED_BYTES" -le "$MAX_COPY_BYTES" || refuse "the copy is larger than one copy may be"
+
+# One receipt at a time. A partial copy found while holding the lock belongs to a receipt that was
+# interrupted, so it is removed.
+exec 9>>"$STORE/.lock"
+flock -w 120 9 || refuse "another receipt holds the store"
+
+NOW="$(date -u +%s)"
+copies=()
+kept=0
+recent=0
+stored_bytes=0
+while IFS= read -r -d '' path; do
+  name="${path##*/}"
+  if [[ "$name" =~ $INCOMING_PATTERN ]]; then
+    test -f "$path" && test ! -L "$path" && test "$(stat -c '%u' "$path")" = "$(id -u)" \
+      || refuse "the store holds an unexpected partial copy"
+    rm -f -- "$path"
+    continue
+  fi
+  [[ "$name" =~ $COPY_PATTERN ]] || continue
+  test -f "$path" && test ! -L "$path" || refuse "the store holds a copy that is not a plain file"
+  received="$(date -u -d "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}:${BASH_REMATCH[3]}:${BASH_REMATCH[4]}" +%s)" \
+    || refuse "the store holds a copy whose name is not a time"
+  copies+=("$received:$name")
+  if test "$((NOW - received))" -lt "$RETENTION_SECONDS"; then
+    kept=$((kept + 1))
+    stored_bytes=$((stored_bytes + $(stat -c '%s' "$path")))
+  fi
+  if test "$((NOW - received))" -lt "$DAY_SECONDS"; then recent=$((recent + 1)); fi
+done < <(find "$STORE" -mindepth 1 -maxdepth 1 -print0)
+
+test "$kept" -lt "$MAX_COPIES" || refuse "the store already holds as many copies as it keeps"
+test "$recent" -lt "$MAX_COPIES_PER_DAY" || refuse "as many copies as a day allows have already arrived"
+test "$((stored_bytes + DECLARED_BYTES))" -le "$MAX_STORE_BYTES" || refuse "the copy would take the store past its size cap"
+FREE="$(df --output=avail -B1 "$STORE" | tail -n 1 | tr -d ' ')"
+[[ "$FREE" =~ ^[0-9]+$ ]] || refuse "the free space could not be read"
+test "$((FREE - DECLARED_BYTES))" -ge "$MIN_FREE_BYTES" || refuse "the copy would leave the disk too little free space"
+
+INCOMING="$STORE/.incoming-$$"
+cleanup() { rm -f -- "$INCOMING"; }
+trap cleanup EXIT
+# One byte more than declared is read, so a longer stream is detected rather than truncated.
+head -c "$((DECLARED_BYTES + 1))" > "$INCOMING"
+test "$(stat -c '%s' "$INCOMING")" = "$DECLARED_BYTES" || refuse "the copy is not the declared size"
+test "$(sha256sum "$INCOMING" | cut -d ' ' -f 1)" = "$DECLARED_SHA" || refuse "the copy does not have the declared SHA-256"
+test "$(head -n 1 "$INCOMING")" = "$AGE_HEADER" || refuse "the copy is not an age file"
+
+STORED="$(date -u -d "@$NOW" +%Y%m%dT%H%M%SZ)-${DECLARED_SHA:0:16}.ltfbackup.tar.age"
+# A link fails if the name exists, so an existing copy is never replaced.
+ln -- "$INCOMING" "$STORE/$STORED" 2>/dev/null || refuse "a copy of that name already exists"
+rm -f -- "$INCOMING"
+sync -- "$STORE/$STORED" "$STORE"
+
+# Only now, with the new copy stored, are expired copies removed: plain files with one name, owned by
+# this account. The new copy is never one of them.
+expired=0
+for entry in "${copies[@]}"; do
+  received="${entry%%:*}"
+  name="${entry#*:}"
+  test "$((NOW - received))" -ge "$RETENTION_SECONDS" || continue
+  path="$STORE/$name"
+  test "$name" != "$STORED" && test -f "$path" && test ! -L "$path" \
+    && test "$(stat -c '%u:%h' "$path")" = "$(id -u):1" || continue
+  rm -f -- "$path"
+  expired=$((expired + 1))
+done
+if test "$expired" -gt 0; then sync -- "$STORE"; fi
+
+printf '{"ok":true,"stored":"%s","sha256":"%s","bytes":%s,"kept":%s,"expired":%s}\n' \
+  "$STORED" "$DECLARED_SHA" "$DECLARED_BYTES" "$((kept + 1))" "$expired"
