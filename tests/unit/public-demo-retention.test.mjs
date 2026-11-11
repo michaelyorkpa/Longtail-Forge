@@ -337,6 +337,157 @@ describe("pruning retired public-demo units", () => {
   });
 });
 
+describe("pruning stale-candidate copies", () => {
+  const BUILD = ".longtail-public-demo-build-0b9f3c2e-1d4a-4c8e-9a6f-2e7d5b1c8a40";
+
+  /** @param {string} operationId */
+  const copyName = (operationId) => `${PUBLIC_DEMO_FAILED_PREFIX}${operationId}-stale-candidate`;
+  /** @param {string} operationId */
+  const copyExists = (operationId) => fs.access(path.join(dataRoot, copyName(operationId))).then(() => true, () => false);
+
+  /**
+   * A copy as a quarantine leaves it: what it moved, and its record. It replaces the placeholder
+   * the shared fixture holds for the oldest reset.
+   * @param {string} operationId @param {{ builds?: string[], candidate?: boolean, record?: Record<string, unknown> }} [options]
+   */
+  async function quarantinedCopy(operationId, { builds = [], candidate = true, record = {} } = {}) {
+    const root = path.join(dataRoot, copyName(operationId));
+    await fs.rm(root, { recursive: true, force: true });
+    await fs.mkdir(root, { mode: 0o700 });
+    if (candidate) await createUnit(path.join(root, "candidate"), `stale ${operationId}`, { sidecars: true });
+    for (const build of builds) await createUnit(path.join(root, build), `partial ${operationId}`);
+    await fs.writeFile(path.join(root, "stale-candidate.json"), `${JSON.stringify({
+      contract: "longtail-forge-public-demo-stale-candidate-v1",
+      generatedAt: "2026-11-04T22:10:21.165Z",
+      moved: [...(candidate ? ["candidate"] : []), ...builds],
+      operationId,
+      target: "rt-ltf-demo",
+      ...record,
+    }, null, 2)}\n`, { mode: 0o600 });
+    return root;
+  }
+
+  it("removes a copy older than both retained resets, though its own reset's unit is gone", async () => {
+    // The demo's copy: its reset completed on 2026-11-04, and retention removed that reset's unit.
+    await quarantinedCopy(OLDER[1]);
+    await fs.rm(path.join(dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${OLDER[1]}`), { recursive: true });
+    const before = await tree();
+    const plan = await prune("plan");
+    expect(plan.staleCandidates).toEqual({ incidents: 0, retained: 0, selected: 1, selectedOperations: [OLDER[1]], skipped: 0 });
+    expect(await tree()).toEqual(before);
+    expect(await prune("apply")).toMatchObject({ removed: 2, selected: 1, staleCandidates: { selected: 1 }, status: "pruned" });
+    expect(await copyExists(OLDER[1])).toBe(false);
+    expect((await fs.readdir(dataRoot)).filter((entry) => entry.startsWith(PUBLIC_DEMO_PRUNING_PREFIX))).toEqual([]);
+  });
+
+  it("keeps a copy inside the retained window, and removes one outside it with its unit", async () => {
+    await quarantinedCopy(OLDER[1]);
+    await quarantinedCopy(NEWEST_TWO[1]);
+    await quarantinedCopy(NEWEST_TWO[0], { builds: [BUILD] });
+    const result = await prune("apply");
+    expect(result).toMatchObject({ removed: 3, selected: 2, staleCandidates: { retained: 2, selected: 1 } });
+    expect(result.staleCandidates).not.toHaveProperty("selectedOperations");
+    expect(await copyExists(OLDER[1])).toBe(false);
+    for (const operationId of NEWEST_TWO) expect(await copyExists(operationId)).toBe(true);
+  });
+
+  it("removes a copy that holds partial builds as well as the candidate", async () => {
+    await quarantinedCopy(OLDER[1], { builds: [BUILD] });
+    expect(await prune("apply")).toMatchObject({ removed: 3, staleCandidates: { selected: 1 } });
+    expect(await copyExists(OLDER[1])).toBe(false);
+  });
+
+  it("keeps the copy of a reset the host records as an incident", async () => {
+    await quarantinedCopy(OLDER[1]);
+    const result = await prune("apply", undefined, OLDER[1]);
+    expect(result.staleCandidates).toMatchObject({ incidents: 1, selected: 0 });
+    expect(await copyExists(OLDER[1])).toBe(true);
+  });
+
+  it("selects none while fewer than two completed resets are retained", async () => {
+    await quarantinedCopy("20261001T000000Z-scheduled-1");
+    for (const operationId of [...OLDER, NEWEST_TWO[1]]) {
+      await fs.rm(path.join(dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`), { recursive: true });
+    }
+    // The shared fixture's placeholder copy has no record, so it is skipped either way.
+    expect((await prune("plan")).staleCandidates).toEqual({ incidents: 0, retained: 1, selected: 0, selectedOperations: [], skipped: 1 });
+  });
+
+  it.each([
+    ["an empty record", { contract: undefined, moved: undefined, operationId: undefined, target: undefined }],
+    ["another operation's record", { operationId: "20261104T230001Z-scheduled-3710052" }],
+    ["another target's record", { target: "rt-ltf" }],
+    ["another contract", { contract: "longtail-forge-public-demo-reset-v1" }],
+    ["a record that moved nothing", { moved: [] }],
+    ["a record that names an entry twice", { moved: ["candidate", "candidate"] }],
+    ["a record without its time", { generatedAt: "yesterday" }],
+  ])("leaves a copy with %s alone", async (_label, record) => {
+    await quarantinedCopy(OLDER[1], { record });
+    const result = await prune("apply");
+    expect(result.staleCandidates).toMatchObject({ selected: 0, skipped: 1 });
+    expect(await copyExists(OLDER[1])).toBe(true);
+  });
+
+  it("removes nothing when a selected copy contains a link", async () => {
+    const root = await quarantinedCopy(OLDER[1]);
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-public-demo-retention-outside-"));
+    try {
+      await directoryLink(outside, path.join(root, "candidate", "files", "linked"));
+      const before = await tree();
+      await expect(prune("apply")).rejects.toThrow(/symbolic link/);
+      expect(await tree()).toEqual(before);
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["an entry its record does not name", async (/** @type {string} */ root) => fs.writeFile(path.join(root, "notes.txt"), "operator note")],
+    ["a build its record names but that is gone", async (/** @type {string} */ root) => fs.rm(path.join(root, BUILD), { recursive: true })],
+    ["an unexpected entry in its candidate", async (/** @type {string} */ root) => fs.writeFile(path.join(root, "candidate", "visitor.txt"), "visitor")],
+  ])("removes nothing when a selected copy has %s", async (_label, change) => {
+    await change(await quarantinedCopy(OLDER[1], { builds: [BUILD] }));
+    const before = await tree();
+    await expect(prune("apply")).rejects.toThrow(/stale-candidate copy selected for pruning has an unexpected shape; nothing was removed/);
+    expect(await tree()).toEqual(before);
+  });
+
+  it("removes nothing when a record names an entry a quarantine never moves", async () => {
+    const root = await quarantinedCopy(OLDER[1], { builds: [BUILD] });
+    await fs.rename(path.join(root, BUILD), path.join(root, "elsewhere"));
+    const record = path.join(root, "stale-candidate.json");
+    await fs.writeFile(record, (await fs.readFile(record, "utf8")).replace(BUILD, "elsewhere"));
+    const before = await tree();
+    await expect(prune("apply")).rejects.toThrow(/unexpected shape; nothing was removed/);
+    expect(await tree()).toEqual(before);
+  });
+
+  it("counts each copy against the cap", async () => {
+    await quarantinedCopy(OLDER[1]);
+    const before = await tree();
+    expect(await prune("apply", "2")).toMatchObject({ removed: 0, status: "prune-cap-exceeded", staleCandidates: { selected: 1 } });
+    expect(await tree()).toEqual(before);
+    expect(await prune("apply", "3")).toMatchObject({ removed: 3, status: "pruned" });
+  });
+
+  it("finishes a copy's tombstone that an interrupted prune left", async () => {
+    const tombstone = path.join(dataRoot, `${PUBLIC_DEMO_PRUNING_PREFIX}${OLDER[1]}-stale-candidate`);
+    await createUnit(path.join(tombstone, "candidate"), "half-deleted");
+    expect(await prune("plan")).toMatchObject({ tombstones: 1 });
+    expect(await prune("apply")).toMatchObject({ removed: 3, tombstones: 1 });
+    expect((await fs.readdir(dataRoot)).includes(path.basename(tombstone))).toBe(false);
+  });
+
+  it("removes nothing when a selected copy's tombstone already exists", async () => {
+    await quarantinedCopy(OLDER[1]);
+    await fs.mkdir(path.join(dataRoot, `${PUBLIC_DEMO_PRUNING_PREFIX}${OLDER[1]}-stale-candidate`));
+    const before = await tree();
+    await expect(prune("plan")).rejects.toThrow(/pruning tombstone already exists/);
+    await expect(prune("apply")).rejects.toThrow(/pruning tombstone already exists/);
+    expect(await tree()).toEqual(before);
+  });
+});
+
 describe("the prune command line", () => {
   const base = ["--target", "rt-ltf-demo", "--data-root", path.resolve("/var/lib/longtail-forge")];
 
