@@ -81,7 +81,7 @@ assert.doesNotMatch(runtimeStage, /(?:\bRUN|&&|;)\s+(?:npm|npx|corepack|yarn|yar
 // The final stage takes Debian's fixes for installed packages that the pinned base predates: each by
 // exact version, as an upgrade only, verified once installed, and never as a whole-system upgrade.
 for (const requirement of [
-  /RUN debian_security_updates="perl-base=[0-9][A-Za-z0-9.+~:-]* libpcre2-8-0=[0-9][A-Za-z0-9.+~:-]* tzdata=[0-9][A-Za-z0-9.+~:-]*"/,
+  /RUN debian_security_updates="perl-base=[0-9][A-Za-z0-9.+~:-]* libpcre2-8-0=[0-9][A-Za-z0-9.+~:-]* tzdata=[0-9][A-Za-z0-9.+~:-]* apt=[0-9][A-Za-z0-9.+~:-]* libapt-pkg6\.0=[0-9][A-Za-z0-9.+~:-]*"/,
   /apt-get install --yes --no-install-recommends --only-upgrade \$\{debian_security_updates\}/,
   /for expected in \$\{debian_security_updates\}; do installed="\$\{expected%%=\*\}=\$\(dpkg-query -W -f='\$\{Version\}' "\$\{expected%%=\*\}"\)"; if \[ "\$installed" != "\$expected" \]; then [^\n]*exit 1; fi; done/,
   /apt-get clean \\\n\s+&& rm -rf \/var\/lib\/apt\/lists\/\*/,
