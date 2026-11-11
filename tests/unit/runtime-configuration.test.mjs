@@ -240,6 +240,15 @@ describe("runtime configuration pure contract", () => {
     assert.deepEqual(pick(readPureConfig(), DEFAULT_EXPECTATIONS), DEFAULT_EXPECTATIONS);
   });
 
+  it("defaults SQLite to synchronous=full and keeps normal and extra available", () => {
+    assert.equal(createConfig({}).sqlite.synchronous, "full", "an acknowledged write must survive a power cut by default");
+    for (const mode of ["normal", "full", "extra"]) {
+      assert.equal(createConfig({ LONGTAIL_SQLITE_SYNCHRONOUS: mode }).sqlite.synchronous, mode);
+    }
+    assert.equal(createConfig({ LONGTAIL_SQLITE_SYNCHRONOUS: "NORMAL" }).sqlite.synchronous, "normal");
+    assert.throws(() => createConfig({ LONGTAIL_SQLITE_SYNCHRONOUS: "off" }), /LONGTAIL_SQLITE_SYNCHRONOUS must be/);
+  });
+
   it("normalizes explicit runtime values and relative paths", () => {
     const custom = readPureConfig(CUSTOM_ENV);
     assert.deepEqual(pick(custom, CUSTOM_EXPECTATIONS), CUSTOM_EXPECTATIONS);
