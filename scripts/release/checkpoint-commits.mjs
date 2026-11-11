@@ -1,4 +1,5 @@
 import { escapeRegExp } from "../test-support/source-scan.mjs";
+import { durabilityDependencyUpdates } from "./durability-dependency-updates.mjs";
 import { nodeSecurityDependencyUpdates } from "./node-security-dependency-updates.mjs";
 import { restartRecoveryDependencyUpdates } from "./restart-recovery-dependency-updates.mjs";
 import { spawnSync } from "node:child_process";
@@ -45,6 +46,20 @@ const RESTART_RECOVERY_PATCH_DECLARATIONS = deepFreeze([
   ["devDependencies", "@types/node", "^26.6.3", "^26.6.5"],
   ["devDependencies", "eslint", "^10.11.0", "^10.13.0"],
   ["devDependencies", "vitest", "^4.1.11", "^4.1.12"],
+]);
+// The durability patch owns its release identity and the reviewed Dependabot fold its roadmap section
+// lists, taken at the operator's instruction of 2026-11-11. The fold lands first, while the application
+// is still the reset-retention release, so it can never move the version.
+const DURABILITY_PATCH_CHECKPOINT = `${CHECKPOINT_SERIES}.55`;
+/** @type {ReviewedLockUpdates} */
+const DURABILITY_PATCH_DEPENDENCY_UPDATES = deepFreeze(durabilityDependencyUpdates);
+/** @type {readonly ReviewedDeclaration[]} */
+const DURABILITY_PATCH_DECLARATIONS = deepFreeze([
+  ["dependencies", "express", "^5.2.1", "^5.3.0"],
+  ["dependencies", "express-rate-limit", "^8.7.0", "^8.7.4"],
+  ["devDependencies", "@types/node", "^26.6.5", "^26.6.6"],
+  ["devDependencies", "eslint", "^10.13.0", "^10.14.0"],
+  ["devDependencies", "vitest", "^4.1.12", "^5.1.0"],
 ]);
 const CHECKPOINT_USAGE = "Usage: node scripts/release/checkpoint-commits.mjs [--base-ref <ref>]";
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/i;
@@ -263,8 +278,9 @@ function validateCheckpointCommit({
   const isNodeSecurityPatch = checkpoint === NODE_SECURITY_PATCH_CHECKPOINT;
   const isRestartRecoveryPatch = checkpoint === RESTART_RECOVERY_PATCH_CHECKPOINT;
   const isResetRetentionPatch = checkpoint === RESET_RETENTION_PATCH_CHECKPOINT;
+  const isDurabilityPatch = checkpoint === DURABILITY_PATCH_CHECKPOINT;
   const isPostReleasePatch = takesDependencyUpdates || checkpoint === imagePackagingPatchCheckpoint || isNodeSecurityPatch
-    || isRestartRecoveryPatch || isResetRetentionPatch;
+    || isRestartRecoveryPatch || isResetRetentionPatch || isDurabilityPatch;
   if (!isCloseout && ceremonyPaths.length > 2) {
     errors.push(`internal checkpoint ${checkpoint} changes ${ceremonyPaths.length} ceremony files; maximum is 2 (${ceremonyPaths.join(", ")})`);
   }
@@ -319,6 +335,7 @@ function validateCheckpointCommit({
       takesDependencyUpdates,
       isNodeSecurityPatch,
       isRestartRecoveryPatch,
+      isDurabilityPatch,
     }, errors);
   }
 
@@ -401,6 +418,7 @@ function validateReleasePreparationPackages({
  *   takesDependencyUpdates: boolean,
  *   isNodeSecurityPatch: boolean,
  *   isRestartRecoveryPatch: boolean,
+ *   isDurabilityPatch: boolean,
  * }} change
  * @param {string[]} errors
  */
@@ -414,14 +432,18 @@ function validatePostReleasePatchPackages({
   takesDependencyUpdates,
   isNodeSecurityPatch,
   isRestartRecoveryPatch,
+  isDurabilityPatch,
 }, errors) {
+  // Each fold is taken at the identity of the release it lands on: the restart-recovery fold on the
+  // Node security release, and the durability fold on the reset-retention release.
   if (
     paths.includes("package.json")
     && !isScriptOnlyPackageChange(packageBeforeSource, packageAfterSource)
     && !isVersionOnlyPackageChange(packageBeforeSource, packageAfterSource, postReleasePatchCheckpoint)
     && !(isNodeSecurityPatch && isNodeSecurityPackageChange(packageBeforeSource, packageAfterSource))
-    && !(isNodeSecurityPatch && isReviewedDeclarationPackageChange(packageBeforeSource, packageAfterSource, NODE_SECURITY_PATCH_DECLARATIONS))
-    && !(isRestartRecoveryPatch && isReviewedDeclarationPackageChange(packageBeforeSource, packageAfterSource, RESTART_RECOVERY_PATCH_DECLARATIONS))
+    && !(isNodeSecurityPatch && isReviewedDeclarationPackageChange(packageBeforeSource, packageAfterSource, NODE_SECURITY_PATCH_DECLARATIONS, NODE_SECURITY_PATCH_CHECKPOINT))
+    && !(isRestartRecoveryPatch && isReviewedDeclarationPackageChange(packageBeforeSource, packageAfterSource, RESTART_RECOVERY_PATCH_DECLARATIONS, NODE_SECURITY_PATCH_CHECKPOINT))
+    && !(isDurabilityPatch && isReviewedDeclarationPackageChange(packageBeforeSource, packageAfterSource, DURABILITY_PATCH_DECLARATIONS, RESET_RETENTION_PATCH_CHECKPOINT))
   ) {
     errors.push(`package.json under ${postReleasePatchCheckpoint} may change only the application version, to exactly ${postReleasePatchCheckpoint}, or scripts`);
   }
@@ -430,12 +452,13 @@ function validatePostReleasePatchPackages({
     && !isVersionOnlyLockChange(lockBeforeSource, lockAfterSource, postReleasePatchCheckpoint)
     && !(takesDependencyUpdates && isReviewedDependencyUpdateLockChange(lockBeforeSource, lockAfterSource))
     && !(isNodeSecurityPatch && isNodeSecurityLockChange(lockBeforeSource, lockAfterSource))
-    && !(isNodeSecurityPatch && isReviewedDeclarationLockChange(lockBeforeSource, lockAfterSource, NODE_SECURITY_PATCH_DECLARATIONS, NODE_SECURITY_PATCH_DEPENDENCY_UPDATES))
-    && !(isRestartRecoveryPatch && isReviewedDeclarationLockChange(lockBeforeSource, lockAfterSource, RESTART_RECOVERY_PATCH_DECLARATIONS, RESTART_RECOVERY_PATCH_DEPENDENCY_UPDATES))
+    && !(isNodeSecurityPatch && isReviewedDeclarationLockChange(lockBeforeSource, lockAfterSource, NODE_SECURITY_PATCH_DECLARATIONS, NODE_SECURITY_PATCH_DEPENDENCY_UPDATES, NODE_SECURITY_PATCH_CHECKPOINT))
+    && !(isRestartRecoveryPatch && isReviewedDeclarationLockChange(lockBeforeSource, lockAfterSource, RESTART_RECOVERY_PATCH_DECLARATIONS, RESTART_RECOVERY_PATCH_DEPENDENCY_UPDATES, NODE_SECURITY_PATCH_CHECKPOINT))
+    && !(isDurabilityPatch && isReviewedDeclarationLockChange(lockBeforeSource, lockAfterSource, DURABILITY_PATCH_DECLARATIONS, DURABILITY_PATCH_DEPENDENCY_UPDATES, RESET_RETENTION_PATCH_CHECKPOINT))
   ) {
     errors.push(takesDependencyUpdates
       ? `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}, or take its reviewed dependency security updates`
-      : `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}${isRestartRecoveryPatch ? ", or take its reviewed dependency fold" : ""}`);
+      : `package-lock.json under ${postReleasePatchCheckpoint} may change only its application version fields, to exactly ${postReleasePatchCheckpoint}${isRestartRecoveryPatch || isDurabilityPatch ? ", or take its reviewed dependency fold" : ""}`);
   }
 }
 
@@ -473,18 +496,19 @@ function isNodeSecurityLockChange(beforeSource, afterSource) {
 }
 
 /**
- * Whether a manifest moves exactly the reviewed dependency declarations and nothing else. Every patch
- * that takes declarations takes them at the Node security release's identity, before its own version
- * moves, so the application version must be that identity on both sides.
+ * Whether a manifest moves exactly the reviewed dependency declarations and nothing else. A patch takes
+ * its declarations at the identity of the release it lands on, before its own version moves, so the
+ * application version must be exactly that identity on both sides.
  * @param {string} beforeSource
  * @param {string} afterSource
  * @param {readonly ReviewedDeclaration[]} declarations
+ * @param {string} identity
  */
-function isReviewedDeclarationPackageChange(beforeSource, afterSource, declarations) {
+function isReviewedDeclarationPackageChange(beforeSource, afterSource, declarations, identity) {
   try {
     const before = requirePackageManifest(JSON.parse(beforeSource));
     const after = requirePackageManifest(JSON.parse(afterSource));
-    if (before.version !== NODE_SECURITY_PATCH_CHECKPOINT || after.version !== before.version) return false;
+    if (before.version !== identity || after.version !== before.version) return false;
     for (const [group, name, previous, reviewed] of declarations) {
       const beforeGroup = before[group];
       const afterGroup = after[group];
@@ -505,15 +529,16 @@ function isReviewedDeclarationPackageChange(beforeSource, afterSource, declarati
  * @param {string} afterSource
  * @param {readonly ReviewedDeclaration[]} declarations
  * @param {ReviewedLockUpdates} reviewedUpdates
+ * @param {string} identity
  */
-function isReviewedDeclarationLockChange(beforeSource, afterSource, declarations, reviewedUpdates) {
+function isReviewedDeclarationLockChange(beforeSource, afterSource, declarations, reviewedUpdates, identity) {
   try {
     const before = requirePackageLock(JSON.parse(beforeSource));
     const after = requirePackageLock(JSON.parse(afterSource));
     const beforeRoot = requireLockEntry(before, "", "previous lock root");
     const afterRoot = requireLockEntry(after, "", "new lock root");
-    if (before.version !== NODE_SECURITY_PATCH_CHECKPOINT || after.version !== before.version) return false;
-    if (!isReviewedDeclarationPackageChange(JSON.stringify(beforeRoot), JSON.stringify(afterRoot), declarations)) return false;
+    if (before.version !== identity || after.version !== before.version) return false;
+    if (!isReviewedDeclarationPackageChange(JSON.stringify(beforeRoot), JSON.stringify(afterRoot), declarations, identity)) return false;
     for (const [group] of declarations) afterRoot[group] = beforeRoot[group];
     return isReviewedDependencyUpdateLockChange(JSON.stringify(before), JSON.stringify(after), reviewedUpdates);
   } catch {
@@ -787,6 +812,9 @@ if (isMain) await main();
 export {
   CHECKPOINT_SERIES,
   CLOSEOUT_CHECKPOINT,
+  DURABILITY_PATCH_CHECKPOINT,
+  DURABILITY_PATCH_DECLARATIONS,
+  DURABILITY_PATCH_DEPENDENCY_UPDATES,
   IMAGE_PACKAGING_PATCH_CHECKPOINT,
   NODE_SECURITY_PATCH_CHECKPOINT,
   NODE_SECURITY_PATCH_DEPENDENCY_UPDATES,
