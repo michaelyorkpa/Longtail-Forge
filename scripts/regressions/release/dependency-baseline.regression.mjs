@@ -3,7 +3,7 @@ export const regressionMeta = Object.freeze({
   area: "release",
   tier: "release-gate",
   tags: ["dependencies", "markdown", "release", "tooling"],
-  description: "Pins the reviewed ESLint 10.13, Node types 26.6.5, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
+  description: "Pins the reviewed ESLint 10.14, Node types 26.6.6, and Markdown-it 15 dependency baseline, ESLint's development-only cache graph at its pre-compromise releases, the development-only espree and advisory-patched brace-expansion, and keeps obsolete js-yaml and redundant Markdown types out of the resolved graph.",
   runMode: "static",
 });
 
@@ -27,16 +27,16 @@ const linkifyItLock = requireLockEntry(packageLock, "node_modules/linkify-it");
 const mdurlLock = requireLockEntry(packageLock, "node_modules/mdurl");
 const ucMicroLock = requireLockEntry(packageLock, "node_modules/uc.micro");
 
-assert.equal(requireDevDependencies(packageJson).eslint, "^10.13.0", "ESLint should use the reviewed 10.13 development baseline");
+assert.equal(requireDevDependencies(packageJson).eslint, "^10.14.0", "ESLint should use the reviewed 10.14 development baseline");
 assert.equal(requireDependencies(packageJson).eslint, undefined, "ESLint must remain development-only tooling");
-assert.equal(requireDevDependencies(rootLock, "package-lock.json root").eslint, "^10.13.0", "the lockfile root should match the ESLint package contract");
-assert.equal(eslintLock.version, "10.13.0", "the resolved ESLint baseline should remain 10.13.0");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root").eslint, "^10.14.0", "the lockfile root should match the ESLint package contract");
+assert.equal(eslintLock.version, "10.14.0", "the resolved ESLint baseline should remain 10.14.0");
 assert.equal(eslintLock.dev, true, "the resolved ESLint package must remain development-only");
-assert.match(requireEngines(eslintLock, "eslint lock entry").node, />=24/, "ESLint 10.13 should declare support for the repository's Node 24 runtime line");
+assert.match(requireEngines(eslintLock, "eslint lock entry").node, />=24/, "ESLint 10.14 should declare support for the repository's Node 24 runtime line");
 assert.equal(requireDependencies(eslintLock, "eslint lock entry")["@eslint/config-helpers"], "^0.7.0", "ESLint should retain its reviewed config-helpers range");
 assert.equal(eslintConfigHelpersLock.version, "0.7.0", "config-helpers should resolve to the reviewed 0.7 baseline");
-assert.equal(requireDependencies(eslintLock, "eslint lock entry").minimatch, "^10.2.5", "ESLint should retain its reviewed minimatch range");
-assert.equal(minimatchLock.version, "10.2.5", "minimatch should resolve to the reviewed 10.2.5 baseline");
+assert.equal(requireDependencies(eslintLock, "eslint lock entry").minimatch, "^10.2.6", "ESLint should retain its reviewed minimatch range");
+assert.equal(minimatchLock.version, "10.2.6", "minimatch should resolve to the reviewed 10.2.6 baseline");
 // GHSA-g3hv-75wg-m249 (moderate, published 2026-10-30) names every minimatch below 11.0.1, and every
 // ESLint 10 release and `@eslint/config-array` stop at ^10, so no compatible fix exists. An attacker must
 // supply the glob, and ESLint reads only this repository's own configured globs. The finding is accepted
@@ -67,7 +67,7 @@ for (const [packagePath, version] of /** @type {const} */ ([
 // first release outside GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p and GHSA-q2hr-2g5m-vwhr, the high
 // finding that failed `npm audit --audit-level=high`.
 const braceExpansionLock = requireLockEntry(packageLock, "node_modules/brace-expansion");
-assert.equal(requireDependencies(minimatchLock, "minimatch lock entry")["brace-expansion"], "^5.0.5", "minimatch should retain its reviewed brace-expansion range");
+assert.equal(requireDependencies(minimatchLock, "minimatch lock entry")["brace-expansion"], "^5.0.8", "minimatch should retain its reviewed brace-expansion range");
 assert.equal(braceExpansionLock.version, "5.0.12", "brace-expansion should resolve to the advisory-patched 5.0.12");
 assert.equal(braceExpansionLock.dev, true, "the resolved brace-expansion package must remain development-only");
 
@@ -81,12 +81,12 @@ assert.equal(requireDevDependencies(rootLock, "package-lock.json root").espree, 
 assert.equal(espreeLock.version, "11.2.0", "the resolved espree should remain the version ESLint already uses");
 assert.equal(espreeLock.dev, true, "the resolved espree package must remain development-only");
 
-assert.equal(requireDevDependencies(packageJson)["@types/node"], "^26.6.5", "Node types should use the reviewed 26.6.5 development baseline");
+assert.equal(requireDevDependencies(packageJson)["@types/node"], "^26.6.6", "Node types should use the reviewed 26.6.6 development baseline");
 assert.equal(requireDependencies(packageJson)["@types/node"], undefined, "Node types must remain development-only tooling");
-assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@types/node"], "^26.6.5", "the lockfile root should match the Node types package contract");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@types/node"], "^26.6.6", "the lockfile root should match the Node types package contract");
 assert.equal(requireDependencies(rootLock, "package-lock.json root")["@types/node"], undefined, "the lockfile root must not promote Node types to a runtime dependency");
 // `0.33.33.49`: newer Node declarations do not widen the supported runtime; the engine pin below stays Node 24.
-assert.equal(nodeTypesLock.version, "26.6.5", "the resolved Node types baseline should remain 26.6.5");
+assert.equal(nodeTypesLock.version, "26.6.6", "the resolved Node types baseline should remain 26.6.6");
 assert.equal(nodeTypesLock.dev, true, "the resolved Node types package must remain development-only");
 assert.equal(requireEngines(packageJson).node, ">=24.22.1 <25", "the repository should retain its supported Node 24 range");
 assert.deepEqual(packageJson.allowScripts, { "better-sqlite3@13.0.3": true }, "the approved lifecycle-script allowlist must remain unchanged");

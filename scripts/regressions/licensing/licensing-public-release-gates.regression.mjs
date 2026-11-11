@@ -106,7 +106,8 @@ assert.match(gateReport, /do not fail ordinary development/);
 
 const noticeCheck = inspectThirdPartyNotices();
 assert.equal(noticeCheck.current, true, noticeCheck.message);
-assert.equal(noticeCheck.componentCount, 93);
+// Express 5.3 leaves one shipped content-type, 2.1.0, where 5.2 shipped three.
+assert.equal(noticeCheck.componentCount, 91);
 const generatedNotices = generateThirdPartyNotices();
 assert.equal(
   escapeTable("one\\two|three\\\\four"),

@@ -450,13 +450,16 @@ VALUES (
 `);
 
   const ownerSession = workspaceSessionFixture(requireRow(owner, "fresh database should seed a protected super admin"));
+  // The feed renders the past 90 days from the real clock, so these tasks are due 30 days before today.
+  // A fixed 2026-08-08 aged out of that window on 2026-11-11 and failed the scope assertion.
+  const dueDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
   await tasksService.create({
-    due_date: "2026-08-08",
+    due_date: dueDate,
     project_id: visibleProjectId,
     title: "Scoped readable feed task",
   }, ownerSession);
   await tasksService.create({
-    due_date: "2026-08-08",
+    due_date: dueDate,
     project_id: hiddenProjectId,
     title: "Scoped unreadable feed task",
   }, ownerSession);

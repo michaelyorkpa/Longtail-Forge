@@ -24,10 +24,10 @@ const packageLock = requirePackageLock(JSON.parse(await fs.readFile("package-loc
 const rootLock = requireLockEntry(packageLock, "");
 const expressLock = requireLockEntry(packageLock, "node_modules/express");
 
-assert.equal(requireDependencies(packageJson).express, "^5.2.1", "Express should use the reviewed 5.2 runtime baseline");
-assert.equal(requireDependencies(rootLock, "package-lock.json root").express, "^5.2.1", "the lockfile root should match the Express package contract");
-assert.equal(expressLock.version, "5.2.1", "the resolved Express baseline should remain 5.2.1");
-assert.match(requireEngines(expressLock, "express lock entry").node, />= 18/, "Express 5.2 should support the repository's Node 24 runtime line");
+assert.equal(requireDependencies(packageJson).express, "^5.3.0", "Express should use the reviewed 5.3 runtime baseline");
+assert.equal(requireDependencies(rootLock, "package-lock.json root").express, "^5.3.0", "the lockfile root should match the Express package contract");
+assert.equal(expressLock.version, "5.3.0", "the resolved Express baseline should remain 5.3.0");
+assert.match(requireEngines(expressLock, "express lock entry").node, />= 18/, "Express 5.3 should support the repository's Node 24 runtime line");
 
 const appSource = await fs.readFile("src/core/app.js", "utf8");
 const staticRoutesSource = await fs.readFile("src/routes/static.routes.js", "utf8");

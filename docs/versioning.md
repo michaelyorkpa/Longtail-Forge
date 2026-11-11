@@ -37,6 +37,12 @@ The restart-recovery patch, `0.33.33.53`, follows the same post-release identity
 
 The reset-retention patch, `0.33.33.54`, follows the same post-release identity rule. It may move the application version in both package files to exactly `0.33.33.54`, and it takes no dependency change. Its roadmap section, approved by the operator on 2026-10-14 and amended on 2026-11-05, has it record one policy in `DECISIONS.md`: how long the public demo keeps visitor-entered content. The two-ceremony-file ceiling still applies.
 
+The durability patch, `0.33.33.55`, follows the same post-release identity rule, across two pull requests.
+
+- **The dependency fold lands first,** while the application is still `0.33.33.54`. In one commit it may raise exactly five declarations (Express to `^5.3.0`, `express-rate-limit` to `^8.7.4`, `@types/node` to `^26.6.6`, ESLint to `^10.14.0`, and Vitest to `^5.1.0`) and take the complete before and after lock entries in `scripts/release/durability-dependency-updates.mjs`. A `null` side there means that path is absent. Entries whose only change is npm's `peer` flag are listed too, because Vitest 5 makes Vite a peer dependency.
+- **The durability work follows,** and may move the application version in both package files to exactly `0.33.33.55`.
+- **What stays refused.** Partial transitions, other fields, unrelated packages, the fold at any other application version, and a fold that moves the version. This allowance belongs only to this checkpoint and keeps the declaration, trailer, durable-decision, and two-ceremony-file boundaries.
+
 After all intended checkpoint commits are present, run `npm run checkpoint:validate` before the first push and after amending any checkpoint commit message. The command resolves `merge-base(origin/nightly, HEAD)` locally and validates the same complete branch range as protected CI. It does not repeat `npm run verify:slice`; a message-only amend leaves a prior green tree verification valid, while any file change requires verification again.
 
 ## Asset Cache Version

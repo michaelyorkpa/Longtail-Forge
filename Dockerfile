@@ -40,10 +40,11 @@ ENV NODE_ENV=production \
 WORKDIR /opt/longtail-forge
 
 # Debian LTS security fixes that the pinned base predates, from bookworm-security: perl-base
-# (DLA-4821-1), libpcre2-8-0 (DLA-4816-1), and tzdata (DLA-4867-1). Each already-installed package
-# is upgraded to its exact fixed version and nothing new is installed; the build fails unless every
-# installed version matches. A newer Debian fix, or a refreshed base, needs a reviewed change here.
-RUN debian_security_updates="perl-base=5.36.0-7+deb12u4 libpcre2-8-0=10.42-1+deb12u2 tzdata=2026f-0+deb12u1" \
+# (DLA-4821-1), libpcre2-8-0 (DLA-4816-1), tzdata (DLA-4867-1), and apt with libapt-pkg6.0
+# (DLA-4880-1). Each already-installed package is upgraded to its exact fixed version and nothing
+# new is installed; the build fails unless every installed version matches. A newer Debian fix, or a
+# refreshed base, needs a reviewed change here.
+RUN debian_security_updates="perl-base=5.36.0-7+deb12u4 libpcre2-8-0=10.42-1+deb12u2 tzdata=2026f-0+deb12u1 apt=2.6.2 libapt-pkg6.0=2.6.2" \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends --only-upgrade ${debian_security_updates} \
     && apt-get clean \
