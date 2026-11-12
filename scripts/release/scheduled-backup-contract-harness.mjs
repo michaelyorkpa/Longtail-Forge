@@ -311,7 +311,9 @@ function createSandbox(work, ordinal, fakeBin, options) {
     ].join("\n"), { mode: 0o755 });
   } else if (hook === "real") {
     hookPath = path.join(sbin, "longtail-forge-offsite-copy");
-    fs.copyFileSync(COPY_HOOK, hookPath);
+    // Written, not copied: run through sudo, `copyFileSync` keeps the checkout owner's account, and the
+    // scheduled backup rightly refuses a hook that another account could replace.
+    fs.writeFileSync(hookPath, fs.readFileSync(COPY_HOOK), { mode: 0o755 });
     fs.chmodSync(hookPath, 0o755);
   }
   const scheduleEnv = path.join(etc, "scheduled-backup.env");
@@ -702,6 +704,22 @@ async function main() {
       assert.match(String(result.calls.find((call) => call.action === "notify")?.args?.at(-1)), /failureClass=copy-failed /);
       assert.equal(runRecords(box)[0]?.heartbeatOutcome, "delivered");
     });
+
+    for (const [label, change] of /** @type {[string, (hook: string) => void][]} */ ([
+      ["another account owns", (hook) => fs.chownSync(hook, 65534, 65534)],
+      ["another account may write", (hook) => fs.chmodSync(hook, 0o775)],
+    ])) {
+      await scenario(`a copy hook ${label} is refused before any backup`, () => {
+        const box = sandbox();
+        change(path.join(box.sbin, "longtail-forge-offsite-copy"));
+        const result = run(box);
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /the copy hook must be a root-owned executable regular file no one else may write/);
+        assert.equal(indexOf(result.calls, "stop"), -1, "no backup may start");
+        assert.deepEqual(backups(), []);
+        assert.equal(hookRecords(box).length, 0);
+      });
+    }
 
     await scenario("with no copy hook configured, the backup stays on this server and no alert is raised", () => {
       const box = sandbox({ hook: "none" });

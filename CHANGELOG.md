@@ -21,7 +21,7 @@
   - **The image:** Debian's `apt` and `libapt-pkg6.0` 2.6.2, for CVE-2026-109518.
   - **Afterwards,** Dependabot closed its seven proposals itself. `minimatch` 10.2.6 stays a Carried Finding.
 - **Proof.**
-  - **A new contract harness** runs the scheduled backup, the hook, and the receiver as root on Linux: 53 scenarios, and 16 seeded defects, each caught. The maintenance rehearsal runs it, and its time limit rises to 25 minutes.
+  - **A new contract harness** runs the scheduled backup, the hook, and the receiver as root on Linux: 55 scenarios, and 18 seeded defects, each caught. Its first run on the pull request's clean runner found that a hook copied under `sudo` kept the checkout's owner, which the scheduled backup rightly refused; the harness now writes the hook as root, and two scenarios refuse a hook another account owns or may write. The maintenance rehearsal runs it, and its time limit rises to 25 minutes.
   - **The Compose helper harness** adds the bound's scenarios, and its fake now writes backups as the container does. Seven seeded defects in the bound are each caught.
   - **The public-demo helper harness** counts stale copies against the cap and names them in the plan. It passes 99 scenarios and catches all 102 of its seeded defects.
   - **Unit tests** cover the stale-copy prune, where eight seeded defects are caught, the synchronous default, and the validator's allowance.
