@@ -4,8 +4,11 @@
 //
 // It runs the actual bytes of all three as root, with the real bash, jq, coreutils, flock, tar, and
 // timeout. Docker, HTTP, age, and the SSH client are fakes: the fake SSH client runs the real receiver
-// with the request the hook made, and every fake call records whether the maintenance curtain was up
-// at that moment, so "refused before the curtain" and "curtained through the outage" are observed.
+// with the request the hook made, and every fake call records whether the maintenance curtain was up,
+// and whether the lifecycle lock was held, at that moment, so "refused before the curtain",
+// "curtained through the outage", and "recovered under the lock" are observed. A fake `rm` fails on the
+// paths a scenario names, and otherwise runs the real one. Scenarios about time limits run a copy of
+// the helper or the receiver whose one limit is scaled down, each replacement applied exactly once.
 //
 // It needs native Linux and passwordless sudo, uses the fixed backup root under
 // /var/backups/longtail-forge, the fixed alert files under /etc/longtail-forge, and the copy hook's
@@ -33,8 +36,11 @@ const OWNERSHIP_MARKER = `${BACKUP_PARENT}/.ltf-scheduled-backup-harness`;
 const ETC = "/etc/longtail-forge";
 const FIXED = Object.freeze({ webhook: `${ETC}/scheduled-backup-alert-webhook`, heartbeat: `${ETC}/scheduled-backup-heartbeat-url` });
 const STAGE_ROOT = "/var/lib/longtail-forge-offsite-copy";
+const PENDING_ROOT = `${BACKUP_ROOT}/.scheduled-pending`;
 const ORIGIN = "https://preview.harness.test";
-const CONTAINER = "harness-longtail-forge";
+const CONTAINER = "c0ffee".repeat(10).concat("c0ff");
+const OTHER_CONTAINER = "d1ce".repeat(16);
+const TMPFS = "rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001";
 const IMAGE = `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"6".repeat(64)}`;
 const IDENTITY = Object.freeze({ version: "0.33.99.1", commit: "4f0c2d9a7b1e3c5d8e6f0a2b4c6d8e0f1a3b5c7d", artifact: "e".repeat(64) });
 const WEBHOOK_TOKEN = `${"Hk7_-".repeat(13)}abc`;
@@ -44,15 +50,21 @@ const RECIPIENT = "age1e5d6nkxxg88uf58dgrp6pyguwxt8swr9qadqktd2nfu97udkmflsct49j
 const SCHEDULED_ARCHIVE = /^scheduled-\d{8}T\d{6}Z-[a-f0-9]{12}\.ltfbackup\.tgz$/;
 const STORED_COPY = /^\d{8}T\d{6}Z-[a-f0-9]{16}\.ltfbackup\.tar\.age$/;
 
+/** @typedef {"verified" | "root-user" | "public-port"} FakePosture */
 /**
  * @typedef {{
  *   demoMode: string | null, backupFails: "create" | "inspect" | null, restartFails: boolean,
  *   curlFails: boolean, ageFails: boolean, sshFails: boolean, hookFails: boolean, freeBytes: number | null,
- *   markerPath: string, store: string, stateDir: string,
+ *   backupHangs: boolean, killBackup: boolean, healthyAfterMs: number, posture: FakePosture,
+ *   postureAfterStart: FakePosture | null, recreated: boolean,
+ *   markerPath: string, lockPath: string, store: string, stateDir: string,
  * }} FakeScenario
  */
-/** @typedef {{ state: "running" | "stopped", healthy: boolean }} FakeRuntime */
-/** @typedef {{ tool: string, action: string, markerPresent: boolean, args?: string[], stdin?: string, archive?: string }} FakeCall */
+/** @typedef {{ state: "running" | "stopped", healthy: boolean, startedAt: number, restarted: boolean, container: string }} FakeRuntime */
+/**
+ * @typedef {{ tool: string, action: string, markerPresent: boolean, lockHeld: boolean, args?: string[], stdin?: string,
+ *   archive?: string, auditLog?: string }} FakeCall
+ */
 /**
  * @typedef {{ root: string, helperEnv: string, scheduleEnv: string, hookEnv: string, deployRoot: string,
  *   marker: string, state: string, store: string, sbin: string, identity: string, knownHosts: string }} Sandbox
@@ -75,9 +87,12 @@ function runFake(tool, args) {
   const scenario = /** @type {FakeScenario} */ (readJson(path.join(stateDir, "scenario.json")));
   const runtimePath = path.join(stateDir, "runtime.json");
   const runtime = /** @type {FakeRuntime} */ (readJson(runtimePath));
-  /** @param {Omit<FakeCall, "tool" | "markerPresent">} entry */
+  /** @param {Omit<FakeCall, "tool" | "markerPresent" | "lockHeld">} entry */
   const record = (entry) => {
-    fs.appendFileSync(path.join(stateDir, "calls.jsonl"), `${JSON.stringify({ tool, markerPresent: fs.existsSync(scenario.markerPath), ...entry })}\n`);
+    // A new open of the lock file cannot take it while the helper, or a child that inherited its
+    // descriptor, holds it. The lock is never created here: before the helper makes it, it is not held.
+    const lockHeld = fs.existsSync(scenario.lockPath) && spawnSync("flock", ["-n", scenario.lockPath, "true"]).status !== 0;
+    fs.appendFileSync(path.join(stateDir, "calls.jsonl"), `${JSON.stringify({ tool, markerPresent: fs.existsSync(scenario.markerPath), lockHeld, ...entry })}\n`);
   };
   /** @param {FakeRuntime} next */
   const save = (next) => fs.writeFileSync(runtimePath, JSON.stringify(next));
@@ -92,15 +107,33 @@ function runFake(tool, args) {
 
 /**
  * @param {string[]} args @param {FakeScenario} scenario @param {FakeRuntime} runtime
- * @param {(entry: Omit<FakeCall, "tool" | "markerPresent">) => void} record @param {(next: FakeRuntime) => void} save
+ * @param {(entry: Omit<FakeCall, "tool" | "markerPresent" | "lockHeld">) => void} record @param {(next: FakeRuntime) => void} save
  */
 function fakeDocker(args, scenario, runtime, record, save) {
-  if (args[0] === "inspect") {
+  if (args[0] === "inspect" && args[1] === "--format") {
     record({ action: "health" });
     // A release that never becomes healthy reports so at once, as Docker's health check does after its
-    // retries, so a scenario never waits out the helper's whole deadline.
+    // retries, so a scenario never waits out the helper's whole deadline. One that is slow to start
+    // reports `starting` until the scenario's delay has passed.
     if (runtime.state !== "running") return emit("starting");
+    if (Date.now() - runtime.startedAt < scenario.healthyAfterMs) return emit("starting");
     return emit(runtime.healthy ? "healthy" : "unhealthy");
+  }
+  if (args[0] === "inspect") {
+    record({ action: "posture", args: args.slice(1) });
+    if (args[1] !== runtime.container) return refuse(`Error: No such object: ${args[1]}`);
+    const posture = runtime.restarted && scenario.postureAfterStart ? scenario.postureAfterStart : scenario.posture;
+    return emit(JSON.stringify([{
+      Id: runtime.container,
+      Config: { Image: IMAGE, User: posture === "root-user" ? "0:0" : "10001:10001" },
+      HostConfig: { ReadonlyRootfs: true, Privileged: false, CapDrop: ["ALL"], SecurityOpt: ["no-new-privileges:true"], Tmpfs: { "/tmp": TMPFS } },
+      NetworkSettings: { Ports: { "8001/tcp": [{ HostIp: posture === "public-port" ? "0.0.0.0" : "127.0.0.1", HostPort: "8001" }] } },
+      Mounts: [{ Type: "volume", Destination: "/var/lib/longtail-forge" }, { Type: "bind", Source: BACKUP_ROOT, Destination: "/var/backups/longtail-forge" }],
+    }]));
+  }
+  if (args[0] === "rm") {
+    record({ action: "remove-step", args: args.slice(1) });
+    return refuse(`Error response from daemon: No such container: ${args.at(-1)}`);
   }
   if (args[0] !== "compose") return refuse(`unexpected docker invocation: ${args.join(" ")}`);
   if (args[1] === "version") return emit("Docker Compose version v2.29.7");
@@ -123,17 +156,34 @@ function fakeDocker(args, scenario, runtime, record, save) {
   }
   if (command[0] === "up") {
     record({ action: "up", args: command });
-    save({ state: "running", healthy: !scenario.restartFails });
+    save({ ...runtime, state: "running", healthy: !scenario.restartFails, startedAt: Date.now(), restarted: true });
     return 0;
   }
-  if (command[0] === "ps") return emit(CONTAINER);
+  if (command[0] === "start") {
+    record({ action: "start", args: command });
+    save({
+      state: "running", healthy: !scenario.restartFails, startedAt: Date.now(), restarted: true,
+      container: scenario.recreated ? OTHER_CONTAINER : runtime.container,
+    });
+    return 0;
+  }
+  // Like Compose, only a running container is listed.
+  if (command[0] === "ps") return emit(runtime.state === "running" ? `${runtime.container}\n` : "");
   if (command[0] === "run") {
     const program = command.slice(command.indexOf("longtail-forge") + 1);
     if (program[0] === "node" && program[1] === "scripts/backup.mjs" && program[2] === "create") {
       const archive = hostBackupPath(valueAfter(program, "--output"));
-      record({ action: "backup-create", archive });
+      record({ action: "backup-create", archive, auditLog: valueAfter(program, "--audit-log"), args: command });
       assert.equal(runtime.state, "stopped", "a backup must never run against a running application");
       if (scenario.backupFails === "create") return refuse("ENOSPC: no space left on device, write");
+      if (scenario.killBackup) return killBackupProcess();
+      if (scenario.backupHangs) {
+        // A partial archive, then no progress: only the helper's time limit ends this step.
+        fs.writeFileSync(archive, "a partial archive", { mode: 0o600 });
+        fs.chownSync(archive, 10001, 10001);
+        hangUntilReleased(scenario.stateDir);
+        return 0;
+      }
       writeContainerBackup(archive, `archive of ${path.basename(archive)}`);
       return 0;
     }
@@ -149,7 +199,7 @@ function fakeDocker(args, scenario, runtime, record, save) {
 
 /**
  * @param {string[]} args @param {FakeScenario} scenario @param {FakeRuntime} runtime
- * @param {(entry: Omit<FakeCall, "tool" | "markerPresent">) => void} record
+ * @param {(entry: Omit<FakeCall, "tool" | "markerPresent" | "lockHeld">) => void} record
  */
 function fakeCurl(args, scenario, runtime, record) {
   if (args.includes("--config")) {
@@ -174,7 +224,7 @@ function fakeCurl(args, scenario, runtime, record) {
 /**
  * Writes an age-shaped file: the real header line, then the plaintext, so the harness can read back
  * exactly what was packed.
- * @param {string[]} args @param {FakeScenario} scenario @param {(entry: Omit<FakeCall, "tool" | "markerPresent">) => void} record
+ * @param {string[]} args @param {FakeScenario} scenario @param {(entry: Omit<FakeCall, "tool" | "markerPresent" | "lockHeld">) => void} record
  */
 function fakeAge(args, scenario, record) {
   record({ action: "encrypt", args });
@@ -187,7 +237,7 @@ function fakeAge(args, scenario, record) {
 /**
  * Records the client's options, then runs the real receiver as the forced command would: with the
  * request in SSH_ORIGINAL_COMMAND, the store as its one argument, and the copy on standard input.
- * @param {string[]} args @param {FakeScenario} scenario @param {(entry: Omit<FakeCall, "tool" | "markerPresent">) => void} record
+ * @param {string[]} args @param {FakeScenario} scenario @param {(entry: Omit<FakeCall, "tool" | "markerPresent" | "lockHeld">) => void} record
  */
 function fakeSsh(args, scenario, record) {
   record({ action: "ssh", args });
@@ -206,10 +256,32 @@ function writeContainerBackup(archive, content) {
   for (const file of [archive, `${archive}.sha256`]) fs.chownSync(file, 10001, 10001);
 }
 
-/** @param {string} containerPath */
+/** The host path of a path under the container's backup mount, which binds the host backup root. @param {string} containerPath */
 function hostBackupPath(containerPath) {
-  assert.ok(containerPath.startsWith(`${BACKUP_CONTAINER_ROOT}/`), `backup path escaped the container root: ${containerPath}`);
-  return path.posix.join(BACKUP_ROOT, path.posix.basename(containerPath));
+  assert.ok(containerPath.startsWith(`${BACKUP_CONTAINER_ROOT}/`) && !containerPath.split("/").includes(".."), `backup path escaped the container root: ${containerPath}`);
+  return `${BACKUP_ROOT}${containerPath.slice(BACKUP_CONTAINER_ROOT.length)}`;
+}
+
+/** Makes no progress until the scenario releases it, or 30 seconds pass. @param {string} stateDir */
+function hangUntilReleased(stateDir) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline && !fs.existsSync(path.join(stateDir, "release"))) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+}
+
+/**
+ * Kills the backup's own process outright, as the kernel's out-of-memory killer would, long before any
+ * time limit. This fake runs under the backup step's `timeout`, whose parent is that process.
+ */
+function killBackupProcess() {
+  const stepTimeout = process.ppid;
+  const stat = fs.readFileSync(`/proc/${stepTimeout}/stat`, "utf8");
+  const backup = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
+  const commandLine = fs.readFileSync(`/proc/${backup}/cmdline`, "utf8").split("\0");
+  assert.equal(commandLine.at(-2), "backup", `the fake's grandparent must be the backup itself: ${commandLine.join(" ")}`);
+  process.kill(backup, "SIGKILL");
+  return 0;
 }
 
 /** @param {string[]} args @param {string} flag */
@@ -246,7 +318,8 @@ function sha256(content) {
 /**
  * @typedef {{ demoMode?: string | null, backupFails?: "create" | "inspect" | null, restartFails?: boolean, curlFails?: boolean,
  *   ageFails?: boolean, sshFails?: boolean, hookFails?: boolean, freeBytes?: number | null, hook?: "none" | "recording" | "real",
- *   enabled?: boolean, alerts?: boolean }} SandboxOptions
+ *   enabled?: boolean, alerts?: boolean, backupHangs?: boolean, killBackup?: boolean, healthyAfterMs?: number,
+ *   posture?: FakePosture, postureAfterStart?: FakePosture | null, recreated?: boolean }} SandboxOptions
  */
 
 /** @param {string} work @param {number} ordinal @param {string} fakeBin @param {SandboxOptions} options @returns {Sandbox} */
@@ -283,7 +356,9 @@ function createSandbox(work, ordinal, fakeBin, options) {
   const key = IMAGE.slice(IMAGE.indexOf("sha256:") + "sha256:".length);
   const releaseEnv = path.join(deployRoot, "releases", `${key}.env`);
   writePrivate(releaseEnv, `LONGTAIL_IMAGE=${IMAGE}\nLONGTAIL_RELEASE_BRANCH=main\nLONGTAIL_RELEASE_COMMIT=${IDENTITY.commit}\n`);
-  writePrivate(path.join(deployRoot, "releases", `${key}.json`), JSON.stringify({ version: IDENTITY.version, commitSha: IDENTITY.commit, artifact: { sha256: IDENTITY.artifact } }));
+  writePrivate(path.join(deployRoot, "releases", `${key}.json`), JSON.stringify({
+    version: IDENTITY.version, commitSha: IDENTITY.commit, artifact: { sha256: IDENTITY.artifact }, image: { digest: `sha256:${key}`, reference: IMAGE },
+  }));
   writePrivate(path.join(deployRoot, "state", "current.json"), JSON.stringify({
     version: IDENTITY.version, commitSha: IDENTITY.commit, image: { digest: `sha256:${key}`, reference: IMAGE }, deployment: { releaseEnv, rollbackBackup: "" },
   }));
@@ -348,21 +423,34 @@ function createSandbox(work, ordinal, fakeBin, options) {
     sshFails: options.sshFails === true,
     hookFails: options.hookFails === true,
     freeBytes: options.freeBytes ?? null,
+    backupHangs: options.backupHangs === true,
+    killBackup: options.killBackup === true,
+    healthyAfterMs: options.healthyAfterMs ?? 0,
+    posture: options.posture ?? "verified",
+    postureAfterStart: options.postureAfterStart ?? null,
+    recreated: options.recreated === true,
     markerPath: marker,
+    lockPath: path.join(deployRoot, "compose-operation.lock"),
     store,
     stateDir: state,
   };
   fs.writeFileSync(path.join(state, "scenario.json"), JSON.stringify(scenario));
-  fs.writeFileSync(path.join(state, "runtime.json"), JSON.stringify({ state: "running", healthy: true }));
+  /** @type {FakeRuntime} */
+  const runtime = { state: "running", healthy: true, startedAt: 0, restarted: false, container: CONTAINER };
+  fs.writeFileSync(path.join(state, "runtime.json"), JSON.stringify(runtime));
   fs.writeFileSync(path.join(state, "calls.jsonl"), "");
   void fakeBin;
   return { root, helperEnv, scheduleEnv, hookEnv, deployRoot, marker, state, store, sbin, identity, knownHosts };
 }
 
-/** @param {Sandbox} box @param {string} fakeBin @param {string[]} args @param {Record<string, string>} [extraEnv] @returns {RunResult} */
-function runScheduled(box, fakeBin, args, extraEnv = {}) {
+/**
+ * @param {Sandbox} box @param {string} fakeBin @param {string[]} args @param {string} [helper]
+ * @returns {RunResult & { seconds: number }}
+ */
+function runScheduled(box, fakeBin, args, helper = SCHEDULED_HELPER) {
   const offset = fs.readFileSync(path.join(box.state, "calls.jsonl"), "utf8").length;
-  const result = spawnSync("bash", [SCHEDULED_HELPER, ...args], {
+  const started = Date.now();
+  const result = spawnSync("bash", [helper, ...args], {
     encoding: "utf8",
     timeout: 120_000,
     env: {
@@ -373,10 +461,51 @@ function runScheduled(box, fakeBin, args, extraEnv = {}) {
       LTF_SCHEDULED_BACKUP_ENV: box.scheduleEnv,
       LTF_OFFSITE_COPY_ENV: box.hookEnv,
       HARNESS_STATE: box.state,
-      ...extraEnv,
     },
   });
-  return { status: result.status ?? 1, stdout: String(result.stdout || ""), stderr: String(result.stderr || ""), calls: callsSince(box, offset) };
+  return {
+    status: result.status ?? 1, stdout: String(result.stdout || ""), stderr: String(result.stderr || ""), calls: callsSince(box, offset),
+    seconds: (Date.now() - started) / 1000,
+  };
+}
+
+/**
+ * A copy of a host script with its limits scaled down for a scenario, each replacement applied exactly
+ * once, so a scenario never runs against a limit the source no longer has.
+ * @param {string} work @param {string} source @param {string} name @param {[string, string][]} replacements
+ */
+function scaledCopy(work, source, name, replacements) {
+  let text = fs.readFileSync(source, "utf8");
+  for (const [from, to] of replacements) {
+    assert.equal(text.split(from).length - 1, 1, `${path.basename(source)} must contain exactly one ${JSON.stringify(from)}`);
+    text = text.split(from).join(to);
+  }
+  const target = path.join(work, name);
+  fs.writeFileSync(target, text, { mode: 0o755 });
+  return target;
+}
+
+/** Makes the fake `rm` fail on every path matching one of these shell patterns. @param {Sandbox} box @param {string[]} patterns */
+function failRemovals(box, patterns) {
+  fs.writeFileSync(path.join(box.state, "rm-fails"), patterns.map((pattern) => `${pattern}\n`).join(""));
+}
+
+/** @param {Sandbox} box */
+function allowRemovals(box) {
+  fs.rmSync(path.join(box.state, "rm-fails"), { force: true });
+}
+
+/** The summary line of the run's Discord alert, or "" when it sent none. @param {RunResult} result */
+function alertSummary(result) {
+  const payload = result.calls.find((call) => call.action === "notify")?.args?.at(-1);
+  if (payload === undefined) return "";
+  return String(/** @type {{ content?: unknown }} */ (JSON.parse(payload)).content).replace(/^Scheduled-backup alert: /, "");
+}
+
+/** Changes a sandbox's scenario between runs. @param {Sandbox} box @param {Partial<FakeScenario>} changes */
+function updateScenario(box, changes) {
+  const file = path.join(box.state, "scenario.json");
+  fs.writeFileSync(file, JSON.stringify({ .../** @type {FakeScenario} */ (readJson(file)), ...changes }));
 }
 
 /** @param {Sandbox} box @param {number} offset @returns {FakeCall[]} */
@@ -412,6 +541,33 @@ function receive(box, dfBin, request, input, store = box.store) {
   return { status: result.status ?? 1, reply: /** @type {{ ok?: boolean, reason?: string, stored?: string, kept?: number, expired?: number }} */ (JSON.parse(line)) };
 }
 
+/**
+ * Runs a receiver as its forced command would, feeding it through `feed`, and stops waiting after
+ * `waitMs`: a receiver still running then has not bounded its receipt.
+ * @param {string} receiver @param {string} store @param {string} dfBin @param {string} request
+ * @param {(stdin: import("node:stream").Writable) => Promise<void>} feed @param {number} waitMs
+ * @returns {Promise<{ status: number | "still-running", reply: { ok?: boolean, reason?: string } }>}
+ */
+async function receiveStreaming(receiver, store, dfBin, request, feed, waitMs) {
+  const child = spawn("bash", [receiver, store], {
+    env: { PATH: `${dfBin}:/usr/sbin:/usr/bin:/sbin:/bin`, SSH_ORIGINAL_COMMAND: request },
+    stdio: ["pipe", "pipe", "ignore"],
+  });
+  let stdout = "";
+  child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+  // The receiver may stop reading at its limit, so a later write may find the pipe closed.
+  child.stdin.on("error", () => {});
+  /** @type {Promise<number>} */
+  const exited = new Promise((resolve) => child.on("close", (code) => resolve(code ?? 1)));
+  feed(child.stdin).catch(() => {});
+  /** @type {number | "still-running"} */
+  const status = await Promise.race([exited, new Promise((resolve) => setTimeout(() => resolve("still-running"), waitMs))]);
+  if (status === "still-running") child.kill("SIGKILL");
+  child.stdin.destroy();
+  const line = stdout.trim().split("\n").at(-1) || "{}";
+  return { status, reply: /** @type {{ ok?: boolean, reason?: string }} */ (JSON.parse(line)) };
+}
+
 /** An age-shaped copy and the request that declares it. @param {string} [body] */
 function ageCopy(body = "a sealed backup") {
   const content = Buffer.from(`age-encryption.org/v1\n-> X25519 harness\n${body}`);
@@ -434,16 +590,26 @@ function hookRecords(box) {
     .map((line) => /** @type {{ count: number, args: string[], markerPresent: boolean, sidecarVerified: boolean }} */ (JSON.parse(line))) : [];
 }
 
-/** @param {Sandbox} box */
+/**
+ * @typedef {{ outcome: string, failureClass: string | null, alertOutcome: string, heartbeatOutcome: string, exitCode: number,
+ *   curtain: string | null, result: { archive?: string, discardedUninspected?: number,
+ *   retention?: { status: string, removed?: number, orphanSidecars?: number, filesRemoved?: number }, copy?: { status: string } } | null }} RunRecord
+ */
+/** @param {Sandbox} box @returns {RunRecord[]} */
 function runRecords(box) {
   const file = path.join(box.deployRoot, "scheduled-backups.jsonl");
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8").split("\n").filter(Boolean)
-    .map((line) => /** @type {{ outcome: string, failureClass: string | null, alertOutcome: string, heartbeatOutcome: string, exitCode: number, result: { archive?: string, retention?: { status: string, removed?: number }, copy?: { status: string } } | null }} */ (JSON.parse(line))) : [];
+    .map((line) => /** @type {RunRecord} */ (JSON.parse(line))) : [];
 }
 
-/** @returns {string[]} */
+/** The backup root's entries, apart from the scheduled backup's staging directory. @returns {string[]} */
 function backups() {
-  return fs.readdirSync(BACKUP_ROOT).sort();
+  return fs.readdirSync(BACKUP_ROOT).filter((name) => name !== path.basename(PENDING_ROOT)).sort();
+}
+
+/** What the staging directory holds. @returns {string[]} */
+function pending() {
+  return fs.existsSync(PENDING_ROOT) ? fs.readdirSync(PENDING_ROOT).sort() : [];
 }
 
 /** @param {FakeCall[]} calls @param {string} action */
@@ -501,10 +667,31 @@ async function main() {
   const fakeBin = path.join(work, "bin");
   const dfBin = path.join(work, "df-bin");
   for (const directory of [fakeBin, dfBin]) fs.mkdirSync(directory, { mode: 0o755 });
+  const staticDfBin = path.join(work, "static-df-bin");
+  for (const directory of [staticDfBin]) fs.mkdirSync(directory, { mode: 0o755 });
   for (const tool of ["docker", "curl", "age", "ssh", "df"]) {
     fs.writeFileSync(path.join(fakeBin, tool), `#!/usr/bin/env bash\nexec ${shellQuote(process.execPath)} ${shellQuote(scriptPath)} --fake ${tool} "$@"\n`, { mode: 0o755 });
   }
+  // The fake `rm` is plain bash, so that it costs nothing on the many removals that pass straight through.
+  const realRm = spawnSync("bash", ["-c", "command -v rm"], { encoding: "utf8" }).stdout.trim();
+  assert.match(realRm, /^\/(usr\/)?bin\/rm$/, "the real rm must be found");
+  fs.writeFileSync(path.join(fakeBin, "rm"), [
+    "#!/usr/bin/env bash",
+    "fails=\"${HARNESS_STATE:-/nonexistent}/rm-fails\"",
+    "if test -f \"$fails\"; then",
+    "  while IFS= read -r pattern; do",
+    "    for argument in \"$@\"; do",
+    // An unquoted right-hand side is a pattern.
+    "      if [[ \"$argument\" == $pattern ]]; then printf \"rm: cannot remove '%s': Read-only file system\\n\" \"$argument\" >&2; exit 1; fi",
+    "    done",
+    "  done < \"$fails\"",
+    "fi",
+    `exec ${realRm} "$@"`,
+    "",
+  ].join("\n"), { mode: 0o755 });
   fs.writeFileSync(path.join(dfBin, "df"), `#!/usr/bin/env bash\nexec ${shellQuote(process.execPath)} ${shellQuote(scriptPath)} --fake df "$@"\n`, { mode: 0o755 });
+  // A df with no Node behind it, for a receiver whose address space is limited.
+  fs.writeFileSync(path.join(staticDfBin, "df"), `#!/usr/bin/env bash\nprintf 'Avail\\n%s\\n' ${50 * 1024 ** 3}\n`, { mode: 0o755 });
 
   /** @type {{ name: string, ok: boolean }[]} */
   const outcomes = [];
@@ -536,19 +723,30 @@ async function main() {
       const box = sandbox();
       const result = run(box);
       assert.equal(result.status, 0, result.stderr);
-      const order = ["stop", "backup-create", "backup-inspect", "up"].map((action) => indexOf(result.calls, action));
+      const order = ["posture", "stop", "backup-create", "backup-inspect", "start"].map((action) => indexOf(result.calls, action));
       assert.ok(order.every((at, index) => at >= 0 && (index === 0 || at > Number(order[index - 1]))), `the backup must run in order: ${order}`);
-      for (const action of ["stop", "backup-create", "backup-inspect", "up"]) {
-        assert.ok(result.calls.find((call) => call.action === action)?.markerPresent, `${action} must happen behind the curtain`);
+      assert.equal(result.calls[order[0] ?? -1]?.markerPresent, false, "the running container's posture is checked before any outage");
+      for (const action of ["stop", "backup-create", "backup-inspect", "start"]) {
+        const call = result.calls.find((entry) => entry.action === action);
+        assert.ok(call?.markerPresent, `${action} must happen behind the curtain`);
+        assert.ok(call?.lockHeld, `${action} must happen under the lifecycle lock`);
       }
       assert.ok(result.calls.filter((call) => call.action === "http").some((call) => call.markerPresent), "the restart verifies behind the curtain");
+      assert.ok(result.calls.some((call) => call.action === "posture" && call.markerPresent && indexOf(result.calls, "start") < result.calls.indexOf(call)),
+        "the restarted container's posture verifies behind the curtain");
+      assert.equal(indexOf(result.calls, "up"), -1, "the stopped container is started as itself, never recreated or pulled");
       assert.equal(fs.existsSync(box.marker), false, "the curtain must lift once the release verifies");
       const archive = backups().find((name) => SCHEDULED_ARCHIVE.test(name));
       assert.ok(archive, `a scheduled backup must exist: ${backups()}`);
       assert.ok(archive.includes(`-${IDENTITY.commit.slice(0, 12)}.`), "the name carries the release commit");
       assert.ok(backups().includes(`${archive}.sha256`));
-      const up = result.calls.find((call) => call.action === "up");
-      assert.ok(up?.args?.includes("--pull") && up.args.includes("never"), "the restart never pulls");
+      const create = result.calls.find((call) => call.action === "backup-create");
+      assert.equal(create?.archive, `${PENDING_ROOT}/${archive}`, "the backup is written in the staging directory");
+      assert.equal(create?.auditLog, `${BACKUP_CONTAINER_ROOT}/backup-operations.jsonl`, "the operator audit stays beside the backups");
+      assert.ok(create?.args?.includes(`longtail-forge-scheduled-backup-${archive.slice("scheduled-".length, "scheduled-".length + 16)}-create`), "the step's container is named");
+      assert.equal(result.calls.find((call) => call.action === "backup-inspect")?.archive, `${PENDING_ROOT}/${archive}`, "and inspected there");
+      assert.deepEqual(pending(), [], "only an inspected backup leaves the staging directory, and nothing stays behind");
+      assert.equal(spawnSync("stat", ["-c", "%u:%g:%a", PENDING_ROOT], { encoding: "utf8" }).stdout.trim(), "10001:10001:700");
       const heartbeat = result.calls.find((call) => call.action === "heartbeat");
       assert.equal(heartbeat?.stdin, `url = "${HEARTBEAT_URL}"\n`, "the heartbeat reaches the push monitor on standard input");
       assert.equal(indexOf(result.calls, "notify"), -1, "a clean run raises no alert");
@@ -607,22 +805,135 @@ async function main() {
         const result = run(box);
         assert.equal(result.status, 1);
         assert.match(result.stderr, /the backup failed, and the unchanged release was restarted and verified/);
-        assert.ok(indexOf(result.calls, "up") > indexOf(result.calls, `backup-${fault}`));
+        assert.ok(indexOf(result.calls, "start") > indexOf(result.calls, `backup-${fault}`));
+        assert.equal(indexOf(result.calls, "up"), -1);
         assert.equal(fs.existsSync(box.marker), false);
-        assert.deepEqual(backups(), [], "a backup that never passed inspection is removed");
+        assert.deepEqual(backups(), [], "a backup that never passed inspection never joins the backups");
+        assert.deepEqual(pending(), [], "and is discarded from the staging directory");
         assert.equal(hookRecords(box).length, 0, "the copy hook never sees an uninspected backup");
-        assert.match(String(result.calls.find((call) => call.action === "notify")?.args?.at(-1)), /failureClass=backup-failed-recovered /);
+        assert.match(alertSummary(result), /failureClass=backup-failed-recovered exitCode=1 curtain=down$/);
       });
     }
 
-    await scenario("a release that does not verify after the backup keeps the curtain, and the run alerts unrecovered", () => {
+    await scenario("a release that does not verify after the backup keeps the curtain, is stopped, and the run alerts unrecovered", () => {
       const box = sandbox({ restartFails: true });
       const result = run(box);
       assert.equal(result.status, 1);
-      assert.match(result.stderr, /maintenance curtain and protected evidence remain/);
+      assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
       assert.equal(fs.existsSync(box.marker), true, "an unverified release must stay behind the curtain");
+      const lastHealth = result.calls.map((call) => call.action).lastIndexOf("health");
+      assert.ok(result.calls.slice(lastHealth).some((call) => call.action === "stop"), "the unverified container is stopped, so it never serves");
       assert.equal(hookRecords(box).length, 0);
-      assert.match(String(result.calls.find((call) => call.action === "notify")?.args?.at(-1)), /failureClass=backup-failed-unrecovered /);
+      assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered exitCode=1 curtain=up$/);
+      assert.equal(runRecords(box)[0]?.curtain, "up");
+    });
+
+    for (const [label, options, message] of /** @type {[string, SandboxOptions, RegExp][]} */ ([
+      ["whose posture drifted after the restart", { postureAfterStart: "public-port" }, /the restarted release did not verify/],
+      ["that is not the container that was stopped", { recreated: true }, /could not be started again as itself/],
+    ])) {
+      await scenario(`a restarted container ${label} keeps the curtain, is stopped, and the run alerts unrecovered`, () => {
+        const box = sandbox(options);
+        const result = run(box);
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, message);
+        assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
+        assert.equal(fs.existsSync(box.marker), true, "an unverified container must stay behind the curtain");
+        assert.equal(indexOf(result.calls, "http"), -1, "an unverified container is never asked whether it is healthy");
+        assert.ok(result.calls.slice(indexOf(result.calls, "start") + 1).some((call) => call.action === "stop"), "and is stopped");
+        assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered /);
+      });
+    }
+
+    for (const [label, posture] of /** @type {[string, FakePosture][]} */ ([["as root", "root-user"], ["with its port published to every address", "public-port"]])) {
+      await scenario(`a running container ${label} refuses the backup before any outage`, () => {
+        const box = sandbox({ posture });
+        const result = run(box);
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /does not have the identity and posture the deploy helper verifies/);
+        assert.equal(result.calls.filter((call) => call.markerPresent).length, 0, "the curtain never rises");
+        assert.equal(indexOf(result.calls, "stop"), -1);
+        assert.match(alertSummary(result), /failureClass=backup-failed exitCode=1 curtain=down$/);
+      });
+    }
+
+    await scenario("an uninspected archive whose removal fails stays staged, never counts as a backup, and the release is still restarted", () => {
+      const box = sandbox({ backupFails: "inspect" });
+      failRemovals(box, [`${PENDING_ROOT}/scheduled-*`]);
+      const result = run(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /could not be discarded from the staging directory; it is never counted as a backup/);
+      assert.match(result.stderr, /the unchanged release was restarted and verified/);
+      assert.ok(indexOf(result.calls, "start") > indexOf(result.calls, "backup-inspect"), "a failed removal never skips the restart");
+      assert.equal(fs.existsSync(box.marker), false);
+      assert.equal(pending().length, 2, "the rejected archive and its sidecar stay in the staging directory");
+      assert.deepEqual(backups(), [], "and never among the backups");
+      assert.match(alertSummary(result), /failureClass=backup-failed-recovered,staging-not-cleared /);
+      allowRemovals(box);
+      updateScenario(box, { backupFails: null });
+      const next = run(box);
+      assert.equal(next.status, 0, next.stderr);
+      assert.match(next.stderr, /discarded 2 files an interrupted run left uninspected/);
+      assert.deepEqual(pending(), []);
+      const kept = backups().filter((name) => SCHEDULED_ARCHIVE.test(name));
+      assert.deepEqual(kept, [runRecords(box)[1]?.result?.archive], "only the inspected backup is a backup");
+      assert.equal(runRecords(box)[1]?.result?.discardedUninspected, 2);
+    });
+
+    await scenario("a staging directory holding anything else refuses the backup before any outage, and removes nothing", () => {
+      const box = sandbox();
+      fs.mkdirSync(PENDING_ROOT, { mode: 0o700 });
+      fs.chownSync(PENDING_ROOT, 10001, 10001);
+      fs.writeFileSync(path.join(PENDING_ROOT, "operator-notes.txt"), "keep me\n");
+      const result = run(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /staging directory holds something other than an interrupted run's backup; nothing was removed/);
+      assert.equal(result.calls.filter((call) => call.markerPresent).length, 0);
+      assert.deepEqual(pending(), ["operator-notes.txt"]);
+    });
+
+    await scenario("a backup that runs out of its time is stopped, and recovery restarts the release with its own time, under the lock", () => {
+      const box = sandbox({ backupHangs: true, healthyAfterMs: 5000 });
+      const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-limit-2", [["readonly BACKUP_LIMIT=7200\n", "readonly BACKUP_LIMIT=2\n"]]);
+      waitForNextSecond();
+      const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      fs.writeFileSync(path.join(box.state, "release"), "");
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /the backup did not finish within its time limit/);
+      assert.match(result.stderr, /the unchanged release was restarted and verified/);
+      const removed = result.calls.filter((call) => call.action === "remove-step").map((call) => String(call.args?.at(-1)));
+      assert.ok(removed.some((name) => /^longtail-forge-scheduled-backup-\d{8}T\d{6}Z-create$/.test(name)), "the cut-off step's container is removed");
+      const recovery = result.calls.slice(indexOf(result.calls, "start"));
+      assert.ok(recovery.filter((call) => call.action === "health").length >= 2, "the release took longer than the backup's limit to become healthy");
+      assert.ok(recovery.every((call) => call.tool !== "docker" || call.lockHeld), "recovery runs under the lock the backup holds");
+      assert.equal(fs.existsSync(box.marker), false, "the curtain lifts once the release verifies");
+      assert.deepEqual(backups(), []);
+      assert.deepEqual(pending(), [], "the partial archive is discarded");
+      assert.match(alertSummary(result), /failureClass=backup-timed-out-recovered exitCode=1 curtain=down$/);
+      assert.ok(result.seconds < 60, `the run took ${result.seconds}s`);
+    });
+
+    await scenario("a backup the run's own backstop kills is reported as that limit's expiry, with the curtain up", () => {
+      const box = sandbox({ backupHangs: true });
+      const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-run-limit-3", [
+        ["readonly RUN_LIMIT=$((BACKUP_LIMIT + RECOVERY_LIMIT + COPY_LIMIT + 600))\n", "readonly RUN_LIMIT=3\n"],
+        ["timeout --kill-after=60 \"$RUN_LIMIT\"", "timeout --kill-after=1 \"$RUN_LIMIT\""],
+      ]);
+      waitForNextSecond();
+      const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      fs.writeFileSync(path.join(box.state, "release"), "");
+      assert.equal(result.status, 137, result.stderr);
+      assert.match(alertSummary(result), /failureClass=backup-run-limit-expired exitCode=137 curtain=up$/);
+      assert.deepEqual([runRecords(box)[0]?.failureClass, runRecords(box)[0]?.curtain], ["backup-run-limit-expired", "up"]);
+    });
+
+    await scenario("a backup killed before any limit is reported as killed, never as timed out", () => {
+      const box = sandbox({ killBackup: true });
+      const result = run(box);
+      assert.equal(result.status, 137, result.stderr);
+      assert.ok(result.seconds < 60);
+      assert.match(alertSummary(result), /failureClass=backup-killed exitCode=137 curtain=up$/);
+      assert.equal(runRecords(box)[0]?.failureClass, "backup-killed");
     });
 
     await scenario("a disabled schedule takes no backup and records that it was skipped", () => {
@@ -646,8 +957,30 @@ async function main() {
       assert.ok(!archives.includes(String(seeded[0])) && !archives.includes(String(seeded[1])), "the two oldest go");
       assert.ok(!backups().includes(`${seeded[0]}.sha256`), "with their sidecars");
       for (const name of others) assert.ok(backups().includes(name) && backups().includes(`${name}.sha256`), `${name} stays`);
-      assert.deepEqual(runRecords(box)[0]?.result?.retention, { status: "pruned", removed: 2 });
+      assert.deepEqual(runRecords(box)[0]?.result?.retention, { status: "pruned", removed: 2, orphanSidecars: 0 });
       assert.equal(indexOf(result.calls, "notify"), -1);
+    });
+
+    await scenario("retention that stops part-way reports how far it went, and the next run finishes it, orphaned sidecar included", () => {
+      const box = sandbox();
+      const seeded = Array.from({ length: 16 }, (_, index) => scheduledName(IDENTITY.commit.slice(0, 12), 16 - index));
+      for (const name of seeded) writeContainerBackup(path.join(BACKUP_ROOT, name), name);
+      // The run removes the three oldest, newest of them first; the second's sidecar cannot be removed.
+      failRemovals(box, [`${BACKUP_ROOT}/${seeded[1]}.sha256`]);
+      const result = run(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stderr, /retention stopped after removing 3 files; the next run finishes it/);
+      assert.doesNotMatch(result.stderr, /nothing was removed/);
+      assert.deepEqual(runRecords(box)[0]?.result?.retention, { status: "failed", filesRemoved: 3 });
+      assert.match(alertSummary(result), /failureClass=retention-failed /);
+      assert.ok(!backups().includes(String(seeded[1])) && backups().includes(`${seeded[1]}.sha256`), "the stopped removal leaves an orphaned sidecar");
+      allowRemovals(box);
+      const next = run(box);
+      assert.equal(next.status, 0, next.stderr);
+      assert.deepEqual(runRecords(box)[1]?.result?.retention, { status: "pruned", removed: 2, orphanSidecars: 1 });
+      const archives = backups().filter((name) => SCHEDULED_ARCHIVE.test(name));
+      assert.equal(archives.length, 14);
+      assert.deepEqual(backups().filter((name) => name.endsWith(".sha256")).sort(), archives.map((name) => `${name}.sha256`).sort(), "every archive keeps its sidecar, and no sidecar is left without one");
     });
 
     for (const [label, tamper] of /** @type {[string, (oldest: string) => void][]} */ ([
@@ -674,7 +1007,8 @@ async function main() {
         const made = backups().filter((name) => !before.includes(name));
         assert.equal(made.length, 2, "only this run's backup and sidecar are new");
         assert.deepEqual(backups().filter((name) => before.includes(name)), before, "nothing is removed");
-        assert.deepEqual(runRecords(box)[0]?.result?.retention, { status: "failed" });
+        assert.match(result.stderr, /retention refused; nothing was removed/);
+        assert.deepEqual(runRecords(box)[0]?.result?.retention, { status: "failed", filesRemoved: 0 });
         assert.match(String(result.calls.find((call) => call.action === "notify")?.args?.at(-1)), /failureClass=retention-failed /);
         assert.equal(runRecords(box)[0]?.heartbeatOutcome, "delivered", "the backup itself succeeded");
       });
@@ -709,7 +1043,7 @@ async function main() {
       ["another account owns", (hook) => fs.chownSync(hook, 65534, 65534)],
       ["another account may write", (hook) => fs.chmodSync(hook, 0o775)],
     ])) {
-      await scenario(`a copy hook ${label} is refused before any backup`, () => {
+      await scenario(`a copy hook ${label} is refused before any backup, and the refusal alerts and is recorded`, () => {
         const box = sandbox();
         change(path.join(box.sbin, "longtail-forge-offsite-copy"));
         const result = run(box);
@@ -718,8 +1052,21 @@ async function main() {
         assert.equal(indexOf(result.calls, "stop"), -1, "no backup may start");
         assert.deepEqual(backups(), []);
         assert.equal(hookRecords(box).length, 0);
+        assert.match(alertSummary(result), /failureClass=configuration-refused exitCode=1$/, "the refusal alerts by its class alone");
+        assert.ok(!alertSummary(result).includes("copy hook"), "the alert never carries the reason, which the journal has");
+        assert.deepEqual([runRecords(box)[0]?.outcome, runRecords(box)[0]?.failureClass, runRecords(box)[0]?.alertOutcome], ["failed", "configuration-refused", "delivered"]);
       });
     }
+
+    await scenario("a refused installation file alerts even before the run log's location is known", () => {
+      const box = sandbox();
+      fs.chmodSync(box.helperEnv, 0o644);
+      const result = run(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /compose helper environment must use mode 0600/);
+      assert.match(alertSummary(result), /failureClass=configuration-refused exitCode=1$/);
+      assert.deepEqual(runRecords(box), [], "no log is written where the configuration could not say");
+    });
 
     await scenario("with no copy hook configured, the backup stays on this server and no alert is raised", () => {
       const box = sandbox({ hook: "none" });
@@ -972,6 +1319,54 @@ async function main() {
       assert.equal(receive(box, dfBin, copy.request, copy.content).status, 0);
       assert.ok(!fs.existsSync(path.join(box.store, ".incoming-4242")));
     });
+
+    await scenario("the receiver checks a copy's header without reading its first line into memory", () => {
+      const box = sandbox();
+      // 64 MiB of address space: room for every command an ordinary receipt runs, and far too little to
+      // hold a 96 MiB first line.
+      /** @param {string} request @param {Buffer} input */
+      const limited = (request, input) => spawnSync("bash", ["-c", "ulimit -v 65536 && exec bash \"$0\" \"$@\"", RECEIVER, box.store], {
+        input,
+        encoding: "utf8",
+        timeout: 120_000,
+        env: { PATH: `${staticDfBin}:/usr/sbin:/usr/bin:/sbin:/bin`, SSH_ORIGINAL_COMMAND: request },
+      });
+      const control = ageCopy();
+      const stored = limited(control.request, control.content);
+      assert.equal(stored.status, 0, `the limit must leave an ordinary receipt room: ${stored.stdout}${stored.stderr}`);
+      const unterminated = Buffer.alloc(96 * 1024 * 1024, 0x61);
+      const refused = limited(`receive ${sha256(unterminated)} ${unterminated.length}`, unterminated);
+      assert.equal(refused.status, 1, refused.stderr);
+      assert.deepEqual(JSON.parse(String(refused.stdout).trim().split("\n").at(-1) || "{}"), { ok: false, reason: "the copy is not an age file" });
+      assert.deepEqual(fs.readdirSync(box.store).filter((name) => name.startsWith(".incoming-")), []);
+    });
+
+    // The receipt's time limit, scaled from the sender's 1800 seconds to 2.
+    const quickReceiver = scaledCopy(work, RECEIVER, "receiver-limit-2", [["readonly RECEIVE_LIMIT=1800\n", "readonly RECEIVE_LIMIT=2\n"]]);
+    for (const [label, feed] of /** @type {[string, (stdin: import("node:stream").Writable, content: Buffer) => Promise<void>][]} */ ([
+      ["a stream that sends every declared byte and then never closes", async (stdin, content) => {
+        stdin.write(content);
+      }],
+      ["a stream that trickles one byte at a time", async (stdin, content) => {
+        for (const byte of content) {
+          if (!stdin.writable) return;
+          stdin.write(Buffer.from([byte]));
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        stdin.end();
+      }],
+    ])) {
+      await scenario(`the receiver cuts off ${label} at the receipt's time limit, and releases the store`, async () => {
+        const box = sandbox();
+        const copy = ageCopy("x".repeat(40));
+        const { status, reply } = await receiveStreaming(quickReceiver, box.store, staticDfBin, copy.request, (stdin) => feed(stdin, copy.content), 12_000);
+        assert.equal(status, 1, `the receipt must end at its limit: ${JSON.stringify(reply)}`);
+        assert.deepEqual(reply, { ok: false, reason: "the copy did not arrive within the time a receipt may take" });
+        assert.deepEqual(fs.readdirSync(box.store).filter((name) => name.startsWith(".incoming-")), [], "the partial copy is removed");
+        assert.equal(spawnSync("flock", ["-n", path.join(box.store, ".lock"), "true"]).status, 0, "the store is released");
+        assert.equal(receive(box, dfBin, copy.request, copy.content).status, 0, "the next receipt is stored");
+      });
+    }
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
     for (const target of [STAGE_ROOT, FIXED.webhook, FIXED.heartbeat]) fs.rmSync(target, { recursive: true, force: true });

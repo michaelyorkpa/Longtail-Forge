@@ -92,6 +92,7 @@ const INSTALLED_BOOT_FILES = Object.freeze({
 });
 const REPAIRED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-compose-deploy-host.example");
 const SCHEDULED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-scheduled-backup-host.example");
+const SCHEDULED_PENDING_ROOT = `${BACKUP_ROOT}/.scheduled-pending`;
 const ORIGINAL_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/v0.33.33-longtail-forge-compose-deploy-host.example");
 const ADMIN_USERNAME = "qualification-admin@example.test";
 
@@ -457,14 +458,47 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
   assert.equal(inspectedScheduled.manifest?.appVersion, candidate.metadata.version);
   assert.deepEqual(scheduled.hookCalls, [{ count: 2, args: ["--archive", path.join(BACKUP_ROOT, archive)], markerPresent: false, sidecarVerified: true }],
     "the copy hook receives exactly the inspected backup, once, after the curtain lifts");
-  assert.deepEqual(scheduled.record.result?.retention, { status: "pruned", removed: 2 });
+  assert.deepEqual(scheduled.record.result?.retention, { status: "pruned", removed: 2, orphanSidecars: 0 });
   const kept = scheduledBackupNames();
   assert.equal(kept.length, 14);
   assert.ok(!kept.includes(String(seeded[0])) && !kept.includes(String(seeded[1])) && kept.includes(archive), "the two oldest go, and this run's stays");
+  assert.deepEqual(fs.readdirSync(SCHEDULED_PENDING_ROOT), [], "only an inspected backup leaves the staging directory, and nothing stays behind");
   assert.equal(fs.existsSync(host.marker), false, "the curtain lifts once the release verifies");
   await api.expectIdentity(candidate);
   await api.expectList(await api.login(), baseline.listId, 200);
   record("scheduled-backup", { seconds: scheduled.seconds, archive, retention: scheduled.record.result?.retention, copy: scheduled.record.result?.copy, contendedSeconds: contended.seconds });
+
+  // A backup that runs out of its time, on the real image and Docker. The operator audit is swapped for
+  // a FIFO that no one reads, so the real `backup.mjs create` writes its archive into the staging
+  // directory and then blocks. The step is stopped at the backup's limit, scaled to 30 seconds; its
+  // one-off container is removed; and recovery, with its own time, starts the stopped container as
+  // itself, verifies it, and lowers the curtain.
+  const audit = path.join(BACKUP_ROOT, "backup-operations.jsonl");
+  const auditSaved = path.join(work, "backup-operations.jsonl.saved");
+  const hadAudit = fs.existsSync(audit);
+  if (hadAudit) fs.renameSync(audit, auditSaved);
+  run("mkfifo", ["-m", "0600", audit]);
+  fs.chownSync(audit, 10001, 10001);
+  const containerBefore = composeContainer(host);
+  try {
+    const timedOut = runScheduledBackup(work, host, { helper: scaledScheduledHelper(work, 30) });
+    assert.equal(timedOut.status, 1, `the timed-out backup must fail:\n${timedOut.stderr}`);
+    assert.match(timedOut.stderr, /the backup did not finish within its time limit/);
+    assert.match(timedOut.stderr, /the unchanged release was restarted and verified/);
+    assert.equal(timedOut.record.failureClass, "backup-timed-out-recovered");
+    assert.deepEqual(scheduledBackupNames(), kept, "an archive that was never inspected never joins the backups");
+    assert.deepEqual(fs.readdirSync(SCHEDULED_PENDING_ROOT), [], "and is discarded from the staging directory");
+    assert.equal(docker(["ps", "--all", "--quiet", "--filter", "name=longtail-forge-scheduled-backup-"]).trim(), "", "no step container outlives the backup");
+    assert.deepEqual(timedOut.hookCalls, [], "the copy hook never runs after a failed backup");
+    assert.equal(composeContainer(host), containerBefore, "the stopped container is started again as itself");
+    assert.equal(fs.existsSync(host.marker), false, "the curtain lifts once the restarted release verifies");
+    await api.expectIdentity(candidate);
+    await api.expectList(await api.login(), baseline.listId, 200);
+    record("scheduled-backup-timed-out", { seconds: timedOut.seconds, failureClass: timedOut.record.failureClass });
+  } finally {
+    fs.rmSync(audit, { force: true });
+    if (hadAudit) fs.renameSync(auditSaved, audit);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1627,7 +1661,7 @@ function runHelperWithFullBackupRoot(host, mode, release) {
  * Run the scheduled backup's `run` command, the way its timer does, with a copy hook that records the
  * arguments it was given, whether the curtain was up, and whether the archive matched its sidecar.
  * The host has no alert files, so a failure reaches only the journal and the run's record.
- * @param {string} work @param {Host} host @param {{ holdLock?: boolean }} [options]
+ * @param {string} work @param {Host} host @param {{ holdLock?: boolean, helper?: string }} [options]
  */
 function runScheduledBackup(work, host, options = {}) {
   spawnSync("sleep", ["1.05"]);
@@ -1659,7 +1693,7 @@ function runScheduledBackup(work, host, options = {}) {
       }
     }
     const started = Date.now();
-    const result = spawnSync("bash", [SCHEDULED_HELPER, "run", "--trigger", "manual"], {
+    const result = spawnSync("bash", [options.helper ?? SCHEDULED_HELPER, "run", "--trigger", "manual"], {
       encoding: "utf8",
       env: { PATH: "/usr/sbin:/usr/bin:/sbin:/bin", HOME: "/root", LANG: "C.UTF-8", LTF_COMPOSE_HELPER_ENV: host.helperEnv, LTF_SCHEDULED_BACKUP_ENV: scheduleEnv },
       timeout: 900_000,
@@ -1679,6 +1713,20 @@ function runScheduledBackup(work, host, options = {}) {
   } finally {
     holder?.kill("SIGKILL");
   }
+}
+
+/**
+ * The scheduled backup with only its own work's limit scaled down, the replacement applied exactly
+ * once, so the qualification never runs against a limit the helper no longer has.
+ * @param {string} work @param {number} seconds
+ */
+function scaledScheduledHelper(work, seconds) {
+  const source = fs.readFileSync(SCHEDULED_HELPER, "utf8");
+  const anchor = "readonly BACKUP_LIMIT=7200\n";
+  assert.equal(source.split(anchor).length - 1, 1, "the scheduled backup must define its backup limit exactly once");
+  const target = path.join(work, `scheduled-backup-limit-${seconds}`);
+  fs.writeFileSync(target, source.split(anchor).join(`readonly BACKUP_LIMIT=${seconds}\n`), { mode: 0o755 });
+  return target;
 }
 
 /** The scheduled backups in the backup root, archives only, oldest first. */

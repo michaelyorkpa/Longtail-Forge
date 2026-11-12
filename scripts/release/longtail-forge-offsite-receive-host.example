@@ -19,6 +19,12 @@ umask 077
 # refuses the new copy rather than evicting an old one, so a stolen key cannot push the good copies
 # out, or fill the destination's disk. A refusal fails the sender's job, which alerts its operator.
 #
+# Its resources are bounded whatever the sender does. One receipt at a time holds the store, and for at
+# most RECEIVE_LIMIT seconds of streaming, the same limit the sender's hook gives its whole transfer: a
+# stream that stalls, trickles, or never closes is cut off there, its partial copy removed, and the
+# store released. The copy is checked by streaming, and only the age header's own bytes are compared,
+# so a copy with no line break is never read into memory.
+#
 # It prints one JSON line. Its reasons are fixed strings: nothing the sender supplies is echoed.
 
 readonly RETENTION_SECONDS=$((14 * 24 * 60 * 60))
@@ -28,6 +34,7 @@ readonly MAX_STORE_BYTES=$((10 * 1024 * 1024 * 1024))
 readonly MIN_FREE_BYTES=$((10 * 1024 * 1024 * 1024))
 readonly MAX_COPIES=20
 readonly MAX_COPIES_PER_DAY=3
+readonly RECEIVE_LIMIT=1800
 readonly AGE_HEADER='age-encryption.org/v1'
 readonly COPY_PATTERN='^([0-9]{8})T([0-9]{2})([0-9]{2})([0-9]{2})Z-[a-f0-9]{16}\.ltfbackup\.tar\.age$'
 readonly INCOMING_PATTERN='^\.incoming-[0-9]+$'
@@ -38,7 +45,7 @@ refuse() {
   exit 1
 }
 
-for command in cut date df find flock head id ln rm sha256sum stat sync tail tr; do
+for command in cmp cut date df find flock head id ln rm sha256sum stat sync tail timeout tr; do
   command -v "$command" >/dev/null 2>&1 || refuse "a required command is unavailable"
 done
 
@@ -94,11 +101,19 @@ test "$((FREE - DECLARED_BYTES))" -ge "$MIN_FREE_BYTES" || refuse "the copy woul
 INCOMING="$STORE/.incoming-$$"
 cleanup() { rm -f -- "$INCOMING"; }
 trap cleanup EXIT
-# One byte more than declared is read, so a longer stream is detected rather than truncated.
-head -c "$((DECLARED_BYTES + 1))" > "$INCOMING"
+# One byte more than declared is read, so a longer stream is detected rather than truncated. The read
+# has its own time limit, so no sender can hold the store longer.
+set +e
+timeout --kill-after=5 "$RECEIVE_LIMIT" head -c "$((DECLARED_BYTES + 1))" > "$INCOMING"
+received_status=$?
+set -e
+test "$received_status" -ne 124 || refuse "the copy did not arrive within the time a receipt may take"
+test "$received_status" -eq 0 || refuse "the copy could not be received"
 test "$(stat -c '%s' "$INCOMING")" = "$DECLARED_BYTES" || refuse "the copy is not the declared size"
 test "$(sha256sum "$INCOMING" | cut -d ' ' -f 1)" = "$DECLARED_SHA" || refuse "the copy does not have the declared SHA-256"
-test "$(head -n 1 "$INCOMING")" = "$AGE_HEADER" || refuse "the copy is not an age file"
+# Exactly the header line's bytes, and no more, however long the copy's first line is.
+printf '%s\n' "$AGE_HEADER" | cmp --silent --bytes="$(( ${#AGE_HEADER} + 1 ))" - "$INCOMING" \
+  || refuse "the copy is not an age file"
 
 STORED="$(date -u -d "@$NOW" +%Y%m%dT%H%M%SZ)-${DECLARED_SHA:0:16}.ltfbackup.tar.age"
 # A link fails if the name exists, so an existing copy is never replaced.

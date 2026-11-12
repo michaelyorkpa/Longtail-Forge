@@ -7,18 +7,21 @@ umask 077
 # Install it as root:root 0755 at /usr/local/sbin/longtail-forge-scheduled-backup. Its systemd timer
 # runs `longtail-forge-scheduled-backup run --trigger scheduled` nightly.
 #
-# run      runs the backup below as its own child, under a deadline, then reports: a heartbeat to the
-#          operator's push monitor on success, and a Discord alert on any failure, including a backup
-#          that succeeded but whose retention or off-server copy did not. Both URLs live only in
-#          root-only 0600 files, and reach curl on standard input. It appends one line per run to a
-#          bounded log.
-# backup   under the shared lifecycle lock, raises the maintenance curtain, stops the application,
-#          takes the existing whole-instance backup as scheduled-<UTC>-<commit>.ltfbackup.tgz, and
-#          inspects it. It then starts the unchanged release and lowers the curtain once that release
-#          verifies. Only then does it keep the 14 newest scheduled backups, and pass the backup it
-#          inspected to the configured copy hook, so neither lengthens the outage. A backup that
-#          fails restarts the unchanged release. It refuses the public demo, which resets hourly and
-#          whose visitor-entered content a nightly copy would keep.
+# run      runs the backup below as its own child, under a backstop limit, then reports: a heartbeat to
+#          the operator's push monitor when the local backup succeeded, and a Discord alert on any
+#          failure. That includes a refusal of the run's own configuration, and a backup that succeeded
+#          but whose retention or off-server copy did not. The heartbeat therefore means a local backup
+#          was taken; it never proves an off-server copy. Both URLs live only in root-only 0600 files,
+#          and reach curl on standard input. It appends one line per run to a bounded log.
+# backup   under the shared lifecycle lock, checks the running release's container, raises the
+#          maintenance curtain, stops the application, and takes the existing whole-instance backup in a
+#          staging directory, where it is inspected. Only an inspected backup joins the others, as
+#          scheduled-<UTC>-<commit>.ltfbackup.tgz. The stopped container is then started again as
+#          itself, and the curtain lowers once its identity, posture, and runtime verify. Only then does
+#          it keep the 14 newest scheduled backups, and pass the backup it inspected to the configured
+#          copy hook, so neither lengthens the outage. A backup that fails, or runs out of its time,
+#          restarts the unchanged release with recovery's own time. It refuses the public demo, which
+#          resets hourly and whose visitor-entered content a nightly copy would keep.
 #
 # Exit status: 0 when the backup succeeded, even if retention or the copy failed, which the result and
 # the alert report; 75 when another lifecycle operation holds the lock; 1 otherwise.
@@ -34,12 +37,26 @@ readonly DISCORD_WEBHOOK_PATTERN='^https://discord\.com/api/webhooks/[0-9]{17,20
 readonly HEARTBEAT_URL_PATTERN='^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._~/?=&%-]*$'
 readonly RETAINED_SCHEDULED=14
 readonly SCHEDULED_NAME='^scheduled-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}\.ltfbackup\.tgz(\.sha256)?$'
+readonly PENDING_DIRECTORY='.scheduled-pending'
+# Time limits, in seconds. The backup's own work (stopping the application, creating the backup, and
+# inspecting it) has BACKUP_LIMIT. Recovery never shares it: each of its steps has its own bound, and
+# together they take at most RECOVERY_LIMIT. The copy hook has COPY_LIMIT. RUN_LIMIT is only the run's
+# backstop, for a step that overruns its own bound, and the service's TimeoutStartSec exceeds it.
 readonly BACKUP_LIMIT=7200
+readonly START_LIMIT=300
+readonly STOP_LIMIT=120
+readonly REMOVE_LIMIT=60
+readonly RECOVERY_LIMIT=900
 readonly COPY_LIMIT=2400
+readonly RUN_LIMIT=$((BACKUP_LIMIT + RECOVERY_LIMIT + COPY_LIMIT + 600))
 readonly LOG_RECORDS=400
 
 fail() {
   printf 'longtail-forge-scheduled-backup: %s\n' "$*" >&2
+  if test "${REPORT_REFUSAL:-false}" = true; then
+    REPORT_REFUSAL=false
+    report_refusal
+  fi
   exit 1
 }
 
@@ -158,28 +175,45 @@ append_record() {
 }
 
 if test "$MODE" = 'run'; then
-  TRIGGER=''
-  if test "$#" -eq 2 && test "$1" = '--trigger'; then TRIGGER="$2"; fi
-  test "$TRIGGER" = 'scheduled' || test "$TRIGGER" = 'manual' || fail 'usage: longtail-forge-scheduled-backup run --trigger scheduled|manual'
-  for command in curl date head hostname install jq logger mktemp realpath stat tail timeout wc; do require_command "$command"; done
+  HOST_NAME="$(hostname -s 2>/dev/null || true)"
+  [[ "$HOST_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] || HOST_NAME='unnamed-host'
+  STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  STARTED_MS="$(date -u +%s%3N)"
+  TRIGGER='unrecognized'
+  if test "$#" -eq 2 && test "$1" = '--trigger' && { test "$2" = 'scheduled' || test "$2" = 'manual'; }; then TRIGGER="$2"; fi
+  record() {
+    jq -cn --arg host "$HOST_NAME" --arg trigger "$TRIGGER" --arg started "$STARTED" --arg outcome "$1" \
+      --arg failureClass "$2" --argjson exitCode "$3" --argjson durationMs "$(( $(date -u +%s%3N) - STARTED_MS ))" \
+      --arg alert "$4" --arg heartbeat "$5" --argjson result "$6" --arg curtain "${7:-}" \
+      '{contract:"longtail-forge-scheduled-backup-run-v1",host:$host,trigger:$trigger,startedAt:$started,outcome:$outcome,
+        failureClass:(if $failureClass == "" then null else $failureClass end),exitCode:$exitCode,durationMs:$durationMs,
+        alertOutcome:$alert,heartbeatOutcome:$heartbeat,curtain:(if $curtain == "" then null else $curtain end),result:$result}'
+  }
+  # A refusal before the backup can start, of the run's own invocation, configuration, or files, alerts
+  # like any other failure, and is recorded once the log's location is known. The alert and the record
+  # carry only the class: the reason is in the journal, above them.
+  report_refusal() {
+    local alert
+    set +e
+    alert="$(send_alert "host=$HOST_NAME trigger=$TRIGGER failureClass=configuration-refused exitCode=1")"
+    if test "${LOG_READY:-false}" = true; then
+      append_record "$(record 'failed' 'configuration-refused' 1 "$alert" 'not-required' 'null')"
+    fi
+    set -e
+  }
+  REPORT_REFUSAL=true
+  test "$TRIGGER" != 'unrecognized' || fail 'usage: longtail-forge-scheduled-backup run --trigger scheduled|manual'
+  for command in curl date grep head hostname install jq logger mktemp realpath stat tail timeout wc; do require_command "$command"; done
   load_environment "$HELPER_ENV" "$ALLOWED_ENV_KEYS" 'compose helper environment'
   DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-compose-deploy}"
   require_safe_absolute_path "$DEPLOY_ROOT" 'deployment root'
   test -d "$DEPLOY_ROOT" && test ! -L "$DEPLOY_ROOT" && test "$(stat -c '%u' "$DEPLOY_ROOT")" = '0' \
     || fail 'the deployment root must be a root-owned real directory'
+  LOG_READY=true
+  MAINTENANCE_STATE_ROOT="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}"
+  require_safe_absolute_path "$MAINTENANCE_STATE_ROOT" 'maintenance state root'
   load_schedule
-  HOST_NAME="$(hostname -s)"
-  [[ "$HOST_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] || HOST_NAME='unnamed-host'
-  STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  STARTED_MS="$(date -u +%s%3N)"
-  record() {
-    jq -cn --arg host "$HOST_NAME" --arg trigger "$TRIGGER" --arg started "$STARTED" --arg outcome "$1" \
-      --arg failureClass "$2" --argjson exitCode "$3" --argjson durationMs "$(( $(date -u +%s%3N) - STARTED_MS ))" \
-      --arg alert "$4" --arg heartbeat "$5" --argjson result "$6" \
-      '{contract:"longtail-forge-scheduled-backup-run-v1",host:$host,trigger:$trigger,startedAt:$started,outcome:$outcome,
-        failureClass:(if $failureClass == "" then null else $failureClass end),exitCode:$exitCode,durationMs:$durationMs,
-        alertOutcome:$alert,heartbeatOutcome:$heartbeat,result:$result}'
-  }
+  REPORT_REFUSAL=false
   if test "$ENABLED" = 'false'; then
     append_record "$(record 'skipped-disabled' '' 0 'not-required' 'not-required' 'null')"
     exit 0
@@ -187,14 +221,22 @@ if test "$MODE" = 'run'; then
 
   RUN_ROOT="$(mktemp -d /run/longtail-forge-scheduled-backup.XXXXXX)"
   trap 'rm -rf -- "$RUN_ROOT"' EXIT
+  RUN_STARTED="$SECONDS"
   set +e
-  timeout --kill-after=30 "$BACKUP_LIMIT" bash "$SELF" backup > "$RUN_ROOT/backup.out" 2> "$RUN_ROOT/backup.err"
+  timeout --kill-after=60 "$RUN_LIMIT" bash "$SELF" backup > "$RUN_ROOT/backup.out" 2> "$RUN_ROOT/backup.err"
   STATUS=$?
   set -e
+  RUN_SECONDS=$((SECONDS - RUN_STARTED))
   # The backup's diagnostics reach the journal, bounded. Its Compose configuration output never does:
   # the backup discards that, because a parser error can quote a secret.
   tail -n 40 "$RUN_ROOT/backup.err" >&2 || true
   RESULT="$(tail -n 1 "$RUN_ROOT/backup.out" | jq -ce 'select(.ok == true and .mode == "scheduled-backup")' 2>/dev/null || true)"
+  # Whether the deployment curtain is up now: after a backup that was killed, or ran past the run's
+  # backstop, nothing lowered it.
+  CURTAIN='down'
+  if test -e "$MAINTENANCE_STATE_ROOT/deployment/maintenance.on" || test -L "$MAINTENANCE_STATE_ROOT/deployment/maintenance.on"; then
+    CURTAIN='up'
+  fi
 
   if test "$STATUS" -eq 0 && test -n "$RESULT"; then
     HEARTBEAT="$(send_heartbeat)"
@@ -205,25 +247,36 @@ if test "$MODE" = 'run'; then
     if test -n "$CLASS"; then
       ALERT="$(send_alert "host=$HOST_NAME trigger=$TRIGGER failureClass=$CLASS exitCode=0 archive=$(jq -r '.archive' <<<"$RESULT")")"
     fi
-    append_record "$(record 'succeeded' "$CLASS" 0 "$ALERT" "$HEARTBEAT" "$RESULT")"
+    append_record "$(record 'succeeded' "$CLASS" 0 "$ALERT" "$HEARTBEAT" "$RESULT" "$CURTAIN")"
     exit 0
   fi
 
+  # The backup itself exits 0, 1, or 75. Anything else came from the run's backstop, or from a signal.
   test "$STATUS" -ne 0 || STATUS=70
-  CLASS='backup-failed'
   if test "$STATUS" -eq 75; then
     CLASS='lifecycle-lock-contended'
-  elif test "$STATUS" -eq 124 || test "$STATUS" -eq 137; then
-    CLASS='backup-timed-out'
+  elif test "$STATUS" -eq 124 || { test "$STATUS" -gt 128 && test "$RUN_SECONDS" -ge "$RUN_LIMIT"; }; then
+    # The backstop's own expiry: timeout's 124, or its kill once the limit had passed.
+    CLASS='backup-run-limit-expired'
+  elif test "$STATUS" -gt 128; then
+    # Killed before any limit of this run, by the kernel's out-of-memory killer or another signal. That
+    # is not a timeout, and is never reported as one.
+    CLASS='backup-killed'
   elif grep -Fq 'refuses the public demo' "$RUN_ROOT/backup.err"; then
     CLASS='refused-public-demo'
-  elif grep -Fq 'the unchanged release was restarted and verified' "$RUN_ROOT/backup.err"; then
-    CLASS='backup-failed-recovered'
-  elif grep -Fq 'maintenance curtain and protected evidence remain' "$RUN_ROOT/backup.err"; then
-    CLASS='backup-failed-unrecovered'
+  else
+    CAUSE='backup-failed'
+    if grep -Fq 'the backup did not finish within its time limit' "$RUN_ROOT/backup.err"; then CAUSE='backup-timed-out'; fi
+    CLASS="$CAUSE"
+    if grep -Fq 'the unchanged release was restarted and verified' "$RUN_ROOT/backup.err"; then
+      CLASS="$CAUSE-recovered"
+    elif grep -Fq 'maintenance curtain and protected evidence remain' "$RUN_ROOT/backup.err"; then
+      CLASS="$CAUSE-unrecovered"
+    fi
+    if grep -Fq 'could not be discarded from the staging directory' "$RUN_ROOT/backup.err"; then CLASS="$CLASS,staging-not-cleared"; fi
   fi
-  ALERT="$(send_alert "host=$HOST_NAME trigger=$TRIGGER failureClass=$CLASS exitCode=$STATUS")"
-  append_record "$(record 'failed' "$CLASS" "$STATUS" "$ALERT" 'not-required' 'null')"
+  ALERT="$(send_alert "host=$HOST_NAME trigger=$TRIGGER failureClass=$CLASS exitCode=$STATUS curtain=$CURTAIN")"
+  append_record "$(record 'failed' "$CLASS" "$STATUS" "$ALERT" 'not-required' 'null' "$CURTAIN")"
   exit "$STATUS"
 fi
 
@@ -232,6 +285,14 @@ test "$MODE" = 'backup' && test "$#" -eq 0 || fail 'command must be: run --trigg
 # ---------------------------------------------------------------------------------------------
 # backup: the lifecycle operation itself.
 # ---------------------------------------------------------------------------------------------
+
+# Every failure of the backup exits 1, and a held lock 75, so that the run can tell the backup's own
+# outcome from its backstop's statuses and from a backup that was killed.
+exit_plainly() {
+  local status="$1"
+  if test "$status" -ne 0 && test "$status" -ne 75; then exit 1; fi
+}
+trap 'exit_plainly "$?"' EXIT
 
 load_environment "$HELPER_ENV" "$ALLOWED_ENV_KEYS" 'compose helper environment'
 load_schedule
@@ -257,7 +318,7 @@ done
 [[ "$PUBLIC_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || fail "LTF_PUBLIC_URL must be a clean HTTPS origin"
 test "$BACKUP_ROOT" = "/var/backups/longtail-forge/compose" || fail "backup root must remain the dedicated protected Compose backup directory"
 if test -n "$SECURE_KEY_BACKUP"; then require_safe_absolute_path "$SECURE_KEY_BACKUP" "Secure Notes recovery-key backup"; fi
-for command in curl docker find flock install jq rm sort stat timeout; do require_command "$command"; done
+for command in curl docker find flock install jq mv rm sort stat timeout; do require_command "$command"; done
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required"
 test -d "$COMPOSE_DIR" && test ! -L "$COMPOSE_DIR" || fail "compose directory must be a real directory"
 test -f "$COMPOSE_FILE" && test ! -L "$COMPOSE_FILE" || fail "compose file must be a real file"
@@ -284,9 +345,15 @@ require_root_owned_private_file "$RELEASE_ENV" "recorded release environment"
 RELEASE_METADATA="$RELEASE_ROOT/${DIGEST#sha256:}.json"
 require_root_owned_private_file "$RELEASE_METADATA" "recorded release metadata"
 
+COMPOSE_ARGS=(--project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" --env-file "$COMPOSE_HOST_ENV" --env-file "$RELEASE_ENV")
 compose() {
-  docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" \
-    --env-file "$COMPOSE_HOST_ENV" --env-file "$RELEASE_ENV" "$@"
+  docker compose "${COMPOSE_ARGS[@]}" "$@"
+}
+# A Compose command with a time limit of its own.
+compose_within() {
+  local limit="$1"
+  shift
+  timeout --kill-after=10 "$limit" docker compose "${COMPOSE_ARGS[@]}" "$@"
 }
 
 # The public demo resets hourly, so it has nothing a nightly backup could recover, and a nightly copy
@@ -308,10 +375,83 @@ compose config --format json 2>/dev/null | jq -e --arg backup "$BACKUP_ROOT" '
 test ! -e "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" \
   || fail "the maintenance curtain is already up; a scheduled backup never takes over another operation's curtain"
 
+# The posture the deploy helper verifies of the container it starts, by the same predicate, which a
+# unit test keeps identical to the deploy helper's: the recorded image, the unprivileged user, the
+# read-only root, no capabilities or new privileges, the private /tmp, the loopback-only port, and the
+# data and backup mounts.
+verify_container_posture() {
+  local reference
+  reference="$(jq -er '.image.reference' "$RELEASE_METADATA")" || return 1
+  test -n "$CONTAINER" || return 1
+  docker inspect "$CONTAINER" | jq -e --arg image "$reference" --arg backup "$BACKUP_ROOT" '
+    .[0] |
+      .Config.Image == $image and
+      .Config.User == "10001:10001" and
+      .HostConfig.ReadonlyRootfs == true and
+      (.HostConfig.Privileged | not) and
+      (.HostConfig.CapDrop == ["ALL"]) and
+      (.HostConfig.SecurityOpt | index("no-new-privileges:true") != null) and
+      .HostConfig.Tmpfs["/tmp"] == "rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001" and
+      (.NetworkSettings.Ports["8001/tcp"] | length == 1 and .[0].HostIp == "127.0.0.1" and .[0].HostPort == "8001") and
+      (.Mounts | any(.Type == "volume" and .Destination == "/var/lib/longtail-forge")) and
+      (.Mounts | any(.Type == "bind" and .Source == $backup and .Destination == "/var/backups/longtail-forge"))
+  ' >/dev/null
+}
+
+# The running container is the one the deploy helper verified. It is checked again now, before any
+# outage, and after the backup it is started again as itself, so nothing about it is pulled, recreated,
+# or resolved anew.
+CONTAINER="$(compose ps -q longtail-forge 2>/dev/null)" || fail "the running application container could not be read"
+[[ "$CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || fail "a scheduled backup requires exactly one running application container"
+verify_container_posture \
+  || fail "the running application container does not have the identity and posture the deploy helper verifies"
+
 OPERATION_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 ARCHIVE_NAME="scheduled-$OPERATION_STAMP-${COMMIT:0:12}.ltfbackup.tgz"
 ARCHIVE="$BACKUP_ROOT/$ARCHIVE_NAME"
-test ! -e "$ARCHIVE" && test ! -L "$ARCHIVE" || fail "a scheduled backup of that name already exists"
+PENDING_ROOT="$BACKUP_ROOT/$PENDING_DIRECTORY"
+PENDING_ARCHIVE="$PENDING_ROOT/$ARCHIVE_NAME"
+# The one-off containers of this backup's steps, by name, so that none outlives it.
+STEP_PREFIX="longtail-forge-scheduled-backup-$OPERATION_STAMP"
+for file in "$ARCHIVE" "$ARCHIVE.sha256"; do
+  test ! -e "$file" && test ! -L "$file" || fail "a scheduled backup of that name already exists"
+done
+
+# Each backup is written and inspected in a staging directory under the backup root, and joins the
+# backups only once it has passed inspection, so an archive that did not, whatever stopped it, is never
+# one of them. What an interrupted run left there was never inspected, and is discarded before this run
+# begins: only exact scheduled names, plain files with one name, owned by the container's account. Any
+# other entry refuses the backup before the curtain, and nothing is removed.
+DISCARDED=0
+prepare_pending() {
+  local listing name file
+  local -a names=()
+  if test ! -e "$PENDING_ROOT" && test ! -L "$PENDING_ROOT"; then
+    install -d -o 10001 -g 10001 -m 0700 "$PENDING_ROOT" || return 1
+  fi
+  test -d "$PENDING_ROOT" && test ! -L "$PENDING_ROOT" && test "$(stat -c '%u:%g:%a' "$PENDING_ROOT")" = '10001:10001:700' || return 1
+  listing="$(find "$PENDING_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" || return 1
+  if test -n "$listing"; then mapfile -t names <<<"$listing" || return 1; fi
+  for name in "${names[@]}"; do
+    [[ "$name" =~ $SCHEDULED_NAME ]] || return 1
+    file="$PENDING_ROOT/$name"
+    test -f "$file" && test ! -L "$file" && test "$(stat -c '%u:%h' "$file")" = '10001:1' || return 1
+  done
+  for name in "${names[@]}"; do
+    rm -f -- "$PENDING_ROOT/$name" || return 2
+    DISCARDED=$((DISCARDED + 1))
+  done
+}
+set +e
+prepare_pending
+PENDING_STATUS=$?
+set -e
+test "$PENDING_STATUS" -ne 1 \
+  || fail "the scheduled backup's staging directory holds something other than an interrupted run's backup; nothing was removed"
+test "$PENDING_STATUS" -eq 0 || fail "an interrupted run's uninspected backup could not be discarded from the staging directory"
+if test "$DISCARDED" -gt 0; then
+  printf 'longtail-forge-scheduled-backup: discarded %s files an interrupted run left uninspected\n' "$DISCARDED" >&2
+fi
 
 assert_marker() {
   install -o root -g root -m 0644 /dev/null "$DEPLOYMENT_MARKER"
@@ -322,13 +462,60 @@ clear_marker() {
   rm -f -- "$DEPLOYMENT_MARKER"
 }
 
+# One step of the backup's own work, within what is left of its time limit. A step that runs out is
+# stopped, and the backup fails as timed out, before recovery begins with time of its own. Only timeout's
+# 124, or a kill once the limit has passed, is a timeout: a step killed earlier is not.
+TIMED_OUT=false
+WORK_DEADLINE=0
+work_step() {
+  local left=$((WORK_DEADLINE - SECONDS)) status
+  if test "$left" -le 0; then
+    TIMED_OUT=true
+    return 1
+  fi
+  set +e
+  timeout --kill-after=10 "$left" docker compose "${COMPOSE_ARGS[@]}" "$@"
+  status=$?
+  set -e
+  if test "$status" -eq 124 || { test "$status" -gt 128 && test "$SECONDS" -ge "$WORK_DEADLINE"; }; then TIMED_OUT=true; fi
+  return "$status"
+}
+
+# The inspected backup joins the others, its sidecar first, so that an archive among them always has its
+# sidecar. Both must still be the plain files the container wrote.
+publish_inspected() {
+  local file
+  for file in "$PENDING_ARCHIVE" "$PENDING_ARCHIVE.sha256"; do
+    test -f "$file" && test ! -L "$file" && test "$(stat -c '%u:%h' "$file")" = '10001:1' || return 1
+  done
+  for file in "$ARCHIVE" "$ARCHIVE.sha256"; do
+    test ! -e "$file" && test ! -L "$file" || return 1
+  done
+  mv -T -- "$PENDING_ARCHIVE.sha256" "$ARCHIVE.sha256" || return 1
+  mv -T -- "$PENDING_ARCHIVE" "$ARCHIVE"
+}
+
+discard_pending() {
+  local file
+  for file in "$PENDING_ARCHIVE" "$PENDING_ARCHIVE.sha256"; do
+    if test -e "$file" || test -L "$file"; then rm -f -- "$file" || return 1; fi
+  done
+}
+
+# The stopped container is started again as itself: nothing is pulled, recreated, or resolved anew, and
+# the container that answers must be the one that was stopped.
+restart_release() {
+  local running
+  compose_within "$START_LIMIT" start longtail-forge >/dev/null || return 1
+  running="$(compose ps -q longtail-forge 2>/dev/null)" || return 1
+  test "$running" = "$CONTAINER"
+}
+
 wait_for_health() {
-  local container deadline status
-  container="$(compose ps -q longtail-forge)"
-  test -n "$container" || return 1
+  local deadline status
   deadline=$((SECONDS + 90))
   while test "$SECONDS" -lt "$deadline"; do
-    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container")" || return 1
+    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$CONTAINER")" || return 1
     test "$status" != "unhealthy" || return 1
     test "$status" = "healthy" && return 0
     sleep 2
@@ -336,12 +523,13 @@ wait_for_health() {
   return 1
 }
 
-# The same identity the deploy helper verifies: health, readiness, and the recorded release, directly
-# and through the public edge.
+# What the deploy helper verifies of a release it starts: health, the container's identity and posture,
+# readiness, and the recorded release, directly and through the public edge.
 verify_runtime() {
-  local version artifact
+  local version artifact origin
   version="$(jq -er '.version' "$RELEASE_METADATA")" && artifact="$(jq -er '.artifact.sha256' "$RELEASE_METADATA")" || return 1
   wait_for_health || return 1
+  verify_container_posture || return 1
   for origin in http://127.0.0.1:8001 "$PUBLIC_URL"; do
     curl --fail --silent --show-error --max-time 10 "$origin/healthz" | jq -e '.status == "ok"' >/dev/null || return 1
     curl --fail --silent --show-error --max-time 10 "$origin/readyz" | jq -e '.status == "ready"' >/dev/null || return 1
@@ -351,29 +539,38 @@ verify_runtime() {
   done
 }
 
-# Any failure or signal while the curtain is up exits through here. No data has changed, so the
-# unchanged release is started again, and the curtain lifts only once it verifies; otherwise the
-# curtain and the protected evidence remain for the operator.
+# Any failure or signal while the curtain is up exits through here. No data has changed, so the stopped
+# container is started again as itself, with recovery's own time, never what is left of the backup's,
+# and under the lock the backup still holds. Every step is attempted: one that fails is reported, and
+# never skips the restart. The curtain lifts only once the release verifies; otherwise the container is
+# stopped, so that an unverified one never serves, and the curtain and the protected evidence remain.
 recover() {
-  local status="$1" file
+  local status="$1" name
   trap - EXIT HUP INT TERM
   test "$status" -ne 0 || exit 0
-  # An archive that never passed inspection is not a backup. It is removed, with its sidecar, so that
-  # retention never counts it among the kept ones and the copy hook never sees it.
-  if test "$INSPECTED" = false; then
-    for file in "$ARCHIVE" "$ARCHIVE.sha256"; do
-      if test -f "$file" && test ! -L "$file"; then rm -f -- "$file"; fi
-    done
+  set +e
+  if test "$TIMED_OUT" = true; then
+    printf 'longtail-forge-scheduled-backup: the backup did not finish within its time limit\n' >&2
   fi
-  if ( compose up -d --no-deps --force-recreate --pull never longtail-forge && verify_runtime && clear_marker ); then
+  # A step cut off by the limit can leave its one-off container running, and still writing.
+  for name in "$STEP_PREFIX-create" "$STEP_PREFIX-inspect"; do
+    timeout --kill-after=10 "$REMOVE_LIMIT" docker rm --force "$name" >/dev/null 2>&1
+  done
+  # An archive that never passed inspection never left the staging directory, and is discarded. If that
+  # fails, it is still never counted as a backup, and the next run discards it.
+  if test "$PUBLISHED" = false && ! discard_pending; then
+    printf 'longtail-forge-scheduled-backup: the uninspected archive could not be discarded from the staging directory; it is never counted as a backup, and the next run discards it\n' >&2
+  fi
+  if ( restart_release && verify_runtime && clear_marker ); then
     printf 'longtail-forge-scheduled-backup: the backup failed, and the unchanged release was restarted and verified\n' >&2
   else
-    printf 'longtail-forge-scheduled-backup: the backup failed, and the release could not be restarted and verified; maintenance curtain and protected evidence remain\n' >&2
+    compose_within "$STOP_LIMIT" stop longtail-forge >/dev/null 2>&1
+    printf 'longtail-forge-scheduled-backup: the backup failed, and the release could not be restarted and verified; it was stopped, and the maintenance curtain and protected evidence remain\n' >&2
   fi
-  exit "$status"
+  exit 1
 }
 
-INSPECTED=false
+PUBLISHED=false
 KEY_ARGS=()
 if test -n "$SECURE_KEY_BACKUP"; then
   test -f "$SECURE_KEY_BACKUP" && test ! -L "$SECURE_KEY_BACKUP" || fail "Secure Notes recovery-key backup is missing"
@@ -383,61 +580,85 @@ fi
 assert_marker
 trap 'recover "$?"' EXIT
 trap 'exit 130' HUP INT TERM
-compose stop longtail-forge
-compose run --rm --no-deps "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs create \
+WORK_DEADLINE=$((SECONDS + BACKUP_LIMIT))
+work_step stop longtail-forge
+work_step run --rm --no-deps --name "$STEP_PREFIX-create" "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs create \
   --confirm-stopped \
   --database /var/lib/longtail-forge/longtail-forge.db \
   --files-root /var/lib/longtail-forge/files \
-  --output "$BACKUP_CONTAINER_ROOT/$ARCHIVE_NAME" \
+  --output "$BACKUP_CONTAINER_ROOT/$PENDING_DIRECTORY/$ARCHIVE_NAME" \
+  --audit-log "$BACKUP_CONTAINER_ROOT/backup-operations.jsonl" \
   ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} >/dev/null
-compose run --rm --no-deps "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs inspect \
-  --archive "$BACKUP_CONTAINER_ROOT/$ARCHIVE_NAME" \
+work_step run --rm --no-deps --name "$STEP_PREFIX-inspect" "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs inspect \
+  --archive "$BACKUP_CONTAINER_ROOT/$PENDING_DIRECTORY/$ARCHIVE_NAME" \
   ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} >/dev/null
-test -f "$ARCHIVE" && test ! -L "$ARCHIVE" && test -f "$ARCHIVE.sha256" && test ! -L "$ARCHIVE.sha256" \
-  || fail "the inspected backup did not reach the protected host destination"
-INSPECTED=true
-compose up -d --no-deps --force-recreate --pull never longtail-forge
+publish_inspected || fail "the inspected backup could not join the protected backups"
+PUBLISHED=true
+restart_release || fail "the stopped release could not be started again as itself"
 verify_runtime || fail "the restarted release did not verify"
 clear_marker
-trap - EXIT HUP INT TERM
+trap - HUP INT TERM
+trap 'exit_plainly "$?"' EXIT
 
-# Retention: the newest RETAINED_SCHEDULED scheduled backups stay, by the UTC time in each name, and
-# the one just inspected always does. Only exact scheduled names are considered, each a plain file with
-# one name owned by the backup root's owner; any other name under that prefix, or a failed check,
-# removes nothing. Deployment and reset backups are never touched.
+# Retention: the newest RETAINED_SCHEDULED scheduled backups stay, by the UTC time in each name, and the
+# one just inspected always does. Only exact scheduled names are considered, each a plain file with one
+# name owned by the backup root's owner; any other name under that prefix, or a failed check, removes
+# nothing. A removal that stops part-way is reported as far as it went, and the next run finishes it:
+# each archive goes before its sidecar, and a sidecar whose archive is gone is removed. Deployment and
+# reset backups are never touched.
+BACKUPS_REMOVED=0
+ORPHANS_REMOVED=0
+FILES_REMOVED=0
 retain_scheduled() {
-  local listing name owner root_owner index
-  local -a names=() archives=() remove=()
+  local listing name root_owner index
+  local -a names=() archives=() remove=() orphans=()
+  local -A present=()
   root_owner="$(stat -c '%u' "$BACKUP_ROOT")" || return 1
   listing="$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -name 'scheduled-*' -printf '%f\n' | LC_ALL=C sort -r)" || return 1
   if test -n "$listing"; then mapfile -t names <<<"$listing" || return 1; fi
   for name in "${names[@]}"; do
     [[ "$name" =~ $SCHEDULED_NAME ]] || return 1
     test -f "$BACKUP_ROOT/$name" && test ! -L "$BACKUP_ROOT/$name" || return 1
-    owner="$(stat -c '%u:%h' "$BACKUP_ROOT/$name")" || return 1
-    test "$owner" = "$root_owner:1" || return 1
+    test "$(stat -c '%u:%h' "$BACKUP_ROOT/$name")" = "$root_owner:1" || return 1
+    present[$name]=1
     if [[ "$name" != *.sha256 ]]; then archives+=("$name"); fi
   done
   for index in "${!archives[@]}"; do
     test "$index" -ge "$RETAINED_SCHEDULED" || continue
     test "${archives[$index]}" != "$ARCHIVE_NAME" || return 1
-    remove+=("$BACKUP_ROOT/${archives[$index]}")
+    remove+=("${archives[$index]}")
   done
-  # Each archive goes before its sidecar.
-  for name in "${remove[@]}"; do rm -f -- "$name" || return 1; done
-  for name in "${remove[@]}"; do rm -f -- "$name.sha256" || return 1; done
-  printf '%s' "${#remove[@]}"
+  for name in "${names[@]}"; do
+    if [[ "$name" == *.sha256 ]] && test -z "${present[${name%.sha256}]:-}"; then orphans+=("$name"); fi
+  done
+  for name in "${remove[@]}"; do
+    rm -f -- "$BACKUP_ROOT/$name" || return 1
+    FILES_REMOVED=$((FILES_REMOVED + 1))
+    if test -n "${present[$name.sha256]:-}"; then
+      rm -f -- "$BACKUP_ROOT/$name.sha256" || return 1
+      FILES_REMOVED=$((FILES_REMOVED + 1))
+    fi
+    BACKUPS_REMOVED=$((BACKUPS_REMOVED + 1))
+  done
+  for name in "${orphans[@]}"; do
+    rm -f -- "$BACKUP_ROOT/$name" || return 1
+    FILES_REMOVED=$((FILES_REMOVED + 1))
+    ORPHANS_REMOVED=$((ORPHANS_REMOVED + 1))
+  done
 }
 
 set +e
-REMOVED="$(retain_scheduled)"
+retain_scheduled
 RETENTION_STATUS=$?
 set -e
 if test "$RETENTION_STATUS" -eq 0; then
-  RETENTION='{"status":"pruned","removed":'"$REMOVED"'}'
-else
+  RETENTION="$(jq -cn --argjson removed "$BACKUPS_REMOVED" --argjson orphans "$ORPHANS_REMOVED" '{status: "pruned", removed: $removed, orphanSidecars: $orphans}')"
+elif test "$FILES_REMOVED" -eq 0; then
   printf 'longtail-forge-scheduled-backup: retention refused; nothing was removed\n' >&2
-  RETENTION='{"status":"failed"}'
+  RETENTION='{"status":"failed","filesRemoved":0}'
+else
+  printf 'longtail-forge-scheduled-backup: retention stopped after removing %s files; the next run finishes it\n' "$FILES_REMOVED" >&2
+  RETENTION="$(jq -cn --argjson files "$FILES_REMOVED" '{status: "failed", filesRemoved: $files}')"
 fi
 
 # The copy hook receives exactly the backup this run inspected, and nothing else.
@@ -458,5 +679,5 @@ if test -n "$COPY_HOOK"; then
   fi
 fi
 
-jq -cn --arg archive "$ARCHIVE_NAME" --arg commit "$COMMIT" --argjson retention "$RETENTION" --argjson copy "$COPY" \
-  '{ok: true, mode: "scheduled-backup", archive: $archive, commitSha: $commit, retention: $retention, copy: $copy}'
+jq -cn --arg archive "$ARCHIVE_NAME" --arg commit "$COMMIT" --argjson discarded "$DISCARDED" --argjson retention "$RETENTION" --argjson copy "$COPY" \
+  '{ok: true, mode: "scheduled-backup", archive: $archive, commitSha: $commit, discardedUninspected: $discarded, retention: $retention, copy: $copy}'
