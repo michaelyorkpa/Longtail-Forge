@@ -251,25 +251,43 @@ Inspect the automatically created pre-restore archive, then repeat the full heal
 A Compose installation that is not the public demo backs itself up nightly, and can copy each backup, encrypted, to another server. The public demo never runs it. It resets hourly, so a nightly backup would have nothing to recover, and would keep visitor-entered content for days.
 
 **What a nightly run does.** The timer runs `longtail-forge-scheduled-backup run --trigger scheduled` at 08:30 UTC. Its child holds the shared lifecycle lock, so it never overlaps a deploy, rollback, or reset.
-1. **Refusals before the curtain.** The resolved `DEMO_MODE` must be exactly `false`. A held lock exits 75. A maintenance curtain that is already up is another operation's, and is never taken over.
-2. **The backup.** Behind the deployment curtain, it stops the application, then takes and inspects the whole-instance backup as `scheduled-<UTC>-<commit>.ltfbackup.tgz`, with its sidecar. It starts the unchanged release, and lowers the curtain once direct and public identity verify. The outage lasts as long as a deploy's backup step. A backup that fails restarts the unchanged release. An archive that never passed inspection is removed, so nothing counts it as a backup.
-3. **Retention.** It keeps the 14 newest scheduled backups, by the time in each name, and always the one just made. Only exact scheduled names are considered: plain files with one name, owned by the backup root's owner. Any other entry under that prefix refuses retention, which then removes nothing. Deployment and reset backups are never touched.
-4. **The copy hook.** It receives exactly the backup just inspected, after the curtain is down, so a slow copy never lengthens the outage.
+1. **Refusals before the curtain.** The resolved `DEMO_MODE` must be exactly `false`. A held lock exits 75. A maintenance curtain that is already up is another operation's, and is never taken over. The running container must be the one the deploy helper verified: its identity and posture are checked with the deploy helper's own predicate, before any outage.
+2. **The backup.** Behind the deployment curtain, it stops the application, then takes and inspects the whole-instance backup in a staging directory under the backup root, `.scheduled-pending`. Only an inspected backup joins the others, as `scheduled-<UTC>-<commit>.ltfbackup.tgz` with its sidecar. An archive that never passed inspection, whatever stopped it, is never counted as a backup, and the next run discards anything an interrupted run left there. It then starts the stopped container again as itself, without pulling or recreating anything, and lowers the curtain once that container's identity and posture, and direct and public identity, verify. The outage lasts as long as a deploy's backup step.
+3. **Time limits and recovery.** The backup's own work, stopping, creating, and inspecting, has two hours. A step that runs out is stopped, and its one-off container is removed.
+   - **Recovery has its own time,** never what is left of the backup's, and keeps the lifecycle lock. It starts the stopped container again, and lifts the curtain only once the release verifies.
+   - **Every recovery step is attempted.** One that fails, such as discarding the staged archive, never skips the restart.
+   - **A release that does not verify is stopped,** so an unverified container never serves, and the curtain stays up for the operator.
+   - **The run's backstop and the service's own four-hour limit** both exceed the backup's limit, recovery's, and the copy's together.
+4. **Retention.** It keeps the 14 newest scheduled backups, by the time in each name, and always the one just made. Only exact scheduled names are considered: plain files with one name, owned by the backup root's owner. Any other entry under that prefix refuses retention, which then removes nothing. A removal that stops part-way reports how far it went, and the next run finishes it, including a sidecar whose archive was already removed. Deployment and reset backups are never touched.
+5. **The copy hook.** It receives exactly the backup just inspected, after the curtain is down, so a slow copy never lengthens the outage.
 
 **What it reports.**
-- **Each run** appends one line to `$LTF_DEPLOY_ROOT/scheduled-backups.jsonl`, which keeps the last 400 runs.
-- **On success,** it sends a heartbeat to the operator's push monitor, so a monitor alerts when a night is missed.
-- **On any failure,** it raises a Discord alert with mentions disabled. That includes a backup that succeeded but whose retention or copy did not. The failure classes are `lifecycle-lock-contended`, `refused-public-demo`, `backup-failed-recovered`, `backup-failed-unrecovered`, `backup-timed-out`, `backup-failed`, `retention-failed`, and `copy-failed`.
+- **Each run** appends one line to `$LTF_DEPLOY_ROOT/scheduled-backups.jsonl`, which keeps the last 400 runs. It records whether the curtain was left up.
+- **When the local backup succeeds,** it sends a heartbeat to the operator's push monitor, so a monitor alerts when a night is missed. The heartbeat means only that a local backup was taken. A failed copy still sends it, and alerts on its own, so the heartbeat never proves an off-server copy.
+- **On any failure,** it raises a Discord alert with mentions disabled, which says whether the curtain is up. That includes a refusal of the run's own configuration or files, which alerts by its class alone, with the reason in the journal. It also includes a backup that succeeded but whose retention or copy did not.
+- **The failure classes:**
+  - `configuration-refused`, `lifecycle-lock-contended`, `refused-public-demo`, and `backup-failed`, all before the curtain;
+  - `backup-failed-recovered` and `backup-failed-unrecovered`, for a failed backup;
+  - `backup-timed-out-recovered` and `backup-timed-out-unrecovered`, for a backup that ran out of its time;
+  - `backup-killed`, when the backup was killed before any limit, by the kernel's out-of-memory killer or another signal. It is never reported as a timeout;
+  - `backup-run-limit-expired`, when the run's backstop ended it;
+  - `retention-failed` and `copy-failed`, after a successful backup.
+  - `staging-not-cleared` is added to a failed backup whose staged archive could not be discarded.
 - **The URLs** live only in `/etc/longtail-forge/scheduled-backup-alert-webhook` and `/etc/longtail-forge/scheduled-backup-heartbeat-url`, root-only `0600` files of one line each, and reach `curl` on standard input. The operator supplies them directly to the host. They never enter the repository, a handoff, an issue, or any shared file.
 
-**Install it, on that installation only:**
+**Install it, on that installation only.** The timer is enabled last, once a manual run, the first off-server copy, and the restore drill have passed, so no unattended run comes before them.
 1. Install `scripts/release/longtail-forge-scheduled-backup-host.example` from the release's assets as `/usr/local/sbin/longtail-forge-scheduled-backup`, `root:root 0755`. Check its LF line endings and `bash -n` first, as for the Compose helper. It reads the same `/etc/longtail-forge/compose-deploy-helper.env`.
 2. Install [longtail-forge-scheduled-backup.env.example](longtail-forge-scheduled-backup.env.example) as `/etc/longtail-forge/scheduled-backup.env`, `root:root 0600`. `LTF_SCHEDULED_BACKUP_ENABLED=false` records a skipped run and does nothing else.
 3. Install the alert and heartbeat files.
-4. Install the service and timer examples under `/etc/systemd/system/`, then run `systemctl daemon-reload` and `systemctl enable --now longtail-forge-scheduled-backup.timer`. The timer uses `Persistent=false`, so a host that was down skips the missed run rather than backing up during boot. The late heartbeat reports it.
+4. Install the service and timer examples under `/etc/systemd/system/`, and run `systemctl daemon-reload`. Do not enable the timer yet.
 5. Prove it once, in a quiet window: `longtail-forge-scheduled-backup run --trigger manual`. Then read the last line of the run log, the new archive, and the heartbeat.
+6. Set up [the off-server copy](#the-off-server-copy), run one more manual backup, and decrypt and verify that copy on the operator's workstation.
+7. Run the restore drill from a scheduled backup, into a disposable container and volume of the same release.
+8. Only then run `systemctl enable --now longtail-forge-scheduled-backup.timer`, and confirm the first nightly run and its heartbeat. The timer uses `Persistent=false`, so a host that was down skips the missed run rather than backing up during boot. The late heartbeat reports it.
 
-**The off-server copy.** The shipped hook, `longtail-forge-offsite-copy`, encrypts each copy with [age](https://age-encryption.org) to the operator's public key. This server holds only that public key, so neither it nor the destination can read a copy. A restore from an off-server copy needs the operator's private key, which never comes to either server.
+### The off-server copy
+
+The shipped hook, `longtail-forge-offsite-copy`, encrypts each copy with [age](https://age-encryption.org) to the operator's public key. This server holds only that public key, so neither it nor the destination can read a copy. A restore from an off-server copy needs the operator's private key, which never comes to either server.
 - **On this server.** Install Ubuntu's `age` package. Install the hook from the release's assets as `/usr/local/sbin/longtail-forge-offsite-copy`, `root:root 0755`, and [longtail-forge-offsite-copy.env.example](longtail-forge-offsite-copy.env.example) as `/etc/longtail-forge/offsite-copy.env`, `root:root 0600`.
   - **The key.** Make a dedicated key, root-only, with `ssh-keygen -t ed25519 -N '' -f /etc/longtail-forge/offsite-copy/id_ed25519`.
   - **The destination's host key.** Pin it in the configured `known_hosts`, after checking its fingerprint against one read on the destination itself. Name the destination by its real address: a name that resolves elsewhere fails the pinned check.
@@ -277,8 +295,11 @@ A Compose installation that is not the public demo backs itself up nightly, and 
 - **On the destination.** Install `scripts/release/longtail-forge-offsite-receive-host.example` as `/usr/local/sbin/longtail-forge-offsite-receive`, `root:root 0755`. Create a dedicated account with a store directory it owns, mode `0700`. Give it exactly one `authorized_keys` line for this server's key: `restrict,command="/usr/local/sbin/longtail-forge-offsite-receive /srv/longtail-forge-offsite/<installation>" ssh-ed25519 ...`.
 - **What the receiver allows.**
   - **Each copy** must be exactly its declared size, have its declared SHA-256, and be an age file. It is stored under a name the receiver chooses, from the receipt time, and is never overwritten.
+  - **What the destination can check.** It holds only the encrypted copy, so it checks that copy's size, SHA-256, and age header, comparing the header's own bytes without reading the first line into memory. The archive inside is checked against its sidecar by the hook before encryption, and again by `sha256sum -c` after decryption at a restore.
+  - **One receipt at a time,** for at most 30 minutes of streaming, the hook's own transfer limit. A stream that stalls, trickles, or never closes is cut off there, its partial copy is removed, and the store is released.
   - **Retention.** Copies older than 14 days are removed only when a later copy is stored, so the copies outlive an installation that stops sending.
   - **Its caps.** At most 20 copies, 3 a day, 2 GiB each, and 10 GiB in all, and every copy must leave 10 GiB of the disk free. Above a cap it refuses the new copy rather than evicting an old one, so a stolen key cannot push the good copies out or fill the destination's disk. The refusal fails the copy, which alerts.
+  - **What a stolen key can still do:** delay copies, by holding the store for one receipt's limit at a time, or by using a day's three receipts. Each copy it delays fails that night's hook, which alerts.
 - **Restore from an off-server copy,** on the operator's workstation, outside any synchronized folder. Fetch the copy with the operator's own access to the destination. Then run `age -d -i <private key> <copy> | tar -x`, and `sha256sum -c` against the archive's sidecar. Restore the archive through [Docker backup-first upgrade and rollback](#docker-backup-first-upgrade-and-rollback), with the release whose version its manifest records. Delete the decrypted files afterwards.
 
 ## Proof commands and limits
