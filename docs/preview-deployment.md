@@ -255,15 +255,15 @@ A Compose installation that is not the public demo backs itself up nightly, and 
 1. **Refusals before the curtain.** Nothing is stopped when any of these fails.
    - **The installation.** The resolved `DEMO_MODE` must be exactly `false`. A held lock exits 75. A maintenance curtain that is already up is another operation's, and is never taken over.
    - **The running container** must be the one the deploy helper verified: its identity and posture are checked with the deploy helper's own predicate.
-   - **What the backup would read.** The backup's steps run in one-off containers created from the resolved Compose configuration, not from the running container. So that configuration must name the recorded image, which must still be the running container's own local image, and the running container's own data volume. Otherwise a step could back up another volume, such as one a recovery restored, while the running application is started again on its own. The steps never pull an image.
-   - **A step container an earlier backup left** refuses the run. Its recovery could not prove it gone, it may still be writing, and it is never removed automatically.
+   - **What the backup would read.** The backup's steps run in one-off containers created from the resolved Compose configuration, not from the running container. So that configuration must name the recorded image, which must still be the running container's own local image, and give the data directory as one whole volume, the running container's own. On both sides, nothing else may be mounted at or beneath `/var/lib/longtail-forge`: no bind, volume, or tmpfs over the database or the Files tree, no volume subpath, and no mounts taken from another container. Otherwise a step could back up other data, such as a volume a recovery restored, while the running application is started again on its own. The steps never pull an image.
+   - **A step container an earlier backup left** refuses the run, which names it. Its recovery could not prove it gone, it may still be writing, and it is never removed automatically: see [clearing a step container](#clearing-a-step-container-an-earlier-run-left).
 2. **The backup.** Behind the deployment curtain, it stops the application, then takes and inspects the whole-instance backup in a staging directory under the backup root, `.scheduled-pending`. Only an inspected backup joins the others, as `scheduled-<UTC>-<commit>.ltfbackup.tgz` with its sidecar. An archive that never passed inspection, whatever stopped it, is never counted as a backup, and the next run discards anything an interrupted run left there. It then starts the stopped container again as itself, without pulling or recreating anything, and lowers the curtain once that container's identity and posture, and direct and public identity, verify. The outage lasts as long as a deploy's backup step.
 3. **Time limits and recovery.** Every Docker call has a time limit of its own, inside its phase's: 5 minutes for the checks before the curtain, and two hours for the backup's own work, stopping, creating, and inspecting. A step that runs out is stopped.
    - **Recovery has its own 20 minutes,** never what is left of the backup's, and keeps the lifecycle lock. Four of them are kept for stopping the release, if it cannot be restarted and verified.
    - **Step containers.** Each step's one-off container carries a label with this run's own identity, and recovery removes only containers with that label, so a container the run did not start is never touched. The release is never started beside a step container that is not proved gone: it stays stopped, behind the curtain.
    - **Every recovery step is attempted.** One that fails, such as discarding the staged archive, never skips the next.
    - **A release that is not restarted and verified is stopped,** so an unverified container never serves, and the curtain stays up for the operator. The stop counts only once Compose lists no running container for the service. If Compose's stop does not show that, the container is killed and checked again. A stop that still cannot be shown is reported as such, never as a stop.
-   - **Nothing outlives the run.** The backup runs in a process session of its own. Once it ends, anything left in that session is killed, so nothing still holds the lifecycle lock when the run reports.
+   - **Nothing outlives the run.** The backup runs in a process session of its own. Once it ends, anything left in that session is killed, so nothing still holds the lifecycle lock when the run reports. Each process's whole `/proc` record is read, because a command name may hold a newline, and a process is killed only while its start time and session still match.
    - **The run's backstop and the service's own four-hour limit** both exceed the checks, the backup's limit, recovery's, and the copy's together.
 4. **Retention.** It keeps the 14 newest scheduled backups, by the time in each name, and always the one just made. Only exact scheduled names are considered: plain files with one name, owned by the backup root's owner. Any other entry under that prefix refuses retention, which then removes nothing. A removal that stops part-way reports how far it went, and the next run finishes it, including a sidecar whose archive was already removed. Deployment and reset backups are never touched.
 5. **The copy hook.** It receives exactly the backup just inspected, after the curtain is down, so a slow copy never lengthens the outage.
@@ -280,7 +280,7 @@ A Compose installation that is not the public demo backs itself up nightly, and 
   - `backup-run-limit-expired`, when the run's backstop ended it;
   - `retention-failed` and `copy-failed`, after a successful backup.
   - **Added to a failed backup's class:**
-    - `step-container-not-cleared`, when a step container could not be proved removed, so the release was not started;
+    - `step-container-not-cleared`, when a step container could not be proved removed, so the release was not started. The journal names the run's operation, for [clearing it](#clearing-a-step-container-an-earlier-run-left);
     - `release-not-stopped`, when the release could not be proved stopped, and may still be running behind the curtain;
     - `staging-not-cleared`, when the staged archive could not be discarded.
   - **Added to any class:** `processes-swept`, when processes of the backup outlived it and were killed, or `processes-not-cleared`, when they could not be, and may still hold the lifecycle lock.
@@ -295,6 +295,20 @@ A Compose installation that is not the public demo backs itself up nightly, and 
 6. Set up [the off-server copy](#the-off-server-copy), run one more manual backup, and decrypt and verify that copy on the operator's workstation.
 7. Run the restore drill from a scheduled backup, into a disposable container and volume of the same release.
 8. Only then run `systemctl enable --now longtail-forge-scheduled-backup.timer`, and confirm the first nightly run and its heartbeat. The timer uses `Persistent=false`, so a host that was down skips the missed run rather than backing up during boot. The late heartbeat reports it.
+
+### Clearing a step container an earlier run left
+
+A run that alerts `step-container-not-cleared` leaves its release stopped and unchanged, behind the curtain. Its journal names its operation. Every later run refuses until the container is cleared, under supervision:
+1. **Hold the lifecycle lock** for the whole procedure, from a root shell: `flock --nonblock "$LTF_DEPLOY_ROOT/compose-operation.lock" bash`. It refuses while a deploy, rollback, reset, or backup holds the lock. Run every later step in that shell. A scheduled run meanwhile is refused as `lifecycle-lock-contended`.
+2. **Establish what is there:** `docker ps --all --no-trunc --filter label=longtail-forge.scheduled-backup.operation --format '{{.ID}} {{.Names}} {{.State}}'`. Each container must be named `longtail-forge-scheduled-backup-<operation>-create` or `-inspect`, for the operation the journal names. Anything else is not this procedure's to remove: stop, and investigate it.
+3. **Keep the evidence** in a root-only file outside any synchronized folder: that listing, and `docker logs` of each container. Never keep `docker inspect` output, which holds the application's environment.
+4. **Stop and remove only those containers,** by ID: `docker stop --time 30 <ID>`, then `docker rm <ID>`. List them again: none may be left. Whatever a step left in `.scheduled-pending` is discarded by the next run.
+5. **Restart and verify the release.**
+   - **Start it as itself:** `docker compose --project-directory "$LTF_COMPOSE_DIR" --env-file "$LTF_COMPOSE_HOST_ENV" --env-file <the releaseEnv that state/current.json records> start longtail-forge`.
+   - **Verify it** as after a deploy: `/healthz`, `/readyz`, and `/api/app-info`, both directly and through the public origin.
+   - **Only then** remove the deployment marker, `$LTF_MAINTENANCE_STATE_ROOT/deployment/maintenance.on`.
+   - **A release that does not verify** stays curtained, and is recovered from the protected backups like any other curtained failure.
+6. **Leave the shell,** which releases the lock. Run `longtail-forge-scheduled-backup run --trigger manual` before the next nightly run.
 
 ### The off-server copy
 
