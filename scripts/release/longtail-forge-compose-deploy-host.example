@@ -446,11 +446,12 @@ write_state() {
 # owner, the container user that wrote it. A name under those prefixes that is not exactly a backup's,
 # or any file that fails a check, refuses the whole bound, and nothing is removed. Other backups, such
 # as the reset's own, are never touched, and neither is anything on an installation that is not the
-# demo. Prints the kept backup's name and the number of files removed.
+# demo. Prints the kept backup's name and the number of files removed. A removal that fails part-way
+# returns 2 and prints how many files had gone; the next verified deploy or rollback finishes the bound.
 readonly DEPLOYMENT_BACKUP_PREFIXES='^(pre-upgrade|pre-rollback|pre-restore|pre-compose-cutover)-'
 readonly DEPLOYMENT_BACKUP_NAME='^(pre-upgrade|pre-rollback|pre-restore|pre-compose-cutover)-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}-[a-z]+(-[a-z]+)*\.ltfbackup\.tgz(\.sha256)?$'
 bound_public_demo_deployment_backups() {
-  local keep keep_name listing name file root_owner owner links
+  local keep keep_name listing name file root_owner owner links removed=0
   local -a names=() archives=() sidecars=()
   keep="$(jq -er '.deployment.rollbackBackup | strings' "$PREVIOUS_STATE")" || return 1
   keep_name="$(basename "$keep")"
@@ -472,18 +473,28 @@ bound_public_demo_deployment_backups() {
     if [[ "$name" == *.sha256 ]]; then sidecars+=("$file"); else archives+=("$file"); fi
   done
   # Each archive goes before any sidecar, so an interrupted removal never leaves an archive unchecked.
-  for file in "${archives[@]}" "${sidecars[@]}"; do rm -f -- "$file" || return 1; done
-  printf '%s %s\n' "$keep_name" "$(( ${#archives[@]} + ${#sidecars[@]} ))"
+  for file in "${archives[@]}" "${sidecars[@]}"; do
+    if ! rm -f -- "$file"; then
+      printf '%s\n' "$removed"
+      return 2
+    fi
+    removed=$((removed + 1))
+  done
+  printf '%s %s\n' "$keep_name" "$removed"
 }
 
 # Applies the bound on the public demo after a verified deploy or rollback, and sets the result field
-# for the helper's final line. A refusal removes nothing, and the helper then fails, saying that the
-# release is live and recorded, so the workflow shows the refusal.
+# for the helper's final line. A refusal removes nothing, and a removal that fails part-way says how far
+# it went; either way the helper then fails, saying that the release is live and recorded, so the
+# workflow shows it.
 DEPLOYMENT_BACKUP_FIELD=''
 apply_deployment_backup_bound() {
-  local outcome
+  local outcome status=0
   test "$PUBLIC_DEMO" = 'true' || return 0
-  outcome="$(bound_public_demo_deployment_backups)" \
+  outcome="$(bound_public_demo_deployment_backups)" || status=$?
+  test "$status" -ne 2 \
+    || fail "$MODE verified and recorded, and the release is live, but the public-demo deployment-backup bound stopped after removing $outcome files; the recorded rollback backup is kept, and the next verified deploy or rollback finishes the bound"
+  test "$status" -eq 0 \
     || fail "$MODE verified and recorded, and the release is live, but the public-demo deployment-backup bound refused; nothing was removed"
   DEPLOYMENT_BACKUP_FIELD="$(printf ',"deploymentBackups":{"kept":"%s","removed":%s}' "${outcome% *}" "${outcome##* }")"
 }

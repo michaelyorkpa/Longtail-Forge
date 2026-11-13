@@ -42,6 +42,14 @@ const CONTAINER = "c0ffee".repeat(10).concat("c0ff");
 const OTHER_CONTAINER = "d1ce".repeat(16);
 const TMPFS = "rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001";
 const IMAGE = `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"6".repeat(64)}`;
+// The local image that reference names, and another one, which the running container's image ID is.
+const IMAGE_ID = `sha256:${"7".repeat(64)}`;
+const OTHER_IMAGE_ID = `sha256:${"8".repeat(64)}`;
+const DATA_VOLUME = "longtail-forge-data";
+// A second valid data volume, such as one a recovery restored, which the configuration may name instead.
+const RECOVERY_VOLUME = "longtail-forge-recovery";
+const STEP_LABEL = "longtail-forge.scheduled-backup.operation";
+const STEP_NAME = /^longtail-forge-scheduled-backup-(\d{8}T\d{6}Z-[a-f0-9]{8})-(create|inspect)$/;
 const IDENTITY = Object.freeze({ version: "0.33.99.1", commit: "4f0c2d9a7b1e3c5d8e6f0a2b4c6d8e0f1a3b5c7d", artifact: "e".repeat(64) });
 const WEBHOOK_TOKEN = `${"Hk7_-".repeat(13)}abc`;
 const WEBHOOK_URL = `https://discord.com/api/webhooks/987654321098765432/${WEBHOOK_TOKEN}`;
@@ -57,13 +65,19 @@ const STORED_COPY = /^\d{8}T\d{6}Z-[a-f0-9]{16}\.ltfbackup\.tar\.age$/;
  *   curlFails: boolean, ageFails: boolean, sshFails: boolean, hookFails: boolean, freeBytes: number | null,
  *   backupHangs: boolean, killBackup: boolean, healthyAfterMs: number, posture: FakePosture,
  *   postureAfterStart: FakePosture | null, recreated: boolean,
+ *   configVolume: string, configImage: string, referenceImageId: string, stepRemovalFails: boolean,
+ *   stopFails: boolean, killFails: boolean, inspectHangsAfterStart: boolean, slowHealthMs: number, nameTaken: boolean,
  *   markerPath: string, lockPath: string, store: string, stateDir: string,
  * }} FakeScenario
  */
-/** @typedef {{ state: "running" | "stopped", healthy: boolean, startedAt: number, restarted: boolean, container: string }} FakeRuntime */
+/** @typedef {{ id: string, name: string, label: string | null, volume: string }} FakeStep */
+/**
+ * @typedef {{ state: "running" | "stopped", healthy: boolean, startedAt: number, restarted: boolean, container: string,
+ *   steps: FakeStep[] }} FakeRuntime
+ */
 /**
  * @typedef {{ tool: string, action: string, markerPresent: boolean, lockHeld: boolean, args?: string[], stdin?: string,
- *   archive?: string, auditLog?: string }} FakeCall
+ *   archive?: string, auditLog?: string, volume?: string }} FakeCall
  */
 /**
  * @typedef {{ root: string, helperEnv: string, scheduleEnv: string, hookEnv: string, deployRoot: string,
@@ -110,30 +124,64 @@ function runFake(tool, args) {
  * @param {(entry: Omit<FakeCall, "tool" | "markerPresent" | "lockHeld">) => void} record @param {(next: FakeRuntime) => void} save
  */
 function fakeDocker(args, scenario, runtime, record, save) {
+  // A daemon that stops answering about the container once it is started again: only the helper's own
+  // time limits end these calls.
+  const stalls = () => scenario.inspectHangsAfterStart && runtime.restarted;
+  if (args[0] === "image" && args[1] === "inspect") {
+    record({ action: "image-id", args: args.slice(2) });
+    return args.at(-1) === IMAGE ? emit(scenario.referenceImageId) : refuse(`Error: No such image: ${args.at(-1)}`);
+  }
   if (args[0] === "inspect" && args[1] === "--format") {
     record({ action: "health" });
+    if (stalls()) return hangUntilReleased(scenario.stateDir);
     // A release that never becomes healthy reports so at once, as Docker's health check does after its
     // retries, so a scenario never waits out the helper's whole deadline. One that is slow to start
-    // reports `starting` until the scenario's delay has passed.
+    // reports `starting` until the scenario's delay has passed. A slow daemon answers `healthy` only
+    // after its delay, by when the helper may no longer accept the answer.
     if (runtime.state !== "running") return emit("starting");
+    if (scenario.slowHealthMs > 0) {
+      sleepMs(scenario.slowHealthMs);
+      return emit("healthy");
+    }
     if (Date.now() - runtime.startedAt < scenario.healthyAfterMs) return emit("starting");
     return emit(runtime.healthy ? "healthy" : "unhealthy");
   }
   if (args[0] === "inspect") {
     record({ action: "posture", args: args.slice(1) });
+    if (stalls()) return hangUntilReleased(scenario.stateDir);
     if (args[1] !== runtime.container) return refuse(`Error: No such object: ${args[1]}`);
     const posture = runtime.restarted && scenario.postureAfterStart ? scenario.postureAfterStart : scenario.posture;
     return emit(JSON.stringify([{
       Id: runtime.container,
+      Image: IMAGE_ID,
       Config: { Image: IMAGE, User: posture === "root-user" ? "0:0" : "10001:10001" },
       HostConfig: { ReadonlyRootfs: true, Privileged: false, CapDrop: ["ALL"], SecurityOpt: ["no-new-privileges:true"], Tmpfs: { "/tmp": TMPFS } },
       NetworkSettings: { Ports: { "8001/tcp": [{ HostIp: posture === "public-port" ? "0.0.0.0" : "127.0.0.1", HostPort: "8001" }] } },
-      Mounts: [{ Type: "volume", Destination: "/var/lib/longtail-forge" }, { Type: "bind", Source: BACKUP_ROOT, Destination: "/var/backups/longtail-forge" }],
+      Mounts: [
+        { Type: "volume", Name: DATA_VOLUME, Destination: "/var/lib/longtail-forge" },
+        { Type: "bind", Source: BACKUP_ROOT, Destination: "/var/backups/longtail-forge" },
+      ],
     }]));
+  }
+  if (args[0] === "ps") {
+    // `ps --all --quiet [--no-trunc] --filter label=KEY[=VALUE]`: the step containers that carry it.
+    const filter = valueAfter(args, "--filter");
+    assert.ok(args.includes("--all") && args.includes("--quiet") && filter.startsWith("label="), `unexpected docker ps: ${args.join(" ")}`);
+    const wanted = filter.slice("label=".length);
+    record({ action: "list-steps", args: args.slice(1) });
+    const matching = runtime.steps.filter((step) => step.label !== null
+      && (wanted.includes("=") ? step.label === wanted : step.label.split("=")[0] === wanted));
+    return emit(matching.map((step) => `${args.includes("--no-trunc") ? step.id : step.id.slice(0, 12)}\n`).join(""));
   }
   if (args[0] === "rm") {
     record({ action: "remove-step", args: args.slice(1) });
-    return refuse(`Error response from daemon: No such container: ${args.at(-1)}`);
+    // Like Docker, by ID or by name.
+    const id = String(args.at(-1));
+    const step = runtime.steps.find((entry) => entry.id === id || entry.name === id);
+    if (!step) return refuse(`Error response from daemon: No such container: ${id}`);
+    if (scenario.stepRemovalFails) return refuse(`Error response from daemon: cannot remove container "/${step.name}": could not kill: permission denied`);
+    save({ ...runtime, steps: runtime.steps.filter((entry) => entry.id !== step.id) });
+    return 0;
   }
   if (args[0] !== "compose") return refuse(`unexpected docker invocation: ${args.join(" ")}`);
   if (args[1] === "version") return emit("Docker Compose version v2.29.7");
@@ -146,11 +194,24 @@ function fakeDocker(args, scenario, runtime, record, save) {
     const environment = {};
     if (scenario.demoMode !== null) environment.DEMO_MODE = scenario.demoMode;
     return emit(JSON.stringify({
-      services: { "longtail-forge": { environment, volumes: [{ type: "bind", source: BACKUP_ROOT, target: BACKUP_CONTAINER_ROOT }] } },
+      services: {
+        "longtail-forge": {
+          image: scenario.configImage,
+          environment,
+          volumes: [
+            { type: "volume", source: "longtail-data", target: "/var/lib/longtail-forge" },
+            { type: "bind", source: BACKUP_ROOT, target: BACKUP_CONTAINER_ROOT },
+          ],
+        },
+      },
+      volumes: { "longtail-data": { name: scenario.configVolume } },
     }));
   }
   if (command[0] === "stop") {
     record({ action: "stop" });
+    if (stalls()) return hangUntilReleased(scenario.stateDir);
+    // A recovery's stop of a release that was started again, which does not take.
+    if (scenario.stopFails && runtime.restarted) return refuse("Error response from daemon: cannot stop container: tried to kill container, but did not receive an exit event");
     save({ ...runtime, state: "stopped" });
     return 0;
   }
@@ -162,37 +223,71 @@ function fakeDocker(args, scenario, runtime, record, save) {
   if (command[0] === "start") {
     record({ action: "start", args: command });
     save({
-      state: "running", healthy: !scenario.restartFails, startedAt: Date.now(), restarted: true,
+      ...runtime, state: "running", healthy: !scenario.restartFails, startedAt: Date.now(), restarted: true,
       container: scenario.recreated ? OTHER_CONTAINER : runtime.container,
     });
     return 0;
   }
-  // Like Compose, only a running container is listed.
-  if (command[0] === "ps") return emit(runtime.state === "running" ? `${runtime.container}\n` : "");
+  if (command[0] === "kill") {
+    record({ action: "kill", args: command });
+    if (stalls()) return hangUntilReleased(scenario.stateDir);
+    if (scenario.killFails) return refuse("Error response from daemon: cannot kill container: permission denied");
+    save({ ...runtime, state: "stopped" });
+    return 0;
+  }
+  // Like Compose, only a container that is not stopped is listed.
+  if (command[0] === "ps") {
+    record({ action: "list-running" });
+    if (stalls()) return hangUntilReleased(scenario.stateDir);
+    return emit(runtime.state === "running" ? `${runtime.container}\n` : "");
+  }
   if (command[0] === "run") {
     const program = command.slice(command.indexOf("longtail-forge") + 1);
+    const name = valueAfter(command, "--name");
+    if (scenario.nameTaken) {
+      // A container this attempt never started already has the name: Docker refuses the step.
+      if (!runtime.steps.some((step) => step.name === name)) {
+        save({ ...runtime, steps: [...runtime.steps, { id: fakeId(`taken-${name}`), name, label: null, volume: DATA_VOLUME }] });
+      }
+      record({ action: "step-conflict", args: command });
+      return refuse(`Error response from daemon: Conflict. The container name "/${name}" is already in use by another container`);
+    }
+    // The step's one-off container, created from the resolved configuration: it mounts the volume that
+    // configuration names, and outlives a client that is killed. `--rm` removes it when it finishes.
+    const step = { id: fakeId(name), name, label: command.includes("--label") ? valueAfter(command, "--label") : null, volume: scenario.configVolume };
+    const started = { ...runtime, steps: [...runtime.steps, step] };
+    save(started);
+    /** @param {number} status */
+    const finish = (status) => {
+      save({ ...started, steps: started.steps.filter((entry) => entry.id !== step.id) });
+      return status;
+    };
     if (program[0] === "node" && program[1] === "scripts/backup.mjs" && program[2] === "create") {
       const archive = hostBackupPath(valueAfter(program, "--output"));
-      record({ action: "backup-create", archive, auditLog: valueAfter(program, "--audit-log"), args: command });
+      record({ action: "backup-create", archive, auditLog: valueAfter(program, "--audit-log"), args: command, volume: step.volume });
       assert.equal(runtime.state, "stopped", "a backup must never run against a running application");
-      if (scenario.backupFails === "create") return refuse("ENOSPC: no space left on device, write");
-      if (scenario.killBackup) return killBackupProcess();
+      if (scenario.backupFails === "create") return finish(refuse("ENOSPC: no space left on device, write"));
+      if (scenario.killBackup) {
+        killBackupProcess();
+        return finish(hangUntilReleased(scenario.stateDir));
+      }
       if (scenario.backupHangs) {
         // A partial archive, then no progress: only the helper's time limit ends this step.
         fs.writeFileSync(archive, "a partial archive", { mode: 0o600 });
         fs.chownSync(archive, 10001, 10001);
         hangUntilReleased(scenario.stateDir);
-        return 0;
+        return finish(0);
       }
-      writeContainerBackup(archive, `archive of ${path.basename(archive)}`);
-      return 0;
+      writeContainerBackup(archive, `archive of ${path.basename(archive)} from the volume ${step.volume}`);
+      return finish(0);
     }
     if (program[0] === "node" && program[1] === "scripts/backup.mjs" && program[2] === "inspect") {
       const archive = hostBackupPath(valueAfter(program, "--archive"));
-      record({ action: "backup-inspect", archive });
-      if (scenario.backupFails === "inspect") return refuse("Backup checksum does not match its manifest: database/longtail-forge.db");
-      return fs.existsSync(archive) ? 0 : refuse("archive is missing");
+      record({ action: "backup-inspect", archive, args: command });
+      if (scenario.backupFails === "inspect") return finish(refuse("Backup checksum does not match its manifest: database/longtail-forge.db"));
+      return finish(fs.existsSync(archive) ? 0 : refuse("archive is missing"));
     }
+    return finish(refuse(`unexpected step program: ${program.join(" ")}`));
   }
   return refuse(`unexpected docker compose invocation: ${command.join(" ")}`);
 }
@@ -262,12 +357,25 @@ function hostBackupPath(containerPath) {
   return `${BACKUP_ROOT}${containerPath.slice(BACKUP_CONTAINER_ROOT.length)}`;
 }
 
-/** Makes no progress until the scenario releases it, or 30 seconds pass. @param {string} stateDir */
+/**
+ * Makes no progress until the scenario releases it, or 30 seconds pass, and then fails, as a call that
+ * never answered would.
+ * @param {string} stateDir @returns {number}
+ */
 function hangUntilReleased(stateDir) {
   const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline && !fs.existsSync(path.join(stateDir, "release"))) {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-  }
+  while (Date.now() < deadline && !fs.existsSync(path.join(stateDir, "release"))) sleepMs(100);
+  return 1;
+}
+
+/** @param {number} milliseconds */
+function sleepMs(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+/** A container ID, 64 hexadecimal characters, that a name always gives. @param {string} name */
+function fakeId(name) {
+  return sha256(`container ${name}`);
 }
 
 /**
@@ -281,7 +389,6 @@ function killBackupProcess() {
   const commandLine = fs.readFileSync(`/proc/${backup}/cmdline`, "utf8").split("\0");
   assert.equal(commandLine.at(-2), "backup", `the fake's grandparent must be the backup itself: ${commandLine.join(" ")}`);
   process.kill(backup, "SIGKILL");
-  return 0;
 }
 
 /** @param {string[]} args @param {string} flag */
@@ -319,7 +426,9 @@ function sha256(content) {
  * @typedef {{ demoMode?: string | null, backupFails?: "create" | "inspect" | null, restartFails?: boolean, curlFails?: boolean,
  *   ageFails?: boolean, sshFails?: boolean, hookFails?: boolean, freeBytes?: number | null, hook?: "none" | "recording" | "real",
  *   enabled?: boolean, alerts?: boolean, backupHangs?: boolean, killBackup?: boolean, healthyAfterMs?: number,
- *   posture?: FakePosture, postureAfterStart?: FakePosture | null, recreated?: boolean }} SandboxOptions
+ *   posture?: FakePosture, postureAfterStart?: FakePosture | null, recreated?: boolean, configVolume?: string,
+ *   configImage?: string, referenceImageId?: string, stepRemovalFails?: boolean, stopFails?: boolean, killFails?: boolean,
+ *   inspectHangsAfterStart?: boolean, slowHealthMs?: number, nameTaken?: boolean, steps?: FakeStep[] }} SandboxOptions
  */
 
 /** @param {string} work @param {number} ordinal @param {string} fakeBin @param {SandboxOptions} options @returns {Sandbox} */
@@ -429,6 +538,15 @@ function createSandbox(work, ordinal, fakeBin, options) {
     posture: options.posture ?? "verified",
     postureAfterStart: options.postureAfterStart ?? null,
     recreated: options.recreated === true,
+    configVolume: options.configVolume ?? DATA_VOLUME,
+    configImage: options.configImage ?? IMAGE,
+    referenceImageId: options.referenceImageId ?? IMAGE_ID,
+    stepRemovalFails: options.stepRemovalFails === true,
+    stopFails: options.stopFails === true,
+    killFails: options.killFails === true,
+    inspectHangsAfterStart: options.inspectHangsAfterStart === true,
+    slowHealthMs: options.slowHealthMs ?? 0,
+    nameTaken: options.nameTaken === true,
     markerPath: marker,
     lockPath: path.join(deployRoot, "compose-operation.lock"),
     store,
@@ -436,7 +554,7 @@ function createSandbox(work, ordinal, fakeBin, options) {
   };
   fs.writeFileSync(path.join(state, "scenario.json"), JSON.stringify(scenario));
   /** @type {FakeRuntime} */
-  const runtime = { state: "running", healthy: true, startedAt: 0, restarted: false, container: CONTAINER };
+  const runtime = { state: "running", healthy: true, startedAt: 0, restarted: false, container: CONTAINER, steps: options.steps ?? [] };
   fs.writeFileSync(path.join(state, "runtime.json"), JSON.stringify(runtime));
   fs.writeFileSync(path.join(state, "calls.jsonl"), "");
   void fakeBin;
@@ -612,6 +730,37 @@ function pending() {
   return fs.existsSync(PENDING_ROOT) ? fs.readdirSync(PENDING_ROOT).sort() : [];
 }
 
+/** What the fake Docker daemon holds now. @param {Sandbox} box @returns {FakeRuntime} */
+function runtimeOf(box) {
+  return /** @type {FakeRuntime} */ (readJson(path.join(box.state, "runtime.json")));
+}
+
+/**
+ * The live processes whose command line holds this text, apart from this one. A command line's
+ * arguments are separated by NUL characters.
+ * @param {string} text @returns {string[]}
+ */
+function processesNaming(text) {
+  /** @type {string[]} */
+  const found = [];
+  for (const entry of fs.readdirSync("/proc")) {
+    if (!/^\d+$/.test(entry) || Number(entry) === process.pid) continue;
+    let commandLine = "";
+    try {
+      commandLine = fs.readFileSync(`/proc/${entry}/cmdline`, "utf8");
+    } catch {
+      continue;
+    }
+    if (commandLine.includes(text)) found.push(`${entry}: ${commandLine.split("\0").join(" ").trim()}`);
+  }
+  return found;
+}
+
+/** The fakes still running, which only a call the helper failed to end would leave. */
+function liveFakes() {
+  return processesNaming(`${scriptPath}\0--fake\0`);
+}
+
 /** @param {FakeCall[]} calls @param {string} action */
 function indexOf(calls, action) {
   return calls.findIndex((call) => call.action === action);
@@ -743,7 +892,20 @@ async function main() {
       const create = result.calls.find((call) => call.action === "backup-create");
       assert.equal(create?.archive, `${PENDING_ROOT}/${archive}`, "the backup is written in the staging directory");
       assert.equal(create?.auditLog, `${BACKUP_CONTAINER_ROOT}/backup-operations.jsonl`, "the operator audit stays beside the backups");
-      assert.ok(create?.args?.includes(`longtail-forge-scheduled-backup-${archive.slice("scheduled-".length, "scheduled-".length + 16)}-create`), "the step's container is named");
+      assert.equal(create?.volume, DATA_VOLUME, "the backup reads the running container's own data volume");
+      const binding = indexOf(result.calls, "image-id");
+      assert.ok(binding >= 0 && result.calls[binding]?.markerPresent === false, "the image and volume binding is checked before any outage");
+      const operations = ["backup-create", "backup-inspect"].map((action) => {
+        const step = result.calls.find((call) => call.action === action)?.args ?? [];
+        const name = STEP_NAME.exec(valueAfter(step, "--name"));
+        assert.ok(name, `the ${action} step's container is named for this attempt: ${valueAfter(step, "--name")}`);
+        assert.ok(String(name[1]).startsWith(archive.slice("scheduled-".length, "scheduled-".length + 16)), "after the backup's own time");
+        assert.equal(valueAfter(step, "--label"), `${STEP_LABEL}=${name[1]}`, "and carries this attempt's own label");
+        assert.equal(valueAfter(step, "--pull"), "never", "a step never pulls");
+        return name[1];
+      });
+      assert.equal(operations[0], operations[1], "both steps belong to one attempt");
+      assert.deepEqual(runtimeOf(box).steps, [], "no step container outlives its step");
       assert.equal(result.calls.find((call) => call.action === "backup-inspect")?.archive, `${PENDING_ROOT}/${archive}`, "and inspected there");
       assert.deepEqual(pending(), [], "only an inspected backup leaves the staging directory, and nothing stays behind");
       assert.equal(spawnSync("stat", ["-c", "%u:%g:%a", PENDING_ROOT], { encoding: "utf8" }).stdout.trim(), "10001:10001:700");
@@ -822,7 +984,9 @@ async function main() {
       assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
       assert.equal(fs.existsSync(box.marker), true, "an unverified release must stay behind the curtain");
       const lastHealth = result.calls.map((call) => call.action).lastIndexOf("health");
-      assert.ok(result.calls.slice(lastHealth).some((call) => call.action === "stop"), "the unverified container is stopped, so it never serves");
+      assert.deepEqual(result.calls.slice(lastHealth).filter((call) => ["stop", "list-running", "kill"].includes(call.action)).map((call) => call.action),
+        ["stop", "list-running"], "the unverified container is stopped, so it never serves, and the stop is proved");
+      assert.equal(runtimeOf(box).state, "stopped");
       assert.equal(hookRecords(box).length, 0);
       assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered exitCode=1 curtain=up$/);
       assert.equal(runRecords(box)[0]?.curtain, "up");
@@ -856,6 +1020,142 @@ async function main() {
         assert.match(alertSummary(result), /failureClass=backup-failed exitCode=1 curtain=down$/);
       });
     }
+
+    // The steps' containers come from the resolved configuration, so it must name what the running
+    // container uses. Each mismatch below names something valid: without the check, the backup would
+    // succeed, from the wrong data.
+    for (const [label, options] of /** @type {[string, SandboxOptions][]} */ ([
+      ["names another valid data volume", { configVolume: RECOVERY_VOLUME }],
+      ["names another image", { configImage: `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"9".repeat(64)}` }],
+      ["names the recorded image, which is no longer the running container's local image", { referenceImageId: OTHER_IMAGE_ID }],
+    ])) {
+      await scenario(`a Compose configuration that ${label} refuses the backup before any outage, and backs up nothing`, () => {
+        const box = sandbox(options);
+        const result = run(box);
+        assert.equal(result.status, 1, result.stderr);
+        assert.match(result.stderr, /does not name the running container's image and data volume; a backup from it could capture other data, so nothing was stopped/);
+        assert.equal(result.calls.filter((call) => call.markerPresent).length, 0, "the curtain never rises");
+        assert.deepEqual(["stop", "backup-create"].map((action) => indexOf(result.calls, action)), [-1, -1]);
+        assert.deepEqual([backups(), pending()], [[], []]);
+        assert.equal(runtimeOf(box).state, "running", "the running application is never stopped");
+        assert.match(alertSummary(result), /failureClass=backup-failed exitCode=1 curtain=down$/);
+      });
+    }
+
+    await scenario("a step container an earlier backup left refuses the backup before any outage, and is never removed", () => {
+      /** @type {FakeStep} */
+      const leftover = {
+        id: fakeId("leftover"), name: "longtail-forge-scheduled-backup-20261101T020000Z-0badc0de-create",
+        label: `${STEP_LABEL}=20261101T020000Z-0badc0de`, volume: DATA_VOLUME,
+      };
+      const box = sandbox({ steps: [leftover] });
+      const result = run(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /a step container an earlier scheduled backup started still exists; it is never removed automatically, so nothing was stopped/);
+      assert.equal(result.calls.filter((call) => call.markerPresent).length, 0, "the curtain never rises");
+      assert.equal(indexOf(result.calls, "remove-step"), -1);
+      assert.deepEqual(runtimeOf(box).steps, [leftover]);
+    });
+
+    await scenario("a step whose name another container holds fails, and recovery removes only what this attempt started", () => {
+      const box = sandbox({ nameTaken: true });
+      const result = run(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /the unchanged release was restarted and verified/);
+      assert.ok(indexOf(result.calls, "step-conflict") >= 0);
+      assert.equal(indexOf(result.calls, "remove-step"), -1, "recovery never removes a container this attempt did not start");
+      assert.equal(runtimeOf(box).steps.length, 1, "the container that holds the name is still there");
+      assert.match(alertSummary(result), /failureClass=backup-failed-recovered exitCode=1 curtain=down$/);
+    });
+
+    await scenario("a cut-off step container that cannot be removed keeps the release stopped behind the curtain, never started beside it", () => {
+      const box = sandbox({ backupHangs: true, stepRemovalFails: true });
+      const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-limit-2-removal", [["readonly BACKUP_LIMIT=7200\n", "readonly BACKUP_LIMIT=2\n"]]);
+      waitForNextSecond();
+      const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      fs.writeFileSync(path.join(box.state, "release"), "");
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /a step container of this backup could not be proved removed, so the release was not started beside it/);
+      assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
+      assert.ok(indexOf(result.calls, "remove-step") >= 0, "its removal was attempted");
+      assert.equal(indexOf(result.calls, "start"), -1, "the release is never started beside a step container that may still be writing");
+      assert.equal(runtimeOf(box).state, "stopped");
+      assert.equal(runtimeOf(box).steps.length, 1, "the step container is still there, for the operator");
+      assert.equal(fs.existsSync(box.marker), true);
+      assert.match(alertSummary(result), /failureClass=backup-timed-out-unrecovered,step-container-not-cleared exitCode=1 curtain=up$/);
+    });
+
+    await scenario("a release that does not stop when asked is killed, and counts as stopped only once that is proved", () => {
+      const box = sandbox({ restartFails: true, stopFails: true });
+      const result = run(box);
+      assert.equal(result.status, 1);
+      const recovery = result.calls.slice(result.calls.map((call) => call.action).lastIndexOf("health"));
+      assert.deepEqual(recovery.filter((call) => ["stop", "list-running", "kill"].includes(call.action)).map((call) => call.action),
+        ["stop", "list-running", "kill", "list-running"]);
+      assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
+      assert.equal(runtimeOf(box).state, "stopped");
+      assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered exitCode=1 curtain=up$/);
+    });
+
+    await scenario("a release that cannot be proved stopped is reported so, and never as stopped", () => {
+      const box = sandbox({ restartFails: true, stopFails: true, killFails: true });
+      const result = run(box);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /could not be proved stopped; it may still be running, and the maintenance curtain and protected evidence remain/);
+      assert.doesNotMatch(result.stderr, /it was stopped/);
+      assert.equal(runtimeOf(box).state, "running");
+      assert.equal(fs.existsSync(box.marker), true);
+      assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered,release-not-stopped exitCode=1 curtain=up$/);
+    });
+
+    await scenario("stalled Docker queries end within recovery's own limit, and a release that then cannot be proved stopped is reported so", () => {
+      const box = sandbox({ inspectHangsAfterStart: true });
+      const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-stalled", [
+        ["readonly QUERY_LIMIT=30\n", "readonly QUERY_LIMIT=2\n"],
+        ["readonly STOP_LIMIT=120\n", "readonly STOP_LIMIT=2\n"],
+        ["readonly RECOVERY_LIMIT=1200\n", "readonly RECOVERY_LIMIT=16\n"],
+        ["readonly STOP_RESERVE=240\n", "readonly STOP_RESERVE=8\n"],
+      ]);
+      waitForNextSecond();
+      const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      const leftovers = liveFakes();
+      fs.writeFileSync(path.join(box.state, "release"), "");
+      assert.equal(result.status, 1, result.stderr);
+      // Every stalled call would otherwise wait 30 seconds; the restart after the backup and recovery's
+      // restart and stop are each bounded by recovery's scaled limit.
+      assert.ok(result.seconds < 25, `the run took ${result.seconds}s`);
+      assert.match(result.stderr, /could not be proved stopped/);
+      assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered,release-not-stopped exitCode=1 curtain=up$/);
+      assert.deepEqual(leftovers, [], "no stalled call outlives the run");
+    });
+
+    await scenario("a restart that uses all of recovery's time still leaves its reserve to stop the release and prove it", () => {
+      const box = sandbox({ healthyAfterMs: 600_000 });
+      const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-reserve", [
+        ["readonly RECOVERY_LIMIT=1200\n", "readonly RECOVERY_LIMIT=10\n"],
+        ["readonly STOP_RESERVE=240\n", "readonly STOP_RESERVE=4\n"],
+      ]);
+      waitForNextSecond();
+      const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /the restarted release did not verify/);
+      assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
+      assert.equal(runtimeOf(box).state, "stopped");
+      assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered exitCode=1 curtain=up$/);
+      assert.ok(result.seconds < 30, `the run took ${result.seconds}s`);
+    });
+
+    await scenario("a health answer that would come after the health deadline is never accepted", () => {
+      const box = sandbox({ slowHealthMs: 4000 });
+      const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-health-2", [["readonly HEALTH_LIMIT=90\n", "readonly HEALTH_LIMIT=2\n"]]);
+      waitForNextSecond();
+      const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /the restarted release did not verify/);
+      assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
+      assert.equal(indexOf(result.calls, "http"), -1, "a release whose health was not answered in time is never asked whether it is ready");
+      assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered exitCode=1 curtain=up$/);
+    });
 
     await scenario("an uninspected archive whose removal fails stays staged, never counts as a backup, and the release is still restarted", () => {
       const box = sandbox({ backupFails: "inspect" });
@@ -901,8 +1201,11 @@ async function main() {
       assert.equal(result.status, 1, result.stderr);
       assert.match(result.stderr, /the backup did not finish within its time limit/);
       assert.match(result.stderr, /the unchanged release was restarted and verified/);
-      const removed = result.calls.filter((call) => call.action === "remove-step").map((call) => String(call.args?.at(-1)));
-      assert.ok(removed.some((name) => /^longtail-forge-scheduled-backup-\d{8}T\d{6}Z-create$/.test(name)), "the cut-off step's container is removed");
+      const createName = valueAfter(result.calls.find((call) => call.action === "backup-create")?.args ?? [], "--name");
+      assert.deepEqual(result.calls.filter((call) => call.action === "remove-step").map((call) => String(call.args?.at(-1))), [fakeId(createName)],
+        "the cut-off step's container, and only it, is removed");
+      assert.ok(result.calls.map((call) => call.action).lastIndexOf("list-steps") < indexOf(result.calls, "start"), "and proved gone before the release starts");
+      assert.deepEqual(runtimeOf(box).steps, []);
       const recovery = result.calls.slice(indexOf(result.calls, "start"));
       assert.ok(recovery.filter((call) => call.action === "health").length >= 2, "the release took longer than the backup's limit to become healthy");
       assert.ok(recovery.every((call) => call.tool !== "docker" || call.lockHeld), "recovery runs under the lock the backup holds");
@@ -913,27 +1216,40 @@ async function main() {
       assert.ok(result.seconds < 60, `the run took ${result.seconds}s`);
     });
 
-    await scenario("a backup the run's own backstop kills is reported as that limit's expiry, with the curtain up", () => {
+    // The step's own time limit runs it in a process group of its own, which the backstop's kill never
+    // reaches, so the step outlives the backup, holding the lifecycle lock, until the run sweeps it.
+    await scenario("a backup the run's own backstop kills is reported as that limit's expiry, with the curtain up, and leaves nothing holding the lock", () => {
       const box = sandbox({ backupHangs: true });
       const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-run-limit-3", [
-        ["readonly RUN_LIMIT=$((BACKUP_LIMIT + RECOVERY_LIMIT + COPY_LIMIT + 600))\n", "readonly RUN_LIMIT=3\n"],
+        ["readonly RUN_LIMIT=$((PREFLIGHT_LIMIT + BACKUP_LIMIT + RECOVERY_LIMIT + COPY_LIMIT + 600))\n", "readonly RUN_LIMIT=3\n"],
         ["timeout --kill-after=60 \"$RUN_LIMIT\"", "timeout --kill-after=1 \"$RUN_LIMIT\""],
       ]);
       waitForNextSecond();
       const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      const lockFree = spawnSync("flock", ["-n", path.join(box.deployRoot, "compose-operation.lock"), "true"]).status === 0;
+      const leftovers = liveFakes();
       fs.writeFileSync(path.join(box.state, "release"), "");
       assert.equal(result.status, 137, result.stderr);
-      assert.match(alertSummary(result), /failureClass=backup-run-limit-expired exitCode=137 curtain=up$/);
-      assert.deepEqual([runRecords(box)[0]?.failureClass, runRecords(box)[0]?.curtain], ["backup-run-limit-expired", "up"]);
+      assert.ok(lockFree, "nothing of the backup still holds the lifecycle lock when the run reports");
+      assert.deepEqual(leftovers, [], "no process of the backup outlives the run");
+      assert.match(result.stderr, /processes of the backup outlived it, and were killed/);
+      assert.match(alertSummary(result), /failureClass=backup-run-limit-expired,processes-swept exitCode=137 curtain=up$/);
+      assert.deepEqual([runRecords(box)[0]?.failureClass, runRecords(box)[0]?.curtain], ["backup-run-limit-expired,processes-swept", "up"]);
     });
 
-    await scenario("a backup killed before any limit is reported as killed, never as timed out", () => {
+    // A step still running when the backup itself is killed outlives it too, as a real step would.
+    await scenario("a backup killed before any limit is reported as killed, never as timed out, and leaves nothing holding the lock", () => {
       const box = sandbox({ killBackup: true });
       const result = run(box);
+      const lockFree = spawnSync("flock", ["-n", path.join(box.deployRoot, "compose-operation.lock"), "true"]).status === 0;
+      const leftovers = liveFakes();
+      fs.writeFileSync(path.join(box.state, "release"), "");
       assert.equal(result.status, 137, result.stderr);
       assert.ok(result.seconds < 60);
-      assert.match(alertSummary(result), /failureClass=backup-killed exitCode=137 curtain=up$/);
-      assert.equal(runRecords(box)[0]?.failureClass, "backup-killed");
+      assert.ok(lockFree, "nothing of the backup still holds the lifecycle lock when the run reports");
+      assert.deepEqual(leftovers, []);
+      assert.match(alertSummary(result), /failureClass=backup-killed,processes-swept exitCode=137 curtain=up$/);
+      assert.equal(runRecords(box)[0]?.failureClass, "backup-killed,processes-swept");
     });
 
     await scenario("a disabled schedule takes no backup and records that it was skipped", () => {

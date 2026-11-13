@@ -387,6 +387,24 @@ async function main() {
   for (const tool of ["docker", "curl"]) {
     fs.writeFileSync(path.join(fakeBin, tool), `#!/usr/bin/env bash\nexec ${shellQuote(process.execPath)} ${shellQuote(scriptPath)} --fake ${tool} "$@"\n`, { mode: 0o755 });
   }
+  // A fake `rm` in plain bash, which fails on the paths a scenario names in its rm-fails file and
+  // otherwise runs the real one, at no cost to the many removals that pass straight through.
+  const realRm = spawnSync("bash", ["-c", "command -v rm"], { encoding: "utf8" }).stdout.trim();
+  assert.match(realRm, /^\/(usr\/)?bin\/rm$/, "the real rm must be found");
+  fs.writeFileSync(path.join(fakeBin, "rm"), [
+    "#!/usr/bin/env bash",
+    "fails=\"${HARNESS_STATE:-/nonexistent}/rm-fails\"",
+    "if test -f \"$fails\"; then",
+    "  while IFS= read -r pattern; do",
+    "    for argument in \"$@\"; do",
+    // An unquoted right-hand side is a pattern.
+    "      if [[ \"$argument\" == $pattern ]]; then printf \"rm: cannot remove '%s': Read-only file system\\n\" \"$argument\" >&2; exit 1; fi",
+    "    done",
+    "  done < \"$fails\"",
+    "fi",
+    `exec ${realRm} "$@"`,
+    "",
+  ].join("\n"), { mode: 0o755 });
   const previous = loadRelease(PREVIOUS_METADATA);
   const current = loadRelease(CURRENT_METADATA);
   /** @type {{ name: string, ok: boolean, detail?: string }[]} */
@@ -732,6 +750,30 @@ async function main() {
         assert.equal(fs.existsSync(box.marker), false, "the verified release stays served");
       });
     }
+
+    await scenario("on the demo, a bound that stops part-way says how far it went, keeps the rollback backup, and the next verified rollback finishes it", ({ sandbox }) => {
+      const box = demoBox(sandbox);
+      const seeded = seedDeploymentBackups();
+      // Archives go first, in name order: the cut-over and pre-restore archives go, and then the
+      // pre-rollback archive cannot.
+      const fails = path.join(box.harnessState, "rm-fails");
+      fs.writeFileSync(fails, `${BACKUP_ROOT}/pre-rollback-*.ltfbackup.tgz\n`);
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      fs.rmSync(fails);
+      assert.notEqual(result.status, 0, "a bound that stopped part-way must fail the helper");
+      assert.match(result.stderr, /deploy verified and recorded, and the release is live, but the public-demo deployment-backup bound stopped after removing 2 files; the recorded rollback backup is kept, and the next verified deploy or rollback finishes the bound/);
+      assert.doesNotMatch(result.stderr, /nothing was removed/);
+      const kept = rollbackName(box);
+      const gone = ["pre-compose-cutover-20260804T230639Z-0a85ce759b35-cutover.ltfbackup.tgz", "pre-restore-20260808T205001Z-b2b694b3ad80-deploy-failed-deploy.ltfbackup.tgz"];
+      assert.deepEqual(listBackups(), [...seeded.deployment.filter((name) => !gone.includes(name)), ...seeded.others, kept, `${kept}.sha256`].sort());
+      assert.equal(readState(box, "current.json").commitSha, current.identity.commit, "the verified release stays recorded");
+      assert.equal(readRuntime(box).running, current.identity.reference);
+      assert.equal(fs.existsSync(box.marker), false, "the verified release stays served");
+      const rollback = runHelper(box, REPAIRED_HELPER, "rollback", previous.metadata, previous.identity);
+      assert.equal(rollback.status, 0, rollback.stderr);
+      const keptAfter = rollbackName(box);
+      assert.deepEqual(listBackups(), [...seeded.others, keptAfter, `${keptAfter}.sha256`].sort(), "the next verified rollback finishes the bound, orphaned sidecars included");
+    });
 
     await scenario("the preview keeps every deployment backup", ({ sandbox }) => {
       const box = sandbox({ images: [previous, current], baseline: previous, demoMode: "false" });

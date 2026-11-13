@@ -439,6 +439,34 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
   assert.equal(contended.status, 75, `a held lock must refuse the scheduled backup:\n${contended.stderr}`);
   assert.equal(contended.record.failureClass, "lifecycle-lock-contended");
   assert.equal(fs.existsSync(host.marker), false);
+  // The backup's steps run in one-off containers created from the resolved Compose configuration, never
+  // from the running container. With that configuration naming a second valid data volume, a copy of the
+  // live one, the backup is refused before any outage: it never backs up other data while the running
+  // application is started again on its own.
+  const recoveryVolume = `${DATA_VOLUME}-recovery`;
+  const hostEnvSaved = fs.readFileSync(host.hostEnv, "utf8");
+  const liveContainer = composeContainer(host);
+  const startedBefore = docker(["inspect", "--format", "{{.State.StartedAt}}", liveContainer]).trim();
+  docker(["volume", "create", recoveryVolume]);
+  try {
+    docker(["run", "--rm", "--pull", "never", "--network", "none", "--user", "0:0", "--entrypoint", "cp",
+      "--volume", `${DATA_VOLUME}:/from:ro`, "--volume", `${recoveryVolume}:/to`, candidate.metadata.image.reference, "-a", "/from/.", "/to/"]);
+    const volumeLine = `LONGTAIL_DATA_VOLUME=${DATA_VOLUME}\n`;
+    assert.equal(hostEnvSaved.split(volumeLine).length - 1, 1, "the host environment names the data volume once");
+    writePrivate(host.hostEnv, hostEnvSaved.split(volumeLine).join(`LONGTAIL_DATA_VOLUME=${recoveryVolume}\n`));
+    const mismatched = runScheduledBackup(work, host);
+    assert.equal(mismatched.status, 1, `a configuration naming another volume must refuse the backup:\n${mismatched.stderr}`);
+    assert.match(mismatched.stderr, /does not name the running container's image and data volume; a backup from it could capture other data, so nothing was stopped/);
+    assert.equal(mismatched.record.failureClass, "backup-failed");
+    assert.equal(fs.existsSync(host.marker), false, "the curtain never rises");
+    assert.equal(composeContainer(host), liveContainer);
+    assert.equal(docker(["inspect", "--format", "{{.State.StartedAt}}", liveContainer]).trim(), startedBefore, "the running application is never stopped");
+    assert.deepEqual(scheduledBackupNames(), [], "nothing is backed up");
+    record("scheduled-backup-volume-mismatch", { refusal: lastLine(mismatched.stderr) });
+  } finally {
+    writePrivate(host.hostEnv, hostEnvSaved);
+    spawnSync("docker", ["volume", "rm", "--force", recoveryVolume]);
+  }
   // Then, with fifteen older scheduled backups in place, it backs up behind the curtain, restarts the
   // unchanged release, keeps the fourteen newest, and passes only the backup it inspected to the hook.
   const stamp = (/** @type {number} */ days) => new Date(Date.now() - days * 86_400_000).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
@@ -489,6 +517,7 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
     assert.deepEqual(scheduledBackupNames(), kept, "an archive that was never inspected never joins the backups");
     assert.deepEqual(fs.readdirSync(SCHEDULED_PENDING_ROOT), [], "and is discarded from the staging directory");
     assert.equal(docker(["ps", "--all", "--quiet", "--filter", "name=longtail-forge-scheduled-backup-"]).trim(), "", "no step container outlives the backup");
+    assert.equal(docker(["ps", "--all", "--quiet", "--filter", "label=longtail-forge.scheduled-backup.operation"]).trim(), "", "nor any container with a step's label");
     assert.deepEqual(timedOut.hookCalls, [], "the copy hook never runs after a failed backup");
     assert.equal(composeContainer(host), containerBefore, "the stopped container is started again as itself");
     assert.equal(fs.existsSync(host.marker), false, "the curtain lifts once the restarted release verifies");
