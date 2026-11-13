@@ -186,25 +186,39 @@ append_record() {
   mv -T -- "$log.tmp" "$log"
 }
 
-# The live processes of one session, read from /proc. A zombie holds nothing, and is not counted.
+# Sets STAT_FIELDS to the fields of one process's /proc stat record that follow its command name, or
+# fails once the process is gone. The whole record is read: a command name may hold a newline, a
+# parenthesis, or anything else but NUL, and the fields begin after its last ") ". Index 0 is the
+# state, 3 the session, and 19 the start time.
+STAT_FIELDS=()
+read_stat_fields() {
+  local record=''
+  STAT_FIELDS=()
+  { IFS= read -r -d '' record < "/proc/$1/stat"; } 2>/dev/null || true
+  test -n "$record" || return 1
+  read -r -a STAT_FIELDS <<<"${record##*") "}"
+}
+
+# The live processes of one session, each as its PID and start time. A zombie holds nothing, and is
+# not counted.
 session_members() {
-  local session="$1" file line pid
-  local -a fields
+  local session="$1" file pid
   for file in /proc/[0-9]*/stat; do
-    { read -r line < "$file"; } 2>/dev/null || continue
-    # The fields after the command's name, which is in parentheses and may hold either.
-    read -r -a fields <<<"${line##*") "}"
-    test "${fields[3]:-}" = "$session" && test "${fields[0]:-}" != 'Z' || continue
     pid="${file#/proc/}"
-    printf '%s\n' "${pid%/stat}"
+    pid="${pid%/stat}"
+    read_stat_fields "$pid" || continue
+    test "${STAT_FIELDS[3]:-}" = "$session" && test "${STAT_FIELDS[0]:-}" != 'Z' || continue
+    printf '%s %s\n' "$pid" "${STAT_FIELDS[19]:-}"
   done
 }
 
-# Kills every process left in the backup's session, and waits up to 30 seconds for them to go. Prints
-# processes-swept when it killed any, processes-not-cleared when any outlived that, and nothing when
-# none was left.
+# Kills every process left in the backup's session, and waits up to 30 seconds for them to go. Each is
+# killed only while it is still that process, by its start time and session; bash cannot hold a
+# process by anything firmer than its PID, so only the moment between that check and the kill remains.
+# Prints processes-swept when it killed any, processes-not-cleared when any outlived that, and nothing
+# when none was left.
 sweep_session() {
-  local session="$1" attempt killed=false
+  local session="$1" attempt killed=false member pid started
   local -a members
   for ((attempt = 0; attempt < 300; attempt++)); do
     mapfile -t members < <(session_members "$session")
@@ -213,7 +227,12 @@ sweep_session() {
       return 0
     fi
     killed=true
-    kill -KILL "${members[@]}" 2>/dev/null || true
+    for member in "${members[@]}"; do
+      read -r pid started <<<"$member"
+      read_stat_fields "$pid" || continue
+      test "${STAT_FIELDS[3]:-}" = "$session" && test "${STAT_FIELDS[19]:-}" = "$started" || continue
+      kill -KILL "$pid" 2>/dev/null || true
+    done
     sleep 0.1
   done
   printf 'processes-not-cleared'
@@ -482,23 +501,40 @@ verify_container_posture() {
 }
 
 # The backup's steps run in one-off containers created from the resolved Compose configuration, never
-# from the running container, so that configuration must name what the running container uses: the
-# recorded image, as the same local image, and the same data volume. Otherwise a step could back up
-# another volume while the running application is started again on its own. The steps never pull.
+# from the running container, so that configuration must give them exactly the data the running
+# container has: the recorded image, as the same local image, and the data directory as one whole
+# volume, the running container's own. On both sides nothing else may be mounted at or beneath that
+# directory: no bind, volume, or tmpfs over the database or the Files tree, no volume subpath, and no
+# mounts taken from another container. Otherwise a step could back up other data while the running
+# application is started again on its own. The steps never pull.
+readonly DATA_ROOT='/var/lib/longtail-forge'
 verify_backup_binding() {
   local reference binding image_id volume
   reference="$(jq -er '.image.reference' "$RELEASE_METADATA")" || return 1
-  binding="$(docker_query inspect "$CONTAINER" | jq -er '.[0] | [.Image,
-    ([.Mounts[] | select(.Type == "volume" and .Destination == "/var/lib/longtail-forge") | .Name]
-      | if length == 1 then .[0] else error("the container must have exactly one data volume") end)] | join(" ")')" || return 1
+  binding="$(docker_query inspect "$CONTAINER" | jq -er --arg data "$DATA_ROOT" '
+    def under_data: . == $data or startswith($data + "/");
+    .[0]
+    | [.Mounts[] | select(.Destination | under_data)] as $mounts
+    | [(.HostConfig.Mounts // [])[] | select(.Target | under_data)] as $declared
+    | [(.HostConfig.Tmpfs // {}) | keys[] | select(under_data)] as $tmpfs
+    | if ($mounts | length) == 1 and $mounts[0].Type == "volume" and $mounts[0].Destination == $data
+        and ($tmpfs | length) == 0 and all($declared[]; (.VolumeOptions.Subpath // "") == "")
+      then [.Image, $mounts[0].Name] | join(" ")
+      else error("the data directory must be exactly one whole volume") end')" || return 1
   read -r image_id volume <<<"$binding"
   [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ ]] && [[ "$volume" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || return 1
   test "$(docker_query image inspect --format '{{.Id}}' "$reference")" = "$image_id" || return 1
-  config_jq -e --arg image "$reference" --arg volume "$volume" '
+  config_jq -e --arg image "$reference" --arg volume "$volume" --arg data "$DATA_ROOT" '
+    def under_data: . == $data or startswith($data + "/");
     . as $config | .services["longtail-forge"] as $service
+    | [($service.volumes // [])[] | select(.target | under_data)] as $mounts
+    | [($service.tmpfs // []) | if type == "string" then [.] else . end | .[] | split(":")[0] | select(under_data)] as $tmpfs
     | $service.image == $image
-      and ([$service.volumes[] | select(.target == "/var/lib/longtail-forge")]
-        | length == 1 and .[0].type == "volume" and $config.volumes[.[0].source].name == $volume)
+      and (($service.volumes_from // []) | length) == 0
+      and ($tmpfs | length) == 0
+      and ($mounts | length) == 1 and $mounts[0].type == "volume" and $mounts[0].target == $data
+      and ($mounts[0].volume.subpath // "") == ""
+      and $config.volumes[$mounts[0].source].name == $volume
   ' >/dev/null
 }
 
@@ -523,11 +559,12 @@ OPERATION_ID="$OPERATION_STAMP-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
 [[ "$OPERATION_ID" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}$ ]] || fail "the backup's operation identity could not be made"
 STEP_PREFIX="longtail-forge-scheduled-backup-$OPERATION_ID"
 # A step container an earlier backup left, which its recovery could not remove, may still be writing.
-# It is never removed or reused here, and refuses the backup before any outage.
+# It is never removed or reused here, and refuses the backup before any outage, naming each one for the
+# guide's supervised recovery.
 LEFTOVER="$(docker_query ps --all --quiet --filter "label=$STEP_LABEL")" \
   || fail "the backup's step containers could not be listed"
 test -z "$LEFTOVER" \
-  || fail "a step container an earlier scheduled backup started still exists; it is never removed automatically, so nothing was stopped"
+  || fail "a step container an earlier scheduled backup started still exists; it is never removed automatically, so nothing was stopped: $(tr '\n' ' ' <<<"$LEFTOVER")"
 for file in "$ARCHIVE" "$ARCHIVE.sha256"; do
   test ! -e "$file" && test ! -L "$file" || fail "a scheduled backup of that name already exists"
 done
@@ -703,7 +740,7 @@ recover() {
   # A step cut off by its limit leaves its one-off container running, and perhaps still writing.
   if ! clear_steps; then
     cleared=false
-    printf 'longtail-forge-scheduled-backup: a step container of this backup could not be proved removed, so the release was not started beside it\n' >&2
+    printf 'longtail-forge-scheduled-backup: a step container of this backup, operation %s, could not be proved removed, so the release was not started beside it\n' "$OPERATION_ID" >&2
   fi
   # An archive that never passed inspection never left the staging directory, and is discarded. If that
   # fails, it is still never counted as a backup, and the next run discards it.

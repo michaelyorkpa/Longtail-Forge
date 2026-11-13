@@ -467,6 +467,31 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
     writePrivate(host.hostEnv, hostEnvSaved);
     spawnSync("docker", ["volume", "rm", "--force", recoveryVolume]);
   }
+  // Nor may anything else be mounted at or beneath the data directory: real Compose renders each of these
+  // edits of the shipped Compose file, and each is refused before any outage.
+  const composeSaved = fs.readFileSync(host.composeFile, "utf8");
+  const dataLine = "      - longtail-data:/var/lib/longtail-forge\n";
+  const tmpfsLine = "      - /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001\n";
+  for (const anchor of [dataLine, tmpfsLine]) assert.equal(composeSaved.split(anchor).length - 1, 1, `the Compose file must hold ${JSON.stringify(anchor)} once`);
+  const overMounts = /** @type {[string, string, string][]} */ ([
+    ["subpath", dataLine, "      - type: volume\n        source: longtail-data\n        target: /var/lib/longtail-forge\n        volume:\n          subpath: other-installation\n"],
+    ["bind-over-database", dataLine, `${dataLine}      - type: bind\n        source: /etc/hostname\n        target: /var/lib/longtail-forge/longtail-forge.db\n        read_only: true\n`],
+    ["tmpfs-over-files", tmpfsLine, `${tmpfsLine}      - /var/lib/longtail-forge/files\n`],
+  ]);
+  try {
+    for (const [label, from, to] of overMounts) {
+      fs.writeFileSync(host.composeFile, composeSaved.split(from).join(to));
+      const overMounted = runScheduledBackup(work, host);
+      assert.equal(overMounted.status, 1, `${label} must refuse the backup:\n${overMounted.stderr}`);
+      assert.match(overMounted.stderr, /does not name the running container's image and data volume; a backup from it could capture other data, so nothing was stopped/);
+      assert.equal(fs.existsSync(host.marker), false, `${label}: the curtain never rises`);
+      assert.equal(docker(["inspect", "--format", "{{.State.StartedAt}}", liveContainer]).trim(), startedBefore, `${label}: the running application is never stopped`);
+      assert.deepEqual(scheduledBackupNames(), [], `${label}: nothing is backed up`);
+    }
+    record("scheduled-backup-over-mounts", { refused: overMounts.map(([label]) => label) });
+  } finally {
+    fs.writeFileSync(host.composeFile, composeSaved);
+  }
   // Then, with fifteen older scheduled backups in place, it backs up behind the curtain, restarts the
   // unchanged release, keeps the fourteen newest, and passes only the backup it inspected to the hook.
   const stamp = (/** @type {number} */ days) => new Date(Date.now() - days * 86_400_000).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");

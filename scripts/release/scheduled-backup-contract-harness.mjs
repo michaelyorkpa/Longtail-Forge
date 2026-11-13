@@ -49,6 +49,7 @@ const DATA_VOLUME = "longtail-forge-data";
 // A second valid data volume, such as one a recovery restored, which the configuration may name instead.
 const RECOVERY_VOLUME = "longtail-forge-recovery";
 const STEP_LABEL = "longtail-forge.scheduled-backup.operation";
+const DATA_ROOT = "/var/lib/longtail-forge";
 const STEP_NAME = /^longtail-forge-scheduled-backup-(\d{8}T\d{6}Z-[a-f0-9]{8})-(create|inspect)$/;
 const IDENTITY = Object.freeze({ version: "0.33.99.1", commit: "4f0c2d9a7b1e3c5d8e6f0a2b4c6d8e0f1a3b5c7d", artifact: "e".repeat(64) });
 const WEBHOOK_TOKEN = `${"Hk7_-".repeat(13)}abc`;
@@ -67,9 +68,12 @@ const STORED_COPY = /^\d{8}T\d{6}Z-[a-f0-9]{16}\.ltfbackup\.tar\.age$/;
  *   postureAfterStart: FakePosture | null, recreated: boolean,
  *   configVolume: string, configImage: string, referenceImageId: string, stepRemovalFails: boolean,
  *   stopFails: boolean, killFails: boolean, inspectHangsAfterStart: boolean, slowHealthMs: number, nameTaken: boolean,
+ *   configMounts: ConfigMounts | null, containerMounts: ContainerMounts | null, oddProcesses: boolean,
  *   markerPath: string, lockPath: string, store: string, stateDir: string,
  * }} FakeScenario
  */
+/** @typedef {"bind-over-database" | "volume-over-files" | "tmpfs-over-files" | "subpath" | "volumes-from"} ConfigMounts */
+/** @typedef {"bind-over-files" | "tmpfs-over-files" | "subpath"} ContainerMounts */
 /** @typedef {{ id: string, name: string, label: string | null, volume: string }} FakeStep */
 /**
  * @typedef {{ state: "running" | "stopped", healthy: boolean, startedAt: number, restarted: boolean, container: string,
@@ -151,16 +155,34 @@ function fakeDocker(args, scenario, runtime, record, save) {
     if (stalls()) return hangUntilReleased(scenario.stateDir);
     if (args[1] !== runtime.container) return refuse(`Error: No such object: ${args[1]}`);
     const posture = runtime.restarted && scenario.postureAfterStart ? scenario.postureAfterStart : scenario.posture;
+    // Docker lists what is mounted in `Mounts`, what was asked for, with a volume's subpath, in
+    // `HostConfig.Mounts`, and `--tmpfs` mounts in `HostConfig.Tmpfs` alone.
+    const mounts = [
+      { Type: "volume", Name: DATA_VOLUME, Destination: DATA_ROOT },
+      { Type: "bind", Source: BACKUP_ROOT, Destination: "/var/backups/longtail-forge" },
+    ];
+    /** @type {{ Type: string, Source: string, Target: string, VolumeOptions: { Subpath?: string } }[]} */
+    const declared = [
+      { Type: "volume", Source: DATA_VOLUME, Target: DATA_ROOT, VolumeOptions: {} },
+      { Type: "bind", Source: BACKUP_ROOT, Target: "/var/backups/longtail-forge", VolumeOptions: {} },
+    ];
+    /** @type {Record<string, string>} */
+    const tmpfs = { "/tmp": TMPFS };
+    if (scenario.containerMounts === "bind-over-files") {
+      mounts.push({ Type: "bind", Source: "/srv/other-installation/files", Destination: `${DATA_ROOT}/files` });
+      declared.push({ Type: "bind", Source: "/srv/other-installation/files", Target: `${DATA_ROOT}/files`, VolumeOptions: {} });
+    }
+    if (scenario.containerMounts === "tmpfs-over-files") tmpfs[`${DATA_ROOT}/files`] = "";
+    if (scenario.containerMounts === "subpath") declared[0] = { ...declared[0], VolumeOptions: { Subpath: "other-installation" } };
     return emit(JSON.stringify([{
       Id: runtime.container,
       Image: IMAGE_ID,
       Config: { Image: IMAGE, User: posture === "root-user" ? "0:0" : "10001:10001" },
-      HostConfig: { ReadonlyRootfs: true, Privileged: false, CapDrop: ["ALL"], SecurityOpt: ["no-new-privileges:true"], Tmpfs: { "/tmp": TMPFS } },
+      HostConfig: {
+        ReadonlyRootfs: true, Privileged: false, CapDrop: ["ALL"], SecurityOpt: ["no-new-privileges:true"], Tmpfs: tmpfs, Mounts: declared,
+      },
       NetworkSettings: { Ports: { "8001/tcp": [{ HostIp: posture === "public-port" ? "0.0.0.0" : "127.0.0.1", HostPort: "8001" }] } },
-      Mounts: [
-        { Type: "volume", Name: DATA_VOLUME, Destination: "/var/lib/longtail-forge" },
-        { Type: "bind", Source: BACKUP_ROOT, Destination: "/var/backups/longtail-forge" },
-      ],
+      Mounts: mounts,
     }]));
   }
   if (args[0] === "ps") {
@@ -193,19 +215,25 @@ function fakeDocker(args, scenario, runtime, record, save) {
     /** @type {Record<string, string>} */
     const environment = {};
     if (scenario.demoMode !== null) environment.DEMO_MODE = scenario.demoMode;
-    return emit(JSON.stringify({
-      services: {
-        "longtail-forge": {
-          image: scenario.configImage,
-          environment,
-          volumes: [
-            { type: "volume", source: "longtail-data", target: "/var/lib/longtail-forge" },
-            { type: "bind", source: BACKUP_ROOT, target: BACKUP_CONTAINER_ROOT },
-          ],
-        },
-      },
-      volumes: { "longtail-data": { name: scenario.configVolume } },
-    }));
+    // Compose's resolved form: every mount in its long syntax, and tmpfs mounts as `path:options`.
+    /** @type {{ type: string, source: string, target: string, volume?: { subpath?: string } }} */
+    const dataMount = { type: "volume", source: "longtail-data", target: DATA_ROOT, volume: {} };
+    const volumes = [dataMount, { type: "bind", source: BACKUP_ROOT, target: BACKUP_CONTAINER_ROOT }];
+    /** @type {Record<string, { name: string }>} */
+    const named = { "longtail-data": { name: scenario.configVolume } };
+    /** @type {Record<string, unknown>} */
+    const service = { image: scenario.configImage, environment, volumes, tmpfs: [`/tmp:${TMPFS}`] };
+    if (scenario.configMounts === "bind-over-database") {
+      volumes.push({ type: "bind", source: "/srv/other-installation/longtail-forge.db", target: `${DATA_ROOT}/longtail-forge.db` });
+    }
+    if (scenario.configMounts === "volume-over-files") {
+      volumes.push({ type: "volume", source: "other-files", target: `${DATA_ROOT}/files`, volume: {} });
+      named["other-files"] = { name: "longtail-forge-other-files" };
+    }
+    if (scenario.configMounts === "tmpfs-over-files") service.tmpfs = [`/tmp:${TMPFS}`, `${DATA_ROOT}/files`];
+    if (scenario.configMounts === "subpath") dataMount.volume = { subpath: "other-installation" };
+    if (scenario.configMounts === "volumes-from") service.volumes_from = ["service:other-installation"];
+    return emit(JSON.stringify({ services: { "longtail-forge": service }, volumes: named }));
   }
   if (command[0] === "stop") {
     record({ action: "stop" });
@@ -278,6 +306,7 @@ function fakeDocker(args, scenario, runtime, record, save) {
         hangUntilReleased(scenario.stateDir);
         return finish(0);
       }
+      if (scenario.oddProcesses) spawnOddProcesses(scenario.stateDir);
       writeContainerBackup(archive, `archive of ${path.basename(archive)} from the volume ${step.volume}`);
       return finish(0);
     }
@@ -373,6 +402,61 @@ function sleepMs(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
+/**
+ * Leaves two processes whose names hold a newline. One is in the backup's session, so the sweep must
+ * find and kill it. The other is in a session of its own, named so that the first line of its stat
+ * record reads as a member of the backup's session, so the sweep must leave it alone. Each is a Node
+ * process that names itself in one write, since a shell's printf writes a newline separately and only
+ * the last write names a process, and then waits, starting no other process. Records both once their
+ * names are set.
+ * @param {string} stateDir
+ */
+function spawnOddProcesses(stateDir) {
+  const session = sessionOf(process.pid);
+  const names = { inside: "node\nworker", outside: `) S 1 1 ${session}\n` };
+  assert.ok(Buffer.byteLength(names.outside) <= 15, `the session ID ${session} does not fit a 15-byte name`);
+  const hold = "require('node:fs').writeFileSync('/proc/self/comm', process.env.ODD_NAME); setInterval(() => {}, 2 ** 30);";
+  const inside = spawn(process.execPath, ["-e", hold], { stdio: "ignore", env: { ODD_NAME: names.inside } });
+  const outside = spawn(process.execPath, ["-e", hold], { stdio: "ignore", detached: true, env: { ODD_NAME: names.outside } });
+  inside.unref();
+  outside.unref();
+  /** @param {number | undefined} pid @param {string} name */
+  const named = (pid, name) => {
+    try {
+      return fs.readFileSync(`/proc/${pid}/comm`, "utf8") === `${name}\n`;
+    } catch {
+      return false;
+    }
+  };
+  const deadline = Date.now() + 5000;
+  while (!(named(inside.pid, names.inside) && named(outside.pid, names.outside))) {
+    assert.ok(Date.now() < deadline, "the odd processes never took their names");
+    sleepMs(20);
+  }
+  fs.writeFileSync(path.join(stateDir, "odd.json"), JSON.stringify({ inside: inside.pid, outside: outside.pid, session }));
+}
+
+/** A process's stat fields after its command name, from the whole record, or null once it is gone. @param {number} pid */
+function statFields(pid) {
+  try {
+    const record = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
+    return record.slice(record.lastIndexOf(") ") + 2).trim().split(" ");
+  } catch {
+    return null;
+  }
+}
+
+/** @param {number} pid */
+function sessionOf(pid) {
+  return Number(statFields(pid)?.[3]);
+}
+
+/** Whether a process is running, as opposed to gone or a zombie. @param {number} pid */
+function liveProcess(pid) {
+  const fields = statFields(pid);
+  return fields !== null && fields[0] !== "Z";
+}
+
 /** A container ID, 64 hexadecimal characters, that a name always gives. @param {string} name */
 function fakeId(name) {
   return sha256(`container ${name}`);
@@ -428,7 +512,8 @@ function sha256(content) {
  *   enabled?: boolean, alerts?: boolean, backupHangs?: boolean, killBackup?: boolean, healthyAfterMs?: number,
  *   posture?: FakePosture, postureAfterStart?: FakePosture | null, recreated?: boolean, configVolume?: string,
  *   configImage?: string, referenceImageId?: string, stepRemovalFails?: boolean, stopFails?: boolean, killFails?: boolean,
- *   inspectHangsAfterStart?: boolean, slowHealthMs?: number, nameTaken?: boolean, steps?: FakeStep[] }} SandboxOptions
+ *   inspectHangsAfterStart?: boolean, slowHealthMs?: number, nameTaken?: boolean, steps?: FakeStep[],
+ *   configMounts?: ConfigMounts, containerMounts?: ContainerMounts, oddProcesses?: boolean }} SandboxOptions
  */
 
 /** @param {string} work @param {number} ordinal @param {string} fakeBin @param {SandboxOptions} options @returns {Sandbox} */
@@ -547,6 +632,9 @@ function createSandbox(work, ordinal, fakeBin, options) {
     inspectHangsAfterStart: options.inspectHangsAfterStart === true,
     slowHealthMs: options.slowHealthMs ?? 0,
     nameTaken: options.nameTaken === true,
+    configMounts: options.configMounts ?? null,
+    containerMounts: options.containerMounts ?? null,
+    oddProcesses: options.oddProcesses === true,
     markerPath: marker,
     lockPath: path.join(deployRoot, "compose-operation.lock"),
     store,
@@ -1025,11 +1113,19 @@ async function main() {
     // container uses. Each mismatch below names something valid: without the check, the backup would
     // succeed, from the wrong data.
     for (const [label, options] of /** @type {[string, SandboxOptions][]} */ ([
-      ["names another valid data volume", { configVolume: RECOVERY_VOLUME }],
-      ["names another image", { configImage: `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"9".repeat(64)}` }],
-      ["names the recorded image, which is no longer the running container's local image", { referenceImageId: OTHER_IMAGE_ID }],
+      ["a Compose configuration that names another valid data volume", { configVolume: RECOVERY_VOLUME }],
+      ["a Compose configuration that names another image", { configImage: `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"9".repeat(64)}` }],
+      ["a Compose configuration that names the recorded image, which is no longer the running container's local image", { referenceImageId: OTHER_IMAGE_ID }],
+      ["a Compose configuration that binds another database over the data volume's", { configMounts: "bind-over-database" }],
+      ["a Compose configuration that mounts another volume over the Files tree", { configMounts: "volume-over-files" }],
+      ["a Compose configuration that mounts a tmpfs over the Files tree", { configMounts: "tmpfs-over-files" }],
+      ["a Compose configuration that mounts only a subpath of the data volume", { configMounts: "subpath" }],
+      ["a Compose configuration that takes mounts from another container", { configMounts: "volumes-from" }],
+      ["a running container with another bind over its Files tree", { containerMounts: "bind-over-files" }],
+      ["a running container with a tmpfs over its Files tree", { containerMounts: "tmpfs-over-files" }],
+      ["a running container that mounts only a subpath of its data volume", { containerMounts: "subpath" }],
     ])) {
-      await scenario(`a Compose configuration that ${label} refuses the backup before any outage, and backs up nothing`, () => {
+      await scenario(`${label} refuses the backup before any outage, and backs up nothing`, () => {
         const box = sandbox(options);
         const result = run(box);
         assert.equal(result.status, 1, result.stderr);
@@ -1051,7 +1147,8 @@ async function main() {
       const box = sandbox({ steps: [leftover] });
       const result = run(box);
       assert.equal(result.status, 1);
-      assert.match(result.stderr, /a step container an earlier scheduled backup started still exists; it is never removed automatically, so nothing was stopped/);
+      assert.ok(result.stderr.includes(`a step container an earlier scheduled backup started still exists; it is never removed automatically, so nothing was stopped: ${leftover.id.slice(0, 12)}`),
+        "the refusal names the container, for the guide's supervised recovery");
       assert.equal(result.calls.filter((call) => call.markerPresent).length, 0, "the curtain never rises");
       assert.equal(indexOf(result.calls, "remove-step"), -1);
       assert.deepEqual(runtimeOf(box).steps, [leftover]);
@@ -1075,7 +1172,10 @@ async function main() {
       const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
       fs.writeFileSync(path.join(box.state, "release"), "");
       assert.equal(result.status, 1, result.stderr);
-      assert.match(result.stderr, /a step container of this backup could not be proved removed, so the release was not started beside it/);
+      const operation = STEP_NAME.exec(valueAfter(result.calls.find((call) => call.action === "backup-create")?.args ?? [], "--name"))?.[1];
+      assert.ok(operation, "the step was named for its operation");
+      assert.ok(result.stderr.includes(`a step container of this backup, operation ${operation}, could not be proved removed, so the release was not started beside it`),
+        "the journal names the operation, for the guide's supervised recovery");
       assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
       assert.ok(indexOf(result.calls, "remove-step") >= 0, "its removal was attempted");
       assert.equal(indexOf(result.calls, "start"), -1, "the release is never started beside a step container that may still be writing");
@@ -1250,6 +1350,31 @@ async function main() {
       assert.deepEqual(leftovers, []);
       assert.match(alertSummary(result), /failureClass=backup-killed,processes-swept exitCode=137 curtain=up$/);
       assert.equal(runRecords(box)[0]?.failureClass, "backup-killed,processes-swept");
+    });
+
+    // A command name may hold a newline. The sweep reads each whole stat record, so it finds the backup's
+    // own process by its session, and never takes another session's for one by what its name says.
+    await scenario("processes named with a newline are swept by their own session, never by what their names say", () => {
+      const box = sandbox({ oddProcesses: true });
+      const result = run(box);
+      assert.ok(fs.existsSync(path.join(box.state, "odd.json")), `the odd processes were never recorded:\n${result.stderr}`);
+      const odd = /** @type {{ inside: number, outside: number, session: number }} */ (readJson(path.join(box.state, "odd.json")));
+      const insideLive = liveProcess(odd.inside);
+      const outsideLive = liveProcess(odd.outside);
+      const lockFree = spawnSync("flock", ["-n", path.join(box.deployRoot, "compose-operation.lock"), "true"]).status === 0;
+      try {
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(sessionOf(odd.outside) === odd.session, false, "the other process is in a session of its own");
+        assert.equal(insideLive, false, "the backup's own process, named with a newline, is killed");
+        assert.equal(outsideLive, true, "a process outside the backup's session is never killed, whatever its name says");
+        assert.ok(lockFree, "nothing of the backup still holds the lifecycle lock when the run reports");
+        assert.match(alertSummary(result), /failureClass=processes-swept exitCode=0 archive=/);
+        assert.equal(runRecords(box)[0]?.failureClass, "processes-swept");
+      } finally {
+        for (const pid of [odd.inside, odd.outside]) {
+          if (liveProcess(pid)) process.kill(pid, "SIGKILL");
+        }
+      }
     });
 
     await scenario("a disabled schedule takes no backup and records that it was skipped", () => {
