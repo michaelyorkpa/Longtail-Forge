@@ -439,58 +439,96 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
   assert.equal(contended.status, 75, `a held lock must refuse the scheduled backup:\n${contended.stderr}`);
   assert.equal(contended.record.failureClass, "lifecycle-lock-contended");
   assert.equal(fs.existsSync(host.marker), false);
-  // The backup's steps run in one-off containers created from the resolved Compose configuration, never
-  // from the running container. With that configuration naming a second valid data volume, a copy of the
-  // live one, the backup is refused before any outage: it never backs up other data while the running
-  // application is started again on its own.
-  const recoveryVolume = `${DATA_VOLUME}-recovery`;
+  // The backup's steps run in one-off containers whose every setting the helper names, from the running
+  // container itself, and it stops and starts that container by its ID with Docker alone, so no edit of
+  // the Compose configuration reaches either. Real Compose renders here a configuration that would give
+  // any container created from it other data and another program: the data volume named as an empty one,
+  // mounted at a subpath, a file config over the database, a tmpfs over the Files tree, a secret over the
+  // backup program, an entrypoint that fails, and the root as the working directory. It also carries what
+  // Compose's own stop and start would run in, or copy into, the running container: lifecycle hooks that
+  // write into its data volume, and inline content. The backup still succeeds, from the running
+  // container's own volume, with its own runtime classification, creates no volume, and leaves nothing of
+  // those hooks or that content in the live data.
+  const emptyVolume = `${DATA_VOLUME}-empty`;
   const hostEnvSaved = fs.readFileSync(host.hostEnv, "utf8");
+  const composeSaved = fs.readFileSync(host.composeFile, "utf8");
+  const hostileDatabase = path.join(host.composeDir, "hostile-database");
+  const hostileProgram = path.join(host.composeDir, "hostile-backup.mjs");
   const liveContainer = composeContainer(host);
-  const startedBefore = docker(["inspect", "--format", "{{.State.StartedAt}}", liveContainer]).trim();
-  docker(["volume", "create", recoveryVolume]);
+  docker(["volume", "create", emptyVolume]);
   try {
-    docker(["run", "--rm", "--pull", "never", "--network", "none", "--user", "0:0", "--entrypoint", "cp",
-      "--volume", `${DATA_VOLUME}:/from:ro`, "--volume", `${recoveryVolume}:/to`, candidate.metadata.image.reference, "-a", "/from/.", "/to/"]);
+    fs.writeFileSync(hostileDatabase, "not a database\n", { mode: 0o644 });
+    fs.writeFileSync(hostileProgram, "process.exit(1);\n", { mode: 0o644 });
     const volumeLine = `LONGTAIL_DATA_VOLUME=${DATA_VOLUME}\n`;
     assert.equal(hostEnvSaved.split(volumeLine).length - 1, 1, "the host environment names the data volume once");
-    writePrivate(host.hostEnv, hostEnvSaved.split(volumeLine).join(`LONGTAIL_DATA_VOLUME=${recoveryVolume}\n`));
-    const mismatched = runScheduledBackup(work, host);
-    assert.equal(mismatched.status, 1, `a configuration naming another volume must refuse the backup:\n${mismatched.stderr}`);
-    assert.match(mismatched.stderr, /does not name the running container's image and data volume; a backup from it could capture other data, so nothing was stopped/);
-    assert.equal(mismatched.record.failureClass, "backup-failed");
-    assert.equal(fs.existsSync(host.marker), false, "the curtain never rises");
-    assert.equal(composeContainer(host), liveContainer);
-    assert.equal(docker(["inspect", "--format", "{{.State.StartedAt}}", liveContainer]).trim(), startedBefore, "the running application is never stopped");
-    assert.deepEqual(scheduledBackupNames(), [], "nothing is backed up");
-    record("scheduled-backup-volume-mismatch", { refusal: lastLine(mismatched.stderr) });
-  } finally {
-    writePrivate(host.hostEnv, hostEnvSaved);
-    spawnSync("docker", ["volume", "rm", "--force", recoveryVolume]);
-  }
-  // Nor may anything else be mounted at or beneath the data directory: real Compose renders each of these
-  // edits of the shipped Compose file, and each is refused before any outage.
-  const composeSaved = fs.readFileSync(host.composeFile, "utf8");
-  const dataLine = "      - longtail-data:/var/lib/longtail-forge\n";
-  const tmpfsLine = "      - /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001\n";
-  for (const anchor of [dataLine, tmpfsLine]) assert.equal(composeSaved.split(anchor).length - 1, 1, `the Compose file must hold ${JSON.stringify(anchor)} once`);
-  const overMounts = /** @type {[string, string, string][]} */ ([
-    ["subpath", dataLine, "      - type: volume\n        source: longtail-data\n        target: /var/lib/longtail-forge\n        volume:\n          subpath: other-installation\n"],
-    ["bind-over-database", dataLine, `${dataLine}      - type: bind\n        source: /etc/hostname\n        target: /var/lib/longtail-forge/longtail-forge.db\n        read_only: true\n`],
-    ["tmpfs-over-files", tmpfsLine, `${tmpfsLine}      - /var/lib/longtail-forge/files\n`],
-  ]);
-  try {
-    for (const [label, from, to] of overMounts) {
-      fs.writeFileSync(host.composeFile, composeSaved.split(from).join(to));
-      const overMounted = runScheduledBackup(work, host);
-      assert.equal(overMounted.status, 1, `${label} must refuse the backup:\n${overMounted.stderr}`);
-      assert.match(overMounted.stderr, /does not name the running container's image and data volume; a backup from it could capture other data, so nothing was stopped/);
-      assert.equal(fs.existsSync(host.marker), false, `${label}: the curtain never rises`);
-      assert.equal(docker(["inspect", "--format", "{{.State.StartedAt}}", liveContainer]).trim(), startedBefore, `${label}: the running application is never stopped`);
-      assert.deepEqual(scheduledBackupNames(), [], `${label}: nothing is backed up`);
+    writePrivate(host.hostEnv, hostEnvSaved.split(volumeLine).join(`LONGTAIL_DATA_VOLUME=${emptyVolume}\n`));
+    const edits = /** @type {[string, string][]} */ ([
+      ["      - longtail-data:/var/lib/longtail-forge\n",
+        "      - type: volume\n        source: longtail-data\n        target: /var/lib/longtail-forge\n        volume:\n          subpath: other-installation\n"],
+      ["      - /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001\n",
+        "      - /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001\n      - /var/lib/longtail-forge/files\n"],
+      ["  longtail-forge:\n",
+        "  longtail-forge:\n    entrypoint: [\"/bin/false\"]\n    working_dir: /\n    configs:\n      - source: hostile-database\n        target: /var/lib/longtail-forge/longtail-forge.db\n"
+        + "      - source: hostile-injected\n        target: /var/lib/longtail-forge/hostile-injected\n"
+        + "    secrets:\n      - source: hostile-program\n        target: /opt/longtail-forge/scripts/backup.mjs\n"
+        + "    pre_stop:\n      - command: [\"sh\", \"-c\", \"echo pre-stop > /var/lib/longtail-forge/hostile-pre-stop\"]\n"
+        + "    post_start:\n      - command: [\"sh\", \"-c\", \"echo post-start > /var/lib/longtail-forge/hostile-post-start\"]\n"],
+      ["\nvolumes:\n", "\nconfigs:\n  hostile-database:\n    file: ./hostile-database\n  hostile-injected:\n    content: injected by Compose\n\nsecrets:\n  hostile-program:\n    file: ./hostile-backup.mjs\n\nvolumes:\n"],
+    ]);
+    let hostile = composeSaved;
+    for (const [from, to] of edits) {
+      assert.equal(hostile.split(from).length - 1, 1, `the Compose file must hold ${JSON.stringify(from)} once`);
+      hostile = hostile.split(from).join(to);
     }
-    record("scheduled-backup-over-mounts", { refused: overMounts.map(([label]) => label) });
+    fs.writeFileSync(host.composeFile, hostile);
+    // Real Compose renders every one of those settings, so a container it created would have them. The
+    // rendering is read here and never printed.
+    const releaseEnv = String(/** @type {{ deployment?: { releaseEnv?: string } }} */ (JSON.parse(fs.readFileSync(path.join(host.stateRoot, "current.json"), "utf8"))).deployment?.releaseEnv);
+    const rendered = /** @type {{ services: Record<string, { entrypoint?: string[], working_dir?: string, tmpfs?: string[], configs?: { target?: string }[], secrets?: { target?: string }[], volumes?: { source?: string, target?: string, volume?: { subpath?: string } }[], pre_stop?: unknown[], post_start?: unknown[] }>, volumes: Record<string, { name?: string }> }} */ (JSON.parse(docker([
+      "compose", "--project-directory", host.composeDir, "--file", host.composeFile, "--env-file", host.hostEnv, "--env-file", releaseEnv, "config", "--format", "json"])));
+    const service = rendered.services["longtail-forge"];
+    const dataMount = service?.volumes?.find((mount) => mount.target === "/var/lib/longtail-forge");
+    assert.deepEqual({
+      volume: rendered.volumes[String(dataMount?.source)]?.name,
+      subpath: dataMount?.volume?.subpath,
+      entrypoint: service?.entrypoint,
+      workingDir: service?.working_dir,
+      tmpfsOverFiles: service?.tmpfs?.includes("/var/lib/longtail-forge/files"),
+      configOverDatabase: service?.configs?.some((entry) => entry.target === "/var/lib/longtail-forge/longtail-forge.db"),
+      injectedContent: service?.configs?.some((entry) => entry.target === "/var/lib/longtail-forge/hostile-injected"),
+      secretOverProgram: service?.secrets?.some((entry) => entry.target === "/opt/longtail-forge/scripts/backup.mjs"),
+      hooks: [service?.pre_stop?.length, service?.post_start?.length],
+    }, {
+      volume: emptyVolume, subpath: "other-installation", entrypoint: ["/bin/false"], workingDir: "/",
+      tmpfsOverFiles: true, configOverDatabase: true, injectedContent: true, secretOverProgram: true, hooks: [1, 1],
+    }, "real Compose must render every hostile setting");
+    const volumesBefore = docker(["volume", "ls", "--quiet"]).split("\n").filter(Boolean).sort();
+    const hostileRun = runScheduledBackup(work, host);
+    assert.equal(hostileRun.status, 0, `a configuration the steps never read must not change the backup:\n${hostileRun.stderr}`);
+    assert.equal(hostileRun.record.outcome, "succeeded");
+    assert.equal(composeContainer(host), liveContainer, "the stopped container is started again as itself");
+    assert.deepEqual(docker(["volume", "ls", "--quiet"]).split("\n").filter(Boolean).sort(), volumesBefore, "a step creates no volume, named or anonymous");
+    const hostileArchive = path.join(BACKUP_ROOT, String(hostileRun.record.result?.archive));
+    const inspectedHostile = inspectBackup(candidate, hostileArchive);
+    assert.equal(inspectedHostile.status, "verified", "the backup is the running container's verified data, not the empty volume's, the file config's, or another program's");
+    assert.ok(Number(inspectedHostile.manifest?.database?.migrationCount) > 0, "and holds the running container's migrated database");
+    assert.equal(inspectedHostile.manifest?.safeConfiguration?.environment, "production", "the step carries the running container's own runtime classification");
+    const liveEntries = docker(["run", "--rm", "--pull", "never", "--network", "none", "--user", "10001:10001", "--entrypoint", "ls",
+      "--volume", `${DATA_VOLUME}:/data:ro`, candidate.metadata.image.reference, "-A", "/data"]).split("\n").filter(Boolean);
+    assert.deepEqual(liveEntries.filter((name) => name.startsWith("hostile-")), [],
+      "no lifecycle hook of the configuration ran in the running container, and none of its content was copied in");
+    record("scheduled-backup-hostile-configuration", {
+      seconds: hostileRun.seconds, archive: path.basename(hostileArchive), migrationCount: inspectedHostile.manifest?.database?.migrationCount,
+      localObjectCount: inspectedHostile.manifest?.storage?.localObjectCount, safeConfiguration: inspectedHostile.manifest?.safeConfiguration,
+    });
+    // This run's backup is set aside, so the retention step below starts from the backups it seeds.
+    for (const file of [hostileArchive, `${hostileArchive}.sha256`]) fs.rmSync(file);
   } finally {
     fs.writeFileSync(host.composeFile, composeSaved);
+    writePrivate(host.hostEnv, hostEnvSaved);
+    fs.rmSync(hostileDatabase, { force: true });
+    fs.rmSync(hostileProgram, { force: true });
+    spawnSync("docker", ["volume", "rm", "--force", emptyVolume]);
   }
   // Then, with fifteen older scheduled backups in place, it backs up behind the curtain, restarts the
   // unchanged release, keeps the fourteen newest, and passes only the backup it inspected to the hook.
@@ -1827,14 +1865,14 @@ function deploymentBackupNames() {
 /**
  * Inspect a protected backup with a release image, read-only and without network.
  * @param {Release} release @param {string} archive
- * @returns {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number } } }}
+ * @returns {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number }, database?: { migrationCount?: number }, safeConfiguration?: Record<string, unknown> } }}
  */
 function inspectBackup(release, archive) {
   const output = docker(["run", "--rm", "--network", "none", "--read-only", "--tmpfs", "/tmp:rw,size=256m,mode=1777", "--user", "10001:10001",
     "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
     "--volume", `${BACKUP_ROOT}:/var/backups/longtail-forge:ro`, "--entrypoint", "node", release.metadata.image.reference,
     "scripts/backup.mjs", "inspect", "--archive", `/var/backups/longtail-forge/${path.basename(archive)}`]);
-  return /** @type {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number } } }} */ (JSON.parse(output));
+  return /** @type {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number }, database?: { migrationCount?: number }, safeConfiguration?: Record<string, unknown> } }} */ (JSON.parse(output));
 }
 
 /** @param {string} archive @param {ReturnType<typeof inspectBackup>} inspected */

@@ -41,7 +41,7 @@ const CURRENT_METADATA = path.join(repoRoot, "tests/fixtures/release-metadata/v0
 /** @typedef {{ driver: string, sqlite: string }} NativeTruth */
 /** @typedef {{ platform: string, labels: { revision: string, artifact: string, branch: string }, native: NativeTruth | null, health: "healthy" | "unhealthy", identity: { version: string, commit: string, artifact: string } }} FakeImage */
 /** @typedef {"create" | "key-backup" | "inspect" | "missing-archive" | "hang" | "state-copy"} BackupFault */
-/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, backupFails: BackupFault | null, operationsRoot: string, markerPath: string, publicOrigin: string }} FakeScenario */
+/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, backupFails: BackupFault | null, operationsRoot: string, markerPath: string, publicOrigin: string, stepContainers: string[], stepListingFails: boolean }} FakeScenario */
 /** @typedef {{ running: string | null, state: "running" | "stopped" | "absent", records: string[] }} FakeRuntime */
 /** @typedef {{ tool: string, action: string, markerPresent: boolean, ref?: string, image?: string | null, archive?: string, preRestore?: string, keyBackup?: boolean, url?: string, mode?: string }} FakeCall */
 /** @typedef {{ version: string, commitSha: string, channel: string, sourceBranch: string, schemaVersion: number, application: string, artifact: { sha256: string }, image: { repository: string, digest: string, reference: string, platform: string, platformManifest: { digest: string, os: string, architecture: string }, nativeDependency?: { betterSqlite3Version: string, sqliteVersion: string, execution: string, platform: string, architecture: string }, attestations: { sbom?: { predicateType: string }, provenance?: { predicateType: string } } } }} ReleaseMetadata */
@@ -121,6 +121,14 @@ function fakeDocker(args, scenario, runtime, record, save) {
     }
     record({ action: "scanner-probe", ref });
     return image ? 0 : 1;
+  }
+  if (args[0] === "ps") {
+    // `ps --all --quiet --filter label=KEY`: the scheduled backup's step containers, which only that
+    // backup's recovery leaves, when it cannot prove one removed.
+    assert.deepEqual(args, ["ps", "--all", "--quiet", "--filter", "label=longtail-forge.scheduled-backup.operation"], `unexpected docker ps: ${args.join(" ")}`);
+    record({ action: "list-step-containers" });
+    if (scenario.stepListingFails) return refuse("Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?");
+    return emit(scenario.stepContainers.map((id) => `${id}\n`).join(""));
   }
   if (args[0] === "network" && args[1] === "inspect") {
     record({ action: "network-inspect" });
@@ -785,6 +793,39 @@ async function main() {
       assert.equal(resultLine(result).deploymentBackups, undefined, "only the demo reports the bound");
     });
 
+    // A scheduled backup's recovery that cannot prove a step container removed leaves the release
+    // stopped, behind the curtain, and the container where it is. The container holds no lock, so the
+    // deploy helper itself must refuse to run beside it: a rollback, and a deploy, change nothing.
+    await scenario("a step container a scheduled backup left refuses a rollback and a deploy under the lock, before any change", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous });
+      assert.equal(runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity).status, 0);
+      const scenarioFile = path.join(box.harnessState, "scenario.json");
+      const leftover = "5ca1ab1e".repeat(8);
+      writePublic(scenarioFile, JSON.stringify({ .../** @type {FakeScenario} */ (readJson(scenarioFile)), stepContainers: [leftover] }));
+      const operations = path.join(box.deployRoot, "operations");
+      const recorded = () => ({
+        operations: fs.readdirSync(operations).sort(),
+        current: fs.readFileSync(path.join(box.stateRoot, "current.json"), "utf8"),
+        previous: fs.readFileSync(path.join(box.stateRoot, "previous.json"), "utf8"),
+      });
+      for (const [mode, release] of /** @type {["deploy" | "rollback", Release][]} */ ([["rollback", previous], ["deploy", current]])) {
+        const before = recorded();
+        const result = runHelper(box, REPAIRED_HELPER, mode, release.metadata, release.identity);
+        assertRefusedBeforePull(box, result, `a step container a scheduled backup started still exists; no deploy or rollback runs beside it, so nothing was changed: ${leftover}`, current);
+        assert.deepEqual(result.calls.map((call) => call.action), ["list-step-containers"], `${mode}: the listing is the helper's first and only call`);
+        assert.ok(fs.existsSync(path.join(box.inbox, "release-metadata.json")), `${mode}: the staged metadata stays in the inbox`);
+        assert.deepEqual(recorded(), before, `${mode}: no operation record or state changes`);
+      }
+    });
+
+    await scenario("a step-container listing that fails refuses a deploy before any change, rather than assuming there is none", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, stepListingFails: true });
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assertRefusedBeforePull(box, result, "the scheduled backup's step containers could not be listed, so nothing was changed", previous);
+      assert.deepEqual(result.calls.map((call) => call.action), ["list-step-containers"]);
+      assert.ok(fs.existsSync(path.join(box.inbox, "release-metadata.json")), "the staged metadata stays in the inbox");
+    });
+
     await scenario("a held operation lock refuses the helper before anything else", ({ sandbox }) => {
       const box = sandbox({ images: [previous, current], baseline: previous });
       const lock = path.join(box.deployRoot, "compose-operation.lock");
@@ -811,7 +852,7 @@ async function main() {
 }
 
 /** @typedef {{ name: string, metadata: ReleaseMetadata, identity: ReleaseIdentity }} Release */
-/** @typedef {{ images?: Release[], baseline?: Release | null, unhealthy?: Release[], brokenNative?: Release[], restoreFails?: boolean, backupFails?: BackupFault, demoMode?: string | null, isolationHelper?: boolean, origin?: string, secureKeyBackup?: boolean | "missing" }} SandboxOptions */
+/** @typedef {{ images?: Release[], baseline?: Release | null, unhealthy?: Release[], brokenNative?: Release[], restoreFails?: boolean, backupFails?: BackupFault, demoMode?: string | null, isolationHelper?: boolean, origin?: string, secureKeyBackup?: boolean | "missing", stepContainers?: string[], stepListingFails?: boolean }} SandboxOptions */
 
 /** @param {string} filePath @returns {Release} */
 function loadRelease(filePath) {
@@ -946,6 +987,8 @@ function createSandbox(work, ordinal, fakeBin, options) {
     operationsRoot: path.join(deployRoot, "operations"),
     markerPath: sandbox.marker,
     publicOrigin: origin,
+    stepContainers: options.stepContainers ?? [],
+    stepListingFails: options.stepListingFails === true,
   };
   writePublic(path.join(harnessState, "scenario.json"), JSON.stringify(fakeScenario));
   writePublic(path.join(harnessState, "calls.jsonl"), "");

@@ -13,12 +13,14 @@ umask 077
 #          but whose retention or off-server copy did not. The heartbeat therefore means a local backup
 #          was taken; it never proves an off-server copy. Both URLs live only in root-only 0600 files,
 #          and reach curl on standard input. It appends one line per run to a bounded log.
-# backup   under the shared lifecycle lock, checks the running release's container, and that the
-#          resolved Compose configuration names its image and data volume, then raises the maintenance
-#          curtain, stops the application, and takes the existing whole-instance backup in a staging
-#          directory, where it is inspected. Only an inspected backup joins the others, as
-#          scheduled-<UTC>-<commit>.ltfbackup.tgz. The stopped container is then started again as
-#          itself, and the curtain lowers once its identity, posture, and runtime verify. Only then does
+# backup   under the shared lifecycle lock, checks the running release's container, and that its data is
+#          one whole volume, then raises the maintenance curtain, stops the application, and takes the
+#          existing whole-instance backup in a staging directory, where it is inspected. Both steps run
+#          in one-off containers whose every setting it names: the running container's own image and
+#          data volume, and nothing from the Compose configuration. Only an inspected backup joins the
+#          others, as scheduled-<UTC>-<commit>.ltfbackup.tgz. The stopped container is then started
+#          again as itself, by its ID with Docker alone, as it was stopped, and the curtain lowers once
+#          its identity, posture, and runtime verify. Only then does
 #          it keep the 14 newest scheduled backups, and pass the backup it inspected to the configured
 #          copy hook, so neither lengthens the outage. A backup that fails, or runs out of its time,
 #          removes the step containers it started and restarts the unchanged release, with recovery's
@@ -56,7 +58,7 @@ readonly REQUEST_LIMIT=10
 readonly STOP_LIMIT=120
 readonly REMOVE_LIMIT=60
 readonly RECOVERY_LIMIT=1200
-readonly STOP_RESERVE=240
+readonly STOP_RESERVE=300
 readonly COPY_LIMIT=2400
 readonly RUN_LIMIT=$((PREFLIGHT_LIMIT + BACKUP_LIMIT + RECOVERY_LIMIT + COPY_LIMIT + 600))
 # What a backup step container carries, so that recovery removes only those this attempt started.
@@ -450,7 +452,8 @@ compose_query() {
   compose_within "$QUERY_LIMIT" "$@"
 }
 
-# The resolved Compose configuration is read once, and every check below reads that one copy. It can
+# The resolved Compose configuration classifies the installation, as the deploy helper does, and gives
+# the backup nothing else: what its steps read comes from the running container. It is read once, can
 # carry secrets, so it is never printed, and reaches jq only through a pipe.
 compose_query config --quiet >/dev/null 2>&1 \
   || fail 'the resolved Compose configuration did not parse; its output is not kept because it can carry secrets'
@@ -469,10 +472,6 @@ case "$DEMO_MODE_VALUE" in
   true) fail "the scheduled backup refuses the public demo: it resets hourly, and a nightly copy would keep visitor-entered content" ;;
   *) fail "the resolved Compose DEMO_MODE must be exactly false for a scheduled backup" ;;
 esac
-config_jq -e --arg backup "$BACKUP_ROOT" '
-  .services["longtail-forge"].volumes
-  | any(.type == "bind" and .source == $backup and .target == "/var/backups/longtail-forge")
-' >/dev/null || fail "resolved Compose backup mount must bind the protected host backup root to the fixed container target"
 # Another operation's curtain is that operation's to lift.
 test ! -e "$DEPLOYMENT_MARKER" && test ! -L "$DEPLOYMENT_MARKER" \
   || fail "the maintenance curtain is already up; a scheduled backup never takes over another operation's curtain"
@@ -500,42 +499,54 @@ verify_container_posture() {
   ' >/dev/null
 }
 
-# The backup's steps run in one-off containers created from the resolved Compose configuration, never
-# from the running container, so that configuration must give them exactly the data the running
-# container has: the recorded image, as the same local image, and the data directory as one whole
-# volume, the running container's own. On both sides nothing else may be mounted at or beneath that
-# directory: no bind, volume, or tmpfs over the database or the Files tree, no volume subpath, and no
-# mounts taken from another container. Otherwise a step could back up other data while the running
-# application is started again on its own. The steps never pull.
+# What the backup's steps read: the running container's own image, by its local ID, and its own data
+# volume, both taken from the container itself, never from the Compose configuration. That volume must be
+# the whole of the container's data: nothing else at or beneath the data directory, by any spelling of
+# its path, whether a bind, a volume, a tmpfs, or a device, and the volume mounted whole, not a subpath of
+# it. Otherwise a step would back up other data than the application serves. The recorded image must be
+# the container's local image. Of the container's environment the steps get only the five safe runtime
+# classifications the backup's manifest records, each a plain value, never the application's secrets.
+# The inspection holds that environment, so it reaches jq only through a pipe.
 readonly DATA_ROOT='/var/lib/longtail-forge'
-verify_backup_binding() {
-  local reference binding image_id volume
+IMAGE_ID=''
+DATA_VOLUME=''
+STEP_ENV=()
+RUNNING_DEMO_MODE=''
+read_backup_source() {
+  local reference inspection source classifications line
   reference="$(jq -er '.image.reference' "$RELEASE_METADATA")" || return 1
-  binding="$(docker_query inspect "$CONTAINER" | jq -er --arg data "$DATA_ROOT" '
-    def under_data: . == $data or startswith($data + "/");
+  inspection="$(docker_query inspect "$CONTAINER")" || return 1
+  source="$(printf '%s' "$inspection" | jq -er --arg data "$DATA_ROOT" '
+    # A path as the kernel resolves it: empty and "." segments dropped, and ".." dropping the one before.
+    # Anything that is not an absolute path counts as the data directory, so it refuses.
+    def clean: if type == "string" and startswith("/")
+      then "/" + (reduce (split("/")[] | select(. != "" and . != ".")) as $part ([]; if $part == ".." then .[:-1] else . + [$part] end) | join("/"))
+      else $data end;
+    def at_or_under_data: clean | . == $data or startswith($data + "/");
     .[0]
-    | [.Mounts[] | select(.Destination | under_data)] as $mounts
-    | [(.HostConfig.Mounts // [])[] | select(.Target | under_data)] as $declared
-    | [(.HostConfig.Tmpfs // {}) | keys[] | select(under_data)] as $tmpfs
-    | if ($mounts | length) == 1 and $mounts[0].Type == "volume" and $mounts[0].Destination == $data
-        and ($tmpfs | length) == 0 and all($declared[]; (.VolumeOptions.Subpath // "") == "")
+    | [.Mounts[]? | select(.Destination | at_or_under_data)] as $mounts
+    | [.HostConfig.Mounts[]? | select(.Target | at_or_under_data)] as $declared
+    | [(.HostConfig.Tmpfs // {}) | keys[] | select(at_or_under_data)] as $tmpfs
+    | [.HostConfig.Devices[]? | select(.PathInContainer | at_or_under_data)] as $devices
+    | if ($mounts | length) == 1 and $mounts[0].Type == "volume"
+        and ($mounts[0].Destination | type == "string" and startswith("/") and clean == $data)
+        and ($tmpfs | length) == 0 and ($devices | length) == 0 and all($declared[]; (.VolumeOptions.Subpath // "") == "")
       then [.Image, $mounts[0].Name] | join(" ")
       else error("the data directory must be exactly one whole volume") end')" || return 1
-  read -r image_id volume <<<"$binding"
-  [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ ]] && [[ "$volume" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || return 1
-  test "$(docker_query image inspect --format '{{.Id}}' "$reference")" = "$image_id" || return 1
-  config_jq -e --arg image "$reference" --arg volume "$volume" --arg data "$DATA_ROOT" '
-    def under_data: . == $data or startswith($data + "/");
-    . as $config | .services["longtail-forge"] as $service
-    | [($service.volumes // [])[] | select(.target | under_data)] as $mounts
-    | [($service.tmpfs // []) | if type == "string" then [.] else . end | .[] | split(":")[0] | select(under_data)] as $tmpfs
-    | $service.image == $image
-      and (($service.volumes_from // []) | length) == 0
-      and ($tmpfs | length) == 0
-      and ($mounts | length) == 1 and $mounts[0].type == "volume" and $mounts[0].target == $data
-      and ($mounts[0].volume.subpath // "") == ""
-      and $config.volumes[$mounts[0].source].name == $volume
-  ' >/dev/null
+  read -r IMAGE_ID DATA_VOLUME <<<"$source"
+  [[ "$IMAGE_ID" =~ ^sha256:[a-f0-9]{64}$ ]] && [[ "$DATA_VOLUME" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || return 1
+  test "$(docker_query image inspect --format '{{.Id}}' "$reference")" = "$IMAGE_ID" || return 1
+  classifications="$(printf '%s' "$inspection" | jq -r '
+    [.[0].Config.Env[]? | select(test("^LONGTAIL_(ENV|FILE_SCANNER|SQLITE_FOREIGN_KEYS|SQLITE_JOURNAL_MODE|WORKER_MODE)="))]
+    | if (map(split("=")[0]) | unique | length) == length and all(.[]; test("^[A-Z_]+=[A-Za-z0-9._-]{0,32}$"))
+      then .[] else error("a runtime classification is repeated, or is not a plain value") end')" || return 1
+  STEP_ENV=()
+  if test -n "$classifications"; then
+    while IFS= read -r line; do STEP_ENV+=(--env "$line"); done <<<"$classifications"
+  fi
+  # The running container's own classification, which must agree with the configuration's.
+  RUNNING_DEMO_MODE="$(printf '%s' "$inspection" | jq -r '
+    [.[0].Config.Env[]? | select(startswith("DEMO_MODE="))] | if length == 1 then .[0] | ltrimstr("DEMO_MODE=") else "missing" end')" || return 1
 }
 
 # The running container is the one the deploy helper verified. It is checked again now, before any
@@ -545,8 +556,13 @@ CONTAINER="$(compose_query ps -q longtail-forge 2>/dev/null)" || fail "the runni
 [[ "$CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || fail "a scheduled backup requires exactly one running application container"
 verify_container_posture \
   || fail "the running application container does not have the identity and posture the deploy helper verifies"
-verify_backup_binding \
-  || fail "the resolved Compose configuration does not name the running container's image and data volume; a backup from it could capture other data, so nothing was stopped"
+read_backup_source \
+  || fail "the running container's data is not one whole volume of its recorded image, or its runtime classifications are not plain values; a backup of it could capture other data, so nothing was stopped"
+case "$RUNNING_DEMO_MODE" in
+  false) ;;
+  true) fail "the scheduled backup refuses the public demo: the running container is classified as the demo, whatever the configuration says" ;;
+  *) fail "the running container's own DEMO_MODE must be exactly false for a scheduled backup" ;;
+esac
 
 OPERATION_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 ARCHIVE_NAME="scheduled-$OPERATION_STAMP-${COMMIT:0:12}.ltfbackup.tgz"
@@ -621,11 +637,31 @@ TIMED_OUT=false
 work_step() {
   local status
   set +e
-  compose_within "$BACKUP_LIMIT" "$@"
+  within "$BACKUP_LIMIT" docker "$@"
   status=$?
   set -e
   if test "$status" -eq 124 || { test "$status" -gt 128 && test "$SECONDS" -ge "$DEADLINE"; }; then TIMED_OUT=true; fi
   return "$status"
+}
+
+# One step of the backup, in a one-off container whose every setting is named here, so that nothing in
+# the Compose configuration can give it other data, another program, or the application's secrets: the
+# running container's own image, by its local ID, and its own data volume, never filled from the image;
+# the backup root, and the Secure Notes recovery-key backup when one is configured; the application's
+# user, read-only root, dropped capabilities, private /tmp, and init; no network; Docker's local log
+# driver, so that its logs can be read; the safe classifications; and the backup program, by its path in
+# the image. It never pulls, and carries this attempt's own name and label.
+readonly STEP_TMPFS='rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001'
+backup_step() {
+  local role="$1"
+  shift
+  work_step run --rm --pull never --name "$STEP_PREFIX-$role" --label "$STEP_LABEL=$OPERATION_ID" \
+    --network none --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true --init \
+    --log-driver local --tmpfs "/tmp:$STEP_TMPFS" \
+    --mount "type=volume,source=$DATA_VOLUME,target=$DATA_ROOT,volume-nocopy" \
+    --mount "type=bind,source=$BACKUP_ROOT,target=$BACKUP_CONTAINER_ROOT" \
+    "${KEY_MOUNT[@]}" "${STEP_ENV[@]}" \
+    --workdir /opt/longtail-forge --entrypoint node "$IMAGE_ID" /opt/longtail-forge/scripts/backup.mjs "$role" "$@"
 }
 
 # Removes the step containers this attempt started, found by its own label, so that a container it did
@@ -664,11 +700,13 @@ discard_pending() {
   done
 }
 
-# The stopped container is started again as itself: nothing is pulled, recreated, or resolved anew, and
-# the container that answers must be the one that was stopped.
+# The stopped container is started again as itself, by its ID, with Docker alone: nothing is pulled,
+# recreated, or resolved anew, and nothing of the Compose configuration runs, neither a lifecycle hook
+# nor content Compose would copy into the container. The container that answers must be the one that
+# was stopped.
 restart_release() {
   local running
-  compose_within "$START_LIMIT" start longtail-forge >/dev/null || return 1
+  within "$START_LIMIT" docker start "$CONTAINER" >/dev/null || return 1
   running="$(compose_query ps -q longtail-forge 2>/dev/null)" || return 1
   test "$running" = "$CONTAINER"
 }
@@ -697,11 +735,20 @@ release_stopped() {
 }
 
 # Stops a release that was not restarted and verified, so that it never serves, and proves that it
-# stopped: by Compose's stop, or else by killing the service's container.
+# stopped. Each running container of the service, whichever it is, is stopped by its ID with Docker
+# alone, so that no lifecycle hook of the configuration runs, and any that does not stop is killed.
 stop_release() {
-  compose_within "$STOP_LIMIT" stop longtail-forge >/dev/null 2>&1
+  local listing id
+  local -a ids=()
+  listing="$(compose_query ps -q longtail-forge 2>/dev/null)" || return 1
+  test -n "$listing" || return 0
+  mapfile -t ids <<<"$listing"
+  for id in "${ids[@]}"; do
+    [[ "$id" =~ ^[a-f0-9]{12,64}$ ]] || return 1
+    within "$STOP_LIMIT" docker stop "$id" >/dev/null 2>&1
+  done
   release_stopped && return 0
-  compose_query kill longtail-forge >/dev/null 2>&1
+  for id in "${ids[@]}"; do docker_query kill "$id" >/dev/null 2>&1; done
   release_stopped
 }
 
@@ -761,25 +808,27 @@ recover() {
 }
 
 PUBLISHED=false
-KEY_ARGS=()
+KEY_MOUNT=()
 if test -n "$SECURE_KEY_BACKUP"; then
   test -f "$SECURE_KEY_BACKUP" && test ! -L "$SECURE_KEY_BACKUP" || fail "Secure Notes recovery-key backup is missing"
-  KEY_ARGS=(--volume "$SECURE_KEY_BACKUP:/run/secrets/secure-notes-key.backup:ro")
+  KEY_MOUNT=(--mount "type=bind,source=$SECURE_KEY_BACKUP,target=/run/secrets/secure-notes-key.backup,readonly")
 fi
 
 assert_marker
 trap 'recover "$?"' EXIT
 trap 'exit 130' HUP INT TERM
 DEADLINE=$((SECONDS + BACKUP_LIMIT))
-work_step stop longtail-forge
-work_step run --rm --no-deps --pull never --name "$STEP_PREFIX-create" --label "$STEP_LABEL=$OPERATION_ID" "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs create \
+# The running container is stopped by its ID, with Docker alone, under its own stop timeout, so that no
+# lifecycle hook of the configuration runs in it.
+work_step stop "$CONTAINER"
+backup_step create \
   --confirm-stopped \
-  --database /var/lib/longtail-forge/longtail-forge.db \
-  --files-root /var/lib/longtail-forge/files \
+  --database "$DATA_ROOT/longtail-forge.db" \
+  --files-root "$DATA_ROOT/files" \
   --output "$BACKUP_CONTAINER_ROOT/$PENDING_DIRECTORY/$ARCHIVE_NAME" \
   --audit-log "$BACKUP_CONTAINER_ROOT/backup-operations.jsonl" \
   ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} >/dev/null
-work_step run --rm --no-deps --pull never --name "$STEP_PREFIX-inspect" --label "$STEP_LABEL=$OPERATION_ID" "${KEY_ARGS[@]}" longtail-forge node scripts/backup.mjs inspect \
+backup_step inspect \
   --archive "$BACKUP_CONTAINER_ROOT/$PENDING_DIRECTORY/$ARCHIVE_NAME" \
   ${SECURE_KEY_BACKUP:+--secure-notes-key-backup /run/secrets/secure-notes-key.backup} >/dev/null
 publish_inspected || fail "the inspected backup could not join the protected backups"

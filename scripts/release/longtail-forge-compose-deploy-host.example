@@ -121,6 +121,15 @@ require_root_owned_private_file "$OPERATION_LOCK" "Compose operation lock"
 exec 9<>"$OPERATION_LOCK"
 flock -n 9 || fail "another Compose deploy, rollback, backup, or public-demo reset operation holds the host lock"
 
+# A step container of a scheduled backup that its recovery could not prove removed may still be writing,
+# and holds no lock of its own. Nothing is deployed, rolled back, restored, or started beside it, so this
+# refuses before any change, naming each one for the preview guide's supervised recovery.
+readonly SCHEDULED_STEP_LABEL='longtail-forge.scheduled-backup.operation'
+STEP_CONTAINERS="$(docker ps --all --quiet --filter "label=$SCHEDULED_STEP_LABEL")" \
+  || fail "the scheduled backup's step containers could not be listed, so nothing was changed"
+test -z "$STEP_CONTAINERS" \
+  || fail "a step container a scheduled backup started still exists; no deploy or rollback runs beside it, so nothing was changed: ${STEP_CONTAINERS//$'\n'/ }"
+
 MODE="${1:-}"
 shift || true
 METADATA_NAME=''

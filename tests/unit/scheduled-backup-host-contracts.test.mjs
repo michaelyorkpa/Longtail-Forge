@@ -55,18 +55,40 @@ describe("the scheduled backup's container checks", () => {
     }
   });
 
-  it("starts the stopped container as itself, and never recreates one", () => {
+  it("stops and starts the container as itself, by its ID with Docker alone, and never recreates one", () => {
     const source = read(SCHEDULED);
-    expect(source).toContain("compose_within \"$START_LIMIT\" start longtail-forge");
+    expect(occurrences(source, "within \"$START_LIMIT\" docker start \"$CONTAINER\" >/dev/null || return 1")).toBe(1);
+    expect(occurrences(source, "\nwork_step stop \"$CONTAINER\"\n")).toBe(1);
+    expect(occurrences(source, "within \"$STOP_LIMIT\" docker stop \"$id\" >/dev/null 2>&1")).toBe(1);
+    expect(occurrences(source, "docker_query kill \"$id\" >/dev/null 2>&1")).toBe(1);
     expect(source).not.toMatch(/\bup -d\b|--force-recreate/);
+    // Compose's own lifecycle commands run the configuration's hooks, and copy its content in.
+    expect(codeLines(source).filter((line) => /\bcompose_(within|query)\b[^\n]*\b(start|stop|kill|restart|up|run|create)\b/.test(line))).toEqual([]);
   });
 
-  it("runs both backup steps without pulling, under this attempt's own name and label, and pulls nowhere else", () => {
+  it("runs both backup steps in one profile it names whole, from the running container's image and volume, never through Compose", () => {
     const source = read(SCHEDULED);
-    for (const step of ["create", "inspect"]) {
-      expect(occurrences(source, `work_step run --rm --no-deps --pull never --name "$STEP_PREFIX-${step}" --label "$STEP_LABEL=$OPERATION_ID" `)).toBe(1);
-    }
-    expect([...source.matchAll(/--pull\b/g)]).toHaveLength(2);
+    expect(occurrences(source, [
+      "  work_step run --rm --pull never --name \"$STEP_PREFIX-$role\" --label \"$STEP_LABEL=$OPERATION_ID\" \\",
+      "    --network none --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true --init \\",
+      "    --log-driver local --tmpfs \"/tmp:$STEP_TMPFS\" \\",
+      "    --mount \"type=volume,source=$DATA_VOLUME,target=$DATA_ROOT,volume-nocopy\" \\",
+      "    --mount \"type=bind,source=$BACKUP_ROOT,target=$BACKUP_CONTAINER_ROOT\" \\",
+      "    \"${KEY_MOUNT[@]}\" \"${STEP_ENV[@]}\" \\",
+      "    --workdir /opt/longtail-forge --entrypoint node \"$IMAGE_ID\" /opt/longtail-forge/scripts/backup.mjs \"$role\" \"$@\"",
+    ].join("\n"))).toBe(1);
+    for (const step of ["create", "inspect"]) expect(codeLines(source).filter((line) => line.startsWith(`backup_step ${step} `))).toHaveLength(1);
+    // The profile is the only place anything runs or pulls, and nothing is created by Compose.
+    expect([...source.matchAll(/--pull\b/g)]).toHaveLength(1);
+    expect(codeLines(source).filter((line) => /\bwork_step run\b/.test(line))).toHaveLength(1);
+    expect(source).not.toMatch(/\brun --rm --no-deps\b|--volumes-from|--privileged/);
+  });
+
+  it("labels each step container as the deploy helper looks for it", () => {
+    const label = "'longtail-forge.scheduled-backup.operation'";
+    expect(occurrences(read(SCHEDULED), `readonly STEP_LABEL=${label}\n`)).toBe(1);
+    expect(occurrences(read(DEPLOY), `readonly SCHEDULED_STEP_LABEL=${label}\n`)).toBe(1);
+    expect(occurrences(read(DEPLOY), "docker ps --all --quiet --filter \"label=$SCHEDULED_STEP_LABEL\"")).toBe(1);
   });
 });
 
@@ -128,8 +150,9 @@ describe("the scheduled backup's time limits", () => {
     // origins.
     const restart = 2 * (query + KILL) + 2 * (remove + KILL) + (start + KILL) + (query + KILL) + (health + KILL) + (query + KILL) + 6 * (request + KILL);
     expect(restart).toBeLessThanOrEqual(recoveryLimit - stopReserve);
-    // Compose's stop, a listing of the running service, the kill, and the listing again.
-    expect((stop + KILL) + 3 * (query + KILL)).toBeLessThanOrEqual(stopReserve);
+    // The listing of the service's running container, its stop, the listing again, its kill, and the
+    // listing once more.
+    expect((stop + KILL) + 4 * (query + KILL)).toBeLessThanOrEqual(stopReserve);
     // Both restarts set their deadline from those constants, and the stop from the reserve.
     expect(occurrences(scheduled, "DEADLINE=$((SECONDS + RECOVERY_LIMIT - STOP_RESERVE))")).toBe(2);
     expect(occurrences(scheduled, "DEADLINE=$((SECONDS + STOP_RESERVE))")).toBe(1);

@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(scriptPath), "..", "..");
 const SCHEDULED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-scheduled-backup-host.example");
+const DEPLOY_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-compose-deploy-host.example");
 const COPY_HOOK = path.join(repoRoot, "scripts/release/longtail-forge-offsite-copy-host.example");
 const RECEIVER = path.join(repoRoot, "scripts/release/longtail-forge-offsite-receive-host.example");
 const BACKUP_PARENT = "/var/backups/longtail-forge";
@@ -51,6 +52,12 @@ const RECOVERY_VOLUME = "longtail-forge-recovery";
 const STEP_LABEL = "longtail-forge.scheduled-backup.operation";
 const DATA_ROOT = "/var/lib/longtail-forge";
 const STEP_NAME = /^longtail-forge-scheduled-backup-(\d{8}T\d{6}Z-[a-f0-9]{8})-(create|inspect)$/;
+// The running container's environment holds the application's secrets, which no step may receive, and
+// five safe runtime classifications, which each step gets, in this order.
+const RUNNING_SECRET = "harness-secure-notes-master-key-never-for-a-step";
+const STEP_CLASSIFICATIONS = Object.freeze([
+  "LONGTAIL_ENV=production", "LONGTAIL_FILE_SCANNER=clamd", "LONGTAIL_SQLITE_FOREIGN_KEYS=on", "LONGTAIL_SQLITE_JOURNAL_MODE=wal", "LONGTAIL_WORKER_MODE=inline",
+]);
 const IDENTITY = Object.freeze({ version: "0.33.99.1", commit: "4f0c2d9a7b1e3c5d8e6f0a2b4c6d8e0f1a3b5c7d", artifact: "e".repeat(64) });
 const WEBHOOK_TOKEN = `${"Hk7_-".repeat(13)}abc`;
 const WEBHOOK_URL = `https://discord.com/api/webhooks/987654321098765432/${WEBHOOK_TOKEN}`;
@@ -69,23 +76,24 @@ const STORED_COPY = /^\d{8}T\d{6}Z-[a-f0-9]{16}\.ltfbackup\.tar\.age$/;
  *   configVolume: string, configImage: string, referenceImageId: string, stepRemovalFails: boolean,
  *   stopFails: boolean, killFails: boolean, inspectHangsAfterStart: boolean, slowHealthMs: number, nameTaken: boolean,
  *   configMounts: ConfigMounts | null, containerMounts: ContainerMounts | null, oddProcesses: boolean,
+ *   runningDemoMode: string | null, classification: "unsafe" | "repeated" | null,
  *   markerPath: string, lockPath: string, store: string, stateDir: string,
  * }} FakeScenario
  */
-/** @typedef {"bind-over-database" | "volume-over-files" | "tmpfs-over-files" | "subpath" | "volumes-from"} ConfigMounts */
-/** @typedef {"bind-over-files" | "tmpfs-over-files" | "subpath"} ContainerMounts */
-/** @typedef {{ id: string, name: string, label: string | null, volume: string }} FakeStep */
+/** @typedef {"bind-over-database" | "volume-over-files" | "tmpfs-over-files" | "subpath" | "volumes-from" | "every-other-setting"} ConfigMounts */
+/** @typedef {"bind-over-files" | "tmpfs-over-files" | "subpath" | "aliased-tmpfs" | "aliased-subpath" | "device-over-database"} ContainerMounts */
+/** @typedef {{ id: string, name: string, label: string | null, volume: string | null }} FakeStep */
 /**
  * @typedef {{ state: "running" | "stopped", healthy: boolean, startedAt: number, restarted: boolean, container: string,
  *   steps: FakeStep[] }} FakeRuntime
  */
 /**
  * @typedef {{ tool: string, action: string, markerPresent: boolean, lockHeld: boolean, args?: string[], stdin?: string,
- *   archive?: string, auditLog?: string, volume?: string }} FakeCall
+ *   archive?: string, auditLog?: string, volume?: string | null, image?: string }} FakeCall
  */
 /**
  * @typedef {{ root: string, helperEnv: string, scheduleEnv: string, hookEnv: string, deployRoot: string,
- *   marker: string, state: string, store: string, sbin: string, identity: string, knownHosts: string }} Sandbox
+ *   marker: string, state: string, store: string, sbin: string, identity: string, knownHosts: string, keyBackup: string }} Sandbox
  */
 /** @typedef {{ status: number, stdout: string, stderr: string, calls: FakeCall[] }} RunResult */
 
@@ -155,8 +163,9 @@ function fakeDocker(args, scenario, runtime, record, save) {
     if (stalls()) return hangUntilReleased(scenario.stateDir);
     if (args[1] !== runtime.container) return refuse(`Error: No such object: ${args[1]}`);
     const posture = runtime.restarted && scenario.postureAfterStart ? scenario.postureAfterStart : scenario.posture;
-    // Docker lists what is mounted in `Mounts`, what was asked for, with a volume's subpath, in
-    // `HostConfig.Mounts`, and `--tmpfs` mounts in `HostConfig.Tmpfs` alone.
+    // Docker lists what is mounted in `Mounts`, by its cleaned path; what was asked for, with a volume's
+    // subpath, in `HostConfig.Mounts`, and `--tmpfs` mounts in `HostConfig.Tmpfs` alone, each as spelled;
+    // and devices in `HostConfig.Devices`.
     const mounts = [
       { Type: "volume", Name: DATA_VOLUME, Destination: DATA_ROOT },
       { Type: "bind", Source: BACKUP_ROOT, Destination: "/var/backups/longtail-forge" },
@@ -168,18 +177,37 @@ function fakeDocker(args, scenario, runtime, record, save) {
     ];
     /** @type {Record<string, string>} */
     const tmpfs = { "/tmp": TMPFS };
+    /** @type {{ PathOnHost: string, PathInContainer: string, CgroupPermissions: string }[]} */
+    const devices = [];
     if (scenario.containerMounts === "bind-over-files") {
       mounts.push({ Type: "bind", Source: "/srv/other-installation/files", Destination: `${DATA_ROOT}/files` });
       declared.push({ Type: "bind", Source: "/srv/other-installation/files", Target: `${DATA_ROOT}/files`, VolumeOptions: {} });
     }
     if (scenario.containerMounts === "tmpfs-over-files") tmpfs[`${DATA_ROOT}/files`] = "";
     if (scenario.containerMounts === "subpath") declared[0] = { ...declared[0], VolumeOptions: { Subpath: "other-installation" } };
+    if (scenario.containerMounts === "aliased-tmpfs") tmpfs["/var/lib//longtail-forge/./files"] = "";
+    if (scenario.containerMounts === "aliased-subpath") {
+      declared[0] = { ...declared[0], Target: "/var/lib/./longtail-forge", VolumeOptions: { Subpath: "other-installation" } };
+    }
+    if (scenario.containerMounts === "device-over-database") {
+      devices.push({ PathOnHost: "/dev/zero", PathInContainer: `${DATA_ROOT}/longtail-forge.db`, CgroupPermissions: "rwm" });
+    }
+    // The application's environment: its secrets, its five safe classifications, and its own DEMO_MODE.
+    const environment = [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "NODE_ENV=production",
+      `LONGTAIL_SECURE_NOTES_MASTER_KEY=${RUNNING_SECRET}`, ...STEP_CLASSIFICATIONS, `LONGTAIL_SESSION_SECRET=${RUNNING_SECRET}`,
+      `LONGTAIL_DATABASE_FILE=${DATA_ROOT}/longtail-forge.db`,
+    ];
+    if (scenario.runningDemoMode !== null) environment.push(`DEMO_MODE=${scenario.runningDemoMode}`);
+    if (scenario.classification === "unsafe") environment[environment.indexOf("LONGTAIL_ENV=production")] = "LONGTAIL_ENV=production --privileged";
+    if (scenario.classification === "repeated") environment.push("LONGTAIL_WORKER_MODE=separate");
     return emit(JSON.stringify([{
       Id: runtime.container,
       Image: IMAGE_ID,
-      Config: { Image: IMAGE, User: posture === "root-user" ? "0:0" : "10001:10001" },
+      Config: { Image: IMAGE, User: posture === "root-user" ? "0:0" : "10001:10001", Env: environment },
       HostConfig: {
         ReadonlyRootfs: true, Privileged: false, CapDrop: ["ALL"], SecurityOpt: ["no-new-privileges:true"], Tmpfs: tmpfs, Mounts: declared,
+        Devices: devices,
       },
       NetworkSettings: { Ports: { "8001/tcp": [{ HostIp: posture === "public-port" ? "0.0.0.0" : "127.0.0.1", HostPort: "8001" }] } },
       Mounts: mounts,
@@ -204,6 +232,78 @@ function fakeDocker(args, scenario, runtime, record, save) {
     if (scenario.stepRemovalFails) return refuse(`Error response from daemon: cannot remove container "/${step.name}": could not kill: permission denied`);
     save({ ...runtime, steps: runtime.steps.filter((entry) => entry.id !== step.id) });
     return 0;
+  }
+  // The application container's own lifecycle, by its ID, with Docker alone. Compose's stop, start, and
+  // kill, which would run the configuration's lifecycle hooks and copy its content in, are refused below.
+  if (["stop", "start", "kill"].includes(String(args[0]))) {
+    const action = String(args[0]);
+    record({ action, args });
+    if (action !== "start" && stalls()) return hangUntilReleased(scenario.stateDir);
+    if (args.length !== 2 || args[1] !== runtime.container) return refuse(`Error response from daemon: No such container: ${args.slice(1).join(" ")}`);
+    if (action === "start") {
+      save({
+        ...runtime, state: "running", healthy: !scenario.restartFails, startedAt: Date.now(), restarted: true,
+        container: scenario.recreated ? OTHER_CONTAINER : runtime.container,
+      });
+      return emit(`${args[1]}\n`);
+    }
+    // A recovery's stop of a release that was started again, which does not take, and a kill that fails.
+    if (action === "stop" && scenario.stopFails && runtime.restarted) {
+      return refuse("Error response from daemon: cannot stop container: tried to kill container, but did not receive an exit event");
+    }
+    if (action === "kill" && scenario.killFails) return refuse("Error response from daemon: cannot kill container: permission denied");
+    save({ ...runtime, state: "stopped" });
+    return emit(`${args[1]}\n`);
+  }
+  if (args[0] === "run") {
+    // A backup step's one-off container, which has exactly what its own flags give it: the volume its
+    // volume mount names, and the image its first operand names. It outlives a client that is killed,
+    // and `--rm` removes it when it finishes.
+    const name = valueAfter(args, "--name");
+    if (scenario.nameTaken) {
+      // A container this attempt never started already has the name: Docker refuses the step.
+      if (!runtime.steps.some((step) => step.name === name)) {
+        save({ ...runtime, steps: [...runtime.steps, { id: fakeId(`taken-${name}`), name, label: null, volume: DATA_VOLUME }] });
+      }
+      record({ action: "step-conflict", args });
+      return refuse(`Error response from daemon: Conflict. The container name "/${name}" is already in use by another container`);
+    }
+    const [image, script, role, ...program] = runOperands(args);
+    const step = { id: fakeId(name), name, label: args.includes("--label") ? valueAfter(args, "--label") : null, volume: mountedVolume(args) };
+    const started = { ...runtime, steps: [...runtime.steps, step] };
+    save(started);
+    /** @param {number} status */
+    const finish = (status) => {
+      save({ ...started, steps: started.steps.filter((entry) => entry.id !== step.id) });
+      return status;
+    };
+    if (script === "/opt/longtail-forge/scripts/backup.mjs" && role === "create") {
+      const archive = hostBackupPath(valueAfter(program, "--output"));
+      record({ action: "backup-create", archive, auditLog: valueAfter(program, "--audit-log"), args, volume: step.volume, image });
+      assert.equal(runtime.state, "stopped", "a backup must never run against a running application");
+      if (scenario.backupFails === "create") return finish(refuse("ENOSPC: no space left on device, write"));
+      if (scenario.killBackup) {
+        killBackupProcess();
+        return finish(hangUntilReleased(scenario.stateDir));
+      }
+      if (scenario.backupHangs) {
+        // A partial archive, then no progress: only the helper's time limit ends this step.
+        fs.writeFileSync(archive, "a partial archive", { mode: 0o600 });
+        fs.chownSync(archive, 10001, 10001);
+        hangUntilReleased(scenario.stateDir);
+        return finish(0);
+      }
+      if (scenario.oddProcesses) spawnOddProcesses(scenario.stateDir);
+      writeContainerBackup(archive, `archive of ${path.basename(archive)} from the volume ${step.volume} of the image ${image}`);
+      return finish(0);
+    }
+    if (script === "/opt/longtail-forge/scripts/backup.mjs" && role === "inspect") {
+      const archive = hostBackupPath(valueAfter(program, "--archive"));
+      record({ action: "backup-inspect", archive, args, volume: step.volume, image });
+      if (scenario.backupFails === "inspect") return finish(refuse("Backup checksum does not match its manifest: database/longtail-forge.db"));
+      return finish(fs.existsSync(archive) ? 0 : refuse("archive is missing"));
+    }
+    return finish(refuse(`unexpected step program: ${[script, role, ...program].join(" ")}`));
   }
   if (args[0] !== "compose") return refuse(`unexpected docker invocation: ${args.join(" ")}`);
   if (args[1] === "version") return emit("Docker Compose version v2.29.7");
@@ -233,34 +333,32 @@ function fakeDocker(args, scenario, runtime, record, save) {
     if (scenario.configMounts === "tmpfs-over-files") service.tmpfs = [`/tmp:${TMPFS}`, `${DATA_ROOT}/files`];
     if (scenario.configMounts === "subpath") dataMount.volume = { subpath: "other-installation" };
     if (scenario.configMounts === "volumes-from") service.volumes_from = ["service:other-installation"];
-    return emit(JSON.stringify({ services: { "longtail-forge": service }, volumes: named }));
-  }
-  if (command[0] === "stop") {
-    record({ action: "stop" });
-    if (stalls()) return hangUntilReleased(scenario.stateDir);
-    // A recovery's stop of a release that was started again, which does not take.
-    if (scenario.stopFails && runtime.restarted) return refuse("Error response from daemon: cannot stop container: tried to kill container, but did not receive an exit event");
-    save({ ...runtime, state: "stopped" });
-    return 0;
+    /** @type {Record<string, unknown>} */
+    const resources = {};
+    if (scenario.configMounts === "every-other-setting") {
+      // Everything else that would change a container Compose created from this configuration, or that
+      // Compose's own stop and start would run in or copy into the application container: a second data
+      // volume by another spelling of its path, a file config over the database, a secret over the backup
+      // program, another entrypoint, working directory, user, and privileges, an environment that moves
+      // the database and names another runtime classification, lifecycle hooks, and inline content.
+      volumes.push({ type: "volume", source: "longtail-recovery", target: "/var/./lib/longtail-forge", volume: {} });
+      named["longtail-recovery"] = { name: RECOVERY_VOLUME };
+      Object.assign(service, {
+        configs: [{ source: "other-database", target: `${DATA_ROOT}/longtail-forge.db` }, { source: "injected", target: `${DATA_ROOT}/files/injected` }],
+        secrets: [{ source: "other-program", target: "/opt/longtail-forge/scripts/backup.mjs" }],
+        entrypoint: ["/bin/false"], working_dir: "/", user: "0:0", privileged: true,
+        pre_stop: [{ command: ["sh", "-c", `rm -rf ${DATA_ROOT}/files`] }],
+        post_start: [{ command: ["sh", "-c", `echo replaced > ${DATA_ROOT}/longtail-forge.db`] }],
+      });
+      Object.assign(environment, { LONGTAIL_ENV: "development", LONGTAIL_DATABASE_FILE: `${DATA_ROOT}/other.db` });
+      resources.configs = { "other-database": { file: "/srv/other-installation/longtail-forge.db" }, injected: { content: "injected by Compose" } };
+      resources.secrets = { "other-program": { file: "/srv/other-installation/backup.mjs" } };
+    }
+    return emit(JSON.stringify({ services: { "longtail-forge": service }, volumes: named, ...resources }));
   }
   if (command[0] === "up") {
     record({ action: "up", args: command });
     save({ ...runtime, state: "running", healthy: !scenario.restartFails, startedAt: Date.now(), restarted: true });
-    return 0;
-  }
-  if (command[0] === "start") {
-    record({ action: "start", args: command });
-    save({
-      ...runtime, state: "running", healthy: !scenario.restartFails, startedAt: Date.now(), restarted: true,
-      container: scenario.recreated ? OTHER_CONTAINER : runtime.container,
-    });
-    return 0;
-  }
-  if (command[0] === "kill") {
-    record({ action: "kill", args: command });
-    if (stalls()) return hangUntilReleased(scenario.stateDir);
-    if (scenario.killFails) return refuse("Error response from daemon: cannot kill container: permission denied");
-    save({ ...runtime, state: "stopped" });
     return 0;
   }
   // Like Compose, only a container that is not stopped is listed.
@@ -269,55 +367,7 @@ function fakeDocker(args, scenario, runtime, record, save) {
     if (stalls()) return hangUntilReleased(scenario.stateDir);
     return emit(runtime.state === "running" ? `${runtime.container}\n` : "");
   }
-  if (command[0] === "run") {
-    const program = command.slice(command.indexOf("longtail-forge") + 1);
-    const name = valueAfter(command, "--name");
-    if (scenario.nameTaken) {
-      // A container this attempt never started already has the name: Docker refuses the step.
-      if (!runtime.steps.some((step) => step.name === name)) {
-        save({ ...runtime, steps: [...runtime.steps, { id: fakeId(`taken-${name}`), name, label: null, volume: DATA_VOLUME }] });
-      }
-      record({ action: "step-conflict", args: command });
-      return refuse(`Error response from daemon: Conflict. The container name "/${name}" is already in use by another container`);
-    }
-    // The step's one-off container, created from the resolved configuration: it mounts the volume that
-    // configuration names, and outlives a client that is killed. `--rm` removes it when it finishes.
-    const step = { id: fakeId(name), name, label: command.includes("--label") ? valueAfter(command, "--label") : null, volume: scenario.configVolume };
-    const started = { ...runtime, steps: [...runtime.steps, step] };
-    save(started);
-    /** @param {number} status */
-    const finish = (status) => {
-      save({ ...started, steps: started.steps.filter((entry) => entry.id !== step.id) });
-      return status;
-    };
-    if (program[0] === "node" && program[1] === "scripts/backup.mjs" && program[2] === "create") {
-      const archive = hostBackupPath(valueAfter(program, "--output"));
-      record({ action: "backup-create", archive, auditLog: valueAfter(program, "--audit-log"), args: command, volume: step.volume });
-      assert.equal(runtime.state, "stopped", "a backup must never run against a running application");
-      if (scenario.backupFails === "create") return finish(refuse("ENOSPC: no space left on device, write"));
-      if (scenario.killBackup) {
-        killBackupProcess();
-        return finish(hangUntilReleased(scenario.stateDir));
-      }
-      if (scenario.backupHangs) {
-        // A partial archive, then no progress: only the helper's time limit ends this step.
-        fs.writeFileSync(archive, "a partial archive", { mode: 0o600 });
-        fs.chownSync(archive, 10001, 10001);
-        hangUntilReleased(scenario.stateDir);
-        return finish(0);
-      }
-      if (scenario.oddProcesses) spawnOddProcesses(scenario.stateDir);
-      writeContainerBackup(archive, `archive of ${path.basename(archive)} from the volume ${step.volume}`);
-      return finish(0);
-    }
-    if (program[0] === "node" && program[1] === "scripts/backup.mjs" && program[2] === "inspect") {
-      const archive = hostBackupPath(valueAfter(program, "--archive"));
-      record({ action: "backup-inspect", archive, args: command });
-      if (scenario.backupFails === "inspect") return finish(refuse("Backup checksum does not match its manifest: database/longtail-forge.db"));
-      return finish(fs.existsSync(archive) ? 0 : refuse("archive is missing"));
-    }
-    return finish(refuse(`unexpected step program: ${program.join(" ")}`));
-  }
+  // A Compose-created one-off container is never a backup step: Compose's `run` is refused.
   return refuse(`unexpected docker compose invocation: ${command.join(" ")}`);
 }
 
@@ -480,6 +530,25 @@ function valueAfter(args, flag) {
   return String(args[args.indexOf(flag) + 1]);
 }
 
+/** The operands of `docker run` after its options: the image, then the program and its arguments. @param {string[]} args */
+function runOperands(args) {
+  const valued = new Set(["--cap-drop", "--entrypoint", "--env", "--label", "--log-driver", "--mount", "--name", "--network", "--pull",
+    "--security-opt", "--tmpfs", "--user", "--volume", "--workdir"]);
+  let index = 1;
+  while (index < args.length && String(args[index]).startsWith("--")) index += valued.has(String(args[index])) ? 2 : 1;
+  return args.slice(index);
+}
+
+/** The volume a step's volume mount names, or null when it has none. @param {string[]} args */
+function mountedVolume(args) {
+  for (let index = 1; index < args.length - 1; index += 1) {
+    if (args[index] !== "--mount") continue;
+    const fields = new Map(String(args[index + 1]).split(",").map((field) => /** @type {[string, string]} */ ([field.split("=")[0] ?? "", field.slice(field.indexOf("=") + 1)])));
+    if (fields.get("type") === "volume") return fields.get("source") ?? null;
+  }
+  return null;
+}
+
 /** @param {string} text */
 function emit(text) {
   process.stdout.write(text);
@@ -513,7 +582,8 @@ function sha256(content) {
  *   posture?: FakePosture, postureAfterStart?: FakePosture | null, recreated?: boolean, configVolume?: string,
  *   configImage?: string, referenceImageId?: string, stepRemovalFails?: boolean, stopFails?: boolean, killFails?: boolean,
  *   inspectHangsAfterStart?: boolean, slowHealthMs?: number, nameTaken?: boolean, steps?: FakeStep[],
- *   configMounts?: ConfigMounts, containerMounts?: ContainerMounts, oddProcesses?: boolean }} SandboxOptions
+ *   configMounts?: ConfigMounts, containerMounts?: ContainerMounts, oddProcesses?: boolean, runningDemoMode?: string | null,
+ *   classification?: "unsafe" | "repeated" | null, keyBackup?: boolean }} SandboxOptions
  */
 
 /** @param {string} work @param {number} ordinal @param {string} fakeBin @param {SandboxOptions} options @returns {Sandbox} */
@@ -538,13 +608,19 @@ function createSandbox(work, ordinal, fakeBin, options) {
   fs.writeFileSync(path.join(root, "compose", "compose.yaml"), "name: longtail-forge\n");
   writePrivate(path.join(etc, "compose-host.env"), "LONGTAIL_HOST_PORT=8001\n");
   const helperEnv = path.join(etc, "compose-deploy-helper.env");
+  // The Secure Notes recovery-key backup, when the scenario configures one.
+  const keyBackup = options.keyBackup ? path.join(etc, "secure-notes-key.backup") : "";
+  if (keyBackup) writePrivate(keyBackup, "harness recovery key\n");
   writePrivate(helperEnv, [
     `LTF_COMPOSE_DIR=${path.join(root, "compose")}`,
     `LTF_COMPOSE_HOST_ENV=${path.join(etc, "compose-host.env")}`,
+    // The deploy helper, which reads this file too, needs an account that exists.
+    "LTF_DEPLOY_ACCOUNT=root",
     `LTF_DEPLOY_ROOT=${deployRoot}`,
     "LTF_IMAGE_REPOSITORY=ghcr.io/michaelyorkpa/longtail-forge",
     `LTF_MAINTENANCE_STATE_ROOT=${path.join(root, "maintenance")}`,
     `LTF_PUBLIC_URL=${ORIGIN}`,
+    ...(keyBackup ? [`LTF_SECURE_KEY_BACKUP=${keyBackup}`] : []),
     "",
   ].join("\n"));
   const key = IMAGE.slice(IMAGE.indexOf("sha256:") + "sha256:".length);
@@ -635,6 +711,8 @@ function createSandbox(work, ordinal, fakeBin, options) {
     configMounts: options.configMounts ?? null,
     containerMounts: options.containerMounts ?? null,
     oddProcesses: options.oddProcesses === true,
+    runningDemoMode: options.runningDemoMode === undefined ? "false" : options.runningDemoMode,
+    classification: options.classification ?? null,
     markerPath: marker,
     lockPath: path.join(deployRoot, "compose-operation.lock"),
     store,
@@ -646,7 +724,7 @@ function createSandbox(work, ordinal, fakeBin, options) {
   fs.writeFileSync(path.join(state, "runtime.json"), JSON.stringify(runtime));
   fs.writeFileSync(path.join(state, "calls.jsonl"), "");
   void fakeBin;
-  return { root, helperEnv, scheduleEnv, hookEnv, deployRoot, marker, state, store, sbin, identity, knownHosts };
+  return { root, helperEnv, scheduleEnv, hookEnv, deployRoot, marker, state, store, sbin, identity, knownHosts, keyBackup };
 }
 
 /**
@@ -673,6 +751,71 @@ function runScheduled(box, fakeBin, args, helper = SCHEDULED_HELPER) {
     status: result.status ?? 1, stdout: String(result.stdout || ""), stderr: String(result.stderr || ""), calls: callsSince(box, offset),
     seconds: (Date.now() - started) / 1000,
   };
+}
+
+/**
+ * The one approved profile of a backup step: every setting the step runs with, in order. Nothing else
+ * may reach it, from the Compose configuration or anywhere.
+ * @param {"create" | "inspect"} role @param {string} operation @param {string[]} program @param {string} keyBackup
+ */
+function approvedStep(role, operation, program, keyBackup) {
+  const key = "/run/secrets/secure-notes-key.backup";
+  return [
+    "run", "--rm", "--pull", "never", "--name", `longtail-forge-scheduled-backup-${operation}-${role}`, "--label", `${STEP_LABEL}=${operation}`,
+    "--network", "none", "--user", "10001:10001", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--init",
+    "--log-driver", "local", "--tmpfs", `/tmp:${TMPFS}`,
+    "--mount", `type=volume,source=${DATA_VOLUME},target=${DATA_ROOT},volume-nocopy`,
+    "--mount", `type=bind,source=${BACKUP_ROOT},target=${BACKUP_CONTAINER_ROOT}`,
+    ...(keyBackup ? ["--mount", `type=bind,source=${keyBackup},target=${key},readonly`] : []),
+    ...STEP_CLASSIFICATIONS.flatMap((entry) => ["--env", entry]),
+    "--workdir", "/opt/longtail-forge", "--entrypoint", "node", IMAGE_ID, "/opt/longtail-forge/scripts/backup.mjs", role,
+    ...program, ...(keyBackup ? ["--secure-notes-key-backup", key] : []),
+  ];
+}
+
+/**
+ * Asserts that both steps of a run ran with exactly the approved profile, from the running container's
+ * own image and data volume, and received none of the application's secrets. Returns the archive's name.
+ * @param {RunResult} result @param {Sandbox} box
+ */
+function assertApprovedSteps(result, box) {
+  const create = result.calls.find((call) => call.action === "backup-create");
+  const inspect = result.calls.find((call) => call.action === "backup-inspect");
+  const archive = path.basename(String(create?.archive));
+  assert.ok(SCHEDULED_ARCHIVE.test(archive), `the create step names a scheduled archive: ${archive}`);
+  const operation = STEP_NAME.exec(valueAfter(create?.args ?? [], "--name"))?.[1];
+  assert.ok(operation, `the create step is named for this attempt: ${valueAfter(create?.args ?? [], "--name")}`);
+  assert.ok(operation.startsWith(archive.slice("scheduled-".length, "scheduled-".length + 16)), "after the backup's own time");
+  const staged = `${BACKUP_CONTAINER_ROOT}/.scheduled-pending/${archive}`;
+  assert.deepEqual(create?.args, approvedStep("create", operation, [
+    "--confirm-stopped", "--database", `${DATA_ROOT}/longtail-forge.db`, "--files-root", `${DATA_ROOT}/files`,
+    "--output", staged, "--audit-log", `${BACKUP_CONTAINER_ROOT}/backup-operations.jsonl`,
+  ], box.keyBackup), "the create step has exactly the approved profile");
+  assert.deepEqual(inspect?.args, approvedStep("inspect", operation, ["--archive", staged], box.keyBackup), "and so does the inspect step");
+  for (const call of [create, inspect]) {
+    assert.deepEqual([call?.volume, call?.image], [DATA_VOLUME, IMAGE_ID], "each step reads the running container's own volume, from its own image");
+  }
+  assert.ok(!JSON.stringify(result.calls).includes(RUNNING_SECRET) && !`${result.stdout}${result.stderr}`.includes(RUNNING_SECRET),
+    "no step receives, and nothing records, the application's secrets");
+  return archive;
+}
+
+/**
+ * Runs the real deploy helper against the same sandbox and fakes, as the deployment account's sudo rule
+ * would. Its arguments name a release; a refusal under the lock comes before it reads them.
+ * @param {Sandbox} box @param {string} fakeBin @param {"deploy" | "rollback"} mode @returns {RunResult}
+ */
+function runDeployHelper(box, fakeBin, mode) {
+  const offset = fs.readFileSync(path.join(box.state, "calls.jsonl"), "utf8").length;
+  const result = spawnSync("bash", [DEPLOY_HELPER, mode, "--metadata", "release-metadata.json",
+    "--expected-version", IDENTITY.version, "--expected-source-branch", "main", "--expected-commit", IDENTITY.commit,
+    "--expected-artifact-sha256", IDENTITY.artifact, "--expected-image-digest", `sha256:${"6".repeat(64)}`,
+    "--expected-platform-manifest-digest", `sha256:${"5".repeat(64)}`], {
+    encoding: "utf8",
+    timeout: 120_000,
+    env: { PATH: `${fakeBin}:/usr/sbin:/usr/bin:/sbin:/bin`, HOME: "/root", LANG: "C.UTF-8", LTF_COMPOSE_HELPER_ENV: box.helperEnv, HARNESS_STATE: box.state },
+  });
+  return { status: result.status ?? 1, stdout: String(result.stdout || ""), stderr: String(result.stderr || ""), calls: callsSince(box, offset) };
 }
 
 /**
@@ -983,16 +1126,8 @@ async function main() {
       assert.equal(create?.volume, DATA_VOLUME, "the backup reads the running container's own data volume");
       const binding = indexOf(result.calls, "image-id");
       assert.ok(binding >= 0 && result.calls[binding]?.markerPresent === false, "the image and volume binding is checked before any outage");
-      const operations = ["backup-create", "backup-inspect"].map((action) => {
-        const step = result.calls.find((call) => call.action === action)?.args ?? [];
-        const name = STEP_NAME.exec(valueAfter(step, "--name"));
-        assert.ok(name, `the ${action} step's container is named for this attempt: ${valueAfter(step, "--name")}`);
-        assert.ok(String(name[1]).startsWith(archive.slice("scheduled-".length, "scheduled-".length + 16)), "after the backup's own time");
-        assert.equal(valueAfter(step, "--label"), `${STEP_LABEL}=${name[1]}`, "and carries this attempt's own label");
-        assert.equal(valueAfter(step, "--pull"), "never", "a step never pulls");
-        return name[1];
-      });
-      assert.equal(operations[0], operations[1], "both steps belong to one attempt");
+      // Both steps belong to this one attempt, never pull, and have nothing but the approved profile.
+      assert.equal(assertApprovedSteps(result, box), archive);
       assert.deepEqual(runtimeOf(box).steps, [], "no step container outlives its step");
       assert.equal(result.calls.find((call) => call.action === "backup-inspect")?.archive, `${PENDING_ROOT}/${archive}`, "and inspected there");
       assert.deepEqual(pending(), [], "only an inspected backup leaves the staging directory, and nothing stays behind");
@@ -1073,7 +1208,10 @@ async function main() {
       assert.equal(fs.existsSync(box.marker), true, "an unverified release must stay behind the curtain");
       const lastHealth = result.calls.map((call) => call.action).lastIndexOf("health");
       assert.deepEqual(result.calls.slice(lastHealth).filter((call) => ["stop", "list-running", "kill"].includes(call.action)).map((call) => call.action),
-        ["stop", "list-running"], "the unverified container is stopped, so it never serves, and the stop is proved");
+        ["list-running", "stop", "list-running"], "the unverified container is stopped, so it never serves, and the stop is proved");
+      const lifecycle = result.calls.filter((call) => ["stop", "start", "kill"].includes(call.action));
+      assert.ok(lifecycle.length >= 3 && lifecycle.every((call) => JSON.stringify(call.args) === JSON.stringify([call.action, CONTAINER])),
+        `each stop and start names the container, with Docker alone: ${JSON.stringify(lifecycle.map((call) => call.args))}`);
       assert.equal(runtimeOf(box).state, "stopped");
       assert.equal(hookRecords(box).length, 0);
       assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered exitCode=1 curtain=up$/);
@@ -1109,32 +1247,79 @@ async function main() {
       });
     }
 
-    // The steps' containers come from the resolved configuration, so it must name what the running
-    // container uses. Each mismatch below names something valid: without the check, the backup would
-    // succeed, from the wrong data.
+    // The steps' containers are made from the running container itself, never from the Compose
+    // configuration, so nothing that configuration says reaches them. Each arrangement below would give a
+    // container Compose created other data, another program, or another classification; the backup
+    // still reads the running container's own volume, from its own image, with its own classifications.
     for (const [label, options] of /** @type {[string, SandboxOptions][]} */ ([
       ["a Compose configuration that names another valid data volume", { configVolume: RECOVERY_VOLUME }],
       ["a Compose configuration that names another image", { configImage: `ghcr.io/michaelyorkpa/longtail-forge@sha256:${"9".repeat(64)}` }],
-      ["a Compose configuration that names the recorded image, which is no longer the running container's local image", { referenceImageId: OTHER_IMAGE_ID }],
       ["a Compose configuration that binds another database over the data volume's", { configMounts: "bind-over-database" }],
       ["a Compose configuration that mounts another volume over the Files tree", { configMounts: "volume-over-files" }],
       ["a Compose configuration that mounts a tmpfs over the Files tree", { configMounts: "tmpfs-over-files" }],
       ["a Compose configuration that mounts only a subpath of the data volume", { configMounts: "subpath" }],
       ["a Compose configuration that takes mounts from another container", { configMounts: "volumes-from" }],
+      ["a Compose configuration with an aliased second data volume, a config over the database, a secret over the backup program, another entrypoint, directory, user, and environment, lifecycle hooks, and inline content",
+        { configMounts: "every-other-setting" }],
+    ])) {
+      await scenario(`${label} never reaches a step: the backup reads the running container's own data`, () => {
+        const box = sandbox(options);
+        const result = run(box);
+        assert.equal(result.status, 0, result.stderr);
+        assertApprovedSteps(result, box);
+        assert.equal(runRecords(box)[0]?.outcome, "succeeded");
+        assert.equal(fs.existsSync(box.marker), false);
+      });
+    }
+
+    await scenario("a configured Secure Notes recovery-key backup reaches both steps, read-only, in the approved profile", () => {
+      const box = sandbox({ keyBackup: true });
+      const result = run(box);
+      assert.equal(result.status, 0, result.stderr);
+      assertApprovedSteps(result, box);
+    });
+
+    // What the steps read must be the whole of what the running container serves, and the recorded
+    // release's image. Each arrangement below refuses before any outage: otherwise a step would back up
+    // other data, or carry a value into its command line that is not a plain classification.
+    for (const [label, options] of /** @type {[string, SandboxOptions][]} */ ([
+      ["the recorded image, which is no longer the running container's local image", { referenceImageId: OTHER_IMAGE_ID }],
       ["a running container with another bind over its Files tree", { containerMounts: "bind-over-files" }],
       ["a running container with a tmpfs over its Files tree", { containerMounts: "tmpfs-over-files" }],
       ["a running container that mounts only a subpath of its data volume", { containerMounts: "subpath" }],
+      ["a running container with a tmpfs over its Files tree, by another spelling of the path", { containerMounts: "aliased-tmpfs" }],
+      ["a running container that mounts a subpath of its data volume, by another spelling of the path", { containerMounts: "aliased-subpath" }],
+      ["a running container with a device over its database", { containerMounts: "device-over-database" }],
+      ["a running container whose runtime classification is not a plain value", { classification: "unsafe" }],
+      ["a running container with a runtime classification set twice", { classification: "repeated" }],
     ])) {
       await scenario(`${label} refuses the backup before any outage, and backs up nothing`, () => {
         const box = sandbox(options);
         const result = run(box);
         assert.equal(result.status, 1, result.stderr);
-        assert.match(result.stderr, /does not name the running container's image and data volume; a backup from it could capture other data, so nothing was stopped/);
+        assert.match(result.stderr, /the running container's data is not one whole volume of its recorded image, or its runtime classifications are not plain values; a backup of it could capture other data, so nothing was stopped/);
         assert.equal(result.calls.filter((call) => call.markerPresent).length, 0, "the curtain never rises");
         assert.deepEqual(["stop", "backup-create"].map((action) => indexOf(result.calls, action)), [-1, -1]);
         assert.deepEqual([backups(), pending()], [[], []]);
         assert.equal(runtimeOf(box).state, "running", "the running application is never stopped");
         assert.match(alertSummary(result), /failureClass=backup-failed exitCode=1 curtain=down$/);
+      });
+    }
+
+    // The running container's own classification must agree with the configuration's.
+    for (const [label, runningDemoMode, message, failureClass] of /** @type {[string, string | null, RegExp, string][]} */ ([
+      ["a running container classified as the demo, whatever the configuration says", "true", /refuses the public demo: the running container is classified as the demo/, "refused-public-demo"],
+      ["a running container with no classification of its own", null, /the running container's own DEMO_MODE must be exactly false/, "backup-failed"],
+    ])) {
+      await scenario(`${label} is refused before the curtain, and the run alerts`, () => {
+        const box = sandbox({ runningDemoMode });
+        const result = run(box);
+        assert.equal(result.status, 1, result.stderr);
+        assert.match(result.stderr, message);
+        assert.equal(result.calls.filter((call) => call.markerPresent).length, 0, "the curtain never rises");
+        assert.equal(indexOf(result.calls, "stop"), -1);
+        assert.deepEqual(backups(), []);
+        assert.match(alertSummary(result), new RegExp(`failureClass=${failureClass} `));
       });
     }
 
@@ -1185,13 +1370,40 @@ async function main() {
       assert.match(alertSummary(result), /failureClass=backup-timed-out-unrecovered,step-container-not-cleared exitCode=1 curtain=up$/);
     });
 
+    // Once the backup has exited, nothing holds the lifecycle lock, and the step container it could not
+    // remove holds none of its own. The deploy helper, the next to take the lock, must itself refuse to
+    // deploy, roll back, restore, or start anything beside it.
+    await scenario("after a step container that could not be removed, the deploy helper refuses a deploy and a rollback under the lock, and changes nothing", () => {
+      const box = sandbox({ backupHangs: true, stepRemovalFails: true });
+      const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-limit-2-then-deploy", [["readonly BACKUP_LIMIT=7200\n", "readonly BACKUP_LIMIT=2\n"]]);
+      waitForNextSecond();
+      const backup = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
+      fs.writeFileSync(path.join(box.state, "release"), "");
+      assert.match(alertSummary(backup), /failureClass=backup-timed-out-unrecovered,step-container-not-cleared /, backup.stderr);
+      const [left, ...others] = runtimeOf(box).steps;
+      assert.ok(left && others.length === 0, "the one step container is still there");
+      const current = fs.readFileSync(path.join(box.deployRoot, "state", "current.json"), "utf8");
+      for (const mode of /** @type {const} */ (["deploy", "rollback"])) {
+        const result = runDeployHelper(box, fakeBin, mode);
+        assert.equal(result.status, 1, result.stderr);
+        assert.ok(result.stderr.includes(`a step container a scheduled backup started still exists; no deploy or rollback runs beside it, so nothing was changed: ${left.id.slice(0, 12)}`),
+          `${mode} names the container, for the guide's supervised recovery:\n${result.stderr}`);
+        assert.deepEqual(result.calls.map((call) => [call.action, call.lockHeld]), [["list-steps", true]], `${mode} lists the step containers under the lock, and does nothing else`);
+        assert.deepEqual(runtimeOf(box), { ...runtimeOf(box), state: "stopped", steps: [left] }, `${mode} leaves the release stopped and the step container where it is`);
+        assert.equal(fs.existsSync(box.marker), true, `${mode} leaves the curtain up`);
+        assert.equal(fs.readFileSync(path.join(box.deployRoot, "state", "current.json"), "utf8"), current, `${mode} records nothing`);
+        assert.deepEqual(fs.readdirSync(path.join(box.deployRoot, "operations")), [], `${mode} opens no operation`);
+      }
+    });
+
     await scenario("a release that does not stop when asked is killed, and counts as stopped only once that is proved", () => {
       const box = sandbox({ restartFails: true, stopFails: true });
       const result = run(box);
       assert.equal(result.status, 1);
       const recovery = result.calls.slice(result.calls.map((call) => call.action).lastIndexOf("health"));
       assert.deepEqual(recovery.filter((call) => ["stop", "list-running", "kill"].includes(call.action)).map((call) => call.action),
-        ["stop", "list-running", "kill", "list-running"]);
+        ["list-running", "stop", "list-running", "kill", "list-running"]);
+      assert.deepEqual(recovery.find((call) => call.action === "kill")?.args, ["kill", CONTAINER], "the kill names the container");
       assert.match(result.stderr, /it was stopped, and the maintenance curtain and protected evidence remain/);
       assert.equal(runtimeOf(box).state, "stopped");
       assert.match(alertSummary(result), /failureClass=backup-failed-unrecovered exitCode=1 curtain=up$/);
@@ -1214,7 +1426,7 @@ async function main() {
         ["readonly QUERY_LIMIT=30\n", "readonly QUERY_LIMIT=2\n"],
         ["readonly STOP_LIMIT=120\n", "readonly STOP_LIMIT=2\n"],
         ["readonly RECOVERY_LIMIT=1200\n", "readonly RECOVERY_LIMIT=16\n"],
-        ["readonly STOP_RESERVE=240\n", "readonly STOP_RESERVE=8\n"],
+        ["readonly STOP_RESERVE=300\n", "readonly STOP_RESERVE=8\n"],
       ]);
       waitForNextSecond();
       const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
@@ -1233,7 +1445,7 @@ async function main() {
       const box = sandbox({ healthyAfterMs: 600_000 });
       const helper = scaledCopy(work, SCHEDULED_HELPER, "scheduled-backup-reserve", [
         ["readonly RECOVERY_LIMIT=1200\n", "readonly RECOVERY_LIMIT=10\n"],
-        ["readonly STOP_RESERVE=240\n", "readonly STOP_RESERVE=4\n"],
+        ["readonly STOP_RESERVE=300\n", "readonly STOP_RESERVE=4\n"],
       ]);
       waitForNextSecond();
       const result = runScheduled(box, fakeBin, ["run", "--trigger", "manual"], helper);
