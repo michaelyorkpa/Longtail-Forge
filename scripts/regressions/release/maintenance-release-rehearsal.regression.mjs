@@ -43,6 +43,7 @@ for (const requirement of [
   /"--topology",\s*"multi-proxy"/,
   /current-static-contracts\.regression\.mjs/,
   /compose-helper-contract-harness\.mjs/,
+  /scheduled-backup-contract-harness\.mjs/,
   /process\.platform !== "linux"/,
   /later stages were not run/,
   /without proxy reload/,
@@ -74,6 +75,7 @@ for (const requirement of [
   /bounded-nginx-caddy/,
   /deploy-rollback-recovery/,
   /helper-contract/,
+  /scheduled-backup-contract/,
 ]) {
   assert.match(plan.stdout, requirement);
 }

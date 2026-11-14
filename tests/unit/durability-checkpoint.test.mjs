@@ -3,6 +3,7 @@ import {
   DURABILITY_PATCH_CHECKPOINT,
   DURABILITY_PATCH_DECLARATIONS,
   DURABILITY_PATCH_DEPENDENCY_UPDATES,
+  NODE_SECURITY_PATCH_CHECKPOINT,
   RESET_RETENTION_PATCH_CHECKPOINT,
   RESTART_RECOVERY_PATCH_CHECKPOINT,
   validateCheckpointCommit,
@@ -207,5 +208,34 @@ describe("the durability release identity", () => {
 
   it("refuses any other identity", () => {
     expect(bumpErrors(`${DURABILITY_PATCH_CHECKPOINT}.1`)).toContain(FOLD_PACKAGE_ERROR);
+  });
+});
+
+describe("the durability decisions", () => {
+  /** @param {string} checkpoint @param {string[]} paths */
+  function pathErrors(checkpoint, paths) {
+    const { after, lockAfter } = fixture();
+    return validateCheckpointCommit({
+      message: `Record the decisions\n\nLTF-Checkpoint: ${checkpoint}\nLTF-Summary: Record a patch's decisions\nLTF-Docs: No docs change needed: synthetic boundary test.`,
+      paths,
+      packageBeforeSource: JSON.stringify(after),
+      packageAfterSource: JSON.stringify(after),
+      lockBeforeSource: JSON.stringify(lockAfter),
+      lockAfterSource: JSON.stringify(lockAfter),
+      roadmapSource: `### ${checkpoint} - Synthetic patch`,
+    }).errors;
+  }
+
+  it("admits DECISIONS.md, which records the durability decisions", () => {
+    expect(pathErrors(DURABILITY_PATCH_CHECKPOINT, ["DECISIONS.md"])).toEqual([]);
+  });
+
+  it("keeps DECISIONS.md reserved for a patch that was not given it", () => {
+    expect(pathErrors(NODE_SECURITY_PATCH_CHECKPOINT, ["DECISIONS.md"]).join("\n")).toContain("DECISIONS.md is reserved");
+  });
+
+  it("keeps the two-ceremony-file ceiling, DECISIONS.md included", () => {
+    expect(pathErrors(DURABILITY_PATCH_CHECKPOINT, ["DECISIONS.md", "ROADMAP.md", "ROADMAP-ARCHIVE.md"]).join("\n"))
+      .toContain("changes 3 ceremony files");
   });
 });

@@ -188,34 +188,38 @@ Nothing reads a completed reset's retired unit or pre-reset backup again, and ea
 | Retired units | Those of the 2 newest completed resets | `.longtail-public-demo-previous-<operation>` in the data volume |
 | Pre-reset backups, with their `.sha256` sidecars | Those of the 2 newest completed resets | `pre-demo-reset-<operation>.ltfbackup.tgz` in the backup root |
 | Reset evidence | That of the 168 newest completed resets, seven days | `demo-reset-operations/<operation>/` in the deployment root |
+| Stale-candidate copies | Those of resets no older than the 2 newest completed resets, about two hours | `.longtail-public-demo-failed-<operation>-stale-candidate` in the data volume |
+
+A stale-candidate copy holds a candidate that activation never began, seeded into a fresh staging directory and never served, so it holds no visitor-entered content. It stays as long as its reset's retired unit would, for diagnosis.
 
 Visitor-entered content therefore lasts in the live demo until the next hourly reset. In normal operation it is gone from these copies about three hours after it was entered, and reset evidence holds none. It lasts longer only in these cases:
 - **A failed reset.** Its copies are incident evidence, kept until the operator disposes of them.
 - **Retention that is blocked or capped.** A `retention-failed` alert reaches the operator, and the copies stay until the operator resolves it with supervised retention. A failure under the boot is retried by the next hourly reset first.
 - **A held demo.** While an operator hold stops resets, the newest copies stay until resets resume.
-- **Deployment backups.** Each deploy, rollback, or restore takes a whole-instance backup, which the deploy helper keeps until the operator removes it. The roadmap bounds these on the demo.
+- **Deployment backups.** Each deploy, rollback, or restore takes a whole-instance backup. On the demo, the deploy helper keeps only the one the recorded rollback names, and removes the rest once a deploy or rollback verifies. So that one backup holds the visitor-entered content of its deploy's moment, until the next deploy or rollback replaces it. A refused bound keeps them all, and fails the deploy for the operator to resolve. A removal that fails part-way keeps the rest until the next verified deploy or rollback finishes it, and fails the deploy in the same way, saying how many files had gone. See [the deployment-backup bound](preview-deployment.md#immutable-image-publication-and-constrained-transport).
 
 `DECISIONS.md` records this policy, and the demo's privacy notices cite it.
 
 **Never removed automatically:**
 - incident evidence: a reset whose state is not `completed`, or is missing or unreadable, with its backup, its retired unit, and any failed unit;
-- failed evidence in the data volume, including moved stale candidates;
+- failed evidence in the data volume, except the stale-candidate copies above. The copy of a reset that the history names as an incident is incident evidence, and stays;
 - the active unit, the candidate, and the active-operation marker;
-- any other backup, including a deployment's `pre-upgrade-` backups. A pre-reset backup whose evidence is gone is reported as an orphan;
+- any other backup. Deployment backups are the deploy helper's to bound, as above. A pre-reset backup whose evidence is gone is reported as an orphan;
 - the state and release records, and the scheduler log.
 
 **Selection.** Completion is proved by the reset's `state.json` in the reset history. A retired unit must also prove it by its own `reset-operation.json`, but that record alone is not enough: finalizing writes it before the reset completes, so a reset that stops after finalizing is an incident whose unit's record says completed. Retention therefore names every incident in the history to the in-volume prune, which keeps their units and counts them as `units.incidents`. A retired unit whose reset has no directory in the history at all, such as one older than the history, is judged by its own record alone, so the backlog can be pruned; for the same reason, disposing of an incident removes its unit with its evidence. Selection is by count, newest first by the operation identity's UTC timestamp. Every selected item is checked before anything changes, and one failed check removes nothing:
 - the reset history and the backup root must be real directories, and each listing of them must succeed whole;
 - a retired unit must have exactly a unit's shape, with no link anywhere beneath it;
+- a stale-candidate copy must hold its `stale-candidate.json` record, which must name its own reset, and exactly what that record says the quarantine moved, with no link anywhere beneath it. A copy whose record does not prove what it is counts as `staleCandidates.skipped` and is never removed;
 - evidence must be a root-owned real directory holding only root-owned files and directories, proved by a traversal that succeeds;
 - a backup and its sidecar must be plain files with one name, owned by the backup root's owner, the container user.
 
 A run never removes anything of the reset it belongs to. If that reset would rank among the removals, as a clock set back would make it, the run refuses.
 
-**Removal deletes; nothing is archived.** A retired unit or an evidence directory is first renamed to a tombstone, which the next run finishes if a deletion is interrupted. A backup's archive goes before its sidecar.
+**Removal deletes; nothing is archived.** A retired unit, a stale-candidate copy, or an evidence directory is first renamed to a tombstone, which the next run finishes if a deletion is interrupted. A backup's archive goes before its sidecar.
 
 **The automatic step.** Each completed reset runs retention once its curtain is down, still under the lifecycle lock.
-- **The cap.** If the removals of any kind, counting the tombstones an interrupted run left, would exceed three, the step removes nothing and reports `capped`.
+- **The cap.** If the removals of any kind, counting the tombstones an interrupted run left, would exceed three, the step removes nothing and reports `capped`. Retired units and stale-candidate copies count together, because both leave the data volume in one in-volume prune.
 - **Its record.** The result is `retention.json` in the reset's operation directory, and a `retention` summary on the reset's final line.
 - **Failure.** A retention failure never fails or rolls back the completed reset, and neither does a signal, which stops only retention. The scheduler logs the run as `succeeded`, with failure class `retention-failed` and the `retentionStatus`, still sends the heartbeat, and raises the Discord alert.
 - **The boot.** A reset run by the protected boot runs the step behind the boot's curtain. The boot does not alert on it: a failure there is retried, and alerted, by the next hourly reset.

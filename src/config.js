@@ -33,7 +33,10 @@ const DEFAULT_DEPLOYMENT_MODE = "direct";
 const DEFAULT_SQLITE_FOREIGN_KEYS = true;
 const DEFAULT_SQLITE_JOURNAL_MODE = "wal";
 const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000;
-const DEFAULT_SQLITE_SYNCHRONOUS = "normal";
+// `full` syncs the WAL at every commit, so a power cut loses no transaction the application has
+// acknowledged. `normal` stays available, and is also corruption-safe under WAL, but can roll back the
+// transactions committed since the last sync.
+const DEFAULT_SQLITE_SYNCHRONOUS = "full";
 const DEFAULT_SQLITE_CACHE_SIZE_KIB = 65536;
 const DEFAULT_SQLITE_TEMP_STORE = "memory";
 const DEFAULT_SQLITE_MMAP_SIZE_BYTES = 0;

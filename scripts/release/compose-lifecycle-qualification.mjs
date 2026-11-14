@@ -91,6 +91,8 @@ const INSTALLED_BOOT_FILES = Object.freeze({
   dropIn: "/etc/systemd/system/longtail-forge-public-demo-boot.service.d/qualification.conf",
 });
 const REPAIRED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-compose-deploy-host.example");
+const SCHEDULED_HELPER = path.join(repoRoot, "scripts/release/longtail-forge-scheduled-backup-host.example");
+const SCHEDULED_PENDING_ROOT = `${BACKUP_ROOT}/.scheduled-pending`;
 const ORIGINAL_HELPER = path.join(repoRoot, "tests/fixtures/compose-helper/v0.33.33-longtail-forge-compose-deploy-host.example");
 const ADMIN_USERNAME = "qualification-admin@example.test";
 
@@ -425,7 +427,170 @@ async function runPreviewLifecycle(work, tls, previous, candidate) {
   await api.expectList(finalCookie, baseline.listId, 200);
   await api.expectList(finalCookie, postUpgrade.listId, 404);
   await api.expectFile(finalCookie, file);
-  record("re-upgrade", { seconds: reupgrade.seconds, runtime: runtimeProbe(host) });
+  // The demo's deployment-backup bound never runs here: the preview keeps every deployment backup.
+  assert.ok(!lastJsonLine(reupgrade.stdout).includes("deploymentBackups"), "only the demo reports the deployment-backup bound");
+  for (const backup of [preUpgradeBackup, preRollbackBackup]) {
+    assert.ok(fs.existsSync(backup) && fs.existsSync(`${backup}.sha256`), `the preview keeps ${path.basename(backup)}`);
+  }
+  record("re-upgrade", { seconds: reupgrade.seconds, runtime: runtimeProbe(host), deploymentBackups: deploymentBackupNames() });
+
+  // The scheduled backup, on the real image. A held lifecycle lock refuses it before the curtain.
+  const contended = runScheduledBackup(work, host, { holdLock: true });
+  assert.equal(contended.status, 75, `a held lock must refuse the scheduled backup:\n${contended.stderr}`);
+  assert.equal(contended.record.failureClass, "lifecycle-lock-contended");
+  assert.equal(fs.existsSync(host.marker), false);
+  // The backup's steps run in one-off containers whose every setting the helper names, from the running
+  // container itself, and it stops and starts that container by its ID with Docker alone, so no edit of
+  // the Compose configuration reaches either. Real Compose renders here a configuration that would give
+  // any container created from it other data and another program: the data volume named as an empty one,
+  // mounted at a subpath, a file config over the database, a tmpfs over the Files tree, a secret over the
+  // backup program, an entrypoint that fails, and the root as the working directory. It also carries what
+  // Compose's own stop and start would run in, or copy into, the running container: lifecycle hooks that
+  // write into its data volume, and inline content. The backup still succeeds, from the running
+  // container's own volume, with its own runtime classification, creates no volume, and leaves nothing of
+  // those hooks or that content in the live data.
+  const emptyVolume = `${DATA_VOLUME}-empty`;
+  const hostEnvSaved = fs.readFileSync(host.hostEnv, "utf8");
+  const composeSaved = fs.readFileSync(host.composeFile, "utf8");
+  const hostileDatabase = path.join(host.composeDir, "hostile-database");
+  const hostileProgram = path.join(host.composeDir, "hostile-backup.mjs");
+  const liveContainer = composeContainer(host);
+  docker(["volume", "create", emptyVolume]);
+  try {
+    fs.writeFileSync(hostileDatabase, "not a database\n", { mode: 0o644 });
+    fs.writeFileSync(hostileProgram, "process.exit(1);\n", { mode: 0o644 });
+    const volumeLine = `LONGTAIL_DATA_VOLUME=${DATA_VOLUME}\n`;
+    assert.equal(hostEnvSaved.split(volumeLine).length - 1, 1, "the host environment names the data volume once");
+    writePrivate(host.hostEnv, hostEnvSaved.split(volumeLine).join(`LONGTAIL_DATA_VOLUME=${emptyVolume}\n`));
+    const edits = /** @type {[string, string][]} */ ([
+      ["      - longtail-data:/var/lib/longtail-forge\n",
+        "      - type: volume\n        source: longtail-data\n        target: /var/lib/longtail-forge\n        volume:\n          subpath: other-installation\n"],
+      ["      - /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001\n",
+        "      - /tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001\n      - /var/lib/longtail-forge/files\n"],
+      ["  longtail-forge:\n",
+        "  longtail-forge:\n    entrypoint: [\"/bin/false\"]\n    working_dir: /\n    configs:\n      - source: hostile-database\n        target: /var/lib/longtail-forge/longtail-forge.db\n"
+        + "      - source: hostile-injected\n        target: /var/lib/longtail-forge/hostile-injected\n"
+        + "    secrets:\n      - source: hostile-program\n        target: /opt/longtail-forge/scripts/backup.mjs\n"
+        + "    pre_stop:\n      - command: [\"sh\", \"-c\", \"echo pre-stop > /var/lib/longtail-forge/hostile-pre-stop\"]\n"
+        + "    post_start:\n      - command: [\"sh\", \"-c\", \"echo post-start > /var/lib/longtail-forge/hostile-post-start\"]\n"],
+      ["\nvolumes:\n", "\nconfigs:\n  hostile-database:\n    file: ./hostile-database\n  hostile-injected:\n    content: injected by Compose\n\nsecrets:\n  hostile-program:\n    file: ./hostile-backup.mjs\n\nvolumes:\n"],
+    ]);
+    let hostile = composeSaved;
+    for (const [from, to] of edits) {
+      assert.equal(hostile.split(from).length - 1, 1, `the Compose file must hold ${JSON.stringify(from)} once`);
+      hostile = hostile.split(from).join(to);
+    }
+    fs.writeFileSync(host.composeFile, hostile);
+    // Real Compose renders every one of those settings, so a container it created would have them. The
+    // rendering is read here and never printed.
+    const releaseEnv = String(/** @type {{ deployment?: { releaseEnv?: string } }} */ (JSON.parse(fs.readFileSync(path.join(host.stateRoot, "current.json"), "utf8"))).deployment?.releaseEnv);
+    const rendered = /** @type {{ services: Record<string, { entrypoint?: string[], working_dir?: string, tmpfs?: string[], configs?: { target?: string }[], secrets?: { target?: string }[], volumes?: { source?: string, target?: string, volume?: { subpath?: string } }[], pre_stop?: unknown[], post_start?: unknown[] }>, volumes: Record<string, { name?: string }> }} */ (JSON.parse(docker([
+      "compose", "--project-directory", host.composeDir, "--file", host.composeFile, "--env-file", host.hostEnv, "--env-file", releaseEnv, "config", "--format", "json"])));
+    const service = rendered.services["longtail-forge"];
+    const dataMount = service?.volumes?.find((mount) => mount.target === "/var/lib/longtail-forge");
+    assert.deepEqual({
+      volume: rendered.volumes[String(dataMount?.source)]?.name,
+      subpath: dataMount?.volume?.subpath,
+      entrypoint: service?.entrypoint,
+      workingDir: service?.working_dir,
+      tmpfsOverFiles: service?.tmpfs?.includes("/var/lib/longtail-forge/files"),
+      configOverDatabase: service?.configs?.some((entry) => entry.target === "/var/lib/longtail-forge/longtail-forge.db"),
+      injectedContent: service?.configs?.some((entry) => entry.target === "/var/lib/longtail-forge/hostile-injected"),
+      secretOverProgram: service?.secrets?.some((entry) => entry.target === "/opt/longtail-forge/scripts/backup.mjs"),
+      hooks: [service?.pre_stop?.length, service?.post_start?.length],
+    }, {
+      volume: emptyVolume, subpath: "other-installation", entrypoint: ["/bin/false"], workingDir: "/",
+      tmpfsOverFiles: true, configOverDatabase: true, injectedContent: true, secretOverProgram: true, hooks: [1, 1],
+    }, "real Compose must render every hostile setting");
+    const volumesBefore = docker(["volume", "ls", "--quiet"]).split("\n").filter(Boolean).sort();
+    const hostileRun = runScheduledBackup(work, host);
+    assert.equal(hostileRun.status, 0, `a configuration the steps never read must not change the backup:\n${hostileRun.stderr}`);
+    assert.equal(hostileRun.record.outcome, "succeeded");
+    assert.equal(composeContainer(host), liveContainer, "the stopped container is started again as itself");
+    assert.deepEqual(docker(["volume", "ls", "--quiet"]).split("\n").filter(Boolean).sort(), volumesBefore, "a step creates no volume, named or anonymous");
+    const hostileArchive = path.join(BACKUP_ROOT, String(hostileRun.record.result?.archive));
+    const inspectedHostile = inspectBackup(candidate, hostileArchive);
+    assert.equal(inspectedHostile.status, "verified", "the backup is the running container's verified data, not the empty volume's, the file config's, or another program's");
+    assert.ok(Number(inspectedHostile.manifest?.database?.migrationCount) > 0, "and holds the running container's migrated database");
+    assert.equal(inspectedHostile.manifest?.safeConfiguration?.environment, "production", "the step carries the running container's own runtime classification");
+    const liveEntries = docker(["run", "--rm", "--pull", "never", "--network", "none", "--user", "10001:10001", "--entrypoint", "ls",
+      "--volume", `${DATA_VOLUME}:/data:ro`, candidate.metadata.image.reference, "-A", "/data"]).split("\n").filter(Boolean);
+    assert.deepEqual(liveEntries.filter((name) => name.startsWith("hostile-")), [],
+      "no lifecycle hook of the configuration ran in the running container, and none of its content was copied in");
+    record("scheduled-backup-hostile-configuration", {
+      seconds: hostileRun.seconds, archive: path.basename(hostileArchive), migrationCount: inspectedHostile.manifest?.database?.migrationCount,
+      localObjectCount: inspectedHostile.manifest?.storage?.localObjectCount, safeConfiguration: inspectedHostile.manifest?.safeConfiguration,
+    });
+    // This run's backup is set aside, so the retention step below starts from the backups it seeds.
+    for (const file of [hostileArchive, `${hostileArchive}.sha256`]) fs.rmSync(file);
+  } finally {
+    fs.writeFileSync(host.composeFile, composeSaved);
+    writePrivate(host.hostEnv, hostEnvSaved);
+    fs.rmSync(hostileDatabase, { force: true });
+    fs.rmSync(hostileProgram, { force: true });
+    spawnSync("docker", ["volume", "rm", "--force", emptyVolume]);
+  }
+  // Then, with fifteen older scheduled backups in place, it backs up behind the curtain, restarts the
+  // unchanged release, keeps the fourteen newest, and passes only the backup it inspected to the hook.
+  const stamp = (/** @type {number} */ days) => new Date(Date.now() - days * 86_400_000).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const seeded = Array.from({ length: 15 }, (_, index) => `scheduled-${stamp(15 - index)}-${candidate.metadata.commitSha.slice(0, 12)}.ltfbackup.tgz`);
+  for (const name of seeded) {
+    for (const file of [name, `${name}.sha256`]) {
+      fs.writeFileSync(path.join(BACKUP_ROOT, file), `seeded ${file}\n`, { mode: 0o600 });
+      fs.chownSync(path.join(BACKUP_ROOT, file), 10001, 10001);
+    }
+  }
+  const scheduled = runScheduledBackup(work, host);
+  assert.equal(scheduled.status, 0, `scheduled backup failed:\n${scheduled.stderr}`);
+  assert.equal(scheduled.record.outcome, "succeeded");
+  const archive = String(scheduled.record.result?.archive);
+  const inspectedScheduled = inspectBackup(candidate, path.join(BACKUP_ROOT, archive));
+  assert.equal(inspectedScheduled.status, "verified", "the scheduled backup must be a verified whole-instance backup");
+  assert.equal(inspectedScheduled.manifest?.appVersion, candidate.metadata.version);
+  assert.deepEqual(scheduled.hookCalls, [{ count: 2, args: ["--archive", path.join(BACKUP_ROOT, archive)], markerPresent: false, sidecarVerified: true }],
+    "the copy hook receives exactly the inspected backup, once, after the curtain lifts");
+  assert.deepEqual(scheduled.record.result?.retention, { status: "pruned", removed: 2, orphanSidecars: 0 });
+  const kept = scheduledBackupNames();
+  assert.equal(kept.length, 14);
+  assert.ok(!kept.includes(String(seeded[0])) && !kept.includes(String(seeded[1])) && kept.includes(archive), "the two oldest go, and this run's stays");
+  assert.deepEqual(fs.readdirSync(SCHEDULED_PENDING_ROOT), [], "only an inspected backup leaves the staging directory, and nothing stays behind");
+  assert.equal(fs.existsSync(host.marker), false, "the curtain lifts once the release verifies");
+  await api.expectIdentity(candidate);
+  await api.expectList(await api.login(), baseline.listId, 200);
+  record("scheduled-backup", { seconds: scheduled.seconds, archive, retention: scheduled.record.result?.retention, copy: scheduled.record.result?.copy, contendedSeconds: contended.seconds });
+
+  // A backup that runs out of its time, on the real image and Docker. The operator audit is swapped for
+  // a FIFO that no one reads, so the real `backup.mjs create` writes its archive into the staging
+  // directory and then blocks. The step is stopped at the backup's limit, scaled to 30 seconds; its
+  // one-off container is removed; and recovery, with its own time, starts the stopped container as
+  // itself, verifies it, and lowers the curtain.
+  const audit = path.join(BACKUP_ROOT, "backup-operations.jsonl");
+  const auditSaved = path.join(work, "backup-operations.jsonl.saved");
+  const hadAudit = fs.existsSync(audit);
+  if (hadAudit) fs.renameSync(audit, auditSaved);
+  run("mkfifo", ["-m", "0600", audit]);
+  fs.chownSync(audit, 10001, 10001);
+  const containerBefore = composeContainer(host);
+  try {
+    const timedOut = runScheduledBackup(work, host, { helper: scaledScheduledHelper(work, 30) });
+    assert.equal(timedOut.status, 1, `the timed-out backup must fail:\n${timedOut.stderr}`);
+    assert.match(timedOut.stderr, /the backup did not finish within its time limit/);
+    assert.match(timedOut.stderr, /the unchanged release was restarted and verified/);
+    assert.equal(timedOut.record.failureClass, "backup-timed-out-recovered");
+    assert.deepEqual(scheduledBackupNames(), kept, "an archive that was never inspected never joins the backups");
+    assert.deepEqual(fs.readdirSync(SCHEDULED_PENDING_ROOT), [], "and is discarded from the staging directory");
+    assert.equal(docker(["ps", "--all", "--quiet", "--filter", "name=longtail-forge-scheduled-backup-"]).trim(), "", "no step container outlives the backup");
+    assert.equal(docker(["ps", "--all", "--quiet", "--filter", "label=longtail-forge.scheduled-backup.operation"]).trim(), "", "nor any container with a step's label");
+    assert.deepEqual(timedOut.hookCalls, [], "the copy hook never runs after a failed backup");
+    assert.equal(composeContainer(host), containerBefore, "the stopped container is started again as itself");
+    assert.equal(fs.existsSync(host.marker), false, "the curtain lifts once the restarted release verifies");
+    await api.expectIdentity(candidate);
+    await api.expectList(await api.login(), baseline.listId, 200);
+    record("scheduled-backup-timed-out", { seconds: timedOut.seconds, failureClass: timedOut.record.failureClass });
+  } finally {
+    fs.rmSync(audit, { force: true });
+    if (hadAudit) fs.renameSync(auditSaved, audit);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -474,7 +639,25 @@ async function runDemoLifecycle(work, tls, previous, candidate) {
   const upgraded = runtimeProbe(host);
   assert.equal(upgraded.image, candidate.metadata.image.reference);
   assert.deepEqual(upgraded.packageManagers, [], "the candidate runtime must ship no package manager");
+  // Its deployment-backup bound: the baseline deployment's backup goes, and the demo keeps only the one
+  // its rollback names, which the running prior release wrote as the container user.
+  const kept = path.basename(String(readState(host, "previous.json").deployment?.rollbackBackup));
+  const bound = /** @type {{ deploymentBackups?: { kept?: string, removed?: number } }} */ (JSON.parse(lastJsonLine(upgrade.stdout))).deploymentBackups;
+  assert.equal(bound?.kept, kept, "the demo deploy must report the backup it kept");
+  assert.ok((bound?.removed ?? 0) >= 2, "the baseline deployment's backup and its sidecar must go");
+  assert.deepEqual(deploymentBackupNames(), [kept, `${kept}.sha256`], "the demo keeps only the deployment backup its rollback names");
   record("demo-upgrade", { seconds: upgrade.seconds, helper: lastJsonLine(upgrade.stdout), runtime: upgraded });
+
+  // The scheduled backup refuses the public demo before the curtain, and takes no backup.
+  const refusedBackup = runScheduledBackup(work, host);
+  assert.equal(refusedBackup.status, 1, "the scheduled backup must refuse the public demo");
+  assert.match(refusedBackup.stderr, /the scheduled backup refuses the public demo/);
+  assert.equal(refusedBackup.record.failureClass, "refused-public-demo");
+  assert.deepEqual(scheduledBackupNames(), []);
+  assert.deepEqual(refusedBackup.hookCalls, []);
+  assert.equal(fs.existsSync(host.marker), false);
+  await api.expectIdentity(candidate);
+  record("demo-scheduled-backup-refused", { refusal: lastLine(refusedBackup.stderr) });
 
   // A guarded manual reset after the upgrade must build its candidate with the newly deployed image.
   const reset = await runReset(host, 1);
@@ -1566,6 +1749,83 @@ function runHelperWithFullBackupRoot(host, mode, release) {
   }
 }
 
+/**
+ * Run the scheduled backup's `run` command, the way its timer does, with a copy hook that records the
+ * arguments it was given, whether the curtain was up, and whether the archive matched its sidecar.
+ * The host has no alert files, so a failure reaches only the journal and the run's record.
+ * @param {string} work @param {Host} host @param {{ holdLock?: boolean, helper?: string }} [options]
+ */
+function runScheduledBackup(work, host, options = {}) {
+  spawnSync("sleep", ["1.05"]);
+  const state = path.join(work, "scheduled-backup");
+  fs.mkdirSync(state, { recursive: true, mode: 0o755 });
+  const hookLog = path.join(state, "hook.jsonl");
+  const hook = path.join(state, "copy-hook");
+  fs.writeFileSync(hook, [
+    "#!/usr/bin/env bash",
+    "set -euo pipefail",
+    "name=\"$(basename \"$2\")\"",
+    "sidecar=false; if (cd \"$(dirname \"$2\")\" && sha256sum --check --status \"$name.sha256\"); then sidecar=true; fi",
+    `curtain=false; if test -e ${JSON.stringify(host.marker)}; then curtain=true; fi`,
+    `jq -cn --arg count "$#" --arg first "\${1:-}" --arg second "\${2:-}" --argjson curtain "$curtain" --argjson sidecar "$sidecar" '{count: ($count | tonumber), args: [$first, $second], markerPresent: $curtain, sidecarVerified: $sidecar}' >> ${JSON.stringify(hookLog)}`,
+    "printf '{\"ok\":true,\"archive\":\"%s\",\"stored\":\"qualification-copy\",\"sha256\":\"%s\",\"bytes\":0}\\n' \"$name\" \"$(printf '%064d' 0)\"",
+    "",
+  ].join("\n"), { mode: 0o755 });
+  const scheduleEnv = path.join(host.root, "etc", "scheduled-backup.env");
+  writePrivate(scheduleEnv, `LTF_SCHEDULED_BACKUP_ENABLED=true\nLTF_SCHEDULED_BACKUP_COPY_HOOK=${hook}\n`);
+  const before = fs.existsSync(hookLog) ? fs.readFileSync(hookLog, "utf8").split("\n").filter(Boolean).length : 0;
+  const lock = path.join(host.deployRoot, "compose-operation.lock");
+  const holder = options.holdLock ? spawn("flock", ["-o", lock, "sleep", "60"], { stdio: "ignore" }) : null;
+  try {
+    if (holder) {
+      const deadline = Date.now() + 10_000;
+      while (spawnSync("flock", ["-n", lock, "true"]).status === 0) {
+        assert.ok(Date.now() < deadline, "the lock holder never took the lock");
+        spawnSync("sleep", ["0.05"]);
+      }
+    }
+    const started = Date.now();
+    const result = spawnSync("bash", [options.helper ?? SCHEDULED_HELPER, "run", "--trigger", "manual"], {
+      encoding: "utf8",
+      env: { PATH: "/usr/sbin:/usr/bin:/sbin:/bin", HOME: "/root", LANG: "C.UTF-8", LTF_COMPOSE_HELPER_ENV: host.helperEnv, LTF_SCHEDULED_BACKUP_ENV: scheduleEnv },
+      timeout: 900_000,
+    });
+    const records = fs.readFileSync(path.join(host.deployRoot, "scheduled-backups.jsonl"), "utf8").split("\n").filter(Boolean);
+    const hookCalls = fs.existsSync(hookLog) ? fs.readFileSync(hookLog, "utf8").split("\n").filter(Boolean).slice(before) : [];
+    const outcome = {
+      status: result.status ?? 1,
+      stdout: String(result.stdout || ""),
+      stderr: String(result.stderr || ""),
+      seconds: Math.round((Date.now() - started) / 100) / 10,
+      record: /** @type {{ outcome?: string, failureClass?: string | null, result?: { archive?: string, retention?: { status?: string, removed?: number }, copy?: { status?: string } } }} */ (JSON.parse(records.at(-1) || "{}")),
+      hookCalls: hookCalls.map((line) => /** @type {{ count: number, args: string[], markerPresent: boolean, sidecarVerified: boolean }} */ (JSON.parse(line))),
+    };
+    console.log(`[scheduled backup] exit ${outcome.status} in ${outcome.seconds}s${outcome.status === 0 ? "" : `: ${lastLine(outcome.stderr)}`}`);
+    return outcome;
+  } finally {
+    holder?.kill("SIGKILL");
+  }
+}
+
+/**
+ * The scheduled backup with only its own work's limit scaled down, the replacement applied exactly
+ * once, so the qualification never runs against a limit the helper no longer has.
+ * @param {string} work @param {number} seconds
+ */
+function scaledScheduledHelper(work, seconds) {
+  const source = fs.readFileSync(SCHEDULED_HELPER, "utf8");
+  const anchor = "readonly BACKUP_LIMIT=7200\n";
+  assert.equal(source.split(anchor).length - 1, 1, "the scheduled backup must define its backup limit exactly once");
+  const target = path.join(work, `scheduled-backup-limit-${seconds}`);
+  fs.writeFileSync(target, source.split(anchor).join(`readonly BACKUP_LIMIT=${seconds}\n`), { mode: 0o755 });
+  return target;
+}
+
+/** The scheduled backups in the backup root, archives only, oldest first. */
+function scheduledBackupNames() {
+  return fs.readdirSync(BACKUP_ROOT).filter((name) => /^scheduled-\d{8}T\d{6}Z-[a-f0-9]{12}\.ltfbackup\.tgz$/.test(name)).sort();
+}
+
 /** @param {string} text */
 function causeLine(text) {
   return text.split("\n").find((line) => /no space left on device/i.test(line))?.trim() ?? "";
@@ -1597,17 +1857,22 @@ function latestBackup(prefix) {
   return path.join(BACKUP_ROOT, name);
 }
 
+/** The deployment backups in the backup root, archives and sidecars, by name. */
+function deploymentBackupNames() {
+  return fs.readdirSync(BACKUP_ROOT).filter((name) => /^(pre-upgrade|pre-rollback|pre-restore|pre-compose-cutover)-/.test(name)).sort();
+}
+
 /**
  * Inspect a protected backup with a release image, read-only and without network.
  * @param {Release} release @param {string} archive
- * @returns {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number } } }}
+ * @returns {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number }, database?: { migrationCount?: number }, safeConfiguration?: Record<string, unknown> } }}
  */
 function inspectBackup(release, archive) {
   const output = docker(["run", "--rm", "--network", "none", "--read-only", "--tmpfs", "/tmp:rw,size=256m,mode=1777", "--user", "10001:10001",
     "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
     "--volume", `${BACKUP_ROOT}:/var/backups/longtail-forge:ro`, "--entrypoint", "node", release.metadata.image.reference,
     "scripts/backup.mjs", "inspect", "--archive", `/var/backups/longtail-forge/${path.basename(archive)}`]);
-  return /** @type {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number } } }} */ (JSON.parse(output));
+  return /** @type {{ status?: string, restorable?: boolean, manifest?: { appVersion?: string, storage?: { localObjectCount?: number }, database?: { migrationCount?: number }, safeConfiguration?: Record<string, unknown> } }} */ (JSON.parse(output));
 }
 
 /** @param {string} archive @param {ReturnType<typeof inspectBackup>} inspected */
@@ -1623,9 +1888,9 @@ function summarizeBackup(archive, inspected) {
   };
 }
 
-/** @param {Host} host @param {string} name @returns {{ commitSha?: string }} */
+/** @param {Host} host @param {string} name @returns {{ commitSha?: string, deployment?: { rollbackBackup?: string } }} */
 function readState(host, name) {
-  return /** @type {{ commitSha?: string }} */ (JSON.parse(fs.readFileSync(path.join(host.stateRoot, name), "utf8")));
+  return /** @type {{ commitSha?: string, deployment?: { rollbackBackup?: string } }} */ (JSON.parse(fs.readFileSync(path.join(host.stateRoot, name), "utf8")));
 }
 
 // ---------------------------------------------------------------------------------------------

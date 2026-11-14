@@ -113,7 +113,7 @@ jobs:
     needs: classify_changes
     if: ${{ always() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: GitHub-only documentation proxy fast path
         if: needs.classify_changes.outputs.github_only_docs == 'true'

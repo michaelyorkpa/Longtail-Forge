@@ -9,6 +9,7 @@ const PUBLIC_DEMO_FAILED_PREFIX = ".longtail-public-demo-failed-";
 const PUBLIC_DEMO_BUILD_PREFIX = ".longtail-public-demo-build-";
 const PUBLIC_DEMO_STALE_SUFFIX = "-stale-candidate";
 const PUBLIC_DEMO_STALE_CONTRACT = "longtail-forge-public-demo-stale-candidate-v1";
+const PUBLIC_DEMO_STALE_RECORD = "stale-candidate.json";
 // A retired unit selected for pruning is renamed to this prefix before it is deleted, so an
 // interrupted deletion leaves a name the next prune finishes rather than a partial retired unit.
 const PUBLIC_DEMO_PRUNING_PREFIX = ".longtail-public-demo-pruning-";
@@ -79,9 +80,33 @@ const OPERATION_PHASES = new Set([
  * @property {number} selected
  * @property {readonly string[]} [selectedOperations]
  * @property {number} skipped
+ * @property {Readonly<PublicDemoStalePruneOutcome>} staleCandidates
  * @property {string} status
  * @property {string} target
  * @property {number} tombstones
+ */
+
+/**
+ * The stale-candidate copies a prune considered. `retained` counts those inside the retained window,
+ * `incidents` those whose reset the host names as an incident, and `skipped` those whose own record
+ * does not prove what they are. Plan mode names the operations whose copies it would remove.
+ * @typedef {object} PublicDemoStalePruneOutcome
+ * @property {number} incidents
+ * @property {number} retained
+ * @property {number} selected
+ * @property {readonly string[]} [selectedOperations]
+ * @property {number} skipped
+ */
+
+/**
+ * The record a stale-candidate quarantine writes beside what it moved. Read from disk, so every
+ * member is checked before it is trusted.
+ * @typedef {object} PublicDemoStaleCandidateRecord
+ * @property {unknown} [contract]
+ * @property {unknown} [generatedAt]
+ * @property {unknown} [moved]
+ * @property {unknown} [operationId]
+ * @property {unknown} [target]
  */
 
 /**
@@ -110,6 +135,7 @@ const OPERATION_PHASES = new Set([
  * @property {number} [selected]
  * @property {readonly string[]} [selectedOperations]
  * @property {number} [skipped]
+ * @property {Readonly<PublicDemoStalePruneOutcome>} [staleCandidates]
  * @property {number} [tombstones]
  * @property {string} status
  * @property {string} target
@@ -504,7 +530,7 @@ async function quarantineStaleCandidate(paths, operationId) {
     moved.push(build);
   }
   const record = { contract: PUBLIC_DEMO_STALE_CONTRACT, generatedAt: new Date().toISOString(), moved, operationId, target: DEMO_DATA_TARGET };
-  await fs.writeFile(path.join(evidenceRoot, "stale-candidate.json"), `${JSON.stringify(record, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+  await fs.writeFile(path.join(evidenceRoot, PUBLIC_DEMO_STALE_RECORD), `${JSON.stringify(record, null, 2)}\n`, { flag: "wx", mode: 0o600 });
   return Object.freeze({ moved: moved.length, operationId, status: "stale-candidate-quarantined", target: DEMO_DATA_TARGET });
 }
 
@@ -522,6 +548,12 @@ async function quarantineStaleCandidate(paths, operationId) {
  * the next apply finishes after checking it too. Plan mode reports the same selection and changes
  * nothing. A cap bounds every directory the apply would delete, tombstones included: more than that
  * removes nothing and reports why. `removed` counts the same directories.
+ *
+ * A stale-candidate copy, `.longtail-public-demo-failed-<operation>-stale-candidate`, is kept as long
+ * as its reset's retired unit would be. Its candidate was never served, so it holds no
+ * visitor-entered content. It is removed once its own record proves what it is, the host does not
+ * name its reset as an incident, and both retained completed resets are newer. Its exact shape is
+ * checked like a unit's, it is removed through a tombstone, and it counts against the same cap.
  * @param {PublicDemoActivationPaths} paths
  * @param {{ incidentOperations: ReadonlySet<string>, maxRemovals: number | null, mode: "apply" | "plan" }} options
  * @returns {Promise<Readonly<PublicDemoPruneOutcome>>}
@@ -533,7 +565,10 @@ async function pruneRetiredUnits(paths, { incidentOperations, maxRemovals, mode 
   const entries = (await fs.readdir(paths.dataRoot)).sort();
   const tombstones = entries.filter((entry) => entry.startsWith(PUBLIC_DEMO_PRUNING_PREFIX));
   for (const tombstone of tombstones) {
-    if (!OPERATION_ID_PATTERN.test(tombstone.slice(PUBLIC_DEMO_PRUNING_PREFIX.length))) {
+    // A unit's tombstone ends with its operation identity, and a stale-candidate copy's adds its suffix.
+    const named = tombstone.slice(PUBLIC_DEMO_PRUNING_PREFIX.length);
+    const operationId = named.endsWith(PUBLIC_DEMO_STALE_SUFFIX) ? named.slice(0, -PUBLIC_DEMO_STALE_SUFFIX.length) : named;
+    if (!OPERATION_ID_PATTERN.test(operationId)) {
       throw new Error("A public-demo pruning tombstone has an unexpected name; nothing was removed.");
     }
     await assertRealDirectory(path.join(paths.dataRoot, tombstone), "public-demo pruning tombstone");
@@ -558,6 +593,25 @@ async function pruneRetiredUnits(paths, { incidentOperations, maxRemovals, mode 
     await assertAbsent(path.join(paths.dataRoot, `${PUBLIC_DEMO_PRUNING_PREFIX}${operationId}`), "public-demo pruning tombstone");
   }
 
+  // Stale-candidate copies share the retired units' window: one older than both retained completed
+  // resets is outside it. With fewer than two retained, none is.
+  const oldestRetained = retained.length === PUBLIC_DEMO_RETAINED_UNITS ? retained[retained.length - 1] : null;
+  /** @type {string[]} */
+  const staleSelected = [];
+  const stale = { incidents: 0, retained: 0, skipped: 0 };
+  for (const entry of entries.filter((name) => name.startsWith(PUBLIC_DEMO_FAILED_PREFIX) && name.endsWith(PUBLIC_DEMO_STALE_SUFFIX))) {
+    const operationId = entry.slice(PUBLIC_DEMO_FAILED_PREFIX.length, -PUBLIC_DEMO_STALE_SUFFIX.length);
+    if (!(await readStaleCandidateRecord(path.join(paths.dataRoot, entry), operationId))) stale.skipped += 1;
+    else if (incidentOperations.has(operationId)) stale.incidents += 1;
+    else if (oldestRetained === null || newestOperationFirst(operationId, oldestRetained) <= 0) stale.retained += 1;
+    else staleSelected.push(operationId);
+  }
+  staleSelected.sort(newestOperationFirst);
+  for (const operationId of staleSelected) {
+    await assertStaleCandidateShape(path.join(paths.dataRoot, staleCandidateName(operationId)), operationId);
+    await assertAbsent(path.join(paths.dataRoot, staleTombstoneName(operationId)), "public-demo pruning tombstone");
+  }
+
   const outcome = (/** @type {string} */ status, /** @type {number} */ removed) => Object.freeze({
     contract: PUBLIC_DEMO_PRUNE_CONTRACT,
     incidents,
@@ -567,12 +621,17 @@ async function pruneRetiredUnits(paths, { incidentOperations, maxRemovals, mode 
     selected: selected.length,
     ...(mode === "plan" ? { selectedOperations: Object.freeze([...selected]) } : {}),
     skipped,
+    staleCandidates: Object.freeze({
+      ...stale,
+      selected: staleSelected.length,
+      ...(mode === "plan" ? { selectedOperations: Object.freeze([...staleSelected]) } : {}),
+    }),
     status,
     target: DEMO_DATA_TARGET,
     tombstones: tombstones.length,
   });
   // A tombstone is a deletion too, so it counts against the cap and in what was removed.
-  const deletions = tombstones.length + selected.length;
+  const deletions = tombstones.length + selected.length + staleSelected.length;
   if (mode === "plan") return outcome("prune-planned", 0);
   if (maxRemovals !== null && deletions > maxRemovals) return outcome("prune-cap-exceeded", 0);
 
@@ -584,7 +643,84 @@ async function pruneRetiredUnits(paths, { incidentOperations, maxRemovals, mode 
     await fs.rename(path.join(paths.dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`), tombstone);
     await fs.rm(tombstone, { recursive: true, force: false });
   }
+  for (const operationId of staleSelected) {
+    const tombstone = path.join(paths.dataRoot, staleTombstoneName(operationId));
+    await fs.rename(path.join(paths.dataRoot, staleCandidateName(operationId)), tombstone);
+    await fs.rm(tombstone, { recursive: true, force: false });
+  }
   return outcome("pruned", deletions);
+}
+
+/** @param {string} operationId */
+function staleCandidateName(operationId) {
+  return `${PUBLIC_DEMO_FAILED_PREFIX}${operationId}${PUBLIC_DEMO_STALE_SUFFIX}`;
+}
+
+/**
+ * A stale copy's tombstone keeps the suffix, so it can never take the name of its reset's unit
+ * tombstone. Its remainder still reads as an operation identity, which the tombstone check requires.
+ * @param {string} operationId
+ */
+function staleTombstoneName(operationId) {
+  return `${PUBLIC_DEMO_PRUNING_PREFIX}${operationId}${PUBLIC_DEMO_STALE_SUFFIX}`;
+}
+
+/**
+ * The record of a real stale-candidate directory, when it proves that this operation's quarantine
+ * wrote it, or null. Any other entry under the stale-candidate name is left alone.
+ * @param {string} root
+ * @param {string} operationId
+ * @returns {Promise<{ moved: readonly string[] } | null>}
+ */
+async function readStaleCandidateRecord(root, operationId) {
+  if (!OPERATION_ID_PATTERN.test(operationId)) return null;
+  const directory = await fs.lstat(root);
+  if (!directory.isDirectory() || directory.isSymbolicLink()) return null;
+  const recordPath = path.join(root, PUBLIC_DEMO_STALE_RECORD);
+  const record = await fs.lstat(recordPath).catch(() => null);
+  if (!record?.isFile() || record.isSymbolicLink()) return null;
+  /** @type {PublicDemoStaleCandidateRecord} */
+  let parsed;
+  try {
+    parsed = JSON.parse(await fs.readFile(recordPath, "utf8"));
+  } catch {
+    return null;
+  }
+  const { moved } = parsed;
+  if (parsed.contract !== PUBLIC_DEMO_STALE_CONTRACT || parsed.operationId !== operationId || parsed.target !== DEMO_DATA_TARGET
+    || !isIsoTimestamp(parsed.generatedAt) || !Array.isArray(moved) || moved.length === 0
+    || moved.some((entry) => typeof entry !== "string") || new Set(moved).size !== moved.length) {
+    return null;
+  }
+  return { moved: Object.freeze([.../** @type {string[]} */ (moved)]) };
+}
+
+/**
+ * Require the exact shape a quarantine leaves: its record, and exactly what the record says it moved,
+ * the candidate and any partial builds, with no link anywhere beneath.
+ * @param {string} root
+ * @param {string} operationId
+ */
+async function assertStaleCandidateShape(root, operationId) {
+  const unexpected = "A stale-candidate copy selected for pruning has an unexpected shape; nothing was removed.";
+  const record = await readStaleCandidateRecord(root, operationId);
+  if (!record) throw new Error(unexpected);
+  const entries = (await fs.readdir(root)).sort();
+  const expected = [...record.moved, PUBLIC_DEMO_STALE_RECORD].sort();
+  if (entries.length !== expected.length || entries.some((entry, index) => entry !== expected[index])) throw new Error(unexpected);
+  for (const entry of record.moved) {
+    const target = path.join(root, entry);
+    if (entry === "candidate") {
+      await assertRealDirectory(target, "stale public-demo candidate");
+      const allowed = [...UNIT_ENTRIES, ...SQLITE_SIDECARS];
+      if ((await fs.readdir(target)).some((name) => !allowed.includes(name))) throw new Error(unexpected);
+    } else if (BUILD_DIRECTORY_PATTERN.test(entry)) {
+      await assertRealDirectory(target, "stale public-demo build");
+    } else {
+      throw new Error(unexpected);
+    }
+  }
+  await assertNoLinks(root);
 }
 
 /**

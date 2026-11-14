@@ -1,5 +1,218 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.55 - Preview data durability on power loss
+
+**Model: High Effort** — It sets how much acknowledged real data a power cut may lose, changes the durability setting on both deployments, and adds scheduled backups. A wrong setting silently loses writes, and a wrong schedule or retention loses recovery points.
+
+**Completed on 2026-11-11** in two pull requests into `nightly`: the dependency fold, #909, and the durability work. Still pending, each under the operator's separate authorization: the promotion, the release, and the rollout listed under the acceptance criteria.
+
+**Status.** The operator asked for it on 2026-10-15. On 2026-10-30 they ruled that it ships as `0.33.33.55`, within the `0.33.33` closeout, so that durability is built in early. Its decisions come before any implementation. The operator settled them on 2026-11-05. On 2026-11-11 they chose the server that receives the off-server copies, added three items to the scope, and asked for the open Dependabot backlog as this patch's first pull request; see Decisions and [the dependency fold](#dependency-fold-the-first-pull-request). Later that day, with the host facts in hand, they kept `full` everywhere at its measured cost, chose encrypted copies and a receiver script on the destination, and extended the demo's deployment-backup bound to its cutover backups.
+
+**Why.**
+- **The outage.** On 2026-10-14 the power was out for over an hour. The UPS bridges only short outages, and it is not connected to the server for any shutdown signal. It stays that way until the deployment moves off-site, so a long outage is a hard power cut.
+- **The setting.** Both deployments run SQLite in WAL mode with the default `LONGTAIL_SQLITE_SYNCHRONOUS=normal`. That keeps the database consistent through a power cut, but can lose transactions that were acknowledged after the last time the WAL was synced to disk. An integrity check cannot show that loss.
+- **The backups.** Whole-instance backups are taken only around lifecycle operations (deploy, rollback, restore, and each demo reset), and they stay on the same server. There is no schedule, and no off-server copy. Scheduling is planned for 0.38.4.
+
+**Host facts, 2026-11-11.** Codex collected them read-only. The record stays in the operator's archive, outside this repository, because it names hosts and addresses.
+- **The write cost of `full`,** in WAL mode, for single-row transactions, in a throwaway container on each deployment's own dataset:
+  - **The preview:** a median commit of 8.5 ms against 0.12 ms with `normal`, about 36 commits a second, and a 99th percentile of 159 ms.
+  - **The demo:** 22.9 ms against 0.12 ms, about 25 a second, and a 99th percentile of 185 ms.
+  - **Each flush holds the server,** because better-sqlite3 is synchronous.
+- **Storage.** Both datasets have `sync=standard` and `logbias=latency`. The pool is one RAIDZ2 vdev of four 3 TB, 7,200 rpm SAS disks, with no separate log device, and its last scrub found no errors. Neither the disks' write-cache setting nor the controller between them and ZFS was reported.
+- **The live setting is not in the logs.** In production the server logs `database.ready` without the SQLite health line. The proof is startup's own check, which refuses to serve with any `synchronous` value but the configured one, and Runtime Diagnostics, which reports it to an administrator.
+- **The demo's candidate seed** runs with a minimal environment, so it takes the configuration default. Four local seeds took the same time under both settings, so a candidate build commits few transactions.
+- **The off-server server.** `raytec-nyc3-01` is a DigitalOcean droplet, separate from the hardware that runs the preview and the demo, with 44 GB free. It is a shared web host, and its `rrsync` (rsync 3.2.7) cannot refuse an overwrite.
+  - **Its name does not resolve to it.** So the preview's protected configuration names the droplet's address and pins its host key.
+- **The preview** has no backup timer and no `age`, and Ubuntu's `age` 1.1.1 is available to it. It holds 14 deployment backups, 80.6 MB in all, the newest 7.0 MB.
+- **The demo** holds 28 deployment-backup pairs (19.4 MB), and three `pre-compose-cutover-` pairs from 2026-08-04, beside the two reset backups that reset retention keeps.
+
+Proposed scope:
+
+- [x] **Acknowledged-write durability everywhere.** Set `LONGTAIL_SQLITE_SYNCHRONOUS=full` on the preview and the demo. The setting already exists, and startup verifies it.
+  - **First,** measure its write cost on the real ZFS-in-LXC stack. **Measured:** see the host facts. The operator kept `full` everywhere at that cost.
+  - **The shipped default becomes `full`** for new installs: the configuration default, `.env.example`, the runtime-configuration guide, and `DECISIONS.md`'s WAL default. `normal` stays available.
+  - **Done.** The default is `full`, and a unit test fails if it reverts. The Compose environment examples do not set the value, so a host whose file follows them takes `full` when this release deploys. The rollout checks each host's file for the key without printing it, and proves the live value.
+- [x] **Storage that honors flushes.**
+  - **A read-only check** that the guest's ZFS dataset has `sync=standard`. A value of `disabled` silently ignores every flush. **Confirmed** for both datasets.
+  - **The disk.** Record whether it is safe across power loss: one more read-only check by the operator on the Proxmox host, of each pool disk's write-cache mode and of the storage controller.
+    - **Safe, from the operator's check of 2026-11-12.** All four pool disks report `write through`, so their volatile write cache is off. They sit behind a Broadcom/LSI MegaRAID SAS2008 controller, a chip with no cache memory of its own. Nothing between ZFS and the platters can hold an acknowledged write in volatile memory, so a flush ZFS requests reaches the disks. Those synchronous writes to spinning disks are also why `full` costs what the host facts measured.
+  - **Changes** to Proxmox or ZFS stay the operator's.
+- [x] **Scheduled backups,** pulled forward from 0.38.4 in their minimal form. A host timer for Compose installs:
+  - runs the existing whole-instance backup under the shared lifecycle lock, and inspects it;
+  - runs nightly, and keeps the 14 newest scheduled backups. It never deletes the newest valid one, or any backup it did not schedule;
+  - alerts on failure through the restart-recovery patch's Discord alert, and sends a heartbeat on success;
+  - **never runs on the public demo.** The demo resets hourly, so it has nothing to recover, and a nightly copy would keep visitor-entered content for 14 days. Operator ruling, 2026-11-05.
+  - **The design.** A root helper, `longtail-forge-scheduled-backup`, run nightly by a systemd timer.
+    - **The backup.** Under the lifecycle lock, it raises the maintenance curtain, stops the application, and takes the backup as `scheduled-<UTC>-<commit>.ltfbackup.tgz`, as the deploy helper takes its own. It inspects the backup, then starts the unchanged release and lowers the curtain once the release verifies. A held lock exits 75, as the reset does. A backup that fails restarts the unchanged release.
+    - **After the outage.** Only then does retention run, and then the copy hook, so neither lengthens the outage.
+    - **Retention** considers only exact scheduled names: plain files with one link, owned by the backup root's owner. It checks every one before removing any.
+    - **The demo refusal** comes before the curtain: the resolved `DEMO_MODE` must be exactly `false`.
+    - **Alerts.** Its `run` command runs the backup as a child, then sends the heartbeat or the Discord alert. Their URLs are in root-only files of the preview's own, which only the operator fills, through Codex.
+  - **Done** as designed. An archive that never passed inspection is also removed, so retention never counts it and the hook never sees it.
+- [x] **Bounded deployment backups on the demo.** Each deploy, rollback, or restore leaves a whole-instance backup (`pre-upgrade-`, `pre-rollback-`, or `pre-restore-`), and nothing removes them, so each keeps the visitor-entered content of its moment. On the demo, keep only the backup the recorded rollback names, and remove the rest under the lifecycle lock, with the reset-retention patch's checks: plain files owned by the backup root's owner, every check before any removal. The preview keeps its deployment backups. Operator ruling, 2026-11-05: the reset-retention patch states this gap in `DECISIONS.md`, and this patch closes it before 0.33.34's privacy notices cite the policy.
+  - **The cutover backups too** (operator, 2026-11-11). The three `pre-compose-cutover-` pairs are removed by the same bound.
+  - **The design.** The Compose deploy helper applies it on the demo, after a deploy or rollback verifies and its records are written. It keeps exactly the backup that `previous.json` names. If a check refuses, it removes nothing, says that the release is live and verified, and exits non-zero, so the workflow shows the refusal. This patch's own deploy applies it, which leaves the demo one deployment backup.
+  - **Done** as designed. The deploy's final line reports the kept backup and the number of files removed.
+- [x] **An off-server copy.**
+  - **The mechanism.** A documented, admin-chosen destination, reached through a post-backup copy hook that copies only inspected archives and their checksums. The checksum is verified again at the destination.
+  - **The first destination** is one of the operator's existing servers.
+  - **What stays later.** Remote, S3-compatible, and encrypted managed destinations stay in 0.38.4.
+  - **The hook.** The scheduled backup passes the shipped hook, `longtail-forge-offsite-copy`, exactly the archive it inspected and its checksum. The hook packs the pair, encrypts it with `age` to the operator's public key, and sends it over SSH. It stages only in a root-only directory, and removes the stage afterwards.
+  - **The receiver,** on the destination. The preview's key may run only `longtail-forge-offsite-receive`, under a dedicated account, with no forwarding.
+    - **Each copy.** It reads one copy, up to a size cap, and checks its declared size and SHA-256 and that it is an `age` file. It stores the copy under a name it chooses, and never overwrites.
+    - **Retention.** It keeps each copy 14 days from receipt, and removes expired copies only when a later copy arrives, so copies outlive a preview that stops sending.
+    - **Its caps.** Above its count and daily caps, it refuses rather than evicts. A refusal fails the nightly job, which alerts.
+  - **Done** as designed, with two more caps, because the destination hosts other sites: 10 GiB of copies in all, and 10 GiB of its disk left free. Setting it up, on the preview and on the destination, is part of the rollout.
+- [ ] **A restore drill.** Restore a scheduled backup into a disposable instance, and prove database and Files consistency.
+  - **Where.** On the preview host, into a disposable container and volume of the same release, so it never touches the live data. Separately, the first off-server copy is decrypted once on the operator's workstation, and its checksum is verified.
+
+Added by the operator on 2026-11-11:
+
+- [x] **Stale candidates that a completed reset moves aside.** A reset that finds a verified candidate or partial build left behind, because activation never began, moves it into `.longtail-public-demo-failed-<operation>-stale-candidate` in the data volume, named after that reset. That reset then completes, so the copy belongs to no incident. Retention never removes failed evidence, and the incident-disposal procedure takes only an incident's copies, so nothing ever removes it.
+  - **Its content.** A candidate is seeded from the fresh-start baseline and is never served, so it should hold no visitor-entered content. Confirm that from the code before any wording relies on it.
+    - **Confirmed.** The seed writes into a fresh staging directory, and only activation serves a candidate, so a candidate that activation never began holds no visitor-entered content.
+  - **The fix.** Bound these copies under the lifecycle lock with the reset-retention patch's checks (exact shape, no link anywhere beneath, every check before any removal), or give them a documented disposal procedure. Either way, `docs/demo-data-operations.md` states how long they stay.
+    - **Chosen: the bound.** The in-volume prune keeps a stale-candidate copy as long as its reset's retired unit would be kept. It removes the copy once its reset is not an incident and two newer completed resets exist, through a tombstone. The automatic step's cap counts each removal.
+  - **The one on the demo.** The disposal inventory of 2026-11-07 counted one, of 1,085,440 bytes, but did not name it; it is probably the candidate that the Docker restart of 2026-11-02 stranded. It is removed through the reviewed path, with the operator's approval, in a Codex handoff.
+    - **Identified on 2026-11-11.** It is `.longtail-public-demo-failed-20261104T220944Z-manual-3701280-stale-candidate`, of 5,481,803 bytes; the inventory counted its compressed allocation. Its candidate was built at 2026-11-02T16:02Z, the hour of that restart.
+    - **Its removal.** After this patch's deploy, a supervised `retention plan` shows it selected. With the operator's approval, the next reset's retention step removes it. That is part of the rollout.
+- [x] **Debian `apt` and `libapt-pkg6.0` in the runtime image.** Take Debian's fix for CVE-2026-109518 (HIGH) through the image's exact security-update pin. The published-digest qualification of the restart-recovery release found it on 2026-11-04: Trivy reports 2.6.1, fixed in 2.6.2. It is reachable only during the build, because nothing spawns `apt` at runtime and the container runs as UID 10001 with a read-only root. It lands with the dependency fold.
+- [x] **The resolved Carried Finding.** The finding that reset history had no retention bound is removed, because the reset-retention patch bounded it. Removed in #909.
+
+Decisions:
+
+All decided by the operator on 2026-11-05, except where noted.
+
+- **The preview's recovery point objective.**
+  - **A power cut:** no acknowledged write lost, which follows from `full`.
+  - **Disk or server loss:** at most one backup interval, so up to a day with nightly backups.
+- **The setting's reach: everywhere,** for "the utmost of data security": `full` on the preview and the demo, and as the shipped default for new installs. **Reconfirmed on 2026-11-11** with its measured cost, over `normal` on the demo.
+- **The schedule: nightly, keeping 14.**
+- **The off-server destination: `raytec-nyc3-01`,** chosen by the operator on 2026-11-11. Codex has access to it, so its setup is a Codex handoff.
+  - **Only the preview's backups go there.** The demo's backups are never copied off-server.
+  - **Before the hook is wired,** confirm that it:
+    - runs on a different physical machine from the preview's host, so it survives that hardware;
+    - accepts copies over SSH with a key that can only write backups. Because that key cannot delete, the destination keeps its own 14 newest copies;
+    - has room for the 14 kept copies;
+    - is reachable only by the operator, because the copies hold the preview's real data.
+  - **Confirmed on 2026-11-11:**
+    - It is a DigitalOcean droplet, separate from the preview's hardware.
+    - The receiver lets the key only add copies.
+    - It has 44 GB free, against about 7 MB a copy.
+    - Each copy there is ciphertext that only the operator's key opens, in an owner-only directory of a dedicated account.
+  - **Encrypted before it leaves the preview** (decided on 2026-11-11). The copy is encrypted with `age` to a public key whose private half the operator keeps on their workstation, outside OneDrive, and in their password manager. The preview and the destination hold only the public key and ciphertext, so a restore from an off-server copy needs the operator's key.
+  - **Retention there: each copy 14 days from receipt** (2026-11-11). This replaces "its own 14 newest", which anyone holding the preview's key could exhaust with junk copies, evicting every good one.
+- **The demo's deployment-backup bound includes the `pre-compose-cutover-` backups** (2026-11-11).
+
+Acceptance criteria:
+
+- [x] **The decisions** are recorded in `DECISIONS.md`.
+- [ ] **The setting's proof.**
+  - **It is in effect.** The running preview and demo both report `synchronous=full`, in Runtime Diagnostics, and both started, which startup refuses for any other value. **At the rollout.**
+  - **It is honored.** The dataset's `sync=standard` is confirmed. **Done.**
+  - **Its cost** is measured. **Done.**
+  - **A limitation, recorded:** a true power-cut test needs a disposable VM, which the operator declined, so durability rests on documented flush semantics.
+- [x] **Tests of the scheduled backup.** The executable harness and the native qualification prove:
+  - the lock;
+  - retention, which never deletes the newest valid backup or a backup it did not schedule;
+  - the failure alert;
+  - that the copy hook receives only inspected archives;
+  - that the timer refuses the public demo.
+  - **Done.** The new harness covers each in 99 scenarios on Linux, with 87 seeded defects over four review rounds each caught, and the maintenance rehearsal runs it. Two more seeded defects are recorded as equivalent:
+    - **Counting a zombie** as a process the sweep must kill changes nothing wherever init reaps orphans, as systemd does.
+    - **Dropping the identity check before a kill** changes something only when a PID is reused in that moment, which no scenario can force. Its first run on the clean runner found that a hook copied under `sudo` kept the checkout's owner, which the scheduled backup rightly refused. The harness now writes the hook as root, and two scenarios refuse a hook another account owns or may write. The native qualification proves the lock, retention, the hook boundary, a backup that runs out of its time and recovers, and the demo refusal on the real image, on this pull request's final tree. It also proves a backup through a configuration that real Compose renders with other data, another program, a failing entrypoint, lifecycle hooks, and inline content, none of which reaches the backup or the live data.
+- [x] **Tests of the demo's deployment-backup bound.** It keeps exactly the recorded rollback's backup, refuses a link or another owner and removes nothing, and leaves the preview's deployment backups alone. **Done** in the Compose helper harness, with nine seeded defects each caught, and in the native qualification.
+- [x] **Tests of the off-server copy.** The receiver's checks, naming, retention, and caps, and the hook end to end against the receiver. **Done** in the new harness.
+- [x] **Tests of the stale-candidate bound.** It removes a stale copy only outside the retained window, keeps an incident's, and refuses an unexpected shape or a link, removing nothing. **Done** in unit tests, with eight seeded defects each caught, and in the public-demo helper harness, which catches all 102 of its seeded defects.
+- [x] **Independent review, 2026-11-12.** Codex reviewed `aadd1be2` and requested changes. It found the synchronous default, the demo's deployment-backup bound, the stale-candidate bound, and the encrypted transport sound. It found five major and four minor defects, each fixed in #910 with a negative test and a seeded defect:
+  1. **The receiver read a copy's whole first line into memory** to check its age header, so the key's holder could make it allocate up to a copy's size. It now compares the header's own bytes.
+  2. **The receiver had no time limit of its own,** so a stream left open held the store, and every later receipt, indefinitely. Each receipt now has the sender's own 30-minute transfer limit, after which its partial copy is removed and the store released.
+  3. **Recovery ran under errexit,** so a failed removal of an uninspected archive skipped the restart and left the preview curtained. Recovery now attempts every step. Each backup is also written and inspected in a staging directory, and joins the others only once inspected. A rejected archive that cannot be removed therefore never counts as a backup, and the next run discards it.
+  4. **The run's two-hour limit also bounded recovery,** which then had 30 seconds against a permitted 90-second health wait. The backup's own work now has the limit, and recovery has its own time, under the lock; the run's backstop and the service's limit exceed them together. The native qualification proves a timed-out backup's recovery on the real image.
+  5. **Restart verification left out the deploy helper's identity and posture checks,** so Compose drift could recreate the release as root, or published publicly, and still lower the curtain. The stopped container is now started as itself, never recreated, and checked by the deploy helper's own predicate, before the outage and after the restart. One that does not verify is stopped.
+  6. **A refusal of the run's own configuration** bypassed the Discord alert and the run log. It now alerts by its class alone, and is recorded once the log's location is known.
+  7. **Exit 137 was reported as a timeout,** though an out-of-memory kill gives it too. Only the limit's own expiry is a timeout now; an earlier kill is `backup-killed`.
+  8. **A retention removal that stopped part-way said nothing was removed,** and left a sidecar no later run would remove. It now reports how far it went, and the next run finishes it, orphaned sidecars included.
+  9. **The guide enabled the timer** before the manual run and the off-server setup. It now enables the timer last, after the first copy and the restore drill, as the rollout does.
+  - **Stated, not changed.** The destination verifies the encrypted copy's checksum, the only thing it holds; the archive's own checksum is verified before encryption, and again after decryption at a restore. The heartbeat means a local backup, never an off-server copy, whose failure alerts on its own. `DECISIONS.md` now says both. The operator confirmed on 2026-11-13 that checking the encrypted copy meets the plan's "the checksum is verified again at the destination".
+- [x] **Independent review, second round, 2026-11-13.** Codex reviewed `98c40ac9` and requested changes. It found seven of the first round's fixes effective and two partly so, and four major and three minor defects, each fixed in #910 with a negative test and a seeded defect:
+  1. **The backup's steps were not bound to the running container's data volume.** They are created from the resolved Compose configuration, so a configuration naming another valid volume would back that up, while the running application restarted on its own. The configuration must now name the running container's own recorded image, still its local image, and its own data volume, or the run is refused before any outage. The steps never pull. The native qualification proves the refusal with a second valid volume.
+  2. **A release recovery could not restart was reported stopped** whatever its stop returned. The stop now counts only once Compose lists no running container for the service; otherwise the container is killed and checked again, and a stop that still cannot be shown is reported as `release-not-stopped`.
+  3. **A step container's failed removal still let the release restart** beside a backup that may still be running. Recovery now proves this run's step containers gone first, or keeps the release stopped, behind the curtain, as `step-container-not-cleared`.
+  4. **Recovery's limit did not bound its Docker queries,** so a stalled daemon could hold it to the run's backstop, and a nested time limit's process group outlived that backstop's kill, still holding the lock. Every Docker call now has a time limit inside its phase's, recovery has its own deadline with a reserve for the stop, and the run kills whatever is left of the backup's session before it reports.
+  5. **Cleanup removed containers by a predictable name** it had not proved it started. Each run now has its own identity, which its step containers carry as their name and label; recovery removes only containers with that label, and a step container an earlier run left refuses the next run before any outage.
+  6. **The shipped schedule named the copy hook,** so the guide's first manual run, before the hook was installed, was refused. The schedule now names none until the off-server setup sets it.
+  7. **The demo's deployment-backup bound reported a partial removal as nothing removed.** It now says how many files had gone, and the next verified deploy or rollback finishes it.
+- [x] **Independent review, third round, 2026-11-13.** Codex reviewed `c1d2a5d3` and requested changes. It judged five of the second round's fixes, and first-round findings 4 and 5, resolved, and the volume binding and the session sweep partly so. Each finding is fixed in #910:
+  1. **Major: the binding checked only the mount at the data directory itself,** so a bind over the database, another volume or a tmpfs over the Files tree, or a subpath of the expected volume, still passed, and could back up another installation's data. Now neither the configuration nor the running container may mount anything else at or beneath `/var/lib/longtail-forge`, a subpath, or another container's mounts. Eight harness scenarios refuse each arrangement on either side, and the native qualification refuses a subpath, a bind over the database, and a tmpfs over the Files tree, as real Compose renders them.
+  2. **Minor: the sweep read only the first line of each `/proc` stat record,** so a command name holding a newline could hide a process of the backup's, or present another session's as one. It now reads the whole record, takes the fields after its last `") "`, and kills a process only while its start time and session still match. A scenario names one process in the session and one outside it with newlines: the first is killed, and the second survives. Bash cannot hold a process by anything firmer than its PID, so only the moment between that check and the kill remains.
+  3. **Minor: a leftover step container blocked every later run** with no recovery procedure. The guide now gives a supervised one, under the lifecycle lock. The refusal names the containers, and the failed run's journal names its operation.
+  4. **Note: the count of first-round findings resolved** was corrected, from six to seven.
+- [x] **Independent review, fourth round, 2026-11-13.** Codex reviewed `1d79af1a` and requested changes. It judged the sweep's parser, the archive's count, and second-round finding 4 resolved, and the binding, the procedure, and second-round finding 1 partly so. Each finding is fixed in #910:
+  1. **Major: the backup's steps still came from the Compose configuration,** so another spelling of the data directory's path, a config or secret over a data path, or another entrypoint could give a step other data or another program. Codex preferred a minimal approved profile, and the steps now have one.
+     - **The profile.** Each is a `docker run` whose every setting the helper names, from the running container itself: its own image by local ID, its own whole data volume, the backup root and key backup, the application's posture with no network, and only the five safe runtime classifications of its environment, each a plain value.
+     - **What it removes.** Nothing of the configuration reaches a step, and a step no longer receives the application's secrets.
+     - **The running container's side.** Its paths are normalized before the whole-volume check, a device beneath the data directory refuses, and its own `DEMO_MODE` must be `false`.
+     - **Found while fixing it.** Real Compose showed that its own stop and start run a drifted configuration's lifecycle hooks in the container, and copy its inline content in. So the backup now stops, starts, and kills the container by its ID with Docker alone, with a five-minute reserve for the stop.
+     - **Proof.** The harness asserts both steps' whole command lines against the profile. Eight configurations that would change a Compose-made container now never reach a step, and eleven arrangements of the running container refuse. On real Docker the exact profile ran by bare image ID, and the native qualification backs up through a hostile configuration that real Compose renders, hooks and inline content included, none of which reaches the backup or the live data.
+  2. **Major: a step container recovery could not remove blocked the next backup, but not a deploy or rollback,** which could start or restore beside it once the backup released the lock. The deploy helper now lists the step label right after it takes the lock, and refuses before any change, naming each container, or if the listing fails. The demo's reset and boot helpers require `DEMO_MODE=true`, which the scheduled backup refuses before it starts any step, so they never meet one. The scheduled-backup harness runs the real deploy helper after a failed removal, for a deploy and a rollback, and the Compose helper harness covers both refusals.
+  3. **Minor: the recovery procedure did not establish its lock and paths.** In a fresh root shell it would lock `/compose-operation.lock`, a nested shell lost its settings, and the restart named no Compose file. The procedure now reads the helper's own settings and defaults, reports anything missing, holds the lock on a descriptor of the same shell, and starts the release through a `compose` function that names the configured file and the recorded release environment. Its commands, extracted from the guide, ran in one session in a Linux container against an installation with a non-default Compose file, every later command under the real default lock.
+- [ ] **One restore drill** from a scheduled backup passes. **At the rollout.**
+- [ ] **Gates and review:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, the protected pull-request checks, and the native qualification. They run on this pull request's final tree, after this archive.
+- [ ] **The rollout,** under the operator's separate authorization, after the release:
+  1. deploy to the preview and the demo, and prove `synchronous=full` on each;
+  2. on the demo, confirm the deploy's deployment-backup bound, then review a supervised `retention plan` that selects the stale-candidate copy, and let the next reset remove it;
+  3. on the preview, install the scheduled backup, its alert files, the copy hook, `age`, and a dedicated SSH key, and pin the destination's host key;
+  4. on `raytec-nyc3-01`, install the receiver for a dedicated account;
+  5. run one manual scheduled backup, decrypt its off-server copy once on the operator's workstation, and verify its checksum;
+  6. run the restore drill;
+  7. enable the timer, and confirm the first nightly run and its heartbeat.
+
+### Dependency fold, the first pull request
+
+**Model: High Effort** — It moves the web framework every request passes through, and the lint and unit-test toolchains, in one reviewed lockfile transition, and adds an exact-entry validator allowance for this patch.
+
+**What this is.** The open Dependabot backlog, folded at the operator's instruction of 2026-11-11.
+- **Its release.** It lands in `nightly` before the durability work, while the application is still the reset-retention release, and ships in `v0.33.33.55`, so it needs no deployment of its own.
+- **Why the bot pull requests cannot merge.** Their commits carry no `LTF-` trailers, and only a declared patch may change the package files.
+
+Scope:
+
+- [x] **The allowance.** This patch owns its release identity and exactly this transition. The validator holds the complete before and after lock entries of the updates taken, so a partial or altered transition is refused, as the restart-recovery patch's allowance does.
+  - **Done.** Five declarations and 72 lock entries: 20 version moves, 13 removals, 2 additions, and 37 entries whose only change is the `peer` flag. The two declaration helpers now take the identity a fold lands on, rather than assuming the Node security release.
+- [x] **Take, as reviewed transitions:**
+  - **`express` 5.2.1 to 5.3.0 (#902).** A runtime dependency. It moves `content-disposition` to 2.0.1 and `content-type` to 2.1.0, both major versions, and drops the two nested copies of `content-type`.
+    - **What changes for the application.** `res.attachment()`, `res.download()`, and `res.sendFile()` stop quoting filenames that are HTTP tokens, and `content-disposition` 2 no longer reduces a path to its base name. The application calls none of them: every route that sends a download or preview writes its own `Content-Disposition`. `res.send()` keeps a `Content-Type`'s parameters when it adds the charset, and no longer throws on one that fails to parse. The default error handler logs the whole error object.
+    - **Its security fixes,** for `qs`, `body-parser`, and `proxy-addr`, are already in the lockfile.
+    - **Checked.** The Express HTTP contract, including exactly-once async error propagation, passes on 5.3.0, as do the demo perimeter and every unit suite.
+  - **`express-rate-limit` 8.7.0 to 8.7.4 (#903, which proposes 8.7.3).** A runtime dependency. 8.7.2 to 8.7.4 fix the counting window and the memory store: a request that finished after its window reset was un-counted, a failed decrement went unhandled, and `MemoryStore#get` returned expired clients. Both of the application's limiters use the memory store. 8.7.4 was published on 2026-11-09, so its published package is compared with 8.7.3's before it is taken.
+    - **Compared.** The two packages differ only in the version and in the two fixes 8.7.4's changelog names: the expiry check in `MemoryStore#get`, and caught decrement errors. Neither adds a dependency or an install script.
+  - **`@types/node` 26.6.5 to 26.6.6 (#901),** with the Node 24 engine unchanged.
+  - **ESLint 10.13.0 to 10.14.0 (#897).** It moves `minimatch` to 10.2.6, and raises `minimatch`'s `brace-expansion` range to `^5.0.8`, which the locked 5.0.12 already meets. `minimatch` 10.2.6 predates GHSA-g3hv-75wg-m249 and is still in its range, so that Carried Finding stays. The cache graph does not move.
+  - **CodeQL `init` and `analyze` 4.39.3, together (#907 and #908),** with `REVIEWED_CODEQL_SHA` updated.
+  - **Debian `apt` and `libapt-pkg6.0`,** from this patch's scope: 2.6.2 from `bookworm-security` (DLA-4880-1). Every dependency of 2.6.2 is already in the base.
+- [x] **Take once its condition is met: Vitest 5.1.0 (#899).** A major version, which also moves Vite to 8.3.5 and the Rolldown bindings. Take it only if the unit suites, the coverage floors, and `release.dependency-baseline` pass with no change beyond configuration and pins. Otherwise defer it, leave its pull request open, and record the reason.
+  - **Met, and taken.** All 357 unit test files (5,874 tests) pass with no change at all, not even to configuration. Lint and typecheck are clean, and regenerating the coverage floors changes none of them.
+  - **Smaller than the bot's proposal.** #899 also moves Vite to 8.3.5 and Rolldown to 1.2.16, and npm's own resolution goes further, to Vite 8.3.8 and Rolldown 1.2.19, with pre-release `@emnapi` 2.0 packages through Rolldown's WebAssembly binding. Vitest 5.1 accepts Vite 8.2.4, so Vite, Rolldown, PostCSS, and their dependencies keep their versions. Their entries change only the `peer` flag, because Vitest 5 makes Vite a peer dependency.
+- [x] **Not taken:** newer releases with no pull request yet, such as `@playwright/test` 1.65.0.
+- [x] **A fixture that aged out on 2026-11-11, found by this pull request's verification.** The private calendar feed renders the past 90 days from the real clock, and `task-calendar-feed-serialization`'s scope check created its two tasks due on a fixed 2026-08-08, so on 2026-11-11 that check failed on every branch. They are now due 30 days before today, as the reset-retention patch did for `private-calendar-feed-scope`. No other feed regression renders a fixed date against the real clock.
+- [x] **Ownership policy.** This pull request leaves the application version unchanged. The durability pull request sets it to `0.33.33.55`, archives this whole section, and records this fold in its changelog entry. **Done** in the durability pull request.
+- [x] **Attestations to realign:** `release.dependency-baseline`, the regenerated third-party notices, `REVIEWED_CODEQL_SHA`, and the regression floors and inventory.
+  - **Done.** `release.dependency-baseline` and `framework.express-5-http-contract` pin the new versions, `REVIEWED_CODEQL_SHA` is 4.39.3's, and `release.preview-deployment-boundary` requires the `apt` pins. The notices were regenerated, and `licensing.public-release-gates` counts 91 shipped components, two fewer, because Express 5.3 leaves one copy of `content-type` where there were three. The floors and the inventory did not change. The three guides that named Express 5.2.1 now name 5.3.0.
+- [x] **The bot pull requests.** After the merge, re-read each one's current title and head, close none whose current proposal was not incorporated, and record each disposition.
+  - **Recorded.** At 17:04Z on 2026-11-11, after the merge, Dependabot closed all seven itself, each with the head reviewed: #897, #899, #901, #902, #903 (reported up to date), #907, and #908. None was closed by hand, and none remains open.
+
+Acceptance criteria:
+
+- [x] **Advisories.** Dependabot shows no open alert except the `minimatch` advisory in Carried Findings, and the production audit reports no finding.
+  - **Locally, on 2026-11-11:** the production audit reports none, and the full audit reports only the `minimatch` advisory, as three entries through ESLint's graph. Alert 17, that advisory, is the only open Dependabot alert.
+  - **After the merge,** alert 17 is still the only open Dependabot alert.
+- [x] **The allowance.** Positive and negative validator tests cover it, and each seeded validator defect is caught.
+  - **Nine seeded defects are caught.** The first run missed an altered declaration range: the test's fixture is built from the declarations, so a wrong range agreed with itself. The test now pins the five declarations literally.
+- [x] **Gates:** one canonical `npm run verify:slice`, `npm run checkpoint:validate`, and the protected pull-request checks, including the browser suite.
+  - **Passed on #909,** which merged as `5dcc8f66`. Its browser and scanner cold-start jobs failed twice on a runner DNS outage before any test ran, and passed when rerun. `task-editor-parent-save`, a Carried Finding, passed on retry there, and twice in the post-merge Nightly run 43064213414, which passed.
+- [x] **The image.** A native lifecycle qualification builds it with the new `apt` pin and reports no fixable Debian finding. **Done:** 215 findings, none fixable, with `apt` and `libapt-pkg6.0` 2.6.2 installed.
+
 ## Version 0.33.33.54 - Bounded public-demo reset retention and a shorter reset curtain
 
 **Model: High Effort** — It adds automatic deletion of protected evidence, and of copies of visitor-entered data, on the public host under the shared lifecycle lock. A wrong selection deletes recovery evidence; a missed one leaves the growth unbounded.

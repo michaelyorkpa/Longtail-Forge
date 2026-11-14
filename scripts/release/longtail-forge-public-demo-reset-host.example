@@ -700,7 +700,7 @@ removable_backup_file() {
 retain_history() {
   local mode="$1" cap="${2:-}" name operation_id file index found status listing incident_list='none'
   local -a names=() completed=() incidents=() backup_names=() backup_operations=() backup_files=() evidence_operations=() tombstones=() legacy_logins=()
-  local other=0 orphans=0 unit_selected unit_tombstones units_removed=0 legacy_found='null'
+  local other=0 orphans=0 unit_selected unit_tombstones stale_selected units_removed=0 legacy_found='null'
   # The two roots retention reads must be the real directories it expects, so that listing them
   # means what it says.
   test -d "$OPERATION_ROOT" && test ! -L "$OPERATION_ROOT" && test "$(stat -c '%u' "$OPERATION_ROOT")" = '0' \
@@ -734,11 +734,18 @@ retain_history() {
   run_activation prune "$OPERATION_DIR/retention-units-plan.json" --incident-operations "$incident_list" --mode plan
   unit_selected="$(jq -er '.selected | numbers' "$OPERATION_DIR/retention-units-plan.json")"
   unit_tombstones="$(jq -er '.tombstones | numbers' "$OPERATION_DIR/retention-units-plan.json")"
+  # Stale-candidate copies leave the volume with the retired units, and count against the same cap. A
+  # release from before that pruning reports none, and removes none.
+  stale_selected="$(jq -er 'if has("staleCandidates") then .staleCandidates.selected else 0 end | numbers' "$OPERATION_DIR/retention-units-plan.json")"
   # The reset that runs this step is the newest by any honest clock. If it ranks lower, the clock or a
   # supplied identity is wrong, and retention would remove what this reset is still reporting.
   jq -e --arg id "$OPERATION_ID" '(.selectedOperations | type == "array") and all(.selectedOperations[]; . != $id)' \
     "$OPERATION_DIR/retention-units-plan.json" >/dev/null \
     || fail 'the current reset ranks among the retired units to remove; nothing was removed'
+  jq -e --arg id "$OPERATION_ID" 'if has("staleCandidates") then (.staleCandidates.selectedOperations | type == "array")
+      and all(.staleCandidates.selectedOperations[]; . != $id) else true end' \
+    "$OPERATION_DIR/retention-units-plan.json" >/dev/null \
+    || fail 'the current reset ranks among the stale-candidate copies to remove; nothing was removed'
   if test "${#completed[@]}" -gt 0; then
     listing="$(printf '%s\n' "${completed[@]}" | LC_ALL=C sort -r)" || fail 'the reset history could not be ranked; nothing was removed'
     mapfile -t completed <<<"$listing"
@@ -799,7 +806,7 @@ retain_history() {
   status='pruned'
   if test "$mode" = 'plan'; then
     status='planned'
-  elif test -n "$cap" && { test "$((unit_selected + unit_tombstones))" -gt "$cap" || test "${#backup_operations[@]}" -gt "$cap" \
+  elif test -n "$cap" && { test "$((unit_selected + unit_tombstones + stale_selected))" -gt "$cap" || test "${#backup_operations[@]}" -gt "$cap" \
     || test "$((${#evidence_operations[@]} + ${#tombstones[@]}))" -gt "$cap"; }; then
     status='capped'
   fi
@@ -834,7 +841,9 @@ retain_history() {
        mode: $mode, status: $status,
        policy: {units: 2, backups: $retainedBackups, evidence: $retainedEvidence, cap: (if $cap == "" then null else ($cap | tonumber) end)},
        units: {retained: $units[0].retainedOperations, selected: $unitSelected, removed: $unitsRemoved, skipped: $units[0].skipped,
-         incidents: $units[0].incidents, tombstones: $units[0].tombstones},
+         incidents: $units[0].incidents, tombstones: $units[0].tombstones,
+         staleCandidates: ($units[0].staleCandidates // {selected: 0, retained: 0, incidents: 0, skipped: 0}
+           | {selected, retained, incidents, skipped, operations: (.selectedOperations // [])})},
        backups: {selected: ($backupOperations | length), removed: (if $applied then ($backupOperations | length) else 0 end), operations: $backupOperations, orphans: $orphans},
        evidence: {completed: $completed, selected: ($evidenceOperations | length), removed: (if $applied then ($evidenceOperations | length) + $tombstones else 0 end),
          operations: $evidenceOperations, incident: $incident, other: $other, tombstones: $tombstones,
@@ -849,7 +858,8 @@ if test "$MODE" = 'retention'; then
   set -e
   test "$retention_status" -eq 0 || fail "retention $RETENTION_MODE failed; its redacted output is in $OPERATION_DIR"
   jq -c '{ok: true, mode: "retention", retentionMode: .mode, operationId, status,
-    units: {selected: .units.selected, removed: .units.removed, incidents: .units.incidents},
+    units: {selected: .units.selected, removed: .units.removed, incidents: .units.incidents,
+      staleCandidates: {selected: .units.staleCandidates.selected, operations: .units.staleCandidates.operations}},
     backups: {selected: .backups.selected, removed: .backups.removed, orphans: .backups.orphans},
     evidence: {selected: .evidence.selected, removed: .evidence.removed, incident: .evidence.incident, legacyLogins: .evidence.legacyLogins}}' "$OPERATION_DIR/retention.json"
   exit 0

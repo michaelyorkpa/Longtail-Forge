@@ -121,6 +121,15 @@ require_root_owned_private_file "$OPERATION_LOCK" "Compose operation lock"
 exec 9<>"$OPERATION_LOCK"
 flock -n 9 || fail "another Compose deploy, rollback, backup, or public-demo reset operation holds the host lock"
 
+# A step container of a scheduled backup that its recovery could not prove removed may still be writing,
+# and holds no lock of its own. Nothing is deployed, rolled back, restored, or started beside it, so this
+# refuses before any change, naming each one for the preview guide's supervised recovery.
+readonly SCHEDULED_STEP_LABEL='longtail-forge.scheduled-backup.operation'
+STEP_CONTAINERS="$(docker ps --all --quiet --filter "label=$SCHEDULED_STEP_LABEL")" \
+  || fail "the scheduled backup's step containers could not be listed, so nothing was changed"
+test -z "$STEP_CONTAINERS" \
+  || fail "a step container a scheduled backup started still exists; no deploy or rollback runs beside it, so nothing was changed: ${STEP_CONTAINERS//$'\n'/ }"
+
 MODE="${1:-}"
 shift || true
 METADATA_NAME=''
@@ -439,6 +448,66 @@ write_state() {
   install -o root -g root -m 0600 "$OPERATION_DIR/state.json" "$output"
 }
 
+# On the public demo, every deploy, rollback, restore, or cutover backup keeps the visitor-entered
+# content of its moment. Once a deploy or rollback has verified and recorded its states, only the
+# backup the recorded rollback names is kept, with its sidecar. Every other backup under those four
+# names is checked before any is removed: a plain file with one name, owned by the backup root's
+# owner, the container user that wrote it. A name under those prefixes that is not exactly a backup's,
+# or any file that fails a check, refuses the whole bound, and nothing is removed. Other backups, such
+# as the reset's own, are never touched, and neither is anything on an installation that is not the
+# demo. Prints the kept backup's name and the number of files removed. A removal that fails part-way
+# returns 2 and prints how many files had gone; the next verified deploy or rollback finishes the bound.
+readonly DEPLOYMENT_BACKUP_PREFIXES='^(pre-upgrade|pre-rollback|pre-restore|pre-compose-cutover)-'
+readonly DEPLOYMENT_BACKUP_NAME='^(pre-upgrade|pre-rollback|pre-restore|pre-compose-cutover)-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}-[a-z]+(-[a-z]+)*\.ltfbackup\.tgz(\.sha256)?$'
+bound_public_demo_deployment_backups() {
+  local keep keep_name listing name file root_owner owner links removed=0
+  local -a names=() archives=() sidecars=()
+  keep="$(jq -er '.deployment.rollbackBackup | strings' "$PREVIOUS_STATE")" || return 1
+  keep_name="$(basename "$keep")"
+  test "$keep" = "$BACKUP_ROOT/$keep_name" && [[ "$keep_name" =~ $DEPLOYMENT_BACKUP_NAME ]] || return 1
+  test -f "$keep" && test ! -L "$keep" || return 1
+  test -d "$BACKUP_ROOT" && test ! -L "$BACKUP_ROOT" || return 1
+  root_owner="$(stat -c '%u' "$BACKUP_ROOT")" || return 1
+  # The listing is read whole, with its status, before any of it is trusted.
+  listing="$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" || return 1
+  if test -n "$listing"; then mapfile -t names <<<"$listing" || return 1; fi
+  for name in "${names[@]}"; do
+    [[ "$name" =~ $DEPLOYMENT_BACKUP_PREFIXES ]] || continue
+    [[ "$name" =~ $DEPLOYMENT_BACKUP_NAME ]] || return 1
+    if test "$name" = "$keep_name" || test "$name" = "$keep_name.sha256"; then continue; fi
+    file="$BACKUP_ROOT/$name"
+    test -f "$file" && test ! -L "$file" || return 1
+    owner="$(stat -c '%u' "$file")" && links="$(stat -c '%h' "$file")" || return 1
+    test "$owner" = "$root_owner" && test "$links" = '1' || return 1
+    if [[ "$name" == *.sha256 ]]; then sidecars+=("$file"); else archives+=("$file"); fi
+  done
+  # Each archive goes before any sidecar, so an interrupted removal never leaves an archive unchecked.
+  for file in "${archives[@]}" "${sidecars[@]}"; do
+    if ! rm -f -- "$file"; then
+      printf '%s\n' "$removed"
+      return 2
+    fi
+    removed=$((removed + 1))
+  done
+  printf '%s %s\n' "$keep_name" "$removed"
+}
+
+# Applies the bound on the public demo after a verified deploy or rollback, and sets the result field
+# for the helper's final line. A refusal removes nothing, and a removal that fails part-way says how far
+# it went; either way the helper then fails, saying that the release is live and recorded, so the
+# workflow shows it.
+DEPLOYMENT_BACKUP_FIELD=''
+apply_deployment_backup_bound() {
+  local outcome status=0
+  test "$PUBLIC_DEMO" = 'true' || return 0
+  outcome="$(bound_public_demo_deployment_backups)" || status=$?
+  test "$status" -ne 2 \
+    || fail "$MODE verified and recorded, and the release is live, but the public-demo deployment-backup bound stopped after removing $outcome files; the recorded rollback backup is kept, and the next verified deploy or rollback finishes the bound"
+  test "$status" -eq 0 \
+    || fail "$MODE verified and recorded, and the release is live, but the public-demo deployment-backup bound refused; nothing was removed"
+  DEPLOYMENT_BACKUP_FIELD="$(printf ',"deploymentBackups":{"kept":"%s","removed":%s}' "${outcome% *}" "${outcome##* }")"
+}
+
 # A failure or signal between the curtain and the first data change exits through here: a backup
 # that cannot be created or inspected, the copy of the prior state, or a state read the next step
 # needs. The data is unchanged, so the current release is started again as it was, and the curtain
@@ -513,8 +582,9 @@ if test "$MODE" = "deploy"; then
     fi
     write_state "$METADATA" "$RELEASE_ENV" "" "$CURRENT_STATE"
     clear_marker
-    printf '{"ok":true,"mode":"deploy","commitSha":"%s","imageDigest":"%s","platformManifestDigest":"%s"}\n' \
-      "$EXPECTED_COMMIT" "$EXPECTED_IMAGE_DIGEST" "$EXPECTED_PLATFORM_MANIFEST_DIGEST"
+    apply_deployment_backup_bound
+    printf '{"ok":true,"mode":"deploy","commitSha":"%s","imageDigest":"%s","platformManifestDigest":"%s"%s}\n' \
+      "$EXPECTED_COMMIT" "$EXPECTED_IMAGE_DIGEST" "$EXPECTED_PLATFORM_MANIFEST_DIGEST" "$DEPLOYMENT_BACKUP_FIELD"
     exit 0
   fi
 
@@ -553,8 +623,9 @@ if restore_with_state "$PREVIOUS_STATE" "$TARGET_BACKUP" "$pre_restore" \
   install -o root -g root -m 0600 "$OPERATION_DIR/previous-state.json" "$PREVIOUS_STATE"
   write_state "$METADATA" "$target_env" "" "$CURRENT_STATE"
   clear_marker
-  printf '{"ok":true,"mode":"rollback","commitSha":"%s","imageDigest":"%s","platformManifestDigest":"%s"}\n' \
-    "$EXPECTED_COMMIT" "$EXPECTED_IMAGE_DIGEST" "$EXPECTED_PLATFORM_MANIFEST_DIGEST"
+  apply_deployment_backup_bound
+  printf '{"ok":true,"mode":"rollback","commitSha":"%s","imageDigest":"%s","platformManifestDigest":"%s"%s}\n' \
+    "$EXPECTED_COMMIT" "$EXPECTED_IMAGE_DIGEST" "$EXPECTED_PLATFORM_MANIFEST_DIGEST" "$DEPLOYMENT_BACKUP_FIELD"
   exit 0
 fi
 

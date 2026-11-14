@@ -41,7 +41,7 @@ const CURRENT_METADATA = path.join(repoRoot, "tests/fixtures/release-metadata/v0
 /** @typedef {{ driver: string, sqlite: string }} NativeTruth */
 /** @typedef {{ platform: string, labels: { revision: string, artifact: string, branch: string }, native: NativeTruth | null, health: "healthy" | "unhealthy", identity: { version: string, commit: string, artifact: string } }} FakeImage */
 /** @typedef {"create" | "key-backup" | "inspect" | "missing-archive" | "hang" | "state-copy"} BackupFault */
-/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, backupFails: BackupFault | null, operationsRoot: string, markerPath: string, publicOrigin: string }} FakeScenario */
+/** @typedef {{ images: Record<string, FakeImage>, demoMode: string | null, restoreFails: boolean, backupFails: BackupFault | null, operationsRoot: string, markerPath: string, publicOrigin: string, stepContainers: string[], stepListingFails: boolean }} FakeScenario */
 /** @typedef {{ running: string | null, state: "running" | "stopped" | "absent", records: string[] }} FakeRuntime */
 /** @typedef {{ tool: string, action: string, markerPresent: boolean, ref?: string, image?: string | null, archive?: string, preRestore?: string, keyBackup?: boolean, url?: string, mode?: string }} FakeCall */
 /** @typedef {{ version: string, commitSha: string, channel: string, sourceBranch: string, schemaVersion: number, application: string, artifact: { sha256: string }, image: { repository: string, digest: string, reference: string, platform: string, platformManifest: { digest: string, os: string, architecture: string }, nativeDependency?: { betterSqlite3Version: string, sqliteVersion: string, execution: string, platform: string, architecture: string }, attestations: { sbom?: { predicateType: string }, provenance?: { predicateType: string } } } }} ReleaseMetadata */
@@ -121,6 +121,14 @@ function fakeDocker(args, scenario, runtime, record, save) {
     }
     record({ action: "scanner-probe", ref });
     return image ? 0 : 1;
+  }
+  if (args[0] === "ps") {
+    // `ps --all --quiet --filter label=KEY`: the scheduled backup's step containers, which only that
+    // backup's recovery leaves, when it cannot prove one removed.
+    assert.deepEqual(args, ["ps", "--all", "--quiet", "--filter", "label=longtail-forge.scheduled-backup.operation"], `unexpected docker ps: ${args.join(" ")}`);
+    record({ action: "list-step-containers" });
+    if (scenario.stepListingFails) return refuse("Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?");
+    return emit(scenario.stepContainers.map((id) => `${id}\n`).join(""));
   }
   if (args[0] === "network" && args[1] === "inspect") {
     record({ action: "network-inspect" });
@@ -204,7 +212,7 @@ function fakeCompose(args, scenario, runtime, record, save) {
           return refuse("backup was not interrupted");
         }
         // "missing-archive" reports success without the archive reaching the host destination.
-        if (scenario.backupFails !== "missing-archive") fs.writeFileSync(archive, JSON.stringify({ image, records: runtime.records }));
+        if (scenario.backupFails !== "missing-archive") writeContainerBackup(archive, JSON.stringify({ image, records: runtime.records }));
         return 0;
       }
       if (action === "inspect") {
@@ -224,7 +232,7 @@ function fakeCompose(args, scenario, runtime, record, save) {
         const preRestore = hostBackupPath(valueAfter(program, "--pre-restore-backup"));
         record({ action: "backup-restore", image, archive, preRestore, keyBackup });
         if (scenario.restoreFails || !fs.existsSync(archive)) return refuse("restore failed");
-        fs.writeFileSync(preRestore, JSON.stringify({ image, records: runtime.records }));
+        writeContainerBackup(preRestore, JSON.stringify({ image, records: runtime.records }));
         const restored = /** @type {{ records: string[] }} */ (readJson(archive));
         save({ ...runtime, records: restored.records });
         return 0;
@@ -306,6 +314,43 @@ function hostBackupPath(containerPath) {
   return path.posix.join(BACKUP_ROOT, path.posix.basename(containerPath));
 }
 
+/**
+ * A backup as the container writes it: the archive and its `.sha256` sidecar, private files owned by
+ * the container user, UID and GID 10001.
+ * @param {string} archive @param {string} content
+ */
+function writeContainerBackup(archive, content) {
+  fs.writeFileSync(archive, content, { mode: 0o600 });
+  fs.writeFileSync(`${archive}.sha256`, `${createHash("sha256").update(content).digest("hex")}  ${path.posix.basename(archive)}\n`, { mode: 0o600 });
+  for (const file of [archive, `${archive}.sha256`]) fs.chownSync(file, 10001, 10001);
+}
+
+/**
+ * Deployment backups that earlier releases left in the backup root, one of each kind the bound takes,
+ * beside the reset's own backup and the backup operations log, which it must leave. Call it after the
+ * sandbox, which clears the root.
+ * @returns {{ deployment: string[], others: string[] }}
+ */
+function seedDeploymentBackups() {
+  fs.mkdirSync(BACKUP_ROOT, { recursive: true, mode: 0o700 });
+  fs.chownSync(BACKUP_ROOT, 10001, 10001);
+  const archives = [
+    "pre-upgrade-20261104T220631Z-6bc4f62036c2-deploy.ltfbackup.tgz",
+    "pre-rollback-20260809T000859Z-7d678c9de13e-rollback.ltfbackup.tgz",
+    "pre-restore-20260808T205001Z-b2b694b3ad80-deploy-failed-deploy.ltfbackup.tgz",
+    "pre-compose-cutover-20260804T230639Z-0a85ce759b35-cutover.ltfbackup.tgz",
+  ];
+  for (const name of archives) writeContainerBackup(path.join(BACKUP_ROOT, name), name);
+  const reset = "pre-demo-reset-20261111T190000Z-scheduled-1555972.ltfbackup.tgz";
+  writeContainerBackup(path.join(BACKUP_ROOT, reset), reset);
+  fs.writeFileSync(path.join(BACKUP_ROOT, "backup-operations.jsonl"), "{}\n", { mode: 0o600 });
+  fs.chownSync(path.join(BACKUP_ROOT, "backup-operations.jsonl"), 10001, 10001);
+  return {
+    deployment: archives.flatMap((name) => [name, `${name}.sha256`]),
+    others: [reset, `${reset}.sha256`, "backup-operations.jsonl"],
+  };
+}
+
 /** @param {string[]} args @param {string} flag */
 function valueAfter(args, flag) {
   const index = args.indexOf(flag);
@@ -350,6 +395,24 @@ async function main() {
   for (const tool of ["docker", "curl"]) {
     fs.writeFileSync(path.join(fakeBin, tool), `#!/usr/bin/env bash\nexec ${shellQuote(process.execPath)} ${shellQuote(scriptPath)} --fake ${tool} "$@"\n`, { mode: 0o755 });
   }
+  // A fake `rm` in plain bash, which fails on the paths a scenario names in its rm-fails file and
+  // otherwise runs the real one, at no cost to the many removals that pass straight through.
+  const realRm = spawnSync("bash", ["-c", "command -v rm"], { encoding: "utf8" }).stdout.trim();
+  assert.match(realRm, /^\/(usr\/)?bin\/rm$/, "the real rm must be found");
+  fs.writeFileSync(path.join(fakeBin, "rm"), [
+    "#!/usr/bin/env bash",
+    "fails=\"${HARNESS_STATE:-/nonexistent}/rm-fails\"",
+    "if test -f \"$fails\"; then",
+    "  while IFS= read -r pattern; do",
+    "    for argument in \"$@\"; do",
+    // An unquoted right-hand side is a pattern.
+    "      if [[ \"$argument\" == $pattern ]]; then printf \"rm: cannot remove '%s': Read-only file system\\n\" \"$argument\" >&2; exit 1; fi",
+    "    done",
+    "  done < \"$fails\"",
+    "fi",
+    `exec ${realRm} "$@"`,
+    "",
+  ].join("\n"), { mode: 0o755 });
   const previous = loadRelease(PREVIOUS_METADATA);
   const current = loadRelease(CURRENT_METADATA);
   /** @type {{ name: string, ok: boolean, detail?: string }[]} */
@@ -626,6 +689,143 @@ async function main() {
       assert.ok(prepare > indexOfCall(result.calls, "stop") && prepare < indexOfCall(result.calls, "backup-create"));
     });
 
+    const demoBox = (/** @type {(options?: SandboxOptions) => Sandbox} */ sandbox) => sandbox({
+      images: [previous, current], baseline: previous, demoMode: "true", isolationHelper: true, origin: DEMO_ORIGIN,
+    });
+    /** The helper's final result line. @param {HelperResult} result */
+    const resultLine = (result) => /** @type {{ deploymentBackups?: { kept: string, removed: number } }} */ (JSON.parse(result.stdout.trim().split("\n").at(-1) || "{}"));
+    /** @param {Sandbox} box */
+    const rollbackName = (box) => path.posix.basename(String(readState(box, "previous.json").deployment?.rollbackBackup));
+
+    await scenario("on the demo, a verified deploy keeps only the deployment backup its rollback names", ({ sandbox }) => {
+      const box = demoBox(sandbox);
+      const seeded = seedDeploymentBackups();
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assert.equal(result.status, 0, result.stderr);
+      const kept = rollbackName(box);
+      assert.match(kept, /^pre-upgrade-\d{8}T\d{6}Z-[a-f0-9]{12}-deploy\.ltfbackup\.tgz$/);
+      assert.deepEqual(listBackups(), [...seeded.others, kept, `${kept}.sha256`].sort(), "every other deployment backup goes, and nothing else");
+      assert.deepEqual(resultLine(result).deploymentBackups, { kept, removed: seeded.deployment.length });
+      assert.equal(fs.existsSync(box.marker), false);
+    });
+
+    await scenario("on the demo, a verified rollback keeps only the backup its new rollback record names", ({ sandbox }) => {
+      const box = demoBox(sandbox);
+      assert.equal(runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity).status, 0);
+      const result = runHelper(box, REPAIRED_HELPER, "rollback", previous.metadata, previous.identity);
+      assert.equal(result.status, 0, result.stderr);
+      const kept = rollbackName(box);
+      assert.match(kept, /^pre-rollback-.*-rollback\.ltfbackup\.tgz$/);
+      assert.deepEqual(listBackups(), [kept, `${kept}.sha256`], "the restored pre-upgrade backup and the pre-restore backup go");
+      assert.deepEqual(resultLine(result).deploymentBackups, { kept, removed: 4 });
+    });
+
+    // Every tampered entry belongs to the container user, as one the container wrote would, so only the
+    // check each case names can refuse it.
+    for (const [label, tamper] of /** @type {[string, (seeded: { deployment: string[] }) => void][]} */ ([
+      ["a link", (seeded) => {
+        const target = path.join(BACKUP_ROOT, String(seeded.deployment[0]));
+        fs.rmSync(target);
+        fs.symlinkSync("/etc/hostname", target);
+        fs.lchownSync(target, 10001, 10001);
+      }],
+      ["a backup another user owns", (seeded) => fs.chownSync(path.join(BACKUP_ROOT, String(seeded.deployment[1])), 0, 0)],
+      ["a backup with a second name", (seeded) => fs.linkSync(path.join(BACKUP_ROOT, String(seeded.deployment[2])), path.join(BACKUP_ROOT, "copy-of-a-backup"))],
+      ["a directory under a backup's name", (seeded) => {
+        const target = path.join(BACKUP_ROOT, String(seeded.deployment[3]));
+        fs.rmSync(target);
+        fs.mkdirSync(target);
+        fs.chownSync(target, 10001, 10001);
+      }],
+      ["an unexpected name under a deployment prefix", () => {
+        const target = path.join(BACKUP_ROOT, "pre-upgrade-notes.txt");
+        fs.writeFileSync(target, "operator notes\n", { mode: 0o600 });
+        fs.chownSync(target, 10001, 10001);
+      }],
+    ])) {
+      await scenario(`on the demo, the deployment-backup bound refuses ${label}, removes nothing, and says the release is live`, ({ sandbox }) => {
+        const box = demoBox(sandbox);
+        const seeded = seedDeploymentBackups();
+        tamper(seeded);
+        const before = listBackups();
+        const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+        assert.notEqual(result.status, 0, "a refused bound must fail the helper");
+        assert.match(result.stderr, /deploy verified and recorded, and the release is live, but the public-demo deployment-backup bound refused; nothing was removed/);
+        const kept = rollbackName(box);
+        assert.deepEqual(listBackups(), [...before, kept, `${kept}.sha256`].sort(), "a refused bound removes nothing");
+        assert.equal(readState(box, "current.json").commitSha, current.identity.commit, "the verified release stays recorded");
+        assert.equal(readRuntime(box).running, current.identity.reference);
+        assert.equal(fs.existsSync(box.marker), false, "the verified release stays served");
+      });
+    }
+
+    await scenario("on the demo, a bound that stops part-way says how far it went, keeps the rollback backup, and the next verified rollback finishes it", ({ sandbox }) => {
+      const box = demoBox(sandbox);
+      const seeded = seedDeploymentBackups();
+      // Archives go first, in name order: the cut-over and pre-restore archives go, and then the
+      // pre-rollback archive cannot.
+      const fails = path.join(box.harnessState, "rm-fails");
+      fs.writeFileSync(fails, `${BACKUP_ROOT}/pre-rollback-*.ltfbackup.tgz\n`);
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      fs.rmSync(fails);
+      assert.notEqual(result.status, 0, "a bound that stopped part-way must fail the helper");
+      assert.match(result.stderr, /deploy verified and recorded, and the release is live, but the public-demo deployment-backup bound stopped after removing 2 files; the recorded rollback backup is kept, and the next verified deploy or rollback finishes the bound/);
+      assert.doesNotMatch(result.stderr, /nothing was removed/);
+      const kept = rollbackName(box);
+      const gone = ["pre-compose-cutover-20260804T230639Z-0a85ce759b35-cutover.ltfbackup.tgz", "pre-restore-20260808T205001Z-b2b694b3ad80-deploy-failed-deploy.ltfbackup.tgz"];
+      assert.deepEqual(listBackups(), [...seeded.deployment.filter((name) => !gone.includes(name)), ...seeded.others, kept, `${kept}.sha256`].sort());
+      assert.equal(readState(box, "current.json").commitSha, current.identity.commit, "the verified release stays recorded");
+      assert.equal(readRuntime(box).running, current.identity.reference);
+      assert.equal(fs.existsSync(box.marker), false, "the verified release stays served");
+      const rollback = runHelper(box, REPAIRED_HELPER, "rollback", previous.metadata, previous.identity);
+      assert.equal(rollback.status, 0, rollback.stderr);
+      const keptAfter = rollbackName(box);
+      assert.deepEqual(listBackups(), [...seeded.others, keptAfter, `${keptAfter}.sha256`].sort(), "the next verified rollback finishes the bound, orphaned sidecars included");
+    });
+
+    await scenario("the preview keeps every deployment backup", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, demoMode: "false" });
+      const seeded = seedDeploymentBackups();
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assert.equal(result.status, 0, result.stderr);
+      const kept = rollbackName(box);
+      assert.deepEqual(listBackups(), [...seeded.deployment, ...seeded.others, kept, `${kept}.sha256`].sort());
+      assert.equal(resultLine(result).deploymentBackups, undefined, "only the demo reports the bound");
+    });
+
+    // A scheduled backup's recovery that cannot prove a step container removed leaves the release
+    // stopped, behind the curtain, and the container where it is. The container holds no lock, so the
+    // deploy helper itself must refuse to run beside it: a rollback, and a deploy, change nothing.
+    await scenario("a step container a scheduled backup left refuses a rollback and a deploy under the lock, before any change", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous });
+      assert.equal(runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity).status, 0);
+      const scenarioFile = path.join(box.harnessState, "scenario.json");
+      const leftover = "5ca1ab1e".repeat(8);
+      writePublic(scenarioFile, JSON.stringify({ .../** @type {FakeScenario} */ (readJson(scenarioFile)), stepContainers: [leftover] }));
+      const operations = path.join(box.deployRoot, "operations");
+      const recorded = () => ({
+        operations: fs.readdirSync(operations).sort(),
+        current: fs.readFileSync(path.join(box.stateRoot, "current.json"), "utf8"),
+        previous: fs.readFileSync(path.join(box.stateRoot, "previous.json"), "utf8"),
+      });
+      for (const [mode, release] of /** @type {["deploy" | "rollback", Release][]} */ ([["rollback", previous], ["deploy", current]])) {
+        const before = recorded();
+        const result = runHelper(box, REPAIRED_HELPER, mode, release.metadata, release.identity);
+        assertRefusedBeforePull(box, result, `a step container a scheduled backup started still exists; no deploy or rollback runs beside it, so nothing was changed: ${leftover}`, current);
+        assert.deepEqual(result.calls.map((call) => call.action), ["list-step-containers"], `${mode}: the listing is the helper's first and only call`);
+        assert.ok(fs.existsSync(path.join(box.inbox, "release-metadata.json")), `${mode}: the staged metadata stays in the inbox`);
+        assert.deepEqual(recorded(), before, `${mode}: no operation record or state changes`);
+      }
+    });
+
+    await scenario("a step-container listing that fails refuses a deploy before any change, rather than assuming there is none", ({ sandbox }) => {
+      const box = sandbox({ images: [previous, current], baseline: previous, stepListingFails: true });
+      const result = runHelper(box, REPAIRED_HELPER, "deploy", current.metadata, current.identity);
+      assertRefusedBeforePull(box, result, "the scheduled backup's step containers could not be listed, so nothing was changed", previous);
+      assert.deepEqual(result.calls.map((call) => call.action), ["list-step-containers"]);
+      assert.ok(fs.existsSync(path.join(box.inbox, "release-metadata.json")), "the staged metadata stays in the inbox");
+    });
+
     await scenario("a held operation lock refuses the helper before anything else", ({ sandbox }) => {
       const box = sandbox({ images: [previous, current], baseline: previous });
       const lock = path.join(box.deployRoot, "compose-operation.lock");
@@ -652,7 +852,7 @@ async function main() {
 }
 
 /** @typedef {{ name: string, metadata: ReleaseMetadata, identity: ReleaseIdentity }} Release */
-/** @typedef {{ images?: Release[], baseline?: Release | null, unhealthy?: Release[], brokenNative?: Release[], restoreFails?: boolean, backupFails?: BackupFault, demoMode?: string | null, isolationHelper?: boolean, origin?: string, secureKeyBackup?: boolean | "missing" }} SandboxOptions */
+/** @typedef {{ images?: Release[], baseline?: Release | null, unhealthy?: Release[], brokenNative?: Release[], restoreFails?: boolean, backupFails?: BackupFault, demoMode?: string | null, isolationHelper?: boolean, origin?: string, secureKeyBackup?: boolean | "missing", stepContainers?: string[], stepListingFails?: boolean }} SandboxOptions */
 
 /** @param {string} filePath @returns {Release} */
 function loadRelease(filePath) {
@@ -787,6 +987,8 @@ function createSandbox(work, ordinal, fakeBin, options) {
     operationsRoot: path.join(deployRoot, "operations"),
     markerPath: sandbox.marker,
     publicOrigin: origin,
+    stepContainers: options.stepContainers ?? [],
+    stepListingFails: options.stepListingFails === true,
   };
   writePublic(path.join(harnessState, "scenario.json"), JSON.stringify(fakeScenario));
   writePublic(path.join(harnessState, "calls.jsonl"), "");

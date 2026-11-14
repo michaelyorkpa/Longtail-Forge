@@ -158,6 +158,16 @@ for (const requirement of [
   /platform-manifest\.json/,
   /refusing to replace immutable assets/,
 ]) assert.match(manualRelease, requirement);
+// Operators install the scheduled backup and its off-server copy from the release's own assets.
+for (const asset of [
+  "scripts/release/longtail-forge-scheduled-backup-host.example",
+  "scripts/release/longtail-forge-scheduled-backup.service.example",
+  "scripts/release/longtail-forge-scheduled-backup.timer.example",
+  "docs/longtail-forge-scheduled-backup.env.example",
+  "scripts/release/longtail-forge-offsite-copy-host.example",
+  "docs/longtail-forge-offsite-copy.env.example",
+  "scripts/release/longtail-forge-offsite-receive-host.example",
+]) assert.ok(manualRelease.includes(`${asset} \\`), `the release must publish ${asset}`);
 assert.match(
   manualRelease,
   /name: Set up attestation-capable Docker Buildx builder[\s\S]*docker buildx create --name longtail-forge-release --driver docker-container --use[\s\S]*docker buildx inspect --bootstrap[\s\S]*name: Publish and verify the immutable linux\/amd64 image/,

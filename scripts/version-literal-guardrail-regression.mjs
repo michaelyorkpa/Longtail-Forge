@@ -109,7 +109,8 @@ for (const [label, entry] of /** @type {const} */ ([
   ["the checkpoint validator outside its series constant", { path: "scripts/release/checkpoint-commits.mjs", source: `const RELEASE = "${appVersion}";` }],
   ["a coverage rationale that does not record the cursor", { path: "scripts/regression-coverage-exceptions.json", source: `      "rationale": "The ${appVersion} release pinned a literal.",` }],
   ["the cursor phrase in another coverage field", { path: "scripts/regression-coverage-exceptions.json", source: `      "assertionDisposition": "The live cursor is ${appVersion}, so nothing re-enters.",` }],
-  ["a changelog body line outside the four historical lines", { path: "CHANGELOG.md", source: `- Shipped ${appVersion} with a new feature.` }],
+  ["a changelog body line outside the five historical lines", { path: "CHANGELOG.md", source: `- Shipped ${appVersion} with a new feature.` }],
+  ["the reset-retention entry's forward reference, reworded", { path: "CHANGELOG.md", source: `  - **Visitor-entered content** stays until ${appVersion} bounds it on the demo.` }],
 ])) {
   assert.deepEqual(
     scanEntriesForCurrentVersion([entry], appVersion, allowlist).map(({ path }) => path),
@@ -123,6 +124,8 @@ assert.deepEqual(
     { path: "scripts/regression-coverage-exceptions.json", source: `      "rationale": "The live cursor is ${appVersion}, so an archived section can never re-enter.",` },
     { path: "scripts/regression-coverage-manifest.json", source: `      "rationale": "A cursor floor that a live ${appVersion} cursor can never fail.",` },
     { path: "CHANGELOG.md", source: `  public-hosting review scope is now an explicit \`${appVersion}\` decision gate.` },
+    // The reset-retention entry named the next patch before it was current.
+    { path: "CHANGELOG.md", source: `  - **Visitor-entered content** is gone from those copies about three hours after it was entered, in normal operation. Only named cases keep it longer: a failed reset's incident evidence, retention that is blocked or capped (until the operator answers its alert), a held demo, and deployment backups, which ${appVersion} bounds on the demo. \`DECISIONS.md\` records it, for 0.33.34's privacy notices to cite.` },
   ], appVersion, allowlist),
   [],
   "each anchored rule must admit exactly the line shape it names",

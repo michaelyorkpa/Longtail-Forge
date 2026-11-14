@@ -53,6 +53,11 @@ const stages = [
     label: "actual public-demo boot, alert, scheduler, and reset helpers as root: boot refusals before start, isolation before start, the lock hand-off, and the alert boundary",
     args: ["scripts/release/public-demo-helper-contract-harness.mjs"],
   },
+  {
+    id: "scheduled-backup-contract",
+    label: "actual scheduled backup, off-server copy hook, and receiver as root: the lock, the demo refusal, the curtain, retention, the hook boundary, the alert, and the receiver's checks and caps",
+    args: ["scripts/release/scheduled-backup-contract-harness.mjs"],
+  },
 ];
 
 if (options.plan) {

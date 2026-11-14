@@ -171,7 +171,10 @@ const SEEDS = Object.freeze([
   { label: "retention trusts a failed backup listing", helper: "reset", from: "    || fail 'the backup root could not be listed; nothing was removed'", to: "    || true", caughtBy: "retention refuses when its backup listing fails" },
   { label: "retention accepts a linked history root", helper: "reset", from: "  test -d \"$OPERATION_ROOT\" && test ! -L \"$OPERATION_ROOT\" && test \"$(stat -c '%u' \"$OPERATION_ROOT\")\" = '0' \\\n    || fail 'the reset history root is not a root-owned real directory; nothing was removed'\n", to: "", caughtBy: "the automatic step refuses a reset history root that is a link" },
   { label: "the cap ignores evidence tombstones", helper: "reset", from: "test \"$((${#evidence_operations[@]} + ${#tombstones[@]}))\" -gt \"$cap\"", to: "test \"${#evidence_operations[@]}\" -gt \"$cap\"", caughtBy: "the automatic step counts evidence tombstones against its cap" },
-  { label: "the cap ignores in-volume tombstones", helper: "reset", from: "test \"$((unit_selected + unit_tombstones))\" -gt \"$cap\"", to: "test \"$unit_selected\" -gt \"$cap\"", caughtBy: "the automatic step counts in-volume tombstones against its cap" },
+  { label: "the cap ignores in-volume tombstones", helper: "reset", from: "test \"$((unit_selected + unit_tombstones + stale_selected))\" -gt \"$cap\"", to: "test \"$((unit_selected + stale_selected))\" -gt \"$cap\"", caughtBy: "the automatic step counts in-volume tombstones against its cap" },
+  { label: "the cap ignores stale-candidate copies", helper: "reset", from: "test \"$((unit_selected + unit_tombstones + stale_selected))\" -gt \"$cap\"", to: "test \"$((unit_selected + unit_tombstones))\" -gt \"$cap\"", caughtBy: "the automatic step counts stale-candidate copies against its cap" },
+  { label: "retention removes the stale copy of the reset it belongs to", helper: "reset", from: "    || fail 'the current reset ranks among the stale-candidate copies to remove; nothing was removed'", to: "    || true", caughtBy: "the automatic step never removes the stale-candidate copy of the reset it belongs to" },
+  { label: "retention requires an image that reports stale copies", helper: "reset", from: "jq -er 'if has(\"staleCandidates\") then .staleCandidates.selected else 0 end | numbers'", to: "jq -er '.staleCandidates.selected | numbers'", caughtBy: "the automatic step accepts a release that reports no stale-candidate copies" },
   { label: "retention removes the backup of the reset it belongs to", helper: "reset", from: "    test \"$operation_id\" != \"$OPERATION_ID\" || fail 'the current reset ranks outside the retained history; nothing was removed'\n", to: "", caughtBy: "the automatic step never removes the reset it belongs to" },
   { label: "retention removes the retired unit of the reset it belongs to", helper: "reset", from: "    || fail 'the current reset ranks among the retired units to remove; nothing was removed'", to: "    || true", caughtBy: "the automatic step never removes the retired unit of the reset it belongs to" },
   { label: "a signal during retention fails the completed reset", helper: "reset", from: "trap 'RETENTION_INTERRUPTED=true' HUP INT TERM\n", to: "", caughtBy: "a signal during retention leaves the completed reset completed" },
@@ -224,6 +227,7 @@ const SEEDS = Object.freeze([
  *   stateQuery?: "fails" | "fails-after-kill", dockerStall?: "kill" | "first-state-query", stopCanary?: boolean,
  *   resetRetention?: string, unitsToPrune?: number, pruneFails?: boolean, unitTombstones?: number, pruneSignals?: boolean,
  *   pruneSelectsCurrent?: boolean, findFails?: "history" | "evidence" | "backups",
+ *   staleToPrune?: number, pruneSelectsCurrentStale?: boolean, pruneReportsNoStale?: boolean,
  *   curtainSignal?: boolean, finalizeSignals?: boolean, finalizeReplacesMarker?: boolean,
  * }} Scenario
  */
@@ -615,17 +619,27 @@ function fakePrune(args, scenario) {
   const cap = args.includes("--max-removals") ? Number(args[args.indexOf("--max-removals") + 1]) : null;
   const selected = scenario.unitsToPrune ?? 1;
   const tombstones = scenario.unitTombstones ?? 0;
-  const status = mode === "plan" ? "prune-planned" : cap !== null && selected + tombstones > cap ? "prune-cap-exceeded" : "pruned";
+  // A release from before stale-candidate pruning reports no copies, and removes none.
+  const stale = scenario.pruneReportsNoStale ? 0 : scenario.staleToPrune ?? 0;
+  const deletions = selected + tombstones + stale;
+  const status = mode === "plan" ? "prune-planned" : cap !== null && deletions > cap ? "prune-cap-exceeded" : "pruned";
   const selectedOperations = Array.from({ length: selected }, (_, index) => `20250101T${String(index).padStart(6, "0")}Z-scheduled-${index + 1}`);
-  // The reset this prune runs for, if the scenario has its own retired unit selected: its evidence is
-  // the newest directory in the reset history.
-  if (scenario.pruneSelectsCurrent) {
+  const staleOperations = Array.from({ length: stale }, (_, index) => `20250102T${String(index).padStart(6, "0")}Z-scheduled-${index + 1}`);
+  // The reset this prune runs for, if the scenario has its own retired unit or stale copy selected: its
+  // evidence is the newest directory in the reset history.
+  if (scenario.pruneSelectsCurrent || scenario.pruneSelectsCurrentStale) {
     const history = path.join(path.dirname(String(readJson(path.join(String(process.env.HARNESS_STATE), "paths.json")).lock)), "demo-reset-operations");
-    selectedOperations[0] = fs.readdirSync(history).sort().at(-1) || "";
+    const current = fs.readdirSync(history).sort().at(-1) || "";
+    if (scenario.pruneSelectsCurrent) selectedOperations[0] = current;
+    if (scenario.pruneSelectsCurrentStale) staleOperations[0] = current;
   }
   return emit(`${JSON.stringify({
-    contract: "longtail-forge-public-demo-prune-v1", incidents: 0, mode, removed: status === "pruned" ? selected + tombstones : 0, retainedOperations: [],
-    selected, ...(mode === "plan" ? { selectedOperations } : {}), skipped: 0, status, target: "rt-ltf-demo", tombstones,
+    contract: "longtail-forge-public-demo-prune-v1", incidents: 0, mode, removed: status === "pruned" ? deletions : 0, retainedOperations: [],
+    selected, ...(mode === "plan" ? { selectedOperations } : {}), skipped: 0,
+    ...(scenario.pruneReportsNoStale ? {} : {
+      staleCandidates: { incidents: 0, retained: 0, selected: stale, skipped: 0, ...(mode === "plan" ? { selectedOperations: staleOperations } : {}) },
+    }),
+    status, target: "rt-ltf-demo", tombstones,
   })}\n`);
 }
 
@@ -1568,6 +1582,44 @@ async function main() {
       assert.match(fs.readFileSync(path.join(resetDirectory(box), "step-retention.err"), "utf8"), /the current reset ranks among the retired units to remove/);
       assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
     }, { running: true, pruneSelectsCurrent: true });
+    /** The stale-candidate copies a reset's retention recorded. @param {Sandbox} box */
+    const staleRecorded = (box) => /** @type {{ units: { staleCandidates: unknown } }} */ (/** @type {unknown} */ (
+      readJson(path.join(resetDirectory(box), "retention.json")))).units.staleCandidates;
+    scenario("the automatic step counts stale-candidate copies against its cap", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(lastLine(result.stdout)).retention.status, "capped", "one unit and three stale copies are four removals");
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
+      assert.deepEqual(staleRecorded(box),
+        { selected: 3, retained: 0, incidents: 0, skipped: 0, operations: ["20250102T000000Z-scheduled-1", "20250102T000001Z-scheduled-2", "20250102T000002Z-scheduled-3"] });
+    }, { running: true, unitsToPrune: 1, staleToPrune: 3 });
+    scenario("the automatic step removes stale-candidate copies within its cap", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).retention, { status: "pruned", units: 2, backups: 0, evidence: 0 });
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan", "apply"]);
+    }, { running: true, unitsToPrune: 1, staleToPrune: 1 });
+    scenario("the automatic step never removes the stale-candidate copy of the reset it belongs to", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).retention, { status: "failed" });
+      assert.match(fs.readFileSync(path.join(resetDirectory(box), "step-retention.err"), "utf8"), /the current reset ranks among the stale-candidate copies to remove/);
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments[1]), ["plan"]);
+    }, { running: true, unitsToPrune: 0, staleToPrune: 1, pruneSelectsCurrentStale: true });
+    scenario("the automatic step accepts a release that reports no stale-candidate copies", (box) => {
+      const result = reset(box);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).retention, { status: "pruned", units: 1, backups: 0, evidence: 0 });
+      assert.deepEqual(staleRecorded(box),
+        { selected: 0, retained: 0, incidents: 0, skipped: 0, operations: [] });
+    }, { running: true, pruneReportsNoStale: true });
+    scenario("retention plan names the stale-candidate copies it would remove", (box) => {
+      seedHistory(box, Array.from({ length: 3 }, (_, hour) => ({ id: historyId(box, hour) })));
+      const result = retention(box, "plan");
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(lastLine(result.stdout)).units.staleCandidates, { selected: 1, operations: ["20250102T000000Z-scheduled-1"] });
+      assert.deepEqual(prunes(result.calls).map((call) => call.arguments), [["--mode", "plan"]]);
+    }, { staleToPrune: 1 });
     scenario("a signal during retention leaves the completed reset completed, and the reset still reports it", (box) => {
       const result = reset(box);
       assert.equal(result.status, 0, result.stderr);

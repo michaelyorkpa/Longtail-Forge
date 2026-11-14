@@ -135,7 +135,15 @@ The timer runs at the top of every UTC hour and deliberately uses `Persistent=fa
 
 The host's root Docker client authenticates to GHCR separately with one pull-only credential scoped to the Longtail Forge package. Store it only in root's Docker credential store or a reviewed credential helper—never in GitHub Actions, the helper environment, Compose application environment, image layers, metadata, the deployment inbox, or the deployment account. Rotation is additive: install the replacement, prove an exact digest pull, then revoke the old credential. Revoke immediately on suspected disclosure and keep `DEPLOY_ENABLED=false` until a replacement digest pull and helper preflight pass. Package deletion, administration, repository write, and owner-wide scopes are not required for the host.
 
-The root helper validates schema-2 metadata and the pulled labels, then requires the recorded known-good Compose baseline established by the live cutover in 0.33.28.4; it refuses to treat an unrecorded first install or data volume as an automated upgrade. For a recorded baseline it asserts the deployment-owned maintenance marker, stops only the Compose app, creates and inspects the whole-instance backup, selects the new digest, starts and verifies direct/public identity, and clears only its marker. Failed candidate verification restores the prior database and Files together with the prior digest; explicit rollback first protects the current state and restores the recorded previous backup. A failure or signal behind the curtain but before any data change restarts the current release unchanged, and clears the marker only once its direct and public identity verify. Such failures include a protected backup that cannot be created or inspected, and a state record the next step cannot read. Every other failure behind the curtain stays curtained, with the images, backups, metadata, and operation evidence retained for the operator: a failed restore, a recovery or restart that does not verify, or a failure after the new release has verified. The operator marker remains independent.
+The root helper validates schema-2 metadata and the pulled labels, then requires the recorded known-good Compose baseline established by the live cutover in 0.33.28.4; it refuses to treat an unrecorded first install or data volume as an automated upgrade. Under the lifecycle lock, before any change, it also refuses a deploy or rollback while a scheduled backup's step container still exists, naming each one: that backup's recovery could not prove it gone, it may still be writing, and it holds no lock of its own. See [clearing a step container](#clearing-a-step-container-an-earlier-run-left). For a recorded baseline it asserts the deployment-owned maintenance marker, stops only the Compose app, creates and inspects the whole-instance backup, selects the new digest, starts and verifies direct/public identity, and clears only its marker. Failed candidate verification restores the prior database and Files together with the prior digest; explicit rollback first protects the current state and restores the recorded previous backup. A failure or signal behind the curtain but before any data change restarts the current release unchanged, and clears the marker only once its direct and public identity verify. Such failures include a protected backup that cannot be created or inspected, and a state record the next step cannot read. Every other failure behind the curtain stays curtained, with the images, backups, metadata, and operation evidence retained for the operator: a failed restore, a recovery or restart that does not verify, or a failure after the new release has verified. The operator marker remains independent.
+
+**The public demo's deployment-backup bound.** On the demo, each deployment backup keeps the visitor-entered content of its moment.
+- **What stays.** After a deploy or rollback verifies and its states are recorded, the helper keeps only the backup that `previous.json` names as `rollbackBackup`, with its sidecar.
+- **What goes.** Every other `pre-upgrade-`, `pre-rollback-`, `pre-restore-`, and `pre-compose-cutover-` backup and sidecar.
+- **The checks.** Each must be a plain file with one name, owned by the backup root's owner. Any other entry under those names, or any failed check, refuses the whole bound, and nothing is removed. The helper then exits non-zero, saying that the release is live and recorded, so the workflow shows the refusal.
+- **A removal that fails part-way** is reported by how many files had gone, never as nothing removed. The kept backup is untouched. Archives go before sidecars, so what is left is still checked, and the next verified deploy or rollback finishes the bound. The helper exits non-zero in the same way.
+- **The report.** The final line names the kept backup and the number of files removed, as `deploymentBackups`.
+- **The preview** keeps every deployment backup, and the reset's own backups are never touched.
 
 ## Docker Compose installation
 
@@ -238,6 +246,109 @@ docker compose up -d --no-deps --force-recreate longtail-forge
 Inspect the automatically created pre-restore archive, then repeat the full health/readiness/identity/schema/login/workspace/Files/workflow acceptance against the prior version before clearing maintenance. Confirm candidate-only mutations are absent and the baseline database plus Files are present together. Retain the failed upgraded volume, original/pre-restore archives and sidecars, both image digests, provenance, and recovery-key material through the observation period. A failed restore, startup, identity, or workflow check stays curtained; do not improvise a mixed-state recovery.
 
 `npm run container:smoke` is the required native `linux/amd64` acceptance for this lifecycle. It performs two clean controlled-artifact image builds, validates Compose and hardening, uses a real Caddy process and protocol-level scanner fixture, creates authenticated workspace/workflow/File state, proves stop/start persistence, creates and inspects a real backup, observes a scanner-unready candidate restart, upgrades by force-recreation, restores into a clean recovery volume, and proves restored rollback plus SQLite integrity and migration identity. Missing Docker/native architecture is a failed prerequisite, never a passing skip.
+
+## Scheduled backups and the off-server copy
+
+A Compose installation that is not the public demo backs itself up nightly, and can copy each backup, encrypted, to another server. The public demo never runs it. It resets hourly, so a nightly backup would have nothing to recover, and would keep visitor-entered content for days.
+
+**What a nightly run does.** The timer runs `longtail-forge-scheduled-backup run --trigger scheduled` at 08:30 UTC. Its child holds the shared lifecycle lock, so it never overlaps a deploy, rollback, or reset.
+1. **Refusals before the curtain.** Nothing is stopped when any of these fails.
+   - **The installation.** The resolved configuration's `DEMO_MODE`, and the running container's own, must each be exactly `false`. A held lock exits 75. A maintenance curtain that is already up is another operation's, and is never taken over.
+   - **The running container** must be the one the deploy helper verified: its identity and posture are checked with the deploy helper's own predicate.
+   - **What the backup reads.** The running container's data must be exactly one whole volume: nothing else at or beneath `/var/lib/longtail-forge`, by any spelling of the path, whether a bind, volume, tmpfs, or device, and no volume subpath. The recorded image must still be its own local image. Otherwise a backup of that volume would hold other data than the application serves.
+   - **Each runtime classification** the backup records must be a plain value, set once. These are `LONGTAIL_ENV`, `LONGTAIL_FILE_SCANNER`, `LONGTAIL_SQLITE_FOREIGN_KEYS`, `LONGTAIL_SQLITE_JOURNAL_MODE`, and `LONGTAIL_WORKER_MODE`.
+   - **A step container an earlier backup left** refuses the run, which names it. Its recovery could not prove it gone, it may still be writing, and it is never removed automatically. Deploys and rollbacks refuse too, until it is cleared: see [clearing a step container](#clearing-a-step-container-an-earlier-run-left).
+2. **The backup.** Behind the deployment curtain, it stops the application, then takes and inspects the whole-instance backup in a staging directory under the backup root, `.scheduled-pending`. Only an inspected backup joins the others, as `scheduled-<UTC>-<commit>.ltfbackup.tgz` with its sidecar. An archive that never passed inspection, whatever stopped it, is never counted as a backup, and the next run discards anything an interrupted run left there. It then starts the stopped container again as itself, without pulling or recreating anything, and lowers the curtain once that container's identity and posture, and direct and public identity, verify. The outage lasts as long as a deploy's backup step.
+   - **The stop and the restart** act on the running container by its ID, with Docker alone. Compose's own stop and start would run the configuration's lifecycle hooks in the container, and copy its inline content into it, so a configuration that had drifted could change the live data during the outage. Neither ever runs here.
+   - **The steps' containers.** Both steps run in one-off containers whose every setting the helper names:
+     - the running container's own image, by its local ID, and its own data volume, never filled from the image;
+     - the backup root and, when configured, the Secure Notes recovery-key backup, read-only;
+     - the application's user, read-only root, dropped capabilities, private `/tmp`, and init, with no network, and Docker's `local` log driver;
+     - the five runtime classifications, from the running container's own environment;
+     - and the backup program, by its path in the image.
+   - **Nothing comes from the Compose configuration.** None of its mounts, configs, secrets, entrypoint, working directory, user, or environment reaches a step, and no step receives the application's secrets. The steps never pull an image.
+3. **Time limits and recovery.** Every Docker call has a time limit of its own, inside its phase's: 5 minutes for the checks before the curtain, and two hours for the backup's own work, stopping, creating, and inspecting. A step that runs out is stopped.
+   - **Recovery has its own 20 minutes,** never what is left of the backup's, and keeps the lifecycle lock. Five of them are kept for stopping the release, if it cannot be restarted and verified.
+   - **Step containers.** Each step's one-off container carries a label with this run's own identity, and recovery removes only containers with that label, so a container the run did not start is never touched. The release is never started beside a step container that is not proved gone: it stays stopped, behind the curtain.
+   - **Every recovery step is attempted.** One that fails, such as discarding the staged archive, never skips the next.
+   - **A release that is not restarted and verified is stopped,** so an unverified container never serves, and the curtain stays up for the operator. Each container Compose lists as running for the service is stopped by its ID, and the stop counts only once Compose lists none. If it still lists one, that container is killed and checked again. A stop that still cannot be shown is reported as such, never as a stop.
+   - **Nothing outlives the run.** The backup runs in a process session of its own. Once it ends, anything left in that session is killed, so nothing still holds the lifecycle lock when the run reports. Each process's whole `/proc` record is read, because a command name may hold a newline, and a process is killed only while its start time and session still match.
+   - **The run's backstop and the service's own four-hour limit** both exceed the checks, the backup's limit, recovery's, and the copy's together.
+4. **Retention.** It keeps the 14 newest scheduled backups, by the time in each name, and always the one just made. Only exact scheduled names are considered: plain files with one name, owned by the backup root's owner. Any other entry under that prefix refuses retention, which then removes nothing. A removal that stops part-way reports how far it went, and the next run finishes it, including a sidecar whose archive was already removed. Deployment and reset backups are never touched.
+5. **The copy hook.** It receives exactly the backup just inspected, after the curtain is down, so a slow copy never lengthens the outage.
+
+**What it reports.**
+- **Each run** appends one line to `$LTF_DEPLOY_ROOT/scheduled-backups.jsonl`, which keeps the last 400 runs. It records whether the curtain was left up.
+- **When the local backup succeeds,** it sends a heartbeat to the operator's push monitor, so a monitor alerts when a night is missed. The heartbeat means only that a local backup was taken. A failed copy still sends it, and alerts on its own, so the heartbeat never proves an off-server copy.
+- **On any failure,** it raises a Discord alert with mentions disabled, which says whether the curtain is up. That includes a refusal of the run's own configuration or files, which alerts by its class alone, with the reason in the journal. It also includes a backup that succeeded but whose retention or copy did not.
+- **The failure classes:**
+  - `configuration-refused`, `lifecycle-lock-contended`, `refused-public-demo`, and `backup-failed`, all before the curtain;
+  - `backup-failed-recovered` and `backup-failed-unrecovered`, for a failed backup;
+  - `backup-timed-out-recovered` and `backup-timed-out-unrecovered`, for a backup that ran out of its time;
+  - `backup-killed`, when the backup was killed before any limit, by the kernel's out-of-memory killer or another signal. It is never reported as a timeout;
+  - `backup-run-limit-expired`, when the run's backstop ended it;
+  - `retention-failed` and `copy-failed`, after a successful backup.
+  - **Added to a failed backup's class:**
+    - `step-container-not-cleared`, when a step container could not be proved removed, so the release was not started. The journal names the run's operation, for [clearing it](#clearing-a-step-container-an-earlier-run-left);
+    - `release-not-stopped`, when the release could not be proved stopped, and may still be running behind the curtain;
+    - `staging-not-cleared`, when the staged archive could not be discarded.
+  - **Added to any class:** `processes-swept`, when processes of the backup outlived it and were killed, or `processes-not-cleared`, when they could not be, and may still hold the lifecycle lock.
+- **The URLs** live only in `/etc/longtail-forge/scheduled-backup-alert-webhook` and `/etc/longtail-forge/scheduled-backup-heartbeat-url`, root-only `0600` files of one line each, and reach `curl` on standard input. The operator supplies them directly to the host. They never enter the repository, a handoff, an issue, or any shared file.
+
+**Install it, on that installation only.** The timer is enabled last, once a manual run, the first off-server copy, and the restore drill have passed, so no unattended run comes before them.
+1. Install `scripts/release/longtail-forge-scheduled-backup-host.example` from the release's assets as `/usr/local/sbin/longtail-forge-scheduled-backup`, `root:root 0755`. Check its LF line endings and `bash -n` first, as for the Compose helper. It reads the same `/etc/longtail-forge/compose-deploy-helper.env`.
+2. Install [longtail-forge-scheduled-backup.env.example](longtail-forge-scheduled-backup.env.example) as `/etc/longtail-forge/scheduled-backup.env`, `root:root 0600`. `LTF_SCHEDULED_BACKUP_ENABLED=false` records a skipped run and does nothing else. It names no copy hook: one that is named but not yet installed refuses every run, so it is set only in step 6.
+3. Install the alert and heartbeat files.
+4. Install the service and timer examples under `/etc/systemd/system/`, and run `systemctl daemon-reload`. Do not enable the timer yet.
+5. Prove it once, in a quiet window: `longtail-forge-scheduled-backup run --trigger manual`. Then read the last line of the run log, the new archive, and the heartbeat.
+6. Set up [the off-server copy](#the-off-server-copy), run one more manual backup, and decrypt and verify that copy on the operator's workstation.
+7. Run the restore drill from a scheduled backup, into a disposable container and volume of the same release.
+8. Only then run `systemctl enable --now longtail-forge-scheduled-backup.timer`, and confirm the first nightly run and its heartbeat. The timer uses `Persistent=false`, so a host that was down skips the missed run rather than backing up during boot. The late heartbeat reports it.
+
+### Clearing a step container an earlier run left
+
+A run that alerts `step-container-not-cleared` leaves its release stopped and unchanged, behind the curtain. Its journal names its operation. Every later scheduled run, deploy, and rollback refuses until the container is cleared, under supervision. Do it all in one root shell, `sudo -i`, which holds the lifecycle lock from step 2 until it ends.
+1. **Read the installation's settings** as the helpers do, with their defaults:
+   ```sh
+   while IFS= read -r line; do case "$line" in ''|'#'*) ;; *) export "$line" ;; esac; done < /etc/longtail-forge/compose-deploy-helper.env
+   DEPLOY_ROOT="${LTF_DEPLOY_ROOT:-/var/lib/longtail-forge-compose-deploy}"
+   COMPOSE_DIR="${LTF_COMPOSE_DIR:-/opt/longtail-forge-compose}"
+   COMPOSE_FILE="${LTF_COMPOSE_FILE:-$COMPOSE_DIR/compose.yaml}"
+   COMPOSE_HOST_ENV="${LTF_COMPOSE_HOST_ENV:-/etc/longtail-forge/compose-host.env}"
+   MARKER="${LTF_MAINTENANCE_STATE_ROOT:-/var/lib/longtail-forge-maintenance}/deployment/maintenance.on"
+   RELEASE_ENV="$(jq -er '.deployment.releaseEnv' "$DEPLOY_ROOT/state/current.json")"
+   compose() { docker compose --project-directory "$COMPOSE_DIR" --file "$COMPOSE_FILE" --env-file "$COMPOSE_HOST_ENV" --env-file "$RELEASE_ENV" "$@"; }
+   for file in "$DEPLOY_ROOT/compose-operation.lock" "$COMPOSE_FILE" "$COMPOSE_HOST_ENV" "$RELEASE_ENV" "$MARKER"; do test -f "$file" || echo "MISSING: $file"; done
+   test -n "${LTF_PUBLIC_URL:-}" || echo 'MISSING: LTF_PUBLIC_URL'
+   ```
+   Stop if anything is reported missing. That file holds paths and the public origin, not secrets.
+2. **Hold the lifecycle lock,** in this shell: `exec 9<>"$DEPLOY_ROOT/compose-operation.lock"; flock --nonblock 9 && echo 'lock held'`. Without `lock held`, another operation holds the lock: wait, and run it again. From here on, every deploy, rollback, reset, and scheduled run is refused, as `lifecycle-lock-contended` for a scheduled run.
+3. **Establish what is there:** `docker ps --all --no-trunc --filter label=longtail-forge.scheduled-backup.operation --format '{{.ID}} {{.Names}} {{.State}}'`. Each container must be named `longtail-forge-scheduled-backup-<operation>-create` or `-inspect`, for the operation the journal names. Anything else is not this procedure's to remove: stop, and investigate it.
+4. **Keep the evidence** in a root-only file outside any synchronized folder: that listing, and `docker logs` of each container. A step container holds none of the application's secrets, but keep only those two: never `docker inspect` output of the application's own container, which holds its environment.
+5. **Stop and remove only those containers,** by ID: `docker stop --time 30 <ID>`, then `docker rm <ID>`. Run the listing again: none may be left. Whatever a step left in `.scheduled-pending` is discarded by the next run.
+6. **Restart and verify the release.**
+   - **Start it as itself:** `compose start longtail-forge`, then `compose ps -q longtail-forge`, which must list one container.
+   - **Verify it** as after a deploy: `curl -fsS http://127.0.0.1:8001/healthz`, `/readyz`, and `/api/app-info`, then the same three through `"$LTF_PUBLIC_URL"`. The app-info must name the release that `state/current.json` records.
+   - **Only then** remove the deployment marker: `rm -- "$MARKER"`.
+   - **A release that does not verify** stays curtained: `compose stop longtail-forge`, and recover it from the protected backups like any other curtained failure.
+7. **Release the lock** by leaving the shell. Run `longtail-forge-scheduled-backup run --trigger manual` before the next nightly run.
+
+### The off-server copy
+
+The shipped hook, `longtail-forge-offsite-copy`, encrypts each copy with [age](https://age-encryption.org) to the operator's public key. This server holds only that public key, so neither it nor the destination can read a copy. A restore from an off-server copy needs the operator's private key, which never comes to either server.
+- **On this server.** Install Ubuntu's `age` package. Install the hook from the release's assets as `/usr/local/sbin/longtail-forge-offsite-copy`, `root:root 0755`, and [longtail-forge-offsite-copy.env.example](longtail-forge-offsite-copy.env.example) as `/etc/longtail-forge/offsite-copy.env`, `root:root 0600`.
+  - **The key.** Make a dedicated key, root-only, with `ssh-keygen -t ed25519 -N '' -f /etc/longtail-forge/offsite-copy/id_ed25519`.
+  - **The destination's host key.** Pin it in the configured `known_hosts`, after checking its fingerprint against one read on the destination itself. Name the destination by its real address: a name that resolves elsewhere fails the pinned check.
+  - **Turn it on** by setting `LTF_SCHEDULED_BACKUP_COPY_HOOK` to the hook.
+- **On the destination.** Install `scripts/release/longtail-forge-offsite-receive-host.example` as `/usr/local/sbin/longtail-forge-offsite-receive`, `root:root 0755`. Create a dedicated account with a store directory it owns, mode `0700`. Give it exactly one `authorized_keys` line for this server's key: `restrict,command="/usr/local/sbin/longtail-forge-offsite-receive /srv/longtail-forge-offsite/<installation>" ssh-ed25519 ...`.
+- **What the receiver allows.**
+  - **Each copy** must be exactly its declared size, have its declared SHA-256, and be an age file. It is stored under a name the receiver chooses, from the receipt time, and is never overwritten.
+  - **What the destination can check.** It holds only the encrypted copy, so it checks that copy's size, SHA-256, and age header, comparing the header's own bytes without reading the first line into memory. The archive inside is checked against its sidecar by the hook before encryption, and again by `sha256sum -c` after decryption at a restore.
+  - **One receipt at a time,** for at most 30 minutes of streaming, the hook's own transfer limit. A stream that stalls, trickles, or never closes is cut off there, its partial copy is removed, and the store is released.
+  - **Retention.** Copies older than 14 days are removed only when a later copy is stored, so the copies outlive an installation that stops sending.
+  - **Its caps.** At most 20 copies, 3 a day, 2 GiB each, and 10 GiB in all, and every copy must leave 10 GiB of the disk free. Above a cap it refuses the new copy rather than evicting an old one, so a stolen key cannot push the good copies out or fill the destination's disk. The refusal fails the copy, which alerts.
+  - **What a stolen key can still do:** delay copies, by holding the store for one receipt's limit at a time, or by using a day's three receipts. Each copy it delays fails that night's hook, which alerts.
+- **Restore from an off-server copy,** on the operator's workstation, outside any synchronized folder. Fetch the copy with the operator's own access to the destination. Then run `age -d -i <private key> <copy> | tar -x`, and `sha256sum -c` against the archive's sidecar. Restore the archive through [Docker backup-first upgrade and rollback](#docker-backup-first-upgrade-and-rollback), with the release whose version its manifest records. Delete the decrypted files afterwards.
 
 ## Proof commands and limits
 
